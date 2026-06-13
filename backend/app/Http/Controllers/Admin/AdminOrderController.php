@@ -12,30 +12,76 @@ use Illuminate\Support\Facades\DB;
 
 class AdminOrderController extends Controller
 {
+    // All known modules in display order
+    const MODULE_META = [
+        'efood'     => ['label' => 'eFood',      'icon' => 'fa-utensils',      'color' => '#FF8A00'],
+        'eshop'     => ['label' => 'eShop',      'icon' => 'fa-shopping-bag',  'color' => '#8B5CF6'],
+        'eparcel'   => ['label' => 'eParcel',    'icon' => 'fa-box',           'color' => '#3B82F6'],
+        'elaundry'  => ['label' => 'eLaundry',   'icon' => 'fa-tshirt',        'color' => '#06B6D4'],
+        'emoving'   => ['label' => 'eMoving',    'icon' => 'fa-truck-moving',  'color' => '#10B981'],
+        'eticket'   => ['label' => 'eTicket',    'icon' => 'fa-ticket-alt',    'color' => '#F59E0B'],
+        'ehealth'   => ['label' => 'eHealth',    'icon' => 'fa-user-md',       'color' => '#EF4444'],
+        'edata'     => ['label' => 'eData',      'icon' => 'fa-wifi',          'color' => '#6366F1'],
+        'erent'     => ['label' => 'eRent',      'icon' => 'fa-home',          'color' => '#059669'],
+        'egrocery'  => ['label' => 'eGrocery',   'icon' => 'fa-carrot',        'color' => '#84CC16'],
+        'wholesale' => ['label' => 'Wholesale',  'icon' => 'fa-warehouse',     'color' => '#F97316'],
+    ];
+
     public function index(Request $request)
     {
-        $query = Order::with(['user', 'vendor', 'deliveryman'])
-            ->when($request->status, fn($q) => $q->where('status', $request->status))
-            ->when($request->module, fn($q) => $q->where('module_slug', $request->module))
-            ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
-            ->when($request->date_to, fn($q) => $q->whereDate('created_at', '<=', $request->date_to))
-            ->when($request->search, fn($q) => $q->where('order_number', 'like', "%{$request->search}%"))
+        $search    = $request->search;
+        $status    = $request->status;
+        $dateFrom  = $request->date_from;
+        $dateTo    = $request->date_to;
+        $module    = $request->module; // optional single-module filter
+
+        // Base query with filters
+        $baseQuery = Order::with(['user', 'vendor', 'deliveryman'])
+            ->when($status,   fn($q) => $q->where('status', $status))
+            ->when($dateFrom, fn($q) => $q->whereDate('created_at', '>=', $dateFrom))
+            ->when($dateTo,   fn($q) => $q->whereDate('created_at', '<=', $dateTo))
+            ->when($search,   fn($q) => $q->where(function ($q2) use ($search) {
+                $q2->where('order_number', 'like', "%{$search}%")
+                   ->orWhereHas('user', fn($u) => $u->where('name', 'like', "%{$search}%"));
+            }))
             ->latest();
 
-        $orders = $query->paginate(20);
+        // If a single module is requested, just paginate that
+        if ($module) {
+            $orders = $baseQuery->where('module_slug', $module)->paginate(20);
+            $moduleGroups = null;
+        } else {
+            // Get all orders and group by module_slug for sectioned display
+            $allOrders    = $baseQuery->get();
+            $orders       = null;
+            $moduleGroups = $allOrders->groupBy(fn($o) => $o->module_slug ?? 'other');
+        }
 
         $statusCounts = Order::selectRaw('status, COUNT(*) as count')
-            ->groupBy('status')
-            ->pluck('count', 'status');
+            ->groupBy('status')->pluck('count', 'status');
+
+        $moduleCounts = Order::selectRaw('module_slug, COUNT(*) as count')
+            ->groupBy('module_slug')->pluck('count', 'module_slug');
 
         $exchangeOrders = DB::table('exchange_orders')
             ->join('users', 'users.id', '=', 'exchange_orders.user_id')
             ->select('exchange_orders.*', 'users.name as user_name', 'users.phone as user_phone')
+            ->when($search, fn($q) => $q->where(function ($q2) use ($search) {
+                $q2->where('reference', 'like', "%{$search}%")
+                   ->orWhere('recipient_phone', 'like', "%{$search}%")
+                   ->orWhere('users.name', 'like', "%{$search}%");
+            }))
+            ->when($status, fn($q) => $q->where('exchange_orders.status', $status))
             ->orderByDesc('exchange_orders.created_at')
-            ->limit(50)
+            ->limit(100)
             ->get();
 
-        return view('admin.orders.index', compact('orders', 'statusCounts', 'exchangeOrders'));
+        $moduleMeta = self::MODULE_META;
+
+        return view('admin.orders.index', compact(
+            'orders', 'moduleGroups', 'statusCounts', 'moduleCounts',
+            'exchangeOrders', 'moduleMeta'
+        ));
     }
 
     public function show(Order $order)
