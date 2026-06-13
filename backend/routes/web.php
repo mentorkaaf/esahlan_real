@@ -19,6 +19,17 @@ use App\Http\Controllers\Admin\AdminEFoodController;
 // Redirect root to admin
 Route::get('/', fn() => redirect('/admin'));
 
+// Deploy webhook (called by GitHub Actions)
+Route::get('/deploy', function (\Illuminate\Http\Request $request) {
+    $secret = 'eSahlan_Deploy_2026_Secret';
+    $token  = $request->header('X-Deploy-Token') ?? $request->query('token', '');
+    if (!hash_equals($secret, $token)) {
+        abort(403);
+    }
+    $output = shell_exec('bash /home/u801770158/deploy.sh 2>&1');
+    return response('<pre>' . e($output) . '</pre>');
+});
+
 // Admin Auth
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware('guest')->group(function () {

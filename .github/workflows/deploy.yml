@@ -10,11 +10,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to server via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
-          script: /home/u801770158/deploy.sh
+      - name: Trigger deploy via webhook
+        run: |
+          curl -f -s -o /dev/null -w "HTTP %{http_code}" \
+            -H "X-Deploy-Token: eSahlan_Deploy_2026_Secret" \
+            "https://esahlan.com/deploy.php"
