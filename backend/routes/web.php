@@ -15,6 +15,9 @@ use App\Http\Controllers\Admin\AdminReportController;
 use App\Http\Controllers\Admin\DispatchController;
 use App\Http\Controllers\Admin\AdminModuleDataController;
 use App\Http\Controllers\Admin\AdminEFoodController;
+use App\Http\Controllers\Admin\AdminCommunityController;
+use App\Http\Controllers\Admin\AdminWalletController;
+use App\Http\Controllers\Admin\AdminLandingController;
 
 // Redirect root to admin
 Route::get('/', fn() => redirect('/admin'));
@@ -123,6 +126,37 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [AdminNotificationController::class, 'index'])->name('index');
             Route::post('/send', [AdminNotificationController::class, 'send'])->name('send');
             Route::post('/{log}/resend', [AdminNotificationController::class, 'resend'])->name('resend');
+        });
+
+        // Community
+        Route::prefix('community')->name('community.')->group(function () {
+            Route::get('/',                         [AdminCommunityController::class, 'index'])->name('index');
+            Route::get('/posts',                    [AdminCommunityController::class, 'posts'])->name('posts');
+            Route::delete('/posts/{id}',            [AdminCommunityController::class, 'deletePost'])->name('posts.delete');
+            Route::get('/reports',                  [AdminCommunityController::class, 'reports'])->name('reports');
+            Route::post('/reports/{id}/action',     [AdminCommunityController::class, 'actionReport'])->name('reports.action');
+            Route::get('/groups',                   [AdminCommunityController::class, 'groups'])->name('groups');
+            Route::delete('/groups/{id}',           [AdminCommunityController::class, 'deleteGroup'])->name('groups.delete');
+            Route::get('/users',                    [AdminCommunityController::class, 'users'])->name('users');
+            Route::post('/users/{id}/verify',       [AdminCommunityController::class, 'toggleVerify'])->name('users.verify');
+        });
+
+        // Wallet
+        Route::prefix('wallet')->name('wallet.')->group(function () {
+            Route::get('/',                         [AdminWalletController::class, 'index'])->name('index');
+            Route::get('/transactions',             [AdminWalletController::class, 'transactions'])->name('transactions');
+            Route::post('/credit',                  [AdminWalletController::class, 'creditUser'])->name('credit');
+            Route::get('/withdrawals',              [AdminWalletController::class, 'withdrawals'])->name('withdrawals');
+            Route::post('/withdrawals/{id}/approve',[AdminWalletController::class, 'approveWithdrawal'])->name('withdrawals.approve');
+            Route::post('/withdrawals/{id}/reject', [AdminWalletController::class, 'rejectWithdrawal'])->name('withdrawals.reject');
+            Route::get('/settings',                 [AdminWalletController::class, 'settings'])->name('settings');
+            Route::post('/settings',                [AdminWalletController::class, 'saveSettings'])->name('settings.save');
+        });
+
+        // Landing page
+        Route::prefix('landing')->name('landing.')->group(function () {
+            Route::get('/', [AdminLandingController::class, 'index'])->name('index');
+            Route::post('/', [AdminLandingController::class, 'update'])->name('update');
         });
 
         // Settings
