@@ -1,0 +1,115 @@
+<?php
+namespace App\Http\Controllers\Api\Community;
+use App\Http\Controllers\Controller;
+use App\Models\CommunityChat;
+use App\Models\CommunityChatMember;
+use App\Models\CommunityMessage;
+use App\Models\User;
+use Illuminate\Http\Request;
+
+class CommunityChatController extends Controller
+{
+    public function index()
+    {
+        $userId = auth()->id();
+        $chatIds = CommunityChatMember::where('user_id',$userId)->pluck('chat_id');
+
+        $chats = CommunityChat::with(['members.user.communityProfile','lastMessage.user'])
+            ->whereIn('id',$chatIds)
+            ->latest()
+            ->paginate(20);
+
+        return response()->json(['status'=>'success','data'=>$chats->map(fn($c) => $this->transformChat($c, $userId))->toArray()]);
+    }
+
+    public function startOrGet(int $userId)
+    {
+        $me = auth()->id();
+        if ($me === $userId) return response()->json(['status'=>'error'],422);
+
+        // Find existing direct chat
+        $existing = CommunityChat::where('type','direct')
+            ->whereHas('members', fn($q) => $q->where('user_id',$me))
+            ->whereHas('members', fn($q) => $q->where('user_id',$userId))
+            ->first();
+
+        if ($existing) return response()->json(['status'=>'success','data'=>$this->transformChat($existing, $me)]);
+
+        $chat = CommunityChat::create(['type'=>'direct']);
+        CommunityChatMember::create(['chat_id'=>$chat->id,'user_id'=>$me,'role'=>'member']);
+        CommunityChatMember::create(['chat_id'=>$chat->id,'user_id'=>$userId,'role'=>'member']);
+        $chat->load('members.user.communityProfile');
+
+        return response()->json(['status'=>'success','data'=>$this->transformChat($chat, $me)], 201);
+    }
+
+    public function messages(int $chatId)
+    {
+        $userId = auth()->id();
+        CommunityChatMember::where('chat_id',$chatId)->where('user_id',$userId)->firstOrFail();
+        $messages = CommunityMessage::with(['user.communityProfile','replyTo.user'])
+            ->where('chat_id',$chatId)->latest()->paginate(30);
+
+        // Mark as read
+        CommunityChatMember::where('chat_id',$chatId)->where('user_id',$userId)->update(['last_read_at'=>now()]);
+
+        return response()->json(['status'=>'success','data'=>$messages->items(),'meta'=>['current_page'=>$messages->currentPage(),'last_page'=>$messages->lastPage()]]);
+    }
+
+    public function send(Request $request, int $chatId)
+    {
+        $request->validate(['type'=>'in:text,image,audio','content'=>'nullable|string|max:2000','media'=>'nullable|file|max:20480','reply_to_id'=>'nullable|exists:community_messages,id']);
+        $userId = auth()->id();
+        CommunityChatMember::where('chat_id',$chatId)->where('user_id',$userId)->firstOrFail();
+
+        $mediaUrl = null;
+        if ($request->hasFile('media')) {
+            $path = $request->file('media')->store('community/messages','public');
+            $mediaUrl = url('/api/img/'.$path);
+        }
+
+        $msg = CommunityMessage::create([
+            'chat_id' => $chatId,
+            'user_id' => $userId,
+            'type' => $request->type ?? 'text',
+            'content' => $request->content,
+            'media_url' => $mediaUrl,
+            'reply_to_id' => $request->reply_to_id,
+        ]);
+
+        $msg->load(['user.communityProfile','replyTo.user']);
+        return response()->json(['status'=>'success','data'=>$msg], 201);
+    }
+
+    public function deleteMessage(int $msgId)
+    {
+        $msg = CommunityMessage::where('user_id',auth()->id())->findOrFail($msgId);
+        $msg->update(['is_deleted'=>true,'content'=>'Message deleted']);
+        return response()->json(['status'=>'success']);
+    }
+
+    private function transformChat($chat, int $userId): array
+    {
+        $other = $chat->type === 'direct'
+            ? $chat->members->firstWhere('user_id','!=',$userId)?->user
+            : null;
+        $feed = new CommunityFeedController();
+
+        return [
+            'id' => $chat->id,
+            'type' => $chat->type,
+            'name' => $chat->type === 'group' ? $chat->name : $other?->name,
+            'avatar' => $chat->type === 'group' ? $chat->avatar : $other?->avatar,
+            'other_user' => $other ? $feed->transformUser($other, $userId) : null,
+            'last_message' => $chat->lastMessage?->first() ? [
+                'id' => $chat->lastMessage->first()->id,
+                'type' => $chat->lastMessage->first()->type,
+                'content' => $chat->lastMessage->first()->is_deleted ? 'Message deleted' : $chat->lastMessage->first()->content,
+                'created_at' => $chat->lastMessage->first()->created_at,
+                'is_mine' => $chat->lastMessage->first()->user_id === $userId,
+            ] : null,
+            'unread_count' => $chat->unreadCount($userId),
+            'members_count' => $chat->members->count(),
+        ];
+    }
+}

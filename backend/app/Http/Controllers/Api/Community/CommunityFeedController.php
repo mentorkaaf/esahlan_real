@@ -1,0 +1,184 @@
+<?php
+namespace App\Http\Controllers\Api\Community;
+use App\Http\Controllers\Controller;
+use App\Models\CommunityPost;
+use App\Models\CommunityFollow;
+use App\Models\CommunityProfile;
+use Illuminate\Http\Request;
+
+class CommunityFeedController extends Controller
+{
+    // Main following feed
+    public function following(Request $request)
+    {
+        $userId = auth()->id();
+        $followingIds = CommunityFollow::where('follower_id', $userId)->pluck('following_id');
+        $followingIds->push($userId);
+
+        $posts = CommunityPost::with(['user.communityProfile','media','userReaction'])
+            ->whereIn('user_id', $followingIds)
+            ->whereNull('group_id')
+            ->where('privacy', '!=', 'private')
+            ->latest()
+            ->paginate(15);
+
+        return response()->json(['status'=>'success','data'=>$this->transformPosts($posts, $userId),'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage(),'total'=>$posts->total()]]);
+    }
+
+    // Explore / trending feed
+    public function explore(Request $request)
+    {
+        $userId = auth()->id();
+        $posts = CommunityPost::with(['user.communityProfile','media','userReaction'])
+            ->where('privacy','public')
+            ->whereNull('group_id')
+            ->orderByDesc('likes_count')
+            ->orderByDesc('created_at')
+            ->paginate(15);
+
+        return response()->json(['status'=>'success','data'=>$this->transformPosts($posts, $userId),'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage()]]);
+    }
+
+    // Reels feed
+    public function reels(Request $request)
+    {
+        $userId = auth()->id();
+        $posts = CommunityPost::with(['user.communityProfile','media','userReaction'])
+            ->whereIn('type',['reel','video'])
+            ->where('privacy','public')
+            ->orderByDesc('views_count')
+            ->orderByDesc('created_at')
+            ->paginate(10);
+
+        return response()->json(['status'=>'success','data'=>$this->transformPosts($posts, $userId),'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage()]]);
+    }
+
+    // Trending hashtags
+    public function trending()
+    {
+        $hashtags = \App\Models\CommunityHashtag::orderByDesc('posts_count')->take(20)->get();
+        return response()->json(['status'=>'success','data'=>$hashtags]);
+    }
+
+    // Search
+    public function search(Request $request)
+    {
+        $q = $request->get('q','');
+        $type = $request->get('type','posts'); // posts|users|groups|hashtags
+        $userId = auth()->id();
+
+        if ($type === 'users') {
+            $results = \App\Models\User::with('communityProfile')
+                ->where('name','like',"%$q%")
+                ->orWhere('phone','like',"%$q%")
+                ->limit(20)->get()
+                ->map(fn($u) => $this->transformUser($u, $userId));
+            return response()->json(['status'=>'success','data'=>$results]);
+        }
+
+        if ($type === 'groups') {
+            $results = \App\Models\CommunityGroup::where('name','like',"%$q%")->where('privacy','public')->limit(20)->get();
+            return response()->json(['status'=>'success','data'=>$results]);
+        }
+
+        if ($type === 'hashtags') {
+            $results = \App\Models\CommunityHashtag::where('name','like',"%$q%")->orderByDesc('posts_count')->limit(20)->get();
+            return response()->json(['status'=>'success','data'=>$results]);
+        }
+
+        // Posts
+        $posts = CommunityPost::with(['user.communityProfile','media','userReaction'])
+            ->where('content','like',"%$q%")
+            ->where('privacy','public')
+            ->latest()->paginate(15);
+        return response()->json(['status'=>'success','data'=>$this->transformPosts($posts, $userId)]);
+    }
+
+    // Stories feed
+    public function stories()
+    {
+        $userId = auth()->id();
+        $followingIds = CommunityFollow::where('follower_id', $userId)->pluck('following_id');
+        $followingIds->push($userId);
+
+        $users = \App\Models\User::with(['communityProfile','stories' => function($q) {
+            $q->where('expires_at','>',now())->latest();
+        }])
+        ->whereIn('id', $followingIds)
+        ->whereHas('stories', fn($q) => $q->where('expires_at','>',now()))
+        ->get()
+        ->map(function($u) use ($userId) {
+            $stories = $u->stories->map(fn($s) => array_merge($s->toArray(), ['is_viewed' => $s->isViewedBy($userId)]));
+            $allViewed = $stories->every(fn($s) => $s['is_viewed']);
+            return ['user' => $this->transformUser($u, $userId), 'stories' => $stories, 'all_viewed' => $allViewed];
+        });
+
+        return response()->json(['status'=>'success','data'=>$users]);
+    }
+
+    // Suggested users to follow
+    public function suggestions()
+    {
+        $userId = auth()->id();
+        $followingIds = CommunityFollow::where('follower_id', $userId)->pluck('following_id')->push($userId);
+
+        $users = \App\Models\User::with('communityProfile')
+            ->whereNotIn('id', $followingIds)
+            ->inRandomOrder()
+            ->limit(10)
+            ->get()
+            ->map(fn($u) => $this->transformUser($u, $userId));
+
+        return response()->json(['status'=>'success','data'=>$users]);
+    }
+
+    private function transformPosts($posts, int $userId): array
+    {
+        return $posts->map(fn($p) => $this->transformPost($p, $userId))->toArray();
+    }
+
+    public function transformPost($post, int $userId): array
+    {
+        return [
+            'id' => $post->id,
+            'type' => $post->type,
+            'content' => $post->content,
+            'location' => $post->location,
+            'feeling' => $post->feeling,
+            'privacy' => $post->privacy,
+            'is_pinned' => $post->is_pinned,
+            'comments_disabled' => $post->comments_disabled,
+            'views_count' => $post->views_count,
+            'likes_count' => $post->likes_count,
+            'comments_count' => $post->comments_count,
+            'shares_count' => $post->shares_count,
+            'saves_count' => $post->saves_count,
+            'poll_options' => $post->poll_options,
+            'created_at' => $post->created_at,
+            'media' => $post->media->map(fn($m) => ['id'=>$m->id,'type'=>$m->type,'url'=>$m->url,'thumbnail'=>$m->thumbnail,'duration'=>$m->duration])->toArray(),
+            'user' => $this->transformUser($post->user, $userId),
+            'user_reaction' => $post->userReaction?->type,
+            'is_saved' => \App\Models\CommunitySavedPost::where('user_id',$userId)->where('post_id',$post->id)->exists(),
+            'shared_post' => $post->shared_post_id ? ['id'=>$post->sharedPost?->id,'content'=>$post->sharedPost?->content] : null,
+        ];
+    }
+
+    public function transformUser($user, int $userId): array
+    {
+        $profile = $user->communityProfile;
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'username' => $profile?->username,
+            'avatar' => $user->avatar ?? $profile?->cover_photo,
+            'bio' => $profile?->bio,
+            'is_verified' => $profile?->is_verified ?? false,
+            'is_business' => $profile?->is_business ?? false,
+            'followers_count' => $profile?->followers_count ?? 0,
+            'following_count' => $profile?->following_count ?? 0,
+            'posts_count' => $profile?->posts_count ?? 0,
+            'is_following' => CommunityFollow::where('follower_id',$userId)->where('following_id',$user->id)->exists(),
+            'is_me' => $user->id === $userId,
+        ];
+    }
+}
