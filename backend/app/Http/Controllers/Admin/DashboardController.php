@@ -12,8 +12,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $stats = $this->getStats();
-        return view('admin.dashboard', compact('stats'));
+        return view('admin.dashboard', $this->getStats());
     }
 
     public function stats()
@@ -32,7 +31,7 @@ class DashboardController extends Controller
         $totalUsers    = User::count();
         $todayUsers    = User::whereDate('created_at', today())->count();
         $monthlyUsers  = User::where('created_at', '>=', $thisMonth)->count();
-        $activeUsers   = User::where('last_login_at', '>=', $last30)->count();
+        $activeUsers   = User::where('updated_at', '>=', $last30)->count();
 
         $totalOrders   = Order::count();
         $todayOrders   = Order::whereDate('created_at', today())->count();
@@ -84,7 +83,7 @@ class DashboardController extends Controller
 
         // ── Notifications ───────────────────────────────────────────────
         $totalNotifications = DB::table('push_notification_logs')->count();
-        $sentNotifications  = DB::table('push_notification_logs')->where('status', 'sent')->count();
+        $sentNotifications  = DB::table('push_notification_logs')->where('sent_count', '>', 0)->sum('sent_count');
 
         // ── Coupons ─────────────────────────────────────────────────────
         $totalCoupons  = DB::table('coupons')->count();
