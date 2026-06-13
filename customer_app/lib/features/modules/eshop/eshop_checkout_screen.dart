@@ -18,7 +18,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
   final _phoneCtrl = TextEditingController();
   final _streetCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
-  String _paymentMethod = 'cod';
+  String _paymentMethod = 'wallet';
   String? _waafiReference;
   bool _placing = false;
 
@@ -212,8 +212,6 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
 
         // ── Payment Method ────────────────────────────────────────
         _section('Payment Method', Icons.payment_outlined, children: [
-          _paymentOption('cod',       'Cash on Delivery', Icons.money_outlined,                    'Pay when delivered'),
-          const SizedBox(height: 10),
           _paymentOption('wallet',    'Wallet',           Icons.account_balance_wallet_outlined,   'Pay from your wallet balance'),
           const SizedBox(height: 10),
           _paymentOption('waafi_pay', 'Waafi Pay',        Icons.phone_android_rounded,             'EVC / eDahab / Jeep / Premier'),
