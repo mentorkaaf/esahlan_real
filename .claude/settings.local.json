@@ -130,7 +130,11 @@
       "Bash(scp -P 65002 -o StrictHostKeyChecking=no C:/Users/CITYSIGN/Desktop/esahlan-project/backend/routes/web.php u801770158@31.170.161.118:/home/u801770158/domains/esahlan.com/public_html/routes/web.php)",
       "Bash(scp -r -P 65002 -o StrictHostKeyChecking=no u801770158@31.170.161.118:/home/u801770158/domains/esahlan.com/public_html/resources/views C:/Users/CITYSIGN/Desktop/esahlan-project/backend/)",
       "Bash(scp -P 65002 -o StrictHostKeyChecking=no u801770158@31.170.161.118:/home/u801770158/domains/esahlan.com/public_html/resources/views/admin/layouts/app.blade.php \"C:/Users/CITYSIGN/Desktop/esahlan-project/backend/resources/views/admin/layouts/app.blade.php\")",
-      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\CITYSIGN\\\\Desktop\\\\esahlan-project\\\\backend\\\\database\\\\migrations\\\\\" | Where-Object {$_.Name -match \"wallet|community|payment\"} | Select-Object Name)"
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\CITYSIGN\\\\Desktop\\\\esahlan-project\\\\backend\\\\database\\\\migrations\\\\\" | Where-Object {$_.Name -match \"wallet|community|payment\"} | Select-Object Name)",
+      "PowerShell(\\(Get-Content \"C:\\\\Users\\\\CITYSIGN\\\\Desktop\\\\esahlan-project\\\\backend\\\\resources\\\\views\\\\admin\\\\module-data\\\\rent.blade.php\" | Measure-Object -Line\\).Lines)",
+      "Bash(Get-ChildItem \"C:\\\\Users\\\\CITYSIGN\\\\Desktop\\\\esahlan-project\")",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(Format-Table -AutoSize)"
     ]
   }
 }
