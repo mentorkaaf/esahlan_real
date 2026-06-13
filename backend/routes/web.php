@@ -129,6 +129,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [AdminNotificationController::class, 'index'])->name('index');
             Route::post('/send', [AdminNotificationController::class, 'send'])->name('send');
             Route::post('/{log}/resend', [AdminNotificationController::class, 'resend'])->name('resend');
+            Route::delete('/{log}', [AdminNotificationController::class, 'delete'])->name('delete');
         });
 
         // Community

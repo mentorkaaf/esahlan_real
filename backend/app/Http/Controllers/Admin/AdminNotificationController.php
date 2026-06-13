@@ -13,8 +13,11 @@ class AdminNotificationController extends Controller
 
     public function index()
     {
-        $logs = PushNotificationLog::latest()->paginate(20);
-        return view('admin.notifications.index', compact('logs'));
+        $logs        = PushNotificationLog::with('sentBy')->latest()->paginate(20);
+        $totalSent   = PushNotificationLog::count();
+        $sentToday   = PushNotificationLog::whereDate('created_at', today())->count();
+        $activeDevices = User::whereNotNull('fcm_token')->count();
+        return view('admin.notifications.index', compact('logs', 'totalSent', 'sentToday', 'activeDevices'));
     }
 
     public function send(Request $request)
@@ -58,6 +61,12 @@ class AdminNotificationController extends Controller
         ]);
 
         return back()->with('success', 'Notification sent successfully.');
+    }
+
+    public function delete(PushNotificationLog $log)
+    {
+        $log->delete();
+        return back()->with('success', 'Notification deleted.');
     }
 
     public function resend(PushNotificationLog $log)
