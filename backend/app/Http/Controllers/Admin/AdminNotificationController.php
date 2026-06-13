@@ -59,4 +59,35 @@ class AdminNotificationController extends Controller
 
         return back()->with('success', 'Notification sent successfully.');
     }
+
+    public function resend(PushNotificationLog $log)
+    {
+        if ($log->target_type === 'specific') {
+            $user = User::find($log->target_id);
+            if ($user?->fcm_token) {
+                $this->notificationService->sendPush([$user->fcm_token], $log->title, $log->body, $log->data ?? []);
+            }
+        } elseif ($log->target_type === 'all') {
+            $this->notificationService->sendBroadcast($log->title, $log->body, $log->data ?? []);
+        } else {
+            $roleMap = ['customers' => 'customer', 'vendors' => 'vendor_owner', 'deliverymen' => 'deliveryman'];
+            $role = $roleMap[$log->target_type] ?? null;
+            if ($role) {
+                $tokens = User::whereHas('role', fn($q) => $q->where('slug', $role))
+                    ->whereNotNull('fcm_token')->pluck('fcm_token')->toArray();
+                $this->notificationService->sendPush($tokens, $log->title, $log->body, $log->data ?? []);
+            }
+        }
+
+        PushNotificationLog::create([
+            'title'       => $log->title,
+            'body'        => $log->body,
+            'data'        => $log->data,
+            'target_type' => $log->target_type,
+            'target_id'   => $log->target_id,
+            'sent_by'     => auth()->id(),
+        ]);
+
+        return back()->with('success', 'Notification resent successfully.');
+    }
 }

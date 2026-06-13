@@ -103,6 +103,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('notifications')->name('notifications.')->group(function () {
             Route::get('/', [AdminNotificationController::class, 'index'])->name('index');
             Route::post('/send', [AdminNotificationController::class, 'send'])->name('send');
+            Route::post('/{log}/resend', [AdminNotificationController::class, 'resend'])->name('resend');
         });
 
         // Settings

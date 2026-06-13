@@ -89,6 +89,7 @@
                         <th>Target</th>
                         <th>Sent By</th>
                         <th>Date</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -106,6 +107,14 @@
                         </td>
                         <td style="font-size:13px;">{{ $log->sentBy?->name ?? 'System' }}</td>
                         <td style="font-size:12px;color:var(--text-muted);">{{ $log->created_at->format('d M, H:i') }}</td>
+                        <td>
+                            <form method="POST" action="{{ route('admin.notifications.resend', $log) }}" style="display:inline;" onsubmit="return confirm('Resend this notification?')">
+                                @csrf
+                                <button type="submit" class="btn btn-sm" style="background:rgba(249,115,22,0.1);color:var(--brand);border:1px solid rgba(249,115,22,0.3);padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;">
+                                    <i class="fas fa-redo"></i> Resend
+                                </button>
+                            </form>
+                        </td>
                     </tr>
                     @empty
                     <tr>
