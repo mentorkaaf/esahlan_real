@@ -613,10 +613,28 @@
         {{-- Finance --}}
         <div class="nav-section-label">Finance</div>
         <a href="{{ route('admin.finance.index') }}" class="nav-link {{ request()->routeIs('admin.finance.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-wallet"></i></div> Finance
+            <div class="nav-icon"><i class="fas fa-chart-line"></i></div> Finance
+        </a>
+        <a href="{{ route('admin.wallet.index') }}" class="nav-link {{ request()->routeIs('admin.wallet.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-wallet"></i></div> Wallet
         </a>
         <a href="{{ route('admin.reports.sales') }}" class="nav-link {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-chart-bar"></i></div> Reports
+        </a>
+
+        {{-- Community --}}
+        <div class="nav-section-label">Community</div>
+        <a href="{{ route('admin.community.index') }}" class="nav-link {{ request()->routeIs('admin.community.index') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-users"></i></div> Overview
+        </a>
+        <a href="{{ route('admin.community.posts') }}" class="nav-link {{ request()->routeIs('admin.community.posts*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-th-large"></i></div> Posts
+        </a>
+        <a href="{{ route('admin.community.groups') }}" class="nav-link {{ request()->routeIs('admin.community.groups*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-layer-group"></i></div> Groups
+        </a>
+        <a href="{{ route('admin.community.reports') }}" class="nav-link {{ request()->routeIs('admin.community.reports*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-flag"></i></div> Reports
         </a>
 
         {{-- Marketing --}}
@@ -626,6 +644,9 @@
         </a>
         <a href="{{ route('admin.notifications.index') }}" class="nav-link {{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-bell"></i></div> Notifications
+        </a>
+        <a href="{{ route('admin.landing.index') }}" class="nav-link {{ request()->routeIs('admin.landing.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-globe"></i></div> Landing Page
         </a>
 
         {{-- System --}}
