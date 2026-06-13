@@ -588,11 +588,6 @@
         <a href="{{ route('admin.wallet.index') }}" class="nav-link {{ request()->routeIs('admin.wallet.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-wallet"></i></div> Wallet
         </a>
-        <a href="{{ route('admin.exchange.index') }}" class="nav-link {{ request()->routeIs('admin.exchange.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-exchange-alt"></i></div> Exchange Orders
-            @php try { $__pExch = \Illuminate\Support\Facades\DB::table('exchange_orders')->where('status','pending')->count(); } catch(\Exception $e){ $__pExch=0; } @endphp
-            @if($__pExch > 0)<span class="nav-badge">{{ $__pExch }}</span>@endif
-        </a>
         <a href="{{ route('admin.dispatch') }}" class="nav-link {{ request()->routeIs('admin.dispatch') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-map-marked-alt"></i></div> Dispatch
         </a>

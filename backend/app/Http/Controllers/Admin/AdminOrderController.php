@@ -28,7 +28,14 @@ class AdminOrderController extends Controller
             ->groupBy('status')
             ->pluck('count', 'status');
 
-        return view('admin.orders.index', compact('orders', 'statusCounts'));
+        $exchangeOrders = DB::table('exchange_orders')
+            ->join('users', 'users.id', '=', 'exchange_orders.user_id')
+            ->select('exchange_orders.*', 'users.name as user_name', 'users.phone as user_phone')
+            ->orderByDesc('exchange_orders.created_at')
+            ->limit(50)
+            ->get();
+
+        return view('admin.orders.index', compact('orders', 'statusCounts', 'exchangeOrders'));
     }
 
     public function show(Order $order)

@@ -269,6 +269,97 @@ $statuses = [
     @endif
 </div>
 
+{{-- Exchange Orders Section --}}
+@if(isset($exchangeOrders) && $exchangeOrders->count())
+<div class="card" style="margin-top:24px;">
+    <div class="card-header">
+        <div class="card-header-title">
+            <div class="card-header-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6;">
+                <i class="fas fa-exchange-alt"></i>
+            </div>
+            Exchange Orders
+            <span class="badge badge-info" style="margin-left:4px;">{{ $exchangeOrders->count() }}</span>
+        </div>
+        <a href="{{ route('admin.exchange.index') }}" class="btn btn-outline btn-sm">
+            View All <i class="fas fa-arrow-right" style="margin-left:4px;"></i>
+        </a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Reference</th>
+                    <th>Customer</th>
+                    <th>Exchange</th>
+                    <th>Sent</th>
+                    <th>Fee</th>
+                    <th>Received</th>
+                    <th>Recipient Phone</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($exchangeOrders as $ex)
+                @php
+                    $exStatus = [
+                        'pending'    => 'badge-warning',
+                        'processing' => 'badge-info',
+                        'completed'  => 'badge-success',
+                        'failed'     => 'badge-danger',
+                    ][$ex->status] ?? 'badge-secondary';
+                    $walletColors = ['EVC'=>'#e74c3c','EDAHAB'=>'#27ae60','JEEP'=>'#2980b9','PREMIER'=>'#8e44ad'];
+                    $fc = $walletColors[$ex->from_wallet] ?? '#64748b';
+                    $tc = $walletColors[$ex->to_wallet]   ?? '#64748b';
+                @endphp
+                <tr>
+                    <td style="font-weight:700;font-size:13px;font-family:monospace;color:var(--navy);">
+                        {{ $ex->reference }}
+                    </td>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div class="avatar avatar-sm avatar-orange">{{ strtoupper(substr($ex->user_name,0,1)) }}</div>
+                            <div>
+                                <div style="font-weight:600;font-size:13px;">{{ $ex->user_name }}</div>
+                                <div style="font-size:11px;color:var(--text-muted);">{{ $ex->user_phone }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <span style="background:{{ $fc }}18;color:{{ $fc }};border:1px solid {{ $fc }}30;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;">{{ $ex->from_wallet }}</span>
+                            <i class="fas fa-arrow-right" style="color:var(--text-muted);font-size:10px;"></i>
+                            <span style="background:{{ $tc }}18;color:{{ $tc }};border:1px solid {{ $tc }}30;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;">{{ $ex->to_wallet }}</span>
+                        </div>
+                    </td>
+                    <td style="font-weight:700;">${{ number_format($ex->sent_amount,2) }}</td>
+                    <td style="color:#ef4444;font-weight:600;">-${{ number_format($ex->fee_amount,2) }}</td>
+                    <td style="color:#10b981;font-weight:700;">${{ number_format($ex->converted_amount,2) }}</td>
+                    <td>
+                        <span style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;">
+                            <i class="fas fa-phone" style="color:var(--text-muted);font-size:10px;"></i>
+                            {{ $ex->recipient_phone }}
+                        </span>
+                    </td>
+                    <td><span class="badge {{ $exStatus }}">{{ ucfirst($ex->status) }}</span></td>
+                    <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">
+                        {{ \Carbon\Carbon::parse($ex->created_at)->format('d M') }}<br>
+                        <span style="font-size:11px;">{{ \Carbon\Carbon::parse($ex->created_at)->format('H:i') }}</span>
+                    </td>
+                    <td>
+                        <a href="{{ route('admin.exchange.show', $ex->id) }}" class="btn btn-outline btn-xs">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>
+@endif
+
 @push('scripts')
 <script>
 const selectAll = document.getElementById('selectAll');
