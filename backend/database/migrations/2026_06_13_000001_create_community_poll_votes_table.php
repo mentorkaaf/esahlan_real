@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up() {
+        if (Schema::hasTable('community_poll_votes')) return;
         Schema::create('community_poll_votes', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('post_id');
