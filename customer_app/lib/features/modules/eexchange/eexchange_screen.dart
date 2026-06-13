@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../payment/waafi_pay_sheet.dart';
 
 final _svc = ModuleApiService.create();
 final _exchangeRatesProvider = FutureProvider.autoDispose((_) => _svc.getExchangeRates());
@@ -51,9 +52,11 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
   ];
 
   // State
-  String _fromWallet = 'evc';
-  String _toWallet   = 'edahab';
-  double _amount     = 0;
+  String _fromWallet    = 'evc';
+  String _toWallet      = 'edahab';
+  double _amount        = 0;
+  String _paymentMethod = 'wallet'; // 'wallet' or 'waafi_pay'
+  String? _waafiRef;
   Map<String, dynamic>? _preview;
   bool   _converting = false;
   bool   _confirming = false;
@@ -200,9 +203,11 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
           // ── Preview breakdown ─────────────────────────────────────
           if (_preview != null) ...[
             _buildPreviewCard(),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
+            _buildPaymentMethod(),
+            const SizedBox(height: 14),
             AppButton(
-              label: _confirming ? 'Submitting...' : 'Confirm Exchange',
+              label: _confirming ? 'Processing...' : 'Confirm & Pay',
               isLoading: _confirming,
               onPressed: _fromWallet == _toWallet ? null : _confirm,
             ),
@@ -415,6 +420,58 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
     ]),
   );
 
+  Widget _buildPaymentMethod() => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: AppColors.divider),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Row(children: [
+        Icon(Icons.payment_rounded, size: 18, color: AppColors.primary),
+        SizedBox(width: 8),
+        Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.secondary)),
+      ]),
+      const SizedBox(height: 12),
+      _payOption('wallet',    'Wallet',     Icons.account_balance_wallet_outlined, 'Deducted from your wallet balance'),
+      const SizedBox(height: 10),
+      _payOption('waafi_pay', 'Waafi Pay',  Icons.phone_android_rounded,           'EVC / eDahab / Jeep / Premier'),
+    ]),
+  );
+
+  Widget _payOption(String value, String label, IconData icon, String sub) {
+    final sel = _paymentMethod == value;
+    return GestureDetector(
+      onTap: () => setState(() { _paymentMethod = value; _waafiRef = null; }),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: sel ? AppColors.primary.withValues(alpha: 0.06) : AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: sel ? AppColors.primary : AppColors.divider, width: sel ? 2 : 1),
+        ),
+        child: Row(children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+                color: sel ? AppColors.primary : Colors.white,
+                borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, size: 20, color: sel ? Colors.white : AppColors.textGrey),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13,
+                color: sel ? AppColors.primary : AppColors.secondary)),
+            Text(sub, style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
+          ])),
+          if (sel) const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
+        ]),
+      ),
+    );
+  }
+
   Widget _row(String label, String value, {bool white = false}) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 4),
     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -460,13 +517,28 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
   }
 
   Future<void> _confirm() async {
+    // Waafi Pay — show payment sheet first, capture reference
+    if (_paymentMethod == 'waafi_pay') {
+      final result = await showWaafiPaySheet(
+        context,
+        amount: _amount,
+        type: 'order',
+        description: 'eExchange ${_fromWallet.toUpperCase()} → ${_toWallet.toUpperCase()}',
+        prefillPhone: _cleanPhone,
+      );
+      if (result?.success != true) return; // user cancelled or failed
+      _waafiRef = result!.reference;
+    }
+
     setState(() => _confirming = true);
     try {
       final res = await _svc.confirmExchange({
-        'from_wallet':     _fromWallet,
-        'to_wallet':       _toWallet,
-        'amount':          _amount,
-        'recipient_phone': _cleanPhone,
+        'from_wallet':      _fromWallet,
+        'to_wallet':        _toWallet,
+        'amount':           _amount,
+        'recipient_phone':  _cleanPhone,
+        'payment_method':   _paymentMethod,
+        if (_waafiRef != null) 'payment_reference': _waafiRef,
       });
       if (mounted) {
         final data = Map<String, dynamic>.from(res['data'] ?? {});

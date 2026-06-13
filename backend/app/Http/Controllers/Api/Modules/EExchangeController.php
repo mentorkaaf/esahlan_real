@@ -77,6 +77,7 @@ class EExchangeController extends Controller
             'to'              => 'required|string|max:20',
             'amount'          => 'required|numeric|min:0.01',
             'recipient_phone' => 'required|string|min:6|max:30',
+            'payment_method'  => 'nullable|string|in:wallet,waafi_pay',
         ]);
         if ($v->fails()) {
             return response()->json([
@@ -86,10 +87,12 @@ class EExchangeController extends Controller
             ], 422);
         }
 
-        $user = $request->user();
+        $user          = $request->user();
+        $paymentMethod = $request->payment_method ?? 'wallet';
+        $sentAmount    = (float) $request->amount;
 
-        // Calculate
-        $calcRequest  = new Request(['from' => $fromVal, 'to' => $toVal, 'amount' => $request->amount]);
+        // Calculate exchange
+        $calcRequest  = new Request(['from' => $fromVal, 'to' => $toVal, 'amount' => $sentAmount]);
         $calcResponse = $this->calculate($calcRequest);
         $calc         = json_decode($calcResponse->getContent(), true)['data'] ?? null;
 
@@ -97,37 +100,55 @@ class EExchangeController extends Controller
             return response()->json(['success' => false, 'message' => "Exchange pair {$fromVal}→{$toVal} not available"], 404);
         }
 
+        // Wallet payment: check balance and deduct
+        if ($paymentMethod === 'wallet') {
+            $wallet = DB::table('wallets')->where('user_id', $user->id)->first();
+            $balance = $wallet ? (float) $wallet->balance : 0;
+            if ($balance < $sentAmount) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Insufficient wallet balance. You have \${$balance}, need \${$sentAmount}.",
+                ], 422);
+            }
+            DB::table('wallets')
+                ->where('user_id', $user->id)
+                ->decrement('balance', $sentAmount);
+        }
+        // Waafi Pay: reference is logged, no further server deduction needed
+
         $reference = 'EXC-' . strtoupper(Str::random(10));
 
-        // Save exchange order (no wallet deduction — exchange is a remittance request)
         DB::table('exchange_orders')->insert([
-            'reference'        => $reference,
-            'user_id'          => $user->id,
-            'from_wallet'      => $fromVal,
-            'to_wallet'        => $toVal,
-            'sent_amount'      => (float) $request->amount,
-            'fee_amount'       => $calc['fee'],
-            'rate'             => $calc['rate'],
-            'converted_amount' => $calc['converted_amount'],
-            'recipient_phone'  => $request->recipient_phone,
-            'status'           => 'pending',
-            'note'             => $request->note ?? null,
-            'created_at'       => now(),
-            'updated_at'       => now(),
+            'reference'          => $reference,
+            'user_id'            => $user->id,
+            'from_wallet'        => $fromVal,
+            'to_wallet'          => $toVal,
+            'sent_amount'        => $sentAmount,
+            'fee_amount'         => $calc['fee'],
+            'rate'               => $calc['rate'],
+            'converted_amount'   => $calc['converted_amount'],
+            'recipient_phone'    => $request->recipient_phone,
+            'status'             => 'pending',
+            'note'               => $request->payment_reference
+                                    ? "Payment ref: {$request->payment_reference}"
+                                    : ($request->note ?? null),
+            'created_at'         => now(),
+            'updated_at'         => now(),
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => "Exchange order created. Send {$fromVal} to complete the transfer.",
+            'message' => 'Exchange order created successfully.',
             'data'    => [
                 'reference'        => $reference,
                 'from_wallet'      => $fromVal,
                 'to_wallet'        => $toVal,
-                'sent_amount'      => (float) $request->amount,
+                'sent_amount'      => $sentAmount,
                 'fee'              => $calc['fee'],
                 'rate'             => $calc['rate'],
                 'converted_amount' => $calc['converted_amount'],
                 'recipient_phone'  => $request->recipient_phone,
+                'payment_method'   => $paymentMethod,
                 'status'           => 'pending',
             ],
         ]);
