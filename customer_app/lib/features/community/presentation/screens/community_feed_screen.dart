@@ -483,7 +483,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
         if (p.media.isNotEmpty) _MediaGrid(media: p.media),
 
         // Counts row
-        if (p.likesCount > 0 || p.commentsCount > 0 || p.sharesCount > 0)
+        if (p.likesCount > 0 || p.commentsCount > 0 || p.sharesCount > 0 || p.viewsCount > 0)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Row(children: [
@@ -496,6 +496,12 @@ class _PostCardState extends ConsumerState<_PostCard> {
                 const SizedBox(width: 4),
                 Text('${p.likesCount}', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
               ]),
+              if (p.viewsCount > 0) ...[
+                const SizedBox(width: 10),
+                const Icon(Icons.visibility_outlined, size: 13, color: Color(0xFF6B7280)),
+                const SizedBox(width: 3),
+                Text('${p.viewsCount}', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
+              ],
               const Spacer(),
               if (p.commentsCount > 0)
                 Text('${p.commentsCount} Comments', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
@@ -768,7 +774,8 @@ class _MediaGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (media.length == 1) {
-      return _MediaItem(m: media[0], height: 260);
+      // height: 0 = auto-height so full image shows without cropping
+      return _MediaItem(m: media[0], height: media[0].type == 'video' ? 260 : 0);
     }
     if (media.length == 2) {
       return Row(children: media.map((m) => Expanded(child: _MediaItem(m: m, height: 200))).toList());
@@ -810,7 +817,7 @@ class _MediaItemState extends State<_MediaItem> {
     try {
       await ctrl.initialize();
       ctrl.setLooping(true);
-      ctrl.setVolume(0);
+      ctrl.setVolume(1);
       if (mounted) setState(() { _ctrl = ctrl; _ready = true; });
     } catch (_) {
       ctrl.dispose();
@@ -841,6 +848,19 @@ class _MediaItemState extends State<_MediaItem> {
   @override
   Widget build(BuildContext context) {
     if (!_isVideo) {
+      // Single image: show full without cropping; multi-image grid uses fixed height
+      if (widget.height == 0) {
+        return CachedNetworkImage(
+          imageUrl: widget.m.url,
+          fit: BoxFit.fitWidth,
+          width: double.infinity,
+          placeholder: (_, __) => Container(color: const Color(0xFFE5E7EB), height: 200),
+          errorWidget: (_, __, ___) => Container(
+            color: const Color(0xFFE5E7EB), height: 200,
+            child: const Icon(Icons.broken_image_rounded, color: Color(0xFF9CA3AF), size: 32),
+          ),
+        );
+      }
       return SizedBox(
         height: widget.height,
         width: double.infinity,

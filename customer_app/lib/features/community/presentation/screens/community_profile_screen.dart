@@ -206,8 +206,13 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                         filled: !_following,
                       ),
                       const SizedBox(width: 8),
-                      _OutlineBtn(label: 'Message', icon: Icons.chat_bubble_rounded, onTap: () {
-                        // open chat
+                      _OutlineBtn(label: 'Message', icon: Icons.chat_bubble_rounded, onTap: () async {
+                        try {
+                          final chat = await ref.read(communityChatsProvider.notifier).startOrGetChat(widget.user.id);
+                          if (context.mounted) {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityChatScreen(chat: chat)));
+                          }
+                        } catch (_) {}
                       }),
                     ],
                   ]),
