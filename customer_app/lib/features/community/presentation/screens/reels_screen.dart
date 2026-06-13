@@ -161,6 +161,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         if (mounted) {
           setState(() => _videoReady = true);
           _videoCtrl!.setLooping(true);
+          _videoCtrl!.setVolume(_muted ? 0 : 1);
           if (widget.isActive && !_paused) _videoCtrl!.play();
         }
       }).catchError((_) {});
@@ -260,6 +261,8 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
           _sideAction(icon: Icons.send_outlined, label: 'Share', color: Colors.white, onTap: () => ref.read(communityRepoProvider).sharePost(reel.id)),
           const SizedBox(height: 20),
           _sideAction(icon: _saved ? Icons.bookmark : Icons.bookmark_outline, label: 'Save', color: _saved ? kOrange : Colors.white, onTap: () async { final s = await ref.read(communityRepoProvider).savePost(reel.id); setState(() => _saved = s); }),
+          const SizedBox(height: 20),
+          if (reel.viewsCount > 0) _sideAction(icon: Icons.visibility_outlined, label: '${reel.viewsCount}', color: Colors.white70, onTap: () {}),
         ])),
       ]),
     );
@@ -301,6 +304,7 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
         if (mounted) {
           setState(() => _videoReady = true);
           _videoCtrl!.setLooping(true);
+          _videoCtrl!.setVolume(_muted ? 0 : 1);
           if (widget.isActive && !_paused) _videoCtrl!.play();
         }
       }).catchError((_) {});

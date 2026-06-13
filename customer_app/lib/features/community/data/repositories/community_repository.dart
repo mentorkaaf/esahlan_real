@@ -141,6 +141,15 @@ class CommunityRepository {
     await _dio.put('/community/profile', data: form);
   }
 
+  Future<Map<String, dynamic>> uploadProfilePhoto({dynamic avatarFile, dynamic coverFile}) async {
+    final form = FormData.fromMap({
+      if (avatarFile is MultipartFile) 'avatar': avatarFile,
+      if (coverFile is MultipartFile) 'cover_photo': coverFile,
+    });
+    final r = await _dio.post('/community/profile/avatar', data: form);
+    return r.data['data'] as Map<String, dynamic>;
+  }
+
   // ── Follow ─────────────────────────────────────────────────────────────────
   Future<bool> toggleFollow(int userId) async {
     final r = await _dio.post('/community/follow/$userId');
@@ -149,6 +158,8 @@ class CommunityRepository {
 
   // ── Stories ────────────────────────────────────────────────────────────────
   Future<void> viewStory(int storyId) => _dio.post('/community/stories/$storyId/view');
+  Future<void> reactToStory(int storyId, String emoji) => _dio.post('/community/stories/$storyId/react', data: {'emoji': emoji});
+  Future<void> commentOnStory(int storyId, String content) => _dio.post('/community/stories/$storyId/comment', data: {'content': content});
 
   Future<void> createStory({
     required String type,

@@ -252,6 +252,7 @@ Route::prefix('v1')->group(function () {
 
         // Profile
         Route::get('profile/me', fn() => app(CommunityProfileController::class)->show(auth()->id()));
+        Route::post('profile/avatar', [CommunityProfileController::class, 'updateAvatar']);
         Route::put('profile', [CommunityProfileController::class, 'update']);
         Route::get('profile/{userId}', [CommunityProfileController::class, 'show']);
         Route::get('profile/{userId}/posts', [CommunityProfileController::class, 'posts']);
@@ -265,6 +266,8 @@ Route::prefix('v1')->group(function () {
         Route::post('stories', [CommunityStoryController::class, 'store']);
         Route::post('stories/{id}/view', [CommunityStoryController::class, 'view']);
         Route::get('stories/{id}/viewers', [CommunityStoryController::class, 'viewers']);
+        Route::post('stories/{id}/react', [CommunityStoryController::class, 'react']);
+        Route::post('stories/{id}/comment', [CommunityStoryController::class, 'comment']);
         Route::delete('stories/{id}', [CommunityStoryController::class, 'destroy']);
 
         // Groups

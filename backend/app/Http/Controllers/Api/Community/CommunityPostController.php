@@ -8,6 +8,7 @@ use App\Models\CommunityHashtag;
 use App\Models\CommunitySavedPost;
 use App\Models\CommunityNotification;
 use App\Models\CommunityPollVote;
+use App\Services\FcmService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -112,6 +113,11 @@ class CommunityPostController extends Controller
             // Notify post owner
             if ($post->user_id !== $userId) {
                 CommunityNotification::create(['user_id'=>$post->user_id,'actor_id'=>$userId,'type'=>'like','notifiable_type'=>'post','notifiable_id'=>$id]);
+                $owner = \App\Models\User::find($post->user_id);
+                if ($owner?->fcm_token) {
+                    $actor = auth()->user();
+                    FcmService::sendToToken($owner->fcm_token, 'New Like', "{$actor->name} liked your post", ['type'=>'post_like','post_id'=>(string)$id]);
+                }
             }
         }
 
@@ -130,6 +136,16 @@ class CommunityPostController extends Controller
             'published_at' => now(),
         ]);
         $original->increment('shares_count');
+        // Notify original post owner
+        $userId = auth()->id();
+        if ($original->user_id !== $userId) {
+            CommunityNotification::create(['user_id'=>$original->user_id,'actor_id'=>$userId,'type'=>'share','notifiable_type'=>'post','notifiable_id'=>$id]);
+            $owner = \App\Models\User::find($original->user_id);
+            if ($owner?->fcm_token) {
+                $actor = auth()->user();
+                FcmService::sendToToken($owner->fcm_token, 'Post Shared', "{$actor->name} shared your post", ['type'=>'post_share','post_id'=>(string)$id]);
+            }
+        }
         $share->load(['user.communityProfile','media','userReaction']);
         return response()->json(['status'=>'success','data'=>$this->feed->transformPost($share, auth()->id())], 201);
     }

@@ -4,6 +4,8 @@ use App\Http\Controllers\Controller;
 use App\Models\CommunityComment;
 use App\Models\CommunityPost;
 use App\Models\CommunityNotification;
+use App\Models\User;
+use App\Services\FcmService;
 use Illuminate\Http\Request;
 
 class CommunityCommentController extends Controller
@@ -39,6 +41,11 @@ class CommunityCommentController extends Controller
         // Notify post owner
         if ($post->user_id !== auth()->id()) {
             CommunityNotification::create(['user_id'=>$post->user_id,'actor_id'=>auth()->id(),'type'=>'comment','notifiable_type'=>'post','notifiable_id'=>$postId]);
+            $owner = \App\Models\User::find($post->user_id);
+            if ($owner?->fcm_token) {
+                $actor = auth()->user();
+                FcmService::sendToToken($owner->fcm_token, 'New Comment', "{$actor->name} commented on your post", ['type'=>'post_comment','post_id'=>(string)$postId]);
+            }
         }
 
         $comment->load('user.communityProfile');

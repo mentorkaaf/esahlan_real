@@ -41,6 +41,38 @@ class CommunityProfileController extends Controller
         return response()->json(['status'=>'success','data'=>$profile]);
     }
 
+    public function updateAvatar(Request $request)
+    {
+        $request->validate([
+            'avatar' => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
+            'cover_photo' => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
+        ]);
+
+        $user = auth()->user();
+        $profile = \App\Models\CommunityProfile::firstOrCreate(['user_id' => $user->id]);
+        $data = [];
+
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('community/avatars', 'public');
+            $url = asset('storage/' . $path);
+            // Update user's avatar
+            $user->update(['avatar' => $url]);
+            $data['avatar'] = $url;
+        }
+
+        if ($request->hasFile('cover_photo')) {
+            $path = $request->file('cover_photo')->store('community/covers', 'public');
+            $data['cover_photo'] = asset('storage/' . $path);
+        }
+
+        if (!empty($data)) $profile->update($data);
+
+        return response()->json(['status' => 'success', 'data' => [
+            'avatar' => $user->fresh()->avatar,
+            'cover_photo' => $profile->fresh()->cover_photo,
+        ]]);
+    }
+
     public function posts(int $userId, Request $request)
     {
         $type = $request->get('type','posts');

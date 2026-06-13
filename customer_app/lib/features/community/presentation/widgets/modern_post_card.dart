@@ -333,14 +333,14 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
   }
 
   Widget _buildReactionSummary(CommunityPost post) {
-    if (post.likesCount == 0 && post.commentsCount == 0) return const SizedBox.shrink();
+    if (post.likesCount == 0 && post.commentsCount == 0 && post.viewsCount == 0) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          if (post.likesCount > 0)
-            Row(children: [
+          Row(children: [
+            if (post.likesCount > 0) ...[
               Container(
                 padding: const EdgeInsets.all(3),
                 decoration: const BoxDecoration(color: Color(0xFF1877F2), shape: BoxShape.circle),
@@ -348,7 +348,14 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
               ),
               const SizedBox(width: 5),
               Text('${post.likesCount}', style: const TextStyle(color: Color(0xFF8A8D91), fontSize: 13.5)),
-            ]),
+              const SizedBox(width: 10),
+            ],
+            if (post.viewsCount > 0) ...[
+              const Icon(Icons.visibility_outlined, color: Color(0xFF8A8D91), size: 14),
+              const SizedBox(width: 3),
+              Text('${post.viewsCount}', style: const TextStyle(color: Color(0xFF8A8D91), fontSize: 13.5)),
+            ],
+          ]),
           if (post.commentsCount > 0)
             Text('${post.commentsCount} comments',
                 style: const TextStyle(color: Color(0xFF8A8D91), fontSize: 13.5)),

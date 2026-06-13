@@ -1,7 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
@@ -55,6 +57,32 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
   bool _following = false;
+  String? _localAvatar;
+  String? _localCover;
+
+  Future<void> _pickAvatar() async {
+    final picker = ImagePicker();
+    final f = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (f == null) return;
+    try {
+      final mf = await MultipartFile.fromFile(f.path, filename: f.name);
+      final res = await ref.read(communityRepoProvider).uploadProfilePhoto(avatarFile: mf);
+      setState(() => _localAvatar = res['avatar'] as String?);
+      ref.invalidate(communityMyProfileProvider);
+    } catch (_) {}
+  }
+
+  Future<void> _pickCover() async {
+    final picker = ImagePicker();
+    final f = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (f == null) return;
+    try {
+      final mf = await MultipartFile.fromFile(f.path, filename: f.name);
+      final res = await ref.read(communityRepoProvider).uploadProfilePhoto(coverFile: mf);
+      setState(() => _localCover = res['cover_photo'] as String?);
+      ref.invalidate(communityMyProfileProvider);
+    } catch (_) {}
+  }
 
   @override
   void initState() {
@@ -106,30 +134,30 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
-              background: Stack(fit: StackFit.expand, children: [
-                // Cover photo
-                u.coverPhoto != null
-                    ? CachedNetworkImage(imageUrl: u.coverPhoto!, fit: BoxFit.cover)
-                    : Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [kOrange, Color(0xFFFF8C42)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
+              background: GestureDetector(
+                onTap: widget.isMe ? _pickCover : null,
+                child: Stack(fit: StackFit.expand, children: [
+                  // Cover photo
+                  () {
+                    final coverUrl = _localCover ?? u.coverPhoto;
+                    if (coverUrl != null) return CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover);
+                    return Container(decoration: const BoxDecoration(gradient: LinearGradient(colors: [kOrange, Color(0xFFFF8C42)], begin: Alignment.topLeft, end: Alignment.bottomRight)));
+                  }(),
+                  // Gradient overlay
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Colors.black.withOpacity(0.4)],
                       ),
-                // Gradient overlay
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Colors.black.withOpacity(0.4)],
                     ),
                   ),
-                ),
-              ]),
+                  if (widget.isMe)
+                    const Positioned(bottom: 12, right: 12,
+                      child: CircleAvatar(radius: 14, backgroundColor: Colors.black54, child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16))),
+                ]),
+              ),
             ),
           ),
 
@@ -143,20 +171,28 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                     Transform.translate(
                       offset: const Offset(0, -30),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 4),
-                        ),
-                        child: CircleAvatar(
-                          radius: 44,
-                          backgroundColor: const Color(0xFFE5E7EB),
-                          backgroundImage: u.avatar != null ? CachedNetworkImageProvider(u.avatar!) : null,
-                          child: u.avatar == null
-                              ? Text(u.name[0].toUpperCase(),
-                                  style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Color(0xFF6B7280)))
-                              : null,
-                        ),
+                      child: GestureDetector(
+                        onTap: widget.isMe ? _pickAvatar : null,
+                        child: Stack(clipBehavior: Clip.none, children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 4),
+                            ),
+                            child: CircleAvatar(
+                              radius: 44,
+                              backgroundColor: const Color(0xFFE5E7EB),
+                              backgroundImage: (_localAvatar ?? u.avatar) != null ? CachedNetworkImageProvider(_localAvatar ?? u.avatar!) : null,
+                              child: (_localAvatar ?? u.avatar) == null
+                                  ? Text(u.name[0].toUpperCase(),
+                                      style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Color(0xFF6B7280)))
+                                  : null,
+                            ),
+                          ),
+                          if (widget.isMe)
+                            const Positioned(bottom: 2, right: 2,
+                              child: CircleAvatar(radius: 12, backgroundColor: kOrange, child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: 12))),
+                        ]),
                       ),
                     ),
                     const Spacer(),

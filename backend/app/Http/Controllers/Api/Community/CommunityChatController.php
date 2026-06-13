@@ -5,6 +5,7 @@ use App\Models\CommunityChat;
 use App\Models\CommunityChatMember;
 use App\Models\CommunityMessage;
 use App\Models\User;
+use App\Services\FcmService;
 use Illuminate\Http\Request;
 
 class CommunityChatController extends Controller
@@ -78,6 +79,17 @@ class CommunityChatController extends Controller
         ]);
 
         $msg->load(['user.communityProfile','replyTo.user']);
+
+        // Notify other chat members
+        $sender = auth()->user();
+        $otherMembers = CommunityChatMember::where('chat_id', $chatId)->where('user_id', '!=', $userId)->with('user')->get();
+        foreach ($otherMembers as $member) {
+            if ($member->user?->fcm_token) {
+                $preview = $msg->type === 'text' ? ($msg->content ?? '') : '📎 Media';
+                FcmService::sendToToken($member->user->fcm_token, $sender->name, $preview, ['type'=>'chat_message','chat_id'=>(string)$chatId,'message_id'=>(string)$msg->id]);
+            }
+        }
+
         return response()->json(['status'=>'success','data'=>$msg], 201);
     }
 

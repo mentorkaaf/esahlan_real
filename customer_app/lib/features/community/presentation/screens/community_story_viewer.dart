@@ -20,18 +20,37 @@ class _StoryViewerState extends State<StoryViewer> {
   late int _groupIndex;
   int _storyIndex = 0;
   final _repo = CommunityRepository();
+  final _commentCtrl = TextEditingController();
+  bool _showCommentInput = false;
+
+  @override
+  void dispose() {
+    _commentCtrl.dispose();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
+  }
+
+  void _sendReaction(String emoji) {
+    final storyId = _currentStory.id;
+    _repo.reactToStory(storyId, emoji);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reacted $emoji'), duration: const Duration(seconds: 1)));
+  }
+
+  void _sendComment() {
+    final text = _commentCtrl.text.trim();
+    if (text.isEmpty) return;
+    _repo.commentOnStory(_currentStory.id, text);
+    _commentCtrl.clear();
+    FocusScope.of(context).unfocus();
+    setState(() => _showCommentInput = false);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Comment sent'), duration: Duration(seconds: 1)));
+  }
 
   @override
   void initState() {
     super.initState();
     _groupIndex = widget.initialGroupIndex;
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-  }
-
-  @override
-  void dispose() {
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    super.dispose();
   }
 
   StoryGroup get _currentGroup => widget.groups[_groupIndex];
@@ -144,6 +163,62 @@ class _StoryViewerState extends State<StoryViewer> {
                 Text(story.location!, style: const TextStyle(color: Colors.white70, fontSize: 12)),
               ]),
             ),
+          // Bottom reactions + comment bar
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: Container(
+              padding: EdgeInsets.only(left: 12, right: 12, top: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 8),
+              decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Colors.black87, Colors.transparent])),
+              child: _showCommentInput
+                  ? Row(children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _commentCtrl,
+                          autofocus: true,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Write a comment...',
+                            hintStyle: const TextStyle(color: Colors.white54),
+                            filled: true, fillColor: Colors.white12,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                          ),
+                          onSubmitted: (_) => _sendComment(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _sendComment,
+                        child: const CircleAvatar(backgroundColor: Color(0xFF140465), child: Icon(Icons.send_rounded, color: Colors.white, size: 18)),
+                      ),
+                    ])
+                  : Row(children: [
+                      for (final emoji in ['❤️', '😮', '😂', '😢', '🔥', '👏'])
+                        GestureDetector(
+                          onTap: () => _sendReaction(emoji),
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(color: Colors.white12, shape: BoxShape.circle),
+                            child: Text(emoji, style: const TextStyle(fontSize: 22)),
+                          ),
+                        ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => setState(() => _showCommentInput = true),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(24)),
+                          child: const Row(children: [
+                            Icon(Icons.chat_bubble_outline, color: Colors.white, size: 18),
+                            SizedBox(width: 6),
+                            Text('Comment', style: TextStyle(color: Colors.white, fontSize: 13)),
+                          ]),
+                        ),
+                      ),
+                    ]),
+            ),
+          ),
         ]),
       ),
     );
