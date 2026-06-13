@@ -12,6 +12,9 @@ jobs:
     steps:
       - name: Trigger deploy via webhook
         run: |
-          curl -f -s -o /dev/null -w "HTTP %{http_code}" \
+          RESPONSE=$(curl -sL -w "\nHTTP_CODE:%{http_code}" \
             -H "X-Deploy-Token: eSahlan_Deploy_2026_Secret" \
-            "https://esahlan.com/api-sync"
+            "https://esahlan.com/api-sync")
+          echo "$RESPONSE" | tail -20
+          CODE=$(echo "$RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
+          if [ "$CODE" != "200" ]; then exit 1; fi
