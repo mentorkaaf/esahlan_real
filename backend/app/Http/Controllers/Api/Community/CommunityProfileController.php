@@ -34,7 +34,7 @@ class CommunityProfileController extends Controller
 
         if ($request->hasFile('cover_photo')) {
             $path = $request->file('cover_photo')->store('community/covers','public');
-            $data['cover_photo'] = url('/api/img/'.$path);
+            $data['cover_photo'] = asset('storage/'.$path);
         }
 
         $profile->update($data);

@@ -181,7 +181,7 @@ class ETicketController extends Controller
                 'module_slug'     => 'eticket',
                 'status'          => 'confirmed',
                 'payment_method'  => $request->payment_method,
-                'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'pending',
+                'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'unpaid',
                 'delivery_address'=> ['flight_id' => $flight->id],
                 'subtotal'        => $total,
                 'delivery_fee'    => 0,
@@ -285,4 +285,32 @@ class ETicketController extends Controller
 
         return response()->json(['success' => true, 'data' => $result]);
     }
+
+    public function home()
+    {
+        $airlines = \DB::table('airlines')->where('is_active', true)->limit(10)->get();
+        $routes   = \DB::table('flight_routes')->select('from_city','to_city','from_code','to_code')->distinct()->limit(10)->get();
+        return response()->json(['success' => true, 'data' => ['airlines' => $airlines, 'popular_routes' => $routes]]);
+    }
+
+    public function flightDetail($id)
+    {
+        $flight = \DB::table('flights as f')
+            ->leftJoin('flight_routes as r', 'r.id', '=', 'f.route_id')
+            ->leftJoin('airlines as a', 'a.id', '=', 'f.airline_id')
+            ->select('f.*', 'r.origin_city', 'r.destination_city', 'a.name as airline_name', 'a.logo as airline_logo')
+            ->where('f.id', $id)->first();
+        if (!$flight) return response()->json(['success' => false, 'message' => 'Not found'], 404);
+        return response()->json(['success' => true, 'data' => $flight]);
+    }
+
+    public function myBookingDetail($id)
+    {
+        $user = request()->user();
+        if (!$user) return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        $b = \DB::table('flight_bookings')->where('id', $id)->where('user_id', $user->id)->first();
+        if (!$b) return response()->json(['success' => false, 'message' => 'Not found'], 404);
+        return response()->json(['success' => true, 'data' => $b]);
+    }
+
 }

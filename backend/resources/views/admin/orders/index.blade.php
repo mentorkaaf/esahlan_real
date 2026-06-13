@@ -1,6 +1,54 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Orders')
 @section('content')
+
+<style>
+.bulk-bar {
+    display: none; align-items: center; gap: 12px; flex-wrap: wrap;
+    background: var(--navy); color: #fff;
+    padding: 10px 20px; border-radius: 10px; margin-bottom: 16px;
+    box-shadow: 0 4px 16px rgba(7,0,59,0.25);
+    position: sticky; top: 72px; z-index: 50;
+    animation: slideDown .2s ease;
+}
+.bulk-bar.visible { display: flex; }
+@keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+.bulk-count { font-weight: 700; font-size: 13px; white-space: nowrap; }
+.bulk-count span { background: var(--brand); color: #fff; padding: 2px 8px; border-radius: 20px; margin-right: 4px; }
+.bulk-sep { width: 1px; height: 22px; background: rgba(255,255,255,0.15); }
+.bulk-status-sel {
+    padding: 7px 12px; border-radius: 8px; border: 1.5px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08); color: #fff; font-size: 13px;
+    outline: none; cursor: pointer; font-family: inherit;
+}
+.bulk-status-sel option { background: var(--navy); color: #fff; }
+.btn-bulk-apply {
+    padding: 7px 14px; border-radius: 8px; border: none;
+    background: var(--brand); color: #fff; font-size: 13px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    transition: background .15s;
+}
+.btn-bulk-apply:hover { background: var(--brand-dark); }
+.btn-bulk-delete {
+    padding: 7px 14px; border-radius: 8px; border: 1.5px solid rgba(239,68,68,0.5);
+    background: rgba(239,68,68,0.12); color: #fca5a5; font-size: 13px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    transition: all .15s;
+}
+.btn-bulk-delete:hover { background: rgba(239,68,68,0.25); border-color: rgba(239,68,68,0.8); }
+.btn-bulk-cancel {
+    margin-left: auto; padding: 5px 12px; border-radius: 8px;
+    border: 1.5px solid rgba(255,255,255,0.15); background: transparent;
+    color: rgba(255,255,255,0.5); font-size: 12px; cursor: pointer;
+    transition: all .15s;
+}
+.btn-bulk-cancel:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+
+/* Row checkbox styling */
+.row-cb { width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand); }
+th.cb-col, td.cb-col { width: 44px; padding-left: 16px !important; }
+tbody tr.selected td { background: rgba(255,138,0,0.04); }
+</style>
 
 <div class="page-header">
     <div>
@@ -14,6 +62,32 @@
         <i class="fas fa-sync-alt" style="color:var(--brand);margin-right:6px;"></i>
         Updated {{ \Carbon\Carbon::now(\App\Helpers\AppSettings::timezone())->format('H:i') }}
     </div>
+</div>
+
+{{-- Bulk Action Bar --}}
+<div class="bulk-bar" id="bulkBar">
+    <div class="bulk-count"><span id="bulkCount">0</span> selected</div>
+    <div class="bulk-sep"></div>
+    <select class="bulk-status-sel" id="bulkStatusSel">
+        <option value="">— Change status to —</option>
+        <option value="pending">Pending</option>
+        <option value="confirmed">Confirmed</option>
+        <option value="preparing">Preparing</option>
+        <option value="ready_for_pickup">Ready for Pickup</option>
+        <option value="out_for_delivery">Out for Delivery</option>
+        <option value="delivered">Delivered</option>
+        <option value="cancelled">Cancelled</option>
+    </select>
+    <button class="btn-bulk-apply" id="bulkApplyBtn" onclick="bulkApply()">
+        <i class="fas fa-check"></i> Apply
+    </button>
+    <div class="bulk-sep"></div>
+    <button class="btn-bulk-delete" onclick="bulkDelete()">
+        <i class="fas fa-trash"></i> Delete
+    </button>
+    <button class="btn-bulk-cancel" onclick="clearSelection()">
+        <i class="fas fa-times"></i> Cancel
+    </button>
 </div>
 
 {{-- Status Tabs --}}
@@ -64,6 +138,13 @@ $statuses = [
     </div>
 </div>
 
+{{-- Hidden bulk form --}}
+<form id="bulkForm" method="POST" action="{{ route('admin.orders.bulk') }}">
+    @csrf
+    <input type="hidden" name="action" id="bulkAction">
+    <input type="hidden" name="status" id="bulkStatusInput">
+</form>
+
 {{-- Orders Table --}}
 <div class="card">
     <div class="card-header">
@@ -79,6 +160,9 @@ $statuses = [
         <table>
             <thead>
                 <tr>
+                    <th class="cb-col">
+                        <input type="checkbox" class="row-cb" id="selectAll" title="Select all">
+                    </th>
                     <th>Order #</th>
                     <th>Customer</th>
                     <th>Module / Vendor</th>
@@ -94,19 +178,24 @@ $statuses = [
                 @forelse($orders as $order)
                 @php
                     $smap = [
-                        'pending'   => 'badge-warning',
-                        'confirmed' => 'badge-info',
-                        'preparing' => 'badge-info',
-                        'ready'     => 'badge-teal',
-                        'picked_up' => 'badge-purple',
-                        'delivered' => 'badge-success',
-                        'cancelled' => 'badge-danger',
-                        'failed'    => 'badge-danger',
+                        'pending'         => 'badge-warning',
+                        'confirmed'       => 'badge-info',
+                        'preparing'       => 'badge-info',
+                        'ready'           => 'badge-teal',
+                        'ready_for_pickup'=> 'badge-teal',
+                        'picked_up'       => 'badge-purple',
+                        'out_for_delivery'=> 'badge-purple',
+                        'delivered'       => 'badge-success',
+                        'cancelled'       => 'badge-danger',
+                        'failed'          => 'badge-danger',
                     ];
                     $bc = $smap[$order->status] ?? 'badge-secondary';
                     $total = $order->total_amount ?? $order->total ?? 0;
                 @endphp
-                <tr>
+                <tr data-id="{{ $order->id }}">
+                    <td class="cb-col">
+                        <input type="checkbox" class="row-cb order-cb" value="{{ $order->id }}">
+                    </td>
                     <td>
                         <a href="{{ route('admin.orders.show',$order) }}" style="font-weight:700;color:var(--navy);text-decoration:none;font-size:13px;">
                             {{ $order->order_number }}
@@ -161,7 +250,7 @@ $statuses = [
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="9">
+                    <td colspan="10">
                         <div class="empty-state">
                             <i class="fas fa-shopping-bag"></i>
                             <h3>No orders found</h3>
@@ -179,4 +268,79 @@ $statuses = [
     </div>
     @endif
 </div>
+
+@push('scripts')
+<script>
+const selectAll = document.getElementById('selectAll');
+const bulkBar   = document.getElementById('bulkBar');
+const bulkCount = document.getElementById('bulkCount');
+
+function getChecked() {
+    return [...document.querySelectorAll('.order-cb:checked')];
+}
+
+function updateBar() {
+    const checked = getChecked();
+    bulkCount.textContent = checked.length;
+    bulkBar.classList.toggle('visible', checked.length > 0);
+    // highlight rows
+    document.querySelectorAll('.order-cb').forEach(cb => {
+        cb.closest('tr').classList.toggle('selected', cb.checked);
+    });
+    // sync select-all state
+    const all = document.querySelectorAll('.order-cb');
+    selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+    selectAll.checked = checked.length === all.length && all.length > 0;
+}
+
+selectAll.addEventListener('change', () => {
+    document.querySelectorAll('.order-cb').forEach(cb => cb.checked = selectAll.checked);
+    updateBar();
+});
+
+document.querySelectorAll('.order-cb').forEach(cb => {
+    cb.addEventListener('change', updateBar);
+});
+
+function clearSelection() {
+    document.querySelectorAll('.order-cb').forEach(cb => cb.checked = false);
+    selectAll.checked = false;
+    updateBar();
+}
+
+function getIds() {
+    return getChecked().map(cb => cb.value);
+}
+
+function bulkApply() {
+    const status = document.getElementById('bulkStatusSel').value;
+    if (!status) { alert('Please select a status to apply.'); return; }
+    const ids = getIds();
+    if (!ids.length) return;
+    if (!confirm(`Update ${ids.length} order(s) to "${status}"?`)) return;
+    submitBulk('status', status, ids);
+}
+
+function bulkDelete() {
+    const ids = getIds();
+    if (!ids.length) return;
+    if (!confirm(`Permanently delete ${ids.length} order(s)? This cannot be undone.`)) return;
+    submitBulk('delete', '', ids);
+}
+
+function submitBulk(action, status, ids) {
+    const form = document.getElementById('bulkForm');
+    document.getElementById('bulkAction').value = action;
+    document.getElementById('bulkStatusInput').value = status;
+    // Remove old id inputs
+    form.querySelectorAll('input[name="ids[]"]').forEach(el => el.remove());
+    ids.forEach(id => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = 'ids[]'; inp.value = id;
+        form.appendChild(inp);
+    });
+    form.submit();
+}
+</script>
+@endpush
 @endsection

@@ -111,7 +111,26 @@
       "Bash(python3 -c \"from PIL import Image; print\\('Pillow ready'\\)\")",
       "Bash(pip install *)",
       "PowerShell(python --version 2>&1)",
-      "PowerShell(python -c \"from PIL import Image; print\\('Pillow ready'\\)\" 2>&1)"
+      "PowerShell(python -c \"from PIL import Image; print\\('Pillow ready'\\)\" 2>&1)",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_in_Chrome__browser_batch",
+      "mcp__Claude_in_Chrome__find",
+      "mcp__Claude_in_Chrome__javascript_tool",
+      "Bash(curl -s -H \"Accept: application/vnd.github+json\" \"https://api.github.com/repos/mentorkaaf/esahlan-project/actions/runs/27458462188/jobs\")",
+      "Bash(python -c \"import json,sys; data=json.load\\(sys.stdin\\); jobs=data.get\\('jobs',[]\\); [print\\(j['name'], j['conclusion'], [\\(s['name'],s['conclusion']\\) for s in j.get\\('steps',[]\\)]\\) for j in jobs]\")",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(ssh -o StrictHostKeyChecking=no -p 65002 u801770158@31.170.161.118 \"find /home/u801770158/domains/esahlan.com/public_html/app -name '*.php' | sort\" 2>&1 | grep -v WARNING | grep -v session | grep -v openssh > /tmp/server_files.txt && find \"C:/Users/CITYSIGN/Desktop/esahlan-project/backend/app\" -name \"*.php\" | sed 's|.*backend/app|/home/u801770158/domains/esahlan.com/public_html/app|' | sort > /tmp/local_files.txt && diff /tmp/local_files.txt /tmp/server_files.txt | grep \"^>\" | head -40)",
+      "Bash(scp -r -P 65002 -o StrictHostKeyChecking=no u801770158@31.170.161.118:/home/u801770158/domains/esahlan.com/public_html/app C:/Users/CITYSIGN/Desktop/esahlan-project/backend/)",
+      "Bash(scp -r -P 65002 -o StrictHostKeyChecking=no u801770158@31.170.161.118:/home/u801770158/domains/esahlan.com/public_html/routes C:/Users/CITYSIGN/Desktop/esahlan-project/backend/)",
+      "Bash(scp -r -P 65002 -o StrictHostKeyChecking=no u801770158@31.170.161.118:/home/u801770158/domains/esahlan.com/public_html/database C:/Users/CITYSIGN/Desktop/esahlan-project/backend/)",
+      "Bash(scp -r -P 65002 -o StrictHostKeyChecking=no u801770158@31.170.161.118:/home/u801770158/domains/esahlan.com/public_html/resources C:/Users/CITYSIGN/Desktop/esahlan-project/backend/)",
+      "Bash(scp -P 65002 -o StrictHostKeyChecking=no C:/Users/CITYSIGN/Desktop/esahlan-project/backend/routes/web.php u801770158@31.170.161.118:/home/u801770158/domains/esahlan.com/public_html/routes/web.php)",
+      "Bash(scp -r -P 65002 -o StrictHostKeyChecking=no u801770158@31.170.161.118:/home/u801770158/domains/esahlan.com/public_html/resources/views C:/Users/CITYSIGN/Desktop/esahlan-project/backend/)",
+      "Bash(scp -P 65002 -o StrictHostKeyChecking=no u801770158@31.170.161.118:/home/u801770158/domains/esahlan.com/public_html/resources/views/admin/layouts/app.blade.php \"C:/Users/CITYSIGN/Desktop/esahlan-project/backend/resources/views/admin/layouts/app.blade.php\")",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\CITYSIGN\\\\Desktop\\\\esahlan-project\\\\backend\\\\database\\\\migrations\\\\\" | Where-Object {$_.Name -match \"wallet|community|payment\"} | Select-Object Name)"
     ]
   }
 }

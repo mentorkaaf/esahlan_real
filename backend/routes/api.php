@@ -1,4 +1,15 @@
 <?php
+use App\Http\Controllers\Api\Community\CommunityFeedController;
+use App\Http\Controllers\Api\Community\CommunityPostController;
+use App\Http\Controllers\Api\Community\CommunityCommentController;
+use App\Http\Controllers\Api\Community\CommunityProfileController;
+use App\Http\Controllers\Api\Community\CommunityFollowController;
+use App\Http\Controllers\Api\Community\CommunityStoryController;
+use App\Http\Controllers\Api\Community\CommunityGroupController;
+use App\Http\Controllers\Api\Community\CommunityChatController;
+use App\Http\Controllers\Api\Community\CommunityNotificationController;
+use App\Http\Controllers\Api\Community\CommunityReportController;
+
 
 use Illuminate\Support\Facades\Route;
 
@@ -9,6 +20,7 @@ use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Customer\HomeController;
 use App\Http\Controllers\Api\Customer\OrderController;
 use App\Http\Controllers\Api\Customer\WalletController;
+use App\Http\Controllers\Api\Payment\PaymentController;
 use App\Http\Controllers\Api\Customer\VendorController;
 use App\Http\Controllers\Api\Customer\CartController;
 use App\Http\Controllers\Api\Customer\AddressController;
@@ -25,18 +37,6 @@ use App\Http\Controllers\Api\Vendor\VendorOrderController;
 use App\Http\Controllers\Api\Vendor\VendorProductController;
 use App\Http\Controllers\Api\Vendor\VendorStoreController;
 use App\Http\Controllers\Api\Vendor\VendorWalletController;
-
-// ─── Community ───────────────────────────────────────────────────────────────
-use App\Http\Controllers\Api\Community\CommunityFeedController;
-use App\Http\Controllers\Api\Community\CommunityPostController;
-use App\Http\Controllers\Api\Community\CommunityProfileController;
-use App\Http\Controllers\Api\Community\CommunityGroupController;
-use App\Http\Controllers\Api\Community\CommunityFollowController;
-use App\Http\Controllers\Api\Community\CommunityStoryController;
-use App\Http\Controllers\Api\Community\CommunityChatController;
-use App\Http\Controllers\Api\Community\CommunityCommentController;
-use App\Http\Controllers\Api\Community\CommunityNotificationController;
-use App\Http\Controllers\Api\Community\CommunityReportController;
 
 // ─── Modules ─────────────────────────────────────────────────────────────────
 use App\Http\Controllers\Api\Modules\EDataController;
@@ -133,6 +133,8 @@ Route::prefix('v1')->group(function () {
     Route::get('efood/restaurants',                      [EFoodController::class, 'restaurants']);
     Route::get('efood/restaurants/{id}',                 [EFoodController::class, 'restaurant']);
     Route::get('efood/restaurants/{id}/products',        [EFoodController::class, 'products']);
+    Route::get('efood/restaurants/{restaurantId}/menu',  [EFoodController::class, 'products']);   // alias Flutter uses
+    Route::get('efood/items/{id}',                       [EFoodController::class, 'getItem']);
     Route::get('efood/restaurants/{id}/coupons',           [EFoodController::class, 'restaurantCoupons']);
     Route::get('efood/restaurants/{id}/campaigns',         [EFoodController::class, 'restaurantCampaigns']);
     // Order placement — public, works with or without auth token
@@ -149,6 +151,9 @@ Route::prefix('v1')->group(function () {
     // eData
     Route::get('edata/providers',                        [EDataController::class, 'providers']);
     Route::get('edata/all',                              [EDataController::class, 'all']);
+    Route::get('edata/history',                          [EDataController::class, 'purchaseHistory']); // Flutter eData tab
+    Route::get('edata/favorites',                        [EDataController::class, 'favorites']);
+    Route::post('edata/favorites/toggle',                [EDataController::class, 'toggleFavorite']);
     Route::get('edata/providers/{id}/packages',          [EDataController::class, 'packages']);
     Route::get('edata/providers/{id}/bundles',           [EDataController::class, 'bundles']);
     Route::get('edata/packages/{id}/bundles',            [EDataController::class, 'packageBundles']);
@@ -156,6 +161,8 @@ Route::prefix('v1')->group(function () {
     // eExchange
     Route::get('eexchange/rates',                        [EExchangeController::class, 'rates']);
     Route::post('eexchange/calculate',                   [EExchangeController::class, 'calculate']);
+    Route::post('eexchange/preview',                     [EExchangeController::class, 'calculate']);   // alias used by Flutter
+
 
     // eParcel
     Route::get('eparcel/types',                          [EParcelController::class, 'types']);
@@ -183,6 +190,7 @@ Route::prefix('v1')->group(function () {
     Route::get('erent/districts',                        [ERentController::class, 'districts']);
     Route::get('erent/properties',                       [ERentController::class, 'properties']);
     Route::get('erent/properties/{id}',                  [ERentController::class, 'property']);
+    Route::get('erent/reels',                            [ERentController::class, 'reels']);
 
     // eShop
     Route::get('eshop/home',                             [EShopController::class, 'home']);
@@ -197,6 +205,7 @@ Route::prefix('v1')->group(function () {
     // eWholesale
     Route::get('ewholesale/categories',                  [EWholesaleController::class, 'categories']);
     Route::get('ewholesale/products',                    [EWholesaleController::class, 'products']);
+    Route::post('ewholesale/inquire',                    [EWholesaleController::class, 'inquire']);    // alias Flutter uses
 
     // eGrocery
     Route::get('egrocery/categories',                    [EGroceryController::class, 'categories']);
@@ -208,11 +217,82 @@ Route::prefix('v1')->group(function () {
     Route::get('eticket/cities',                         [ETicketController::class, 'cities']);
     Route::get('eticket/search',                         [ETicketController::class, 'search']);
     Route::get('eticket/active-dates',                   [ETicketController::class, 'activeDates']);
+    Route::get('eticket/home',                           [ETicketController::class, 'home']);
+    Route::get('eticket/flights/{id}',                   [ETicketController::class, 'flightDetail']);
 
     // ═══════════════════════════════════════════════════════════════
     // AUTHENTICATED — ALL ROLES
     // ═══════════════════════════════════════════════════════════════
     Route::middleware('auth:sanctum')->group(function () {
+
+    // ── Community Module ──────────────────────────────────────────────────────
+    Route::prefix('community')->group(function () {
+        // Feed
+        Route::get('feed', [CommunityFeedController::class, 'following']);
+        Route::get('explore', [CommunityFeedController::class, 'explore']);
+        Route::get('reels', [CommunityFeedController::class, 'reels']);
+        Route::get('stories', [CommunityFeedController::class, 'stories']);
+        Route::get('trending', [CommunityFeedController::class, 'trending']);
+        Route::get('search', [CommunityFeedController::class, 'search']);
+        Route::get('suggestions', [CommunityFeedController::class, 'suggestions']);
+
+        // Posts
+        Route::get('posts/saved', [CommunityPostController::class, 'saved']);
+        Route::apiResource('posts', CommunityPostController::class)->except(['index']);
+        Route::post('posts/{id}/react', [CommunityPostController::class, 'react']);
+        Route::post('posts/{id}/share', [CommunityPostController::class, 'share']);
+        Route::post('posts/{id}/save', [CommunityPostController::class, 'save']);
+        Route::post('posts/{id}/vote', [CommunityPostController::class, 'votePoll']);
+
+        // Comments
+        Route::get('posts/{postId}/comments', [CommunityCommentController::class, 'index']);
+        Route::post('posts/{postId}/comments', [CommunityCommentController::class, 'store']);
+        Route::put('comments/{id}', [CommunityCommentController::class, 'update']);
+        Route::delete('comments/{id}', [CommunityCommentController::class, 'destroy']);
+        Route::post('comments/{id}/react', [CommunityCommentController::class, 'react']);
+
+        // Profile
+        Route::get('profile/me', fn() => app(CommunityProfileController::class)->show(auth()->id()));
+        Route::put('profile', [CommunityProfileController::class, 'update']);
+        Route::get('profile/{userId}', [CommunityProfileController::class, 'show']);
+        Route::get('profile/{userId}/posts', [CommunityProfileController::class, 'posts']);
+        Route::get('profile/{userId}/followers', [CommunityProfileController::class, 'followers']);
+        Route::get('profile/{userId}/following', [CommunityProfileController::class, 'following']);
+
+        // Follow
+        Route::post('follow/{userId}', [CommunityFollowController::class, 'toggle']);
+
+        // Stories
+        Route::post('stories', [CommunityStoryController::class, 'store']);
+        Route::post('stories/{id}/view', [CommunityStoryController::class, 'view']);
+        Route::get('stories/{id}/viewers', [CommunityStoryController::class, 'viewers']);
+        Route::delete('stories/{id}', [CommunityStoryController::class, 'destroy']);
+
+        // Groups
+        Route::get('groups', [CommunityGroupController::class, 'index']);
+        Route::post('groups', [CommunityGroupController::class, 'store']);
+        Route::get('groups/{id}', [CommunityGroupController::class, 'show']);
+        Route::post('groups/{id}/join', [CommunityGroupController::class, 'join']);
+        Route::delete('groups/{id}/leave', [CommunityGroupController::class, 'leave']);
+        Route::get('groups/{id}/posts', [CommunityGroupController::class, 'posts']);
+
+        // Chats
+        Route::get('chats', [CommunityChatController::class, 'index']);
+        Route::post('chats/start/{userId}', [CommunityChatController::class, 'startOrGet']);
+        Route::get('chats/{chatId}/messages', [CommunityChatController::class, 'messages']);
+        Route::post('chats/{chatId}/messages', [CommunityChatController::class, 'send']);
+        Route::delete('messages/{msgId}', [CommunityChatController::class, 'deleteMessage']);
+
+        // Notifications
+        Route::get('notifications', [CommunityNotificationController::class, 'index']);
+        Route::get('notifications/unread-count', [CommunityNotificationController::class, 'unreadCount']);
+        Route::post('notifications/{id}/read', [CommunityNotificationController::class, 'markRead']);
+        Route::post('notifications/read-all', [CommunityNotificationController::class, 'markAllRead']);
+
+        // Reports & Block
+        Route::post('report', [CommunityReportController::class, 'store']);
+        Route::post('block/{userId}', [CommunityReportController::class, 'block']);
+    });
 
         // Auth
         Route::post('auth/logout',          [AuthController::class, 'logout']);
@@ -248,9 +328,14 @@ Route::prefix('v1')->group(function () {
             Route::get('wallet',                    [WalletController::class, 'index']);
             Route::get('wallet/transactions',       [WalletController::class, 'transactions']);
             Route::post('wallet/topup',             [WalletController::class, 'topup']);
+            Route::get('wallet/topup/status/{ref}', [WalletController::class, 'topupStatus']);
+            Route::post('wallet/send',              [WalletController::class, 'send']);
             Route::post('wallet/withdraw',          [WalletController::class, 'requestWithdrawal']);
             Route::get('wallet/loyalty-points',     [WalletController::class, 'loyaltyPoints']);
             Route::get('wallet/referral',           [WalletController::class, 'referral']);
+            // Centralized payment (Waafi Pay)
+            Route::post('payment/initiate',         [PaymentController::class, 'initiate']);
+            Route::get('payment/status/{ref}',      [PaymentController::class, 'status']);
 
             // Addresses
             Route::get('addresses',             [AddressController::class, 'index']);
@@ -278,6 +363,7 @@ Route::prefix('v1')->group(function () {
             Route::post('edata/purchase',       [EDataController::class, 'purchasePackage']);
             Route::post('eparcel/order',        [EParcelController::class, 'createOrder']);
             Route::post('eexchange/transfer',   [EExchangeController::class, 'transfer']);
+            Route::post('eexchange/confirm',    [EExchangeController::class, 'transfer']);    // alias used by Flutter
             Route::post('emoving/order',        [EMovingController::class, 'createOrder']);
             Route::get('emoving/my-orders',     [EMovingController::class, 'myOrders']);
             Route::post('elaundry/order',       [ELaundryController::class, 'createOrder']);
@@ -294,76 +380,7 @@ Route::prefix('v1')->group(function () {
             Route::post('egrocery/order',       [EGroceryController::class, 'createOrder']);
             Route::post('eticket/book',         [ETicketController::class, 'book']);
             Route::get('eticket/my-bookings',   [ETicketController::class, 'myBookings']);
-
-            // ─── COMMUNITY ────────────────────────────────────────
-            Route::prefix('community')->group(function () {
-                // Feed
-                Route::get('feed/following',    [CommunityFeedController::class, 'following']);
-                Route::get('feed/explore',      [CommunityFeedController::class, 'explore']);
-                Route::get('feed/reels',        [CommunityFeedController::class, 'reels']);
-                Route::get('feed/trending',     [CommunityFeedController::class, 'trending']);
-                Route::get('feed/suggestions',  [CommunityFeedController::class, 'suggestions']);
-                Route::get('feed/stories',      [CommunityFeedController::class, 'stories']);
-                Route::get('search',            [CommunityFeedController::class, 'search']);
-
-                // Posts
-                Route::post('posts',                        [CommunityPostController::class, 'store']);
-                Route::get('posts/{id}',                    [CommunityPostController::class, 'show']);
-                Route::delete('posts/{id}',                 [CommunityPostController::class, 'destroy']);
-                Route::post('posts/{id}/react',             [CommunityPostController::class, 'react']);
-                Route::post('posts/{id}/save',              [CommunityPostController::class, 'save']);
-                Route::post('posts/{id}/share',             [CommunityPostController::class, 'share']);
-                Route::post('posts/{id}/view',              [CommunityPostController::class, 'view']);
-                Route::post('posts/{id}/poll-vote',         [CommunityPostController::class, 'pollVote']);
-                Route::get('saved-posts',                   [CommunityPostController::class, 'savedPosts']);
-
-                // Comments
-                Route::get('posts/{postId}/comments',       [CommunityCommentController::class, 'index']);
-                Route::post('posts/{postId}/comments',      [CommunityCommentController::class, 'store']);
-                Route::delete('comments/{id}',              [CommunityCommentController::class, 'destroy']);
-                Route::post('comments/{id}/react',          [CommunityCommentController::class, 'react']);
-
-                // Profile
-                Route::get('profile', function(\Illuminate\Http\Request $r) {
-                    return app(CommunityProfileController::class)->show(auth()->id());
-                });
-                Route::post('profile',              [CommunityProfileController::class, 'update']);
-                Route::get('profile/{userId}',      [CommunityProfileController::class, 'show']);
-                Route::get('profile/{userId}/posts',[CommunityProfileController::class, 'posts']);
-
-                // Follow
-                Route::post('follow/{userId}',      [CommunityFollowController::class, 'toggle']);
-                Route::get('followers/{userId}',    [CommunityProfileController::class, 'followers']);
-                Route::get('following/{userId}',    [CommunityProfileController::class, 'following']);
-
-                // Groups
-                Route::get('groups',                [CommunityGroupController::class, 'index']);
-                Route::post('groups',               [CommunityGroupController::class, 'store']);
-                Route::get('groups/{id}',           [CommunityGroupController::class, 'show']);
-                Route::post('groups/{id}/join',     [CommunityGroupController::class, 'join']);
-                Route::post('groups/{id}/leave',    [CommunityGroupController::class, 'leave']);
-                Route::get('groups/{id}/posts',     [CommunityGroupController::class, 'posts']);
-                Route::post('groups/{id}/post',     [CommunityGroupController::class, 'createPost']);
-
-                // Stories
-                Route::post('stories',              [CommunityStoryController::class, 'store']);
-                Route::post('stories/{id}/view',    [CommunityStoryController::class, 'view']);
-                Route::delete('stories/{id}',       [CommunityStoryController::class, 'destroy']);
-
-                // DM Chat
-                Route::get('chats',                         [CommunityChatController::class, 'index']);
-                Route::post('chats',                        [CommunityChatController::class, 'create']);
-                Route::get('chats/{chatId}/messages',       [CommunityChatController::class, 'messages']);
-                Route::post('chats/{chatId}/messages',      [CommunityChatController::class, 'send']);
-
-                // Notifications
-                Route::get('notifications',             [CommunityNotificationController::class, 'index']);
-                Route::post('notifications/{id}/read',  [CommunityNotificationController::class, 'markRead']);
-                Route::post('notifications/read-all',   [CommunityNotificationController::class, 'markAllRead']);
-
-                // Reports
-                Route::post('report',               [CommunityReportController::class, 'store']);
-            });
+            Route::get('eticket/my-bookings/{id}',  [ETicketController::class, 'myBookingDetail']);
         });
 
         // ─── DELIVERYMAN ──────────────────────────────────────────

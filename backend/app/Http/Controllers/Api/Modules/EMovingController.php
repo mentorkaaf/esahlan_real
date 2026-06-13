@@ -188,7 +188,7 @@ class EMovingController extends Controller
                 'module_slug'     => 'emoving',
                 'status'          => 'pending',
                 'payment_method'  => $request->payment_method,
-                'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'pending',
+                'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'unpaid',
                 'delivery_address'=> ['from' => $request->pickup_address, 'to' => $request->delivery_address],
                 'subtotal'        => $total,
                 'delivery_fee'    => 0,

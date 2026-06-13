@@ -110,4 +110,40 @@ class AdminOrderController extends Controller
 
         return back()->with('success', 'Deliveryman assigned successfully.');
     }
+
+    public function bulkAction(Request $request)
+    {
+        $rules = [
+            'action' => 'required|in:status,delete',
+            'ids'    => 'required|array|min:1',
+            'ids.*'  => 'integer|exists:orders,id',
+        ];
+        if ($request->action === 'status') {
+            $rules['status'] = 'required|in:pending,confirmed,preparing,ready_for_pickup,out_for_delivery,delivered,cancelled,refunded,failed';
+        }
+        $request->validate($rules);
+
+        $ids = $request->ids;
+
+        if ($request->action === 'delete') {
+            Order::whereIn('id', $ids)->delete();
+            return back()->with('success', count($ids) . ' order(s) deleted.');
+        }
+
+        // Bulk status update
+        Order::whereIn('id', $ids)->update(['status' => $request->status]);
+
+        // Send notifications
+        $orders = Order::with('user')->whereIn('id', $ids)->get();
+        foreach ($orders as $order) {
+            if ($order->user?->fcm_token) {
+                try {
+                    FcmService::sendOrderUpdate($order->user->fcm_token, $order->order_number ?? '#'.$order->id, $request->status, $order->id);
+                } catch (\Throwable $e) {}
+            }
+        }
+
+        return back()->with('success', count($ids) . ' order(s) updated to ' . $request->status . '.');
+    }
+
 }

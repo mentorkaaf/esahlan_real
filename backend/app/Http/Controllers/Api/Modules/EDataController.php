@@ -13,6 +13,12 @@ use Illuminate\Support\Str;
 
 class EDataController extends Controller
 {
+    private function imgUrl(?string $v): ?string {
+        if (!$v) return null;
+        if (str_starts_with($v, 'http')) return $v;
+        return url('/api/img/' . $v);
+    }
+
     // GET /edata/providers
     public function providers()
     {
@@ -22,7 +28,7 @@ class EDataController extends Controller
 
         $result = $providers->map(function ($p) {
             return array_merge($p->toArray(), [
-                'logo_url' => $p->logo ? asset('storage/' . $p->logo) : null,
+                'logo_url' => $this->imgUrl($p->logo),
             ]);
         });
 
@@ -39,7 +45,7 @@ class EDataController extends Controller
 
         $result = $packages->map(function ($p) {
             return array_merge($p->toArray(), [
-                'image_url' => $p->image ? asset('storage/' . $p->image) : null,
+                'image_url' => $this->imgUrl($p->image),
             ]);
         });
 
@@ -57,7 +63,7 @@ class EDataController extends Controller
 
         $result = $bundles->map(function ($b) {
             $arr = (array)$b;
-            $arr['image_url'] = $b->image ? asset('storage/' . $b->image) : null;
+            $arr['image_url'] = $this->imgUrl($b->image);
             return $arr;
         });
 
@@ -75,7 +81,7 @@ class EDataController extends Controller
 
         $result = $bundles->map(function ($b) {
             $arr = (array)$b;
-            $arr['image_url'] = $b->image ? asset('storage/' . $b->image) : null;
+            $arr['image_url'] = $this->imgUrl($b->image);
             return $arr;
         });
 
@@ -95,7 +101,7 @@ class EDataController extends Controller
             return [
                 'id'       => $p->id,
                 'name'     => $p->name,
-                'logo'     => $p->logo,
+                'logo'     => $this->imgUrl($p->logo),
                 'color'    => $p->color ?? '#1a73e8',
                 'packages' => $packages,
                 'bundles'  => $bundles,
@@ -150,7 +156,7 @@ class EDataController extends Controller
                 'module_slug'     => 'edata',
                 'status'          => 'confirmed',
                 'payment_method'  => $request->payment_method,
-                'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'pending',
+                'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'unpaid',
                 'delivery_address'=> ['phone' => $request->phone_number],
                 'subtotal'        => $price,
                 'delivery_fee'    => 0,
@@ -195,4 +201,30 @@ class EDataController extends Controller
             ],
         ], 201);
     }
+
+    public function purchaseHistory()
+    {
+        $user = request()->user();
+        if (!$user) return response()->json(['success' => true, 'data' => []]);
+        $history = \DB::table('orders')
+            ->where('user_id', $user->id)
+            ->orderByDesc('created_at')->limit(50)->get();
+        return response()->json(['success' => true, 'data' => $history]);
+    }
+
+    public function favorites()
+    {
+        $user = request()->user();
+        if (!$user) return response()->json(['success' => true, 'data' => []]);
+        $favs = \DB::table('edata_favorites')->where('user_id', $user->id)->get();
+        return response()->json(['success' => true, 'data' => $favs]);
+    }
+
+    public function toggleFavorite()
+    {
+        $user = request()->user();
+        if (!$user) return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        return response()->json(['success' => true, 'data' => []]);
+    }
+
 }

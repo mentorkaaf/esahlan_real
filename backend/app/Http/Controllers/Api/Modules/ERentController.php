@@ -117,6 +117,38 @@ class ERentController extends Controller
     }
 
     // POST /erent/book (auth) — Full rent or carbuun
+
+    public function reels()
+    {
+        $properties = \DB::table('properties')
+            ->select('properties.id', 'properties.title', 'properties.images', 'properties.reels', 'properties.monthly_rent')
+            ->leftJoin('districts', 'properties.district_id', '=', 'districts.id')
+            ->addSelect('districts.name as district_name')
+            ->whereNotNull('properties.reels')
+            ->where('properties.reels', '!=', '[]')
+            ->where('properties.reels', '!=', '')
+            ->get();
+
+        $result = [];
+        foreach ($properties as $p) {
+            $reels = is_string($p->reels) ? (json_decode($p->reels, true) ?? []) : ($p->reels ?? []);
+            $images = is_string($p->images) ? (json_decode($p->images, true) ?? []) : ($p->images ?? []);
+            if (!is_array($reels) || empty($reels)) continue;
+            foreach ($reels as $url) {
+                if (empty($url)) continue;
+                $result[] = [
+                    'property_id'    => $p->id,
+                    'property_title' => $p->title,
+                    'monthly_rent'   => $p->monthly_rent,
+                    'district_name'  => $p->district_name ?? '',
+                    'thumbnail'      => !empty($images) ? $images[0] : null,
+                    'video_url'      => $url,
+                ];
+            }
+        }
+
+        return response()->json(['status' => 'success', 'data' => $result]);
+    }
     public function book(Request $request)
     {
         $v = Validator::make($request->all(), [
@@ -157,7 +189,7 @@ class ERentController extends Controller
                 'module_slug'     => 'erent',
                 'status'          => 'pending',
                 'payment_method'  => $request->payment_method,
-                'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'pending',
+                'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'unpaid',
                 'delivery_address'=> ['property_id' => $property->id],
                 'subtotal'        => $property->monthly_rent,
                 'delivery_fee'    => $property->brokerage_fee,
@@ -361,7 +393,7 @@ class ERentController extends Controller
             ]);
             DB::table('orders')->where('id', $booking->order_id)->update([
                 'status'         => 'confirmed',
-                'payment_status' => $request->payment_method === 'wallet' ? 'paid' : 'pending',
+                'payment_status' => $request->payment_method === 'wallet' ? 'paid' : 'unpaid',
                 'updated_at'     => now(),
             ]);
             if ($request->payment_method === 'wallet') {

@@ -21,8 +21,9 @@ class AuthController extends Controller
         $v = Validator::make($request->all(), [
             'name'     => 'required|string|max:100',
             'phone'    => 'required|string|unique:users,phone',
-            'password' => 'required|string|min:6|confirmed',
+            'password' => 'required|string|min:4|confirmed',
             'referral_code' => 'nullable|string|exists:users,referral_code',
+            'district_id'   => 'nullable|integer|exists:districts,id',
         ]);
 
         if ($v->fails()) {
@@ -42,6 +43,7 @@ class AuthController extends Controller
                 'status'          => 'active',
                 'referral_code'   => strtoupper(Str::random(8)),
                 'preferred_language' => $request->language ?? 'so',
+                'district_id'     => $request->district_id,
             ]);
 
             // Create wallet
@@ -236,7 +238,7 @@ class AuthController extends Controller
         $v = Validator::make($request->all(), [
             'phone'    => 'required|string|exists:users,phone',
             'code'     => 'required|string|size:6',
-            'password' => 'required|string|min:6|confirmed',
+            'password' => 'required|string|min:4|confirmed',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 

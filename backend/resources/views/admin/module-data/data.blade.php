@@ -488,7 +488,7 @@ function openAddBundle(provId) {
     document.getElementById('addBundleModal').classList.add('open');
 }
 function openEditProvider(prov) {
-    document.getElementById('editProviderForm').action = `/admin/module-data/data/provider/${prov.id}`;
+    document.getElementById('editProviderForm').action = `/admin/module-data/data/providers/${prov.id}`;
     document.getElementById('eprov_name').value   = prov.name || '';
     document.getElementById('eprov_color').value  = prov.color || '#1565C0';
     document.getElementById('eprov_sort').value   = prov.sort_order || 0;
@@ -496,14 +496,14 @@ function openEditProvider(prov) {
     document.getElementById('editProviderModal').classList.add('open');
 }
 function openEditPackage(pkg) {
-    document.getElementById('editPackageForm').action = `/admin/module-data/data/package/${pkg.id}`;
+    document.getElementById('editPackageForm').action = `/admin/module-data/data/packages/${pkg.id}`;
     document.getElementById('epkg_name').value     = pkg.name || '';
     document.getElementById('epkg_provider').value = pkg.provider_id || '';
     document.getElementById('epkg_active').value   = pkg.is_active ? '1' : '0';
     document.getElementById('editPackageModal').classList.add('open');
 }
 function openEditBundle(bnd) {
-    document.getElementById('editBundleForm').action = `/admin/module-data/data/bundle/${bnd.id}`;
+    document.getElementById('editBundleForm').action = `/admin/module-data/data/bundles/${bnd.id}`;
     document.getElementById('eb_name').value     = bnd.name || '';
     document.getElementById('eb_provider').value = bnd.provider_id || '';
     document.getElementById('eb_package').value  = bnd.package_id || '';

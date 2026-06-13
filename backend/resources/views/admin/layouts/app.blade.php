@@ -15,6 +15,7 @@
             --navy:        #07003B;
             --sidebar-bg:  #0c0148;
             --sidebar-w:   260px;
+            --sidebar-cw:  68px;
             --topbar-h:    64px;
             --radius:      12px;
             --radius-sm:   8px;
@@ -54,6 +55,34 @@
             position: fixed; top: 0; left: 0; bottom: 0;
             z-index: 200; overflow: hidden;
         }
+        .sidebar { transition: width .25s ease; }
+        body.sb-collapsed .sidebar { width: var(--sidebar-cw); }
+
+        /* collapsed: hide text elements */
+        body.sb-collapsed .brand-name,
+        body.sb-collapsed .brand-sub,
+        body.sb-collapsed .nav-section-label,
+        body.sb-collapsed .sidebar-user-name,
+        body.sb-collapsed .sidebar-user-role,
+        body.sb-collapsed .nav-badge,
+        body.sb-collapsed .toggle-arrow { display: none !important; }
+        body.sb-collapsed .nav-link > span,
+        body.sb-collapsed .nav-link > .nav-text { display: none !important; }
+        body.sb-collapsed .sidebar-brand { justify-content: center; padding: 0; }
+        body.sb-collapsed .sidebar-user { justify-content: center; }
+        body.sb-collapsed .nav-link { justify-content: center; padding: 8px 0; margin: 1px 6px; }
+        body.sb-collapsed .nav-icon { margin: 0; }
+        body.sb-collapsed .sidebar-logout-btn { margin: 0 auto; display: block; }
+        /* collapse toggle btn in topbar */
+        .sb-toggle-btn {
+            width: 36px; height: 36px; border-radius: 9px;
+            border: 1.5px solid var(--border); background: transparent;
+            color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 14px; flex-shrink: 0;
+            transition: all .15s;
+        }
+        .sb-toggle-btn:hover { background: var(--bg); color: var(--text); }
+
         .sidebar::after {
             content: '';
             position: absolute; top: 0; right: 0; bottom: 0;
@@ -158,7 +187,8 @@
         .sidebar-logout-btn:hover { color: var(--danger); background: rgba(239,68,68,0.1); }
 
         /* ── Main Wrapper ──────────────────────────────────────── */
-        .main-wrapper { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+        .main-wrapper { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; transition: margin-left .25s ease; }
+        body.sb-collapsed .main-wrapper { margin-left: var(--sidebar-cw); }
 
         /* ── Topbar ────────────────────────────────────────────── */
         .topbar {
@@ -555,6 +585,9 @@
             @php try { $__pOrd = \App\Models\Order::where('status','pending')->count(); } catch(\Exception $e){ $__pOrd=0; } @endphp
             @if($__pOrd > 0)<span class="nav-badge">{{ $__pOrd }}</span>@endif
         </a>
+        <a href="{{ route('admin.wallet.index') }}" class="nav-link {{ request()->routeIs('admin.wallet.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-wallet"></i></div> Wallet
+        </a>
         <a href="{{ route('admin.dispatch') }}" class="nav-link {{ request()->routeIs('admin.dispatch') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-map-marked-alt"></i></div> Dispatch
         </a>
@@ -613,28 +646,10 @@
         {{-- Finance --}}
         <div class="nav-section-label">Finance</div>
         <a href="{{ route('admin.finance.index') }}" class="nav-link {{ request()->routeIs('admin.finance.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-chart-line"></i></div> Finance
-        </a>
-        <a href="{{ route('admin.wallet.index') }}" class="nav-link {{ request()->routeIs('admin.wallet.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-wallet"></i></div> Wallet
+            <div class="nav-icon"><i class="fas fa-wallet"></i></div> Finance
         </a>
         <a href="{{ route('admin.reports.sales') }}" class="nav-link {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-chart-bar"></i></div> Reports
-        </a>
-
-        {{-- Community --}}
-        <div class="nav-section-label">Community</div>
-        <a href="{{ route('admin.community.index') }}" class="nav-link {{ request()->routeIs('admin.community.index') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-users"></i></div> Overview
-        </a>
-        <a href="{{ route('admin.community.posts') }}" class="nav-link {{ request()->routeIs('admin.community.posts*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-th-large"></i></div> Posts
-        </a>
-        <a href="{{ route('admin.community.groups') }}" class="nav-link {{ request()->routeIs('admin.community.groups*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-layer-group"></i></div> Groups
-        </a>
-        <a href="{{ route('admin.community.reports') }}" class="nav-link {{ request()->routeIs('admin.community.reports*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-flag"></i></div> Reports
         </a>
 
         {{-- Marketing --}}
@@ -645,12 +660,37 @@
         <a href="{{ route('admin.notifications.index') }}" class="nav-link {{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-bell"></i></div> Notifications
         </a>
-        <a href="{{ route('admin.landing.index') }}" class="nav-link {{ request()->routeIs('admin.landing.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-globe"></i></div> Landing Page
-        </a>
+
+        {{-- Community --}}
+        <div class="nav-section-label">Community</div>
+        <div class="nav-link nav-toggle-btn {{ request()->is('admin/community*') ? 'open active' : '' }}"
+             onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+            <div class="nav-icon"><i class="fas fa-users"></i></div> Community
+            <i class="fas fa-chevron-right ms-auto toggle-arrow" style="font-size:10px"></i>
+        </div>
+        <div class="nav-submenu {{ request()->is('admin/community*') ? 'open' : '' }}">
+            <a href="{{ route('admin.community.index') }}" class="nav-link {{ request()->routeIs('admin.community.index') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-tachometer-alt"></i></div> Dashboard
+            </a>
+            <a href="{{ route('admin.community.posts') }}" class="nav-link {{ request()->routeIs('admin.community.posts') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-file-alt"></i></div> Posts
+            </a>
+            <a href="{{ route('admin.community.reports') }}" class="nav-link {{ request()->routeIs('admin.community.reports') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-flag"></i></div> Reports
+            </a>
+            <a href="{{ route('admin.community.groups') }}" class="nav-link {{ request()->routeIs('admin.community.groups') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-layer-group"></i></div> Groups
+            </a>
+            <a href="{{ route('admin.community.users') }}" class="nav-link {{ request()->routeIs('admin.community.users') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-user-shield"></i></div> Users
+            </a>
+        </div>
 
         {{-- System --}}
         <div class="nav-section-label">System</div>
+        <a href="{{ route('admin.landing.index') }}" class="nav-link {{ request()->routeIs('admin.landing.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-paint-brush"></i></div> Landing Page
+        </a>
         <a href="{{ route('admin.settings.index') }}" class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-cog"></i></div> Settings
         </a>
@@ -676,6 +716,7 @@
 {{-- ═══════════════════════════════════════════ MAIN ════════════════════════════ --}}
 <div class="main-wrapper">
     <header class="topbar">
+        <button class="sb-toggle-btn" id="sbToggle" title="Toggle sidebar"><i class="fas fa-bars"></i></button>
         <div class="topbar-title">@yield('title', 'Dashboard')</div>
 
         <div class="topbar-search">
@@ -725,6 +766,36 @@
 </div>
 
 <script>
+// ── Sidebar collapse ─────────────────────────────────────────────────────────
+const SB_KEY = 'sb_collapsed';
+const body   = document.body;
+
+function applySidebar(collapsed) {
+    body.classList.toggle('sb-collapsed', collapsed);
+    const icon = document.querySelector('#sbToggle i');
+    if (icon) icon.className = collapsed ? 'fas fa-bars' : 'fas fa-bars';
+}
+// Init from localStorage
+applySidebar(localStorage.getItem(SB_KEY) === '1');
+
+document.getElementById('sbToggle')?.addEventListener('click', () => {
+    const next = !body.classList.contains('sb-collapsed');
+    applySidebar(next);
+    localStorage.setItem(SB_KEY, next ? '1' : '0');
+});
+
+// Hide nav-link text nodes so they collapse cleanly
+document.querySelectorAll('.nav-link').forEach(link => {
+    link.childNodes.forEach(node => {
+        if (node.nodeType === 3 && node.textContent.trim()) {
+            const span = document.createElement('span');
+            span.className = 'nav-text';
+            span.textContent = node.textContent;
+            node.replaceWith(span);
+        }
+    });
+});
+
 function openModal(id)  { document.getElementById(id)?.classList.add('open'); }
 function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
 document.addEventListener('click', e => { if (e.target.classList.contains('modal-overlay')) closeModal(e.target.id); });

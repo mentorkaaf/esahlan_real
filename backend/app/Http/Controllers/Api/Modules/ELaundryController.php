@@ -114,7 +114,7 @@ class ELaundryController extends Controller
                 'module_slug'     => 'elaundry',
                 'status'          => 'pending',
                 'payment_method'  => $request->payment_method,
-                'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'pending',
+                'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'unpaid',
                 'delivery_address'=> ['address' => $request->delivery_address ?? $request->pickup_address, 'district' => $district?->name],
                 'subtotal'        => $total,
                 'delivery_fee'    => 0,

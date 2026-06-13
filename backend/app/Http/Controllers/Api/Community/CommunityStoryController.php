@@ -20,7 +20,7 @@ class CommunityStoryController extends Controller
         $mediaUrl = null;
         if ($request->hasFile('media')) {
             $path = $request->file('media')->store('community/stories','public');
-            $mediaUrl = url('/api/img/'.$path);
+            $mediaUrl = asset('storage/'.$path);
         }
 
         $story = CommunityStory::create([

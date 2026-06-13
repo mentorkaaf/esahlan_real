@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\PushNotificationLog;
 use App\Services\Notification\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class AdminNotificationController extends Controller
 {
@@ -13,11 +14,13 @@ class AdminNotificationController extends Controller
 
     public function index()
     {
-        $logs        = PushNotificationLog::with('sentBy')->latest()->paginate(20);
-        $totalSent   = PushNotificationLog::count();
-        $sentToday   = PushNotificationLog::whereDate('created_at', today())->count();
-        $activeDevices = User::whereNotNull('fcm_token')->count();
-        return view('admin.notifications.index', compact('logs', 'totalSent', 'sentToday', 'activeDevices'));
+        $logs  = PushNotificationLog::with('sentBy')->latest()->paginate(20);
+        $stats = [
+            'total'      => PushNotificationLog::count(),
+            'today'      => PushNotificationLog::whereDate('created_at', today())->count(),
+            'with_token' => User::whereNotNull('fcm_token')->count(),
+        ];
+        return view('admin.notifications.index', compact('logs', 'stats'));
     }
 
     public function send(Request $request)
@@ -27,96 +30,96 @@ class AdminNotificationController extends Controller
             'body'        => 'required|string',
             'target_type' => 'required|in:all,customers,vendors,deliverymen,specific',
             'target_id'   => 'required_if:target_type,specific|nullable|exists:users,id',
+            'banner'      => 'nullable|image|max:2048',
+            'deep_link'   => 'nullable|string|max:255',
         ]);
 
-        // Build data payload (deep link + any extras)
-        $data = array_filter([
-            'screen'    => $request->deep_link ?? '',
-            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-        ]);
+        $imageUrl = null;
+        if ($request->hasFile('banner')) {
+            $path = $request->file('banner')->store('notifications', 'public');
+            $imageUrl = asset('storage/' . $path);
+        }
 
-        $tokens = [];
+        $deepLink = $request->deep_link;
+        $data = [];
+        if ($deepLink) $data['deep_link'] = $deepLink;
+
+        $sentCount = 0;
 
         if ($request->target_type === 'specific') {
             $user = User::find($request->target_id);
             if ($user?->fcm_token) {
-                $tokens = [$user->fcm_token];
+                $ok = $this->notificationService->sendPush([$user->fcm_token], $request->title, $request->body, $data, $imageUrl);
+                $sentCount = $ok ? 1 : 0;
             }
         } elseif ($request->target_type === 'all') {
             $tokens = User::whereNotNull('fcm_token')->where('status', 'active')->pluck('fcm_token')->toArray();
+            $sentCount = count($tokens);
+            $this->notificationService->sendPush($tokens, $request->title, $request->body, $data, $imageUrl);
         } else {
             $roleMap = ['customers' => 'customer', 'vendors' => 'vendor_owner', 'deliverymen' => 'deliveryman'];
-            $role = $roleMap[$request->target_type] ?? null;
-            if ($role) {
-                $tokens = User::whereHas('role', fn($q) => $q->where('slug', $role))
-                    ->whereNotNull('fcm_token')
-                    ->pluck('fcm_token')
-                    ->toArray();
-            }
-        }
-
-        $sentCount = 0;
-        if (!empty($tokens)) {
-            foreach (array_chunk($tokens, 500) as $chunk) {
-                $ok = $this->notificationService->sendPush($chunk, $request->title, $request->body, $data);
-                if ($ok) $sentCount += count($chunk);
-            }
+            $role    = $roleMap[$request->target_type];
+            $tokens  = User::whereHas('role', fn($q) => $q->where('slug', $role))
+                ->whereNotNull('fcm_token')
+                ->pluck('fcm_token')
+                ->toArray();
+            $sentCount = count($tokens);
+            $this->notificationService->sendPush($tokens, $request->title, $request->body, $data, $imageUrl);
         }
 
         PushNotificationLog::create([
             'title'       => $request->title,
             'body'        => $request->body,
-            'data'        => $data,
+            'image_url'   => $imageUrl,
+            'deep_link'   => $deepLink,
             'target_type' => $request->target_type,
-            'target_id'   => $request->target_id,
-            'deep_link'   => $request->deep_link,
-            'sent_count'  => $sentCount ?: count($tokens),
+            'target_id'   => $request->target_type === 'specific' ? $request->target_id : null,
+            'sent_count'  => $sentCount,
             'sent_by'     => auth()->id(),
         ]);
 
-        return back()->with('success', 'Notification sent to ' . count($tokens) . ' device(s).');
+        return back()->with('success', "Notification sent to {$sentCount} device(s).");
     }
 
-    public function delete(PushNotificationLog $log)
+
+    public function bulkDestroy(Request $request)
     {
+        $request->validate(['ids' => 'required|array|min:1', 'ids.*' => 'integer|exists:push_notification_logs,id']);
+        $logs = PushNotificationLog::whereIn('id', $request->ids)->get();
+        foreach ($logs as $log) {
+            if ($log->image_url) {
+                $path = str_replace(asset('storage/'), '', $log->image_url);
+                Storage::disk('public')->delete($path);
+            }
+            $log->delete();
+        }
+        return back()->with('success', count($request->ids) . ' notification(s) deleted.');
+    }
+
+    public function destroy(int $id)
+    {
+        $log = PushNotificationLog::findOrFail($id);
+        if ($log->image_url) {
+            $path = str_replace(asset('storage/'), '', $log->image_url);
+            Storage::disk('public')->delete($path);
+        }
         $log->delete();
         return back()->with('success', 'Notification deleted.');
     }
 
-    public function resend(PushNotificationLog $log)
+    public function searchUsers(Request $request)
     {
-        $data   = $log->data ?? ['click_action' => 'FLUTTER_NOTIFICATION_CLICK'];
-        $tokens = [];
+        $q = $request->get('q', '');
+        $users = User::where(function ($query) use ($q) {
+                $query->where('name', 'like', "%{$q}%")
+                      ->orWhere('email', 'like', "%{$q}%")
+                      ->orWhere('phone', 'like', "%{$q}%");
+            })
+            ->whereNotNull('fcm_token')
+            ->select('id', 'name', 'email', 'phone')
+            ->limit(10)
+            ->get();
 
-        if ($log->target_type === 'specific') {
-            $user = User::find($log->target_id);
-            if ($user?->fcm_token) $tokens = [$user->fcm_token];
-        } elseif ($log->target_type === 'all') {
-            $tokens = User::whereNotNull('fcm_token')->where('status', 'active')->pluck('fcm_token')->toArray();
-        } else {
-            $roleMap = ['customers' => 'customer', 'vendors' => 'vendor_owner', 'deliverymen' => 'deliveryman'];
-            $role = $roleMap[$log->target_type] ?? null;
-            if ($role) {
-                $tokens = User::whereHas('role', fn($q) => $q->where('slug', $role))
-                    ->whereNotNull('fcm_token')->pluck('fcm_token')->toArray();
-            }
-        }
-
-        foreach (array_chunk($tokens, 500) as $chunk) {
-            $this->notificationService->sendPush($chunk, $log->title, $log->body, $data);
-        }
-
-        PushNotificationLog::create([
-            'title'       => $log->title,
-            'body'        => $log->body,
-            'data'        => $data,
-            'target_type' => $log->target_type,
-            'target_id'   => $log->target_id,
-            'deep_link'   => $log->deep_link,
-            'sent_count'  => count($tokens),
-            'sent_by'     => auth()->id(),
-        ]);
-
-        return back()->with('success', 'Notification resent to ' . count($tokens) . ' device(s).');
+        return response()->json($users);
     }
 }

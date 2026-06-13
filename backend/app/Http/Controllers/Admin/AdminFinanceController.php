@@ -14,7 +14,7 @@ class AdminFinanceController extends Controller
     public function index()
     {
         $stats = [
-            'total_revenue'       => Commission::sum('commission_amount'),
+            'total_revenue'       => Commission::sum('platform_amount'),
             'pending_withdrawals' => WithdrawalRequest::where('status', 'pending')->sum('amount'),
             'total_payouts'       => WithdrawalRequest::where('status', 'completed')->sum('amount'),
             'wallet_balances'     => Wallet::where('owner_type', 'App\\Models\\User')->sum('balance'),

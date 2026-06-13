@@ -19,15 +19,21 @@ class EExchangeController extends Controller
     public function calculate(Request $request)
     {
         $v = Validator::make($request->all(), [
-            'from'   => 'required|string|size:3',
-            'to'     => 'required|string|size:3',
-            'amount' => 'required|numeric|min:0.01',
+            'from'        => 'required_without:from_wallet|string|max:20',
+            'from_wallet' => 'required_without:from|string|max:20',
+            'to'          => 'required_without:to_wallet|string|max:20',
+            'to_wallet'   => 'required_without:to|string|max:20',
+            'amount'      => 'required|numeric|min:0.01',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
+        $fromVal = strtoupper($request->from_wallet ?? $request->from);
+        $toVal   = strtoupper($request->to_wallet   ?? $request->to);
+        $request->merge(['from' => $fromVal, 'to' => $toVal]);
+
         $rate = DB::table('exchange_rates')
-            ->where('from_wallet', strtoupper($request->from))
-            ->where('to_wallet', strtoupper($request->to))
+            ->where('from_wallet', $fromVal)
+            ->where('to_wallet', $toVal)
             ->where('is_active', true)
             ->first();
 
@@ -54,12 +60,16 @@ class EExchangeController extends Controller
 
     public function transfer(Request $request)
     {
+        $fromVal = strtoupper($request->from_wallet ?? $request->from ?? '');
+        $toVal   = strtoupper($request->to_wallet   ?? $request->to   ?? '');
+        $request->merge(['from' => $fromVal, 'to' => $toVal]);
+
         $v = Validator::make($request->all(), [
-            'from'             => 'required|string|size:3',
-            'to'               => 'required|string|size:3',
-            'amount'           => 'required|numeric|min:1',
-            'recipient_phone'  => 'required|string',
-            'payment_method'   => 'required|in:wallet,waafi',
+            'from'             => 'required|string|max:20',
+            'to'               => 'required|string|max:20',
+            'amount'           => 'required|numeric|min:0.01',
+            'recipient_phone'  => 'nullable|string',
+            'payment_method'   => 'nullable|string|in:wallet,waafi,cod',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
@@ -72,21 +82,27 @@ class EExchangeController extends Controller
 
         if (!$calc) return response()->json(['success' => false, 'message' => 'Exchange pair not available'], 404);
 
-        if ($request->payment_method === 'wallet') {
+        if (($request->payment_method ?? 'wallet') === 'wallet') {
             $wallet = $user->wallet;
             if (!$wallet || $wallet->balance < $request->amount) {
                 return response()->json(['success' => false, 'message' => 'Insufficient wallet balance'], 422);
             }
 
             DB::transaction(function () use ($wallet, $request, $calc) {
-                $wallet->decrement('balance', $request->amount);
-                DB::table('wallet_transactions')->insert([
-                    'wallet_id'   => $wallet->id,
-                    'type'        => 'debit',
-                    'amount'      => $request->amount,
-                    'description' => "eExchange: {$request->from}→{$request->to} to {$request->recipient_phone}",
-                    'created_at'  => now(),
-                    'updated_at'  => now(),
+                $balanceBefore = (float) $wallet->balance;
+                $wallet->decrement("balance", $request->amount);
+                DB::table("transactions")->insert([
+                    "uuid"           => (string) \Illuminate\Support\Str::uuid(),
+                    "wallet_id"      => $wallet->id,
+                    "type"           => "debit",
+                    "amount"         => $request->amount,
+                    "balance_before" => $balanceBefore,
+                    "balance_after"  => $balanceBefore - $request->amount,
+                    "note"           => "eExchange: {$request->from} to {$request->to} - {$request->recipient_phone}",
+                    "payment_method" => "wallet",
+                    "status"         => "completed",
+                    "created_at"     => now(),
+                    "updated_at"     => now(),
                 ]);
             });
         }

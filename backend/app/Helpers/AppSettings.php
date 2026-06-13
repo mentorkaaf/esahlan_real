@@ -23,6 +23,15 @@ class AppSettings
         });
     }
 
+    public static function set(string $key, mixed $value, string $type = 'string'): void
+    {
+        DB::table('settings')->updateOrInsert(
+            ['key' => $key],
+            ['value' => $value, 'type' => $type, 'updated_at' => now()]
+        );
+        Cache::forget("setting_{$key}");
+    }
+
     /** Returns the configured app timezone string (e.g. 'Africa/Nairobi') */
     public static function timezone(): string
     {

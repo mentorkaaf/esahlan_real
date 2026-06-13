@@ -65,7 +65,7 @@ class CommunityChatController extends Controller
         $mediaUrl = null;
         if ($request->hasFile('media')) {
             $path = $request->file('media')->store('community/messages','public');
-            $mediaUrl = url('/api/img/'.$path);
+            $mediaUrl = asset('storage/'.$path);
         }
 
         $msg = CommunityMessage::create([

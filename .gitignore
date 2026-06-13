@@ -7,6 +7,14 @@ backend/storage/framework/cache/
 backend/storage/framework/sessions/
 backend/storage/framework/views/
 backend/bootstrap/cache/
+backend/public/storage/
+backend/install/
+backend/deploy/
+backend/database/database.sqlite
+backend/index.php
+backend/.htaccess
+backend/storage/app/firebase-service-account.json
+backend/storage/app/private/
 
 # Flutter apps
 customer_app/.dart_tool/

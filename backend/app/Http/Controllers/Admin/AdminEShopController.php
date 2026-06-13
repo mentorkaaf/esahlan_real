@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Services\FcmService;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Coupon;
@@ -675,7 +676,8 @@ class AdminEShopController extends Controller
     public function orderUpdateStatus(Request $request, int $id)
     {
         $data = $request->validate(['status' => 'required|in:pending,confirmed,processing,shipped,delivered,cancelled,refunded']);
-        DB::table('orders')->where('id', $id)->update(['status' => $data['status'], 'updated_at' => now()]);
+        DB::table('orders')->where('id',$id)->update(['status'=>$data['status'],'updated_at'=>now()]);
+        try{$o=\App\Models\Order::with('user')->find($id);if($o?->user?->fcm_token)FcmService::sendOrderUpdate($o->user->fcm_token,$o->order_number??'#'.$id,$data['status'],$id);}catch(\Throwable $er){}
         return back()->with('success', 'Order status updated.');
     }
 

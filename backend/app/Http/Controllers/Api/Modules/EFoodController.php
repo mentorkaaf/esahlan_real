@@ -178,6 +178,14 @@ class EFoodController extends Controller
             return response()->json(['success' => false, 'message' => 'Restaurant not found'], 404);
         }
 
+        // Compute real-time open status from working_hours
+        if (!empty($vendor->working_hours)) {
+            $vendor->is_open = WorkingHours::isOpen($vendor->working_hours, (bool)$vendor->is_open);
+        }
+        if (!empty($vendor->temporarily_closed)) {
+            $vendor->is_open = false;
+        }
+
         // Schedule
         $schedule = DB::table('vendor_schedules')
             ->where('vendor_id', $id)
@@ -828,4 +836,12 @@ class EFoodController extends Controller
 
         return response()->json(['success' => true, 'data' => $ids]);
     }
+
+    public function getItem($id)
+    {
+        $item = \DB::table('products')->where('id', $id)->first();
+        if (!$item) return response()->json(['success' => false, 'message' => 'Item not found'], 404);
+        return response()->json(['success' => true, 'data' => $item]);
+    }
+
 }

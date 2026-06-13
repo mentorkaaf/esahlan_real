@@ -11,6 +11,7 @@ use App\Models\Banner;
 use App\Models\Coupon;
 use App\Models\DiscountCampaign;
 use App\Models\Order;
+use App\Services\FcmService;
 use App\Models\District;
 use App\Models\Module;
 use Illuminate\Http\Request;
@@ -328,27 +329,28 @@ class AdminEFoodController extends Controller
     /** Ensure products table has all extra columns (SQLite ALTER TABLE ADD COLUMN is safe to re-run) */
     private function ensureProductColumns(): void
     {
-        $db  = DB::connection()->getPdo();
-        $has = [];
-        foreach ($db->query("PRAGMA table_info(products)")->fetchAll(\PDO::FETCH_ASSOC) as $col) {
-            $has[] = $col['name'];
-        }
+        // Use MySQL INFORMATION_SCHEMA (PRAGMA is SQLite-only)
+        $existing = DB::select(
+            "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products'"
+        );
+        $has = array_column(array_map('get_object_vars', $existing), 'COLUMN_NAME');
+
         $toAdd = [
             'compare_price'  => "ALTER TABLE products ADD COLUMN compare_price  DECIMAL(10,2) NULL",
             'cost_price'     => "ALTER TABLE products ADD COLUMN cost_price     DECIMAL(10,2) NULL",
             'sale_price'     => "ALTER TABLE products ADD COLUMN sale_price     DECIMAL(10,2) NULL",
             'thumbnail'      => "ALTER TABLE products ADD COLUMN thumbnail      VARCHAR(500)  NULL",
             'image'          => "ALTER TABLE products ADD COLUMN image          VARCHAR(500)  NULL",
-            'is_available'   => "ALTER TABLE products ADD COLUMN is_available   INTEGER NOT NULL DEFAULT 1",
-            'is_active'      => "ALTER TABLE products ADD COLUMN is_active      INTEGER NOT NULL DEFAULT 1",
-            'is_featured'    => "ALTER TABLE products ADD COLUMN is_featured    INTEGER NOT NULL DEFAULT 0",
-            'sort_order'     => "ALTER TABLE products ADD COLUMN sort_order     INTEGER NOT NULL DEFAULT 0",
+            'is_available'   => "ALTER TABLE products ADD COLUMN is_available   TINYINT(1) NOT NULL DEFAULT 1",
+            'is_active'      => "ALTER TABLE products ADD COLUMN is_active      TINYINT(1) NOT NULL DEFAULT 1",
+            'is_featured'    => "ALTER TABLE products ADD COLUMN is_featured    TINYINT(1) NOT NULL DEFAULT 0",
+            'sort_order'     => "ALTER TABLE products ADD COLUMN sort_order     INT NOT NULL DEFAULT 0",
             'available_from' => "ALTER TABLE products ADD COLUMN available_from  TIME NULL",
             'available_until'=> "ALTER TABLE products ADD COLUMN available_until TIME NULL",
         ];
         foreach ($toAdd as $col => $sql) {
             if (!in_array($col, $has)) {
-                $db->exec($sql);
+                DB::statement($sql);
             }
         }
     }
@@ -702,6 +704,7 @@ class AdminEFoodController extends Controller
             ]);
         } catch (\Throwable $e) { /* non-critical */ }
 
+        try{$order->load('user');if($order->user?->fcm_token)FcmService::sendOrderUpdate($order->user->fcm_token,$order->order_number??'#'.$order->id,$request->status,$order->id);}catch(\Throwable $er){}
         return back()->with('success', 'Order status updated!');
     }
 }

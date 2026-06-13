@@ -15,34 +15,11 @@ use App\Http\Controllers\Admin\AdminReportController;
 use App\Http\Controllers\Admin\DispatchController;
 use App\Http\Controllers\Admin\AdminModuleDataController;
 use App\Http\Controllers\Admin\AdminEFoodController;
-use App\Http\Controllers\Admin\AdminCommunityController;
 use App\Http\Controllers\Admin\AdminWalletController;
 use App\Http\Controllers\Admin\AdminLandingController;
 
-// Public landing page
+// Redirect root to admin
 Route::get('/', fn() => view('landing'));
-
-// Admin root redirect to login/dashboard
-Route::get('/admin', fn() => redirect('/admin/dashboard'));
-
-// Deploy webhook (called by GitHub Actions)
-Route::get('/api-sync', function (\Illuminate\Http\Request $request) {
-    $secret = 'eSahlan_Deploy_2026_Secret';
-    $token  = $request->header('X-Deploy-Token') ?? $request->query('token', '');
-    if (!hash_equals($secret, $token)) {
-        abort(403);
-    }
-    $desc = [0 => ['pipe','r'], 1 => ['pipe','w'], 2 => ['pipe','w']];
-    $proc = proc_open('bash /home/u801770158/deploy.sh', $desc, $pipes);
-    $output = '';
-    if (is_resource($proc)) {
-        fclose($pipes[0]);
-        $output = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
-        fclose($pipes[1]); fclose($pipes[2]);
-        proc_close($proc);
-    }
-    return response('<pre>' . e($output) . '</pre>');
-});
 
 // Admin Auth
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -79,6 +56,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/{order}', [AdminOrderController::class, 'show'])->name('show');
             Route::patch('/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('status');
             Route::post('/{order}/assign', [AdminOrderController::class, 'assignDeliveryman'])->name('assign');
+            Route::post('/bulk', [AdminOrderController::class, 'bulkAction'])->name('bulk');
         });
 
         // Deliverymen
@@ -125,42 +103,25 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
 
         // Notifications
+        
+        // Community Management
+        Route::prefix('community')->name('community.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'index'])->name('index');
+            Route::get('/posts', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'posts'])->name('posts');
+            Route::delete('/posts/{id}', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'deletePost'])->name('posts.delete');
+            Route::get('/reports', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'reports'])->name('reports');
+            Route::post('/reports/{id}/action', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'actionReport'])->name('reports.action');
+            Route::get('/groups', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'groups'])->name('groups');
+            Route::delete('/groups/{id}', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'deleteGroup'])->name('groups.delete');
+            Route::get('/users', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'users'])->name('users');
+            Route::post('/users/{id}/verify', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'toggleVerify'])->name('users.verify');
+        });
         Route::prefix('notifications')->name('notifications.')->group(function () {
             Route::get('/', [AdminNotificationController::class, 'index'])->name('index');
             Route::post('/send', [AdminNotificationController::class, 'send'])->name('send');
-            Route::post('/{log}/resend', [AdminNotificationController::class, 'resend'])->name('resend');
-            Route::delete('/{log}', [AdminNotificationController::class, 'delete'])->name('delete');
-        });
-
-        // Community
-        Route::prefix('community')->name('community.')->group(function () {
-            Route::get('/',                         [AdminCommunityController::class, 'index'])->name('index');
-            Route::get('/posts',                    [AdminCommunityController::class, 'posts'])->name('posts');
-            Route::delete('/posts/{id}',            [AdminCommunityController::class, 'deletePost'])->name('posts.delete');
-            Route::get('/reports',                  [AdminCommunityController::class, 'reports'])->name('reports');
-            Route::post('/reports/{id}/action',     [AdminCommunityController::class, 'actionReport'])->name('reports.action');
-            Route::get('/groups',                   [AdminCommunityController::class, 'groups'])->name('groups');
-            Route::delete('/groups/{id}',           [AdminCommunityController::class, 'deleteGroup'])->name('groups.delete');
-            Route::get('/users',                    [AdminCommunityController::class, 'users'])->name('users');
-            Route::post('/users/{id}/verify',       [AdminCommunityController::class, 'toggleVerify'])->name('users.verify');
-        });
-
-        // Wallet
-        Route::prefix('wallet')->name('wallet.')->group(function () {
-            Route::get('/',                         [AdminWalletController::class, 'index'])->name('index');
-            Route::get('/transactions',             [AdminWalletController::class, 'transactions'])->name('transactions');
-            Route::post('/credit',                  [AdminWalletController::class, 'creditUser'])->name('credit');
-            Route::get('/withdrawals',              [AdminWalletController::class, 'withdrawals'])->name('withdrawals');
-            Route::post('/withdrawals/{id}/approve',[AdminWalletController::class, 'approveWithdrawal'])->name('withdrawals.approve');
-            Route::post('/withdrawals/{id}/reject', [AdminWalletController::class, 'rejectWithdrawal'])->name('withdrawals.reject');
-            Route::get('/settings',                 [AdminWalletController::class, 'settings'])->name('settings');
-            Route::post('/settings',                [AdminWalletController::class, 'saveSettings'])->name('settings.save');
-        });
-
-        // Landing page
-        Route::prefix('landing')->name('landing.')->group(function () {
-            Route::get('/', [AdminLandingController::class, 'index'])->name('index');
-            Route::post('/', [AdminLandingController::class, 'update'])->name('update');
+            Route::delete('/{id}', [AdminNotificationController::class, 'destroy'])->name('destroy');
+            Route::delete('/', [AdminNotificationController::class, 'bulkDestroy'])->name('bulk-destroy');
+            Route::get('/users/search', [AdminNotificationController::class, 'searchUsers'])->name('users.search');
         });
 
         // Settings
@@ -205,13 +166,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             // eData
             Route::get('/data',                      [$ctrl, 'dataIndex'])->name('data');
             Route::post('/data/providers',            [$ctrl, 'dataProviderStore'])->name('data.provider.store');
-            Route::patch('/data/providers/{provider}',[$ctrl, 'dataProviderUpdate'])->name('data.provider.update');
+            Route::match(['PUT','PATCH'],'/data/providers/{provider}',[$ctrl, 'dataProviderUpdate'])->name('data.provider.update');
             Route::delete('/data/providers/{provider}',[$ctrl, 'dataProviderDestroy'])->name('data.provider.destroy');
             Route::post('/data/packages',             [$ctrl, 'dataPackageStore'])->name('data.package.store');
-            Route::patch('/data/packages/{package}',  [$ctrl, 'dataPackageUpdate'])->name('data.package.update');
+            Route::match(['PUT','PATCH'],'/data/packages/{package}',  [$ctrl, 'dataPackageUpdate'])->name('data.package.update');
             Route::delete('/data/packages/{package}', [$ctrl, 'dataPackageDestroy'])->name('data.package.destroy');
             Route::post('/data/bundles',              [$ctrl, 'dataBundleStore'])->name('data.bundle.store');
-            Route::patch('/data/bundles/{id}',        [$ctrl, 'dataBundleUpdate'])->name('data.bundle.update');
+            Route::match(['PUT','PATCH'],'/data/bundles/{id}',        [$ctrl, 'dataBundleUpdate'])->name('data.bundle.update');
             Route::delete('/data/bundles/{id}',       [$ctrl, 'dataBundleDestroy'])->name('data.bundle.destroy');
 
             // eExchange
@@ -347,6 +308,23 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::patch('/orders/{id}/status',   [$es, 'orderUpdateStatus'])->name('order.status');
             // Image Upload
             Route::post('/upload-image',          [$es, 'uploadImage'])->name('upload.image');
+        });
+
+        // Landing Page Management
+        Route::get('/landing', [AdminLandingController::class, 'index'])->name('landing.index');
+        Route::put('/landing', [AdminLandingController::class, 'update'])->name('landing.update');
+
+        // Wallet Management & Payment Settings
+        Route::prefix('wallet')->name('wallet.')->group(function () {
+            $wc = AdminWalletController::class;
+            Route::get('/',                      [$wc, 'index'])->name('index');
+            Route::get('/transactions',          [$wc, 'transactions'])->name('transactions');
+            Route::post('/credit',               [$wc, 'creditUser'])->name('credit');
+            Route::get('/withdrawals',           [$wc, 'withdrawals'])->name('withdrawals');
+            Route::post('/withdrawals/{id}/approve', [$wc, 'approveWithdrawal'])->name('withdrawal.approve');
+            Route::post('/withdrawals/{id}/reject',  [$wc, 'rejectWithdrawal'])->name('withdrawal.reject');
+            Route::get('/settings',              [$wc, 'settings'])->name('settings');
+            Route::post('/settings',             [$wc, 'saveSettings'])->name('settings.save');
         });
 
         // Dispatch Center

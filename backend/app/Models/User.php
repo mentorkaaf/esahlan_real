@@ -43,7 +43,7 @@ class User extends Authenticatable
     public function district() { return $this->belongsTo(District::class); }
     public function referrer() { return $this->belongsTo(User::class, 'referred_by'); }
     public function referrals() { return $this->hasMany(Referral::class, 'referrer_id'); }
-    public function wallet() { return $this->hasOne(Wallet::class, 'owner_id')->where('owner_type', 'user'); }
+    public function wallet() { return $this->hasOne(Wallet::class, 'owner_id')->where('owner_type', 'App\\Models\\User'); }
     public function addresses() { return $this->hasMany(UserAddress::class); }
     public function defaultAddress() { return $this->hasOne(UserAddress::class)->where('is_default', true); }
     public function orders() { return $this->hasMany(Order::class); }
@@ -52,6 +52,8 @@ class User extends Authenticatable
     public function reviews() { return $this->hasMany(Review::class); }
     public function vendor() { return $this->hasOne(Vendor::class); }
     public function deliveryman() { return $this->hasOne(Deliveryman::class); }
+    public function communityProfile() { return $this->hasOne(\App\Models\CommunityProfile::class); }
+    public function stories() { return $this->hasMany(\App\Models\CommunityStory::class); }
     public function permissions() {
         return $this->belongsToMany(Permission::class, 'user_permissions')->withPivot('granted');
     }

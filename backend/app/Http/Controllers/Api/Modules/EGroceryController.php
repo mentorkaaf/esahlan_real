@@ -108,7 +108,7 @@ class EGroceryController extends Controller
                 'module_slug'     => 'egrocery',
                 'status'          => 'pending',
                 'payment_method'  => $request->payment_method,
-                'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'pending',
+                'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'unpaid',
                 'delivery_address'=> $request->delivery_address,
                 'subtotal'        => $total,
                 'delivery_fee'    => $deliveryFee,
