@@ -280,15 +280,15 @@ class _ProviderCard extends StatelessWidget {
 // step 2 = Order Summary
 // step 3 = Success
 // ─────────────────────────────────────────────────────────────────────────────
-class _EDataFlowDialog extends StatefulWidget {
+class _EDataFlowDialog extends ConsumerStatefulWidget {
   final Map provider;
   final Color providerColor;
   const _EDataFlowDialog({required this.provider, required this.providerColor});
   @override
-  State<_EDataFlowDialog> createState() => _EDataFlowDialogState();
+  ConsumerState<_EDataFlowDialog> createState() => _EDataFlowDialogState();
 }
 
-class _EDataFlowDialogState extends State<_EDataFlowDialog> {
+class _EDataFlowDialogState extends ConsumerState<_EDataFlowDialog> {
   int _step = 0;
   Map? _selectedPackage;
   Map? _selectedBundle;
