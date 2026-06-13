@@ -1,6 +1,7 @@
 # Backend
 backend/vendor/
 backend/.env
+backend/.env.*
 backend/storage/logs/
 backend/storage/framework/cache/
 backend/storage/framework/sessions/
