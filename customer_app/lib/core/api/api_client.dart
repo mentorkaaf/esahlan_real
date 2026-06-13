@@ -72,12 +72,11 @@ class ApiException implements Exception {
 
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout) {
-      msg = 'Connection timed out. Check backend is running.';
+      msg = 'Connection timed out. Please check your internet connection.';
     } else if (e.type == DioExceptionType.connectionError) {
-      msg = 'Cannot reach server. Is Laravel Herd running on port 8000?';
+      msg = 'Cannot connect to server. Please check your internet connection.';
     } else if (e.type == DioExceptionType.unknown) {
-      // Flutter Web CORS errors or network issues show up here
-      msg = 'Network error. Check CORS config or backend is running.';
+      msg = 'Network error. Please check your internet connection.';
     }
 
     return ApiException(
