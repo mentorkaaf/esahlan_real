@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use App\Models\Wallet;
 use Illuminate\Support\Str;
 
 class EExchangeController extends Controller
@@ -102,26 +103,20 @@ class EExchangeController extends Controller
 
         // Wallet payment: check balance and deduct
         if ($paymentMethod === 'wallet') {
-            $wallet = DB::table('wallets')
-                ->where('owner_type', 'App\\Models\\User')
-                ->where('owner_id', $user->id)
-                ->first();
-            $balance = $wallet ? (float) $wallet->balance : 0;
+            $wallet  = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
+            $balance = (float) $wallet->balance;
             if ($balance < $sentAmount) {
                 return response()->json([
                     'success' => false,
                     'message' => "Insufficient wallet balance. You have \${$balance}, need \${$sentAmount}.",
                 ], 422);
             }
-            DB::table('wallets')
-                ->where('id', $wallet->id)
-                ->decrement('balance', $sentAmount);
         }
         // Waafi Pay: reference is logged, no further server deduction needed
 
         $reference = 'EXC-' . strtoupper(Str::random(10));
 
-        DB::table('exchange_orders')->insert([
+        $exchangeId = DB::table('exchange_orders')->insertGetId([
             'reference'          => $reference,
             'user_id'            => $user->id,
             'from_wallet'        => $fromVal,
@@ -138,6 +133,11 @@ class EExchangeController extends Controller
             'created_at'         => now(),
             'updated_at'         => now(),
         ]);
+
+        if ($paymentMethod === 'wallet') {
+            $w = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
+            $w->debit($sentAmount, "eExchange {$fromVal}→{$toVal} ref:{$reference}", 'exchange_order', $exchangeId);
+        }
 
         return response()->json([
             'success' => true,

@@ -4,7 +4,9 @@ import 'package:shimmer/shimmer.dart';
 import 'package:intl/intl.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../wallet/presentation/providers/wallet_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DESIGN CONSTANTS
@@ -1615,6 +1617,11 @@ class _BookingFlowScreenState extends ConsumerState<_BookingFlowScreen> {
       _waafiReference = result!.reference;
     }
 
+    if (_paymentMethod == 'wallet') {
+      final pinOk = await showWalletPinDialog(context);
+      if (!pinOk) return;
+    }
+
     setState(() => _submitting = true);
     try {
       final body = {
@@ -1636,6 +1643,7 @@ class _BookingFlowScreenState extends ConsumerState<_BookingFlowScreen> {
         _step = 2;
       });
       ref.invalidate(_myOrdersProvider);
+      if (_paymentMethod == 'wallet') ref.invalidate(walletProvider);
     } catch (e) {
       setState(() => _submitting = false);
       if (mounted) {

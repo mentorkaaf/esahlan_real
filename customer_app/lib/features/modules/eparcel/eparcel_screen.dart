@@ -5,7 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../wallet/presentation/providers/wallet_provider.dart';
 
 final _svc = ModuleApiService.create();
 final _parcelTypesProvider     = FutureProvider.autoDispose((_) => _svc.getParcelTypes());
@@ -396,6 +398,11 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
       _waafiRef = result!.reference;
     }
 
+    if (_payMethod == 'wallet') {
+      final pinOk = await showWalletPinDialog(context);
+      if (!pinOk) return;
+    }
+
     setState(() => _ordering = true);
     try {
       await _svc.placeParcelOrder({
@@ -408,6 +415,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
         'payment_method':   _payMethod,
         if (_waafiRef != null) 'payment_reference': _waafiRef,
       });
+      if (_payMethod == 'wallet') ref.invalidate(walletProvider);
       if (mounted) {
         _snack('Parcel order placed successfully! 🎉');
         await Future.delayed(const Duration(milliseconds: 800));

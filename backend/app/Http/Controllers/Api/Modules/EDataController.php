@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DataPackage;
 use App\Models\DataProvider;
 use App\Models\Order;
+use App\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -118,7 +119,7 @@ class EDataController extends Controller
             'package_id'     => 'nullable|exists:data_packages,id',
             'bundle_id'      => 'nullable|integer',
             'phone_number'   => 'required|string|min:7',
-            'payment_method' => 'required|in:wallet,cod',
+            'payment_method' => 'required|in:wallet,waafi_pay',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
         if (empty($request->package_id) && empty($request->bundle_id)) {
@@ -141,8 +142,8 @@ class EDataController extends Controller
         }
 
         if ($request->payment_method === 'wallet') {
-            $wallet = $user->wallet;
-            if (!$wallet || $wallet->balance < $price) {
+            $wallet = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
+            if ($wallet->balance < $price) {
                 return response()->json(['success' => false, 'message' => 'Insufficient wallet balance'], 422);
             }
         }
@@ -174,17 +175,8 @@ class EDataController extends Controller
             ]);
 
             if ($request->payment_method === 'wallet') {
-                $wallet = $user->wallet;
-                $wallet->decrement('balance', $price);
-                DB::table('wallet_transactions')->insert([
-                    'wallet_id'   => $wallet->id,
-                    'type'        => 'debit',
-                    'amount'      => $price,
-                    'description' => "eData: {$itemName} → {$request->phone_number}",
-                    'reference_id'=> $order->id,
-                    'created_at'  => now(),
-                    'updated_at'  => now(),
-                ]);
+                $wallet = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
+                $wallet->debit($price, "eData: {$itemName} → {$request->phone_number}", 'App\\Models\\Order', $order->id);
             }
 
             return $order;

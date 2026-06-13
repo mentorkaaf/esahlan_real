@@ -10,7 +10,9 @@ import 'package:intl/intl.dart';
 import 'package:video_player/video_player.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../wallet/presentation/providers/wallet_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -1128,7 +1130,7 @@ class _BookingScreen extends ConsumerStatefulWidget {
 class _BookingScreenState extends ConsumerState<_BookingScreen> {
   DateTime? _moveInDate;
   int _duration = 1;
-  String _payMethod = 'cod';
+  String _payMethod = 'wallet';
   String? _waafiReference;
   bool _loading = false;
   bool _done = false;
@@ -1162,6 +1164,11 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
       _waafiReference = result!.reference;
     }
 
+    if (_payMethod == 'wallet') {
+      final pinOk = await showWalletPinDialog(context);
+      if (!pinOk) return;
+    }
+
     setState(() => _loading = true);
     try {
       final svc = ModuleApiService.create();
@@ -1175,6 +1182,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
         if (_waafiReference != null) 'payment_reference': _waafiReference,
       });
       ref.invalidate(_myBookingsProvider);
+      if (_payMethod == 'wallet') ref.invalidate(walletProvider);
       if (mounted) {
         final ref2 = result is Map ? (result['data']?['order_number'] ?? '') : '';
         setState(() { _loading = false; _done = true; _orderRef = ref2.toString(); });
@@ -1696,7 +1704,7 @@ class _PayRemainingScreen extends ConsumerStatefulWidget {
 }
 
 class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
-  String _payMethod = 'cod';
+  String _payMethod = 'wallet';
   bool _loading = false;
   bool _done = false;
 
@@ -1704,12 +1712,17 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
   double get _monthlyRent => (widget.booking['monthly_rent'] as num?)?.toDouble() ?? 0;
 
   Future<void> _pay() async {
+    if (_payMethod == 'wallet') {
+      final pinOk = await showWalletPinDialog(context);
+      if (!pinOk) return;
+    }
     setState(() => _loading = true);
     try {
       final svc = ModuleApiService.create();
       await svc.payRemainingRent(
           int.parse(widget.booking['id'].toString()), _payMethod);
       ref.invalidate(_myBookingsProvider);
+      if (_payMethod == 'wallet') ref.invalidate(walletProvider);
       if (mounted) setState(() { _loading = false; _done = true; });
     } catch (e) {
       if (mounted) {
@@ -1820,9 +1833,9 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
             onTap: () => setState(() => _payMethod = 'wallet'))),
         const SizedBox(width: 12),
         Expanded(child: _PayBtn(
-            label: 'Cash on Visit', icon: Icons.money_rounded,
-            selected: _payMethod == 'cod', color: _kNavy,
-            onTap: () => setState(() => _payMethod = 'cod'))),
+            label: 'Waafi Pay', icon: Icons.phone_android_rounded,
+            selected: _payMethod == 'waafi_pay', color: const Color(0xFFFF8A00),
+            onTap: () => setState(() => _payMethod = 'waafi_pay'))),
       ]),
       const SizedBox(height: 24),
       // Confirm

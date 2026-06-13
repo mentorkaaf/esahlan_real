@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Modules;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
+use App\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -98,7 +99,7 @@ class EParcelController extends Controller
             'recipient_name'               => 'required|string',
             'recipient_phone'              => 'required|string',
             'description'                  => 'nullable|string',
-            'payment_method'               => 'required|in:wallet,cod',
+            'payment_method'               => 'required|in:wallet,waafi_pay',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
@@ -122,8 +123,8 @@ class EParcelController extends Controller
         $totalAmount = round($zone->base_price, 2);
 
         if ($request->payment_method === 'wallet') {
-            $wallet = $user->wallet;
-            if (!$wallet || $wallet->balance < $totalAmount) {
+            $wallet = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
+            if ($wallet->balance < $totalAmount) {
                 return response()->json(['success' => false, 'message' => 'Insufficient wallet balance'], 422);
             }
         }
@@ -160,7 +161,8 @@ class EParcelController extends Controller
             ]);
 
             if ($request->payment_method === 'wallet') {
-                $user->wallet->decrement('balance', $totalAmount);
+                $w = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
+                $w->debit($totalAmount, "eParcel: {$request->recipient_name}", 'App\\Models\\Order', $order->id);
             }
 
             return $order;

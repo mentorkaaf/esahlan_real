@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Modules;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
+use App\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -156,7 +157,7 @@ class ERentController extends Controller
             'booking_type'   => 'required|in:full_rent,carbuun',
             'move_in_date'   => 'required|date|after:today',
             'duration_months'=> 'required|integer|min:1',
-            'payment_method' => 'required|in:wallet,cod',
+            'payment_method' => 'required|in:wallet,waafi_pay',
             'note'           => 'nullable|string',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
@@ -176,7 +177,8 @@ class ERentController extends Controller
         $remaining  = $request->booking_type === 'carbuun' ? round($total * 0.70, 2) : 0;
 
         if ($request->payment_method === 'wallet') {
-            if (!$user->wallet || $user->wallet->balance < $amountDue) {
+            $wCheck = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
+            if ($wCheck->balance < $amountDue) {
                 return response()->json(['success' => false, 'message' => 'Insufficient wallet balance'], 422);
             }
         }
@@ -249,16 +251,8 @@ class ERentController extends Controller
             ]);
 
             if ($request->payment_method === 'wallet') {
-                $user->wallet->decrement('balance', $amountDue);
-                DB::table('wallet_transactions')->insert([
-                    'wallet_id'   => $user->wallet->id,
-                    'type'        => 'debit',
-                    'amount'      => $amountDue,
-                    'description' => "eRent {$request->booking_type}: {$property->title}",
-                    'reference_id'=> $order->id,
-                    'created_at'  => now(),
-                    'updated_at'  => now(),
-                ]);
+                $w = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
+                $w->debit($amountDue, "eRent {$request->booking_type}: {$property->title}", 'App\\Models\\Order', $order->id);
             }
 
             return $order;
@@ -359,7 +353,7 @@ class ERentController extends Controller
     public function payRemaining(Request $request, $id)
     {
         $v = Validator::make($request->all(), [
-            'payment_method' => 'required|in:wallet,cod',
+            'payment_method' => 'required|in:wallet,waafi_pay',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
@@ -375,8 +369,8 @@ class ERentController extends Controller
         if ($remaining <= 0) return response()->json(['success' => false, 'message' => 'No remaining balance due'], 422);
 
         if ($request->payment_method === 'wallet') {
-            $wallet = $user->wallet;
-            if (!$wallet || $wallet->balance < $remaining) {
+            $wCheck = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
+            if ($wCheck->balance < $remaining) {
                 return response()->json(['success' => false, 'message' => 'Insufficient wallet balance'], 422);
             }
         }
@@ -397,15 +391,9 @@ class ERentController extends Controller
                 'updated_at'     => now(),
             ]);
             if ($request->payment_method === 'wallet') {
-                $user->wallet->decrement('balance', $remaining);
-                DB::table('wallet_transactions')->insert([
-                    'wallet_id'   => $user->wallet->id,
-                    'type'        => 'debit',
-                    'amount'      => $remaining,
-                    'description' => 'eRent remaining 70%: ' . DB::table('properties')->where('id', $booking->property_id)->value('title'),
-                    'reference_id'=> $booking->order_id,
-                    'created_at'  => now(), 'updated_at' => now(),
-                ]);
+                $title = DB::table('properties')->where('id', $booking->property_id)->value('title');
+                $w = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
+                $w->debit($remaining, "eRent remaining 70%: {$title}", 'App\\Models\\Order', $booking->order_id);
             }
         });
 

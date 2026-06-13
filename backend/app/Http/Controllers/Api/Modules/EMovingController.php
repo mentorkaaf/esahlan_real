@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Modules;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
+use App\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -155,7 +156,7 @@ class EMovingController extends Controller
             'package_id'       => 'nullable|integer',
             'extra_services'   => 'nullable|array',
             'scheduled_date'   => 'required|date|after_or_equal:today',
-            'payment_method'   => 'required|in:wallet,cod',
+            'payment_method'   => 'required|in:wallet,waafi_pay',
             'note'             => 'nullable|string',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
@@ -166,7 +167,8 @@ class EMovingController extends Controller
         $total = $calc['total'];
 
         if ($request->payment_method === 'wallet') {
-            if (!$user->wallet || $user->wallet->balance < $total) {
+            $wCheck = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
+            if ($wCheck->balance < $total) {
                 return response()->json(['success' => false, 'message' => 'Insufficient wallet balance'], 422);
             }
         }
@@ -217,16 +219,8 @@ class EMovingController extends Controller
             ]);
 
             if ($request->payment_method === 'wallet') {
-                $user->wallet->decrement('balance', $total);
-                DB::table('wallet_transactions')->insert([
-                    'wallet_id'   => $user->wallet->id,
-                    'type'        => 'debit',
-                    'amount'      => $total,
-                    'description' => "eMoving: {$fromDistrict} → {$toDistrict}",
-                    'reference_id'=> $order->id,
-                    'created_at'  => now(),
-                    'updated_at'  => now(),
-                ]);
+                $w = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
+                $w->debit($total, "eMoving: {$fromDistrict} → {$toDistrict}", 'App\\Models\\Order', $order->id);
             }
             return $order;
         });

@@ -5,7 +5,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../wallet/presentation/providers/wallet_provider.dart';
 
 double _toD(dynamic v) => double.tryParse(v?.toString() ?? '0') ?? 0;
 
@@ -291,7 +293,7 @@ class _EDataFlowDialogState extends State<_EDataFlowDialog> {
   Map? _selectedPackage;
   Map? _selectedBundle;
 
-  String _payMethod = 'cod';
+  String _payMethod = 'wallet';
   String? _waafiReference;
   final _phoneCtrl = TextEditingController();
   bool _loading = false;
@@ -321,6 +323,11 @@ class _EDataFlowDialogState extends State<_EDataFlowDialog> {
       _waafiReference = result!.reference;
     }
 
+    if (_payMethod == 'wallet') {
+      final pinOk = await showWalletPinDialog(context);
+      if (!pinOk) return;
+    }
+
     setState(() { _loading = true; _error = null; });
     try {
       final svc = ModuleApiService.create();
@@ -331,6 +338,7 @@ class _EDataFlowDialogState extends State<_EDataFlowDialog> {
         if (_waafiReference != null) 'payment_reference': _waafiReference,
       });
       final data = res is Map ? (res['data'] ?? {}) : {};
+      if (_payMethod == 'wallet') ref.invalidate(walletProvider);
       if (mounted) setState(() {
         _orderNumber = data['order_number']?.toString() ?? 'DATA-??????';
         _step = 3;
@@ -906,13 +914,6 @@ class _OrderSummaryStep extends StatelessWidget {
                 onTap: () => onPayMethodChanged('wallet'),
               )),
               const SizedBox(width: 10),
-              Expanded(child: _PayTile(
-                icon: Icons.payments_rounded,
-                label: 'Cash', subtitle: 'Pay on delivery',
-                selected: payMethod == 'cod',
-                color: providerColor,
-                onTap: () => onPayMethodChanged('cod'),
-              )),
               const SizedBox(width: 10),
               Expanded(child: _PayTile(
                 icon: Icons.phone_android_rounded,

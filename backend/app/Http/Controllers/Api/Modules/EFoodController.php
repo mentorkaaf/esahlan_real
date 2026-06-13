@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Modules;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
+use App\Models\Wallet;
 use App\Helpers\WorkingHours;
 use App\Helpers\AppSettings;
 use Illuminate\Http\Request;
@@ -439,14 +440,10 @@ class EFoodController extends Controller
         $total         = round($subtotal + $deliveryFee, 2);
 
         // ── Wallet balance check ───────────────────────────────────────
-        $wallet = null;
         if ($pm === 'wallet' && $userId) {
-            $wallet = DB::table('wallets')
-                ->where('owner_type', 'App\\Models\\User')
-                ->where('owner_id', $userId)
-                ->first();
-            $balance = $wallet ? (float)$wallet->balance : 0;
-            if (!$wallet || $balance < $total) {
+            $walletCheck = Wallet::getOrCreateFor('App\\Models\\User', $userId);
+            $balance = (float)$walletCheck->balance;
+            if ($balance < $total) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Insufficient wallet balance. Available: $' . number_format($balance, 2) . ', Required: $' . number_format($total, 2),
@@ -463,7 +460,7 @@ class EFoodController extends Controller
         $order = DB::transaction(function () use (
             $userId, $vendorId, $moduleId, $pm, $total, $subtotal,
             $deliveryFee, $discountTotal, $activeCampaign,
-            $deliveryAddr, $orderItems, $wallet, $request
+            $deliveryAddr, $orderItems, $request
         ) {
             $orderData = [
                 'user_id'         => $userId,
@@ -516,9 +513,9 @@ class EFoodController extends Controller
             } catch (\Throwable) {}
 
             // Deduct wallet
-            if ($pm === 'wallet' && $wallet) {
-                DB::table('wallets')->where('id', $wallet->id)
-                    ->decrement('balance', $total);
+            if ($pm === 'wallet') {
+                $w = Wallet::getOrCreateFor('App\\Models\\User', $userId);
+                $w->debit($total, "eFood order #{$order->order_number}", 'App\\Models\\Order', $order->id);
             }
 
             return $order;
