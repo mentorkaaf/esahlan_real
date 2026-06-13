@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../../shared/widgets/wallet_pin_dialog.dart';
+import '../../../features/wallet/presentation/providers/wallet_provider.dart';
 
 // ════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -2363,6 +2365,10 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
       if (result?.success != true) return;
       _waafiReference = result!.reference;
     }
+    if (_payment == 'wallet') {
+      final pinOk = await showWalletPinDialog(context);
+      if (!pinOk) return;
+    }
     setState(() => _placing = true);
     try {
       final cart = ref.read(_cartProvider);
@@ -2390,6 +2396,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
       });
 
       ref.read(_cartProvider.notifier).clear();
+      if (_payment == 'wallet') ref.invalidate(walletProvider);
       if (mounted) {
         final data    = result['data'] ?? result;
         final orderId = data['order_id'] ?? data['id'] ?? 1;

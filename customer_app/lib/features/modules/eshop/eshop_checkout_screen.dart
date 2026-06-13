@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../wallet/presentation/providers/wallet_provider.dart';
 import 'eshop_providers.dart';
 
 class EShopCheckoutScreen extends ConsumerStatefulWidget {
@@ -61,6 +63,11 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
       _waafiReference = result!.reference;
     }
 
+    if (_paymentMethod == 'wallet') {
+      final pinOk = await showWalletPinDialog(context);
+      if (!pinOk) return;
+    }
+
     setState(() => _placing = true);
     try {
       final cart = ref.read(eshopCartProvider);
@@ -88,6 +95,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
 
       ref.read(eshopCartProvider.notifier).clear();
       ref.read(eshopCouponProvider.notifier).clear();
+      if (_paymentMethod == 'wallet') ref.invalidate(walletProvider);
 
       if (mounted) {
         _showSuccessDialog();

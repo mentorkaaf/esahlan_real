@@ -8,6 +8,7 @@ use App\Services\WaafiPayService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class WalletController extends Controller
@@ -316,5 +317,21 @@ class WalletController extends Controller
                 'referrals'      => $referrals,
             ],
         ]);
+    }
+
+    // POST /wallet/verify-pin
+    public function verifyPin(Request $request)
+    {
+        $v = Validator::make($request->all(), ['pin' => 'required|string|size:4']);
+        if ($v->fails()) {
+            return response()->json(['success' => false, 'message' => 'PIN must be 4 digits'], 422);
+        }
+
+        $user = $request->user();
+        if (!Hash::check($request->pin, $user->password)) {
+            return response()->json(['success' => false, 'message' => 'Incorrect PIN. Please try again.'], 422);
+        }
+
+        return response()->json(['success' => true, 'message' => 'PIN verified']);
     }
 }

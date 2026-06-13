@@ -45,6 +45,7 @@ class AdminWalletController extends Controller
             ->select('transactions.*', 'users.name as user_name', 'users.email as user_email', 'wallets.balance as current_balance')
             ->orderByDesc('transactions.created_at');
 
+        if ($request->user_id) $q->where('users.id', $request->user_id);
         if ($request->search) {
             $s = $request->search;
             $q->where(function ($qq) use ($s) {
@@ -55,9 +56,13 @@ class AdminWalletController extends Controller
         }
         if ($request->type) $q->where('transactions.type', $request->type);
 
+        $filterUser = $request->user_id
+            ? DB::table('users')->where('id', $request->user_id)->first()
+            : null;
+
         $transactions = $q->paginate(40)->withQueryString();
 
-        return view('admin.wallet.transactions', compact('transactions'));
+        return view('admin.wallet.transactions', compact('transactions', 'filterUser'));
     }
 
     public function creditUser(Request $request)

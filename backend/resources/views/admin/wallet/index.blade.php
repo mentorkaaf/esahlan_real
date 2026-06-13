@@ -76,6 +76,7 @@
                 <th style="padding:12px 16px;text-align:right">Balance</th>
                 <th style="padding:12px 16px;text-align:right">Total Earned</th>
                 <th style="padding:12px 16px;text-align:right">Withdrawn</th>
+                <th style="padding:12px 16px;text-align:center">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -88,6 +89,16 @@
                 <td style="padding:12px 16px;text-align:right;font-weight:800;color:{{ $u->balance > 0 ? '#27AE60' : '#8A8A9A' }}">${{ number_format($u->balance ?? 0, 2) }}</td>
                 <td style="padding:12px 16px;text-align:right;color:#1565C0">${{ number_format($u->total_earned ?? 0, 2) }}</td>
                 <td style="padding:12px 16px;text-align:right;color:#E74C3C">${{ number_format($u->total_withdrawn ?? 0, 2) }}</td>
+                <td style="padding:12px 16px;text-align:center">
+                    @if($u->wallet_id)
+                    <a href="{{ route('admin.wallet.transactions', ['user_id' => $u->id]) }}"
+                       style="padding:5px 12px;border:1.5px solid #1565C0;border-radius:7px;font-size:12px;font-weight:700;color:#1565C0;text-decoration:none;white-space:nowrap">
+                        <i class="fas fa-list" style="margin-right:4px"></i>Transactions
+                    </a>
+                    @else
+                    <span style="font-size:11px;color:#ccc">No wallet</span>
+                    @endif
+                </td>
             </tr>
             @endforeach
         </tbody>

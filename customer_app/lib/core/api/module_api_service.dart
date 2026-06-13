@@ -245,4 +245,5 @@ class ModuleApiService {
   Future<dynamic> checkTopupStatus(String reference) => _get('/wallet/topup/status/$reference');
   Future<dynamic> walletSend(Map<String, dynamic> data) => _post('/wallet/send', data);
   Future<dynamic> walletWithdraw(Map<String, dynamic> data) => _post('/wallet/withdraw', data);
+  Future<dynamic> verifyWalletPin(String pin) => _post('/wallet/verify-pin', {'pin': pin});
 }

@@ -2,50 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/api/api_client.dart';
 import '../../../../core/api/module_api_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../payment/waafi_pay_sheet.dart';
-import 'package:dio/dio.dart';
-
-// ─── Models ──────────────────────────────────────────────────────────────────
-
-class WalletData {
-  final double balance;
-  final int points;
-  final bool hasWallet;
-  final List<Map<String, dynamic>> transactions;
-  const WalletData({
-    required this.balance,
-    required this.points,
-    required this.hasWallet,
-    required this.transactions,
-  });
-}
-
-// ─── Providers ───────────────────────────────────────────────────────────────
-
-final walletProvider = FutureProvider<WalletData>((ref) async {
-  try {
-    final dio = ApiClient.instance;
-    final res = await dio.get('/wallet');
-    final data = res.data['data'] ?? res.data;
-    final txRes = await dio.get('/wallet/transactions');
-    // Handle both plain list and paginated {data: {data: [...]}} responses
-    final txRaw = txRes.data['data'];
-    final List txList = txRaw is List
-        ? txRaw
-        : (txRaw is Map ? (txRaw['data'] as List? ?? []) : []);
-    return WalletData(
-      balance:     (data['balance'] as num?)?.toDouble() ?? 0,
-      points:      (data['loyalty_points'] as num? ?? data['points'] as num?)?.toInt() ?? 0,
-      hasWallet:   data['has_wallet'] == true,
-      transactions: txList.whereType<Map<String, dynamic>>().toList(),
-    );
-  } on DioException catch (e) {
-    throw ApiException.fromDio(e);
-  }
-});
+import '../providers/wallet_provider.dart';
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -56,8 +16,17 @@ class WalletScreen extends ConsumerStatefulWidget {
   ConsumerState<WalletScreen> createState() => _WalletScreenState();
 }
 
-class _WalletScreenState extends ConsumerState<WalletScreen> {
+class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
   int _tab = 0; // 0=all, 1=credit, 2=debit
+
+  @override
+  void initState() {
+    super.initState();
+    // Refresh on first load so data is always fresh
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(walletProvider);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

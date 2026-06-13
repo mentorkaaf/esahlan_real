@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../wallet/presentation/providers/wallet_provider.dart';
 
 final _svc = ModuleApiService.create();
 final _exchangeRatesProvider = FutureProvider.autoDispose((_) => _svc.getExchangeRates());
@@ -530,6 +532,11 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
       _waafiRef = result!.reference;
     }
 
+    if (_paymentMethod == 'wallet') {
+      final pinOk = await showWalletPinDialog(context);
+      if (!pinOk) return;
+    }
+
     setState(() => _confirming = true);
     try {
       final res = await _svc.confirmExchange({
@@ -542,6 +549,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
       });
       if (mounted) {
         final data = Map<String, dynamic>.from(res['data'] ?? {});
+        if (_paymentMethod == 'wallet') ref.invalidate(walletProvider);
         _navigateToSuccess(data);
       }
     } catch (e) {

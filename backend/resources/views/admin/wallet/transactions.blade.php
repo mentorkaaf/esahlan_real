@@ -5,9 +5,14 @@
 <div class="page-header">
     <div>
         <h1 class="page-title">Wallet Transactions</h1>
-        <ul class="breadcrumb"><li><a href="{{ route('admin.wallet.index') }}">Wallets</a></li><li><span>Transactions</span></li></ul>
+        <ul class="breadcrumb">
+            <li><a href="{{ route('admin.wallet.index') }}">Wallets</a></li>
+            @if($filterUser)<li><a href="{{ route('admin.wallet.transactions') }}">All Transactions</a></li><li><span>{{ $filterUser->name }}</span></li>
+            @else<li><span>Transactions</span></li>@endif
+        </ul>
     </div>
-    <form method="GET" style="display:flex;gap:8px">
+    <form method="GET" style="display:flex;gap:8px;align-items:center">
+        @if(request('user_id'))<input type="hidden" name="user_id" value="{{ request('user_id') }}">@endif
         <input name="search" value="{{ request('search') }}" placeholder="Search user or note..." style="padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;width:220px">
         <select name="type" style="padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px">
             <option value="">All types</option>
@@ -15,8 +20,21 @@
             <option value="debit" @selected(request('type')=='debit')>Debit</option>
         </select>
         <button class="btn btn-primary" style="padding:8px 16px">Filter</button>
+        @if(request('user_id'))
+        <a href="{{ route('admin.wallet.transactions') }}" class="btn btn-outline-secondary" style="padding:8px 16px;white-space:nowrap">Clear Filter</a>
+        @endif
     </form>
 </div>
+
+@if($filterUser)
+<div style="background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
+    <i class="fas fa-user-circle" style="color:#1565C0;font-size:18px"></i>
+    <div>
+        <div style="font-weight:800;color:#1565C0;font-size:14px">{{ $filterUser->name }}</div>
+        <div style="font-size:12px;color:#555">{{ $filterUser->email }} · {{ $filterUser->phone ?? '' }} — Showing all transactions for this user</div>
+    </div>
+</div>
+@endif
 
 <div style="background:#fff;border-radius:14px;border:1.5px solid #f0f1f5;overflow:hidden">
     <table style="width:100%;border-collapse:collapse;font-size:13px">
