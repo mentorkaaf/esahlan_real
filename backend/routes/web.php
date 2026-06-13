@@ -18,8 +18,28 @@ use App\Http\Controllers\Admin\AdminEFoodController;
 use App\Http\Controllers\Admin\AdminWalletController;
 use App\Http\Controllers\Admin\AdminLandingController;
 
-// Redirect root to admin
+// Public landing page
 Route::get('/', fn() => view('landing'));
+
+// Admin root redirect
+Route::get('/admin', fn() => redirect('/admin/dashboard'));
+
+// Deploy webhook (called by GitHub Actions)
+Route::get('/api-sync', function (\Illuminate\Http\Request $request) {
+    $secret = 'eSahlan_Deploy_2026_Secret';
+    $token  = $request->header('X-Deploy-Token') ?? $request->query('token', '');
+    if (!hash_equals($secret, $token)) { abort(403); }
+    $desc = [0 => ['pipe','r'], 1 => ['pipe','w'], 2 => ['pipe','w']];
+    $proc = proc_open('bash /home/u801770158/deploy.sh', $desc, $pipes);
+    $output = '';
+    if (is_resource($proc)) {
+        fclose($pipes[0]);
+        $output = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
+        fclose($pipes[1]); fclose($pipes[2]);
+        proc_close($proc);
+    }
+    return response('<pre>' . e($output) . '</pre>');
+});
 
 // Admin Auth
 Route::prefix('admin')->name('admin.')->group(function () {
