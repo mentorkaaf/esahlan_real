@@ -137,8 +137,7 @@ Route::prefix('v1')->group(function () {
     Route::get('efood/items/{id}',                       [EFoodController::class, 'getItem']);
     Route::get('efood/restaurants/{id}/coupons',           [EFoodController::class, 'restaurantCoupons']);
     Route::get('efood/restaurants/{id}/campaigns',         [EFoodController::class, 'restaurantCampaigns']);
-    // Order placement — public, works with or without auth token
-    Route::post('efood/order',                             [EFoodController::class, 'createOrder']);
+    // Order placement — kept public so guest browsing works; wallet auth enforced in controller
     // Orders
     Route::get('efood/orders',                             [EFoodController::class, 'orders']);
     Route::get('efood/orders/{id}',                        [EFoodController::class, 'order']);
@@ -359,7 +358,8 @@ Route::prefix('v1')->group(function () {
             Route::post('chats/{conversation}/send',    [ChatController::class, 'send']);
             Route::post('chats/order',                  [ChatController::class, 'getOrCreateByOrder']);
 
-            // Module orders (authenticated — efood/order is public & handles both auth/guest)
+            // Module orders (authenticated)
+            Route::post('efood/order',          [EFoodController::class, 'createOrder']);
             Route::post('edata/purchase',       [EDataController::class, 'purchasePackage']);
             Route::post('eparcel/order',        [EParcelController::class, 'createOrder']);
             Route::post('eexchange/transfer',   [EExchangeController::class, 'transfer']);

@@ -343,11 +343,12 @@ class EFoodController extends Controller
         })->toArray();
 
         // ── Map payment method to schema enum values ───────────────────
-        $pmMap = ['waafi' => 'cod', 'cash' => 'cod', 'wallet' => 'wallet', 'cod' => 'cod'];
-        $pm    = $pmMap[$request->input('payment_method', 'cod')] ?? 'cod';
+        $pmRaw = $request->input('payment_method', 'wallet');
+        $pmMap = ['waafi' => 'cod', 'waafi_pay' => 'cod', 'cash' => 'cod', 'wallet' => 'wallet', 'cod' => 'cod'];
+        $pm    = $pmMap[$pmRaw] ?? 'cod';
 
-        // ── Auth: resolve user from token (public route, no auth middleware) ─────
-        $userId = $this->resolveUserId($request) ?? DB::table('users')->value('id') ?? 1;
+        // Route is now auth:sanctum — user is always resolved correctly
+        $userId = $request->user()->id;
 
         // ── Resolve efood module ───────────────────────────────────────
         $module = DB::table('modules')->where('slug', 'efood')->first();

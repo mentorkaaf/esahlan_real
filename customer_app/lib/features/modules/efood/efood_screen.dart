@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/module_api_service.dart';
@@ -2397,12 +2398,70 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
       }
     } catch (e) {
       setState(() => _placing = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Order failed: $e'),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ));
+      if (mounted) _showErrorDialog(_extractError(e));
     }
+  }
+
+  String _extractError(Object e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map) {
+        final errors = data['errors'];
+        if (errors is Map) {
+          final first = errors.values.first;
+          if (first is List && first.isNotEmpty) return first.first.toString();
+        }
+        if (data['message'] != null) return data['message'].toString();
+      }
+      if (e.response?.statusCode == 422) return 'Please check your input and try again.';
+      if (e.response?.statusCode == 500) return 'Server error. Please try again later.';
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) return 'Connection timed out. Check your internet.';
+      if (e.type == DioExceptionType.connectionError) return 'No internet connection.';
+    }
+    return e.toString().replaceAll('Exception: ', '');
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 64, height: 64,
+              decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1), shape: BoxShape.circle),
+              child: const Icon(Icons.error_outline_rounded, color: Colors.red, size: 36),
+            ),
+            const SizedBox(height: 16),
+            const Text('Order Failed',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: _secondary),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 10),
+            Text(message,
+                style: TextStyle(color: Colors.grey[600], fontSize: 13, height: 1.5),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 22),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
   }
 }
 
