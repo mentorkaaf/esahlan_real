@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\AdminModuleDataController;
 use App\Http\Controllers\Admin\AdminEFoodController;
 use App\Http\Controllers\Admin\AdminWalletController;
 use App\Http\Controllers\Admin\AdminLandingController;
+use App\Http\Controllers\Admin\AdminExchangeController;
 
 // Public landing page
 Route::get('/', fn() => view('landing'));
@@ -348,6 +349,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/withdrawals/{id}/reject',  [$wc, 'rejectWithdrawal'])->name('withdrawal.reject');
             Route::get('/settings',              [$wc, 'settings'])->name('settings');
             Route::post('/settings',             [$wc, 'saveSettings'])->name('settings.save');
+        });
+
+        // eExchange Orders
+        Route::prefix('exchange')->name('exchange.')->group(function () {
+            Route::get('/',      [AdminExchangeController::class, 'index'])->name('index');
+            Route::get('/{id}',  [AdminExchangeController::class, 'show'])->name('show');
         });
 
         // Dispatch Center
