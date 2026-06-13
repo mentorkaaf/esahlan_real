@@ -441,9 +441,16 @@ class EFoodController extends Controller
         // ── Wallet balance check ───────────────────────────────────────
         $wallet = null;
         if ($pm === 'wallet' && $userId) {
-            $wallet = DB::table('wallets')->where('user_id', $userId)->first();
-            if (!$wallet || (float)$wallet->balance < $total) {
-                return response()->json(['success' => false, 'message' => 'Insufficient wallet balance'], 422);
+            $wallet = DB::table('wallets')
+                ->where('owner_type', 'App\\Models\\User')
+                ->where('owner_id', $userId)
+                ->first();
+            $balance = $wallet ? (float)$wallet->balance : 0;
+            if (!$wallet || $balance < $total) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Insufficient wallet balance. Available: $' . number_format($balance, 2) . ', Required: $' . number_format($total, 2),
+                ], 422);
             }
         }
 

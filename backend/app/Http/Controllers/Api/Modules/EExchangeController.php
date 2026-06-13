@@ -102,7 +102,10 @@ class EExchangeController extends Controller
 
         // Wallet payment: check balance and deduct
         if ($paymentMethod === 'wallet') {
-            $wallet = DB::table('wallets')->where('user_id', $user->id)->first();
+            $wallet = DB::table('wallets')
+                ->where('owner_type', 'App\\Models\\User')
+                ->where('owner_id', $user->id)
+                ->first();
             $balance = $wallet ? (float) $wallet->balance : 0;
             if ($balance < $sentAmount) {
                 return response()->json([
@@ -111,7 +114,7 @@ class EExchangeController extends Controller
                 ], 422);
             }
             DB::table('wallets')
-                ->where('user_id', $user->id)
+                ->where('id', $wallet->id)
                 ->decrement('balance', $sentAmount);
         }
         // Waafi Pay: reference is logged, no further server deduction needed
