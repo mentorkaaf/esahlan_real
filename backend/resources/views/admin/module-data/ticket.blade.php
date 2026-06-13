@@ -1,0 +1,867 @@
+@extends('admin.layouts.app')
+@section('title', 'eTicket — Flight Management')
+@section('content')
+
+<style>
+:root{--tkt:#1565C0;--tkt2:#0D47A1;--tkt-light:rgba(21,101,192,.1);}
+/* HERO */
+.tkt-hero{background:linear-gradient(135deg,#07003B 0%,#0D47A1 55%,#1976D2 100%);border-radius:16px;padding:26px 32px;margin-bottom:24px;color:#fff;display:flex;align-items:center;justify-content:space-between;position:relative;overflow:hidden;}
+.tkt-hero::before{content:'';position:absolute;right:-60px;top:-60px;width:240px;height:240px;border-radius:50%;background:rgba(255,255,255,.05);pointer-events:none;}
+.tkt-hero::after{content:'';position:absolute;left:-30px;bottom:-50px;width:160px;height:160px;border-radius:50%;background:rgba(255,138,0,.1);pointer-events:none;}
+.tkt-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;margin-right:6px;margin-top:6px;background:rgba(255,138,0,.2);border:1px solid rgba(255,138,0,.4);color:#fff;}
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.stat-card{background:#fff;border-radius:14px;padding:20px 22px;box-shadow:0 1px 8px rgba(0,0,0,.06);display:flex;align-items:center;gap:16px;border:1px solid #f0f1f5;}
+.stat-icon{width:50px;height:50px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.stat-icon.blue{background:rgba(21,101,192,.1);color:#1565C0;}
+.stat-icon.orange{background:rgba(255,138,0,.1);color:#FF8A00;}
+.stat-icon.green{background:rgba(16,185,129,.1);color:#10b981;}
+.stat-icon.purple{background:rgba(124,58,237,.1);color:#7c3aed;}
+.stat-num{font-size:26px;font-weight:800;color:#1A1A2E;line-height:1;}
+.stat-lbl{font-size:12px;color:#8A8A9A;margin-top:2px;}
+/* TABS */
+.module-tabs{display:flex;gap:4px;background:#f4f5fa;border-radius:12px;padding:4px;margin-bottom:24px;}
+.module-tab{padding:9px 18px;border-radius:9px;border:none;background:transparent;cursor:pointer;font-size:13px;font-weight:600;color:#8A8A9A;transition:all .2s;display:flex;align-items:center;gap:7px;font-family:inherit;}
+.module-tab.active{background:#fff;color:#1565C0;box-shadow:0 1px 6px rgba(0,0,0,.08);}
+.module-tab:hover:not(.active){color:#1A1A2E;background:rgba(255,255,255,.6);}
+.tab-pane{display:none;}.tab-pane.active{display:block;}
+/* SECTION CARD */
+.sc{background:#fff;border-radius:14px;box-shadow:0 1px 8px rgba(0,0,0,.06);overflow:hidden;margin-bottom:20px;border:1px solid #f0f1f5;}
+.sc-head{padding:18px 22px;border-bottom:1px solid #f0f1f5;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.sc-title{font-size:15px;font-weight:700;color:#1A1A2E;display:flex;align-items:center;gap:8px;}
+/* TABLE */
+.dtbl{width:100%;border-collapse:collapse;}
+.dtbl th{padding:11px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#8A8A9A;border-bottom:1px solid #f0f1f5;background:#fafbff;white-space:nowrap;}
+.dtbl td{padding:12px 16px;font-size:13px;color:#1A1A2E;border-bottom:1px solid #f0f1f5;vertical-align:middle;}
+.dtbl tr:last-child td{border-bottom:none;}
+.dtbl tr:hover td{background:rgba(21,101,192,.02);}
+.empty-row td{text-align:center;padding:40px;color:#8A8A9A;}
+/* AIRLINE AVATAR */
+.airline-avatar{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;flex-shrink:0;overflow:hidden;}
+/* ROUTE CHIP */
+.route-pair{display:flex;align-items:center;gap:8px;}
+.iata-code{font-size:16px;font-weight:800;color:#1A1A2E;}
+.city-name{font-size:11px;color:#8A8A9A;}
+/* BADGE */
+.badge-xs{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-active{background:rgba(16,185,129,.1);color:#10b981;}
+.badge-inactive{background:rgba(239,68,68,.1);color:#ef4444;}
+.badge-scheduled{background:rgba(21,101,192,.1);color:#1565C0;}
+.badge-boarding{background:rgba(245,158,11,.1);color:#f59e0b;}
+.badge-departed{background:rgba(124,58,237,.1);color:#7c3aed;}
+.badge-landed{background:rgba(16,185,129,.1);color:#10b981;}
+.badge-cancelled{background:rgba(239,68,68,.1);color:#ef4444;}
+.badge-domestic{background:rgba(21,101,192,.1);color:#1565C0;}
+.badge-international{background:rgba(124,58,237,.1);color:#7c3aed;}
+/* PRICE PILLS */
+.price-eco{background:rgba(16,185,129,.1);color:#10b981;}
+.price-biz{background:rgba(21,101,192,.1);color:#1565C0;}
+.price-chd{background:rgba(245,158,11,.1);color:#f59e0b;}
+.price-inf{background:rgba(239,68,68,.08);color:#ef4444;}
+.price-pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;}
+/* FORMS */
+.form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.form-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.fgroup label{font-size:12px;font-weight:600;color:#1A1A2E;margin-bottom:5px;display:block;}
+.fgroup input,.fgroup select,.fgroup textarea{width:100%;padding:9px 12px;border:1.5px solid #EEEEEE;border-radius:10px;font-size:13px;color:#1A1A2E;background:#fff;font-family:inherit;transition:border-color .15s;box-sizing:border-box;}
+.fgroup input:focus,.fgroup select:focus,.fgroup textarea:focus{outline:none;border-color:#1565C0;}
+.prices-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.price-input-wrap{border:1.5px solid #EEEEEE;border-radius:10px;padding:10px 12px;}
+.price-input-wrap label{font-size:11px;font-weight:700;margin-bottom:5px;display:block;}
+.price-input-wrap input{width:100%;border:none;font-size:14px;font-weight:800;color:#1A1A2E;outline:none;background:transparent;}
+.sec-title{font-size:13px;font-weight:700;color:#8A8A9A;text-transform:uppercase;letter-spacing:.5px;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid #f0f1f5;}
+/* BTNS */
+.btn-icon{width:32px;height:32px;border-radius:8px;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;transition:all .15s;}
+.btn-icon.edit{background:rgba(59,130,246,.1);color:#3b82f6;}
+.btn-icon.del{background:rgba(239,68,68,.1);color:#ef4444;}
+.btn-icon:hover{transform:scale(1.08);}
+.btn-add{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;background:#1565C0;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .15s;}
+.btn-add:hover{opacity:.9;}
+.btn-outline{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;background:transparent;color:#1565C0;border:1.5px solid #1565C0;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;}
+.btn-outline:hover{background:#1565C0;color:#fff;}
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:#fff;border-radius:18px;width:min(700px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.18);}
+.modal-box.sm{width:min(500px,95vw);}
+.modal-head{padding:22px 26px;border-bottom:1px solid #f0f1f5;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1;}
+.modal-head h3{font-size:17px;font-weight:800;color:#1A1A2E;margin:0;}
+.modal-close{width:32px;height:32px;border-radius:8px;border:none;background:#f4f5fa;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;}
+.modal-body{padding:24px 26px;}
+/* ALERTS */
+.alert-success{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);color:#065f46;padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:13px;font-weight:600;}
+.alert-error{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);color:#7f1d1d;padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:13px;font-weight:600;}
+/* CITY PRESETS */
+.city-presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.city-preset{padding:5px 12px;background:#f4f5fa;border:1.5px solid #EEEEEE;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;color:#1A1A2E;}
+.city-preset:hover{background:#1565C0;color:#fff;border-color:#1565C0;}
+.city-preset.intl{border-color:rgba(124,58,237,.3);color:#7c3aed;}
+.city-preset.intl:hover{background:#7c3aed;color:#fff;border-color:#7c3aed;}
+/* SEARCH INPUT */
+.search-input{padding:7px 12px 7px 36px;border:1.5px solid #EEEEEE;border-radius:10px;font-size:13px;width:200px;position:relative;}
+.search-wrap{position:relative;}
+.search-wrap i{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#8A8A9A;font-size:12px;}
+</style>
+
+@if(session('success'))
+<div class="alert-success"><i class="fas fa-check-circle me-2"></i>{{ session('success') }}</div>
+@endif
+@if($errors->any())
+<div class="alert-error"><i class="fas fa-exclamation-circle me-2"></i>{{ $errors->first() }}</div>
+@endif
+
+{{-- HERO --}}
+<div class="tkt-hero">
+    <div style="position:relative;z-index:1">
+        <h2 style="font-size:22px;font-weight:800;margin:0 0 4px"><i class="fas fa-plane me-2"></i>eTicket — Flight Management</h2>
+        <p style="margin:0;opacity:.8;font-size:13px">Manage airlines, routes and flight schedules</p>
+        <div style="margin-top:8px">
+            <span class="tkt-badge"><i class="fas fa-plane me-1"></i>Economy</span>
+            <span class="tkt-badge"><i class="fas fa-briefcase me-1"></i>Business</span>
+            <span class="tkt-badge"><i class="fas fa-baby me-1"></i>Child / Infant</span>
+        </div>
+    </div>
+    <div style="font-size:56px;opacity:.18;position:relative;z-index:1"><i class="fas fa-plane-departure"></i></div>
+</div>
+
+{{-- STATS --}}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-building"></i></div>
+        <div><div class="stat-num">{{ $airlines->count() }}</div><div class="stat-lbl">Airlines</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon purple"><i class="fas fa-route"></i></div>
+        <div><div class="stat-num">{{ $routes->count() }}</div><div class="stat-lbl">Routes</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon orange"><i class="fas fa-calendar-alt"></i></div>
+        <div><div class="stat-num">{{ $flights->total() }}</div><div class="stat-lbl">Schedules</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-ticket-alt"></i></div>
+        <div><div class="stat-num">{{ $bookings->count() }}</div><div class="stat-lbl">Bookings</div></div>
+    </div>
+</div>
+
+{{-- TABS --}}
+<div class="module-tabs">
+    <button class="module-tab active" onclick="switchTab('airlines',this)"><i class="fas fa-building"></i> Airlines</button>
+    <button class="module-tab" onclick="switchTab('routes',this)"><i class="fas fa-route"></i> Routes</button>
+    <button class="module-tab" onclick="switchTab('schedules',this)"><i class="fas fa-calendar-alt"></i> Schedules</button>
+    <button class="module-tab" onclick="switchTab('bookings',this)"><i class="fas fa-ticket-alt"></i> Bookings</button>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════ --}}
+{{-- TAB 1: AIRLINES --}}
+{{-- ══════════════════════════════════════════════════════════════ --}}
+<div id="tab-airlines" class="tab-pane active">
+    <div class="sc">
+        <div class="sc-head">
+            <div class="sc-title"><i class="fas fa-building" style="color:#1565C0"></i> Airlines ({{ $airlines->count() }})</div>
+            <button class="btn-add" onclick="document.getElementById('addAirlineModal').classList.add('open')">
+                <i class="fas fa-plus"></i> Add Airline
+            </button>
+        </div>
+        <table class="dtbl">
+            <thead><tr><th>Logo</th><th>Name</th><th>Code</th><th>Brand Colour</th><th>Sort</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+            @forelse($airlines as $a)
+            <tr>
+                <td>
+                    @if($a->logo)
+                        <img src="{{ $a->logo }}" style="width:52px;height:38px;border-radius:8px;object-fit:contain;background:#f4f5fa;padding:4px;border:1px solid #f0f1f5">
+                    @else
+                        <div class="airline-avatar" style="background:{{ $a->color ?? '#1565C0' }}">{{ strtoupper(substr($a->name,0,2)) }}</div>
+                    @endif
+                </td>
+                <td><strong>{{ $a->name }}</strong></td>
+                <td><span class="badge-xs badge-scheduled" style="letter-spacing:1px">{{ $a->code ?? '—' }}</span></td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <div style="width:26px;height:26px;border-radius:6px;background:{{ $a->color ?? '#1565C0' }};border:1px solid rgba(0,0,0,.1)"></div>
+                        <code style="font-size:11px;color:#8A8A9A">{{ $a->color ?? '#1565C0' }}</code>
+                    </div>
+                </td>
+                <td style="color:#8A8A9A">{{ $a->sort_order ?? 0 }}</td>
+                <td><span class="badge-xs {{ ($a->is_active ?? true) ? 'badge-active' : 'badge-inactive' }}">{{ ($a->is_active ?? true) ? 'Active' : 'Inactive' }}</span></td>
+                <td>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn-icon edit" onclick="editAirline({{ json_encode($a) }})"><i class="fas fa-pen"></i></button>
+                        <form action="{{ route('admin.module-data.ticket.airline.destroy',$a->id) }}" method="POST" onsubmit="return confirm('Delete airline?')" style="display:inline">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="btn-icon del"><i class="fas fa-trash"></i></button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            @empty
+            <tr class="empty-row"><td colspan="7"><i class="fas fa-building" style="font-size:36px;color:#EEEEEE;display:block;margin-bottom:10px"></i>No airlines yet — add your first airline</td></tr>
+            @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════ --}}
+{{-- TAB 2: ROUTES --}}
+{{-- ══════════════════════════════════════════════════════════════ --}}
+<div id="tab-routes" class="tab-pane">
+    <div class="sc">
+        <div class="sc-head">
+            <div class="sc-title"><i class="fas fa-route" style="color:#1565C0"></i> Routes ({{ $routes->count() }})</div>
+            <div style="display:flex;gap:10px;align-items:center">
+                <select id="routeTypeFilter" onchange="filterRoutes()" style="padding:7px 12px;border:1.5px solid #EEEEEE;border-radius:10px;font-size:13px">
+                    <option value="">All Routes</option>
+                    <option value="domestic">Domestic</option>
+                    <option value="international">International</option>
+                </select>
+                <button class="btn-add" onclick="document.getElementById('addRouteModal').classList.add('open')">
+                    <i class="fas fa-plus"></i> Add Route
+                </button>
+            </div>
+        </div>
+        <table class="dtbl" id="routeTable">
+            <thead><tr><th>From City</th><th>IATA</th><th>To City</th><th>IATA</th><th>Type</th><th>Distance</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+            @forelse($routes as $r)
+            <tr data-type="{{ $r->route_type ?? 'domestic' }}">
+                <td>
+                    <div><strong>{{ $r->from_city }}</strong></div>
+                    <div style="font-size:11px;color:#8A8A9A">{{ $r->from_country ?? '' }}</div>
+                </td>
+                <td><span class="badge-xs badge-scheduled" style="letter-spacing:2px;font-size:12px">{{ $r->from_code }}</span></td>
+                <td>
+                    <div><strong>{{ $r->to_city }}</strong></div>
+                    <div style="font-size:11px;color:#8A8A9A">{{ $r->to_country ?? '' }}</div>
+                </td>
+                <td><span class="badge-xs badge-scheduled" style="letter-spacing:2px;font-size:12px">{{ $r->to_code }}</span></td>
+                <td><span class="badge-xs {{ ($r->route_type ?? 'domestic') === 'international' ? 'badge-international' : 'badge-domestic' }}">{{ ucfirst($r->route_type ?? 'domestic') }}</span></td>
+                <td style="color:#8A8A9A;font-size:12px">{{ ($r->distance_km ?? null) ? number_format($r->distance_km).' km' : '—' }}</td>
+                <td style="color:#8A8A9A;font-size:12px">{{ ($r->default_duration ?? null) ? floor($r->default_duration/60).'h '.($r->default_duration%60).'m' : '—' }}</td>
+                <td><span class="badge-xs {{ ($r->is_active ?? true) ? 'badge-active' : 'badge-inactive' }}">{{ ($r->is_active ?? true) ? 'Active' : 'Inactive' }}</span></td>
+                <td>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn-icon edit" onclick="editRoute({{ json_encode($r) }})"><i class="fas fa-pen"></i></button>
+                        <form action="{{ route('admin.module-data.ticket.route.destroy',$r->id) }}" method="POST" onsubmit="return confirm('Delete route?')" style="display:inline">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="btn-icon del"><i class="fas fa-trash"></i></button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            @empty
+            <tr class="empty-row"><td colspan="9"><i class="fas fa-route" style="font-size:36px;color:#EEEEEE;display:block;margin-bottom:10px"></i>No routes yet</td></tr>
+            @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════ --}}
+{{-- TAB 3: SCHEDULES --}}
+{{-- ══════════════════════════════════════════════════════════════ --}}
+<div id="tab-schedules" class="tab-pane">
+    <div class="sc">
+        <div class="sc-head">
+            <div class="sc-title"><i class="fas fa-calendar-alt" style="color:#1565C0"></i> Flight Schedules ({{ $flights->total() }})</div>
+            <div style="display:flex;gap:10px;align-items:center">
+                <div class="search-wrap">
+                    <i class="fas fa-search"></i>
+                    <input class="search-input" type="text" placeholder="Search schedules…" oninput="filterTable('scheduleTable',this.value)">
+                </div>
+                <button class="btn-add" onclick="document.getElementById('addScheduleModal').classList.add('open')">
+                    <i class="fas fa-plus"></i> Add Schedule
+                </button>
+            </div>
+        </div>
+        <table class="dtbl" id="scheduleTable">
+            <thead>
+                <tr><th>Airline</th><th>Route</th><th>Flight #</th><th>Departure</th><th>Arrival</th><th>Duration</th><th>Seats</th><th>Prices</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+            @forelse($flights as $f)
+            @php
+                $classes = is_string($f->seat_classes) ? (json_decode($f->seat_classes, true) ?? []) : ($f->seat_classes ?? []);
+                $dep = \Carbon\Carbon::parse($f->departure_at);
+                $arr = \Carbon\Carbon::parse($f->arrival_at);
+                $dur = ($f->duration_minutes ?? null) ? floor($f->duration_minutes/60).'h '.($f->duration_minutes%60).'m' : '—';
+                $stMap = ['scheduled'=>'badge-scheduled','boarding'=>'badge-boarding','departed'=>'badge-departed','landed'=>'badge-landed','cancelled'=>'badge-cancelled'];
+            @endphp
+            <tr>
+                <td>
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <div class="airline-avatar" style="background:{{ $f->airline_color ?? '#1565C0' }}">
+                            @if(!empty($f->airline_logo_img))
+                                <img src="{{ $f->airline_logo_img }}" style="width:100%;height:100%;object-fit:contain">
+                            @else
+                                {{ strtoupper(substr($f->airline_name ?? $f->airline ?? 'A',0,2)) }}
+                            @endif
+                        </div>
+                        <div style="font-weight:700;font-size:13px">{{ $f->airline_name ?? $f->airline }}</div>
+                    </div>
+                </td>
+                <td>
+                    <div class="route-pair">
+                        <div style="text-align:center">
+                            <div class="iata-code">{{ $f->from_code ?? strtoupper(substr($f->from_city??'',0,3)) }}</div>
+                            <div class="city-name">{{ $f->from_city }}</div>
+                        </div>
+                        <i class="fas fa-long-arrow-alt-right" style="color:#8A8A9A"></i>
+                        <div style="text-align:center">
+                            <div class="iata-code">{{ $f->to_code ?? strtoupper(substr($f->to_city??'',0,3)) }}</div>
+                            <div class="city-name">{{ $f->to_city }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td><span class="badge-xs badge-scheduled" style="letter-spacing:.5px">{{ $f->flight_number }}</span></td>
+                <td>
+                    <div style="font-weight:700">{{ $dep->format('H:i') }}</div>
+                    <div style="font-size:11px;color:#8A8A9A">{{ $dep->format('d M Y') }}</div>
+                </td>
+                <td>
+                    <div style="font-weight:700">{{ $arr->format('H:i') }}</div>
+                    <div style="font-size:11px;color:#8A8A9A">{{ $arr->format('d M Y') }}</div>
+                </td>
+                <td><span style="font-size:12px;color:#8A8A9A"><i class="fas fa-clock me-1"></i>{{ $dur }}</span></td>
+                <td>
+                    <span class="badge-xs {{ ($f->available_seats ?? 0) > 0 ? 'badge-active' : 'badge-inactive' }}">
+                        {{ $f->available_seats ?? 0 }}/{{ $f->total_seats ?? '?' }}
+                    </span>
+                </td>
+                <td>
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        @if(!empty($classes['economy']))<span class="price-pill price-eco">ECO ${{ number_format($classes['economy'],0) }}</span>@endif
+                        @if(!empty($classes['business']))<span class="price-pill price-biz">BIZ ${{ number_format($classes['business'],0) }}</span>@endif
+                        @if(!empty($classes['child']))<span class="price-pill price-chd">CHD ${{ number_format($classes['child'],0) }}</span>@endif
+                        @if(!empty($classes['infant']))<span class="price-pill price-inf">INF ${{ number_format($classes['infant'],0) }}</span>@endif
+                    </div>
+                </td>
+                <td><span class="badge-xs {{ $stMap[$f->status ?? 'scheduled'] ?? 'badge-scheduled' }}">{{ ucfirst($f->status ?? 'scheduled') }}</span></td>
+                <td>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn-icon edit" onclick="editSchedule({{ json_encode($f) }})"><i class="fas fa-pen"></i></button>
+                        <form action="{{ route('admin.module-data.ticket.flight.destroy',$f->id) }}" method="POST" onsubmit="return confirm('Delete this schedule?')" style="display:inline">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="btn-icon del"><i class="fas fa-trash"></i></button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            @empty
+            <tr class="empty-row"><td colspan="10"><i class="fas fa-calendar-alt" style="font-size:36px;color:#EEEEEE;display:block;margin-bottom:10px"></i>No schedules yet — add your first flight</td></tr>
+            @endforelse
+            </tbody>
+        </table>
+        @if($flights->hasPages())
+        <div style="padding:14px 18px;border-top:1px solid #f0f1f5;display:flex;justify-content:flex-end">{{ $flights->links('pagination::simple-bootstrap-5') }}</div>
+        @endif
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════ --}}
+{{-- TAB 4: BOOKINGS --}}
+{{-- ══════════════════════════════════════════════════════════════ --}}
+<div id="tab-bookings" class="tab-pane">
+    <div class="sc">
+        <div class="sc-head">
+            <div class="sc-title"><i class="fas fa-ticket-alt" style="color:#1565C0"></i> Bookings ({{ $bookings->count() }})</div>
+            <div class="search-wrap">
+                <i class="fas fa-search"></i>
+                <input class="search-input" type="text" placeholder="Search bookings…" oninput="filterTable('bookingTable',this.value)">
+            </div>
+        </div>
+        <table class="dtbl" id="bookingTable">
+            <thead><tr><th>Order #</th><th>Passenger</th><th>Flight</th><th>Route</th><th>Class</th><th>Date</th><th>Pax</th><th>Amount</th><th>Payment</th><th>Status</th></tr></thead>
+            <tbody>
+            @forelse($bookings as $bk)
+            @php $stMap2=['pending'=>'badge-boarding','confirmed'=>'badge-active','cancelled'=>'badge-cancelled','boarded'=>'badge-landed']; @endphp
+            <tr>
+                <td><strong>#{{ $bk->order_number }}</strong></td>
+                <td>
+                    <div style="font-weight:600">{{ $bk->passenger_name ?? $bk->user_name }}</div>
+                    @if(!empty($bk->user_phone))<div style="font-size:11px;color:#8A8A9A">{{ $bk->user_phone }}</div>@endif
+                </td>
+                <td><span class="badge-xs badge-scheduled">{{ $bk->flight_number }}</span></td>
+                <td style="font-size:12px;font-weight:700">
+                    {{ $bk->from_city ?? '—' }}<i class="fas fa-arrow-right" style="color:#8A8A9A;margin:0 4px;font-size:9px"></i>{{ $bk->to_city ?? '—' }}
+                </td>
+                <td>
+                    @php $cls = $bk->seat_class ?? 'economy'; @endphp
+                    <span class="price-pill {{ $cls==='economy'?'price-eco':($cls==='business'?'price-biz':'price-chd') }}">{{ ucfirst($cls) }}</span>
+                </td>
+                <td style="font-size:12px;color:#8A8A9A">{{ $bk->departure_at ? \Carbon\Carbon::parse($bk->departure_at)->format('d M Y') : '—' }}</td>
+                <td style="font-weight:700">{{ $bk->total_passengers ?? 1 }}</td>
+                <td><strong>${{ number_format($bk->total_amount ?? 0) }}</strong></td>
+                <td><span class="badge-xs {{ ($bk->payment_status ?? 'pending')==='paid' ? 'badge-active' : 'badge-boarding' }}">{{ ucfirst($bk->payment_status ?? 'pending') }}</span></td>
+                <td><span class="badge-xs {{ $stMap2[$bk->order_status ?? 'confirmed'] ?? 'badge-scheduled' }}">{{ ucfirst($bk->order_status ?? 'confirmed') }}</span></td>
+            </tr>
+            @empty
+            <tr class="empty-row"><td colspan="10"><i class="fas fa-ticket-alt" style="font-size:36px;color:#EEEEEE;display:block;margin-bottom:10px"></i>No bookings yet</td></tr>
+            @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{-- ══════════════════════════ MODALS ══════════════════════════ --}}
+
+{{-- ADD AIRLINE --}}
+<div class="modal-overlay" id="addAirlineModal">
+    <div class="modal-box sm">
+        <div class="modal-head">
+            <h3><i class="fas fa-building me-2" style="color:#1565C0"></i>Add Airline</h3>
+            <button class="modal-close" onclick="closeModal('addAirlineModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <form method="POST" action="{{ route('admin.module-data.ticket.airline.store') }}" enctype="multipart/form-data">
+                @csrf
+                <div class="form-grid-2" style="margin-bottom:14px">
+                    <div class="fgroup"><label>Airline Name *</label><input type="text" name="name" required placeholder="e.g. Daallo Airlines"></div>
+                    <div class="fgroup"><label>IATA Code</label><input type="text" name="code" maxlength="3" placeholder="e.g. D3" style="text-transform:uppercase"></div>
+                </div>
+                <div class="fgroup" style="margin-bottom:14px"><label>Logo URL</label><input type="url" name="logo" placeholder="https://…/logo.png"><small style="color:#8A8A9A;font-size:11px">Paste direct image URL (PNG/SVG recommended)</small></div>
+                <div class="form-grid-2" style="margin-bottom:14px">
+                    <div class="fgroup"><label>Brand Colour</label><input type="color" name="color" value="#1565C0" style="height:42px;padding:4px"></div>
+                    <div class="fgroup"><label>Sort Order</label><input type="number" name="sort_order" value="0" min="0"></div>
+                </div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:16px;border-top:1px solid #f0f1f5">
+                    <button type="button" class="btn-outline" onclick="closeModal('addAirlineModal')">Cancel</button>
+                    <button type="submit" class="btn-add"><i class="fas fa-plus"></i> Add Airline</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- EDIT AIRLINE --}}
+<div class="modal-overlay" id="editAirlineModal">
+    <div class="modal-box sm">
+        <div class="modal-head">
+            <h3><i class="fas fa-pen me-2" style="color:#1565C0"></i>Edit Airline</h3>
+            <button class="modal-close" onclick="closeModal('editAirlineModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <form id="editAirlineForm" method="POST" enctype="multipart/form-data">
+                @csrf @method('PATCH')
+                <div class="form-grid-2" style="margin-bottom:14px">
+                    <div class="fgroup"><label>Name</label><input type="text" name="name" id="ea_name" required></div>
+                    <div class="fgroup"><label>Code</label><input type="text" name="code" id="ea_code" maxlength="3"></div>
+                </div>
+                <div class="fgroup" style="margin-bottom:14px"><label>Logo URL</label><input type="url" name="logo" id="ea_logo"></div>
+                <div class="form-grid-2" style="margin-bottom:14px">
+                    <div class="fgroup"><label>Brand Colour</label><input type="color" name="color" id="ea_color" style="height:42px;padding:4px"></div>
+                    <div class="fgroup"><label>Sort Order</label><input type="number" name="sort_order" id="ea_sort" min="0"></div>
+                </div>
+                <div class="fgroup" style="margin-bottom:14px">
+                    <label>Status</label>
+                    <select name="is_active" id="ea_active"><option value="1">Active</option><option value="0">Inactive</option></select>
+                </div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:16px;border-top:1px solid #f0f1f5">
+                    <button type="button" class="btn-outline" onclick="closeModal('editAirlineModal')">Cancel</button>
+                    <button type="submit" class="btn-add"><i class="fas fa-save"></i> Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- ADD ROUTE --}}
+<div class="modal-overlay" id="addRouteModal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <h3><i class="fas fa-route me-2" style="color:#1565C0"></i>Add Route</h3>
+            <button class="modal-close" onclick="closeModal('addRouteModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <p class="sec-title" style="margin-bottom:10px">Quick Add — Somali Domestic Cities</p>
+            <div class="city-presets" id="domesticPresets">
+                <span class="city-preset" onclick="setCity('from','Mogadishu','MGQ','Somalia')">🇸🇴 Mogadishu (MGQ)</span>
+                <span class="city-preset" onclick="setCity('from','Hargeysa','HGA','Somalia')">🇸🇴 Hargeysa (HGA)</span>
+                <span class="city-preset" onclick="setCity('from','Kismaayo','KMU','Somalia')">🇸🇴 Kismaayo (KMU)</span>
+                <span class="city-preset" onclick="setCity('from','Baydhabo','BYD','Somalia')">🇸🇴 Baydhabo (BYD)</span>
+                <span class="city-preset" onclick="setCity('from','Cadaado','CXN','Somalia')">🇸🇴 Cadaado (CXN)</span>
+                <span class="city-preset" onclick="setCity('from','Kaalgacyo','GLK','Somalia')">🇸🇴 Kaalgacyo (GLK)</span>
+                <span class="city-preset" onclick="setCity('from','Garowe','GGR','Somalia')">🇸🇴 Garowe (GGR)</span>
+                <span class="city-preset" onclick="setCity('from','Guriceel','GUR','Somalia')">🇸🇴 Guriceel (GUR)</span>
+                <span class="city-preset" onclick="setCity('from','Doolow','DOG','Somalia')">🇸🇴 Doolow (DOG)</span>
+                <span class="city-preset" onclick="setCity('from','Dhuusamareeb','DMO','Somalia')">🇸🇴 Dhuusamareeb (DMO)</span>
+                <span class="city-preset" onclick="setCity('from','Laascaanood','LAS','Somalia')">🇸🇴 Laascaanood (LAS)</span>
+            </div>
+            <p class="sec-title" style="margin:14px 0 10px">International Cities</p>
+            <div class="city-presets">
+                <span class="city-preset intl" onclick="setCity('from','Nairobi','NBO','Kenya')">🇰🇪 Nairobi (NBO)</span>
+                <span class="city-preset intl" onclick="setCity('from','Kampala','EBB','Uganda')">🇺🇬 Kampala (EBB)</span>
+                <span class="city-preset intl" onclick="setCity('from','Juba','JUB','South Sudan')">🇸🇸 Juba (JUB)</span>
+                <span class="city-preset intl" onclick="setCity('from','Istanbul','IST','Turkey')">🇹🇷 Istanbul (IST)</span>
+                <span class="city-preset intl" onclick="setCity('from','Doha','DOH','Qatar')">🇶🇦 Doha (DOH)</span>
+                <span class="city-preset intl" onclick="setCity('from','Dubai','DXB','UAE')">🇦🇪 Dubai (DXB)</span>
+                <span class="city-preset intl" onclick="setCity('from','Addis Ababa','ADD','Ethiopia')">🇪🇹 Addis Ababa (ADD)</span>
+                <span class="city-preset intl" onclick="setCity('from','Djibouti','JIB','Djibouti')">🇩🇯 Djibouti (JIB)</span>
+                <span class="city-preset intl" onclick="setCity('from','Riyadh','RUH','Saudi Arabia')">🇸🇦 Riyadh (RUH)</span>
+            </div>
+            <p style="font-size:12px;color:#8A8A9A;margin:4px 0 14px">💡 Tip: Click a city above to set it as the <strong>From</strong> city, then type or click again for <strong>To</strong></p>
+            <form method="POST" action="{{ route('admin.module-data.ticket.route.store') }}">
+                @csrf
+                <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:12px;margin-bottom:14px">
+                    <div>
+                        <p class="sec-title">From</p>
+                        <div class="fgroup" style="margin-bottom:10px"><label>City Name *</label><input type="text" name="from_city" id="add_from_city" required placeholder="e.g. Mogadishu"></div>
+                        <div class="form-grid-2">
+                            <div class="fgroup"><label>IATA Code *</label><input type="text" name="from_code" id="add_from_code" maxlength="5" required placeholder="MGQ" style="text-transform:uppercase"></div>
+                            <div class="fgroup"><label>Country</label><input type="text" name="from_country" id="add_from_country" placeholder="Somalia"></div>
+                        </div>
+                    </div>
+                    <div style="text-align:center;padding-bottom:12px;font-size:24px;color:#8A8A9A">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <div>
+                        <p class="sec-title">To</p>
+                        <div class="fgroup" style="margin-bottom:10px"><label>City Name *</label><input type="text" name="to_city" id="add_to_city" required placeholder="e.g. Nairobi"></div>
+                        <div class="form-grid-2">
+                            <div class="fgroup"><label>IATA Code *</label><input type="text" name="to_code" id="add_to_code" maxlength="5" required placeholder="NBO" style="text-transform:uppercase"></div>
+                            <div class="fgroup"><label>Country</label><input type="text" name="to_country" id="add_to_country" placeholder="Kenya"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-grid-3" style="margin-bottom:14px">
+                    <div class="fgroup">
+                        <label>Route Type</label>
+                        <select name="route_type" id="add_route_type">
+                            <option value="domestic">Domestic</option>
+                            <option value="international">International</option>
+                        </select>
+                    </div>
+                    <div class="fgroup"><label>Distance (km)</label><input type="number" name="distance_km" min="0" placeholder="e.g. 450"></div>
+                    <div class="fgroup"><label>Est. Duration (min)</label><input type="number" name="default_duration" min="0" placeholder="e.g. 70"></div>
+                </div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:16px;border-top:1px solid #f0f1f5">
+                    <button type="button" class="btn-outline" onclick="closeModal('addRouteModal')">Cancel</button>
+                    <button type="submit" class="btn-add"><i class="fas fa-plus"></i> Add Route</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- EDIT ROUTE --}}
+<div class="modal-overlay" id="editRouteModal">
+    <div class="modal-box sm">
+        <div class="modal-head">
+            <h3><i class="fas fa-pen me-2" style="color:#1565C0"></i>Edit Route</h3>
+            <button class="modal-close" onclick="closeModal('editRouteModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <form id="editRouteForm" method="POST">
+                @csrf @method('PATCH')
+                <div class="form-grid-2" style="margin-bottom:14px">
+                    <div class="fgroup"><label>From City</label><input type="text" name="from_city" id="er_fcity" required></div>
+                    <div class="fgroup"><label>From Code</label><input type="text" name="from_code" id="er_fcode" maxlength="5"></div>
+                </div>
+                <div class="form-grid-2" style="margin-bottom:14px">
+                    <div class="fgroup"><label>To City</label><input type="text" name="to_city" id="er_tcity" required></div>
+                    <div class="fgroup"><label>To Code</label><input type="text" name="to_code" id="er_tcode" maxlength="5"></div>
+                </div>
+                <div class="form-grid-3" style="margin-bottom:14px">
+                    <div class="fgroup"><label>Type</label><select name="route_type" id="er_type"><option value="domestic">Domestic</option><option value="international">International</option></select></div>
+                    <div class="fgroup"><label>Distance (km)</label><input type="number" name="distance_km" id="er_dist" min="0"></div>
+                    <div class="fgroup"><label>Duration (min)</label><input type="number" name="default_duration" id="er_dur" min="0"></div>
+                </div>
+                <div class="fgroup" style="margin-bottom:14px"><label>Status</label><select name="is_active" id="er_active"><option value="1">Active</option><option value="0">Inactive</option></select></div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:16px;border-top:1px solid #f0f1f5">
+                    <button type="button" class="btn-outline" onclick="closeModal('editRouteModal')">Cancel</button>
+                    <button type="submit" class="btn-add"><i class="fas fa-save"></i> Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- ADD SCHEDULE --}}
+<div class="modal-overlay" id="addScheduleModal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <h3><i class="fas fa-calendar-plus me-2" style="color:#1565C0"></i>Add Flight Schedule</h3>
+            <button class="modal-close" onclick="closeModal('addScheduleModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <form method="POST" action="{{ route('admin.module-data.ticket.flight.store') }}">
+                @csrf
+                {{-- Flight Info --}}
+                <p class="sec-title">Flight Info</p>
+                <div class="form-grid-2" style="margin-bottom:14px">
+                    <div class="fgroup">
+                        <label>Airline *</label>
+                        <select name="airline_id" id="as_airline_id" required onchange="autoFlightNumber(this,'as_flight_number')">
+                            <option value="">Select airline</option>
+                            @foreach($airlines as $a)
+                            <option value="{{ $a->id }}" data-code="{{ strtoupper(substr($a->code ?? $a->name, 0, 2)) }}">{{ $a->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="fgroup">
+                        <label>Flight Number <span style="font-size:10px;color:#8A8A9A;font-weight:400">(auto-generated)</span></label>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <input type="text" name="flight_number" id="as_flight_number" required placeholder="Select airline first" style="text-transform:uppercase;flex:1">
+                            <button type="button" onclick="autoFlightNumber(document.getElementById('as_airline_id'),'as_flight_number')" style="padding:8px 12px;background:#f4f5fa;border:1px solid #e8e9f0;border-radius:8px;cursor:pointer;font-size:12px;color:#07003B;white-space:nowrap"><i class="fas fa-sync-alt"></i></button>
+                        </div>
+                    </div>
+                </div>
+                {{-- Route --}}
+                <p class="sec-title">Route</p>
+                <div class="fgroup" style="margin-bottom:14px">
+                    <label>Select Route (auto-fills cities) *</label>
+                    <select id="as_route_select" onchange="fillRouteFields(this,'as')">
+                        <option value="">Select route or fill manually below</option>
+                        @foreach($routes as $r)
+                        <option value="{{ $r->id }}"
+                            data-fc="{{ $r->from_city }}" data-fcode="{{ $r->from_code }}"
+                            data-tc="{{ $r->to_city }}"  data-tcode="{{ $r->to_code }}">
+                            {{ $r->from_city }} ({{ $r->from_code }}) → {{ $r->to_city }} ({{ $r->to_code }})
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;margin-bottom:14px;align-items:start">
+                    <div>
+                        <div class="form-grid-2">
+                            <div class="fgroup"><label>From City *</label><input type="text" name="from_city" id="as_from_city" required></div>
+                            <div class="fgroup"><label>From Code</label><input type="text" name="from_code" id="as_from_code" maxlength="5" style="text-transform:uppercase"></div>
+                        </div>
+                    </div>
+                    <div style="text-align:center;padding-top:28px;color:#8A8A9A"><i class="fas fa-long-arrow-alt-right"></i></div>
+                    <div>
+                        <div class="form-grid-2">
+                            <div class="fgroup"><label>To City *</label><input type="text" name="to_city" id="as_to_city" required></div>
+                            <div class="fgroup"><label>To Code</label><input type="text" name="to_code" id="as_to_code" maxlength="5" style="text-transform:uppercase"></div>
+                        </div>
+                    </div>
+                </div>
+                {{-- Date & Time --}}
+                <p class="sec-title">Date & Time</p>
+                <div class="form-grid-2" style="margin-bottom:14px">
+                    <div class="fgroup"><label>Departure Date & Time *</label><input type="datetime-local" name="departure_at" required></div>
+                    <div class="fgroup"><label>Arrival Date & Time *</label><input type="datetime-local" name="arrival_at" required></div>
+                </div>
+                {{-- Seats --}}
+                <p class="sec-title">Seats</p>
+                <div class="form-grid-2" style="margin-bottom:14px">
+                    <div class="fgroup"><label>Total Seats *</label><input type="number" name="total_seats" required min="1" placeholder="e.g. 150"></div>
+                    <div class="fgroup"><label>Available Seats *</label><input type="number" name="available_seats" required min="0" placeholder="e.g. 150"></div>
+                </div>
+                {{-- Prices --}}
+                <p class="sec-title">Ticket Prices (USD)</p>
+                <div class="prices-grid" style="margin-bottom:20px">
+                    <div class="price-input-wrap" style="border-color:rgba(16,185,129,.3)">
+                        <label style="color:#10b981">Economy *</label>
+                        <input type="number" name="economy_price" required min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="price-input-wrap" style="border-color:rgba(21,101,192,.3)">
+                        <label style="color:#1565C0">Business</label>
+                        <input type="number" name="business_price" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="price-input-wrap" style="border-color:rgba(245,158,11,.3)">
+                        <label style="color:#f59e0b">Child (2–11 yrs)</label>
+                        <input type="number" name="child_price" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="price-input-wrap" style="border-color:rgba(239,68,68,.3)">
+                        <label style="color:#ef4444">Infant (&lt;2 yrs)</label>
+                        <input type="number" name="infant_price" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:16px;border-top:1px solid #f0f1f5">
+                    <button type="reset" class="btn-outline">Reset</button>
+                    <button type="submit" class="btn-add"><i class="fas fa-plus"></i> Add Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- EDIT SCHEDULE --}}
+<div class="modal-overlay" id="editScheduleModal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <h3><i class="fas fa-pen me-2" style="color:#1565C0"></i>Edit Flight Schedule</h3>
+            <button class="modal-close" onclick="closeModal('editScheduleModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <form id="editScheduleForm" method="POST">
+                @csrf @method('PATCH')
+                <p class="sec-title">Flight Info</p>
+                <div class="form-grid-3" style="margin-bottom:14px">
+                    <div class="fgroup">
+                        <label>Airline</label>
+                        <select name="airline_id" id="es_airline">
+                            @foreach($airlines as $a)<option value="{{ $a->id }}" data-code="{{ strtoupper(substr($a->code ?? $a->name, 0, 2)) }}">{{ $a->name }}</option>@endforeach
+                        </select>
+                    </div>
+                    <div class="fgroup"><label>Flight Number</label><input type="text" name="flight_number" id="es_num" required style="text-transform:uppercase"></div>
+                    <div class="fgroup"><label>Status</label>
+                        <select name="status" id="es_status">
+                            <option value="scheduled">Scheduled</option>
+                            <option value="boarding">Boarding</option>
+                            <option value="departed">Departed</option>
+                            <option value="landed">Landed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="sec-title">Route</p>
+                <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;margin-bottom:14px;align-items:start">
+                    <div class="form-grid-2">
+                        <div class="fgroup"><label>From City</label><input type="text" name="from_city" id="es_fc" required></div>
+                        <div class="fgroup"><label>From Code</label><input type="text" name="from_code" id="es_fcode" maxlength="5"></div>
+                    </div>
+                    <div style="text-align:center;padding-top:28px;color:#8A8A9A"><i class="fas fa-long-arrow-alt-right"></i></div>
+                    <div class="form-grid-2">
+                        <div class="fgroup"><label>To City</label><input type="text" name="to_city" id="es_tc" required></div>
+                        <div class="fgroup"><label>To Code</label><input type="text" name="to_code" id="es_tcode" maxlength="5"></div>
+                    </div>
+                </div>
+                <p class="sec-title">Date & Time</p>
+                <div class="form-grid-2" style="margin-bottom:14px">
+                    <div class="fgroup"><label>Departure</label><input type="datetime-local" name="departure_at" id="es_dep"></div>
+                    <div class="fgroup"><label>Arrival</label><input type="datetime-local" name="arrival_at" id="es_arr"></div>
+                </div>
+                <p class="sec-title">Seats</p>
+                <div class="form-grid-2" style="margin-bottom:14px">
+                    <div class="fgroup"><label>Total Seats</label><input type="number" name="total_seats" id="es_total" min="1"></div>
+                    <div class="fgroup"><label>Available Seats</label><input type="number" name="available_seats" id="es_avail" min="0"></div>
+                </div>
+                <p class="sec-title">Prices (USD)</p>
+                <div class="prices-grid" style="margin-bottom:20px">
+                    <div class="price-input-wrap" style="border-color:rgba(16,185,129,.3)">
+                        <label style="color:#10b981">Economy *</label>
+                        <input type="number" name="economy_price" id="es_eco" min="0" step="0.01">
+                    </div>
+                    <div class="price-input-wrap" style="border-color:rgba(21,101,192,.3)">
+                        <label style="color:#1565C0">Business</label>
+                        <input type="number" name="business_price" id="es_biz" min="0" step="0.01">
+                    </div>
+                    <div class="price-input-wrap" style="border-color:rgba(245,158,11,.3)">
+                        <label style="color:#f59e0b">Child</label>
+                        <input type="number" name="child_price" id="es_chd" min="0" step="0.01">
+                    </div>
+                    <div class="price-input-wrap" style="border-color:rgba(239,68,68,.3)">
+                        <label style="color:#ef4444">Infant</label>
+                        <input type="number" name="infant_price" id="es_inf" min="0" step="0.01">
+                    </div>
+                </div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:16px;border-top:1px solid #f0f1f5">
+                    <button type="button" class="btn-outline" onclick="closeModal('editScheduleModal')">Cancel</button>
+                    <button type="submit" class="btn-add"><i class="fas fa-save"></i> Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// TAB SWITCHING
+function switchTab(name,el){
+    document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.module-tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('tab-'+name).classList.add('active');
+    el.classList.add('active');
+}
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+    m.addEventListener('click',function(e){ if(e.target===this)this.classList.remove('open'); });
+});
+// TABLE FILTER
+function filterTable(id,q){
+    q=q.toLowerCase();
+    document.querySelectorAll('#'+id+' tbody tr:not(.empty-row)').forEach(r=>{
+        r.style.display=r.textContent.toLowerCase().includes(q)?'':'none';
+    });
+}
+// ROUTE TYPE FILTER
+function filterRoutes(){
+    const v=document.getElementById('routeTypeFilter').value;
+    document.querySelectorAll('#routeTable tbody tr:not(.empty-row)').forEach(r=>{
+        r.style.display=(!v||r.dataset.type===v)?'':'none';
+    });
+}
+// CITY PRESETS - fills "from" first, then "to"
+let cityStep='from';
+function setCity(target,city,code,country){
+    document.getElementById('add_'+cityStep+'_city').value=city;
+    document.getElementById('add_'+cityStep+'_code').value=code;
+    document.getElementById('add_'+cityStep+'_country').value=country;
+    // auto-detect route type
+    const intlCountries=['Kenya','Uganda','South Sudan','Turkey','Qatar','UAE','Ethiopia','Djibouti','Saudi Arabia'];
+    const fromCountry=document.getElementById('add_from_country').value;
+    const toCountry=document.getElementById('add_to_country').value;
+    if(intlCountries.includes(fromCountry)||intlCountries.includes(toCountry)){
+        document.getElementById('add_route_type').value='international';
+    } else if(fromCountry==='Somalia'&&toCountry==='Somalia'){
+        document.getElementById('add_route_type').value='domestic';
+    }
+    cityStep=cityStep==='from'?'to':'from';
+}
+// AUTO-GENERATE FLIGHT NUMBER
+function autoFlightNumber(sel, targetId){
+    const opt = sel.options[sel.selectedIndex];
+    if(!opt || !opt.value) return;
+    const code = (opt.dataset.code || opt.text.substring(0,2)).toUpperCase().replace(/[^A-Z0-9]/g,'');
+    const num  = String(Math.floor(100 + Math.random() * 900));
+    document.getElementById(targetId).value = code + num;
+}
+// FILL ROUTE FIELDS from dropdown
+function fillRouteFields(sel,prefix){
+    const opt=sel.options[sel.selectedIndex];
+    if(!opt||!opt.value)return;
+    document.getElementById(prefix+'_from_city').value=opt.dataset.fc||'';
+    document.getElementById(prefix+'_from_code').value=opt.dataset.fcode||'';
+    document.getElementById(prefix+'_to_city').value=opt.dataset.tc||'';
+    document.getElementById(prefix+'_to_code').value=opt.dataset.tcode||'';
+}
+// EDIT AIRLINE
+function editAirline(a){
+    document.getElementById('editAirlineForm').action=`/admin/module-data/ticket/airlines/${a.id}`;
+    document.getElementById('ea_name').value=a.name||'';
+    document.getElementById('ea_code').value=a.code||'';
+    document.getElementById('ea_logo').value=a.logo||'';
+    document.getElementById('ea_color').value=a.color||'#1565C0';
+    document.getElementById('ea_sort').value=a.sort_order||0;
+    document.getElementById('ea_active').value=a.is_active?'1':'0';
+    document.getElementById('editAirlineModal').classList.add('open');
+}
+// EDIT ROUTE
+function editRoute(r){
+    document.getElementById('editRouteForm').action=`/admin/module-data/ticket/routes/${r.id}`;
+    document.getElementById('er_fcity').value=r.from_city||'';
+    document.getElementById('er_fcode').value=r.from_code||'';
+    document.getElementById('er_tcity').value=r.to_city||'';
+    document.getElementById('er_tcode').value=r.to_code||'';
+    document.getElementById('er_type').value=r.route_type||'domestic';
+    document.getElementById('er_dist').value=r.distance_km||'';
+    document.getElementById('er_dur').value=r.default_duration||'';
+    document.getElementById('er_active').value=(r.is_active??true)?'1':'0';
+    document.getElementById('editRouteModal').classList.add('open');
+}
+// EDIT SCHEDULE
+function editSchedule(f){
+    const cls=typeof f.seat_classes==='string'?JSON.parse(f.seat_classes||'{}'):(f.seat_classes||{});
+    document.getElementById('editScheduleForm').action=`/admin/module-data/ticket/flights/${f.id}`;
+    document.getElementById('es_airline').value=f.airline_id||'';
+    document.getElementById('es_num').value=f.flight_number||'';
+    document.getElementById('es_status').value=f.status||'scheduled';
+    document.getElementById('es_fc').value=f.from_city||'';
+    document.getElementById('es_fcode').value=f.from_code||'';
+    document.getElementById('es_tc').value=f.to_city||'';
+    document.getElementById('es_tcode').value=f.to_code||'';
+    document.getElementById('es_dep').value=f.departure_at?f.departure_at.slice(0,16):'';
+    document.getElementById('es_arr').value=f.arrival_at?f.arrival_at.slice(0,16):'';
+    document.getElementById('es_total').value=f.total_seats||'';
+    document.getElementById('es_avail').value=f.available_seats||'';
+    document.getElementById('es_eco').value=cls.economy||0;
+    document.getElementById('es_biz').value=cls.business||0;
+    document.getElementById('es_chd').value=cls.child||0;
+    document.getElementById('es_inf').value=cls.infant||0;
+    document.getElementById('editScheduleModal').classList.add('open');
+}
+</script>
+@endsection

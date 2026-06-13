@@ -1,0 +1,33 @@
+# Backend
+backend/vendor/
+backend/.env
+backend/storage/logs/
+backend/storage/framework/cache/
+backend/storage/framework/sessions/
+backend/storage/framework/views/
+backend/bootstrap/cache/
+
+# Flutter apps
+customer_app/.dart_tool/
+customer_app/build/
+customer_app/.flutter-plugins
+customer_app/.flutter-plugins-dependencies
+
+driver_app/.dart_tool/
+driver_app/build/
+driver_app/.flutter-plugins
+driver_app/.flutter-plugins-dependencies
+
+vendor_app/.dart_tool/
+vendor_app/build/
+vendor_app/.flutter-plugins
+vendor_app/.flutter-plugins-dependencies
+
+# Patch scripts / temp
+patch_*.py
+tmp/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

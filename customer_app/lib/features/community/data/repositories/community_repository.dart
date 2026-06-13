@@ -1,0 +1,268 @@
+import 'package:dio/dio.dart';
+import '../../../../core/api/api_client.dart';
+import '../models/community_models.dart';
+
+class CommunityRepository {
+  final _dio = ApiClient.instance;
+
+  // ── Feed ───────────────────────────────────────────────────────────────────
+  Future<List<CommunityPost>> getFeed({int page = 1}) async {
+    final r = await _dio.get('/community/feed', queryParameters: {'page': page});
+    return _parsePosts(r.data['data']);
+  }
+
+  Future<List<CommunityPost>> getExploreFeed({int page = 1}) async {
+    final r = await _dio.get('/community/explore', queryParameters: {'page': page});
+    return _parsePosts(r.data['data']);
+  }
+
+  Future<List<CommunityPost>> getReels({int page = 1}) async {
+    final r = await _dio.get('/community/reels', queryParameters: {'page': page});
+    return _parsePosts(r.data['data']);
+  }
+
+  Future<List<StoryGroup>> getStories() async {
+    final r = await _dio.get('/community/stories');
+    return (r.data['data'] as List)
+        .map((e) => StoryGroup.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<CommunityUser>> getSuggestions() async {
+    final r = await _dio.get('/community/suggestions');
+    return (r.data['data'] as List)
+        .map((e) => CommunityUser.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> search(String query, {String type = 'posts', int page = 1}) async {
+    final r = await _dio.get('/community/search', queryParameters: {'q': query, 'type': type, 'page': page});
+    return r.data as Map<String, dynamic>;
+  }
+
+  // ── Posts ──────────────────────────────────────────────────────────────────
+  Future<CommunityPost> createPost({
+    required String type,
+    String? content,
+    String? privacy,
+    String? location,
+    String? feeling,
+    int? groupId,
+    List<String>? pollOptions,
+    List<dynamic>? mediaFiles,
+  }) async {
+    final form = FormData.fromMap({
+      'type': type,
+      if (content != null) 'content': content,
+      if (privacy != null) 'privacy': privacy,
+      if (location != null) 'location': location,
+      if (feeling != null) 'feeling': feeling,
+      if (groupId != null) 'group_id': groupId,
+      if (pollOptions != null) ...{for (var i = 0; i < pollOptions.length; i++) 'poll_options[$i]': pollOptions[i]},
+    });
+
+    if (mediaFiles != null) {
+      for (final file in mediaFiles) {
+        if (file is MultipartFile) form.files.add(MapEntry('media[]', file));
+      }
+    }
+
+    final r = await _dio.post('/community/posts', data: form);
+    return CommunityPost.fromJson(r.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<CommunityPost> getPost(int id) async {
+    final r = await _dio.get('/community/posts/$id');
+    return CommunityPost.fromJson(r.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<void> deletePost(int id) => _dio.delete('/community/posts/$id');
+
+  Future<Map<String, dynamic>> reactToPost(int postId, String type) async {
+    final r = await _dio.post('/community/posts/$postId/react', data: {'type': type});
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<CommunityPost> sharePost(int postId, {String? content}) async {
+    final r = await _dio.post('/community/posts/$postId/share', data: {'content': content});
+    return CommunityPost.fromJson(r.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<bool> savePost(int postId) async {
+    final r = await _dio.post('/community/posts/$postId/save');
+    return r.data['saved'] as bool;
+  }
+
+  Future<List<CommunityPost>> getSavedPosts() async {
+    final r = await _dio.get('/community/posts/saved');
+    return _parsePosts(r.data['data']);
+  }
+
+  Future<Map<String, dynamic>> votePoll(int postId, int optionIndex) async {
+    final r = await _dio.post('/community/posts/$postId/vote', data: {'option_index': optionIndex});
+    return r.data as Map<String, dynamic>;
+  }
+
+  // ── Comments ───────────────────────────────────────────────────────────────
+  Future<List<CommunityComment>> getComments(int postId, {int page = 1}) async {
+    final r = await _dio.get('/community/posts/$postId/comments', queryParameters: {'page': page});
+    final raw = r.data['data'];
+    final list = raw is List ? raw : (raw as Map<String, dynamic>)['data'] as List;
+    return list.map((e) => CommunityComment.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<CommunityComment> addComment(int postId, String content, {int? parentId}) async {
+    final r = await _dio.post('/community/posts/$postId/comments',
+        data: {'content': content, if (parentId != null) 'parent_id': parentId});
+    return CommunityComment.fromJson(r.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<void> deleteComment(int commentId) => _dio.delete('/community/comments/$commentId');
+
+  // ── Profile ────────────────────────────────────────────────────────────────
+  Future<CommunityUser> getProfile(int userId) async {
+    final r = await _dio.get('/community/profile/$userId');
+    return CommunityUser.fromJson(r.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<CommunityUser> getMyProfile() async {
+    final r = await _dio.get('/community/profile/me');
+    return CommunityUser.fromJson(r.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<List<CommunityPost>> getProfilePosts(int userId, {String type = 'posts', int page = 1}) async {
+    final r = await _dio.get('/community/profile/$userId/posts',
+        queryParameters: {'type': type, 'page': page});
+    return _parsePosts(r.data['data']);
+  }
+
+  Future<void> updateProfile(Map<String, dynamic> data) async {
+    final form = FormData.fromMap(data);
+    await _dio.put('/community/profile', data: form);
+  }
+
+  // ── Follow ─────────────────────────────────────────────────────────────────
+  Future<bool> toggleFollow(int userId) async {
+    final r = await _dio.post('/community/follow/$userId');
+    return r.data['following'] as bool;
+  }
+
+  // ── Stories ────────────────────────────────────────────────────────────────
+  Future<void> viewStory(int storyId) => _dio.post('/community/stories/$storyId/view');
+
+  Future<void> createStory({
+    required String type,
+    String? textContent,
+    String? bgColor,
+    dynamic mediaFile,
+  }) async {
+    final form = FormData.fromMap({
+      'type': type,
+      if (textContent != null) 'text_content': textContent,
+      if (bgColor != null) 'bg_color': bgColor,
+      if (mediaFile is MultipartFile) 'media': mediaFile,
+    });
+    await _dio.post('/community/stories', data: form);
+  }
+
+  // ── Groups ─────────────────────────────────────────────────────────────────
+  Future<List<CommunityGroup>> getGroups({String type = 'suggested', int page = 1}) async {
+    final r = await _dio.get('/community/groups', queryParameters: {'type': type, 'page': page});
+    return (r.data['data'] as List)
+        .map((e) => CommunityGroup.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<CommunityGroup> createGroup({required String name, String? description, String privacy = 'public'}) async {
+    final r = await _dio.post('/community/groups', data: {
+      'name': name,
+      if (description != null) 'description': description,
+      'privacy': privacy,
+    });
+    return CommunityGroup.fromJson(r.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<Map<String, dynamic>> joinGroup(int groupId) async {
+    final r = await _dio.post('/community/groups/$groupId/join');
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<void> leaveGroup(int groupId) => _dio.delete('/community/groups/$groupId/leave');
+
+  Future<List<CommunityPost>> getGroupPosts(int groupId, {int page = 1}) async {
+    final r = await _dio.get('/community/groups/$groupId/posts', queryParameters: {'page': page});
+    return _parsePosts(r.data['data']);
+  }
+
+  // ── Chats ──────────────────────────────────────────────────────────────────
+  Future<List<CommunityChat>> getChats() async {
+    final r = await _dio.get('/community/chats');
+    return (r.data['data'] as List)
+        .map((e) => CommunityChat.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<CommunityChat> startChat(int userId) async {
+    final r = await _dio.post('/community/chats/start/$userId');
+    return CommunityChat.fromJson(r.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<List<CommunityMessage>> getMessages(int chatId, int myId, {int page = 1}) async {
+    final r = await _dio.get('/community/chats/$chatId/messages', queryParameters: {'page': page});
+    return (r.data['data'] as List)
+        .map((e) => CommunityMessage.fromJson(e as Map<String, dynamic>, myId))
+        .toList();
+  }
+
+  Future<CommunityMessage> sendMessage(int chatId, int myId, {String? content, String type = 'text', dynamic mediaFile}) async {
+    final form = FormData.fromMap({
+      'type': type,
+      if (content != null) 'content': content,
+      if (mediaFile is MultipartFile) 'media': mediaFile,
+    });
+    final r = await _dio.post('/community/chats/$chatId/messages', data: form);
+    return CommunityMessage.fromJson(r.data['data'] as Map<String, dynamic>, myId);
+  }
+
+  // ── Notifications ──────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> getNotifications({int page = 1}) async {
+    final r = await _dio.get('/community/notifications', queryParameters: {'page': page});
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<void> markNotificationRead(int id) => _dio.post('/community/notifications/$id/read');
+  Future<void> markAllNotificationsRead() => _dio.post('/community/notifications/read-all');
+
+  Future<int> getUnreadNotificationCount() async {
+    final r = await _dio.get('/community/notifications/unread-count');
+    return r.data['count'] as int? ?? 0;
+  }
+
+  // ── Report ─────────────────────────────────────────────────────────────────
+  Future<void> report(String type, int id, String reason, {String? description}) async {
+    await _dio.post('/community/report', data: {
+      'reportable_type': type,
+      'reportable_id': id,
+      'reason': reason,
+      if (description != null) 'description': description,
+    });
+  }
+
+  Future<bool> blockUser(int userId) async {
+    final r = await _dio.post('/community/block/$userId');
+    return r.data['blocked'] as bool;
+  }
+
+  // ── Helper ─────────────────────────────────────────────────────────────────
+  List<CommunityPost> _parsePosts(dynamic data) {
+    List raw;
+    if (data is List) {
+      raw = data;
+    } else if (data is Map && data['data'] is List) {
+      raw = data['data'] as List;
+    } else {
+      return [];
+    }
+    return raw.map((e) => CommunityPost.fromJson(e as Map<String, dynamic>)).toList();
+  }
+}

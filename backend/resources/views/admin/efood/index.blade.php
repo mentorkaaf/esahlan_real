@@ -1,0 +1,1848 @@
+@extends('admin.layouts.app')
+@section('title', 'eFood — Full Management')
+@section('content')
+
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+{{-- PAGE HEADER --}}
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">
+            <i class="fas fa-utensils" style="color:var(--primary)"></i>
+            eFood Management
+        </h2>
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item active">eFood</li>
+        </ol>
+    </div>
+</div>
+
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+{{-- STATS CARDS --}}
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+<div class="grid-4" style="margin-bottom:20px;">
+    <div class="card" style="padding:18px;text-align:center;">
+        <div style="font-size:28px;font-weight:800;color:var(--primary)">{{ $stats['total_restaurants'] }}</div>
+        <div style="font-size:12px;color:#888;margin-top:4px;"><i class="fas fa-store"></i> Total Restaurants</div>
+    </div>
+    <div class="card" style="padding:18px;text-align:center;">
+        <div style="font-size:28px;font-weight:800;color:#22c55e">{{ $stats['active_restaurants'] }}</div>
+        <div style="font-size:12px;color:#888;margin-top:4px;"><i class="fas fa-check-circle"></i> Active Restaurants</div>
+    </div>
+    <div class="card" style="padding:18px;text-align:center;">
+        <div style="font-size:28px;font-weight:800;color:#3b82f6">{{ $stats['total_orders'] }}</div>
+        <div style="font-size:12px;color:#888;margin-top:4px;"><i class="fas fa-receipt"></i> Total Orders</div>
+    </div>
+    <div class="card" style="padding:18px;text-align:center;">
+        <div style="font-size:28px;font-weight:800;color:var(--primary)">${{ number_format($stats['today_revenue'],2) }}</div>
+        <div style="font-size:12px;color:#888;margin-top:4px;"><i class="fas fa-dollar-sign"></i> Today Revenue</div>
+    </div>
+</div>
+
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+{{-- TAB NAVIGATION --}}
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+<div style="display:flex;gap:0;border-bottom:2px solid #eee;margin-bottom:20px;flex-wrap:wrap;">
+    @foreach([
+        ['restaurants','fa-store','Restaurants'],
+        ['categories','fa-th-large','Categories'],
+        ['items','fa-hamburger','Food Items'],
+        ['addons','fa-plus-circle','Addons'],
+        ['banners','fa-images','Banners'],
+        ['coupons','fa-tag','Offers & Coupons'],
+        ['campaigns','fa-fire','Discount Campaigns'],
+        ['orders','fa-receipt','Orders'],
+    ] as [$key,$icon,$label])
+    <button onclick="showTab('{{ $key }}')" id="tab-{{ $key }}"
+        class="tab-btn {{ $key === 'restaurants' ? 'active' : '' }}"
+        style="padding:10px 16px;border:none;background:none;font-weight:600;cursor:pointer;font-size:13px;
+               {{ $key === 'restaurants' ? 'border-bottom:3px solid var(--primary);color:var(--primary)' : 'color:#888' }}">
+        <i class="fas {{ $icon }}"></i> {{ $label }}
+    </button>
+    @endforeach
+</div>
+
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+{{-- TAB: RESTAURANTS --}}
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+<div id="section-restaurants">
+    <div class="page-header" style="margin-bottom:12px;">
+        <span class="text-muted" style="font-size:13px;">
+            Manage all restaurants — add, edit, toggle open/closed status.
+        </span>
+        <button class="btn btn-primary btn-sm" onclick="openModal('addRestaurantModal')">
+            <i class="fas fa-plus"></i> Add Restaurant
+        </button>
+    </div>
+    <div class="card">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Restaurant</th>
+                        <th>Type / Cuisine</th>
+                        <th>District</th>
+                        <th>Delivery</th>
+                        <th>Rating</th>
+                        <th>Status</th>
+                        <th>Open</th>
+                        <th>Featured</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($restaurants as $r)
+                    <tr>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                @if($r->logo)
+                                    <img src="{{ $r->logo }}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;" onerror="this.style.display='none'">
+                                @else
+                                    <div style="width:40px;height:40px;border-radius:8px;background:#FF8A0015;display:flex;align-items:center;justify-content:center;font-size:20px;">🍽️</div>
+                                @endif
+                                <div>
+                                    <strong style="display:block;">{{ $r->name }}</strong>
+                                    <small class="text-muted">{{ $r->email ?? $r->phone ?? '—' }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="badge badge-info">{{ $r->vendor_type ?? 'Restaurant' }}</span></td>
+                        <td>{{ $r->district?->name ?? '—' }}</td>
+                        <td>
+                            <small>{{ $r->delivery_time ?? '30' }} min</small><br>
+                            <small class="text-muted">Min: ${{ number_format($r->minimum_order ?? 0,2) }}</small>
+                        </td>
+                        <td>
+                            @if($r->rating)
+                                <span style="color:#f59e0b;font-weight:700;">★ {{ number_format($r->rating,1) }}</span>
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
+                        <td>
+                            <span class="badge {{ $r->status === 'active' ? 'badge-success' : 'badge-danger' }}">
+                                {{ ucfirst($r->status) }}
+                            </span>
+                        </td>
+                        <td>
+                            <button onclick="toggleOpen({{ $r->id }}, this)"
+                                class="btn btn-sm {{ $r->is_open ? 'btn-success' : 'btn-secondary' }}"
+                                style="min-width:58px;">
+                                {{ $r->is_open ? 'Open' : 'Closed' }}
+                            </button>
+                        </td>
+                        <td>
+                            @if($r->is_featured)
+                                <span class="badge badge-warning"><i class="fas fa-star"></i> Featured</span>
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
+                        <td class="d-flex gap-2">
+                            <button class="btn btn-sm btn-secondary"
+                                onclick="openEditRestaurant({{ json_encode($r) }})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <form action="{{ route('admin.module-data.efood.restaurant.destroy', $r->id) }}" method="POST" onsubmit="return confirm('Delete {{ addslashes($r->name) }}?')">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="9" style="text-align:center;padding:40px;color:#888;">
+                        <div style="font-size:40px;margin-bottom:12px;">🍽️</div>
+                        No restaurants added yet. Add your first restaurant!
+                    </td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        @if($restaurants->hasPages())
+        <div class="card-body">{{ $restaurants->links() }}</div>
+        @endif
+    </div>
+</div>
+
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+{{-- TAB: CATEGORIES --}}
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+<div id="section-categories" style="display:none;">
+    <div class="page-header" style="margin-bottom:12px;">
+        <span class="text-muted" style="font-size:13px;">
+            Global food categories shown on the app home page (Pizza, Burger, Chicken, etc.)
+        </span>
+        <button class="btn btn-primary btn-sm" onclick="openModal('addCategoryModal')">
+            <i class="fas fa-plus"></i> Add Category
+        </button>
+    </div>
+    <div class="card">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr><th>Icon/Image</th><th>Category Name</th><th>Sort</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    @forelse($categories as $c)
+                    <tr>
+                        <td>
+                            @if($c->image)
+                                <img src="{{ $c->image }}" style="width:44px;height:44px;border-radius:10px;object-fit:cover;" onerror="this.style.display='none'">
+                            @else
+                                <div style="width:44px;height:44px;border-radius:10px;background:#FF8A0015;display:flex;align-items:center;justify-content:center;font-size:22px;">🍽️</div>
+                            @endif
+                        </td>
+                        <td><strong>{{ $c->name }}</strong></td>
+                        <td>{{ $c->sort_order ?? 0 }}</td>
+                        <td><span class="badge {{ $c->is_active ? 'badge-success' : 'badge-danger' }}">{{ $c->is_active ? 'Active' : 'Off' }}</span></td>
+                        <td class="d-flex gap-2">
+                            <button class="btn btn-sm btn-secondary" onclick="openEditCategory({{ json_encode($c) }})"><i class="fas fa-edit"></i></button>
+                            <form action="{{ route('admin.module-data.efood.category.destroy', $c->id) }}" method="POST" onsubmit="return confirm('Delete?')">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="5" style="text-align:center;padding:30px;color:#888;">No categories yet.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+{{-- TAB: FOOD ITEMS --}}
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+<div id="section-items" style="display:none;">
+    <div class="page-header" style="margin-bottom:12px;">
+        <span class="text-muted" style="font-size:13px;">
+            Manage all food items / menu products across all restaurants.
+        </span>
+        <button class="btn btn-primary btn-sm" onclick="openModal('addItemModal')">
+            <i class="fas fa-plus"></i> Add Food Item
+        </button>
+    </div>
+
+    {{-- Filter by restaurant --}}
+    <div class="card" style="padding:12px 16px;margin-bottom:12px;">
+        <form method="GET" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="hidden" name="tab" value="items">
+            <select name="restaurant_filter" class="form-control" style="width:220px;" onchange="this.form.submit()">
+                <option value="">All Restaurants</option>
+                @foreach($allRestaurants as $ar)
+                    <option value="{{ $ar->id }}" {{ request('restaurant_filter') == $ar->id ? 'selected' : '' }}>{{ $ar->name }}</option>
+                @endforeach
+            </select>
+            <input type="text" name="search" class="form-control" style="width:200px;" placeholder="Search items..." value="{{ request('search') }}">
+            <button class="btn btn-secondary btn-sm" type="submit"><i class="fas fa-filter"></i> Filter</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr><th>Image</th><th>Name</th><th>Restaurant</th><th>Category</th><th>Price</th><th>Compare</th><th>Featured</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    @forelse($foodItems as $item)
+                    <tr>
+                        <td>
+                            @php $img = $item->thumbnail ?? $item->image ?? null; @endphp
+                            @if($img)
+                                <img src="{{ $img }}" style="width:50px;height:50px;border-radius:10px;object-fit:cover;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                                <div style="display:none;width:50px;height:50px;border-radius:10px;background:#FF8A0015;align-items:center;justify-content:center;font-size:24px;">🍕</div>
+                            @else
+                                <div style="width:50px;height:50px;border-radius:10px;background:#FF8A0015;display:flex;align-items:center;justify-content:center;font-size:24px;">🍕</div>
+                            @endif
+                        </td>
+                        <td>
+                            <strong>{{ $item->name }}</strong>
+                            @if($item->description)
+                            <br><small class="text-muted" style="max-width:200px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $item->description }}</small>
+                            @endif
+                        </td>
+                        <td>{{ $item->vendor?->name ?? '—' }}</td>
+                        <td>{{ $item->category?->name ?? '—' }}</td>
+                        <td><strong class="text-success">${{ number_format($item->price,2) }}</strong></td>
+                        <td>{{ $item->compare_price ? '$'.number_format($item->compare_price,2) : '—' }}</td>
+                        <td>{{ $item->is_featured ? '⭐' : '—' }}</td>
+                        <td><span class="badge {{ $item->is_active ? 'badge-success' : 'badge-danger' }}">{{ $item->is_active ? 'Active' : 'Off' }}</span></td>
+                        <td class="d-flex gap-2">
+                            <button class="btn btn-sm btn-secondary" onclick="openEditItem({{ json_encode($item) }})"><i class="fas fa-edit"></i></button>
+                            <form action="{{ route('admin.module-data.efood.item.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Delete?')">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="9" style="text-align:center;padding:30px;color:#888;">
+                        No food items yet. Add your first menu item!
+                    </td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        @if($foodItems->hasPages())
+        <div class="card-body">{{ $foodItems->links() }}</div>
+        @endif
+    </div>
+</div>
+
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+{{-- TAB: ADDONS --}}
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+<div id="section-addons" style="display:none;">
+    <div class="page-header" style="margin-bottom:12px;">
+        <span class="text-muted" style="font-size:13px;">
+            Extras customers can add to food orders (Extra Cheese, Sauce, etc.)
+        </span>
+        <button class="btn btn-primary btn-sm" onclick="openModal('addAddonModal')">
+            <i class="fas fa-plus"></i> Add Addon
+        </button>
+    </div>
+    <div class="card">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr><th>#</th><th>Addon Name</th><th>Restaurant</th><th>Price</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    @forelse($addons as $a)
+                    <tr>
+                        <td>{{ $a->id }}</td>
+                        <td><strong>{{ $a->name }}</strong></td>
+                        <td>{{ $a->vendor?->name ?? '—' }}</td>
+                        <td><strong class="text-success">+${{ number_format($a->price,2) }}</strong></td>
+                        <td><span class="badge {{ $a->is_active ? 'badge-success' : 'badge-danger' }}">{{ $a->is_active ? 'Active' : 'Off' }}</span></td>
+                        <td class="d-flex gap-2">
+                            <button class="btn btn-sm btn-secondary" onclick="openEditAddon({{ json_encode($a) }})"><i class="fas fa-edit"></i></button>
+                            <form action="{{ route('admin.module-data.efood.addon.destroy', $a->id) }}" method="POST" onsubmit="return confirm('Delete?')">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="6" style="text-align:center;padding:30px;color:#888;">No addons yet.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+{{-- TAB: BANNERS --}}
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+<div id="section-banners" style="display:none;">
+    <div class="page-header" style="margin-bottom:12px;">
+        <span class="text-muted" style="font-size:13px;">
+            Promotional banners shown on the eFood home page slider.
+        </span>
+        <button class="btn btn-primary btn-sm" onclick="openModal('addBannerModal')">
+            <i class="fas fa-plus"></i> Add Banner
+        </button>
+    </div>
+    <div class="card">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr><th>Preview</th><th>Title</th><th>Subtitle</th><th>Sort</th><th>Expires</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    @forelse($allBanners as $b)
+                    <tr>
+                        <td>
+                            @if($b->image)
+                                <img src="{{ $b->image }}" style="width:90px;height:50px;border-radius:8px;object-fit:cover;">
+                            @else
+                                <div style="width:90px;height:50px;border-radius:8px;background:#07003B;display:flex;align-items:center;justify-content:center;color:#FF8A00;font-size:18px;">🍔</div>
+                            @endif
+                        </td>
+                        <td><strong>{{ $b->title }}</strong></td>
+                        <td class="text-muted" style="font-size:12px;">{{ $b->subtitle ?? '—' }}</td>
+                        <td>{{ $b->sort_order }}</td>
+                        <td style="font-size:12px;">{{ $b->ends_at ? \Carbon\Carbon::parse($b->ends_at)->format('d M Y') : 'No expiry' }}</td>
+                        <td><span class="badge {{ $b->is_active ? 'badge-success' : 'badge-danger' }}">{{ $b->is_active ? 'Active' : 'Off' }}</span></td>
+                        <td class="d-flex gap-2">
+                            <button class="btn btn-sm btn-secondary" onclick="openEditBanner({{ json_encode($b) }})"><i class="fas fa-edit"></i></button>
+                            <form action="{{ route('admin.module-data.efood.banner.destroy', $b->id) }}" method="POST" onsubmit="return confirm('Delete banner?')">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="7" style="text-align:center;padding:30px;color:#888;">No banners yet.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+{{-- TAB: COUPONS --}}
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+<div id="section-coupons" style="display:none;">
+    <div class="page-header" style="margin-bottom:12px;">
+        <span class="text-muted" style="font-size:13px;">
+            Discount coupons and promotional offers for eFood.
+        </span>
+        <button class="btn btn-primary btn-sm" onclick="openModal('addCouponModal')">
+            <i class="fas fa-plus"></i> Create Coupon
+        </button>
+    </div>
+    <div class="card">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr><th>Code</th><th>Title</th><th>Type</th><th>Value</th><th>Min Order</th><th>Used</th><th>Restaurant</th><th>Expires</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    @forelse($coupons as $c)
+                    <tr>
+                        <td>
+                            <code style="background:#FF8A0015;color:#FF8A00;padding:3px 8px;border-radius:6px;font-weight:700;">
+                                {{ $c->code }}
+                            </code>
+                        </td>
+                        <td><strong>{{ $c->title }}</strong></td>
+                        <td><span class="badge {{ $c->type === 'percentage' ? 'badge-info' : 'badge-warning' }}">{{ ucfirst($c->type) }}</span></td>
+                        <td><strong class="text-success">{{ $c->type === 'percentage' ? $c->value.'%' : '$'.number_format($c->value,2) }}</strong></td>
+                        <td>${{ number_format($c->min_order_amount ?? 0,2) }}</td>
+                        <td>{{ $c->used_count ?? 0 }}{{ $c->usage_limit ? '/'.$c->usage_limit : '' }}</td>
+                        <td>{{ $c->vendor?->name ?? 'All' }}</td>
+                        <td style="font-size:12px;">{{ $c->ends_at ? \Carbon\Carbon::parse($c->ends_at)->format('d M Y') : '—' }}</td>
+                        <td><span class="badge {{ $c->is_active ? 'badge-success' : 'badge-danger' }}">{{ $c->is_active ? 'Active' : 'Off' }}</span></td>
+                        <td class="d-flex gap-2">
+                            <button class="btn btn-sm btn-secondary" onclick="openEditCoupon({{ json_encode($c) }})"><i class="fas fa-edit"></i></button>
+                            <form action="{{ route('admin.module-data.efood.coupon.destroy', $c->id) }}" method="POST" onsubmit="return confirm('Delete coupon?')">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="10" style="text-align:center;padding:30px;color:#888;">No coupons yet.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+{{-- TAB: DISCOUNT CAMPAIGNS --}}
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+<div id="section-campaigns" style="display:none;">
+    <div class="page-header" style="margin-bottom:12px;">
+        <span class="text-muted" style="font-size:13px;">
+            Restaurant discount campaigns — time-limited promotions shown in the customer app.
+        </span>
+        <button class="btn btn-primary btn-sm" onclick="openModal('addCampaignModal')">
+            <i class="fas fa-plus"></i> New Campaign
+        </button>
+    </div>
+
+    {{-- Campaign stats --}}
+    @php
+        $now = now();
+        $activeCamps    = $campaigns->filter(fn($c) => $c->is_active && $c->starts_at <= $now && $c->ends_at >= $now);
+        $scheduledCamps = $campaigns->filter(fn($c) => $c->is_active && $c->starts_at > $now);
+        $expiredCamps   = $campaigns->filter(fn($c) => $c->ends_at < $now);
+    @endphp
+    <div class="grid-4" style="margin-bottom:16px;">
+        <div class="card" style="padding:16px;text-align:center;border-top:3px solid #22c55e;">
+            <div style="font-size:26px;font-weight:800;color:#22c55e;">{{ $activeCamps->count() }}</div>
+            <div style="font-size:11px;color:#888;margin-top:4px;"><i class="fas fa-fire"></i> Active Campaigns</div>
+        </div>
+        <div class="card" style="padding:16px;text-align:center;border-top:3px solid #3b82f6;">
+            <div style="font-size:26px;font-weight:800;color:#3b82f6;">{{ $scheduledCamps->count() }}</div>
+            <div style="font-size:11px;color:#888;margin-top:4px;"><i class="fas fa-clock"></i> Scheduled</div>
+        </div>
+        <div class="card" style="padding:16px;text-align:center;border-top:3px solid #9ca3af;">
+            <div style="font-size:26px;font-weight:800;color:#9ca3af;">{{ $expiredCamps->count() }}</div>
+            <div style="font-size:11px;color:#888;margin-top:4px;"><i class="fas fa-history"></i> Expired</div>
+        </div>
+        <div class="card" style="padding:16px;text-align:center;border-top:3px solid var(--primary);">
+            <div style="font-size:26px;font-weight:800;color:var(--primary);">{{ $campaigns->count() }}</div>
+            <div style="font-size:11px;color:#888;margin-top:4px;"><i class="fas fa-list"></i> Total</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Restaurant</th>
+                        <th>Campaign Name</th>
+                        <th>Discount</th>
+                        <th>Badge</th>
+                        <th>Period</th>
+                        <th>Apply To</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($campaigns as $camp)
+                    @php
+                        $status = $camp->status;
+                        $statusColor = match($status) {
+                            'active'    => '#22c55e',
+                            'scheduled' => '#3b82f6',
+                            'expired'   => '#9ca3af',
+                            default     => '#ef4444',
+                        };
+                        $badgeColors = [
+                            'red'    => '#ef4444', 'green'  => '#22c55e',
+                            'blue'   => '#3b82f6', 'orange' => '#FF8A00',
+                            'purple' => '#8b5cf6', 'yellow' => '#f59e0b',
+                        ];
+                        $bc = $badgeColors[$camp->badge_color] ?? '#ef4444';
+                    @endphp
+                    <tr>
+                        <td>
+                            <strong>{{ $camp->vendor?->name ?? '—' }}</strong>
+                        </td>
+                        <td>
+                            <strong>{{ $camp->name }}</strong>
+                            @if($camp->description)
+                                <br><small class="text-muted">{{ Str::limit($camp->description, 50) }}</small>
+                            @endif
+                        </td>
+                        <td>
+                            <strong class="text-success">
+                                {{ $camp->discount_type === 'percentage'
+                                    ? $camp->discount_value . '%'
+                                    : '$' . number_format($camp->discount_value, 2) }}
+                                OFF
+                            </strong>
+                        </td>
+                        <td>
+                            <span style="background:{{ $bc }};color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;">
+                                {{ $camp->badge_text }}
+                            </span>
+                        </td>
+                        <td style="font-size:12px;">
+                            {{ $camp->starts_at->format('d M Y H:i') }}<br>
+                            <span class="text-muted">→ {{ $camp->ends_at->format('d M Y H:i') }}</span>
+                        </td>
+                        <td>
+                            @if($camp->apply_to_all)
+                                <span class="badge badge-info">All Items</span>
+                            @else
+                                <span class="badge badge-warning">Selected</span>
+                            @endif
+                        </td>
+                        <td>
+                            <span style="background:{{ $statusColor }};color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;text-transform:capitalize;">
+                                {{ $status }}
+                            </span>
+                        </td>
+                        <td class="d-flex gap-2">
+                            <button class="btn btn-sm btn-secondary" onclick="openEditCampaign({{ json_encode($camp) }})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <form action="{{ route('admin.module-data.efood.campaign.destroy', $camp->id) }}" method="POST" onsubmit="return confirm('Delete this campaign?')">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="8" style="text-align:center;padding:40px;color:#888;">
+                            <i class="fas fa-fire" style="font-size:32px;color:#ddd;display:block;margin-bottom:10px;"></i>
+                            No campaigns yet. Click "New Campaign" to create one.
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+{{-- TAB: ORDERS --}}
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+<div id="section-orders" style="display:none;">
+    <div class="page-header" style="margin-bottom:12px;">
+        <span class="text-muted" style="font-size:13px;">
+            All food orders — track, update status, manage delivery.
+        </span>
+    </div>
+
+    {{-- Order stats bar --}}
+    <div class="grid-4" style="margin-bottom:16px;">
+        @foreach([
+            ['pending',    '#f59e0b', 'Pending',    'fa-clock'],
+            ['confirmed',  '#3b82f6', 'Confirmed',  'fa-check'],
+            ['on_the_way', '#FF8A00', 'On The Way', 'fa-motorcycle'],
+            ['delivered',  '#22c55e', 'Delivered',  'fa-home'],
+        ] as [$st,$col,$label,$ico])
+        <div class="card" style="padding:14px;text-align:center;border-top:3px solid {{ $col }};">
+            <div style="font-size:22px;font-weight:800;color:{{ $col }};">
+                {{ $orders->where('status', $st)->count() }}
+            </div>
+            <div style="font-size:11px;color:#888;"><i class="fas {{ $ico }}"></i> {{ $label }}</div>
+        </div>
+        @endforeach
+    </div>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr><th>Order #</th><th>Customer</th><th>Restaurant</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    @forelse($orders as $o)
+                    <tr>
+                        <td><strong style="color:var(--primary)">{{ $o->order_number }}</strong></td>
+                        <td>
+                            <strong>{{ $o->user?->name ?? 'Guest' }}</strong><br>
+                            <small class="text-muted">{{ $o->user?->phone ?? '' }}</small>
+                        </td>
+                        <td>{{ $o->vendor?->name ?? '—' }}</td>
+                        <td>
+                            @php $itemCount = is_array($o->items) ? count($o->items) : ($o->items_count ?? '—'); @endphp
+                            {{ $itemCount }} items
+                        </td>
+                        <td><strong>${{ number_format($o->total_amount ?? $o->grand_total ?? 0, 2) }}</strong></td>
+                        <td>
+                            <span class="badge {{ $o->payment_status === 'paid' ? 'badge-success' : 'badge-warning' }}">
+                                {{ ucfirst(str_replace('_',' ', $o->payment_method ?? 'cod')) }}
+                            </span>
+                        </td>
+                        <td>
+                            @php
+                                $stColors = ['pending'=>'badge-warning','confirmed'=>'badge-info','preparing'=>'badge-info','on_the_way'=>'badge-warning','delivered'=>'badge-success','cancelled'=>'badge-danger'];
+                            @endphp
+                            <span class="badge {{ $stColors[$o->status] ?? 'badge-secondary' }}">
+                                {{ ucfirst(str_replace('_',' ',$o->status)) }}
+                            </span>
+                        </td>
+                        <td style="font-size:12px;">{{ $o->created_at->format('d M Y H:i') }}</td>
+                        <td>
+                            <form action="{{ route('admin.module-data.efood.order.status', $o->id) }}" method="POST" style="display:flex;gap:4px;">
+                                @csrf @method('PATCH')
+                                <select name="status" class="form-control" style="padding:4px 8px;font-size:12px;width:120px;" onchange="this.form.submit()">
+                                    @foreach(['pending','confirmed','preparing','on_the_way','delivered','cancelled'] as $st)
+                                    <option value="{{ $st }}" {{ $o->status === $st ? 'selected' : '' }}>
+                                        {{ ucfirst(str_replace('_',' ',$st)) }}
+                                    </option>
+                                    @endforeach
+                                </select>
+                            </form>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="9" style="text-align:center;padding:40px;color:#888;">
+                        <div style="font-size:40px;margin-bottom:12px;">📦</div>
+                        No food orders yet.
+                    </td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        @if($orders->hasPages())
+        <div class="card-body">{{ $orders->links() }}</div>
+        @endif
+    </div>
+</div>
+
+
+{{-- ══════════════════════════════════════════════════════════════════
+     MODALS
+     ══════════════════════════════════════════════════════════════════ --}}
+
+{{-- ─── ADD RESTAURANT ─────────────────────────────────────────────── --}}
+<div class="modal-overlay" id="addRestaurantModal">
+    <div class="modal-box" style="max-width:640px;">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fas fa-store" style="color:var(--primary)"></i> Add Restaurant</h3>
+            <button class="modal-close" onclick="closeModal('addRestaurantModal')">✕</button>
+        </div>
+        <form action="{{ route('admin.module-data.efood.restaurant.store') }}" method="POST" enctype="multipart/form-data">
+            @csrf
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Restaurant Name *</label>
+                    <input type="text" name="name" class="form-control" required placeholder="e.g. Pizza House">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cuisine / Type</label>
+                    <input type="text" name="vendor_type" class="form-control" placeholder="e.g. Italian, Pizza, Fast Food">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">District</label>
+                    <select name="district_id" class="form-control">
+                        <option value="">Select district</option>
+                        @foreach($districts as $d)
+                            <option value="{{ $d->id }}">{{ $d->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-control">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="pending">Pending</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <input type="text" name="phone" class="form-control" placeholder="+252 61 XXXXXXX">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control" placeholder="info@restaurant.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Delivery Time</label>
+                    <input type="text" name="delivery_time" class="form-control" placeholder="30-40 min">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Minimum Order ($)</label>
+                    <input type="number" name="minimum_order" class="form-control" step="0.01" placeholder="10.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Logo Image</label>
+                    <div class="img-upload-box" onclick="document.getElementById('addR_logoFile').click()" style="border:2px dashed #FF8A00;border-radius:10px;padding:10px;text-align:center;cursor:pointer;background:#fff9f2;min-height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
+                        <img id="addR_logoPreview" src="" style="display:none;max-height:70px;border-radius:8px;object-fit:cover;">
+                        <span id="addR_logoPlaceholder" style="color:#FF8A00;font-size:12px;">🏪 Upload Logo</span>
+                    </div>
+                    <input type="file" id="addR_logoFile" name="logo_file" accept="image/*" style="display:none" onchange="previewImage(this,'addR_logoPreview','addR_logoPlaceholder')">
+                    <input type="text" name="logo" class="form-control" placeholder="Or paste logo URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'addR_logoPreview','addR_logoPlaceholder')">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cover Image</label>
+                    <div class="img-upload-box" onclick="document.getElementById('addR_coverFile').click()" style="border:2px dashed #07003B;border-radius:10px;padding:10px;text-align:center;cursor:pointer;background:#f7f7ff;min-height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
+                        <img id="addR_coverPreview" src="" style="display:none;max-height:70px;border-radius:8px;object-fit:cover;">
+                        <span id="addR_coverPlaceholder" style="color:#07003B;font-size:12px;">🖼️ Upload Cover</span>
+                    </div>
+                    <input type="file" id="addR_coverFile" name="cover_file" accept="image/*" style="display:none" onchange="previewImage(this,'addR_coverPreview','addR_coverPlaceholder')">
+                    <input type="text" name="cover_image" class="form-control" placeholder="Or paste cover URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'addR_coverPreview','addR_coverPlaceholder')">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Address</label>
+                <input type="text" name="address" class="form-control" placeholder="Full address">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control" rows="2" placeholder="Brief description of the restaurant..."></textarea>
+            </div>
+            {{-- ── Working Hours ──────────────────────────────────────── --}}
+            <div style="margin-top:12px;margin-bottom:8px;">
+                <label class="form-label" style="font-weight:700;color:#140465;display:flex;align-items:center;gap:6px;">
+                    <i class="fas fa-clock"></i> Working Hours Schedule
+                    <small style="font-weight:400;color:#94a3b8;font-size:11px;">(leave unchecked for closed that day)</small>
+                </label>
+                @php $dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']; @endphp
+                <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+                    @foreach($dayNames as $di => $dn)
+                    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;{{ $di % 2 === 0 ? 'background:#f8fafc' : 'background:#fff' }};border-bottom:{{ $di < 6 ? '1px solid #f0f2f6' : 'none' }};">
+                        <input type="checkbox" name="wh_open[]" value="{{ $di }}" id="addR_wh_{{ $di }}"
+                            {{ in_array($di, [0,1,2,3,4]) ? 'checked' : '' }}
+                            style="width:16px;height:16px;cursor:pointer;accent-color:#140465;">
+                        <label for="addR_wh_{{ $di }}" style="width:82px;font-size:13px;font-weight:600;color:#374151;cursor:pointer;">
+                            {{ $dn }}
+                        </label>
+                        <input type="time" name="wh_open_time[{{ $di }}]" value="08:00" class="form-control" style="width:120px;font-size:13px;padding:5px 8px;">
+                        <span style="color:#94a3b8;font-size:12px;">to</span>
+                        <input type="time" name="wh_close_time[{{ $di }}]" value="22:00" class="form-control" style="width:120px;font-size:13px;padding:5px 8px;">
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            <div style="display:flex;gap:16px;margin-top:12px;">
+                <label style="display:flex;align-items:center;gap:6px;">
+                    <input type="checkbox" name="is_featured" value="1"> Featured
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;margin-top:16px;">Add Restaurant</button>
+        </form>
+    </div>
+</div>
+
+{{-- ─── EDIT RESTAURANT ─────────────────────────────────────────────── --}}
+<div class="modal-overlay" id="editRestaurantModal">
+    <div class="modal-box" style="max-width:640px;max-height:85vh;overflow-y:auto;">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fas fa-edit" style="color:var(--primary)"></i> Edit Restaurant</h3>
+            <button class="modal-close" onclick="closeModal('editRestaurantModal')">✕</button>
+        </div>
+        <form id="editRestaurantForm" method="POST" enctype="multipart/form-data">
+            @csrf @method('PATCH')
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Restaurant Name *</label>
+                    <input type="text" name="name" id="er_name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cuisine / Type</label>
+                    <input type="text" name="vendor_type" id="er_type" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">District</label>
+                    <select name="district_id" id="er_district" class="form-control">
+                        <option value="">Select district</option>
+                        @foreach($districts as $d)
+                            <option value="{{ $d->id }}">{{ $d->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select name="status" id="er_status" class="form-control">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="pending">Pending</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <input type="text" name="phone" id="er_phone" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" id="er_email" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Delivery Time</label>
+                    <input type="text" name="delivery_time" id="er_delivery_time" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Minimum Order ($)</label>
+                    <input type="number" name="minimum_order" id="er_min_order" class="form-control" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Logo Image</label>
+                    <div class="img-upload-box" onclick="document.getElementById('editR_logoFile').click()" style="border:2px dashed #FF8A00;border-radius:10px;padding:10px;text-align:center;cursor:pointer;background:#fff9f2;min-height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
+                        <img id="editR_logoPreview" src="" style="display:none;max-height:70px;border-radius:8px;object-fit:cover;">
+                        <span id="editR_logoPlaceholder" style="color:#FF8A00;font-size:12px;">🏪 Click to change logo</span>
+                    </div>
+                    <input type="file" id="editR_logoFile" name="logo_file" accept="image/*" style="display:none" onchange="previewImage(this,'editR_logoPreview','editR_logoPlaceholder')">
+                    <input type="text" name="logo" id="er_logo" class="form-control" placeholder="Or paste logo URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'editR_logoPreview','editR_logoPlaceholder')">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cover Image</label>
+                    <div class="img-upload-box" onclick="document.getElementById('editR_coverFile').click()" style="border:2px dashed #07003B;border-radius:10px;padding:10px;text-align:center;cursor:pointer;background:#f7f7ff;min-height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
+                        <img id="editR_coverPreview" src="" style="display:none;max-height:70px;border-radius:8px;object-fit:cover;">
+                        <span id="editR_coverPlaceholder" style="color:#07003B;font-size:12px;">🖼️ Click to change cover</span>
+                    </div>
+                    <input type="file" id="editR_coverFile" name="cover_file" accept="image/*" style="display:none" onchange="previewImage(this,'editR_coverPreview','editR_coverPlaceholder')">
+                    <input type="text" name="cover_image" id="er_cover" class="form-control" placeholder="Or paste cover URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'editR_coverPreview','editR_coverPlaceholder')">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Address</label>
+                <input type="text" name="address" id="er_address" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea name="description" id="er_desc" class="form-control" rows="2"></textarea>
+            </div>
+            {{-- ── Working Hours (edit) ────────────────────────────────── --}}
+            <div style="margin-top:12px;margin-bottom:8px;">
+                <label class="form-label" style="font-weight:700;color:#140465;display:flex;align-items:center;gap:6px;">
+                    <i class="fas fa-clock"></i> Working Hours Schedule
+                </label>
+                <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;" id="editWhGrid">
+                    @foreach($dayNames as $di => $dn)
+                    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;{{ $di % 2 === 0 ? 'background:#f8fafc' : 'background:#fff' }};border-bottom:{{ $di < 6 ? '1px solid #f0f2f6' : 'none' }};">
+                        <input type="checkbox" name="wh_open[]" value="{{ $di }}" id="er_wh_{{ $di }}"
+                            style="width:16px;height:16px;cursor:pointer;accent-color:#140465;">
+                        <label for="er_wh_{{ $di }}" style="width:82px;font-size:13px;font-weight:600;color:#374151;cursor:pointer;">{{ $dn }}</label>
+                        <input type="time" name="wh_open_time[{{ $di }}]" id="er_wh_open_{{ $di }}" value="08:00" class="form-control" style="width:120px;font-size:13px;padding:5px 8px;">
+                        <span style="color:#94a3b8;font-size:12px;">to</span>
+                        <input type="time" name="wh_close_time[{{ $di }}]" id="er_wh_close_{{ $di }}" value="22:00" class="form-control" style="width:120px;font-size:13px;padding:5px 8px;">
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            <div style="display:flex;gap:20px;margin-top:12px;">
+                <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_featured" id="er_featured" value="1"> Featured</label>
+                <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_open" id="er_open" value="1"> Currently Open</label>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;margin-top:16px;">Save Changes</button>
+        </form>
+    </div>
+</div>
+
+{{-- ─── ADD CATEGORY ────────────────────────────────────────────────── --}}
+<div class="modal-overlay" id="addCategoryModal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 class="modal-title">Add Food Category</h3>
+            <button class="modal-close" onclick="closeModal('addCategoryModal')">✕</button>
+        </div>
+        <form action="{{ route('admin.module-data.efood.category.store') }}" method="POST" enctype="multipart/form-data">
+            @csrf
+            <div class="form-group">
+                <label class="form-label">Category Name *</label>
+                <input type="text" name="name" class="form-control" required placeholder="e.g. Pizza, Burger, Chicken">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Category Icon / Image</label>
+                <div onclick="document.getElementById('addCat_imgFile').click()" style="border:2px dashed #FF8A00;border-radius:10px;padding:10px;text-align:center;cursor:pointer;background:#fff9f2;min-height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
+                    <img id="addCat_imgPreview" src="" style="display:none;max-height:70px;border-radius:8px;object-fit:cover;">
+                    <span id="addCat_imgPlaceholder" style="color:#FF8A00;font-size:12px;">🍽️ Upload Icon/Image</span>
+                </div>
+                <input type="file" id="addCat_imgFile" name="image_file" accept="image/*" style="display:none" onchange="previewImage(this,'addCat_imgPreview','addCat_imgPlaceholder')">
+                <input type="text" name="image" class="form-control" placeholder="Or paste image URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'addCat_imgPreview','addCat_imgPlaceholder')">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Sort Order</label>
+                    <input type="number" name="sort_order" class="form-control" value="0">
+                </div>
+                <div class="form-group" style="padding-top:28px;">
+                    <label style="display:flex;align-items:center;gap:6px;">
+                        <input type="checkbox" name="is_active" value="1" checked> Active
+                    </label>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Add Category</button>
+        </form>
+    </div>
+</div>
+
+{{-- ─── EDIT CATEGORY ───────────────────────────────────────────────── --}}
+<div class="modal-overlay" id="editCategoryModal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 class="modal-title">Edit Category</h3>
+            <button class="modal-close" onclick="closeModal('editCategoryModal')">✕</button>
+        </div>
+        <form id="editCategoryForm" method="POST" enctype="multipart/form-data">
+            @csrf @method('PATCH')
+            <div class="form-group">
+                <label class="form-label">Category Name *</label>
+                <input type="text" name="name" id="ec_name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Category Icon / Image</label>
+                <div onclick="document.getElementById('editCat_imgFile').click()" style="border:2px dashed #FF8A00;border-radius:10px;padding:10px;text-align:center;cursor:pointer;background:#fff9f2;min-height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
+                    <img id="editCat_imgPreview" src="" style="display:none;max-height:70px;border-radius:8px;object-fit:cover;">
+                    <span id="editCat_imgPlaceholder" style="color:#FF8A00;font-size:12px;">🍽️ Click to change image</span>
+                </div>
+                <input type="file" id="editCat_imgFile" name="image_file" accept="image/*" style="display:none" onchange="previewImage(this,'editCat_imgPreview','editCat_imgPlaceholder')">
+                <input type="text" name="image" id="ec_image" class="form-control" placeholder="Or paste image URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'editCat_imgPreview','editCat_imgPlaceholder')">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Sort Order</label>
+                    <input type="number" name="sort_order" id="ec_sort" class="form-control">
+                </div>
+                <div class="form-group" style="padding-top:28px;">
+                    <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_active" id="ec_active" value="1"> Active</label>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Save Changes</button>
+        </form>
+    </div>
+</div>
+
+{{-- ─── ADD FOOD ITEM ───────────────────────────────────────────────── --}}
+<div class="modal-overlay" id="addItemModal">
+    <div class="modal-box" style="max-width:600px;max-height:85vh;overflow-y:auto;">
+        <div class="modal-header">
+            <h3 class="modal-title">Add Food Item</h3>
+            <button class="modal-close" onclick="closeModal('addItemModal')">✕</button>
+        </div>
+        <form action="{{ route('admin.module-data.efood.item.store') }}" method="POST" enctype="multipart/form-data">
+            @csrf
+            <div class="form-group">
+                <label class="form-label">Restaurant *</label>
+                <select name="vendor_id" class="form-control" required>
+                    <option value="">Select restaurant</option>
+                    @foreach($allRestaurants as $ar)
+                        <option value="{{ $ar->id }}">{{ $ar->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <select name="category_id" class="form-control">
+                    <option value="">No category</option>
+                    @foreach($categories as $c)
+                        <option value="{{ $c->id }}">{{ $c->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Item Name *</label>
+                <input type="text" name="name" class="form-control" required placeholder="e.g. Pepperoni Pizza">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control" rows="2" placeholder="Ingredients, description..."></textarea>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Price ($) *</label>
+                    <input type="number" name="price" class="form-control" step="0.01" required placeholder="9.99">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Compare Price ($)</label>
+                    <input type="number" name="compare_price" class="form-control" step="0.01" placeholder="14.99">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Sort Order</label>
+                    <input type="number" name="sort_order" class="form-control" value="0">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Item Image</label>
+                <div class="image-upload-box" id="addItemImgBox" onclick="document.getElementById('addItemImgFile').click()" style="border:2px dashed #FF8A00;border-radius:12px;padding:16px;text-align:center;cursor:pointer;background:#fff9f2;min-height:110px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;">
+                    <img id="addItemImgPreview" src="" alt="" style="display:none;max-height:90px;border-radius:8px;object-fit:cover;">
+                    <span id="addItemImgPlaceholder" style="color:#FF8A00;font-size:13px;">📷 Click to upload image</span>
+                </div>
+                <input type="file" id="addItemImgFile" name="image_file" accept="image/*" style="display:none" onchange="previewImage(this,'addItemImgPreview','addItemImgPlaceholder')">
+                <input type="text" name="image" id="addItemImgUrl" class="form-control" placeholder="Or paste image URL..." style="margin-top:8px;" oninput="previewFromUrl(this.value,'addItemImgPreview','addItemImgPlaceholder')">
+            </div>
+            {{-- Time availability window --}}
+            <div style="background:#f0f4ff;border-radius:10px;padding:14px 16px;margin-bottom:12px;border:1px solid #d0d8f8;">
+                <div style="font-size:13px;font-weight:700;color:#140465;margin-bottom:8px;">
+                    <i class="fas fa-clock"></i> Time Availability Window
+                    <small style="font-weight:400;color:#64748b;margin-left:6px;">Optional — leave empty for all-day availability</small>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">Available From</label>
+                        <input type="time" name="available_from" class="form-control" placeholder="08:00">
+                        <small class="text-muted">e.g. 08:00 for breakfast start</small>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">Available Until</label>
+                        <input type="time" name="available_until" class="form-control" placeholder="11:00">
+                        <small class="text-muted">e.g. 11:00 for breakfast end</small>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;gap:20px;margin-bottom:16px;">
+                <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_active" value="1" checked> Active</label>
+                <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_featured" value="1"> Featured</label>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Add Food Item</button>
+        </form>
+    </div>
+</div>
+
+{{-- ─── EDIT FOOD ITEM ──────────────────────────────────────────────── --}}
+<div class="modal-overlay" id="editItemModal">
+    <div class="modal-box" style="max-width:600px;max-height:85vh;overflow-y:auto;">
+        <div class="modal-header">
+            <h3 class="modal-title">Edit Food Item</h3>
+            <button class="modal-close" onclick="closeModal('editItemModal')">✕</button>
+        </div>
+        <form id="editItemForm" method="POST" enctype="multipart/form-data">
+            @csrf @method('PATCH')
+            <div class="form-group">
+                <label class="form-label">Restaurant *</label>
+                <select name="vendor_id" id="ei_vendor" class="form-control" required>
+                    <option value="">Select restaurant</option>
+                    @foreach($allRestaurants as $ar)
+                        <option value="{{ $ar->id }}">{{ $ar->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <select name="category_id" id="ei_cat" class="form-control">
+                    <option value="">No category</option>
+                    @foreach($categories as $c)
+                        <option value="{{ $c->id }}">{{ $c->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Item Name *</label>
+                <input type="text" name="name" id="ei_name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea name="description" id="ei_desc" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Price ($) *</label>
+                    <input type="number" name="price" id="ei_price" class="form-control" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Compare Price ($)</label>
+                    <input type="number" name="compare_price" id="ei_compare" class="form-control" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Sort Order</label>
+                    <input type="number" name="sort_order" id="ei_sort" class="form-control">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Item Image</label>
+                <div class="image-upload-box" onclick="document.getElementById('editItemImgFile').click()" style="border:2px dashed #FF8A00;border-radius:12px;padding:16px;text-align:center;cursor:pointer;background:#fff9f2;min-height:110px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;">
+                    <img id="editItemImgPreview" src="" alt="" style="max-height:90px;border-radius:8px;object-fit:cover;">
+                    <span id="editItemImgPlaceholder" style="color:#FF8A00;font-size:13px;display:none;">📷 Click to change image</span>
+                </div>
+                <input type="file" id="editItemImgFile" name="image_file" accept="image/*" style="display:none" onchange="previewImage(this,'editItemImgPreview','editItemImgPlaceholder')">
+                <input type="text" name="image" id="ei_image" class="form-control" placeholder="Or paste image URL..." style="margin-top:8px;" oninput="previewFromUrl(this.value,'editItemImgPreview','editItemImgPlaceholder')">
+            </div>
+            {{-- Time availability window --}}
+            <div style="background:#f0f4ff;border-radius:10px;padding:14px 16px;margin-bottom:12px;border:1px solid #d0d8f8;">
+                <div style="font-size:13px;font-weight:700;color:#140465;margin-bottom:8px;">
+                    <i class="fas fa-clock"></i> Time Availability Window
+                    <small style="font-weight:400;color:#64748b;margin-left:6px;">Leave empty for all-day</small>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">Available From</label>
+                        <input type="time" name="available_from" id="ei_avail_from" class="form-control">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">Available Until</label>
+                        <input type="time" name="available_until" id="ei_avail_until" class="form-control">
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;gap:20px;margin-bottom:16px;">
+                <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_active" id="ei_active" value="1"> Active</label>
+                <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_featured" id="ei_featured" value="1"> Featured</label>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Save Changes</button>
+        </form>
+    </div>
+</div>
+
+{{-- ─── ADD ADDON ───────────────────────────────────────────────────── --}}
+<div class="modal-overlay" id="addAddonModal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 class="modal-title">Add Addon</h3>
+            <button class="modal-close" onclick="closeModal('addAddonModal')">✕</button>
+        </div>
+        <form action="{{ route('admin.module-data.efood.addon.store') }}" method="POST">
+            @csrf
+            <div class="form-group">
+                <label class="form-label">Restaurant *</label>
+                <select name="vendor_id" class="form-control" required>
+                    <option value="">Select restaurant</option>
+                    @foreach($allRestaurants as $ar)
+                        <option value="{{ $ar->id }}">{{ $ar->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Addon Name *</label>
+                <input type="text" name="name" class="form-control" required placeholder="e.g. Extra Cheese">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Price ($) *</label>
+                    <input type="number" name="price" class="form-control" step="0.01" required placeholder="1.00">
+                </div>
+                <div class="form-group" style="padding-top:28px;">
+                    <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_active" value="1" checked> Active</label>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Add Addon</button>
+        </form>
+    </div>
+</div>
+
+{{-- ─── EDIT ADDON ──────────────────────────────────────────────────── --}}
+<div class="modal-overlay" id="editAddonModal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 class="modal-title">Edit Addon</h3>
+            <button class="modal-close" onclick="closeModal('editAddonModal')">✕</button>
+        </div>
+        <form id="editAddonForm" method="POST">
+            @csrf @method('PATCH')
+            <div class="form-group">
+                <label class="form-label">Restaurant *</label>
+                <select name="vendor_id" id="ea_vendor" class="form-control" required>
+                    @foreach($allRestaurants as $ar)
+                        <option value="{{ $ar->id }}">{{ $ar->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Addon Name *</label>
+                <input type="text" name="name" id="ea_name" class="form-control" required>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Price ($) *</label>
+                    <input type="number" name="price" id="ea_price" class="form-control" step="0.01" required>
+                </div>
+                <div class="form-group" style="padding-top:28px;">
+                    <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_active" id="ea_active" value="1"> Active</label>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Save Changes</button>
+        </form>
+    </div>
+</div>
+
+{{-- ─── ADD BANNER ──────────────────────────────────────────────────── --}}
+<div class="modal-overlay" id="addBannerModal">
+    <div class="modal-box" style="max-width:580px;">
+        <div class="modal-header">
+            <h3 class="modal-title">Add Promo Banner</h3>
+            <button class="modal-close" onclick="closeModal('addBannerModal')">✕</button>
+        </div>
+        <form action="{{ route('admin.module-data.efood.banner.store') }}" method="POST" enctype="multipart/form-data">
+            @csrf
+            <div class="form-group">
+                <label class="form-label">Banner Title *</label>
+                <input type="text" name="title" class="form-control" required placeholder="e.g. Super Delicious FOOD">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Subtitle / Offer Text</label>
+                <input type="text" name="subtitle" class="form-control" placeholder="e.g. Get up to 40% off">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Banner Image *</label>
+                <div onclick="document.getElementById('addBanner_imgFile').click()" style="border:2px dashed #07003B;border-radius:10px;padding:10px;text-align:center;cursor:pointer;background:#f7f7ff;min-height:90px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
+                    <img id="addBanner_imgPreview" src="" style="display:none;max-height:80px;border-radius:8px;object-fit:cover;width:100%;">
+                    <span id="addBanner_imgPlaceholder" style="color:#07003B;font-size:12px;">🖼️ Upload Banner Image</span>
+                </div>
+                <input type="file" id="addBanner_imgFile" name="image_file" accept="image/*" style="display:none" onchange="previewImage(this,'addBanner_imgPreview','addBanner_imgPlaceholder')">
+                <input type="text" name="image" class="form-control" placeholder="Or paste image URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'addBanner_imgPreview','addBanner_imgPlaceholder')">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Action URL (optional)</label>
+                <input type="text" name="action_url" class="form-control" placeholder="https://...">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Sort Order</label>
+                    <input type="number" name="sort_order" class="form-control" value="0">
+                </div>
+                <div class="form-group" style="padding-top:28px;">
+                    <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_active" value="1" checked> Active</label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="starts_at" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="ends_at" class="form-control">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Add Banner</button>
+        </form>
+    </div>
+</div>
+
+{{-- ─── EDIT BANNER ─────────────────────────────────────────────────── --}}
+<div class="modal-overlay" id="editBannerModal">
+    <div class="modal-box" style="max-width:580px;">
+        <div class="modal-header">
+            <h3 class="modal-title">Edit Banner</h3>
+            <button class="modal-close" onclick="closeModal('editBannerModal')">✕</button>
+        </div>
+        <form id="editBannerForm" method="POST" enctype="multipart/form-data">
+            @csrf @method('PATCH')
+            <div class="form-group">
+                <label class="form-label">Banner Title *</label>
+                <input type="text" name="title" id="eb_title" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Subtitle</label>
+                <input type="text" name="subtitle" id="eb_subtitle" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Banner Image</label>
+                <div onclick="document.getElementById('editBanner_imgFile').click()" style="border:2px dashed #07003B;border-radius:10px;padding:10px;text-align:center;cursor:pointer;background:#f7f7ff;min-height:90px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
+                    <img id="editBanner_imgPreview" src="" style="display:none;max-height:80px;border-radius:8px;object-fit:cover;width:100%;">
+                    <span id="editBanner_imgPlaceholder" style="color:#07003B;font-size:12px;">🖼️ Click to change image</span>
+                </div>
+                <input type="file" id="editBanner_imgFile" name="image_file" accept="image/*" style="display:none" onchange="previewImage(this,'editBanner_imgPreview','editBanner_imgPlaceholder')">
+                <input type="text" name="image" id="eb_image" class="form-control" placeholder="Or paste image URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'editBanner_imgPreview','editBanner_imgPlaceholder')">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Action URL</label>
+                <input type="text" name="action_url" id="eb_action" class="form-control">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Sort Order</label>
+                    <input type="number" name="sort_order" id="eb_sort" class="form-control">
+                </div>
+                <div class="form-group" style="padding-top:28px;">
+                    <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_active" id="eb_active" value="1"> Active</label>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Save Changes</button>
+        </form>
+    </div>
+</div>
+
+{{-- ─── ADD COUPON ──────────────────────────────────────────────────── --}}
+<div class="modal-overlay" id="addCouponModal">
+    <div class="modal-box" style="max-width:580px;max-height:85vh;overflow-y:auto;">
+        <div class="modal-header">
+            <h3 class="modal-title">Create Offer / Coupon</h3>
+            <button class="modal-close" onclick="closeModal('addCouponModal')">✕</button>
+        </div>
+        <form action="{{ route('admin.module-data.efood.coupon.store') }}" method="POST">
+            @csrf
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Coupon Code *</label>
+                    <input type="text" name="code" class="form-control" required placeholder="e.g. FOOD20" style="text-transform:uppercase;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Title *</label>
+                    <input type="text" name="title" class="form-control" required placeholder="e.g. 20% off your order">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Discount Type *</label>
+                    <select name="type" class="form-control" required>
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="fixed">Fixed Amount ($)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Discount Value *</label>
+                    <input type="number" name="value" class="form-control" step="0.01" required placeholder="20">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Min Order Amount ($)</label>
+                    <input type="number" name="min_order_amount" class="form-control" step="0.01" placeholder="15.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Max Discount ($)</label>
+                    <input type="number" name="max_discount" class="form-control" step="0.01" placeholder="10.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Usage Limit</label>
+                    <input type="number" name="usage_limit" class="form-control" placeholder="100">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Restaurant (optional)</label>
+                    <select name="vendor_id" class="form-control">
+                        <option value="">All Restaurants</option>
+                        @foreach($allRestaurants as $ar)
+                            <option value="{{ $ar->id }}">{{ $ar->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="starts_at" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="ends_at" class="form-control">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control" rows="2" placeholder="Optional description..."></textarea>
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;margin-bottom:16px;">
+                <input type="checkbox" name="is_active" value="1" checked> Active
+            </label>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Create Coupon</button>
+        </form>
+    </div>
+</div>
+
+{{-- ─── EDIT COUPON ─────────────────────────────────────────────────── --}}
+<div class="modal-overlay" id="editCouponModal">
+    <div class="modal-box" style="max-width:580px;max-height:85vh;overflow-y:auto;">
+        <div class="modal-header">
+            <h3 class="modal-title">Edit Coupon</h3>
+            <button class="modal-close" onclick="closeModal('editCouponModal')">✕</button>
+        </div>
+        <form id="editCouponForm" method="POST">
+            @csrf @method('PATCH')
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Title *</label>
+                    <input type="text" name="title" id="ecp_title" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Discount Type *</label>
+                    <select name="type" id="ecp_type" class="form-control" required>
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="fixed">Fixed Amount ($)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Discount Value *</label>
+                    <input type="number" name="value" id="ecp_value" class="form-control" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Min Order ($)</label>
+                    <input type="number" name="min_order_amount" id="ecp_min" class="form-control" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Max Discount ($)</label>
+                    <input type="number" name="max_discount" id="ecp_max" class="form-control" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Usage Limit</label>
+                    <input type="number" name="usage_limit" id="ecp_limit" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Restaurant</label>
+                    <select name="vendor_id" id="ecp_vendor" class="form-control">
+                        <option value="">All Restaurants</option>
+                        @foreach($allRestaurants as $ar)
+                            <option value="{{ $ar->id }}">{{ $ar->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="ends_at" id="ecp_ends" class="form-control">
+                </div>
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;margin-bottom:16px;">
+                <input type="checkbox" name="is_active" id="ecp_active" value="1"> Active
+            </label>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Save Coupon</button>
+        </form>
+    </div>
+</div>
+
+{{-- ─── ADD CAMPAIGN ─────────────────────────────────────────────────── --}}
+<div class="modal-overlay" id="addCampaignModal">
+    <div class="modal-box" style="max-width:660px;max-height:90vh;overflow-y:auto;">
+        <div class="modal-header" style="background:linear-gradient(135deg,#FF8A00,#FF6B00);border-radius:12px 12px 0 0;padding:18px 20px;">
+            <div>
+                <h3 class="modal-title" style="color:#fff;margin:0;"><i class="fas fa-fire"></i> Create New Campaign</h3>
+                <p style="color:rgba(255,255,255,0.8);font-size:12px;margin:2px 0 0;">Time-limited discount shown in the customer app</p>
+            </div>
+            <button class="modal-close" onclick="closeModal('addCampaignModal')" style="color:#fff;">✕</button>
+        </div>
+        <form action="{{ route('admin.module-data.efood.campaign.store') }}" method="POST">
+            @csrf
+            <div style="padding:20px;">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Restaurant *</label>
+                        <select name="vendor_id" class="form-control" required>
+                            <option value="">Select restaurant</option>
+                            @foreach($allRestaurants as $ar)
+                                <option value="{{ $ar->id }}">{{ $ar->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Campaign Name *</label>
+                        <input type="text" name="name" class="form-control" required placeholder="e.g., Summer Sale">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2" placeholder="Brief description"></textarea>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Discount Type *</label>
+                        <select name="discount_type" class="form-control" required>
+                            <option value="percentage">Percentage (%)</option>
+                            <option value="fixed">Fixed Amount ($)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Discount Value *</label>
+                        <input type="number" name="discount_value" class="form-control" step="0.01" min="0" required value="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Start Date *</label>
+                        <input type="date" name="starts_at_date" id="add_starts_date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Start Time (GMT+3) *</label>
+                        <input type="time" name="starts_at_time" id="add_starts_time" class="form-control" required value="00:00">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Date *</label>
+                        <input type="date" name="ends_at_date" id="add_ends_date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Time (GMT+3) *</label>
+                        <input type="time" name="ends_at_time" id="add_ends_time" class="form-control" required value="23:59">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Badge Text</label>
+                        <input type="text" name="badge_text" class="form-control" value="Special Offer" placeholder="Special Offer">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Badge Color</label>
+                        <select name="badge_color" class="form-control">
+                            <option value="red">🔴 Red</option>
+                            <option value="orange" selected>🟠 Orange</option>
+                            <option value="green">🟢 Green</option>
+                            <option value="blue">🔵 Blue</option>
+                            <option value="purple">🟣 Purple</option>
+                            <option value="yellow">🟡 Yellow</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display:flex;gap:20px;margin-bottom:16px;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" name="apply_to_all" value="1" checked> Apply to all menu items
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" name="is_active" value="1" checked> Campaign is active
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Internal Notes</label>
+                    <textarea name="internal_notes" class="form-control" rows="2" placeholder="Admin notes only"></textarea>
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:8px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addCampaignModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="background:linear-gradient(135deg,#FF8A00,#FF6B00);border:none;">
+                        <i class="fas fa-fire"></i> Create Campaign
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- ─── EDIT CAMPAIGN ────────────────────────────────────────────────── --}}
+<div class="modal-overlay" id="editCampaignModal">
+    <div class="modal-box" style="max-width:660px;max-height:90vh;overflow-y:auto;">
+        <div class="modal-header" style="background:linear-gradient(135deg,#07003B,#1a0070);border-radius:12px 12px 0 0;padding:18px 20px;">
+            <div>
+                <h3 class="modal-title" style="color:#fff;margin:0;"><i class="fas fa-edit"></i> Edit Campaign</h3>
+            </div>
+            <button class="modal-close" onclick="closeModal('editCampaignModal')" style="color:#fff;">✕</button>
+        </div>
+        <form id="editCampaignForm" method="POST">
+            @csrf @method('PATCH')
+            <div style="padding:20px;">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Restaurant *</label>
+                        <select name="vendor_id" id="ecmp_vendor" class="form-control" required>
+                            @foreach($allRestaurants as $ar)
+                                <option value="{{ $ar->id }}">{{ $ar->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Campaign Name *</label>
+                        <input type="text" name="name" id="ecmp_name" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" id="ecmp_desc" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Discount Type *</label>
+                        <select name="discount_type" id="ecmp_type" class="form-control" required>
+                            <option value="percentage">Percentage (%)</option>
+                            <option value="fixed">Fixed Amount ($)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Discount Value *</label>
+                        <input type="number" name="discount_value" id="ecmp_value" class="form-control" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Start Date *</label>
+                        <input type="date" name="starts_at_date" id="ecmp_starts_date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Start Time (GMT+3) *</label>
+                        <input type="time" name="starts_at_time" id="ecmp_starts_time" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Date *</label>
+                        <input type="date" name="ends_at_date" id="ecmp_ends_date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Time (GMT+3) *</label>
+                        <input type="time" name="ends_at_time" id="ecmp_ends_time" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Badge Text</label>
+                        <input type="text" name="badge_text" id="ecmp_badge_text" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Badge Color</label>
+                        <select name="badge_color" id="ecmp_badge_color" class="form-control">
+                            <option value="red">🔴 Red</option>
+                            <option value="orange">🟠 Orange</option>
+                            <option value="green">🟢 Green</option>
+                            <option value="blue">🔵 Blue</option>
+                            <option value="purple">🟣 Purple</option>
+                            <option value="yellow">🟡 Yellow</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display:flex;gap:20px;margin-bottom:16px;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" name="apply_to_all" id="ecmp_all" value="1"> Apply to all menu items
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" name="is_active" id="ecmp_active" value="1"> Campaign is active
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Internal Notes</label>
+                    <textarea name="internal_notes" id="ecmp_notes" class="form-control" rows="2"></textarea>
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:8px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editCampaignModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Campaign</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════════
+     JAVASCRIPT
+     ══════════════════════════════════════════════════════════════════ --}}
+@push('scripts')
+<script>
+// ─── Tab Switcher ─────────────────────────────────────────────────
+const TABS = ['restaurants','categories','items','addons','banners','coupons','campaigns','orders'];
+
+function showTab(tab) {
+    TABS.forEach(t => {
+        document.getElementById('section-' + t).style.display = (t === tab) ? 'block' : 'none';
+        const btn = document.getElementById('tab-' + t);
+        if (t === tab) {
+            btn.style.borderBottom = '3px solid var(--primary)';
+            btn.style.color = 'var(--primary)';
+        } else {
+            btn.style.borderBottom = 'none';
+            btn.style.color = '#888';
+        }
+    });
+    history.replaceState(null, '', '?tab=' + tab);
+}
+
+// Auto-open tab from URL param
+(function() {
+    const p = new URLSearchParams(window.location.search).get('tab');
+    if (p && TABS.includes(p)) showTab(p);
+})();
+
+// ─── Toggle Open/Closed ───────────────────────────────────────────
+async function toggleOpen(id, btn) {
+    const res = await fetch(`/admin/module-data/efood/restaurants/${id}/toggle`, {
+        method: 'POST',
+        headers: {'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'Content-Type': 'application/json'},
+    });
+    const data = await res.json();
+    btn.textContent = data.is_open ? 'Open' : 'Closed';
+    btn.className = 'btn btn-sm ' + (data.is_open ? 'btn-success' : 'btn-secondary');
+}
+
+// ─── Restaurant ───────────────────────────────────────────────────
+function openEditRestaurant(r) {
+    document.getElementById('editRestaurantForm').action = `/admin/module-data/efood/restaurants/${r.id}`;
+    document.getElementById('er_name').value          = r.name || '';
+    document.getElementById('er_type').value          = r.vendor_type || '';
+    document.getElementById('er_district').value      = r.district_id || '';
+    document.getElementById('er_status').value        = r.status || 'active';
+    document.getElementById('er_phone').value         = r.phone || '';
+    document.getElementById('er_email').value         = r.email || '';
+    document.getElementById('er_delivery_time').value = r.delivery_time || '';
+    document.getElementById('er_min_order').value     = r.minimum_order || '';
+    document.getElementById('er_logo').value          = r.logo || '';
+    document.getElementById('er_cover').value         = r.cover_image || '';
+    document.getElementById('er_address').value       = r.address || '';
+    document.getElementById('er_desc').value          = r.description || '';
+    document.getElementById('er_featured').checked    = r.is_featured == 1;
+    document.getElementById('er_open').checked        = r.is_open == 1;
+    // Show existing images
+    if (r.logo) { previewFromUrl(r.logo, 'editR_logoPreview', 'editR_logoPlaceholder'); }
+    else { document.getElementById('editR_logoPreview').style.display='none'; document.getElementById('editR_logoPlaceholder').style.display='block'; }
+    if (r.cover_image) { previewFromUrl(r.cover_image, 'editR_coverPreview', 'editR_coverPlaceholder'); }
+    else { document.getElementById('editR_coverPreview').style.display='none'; document.getElementById('editR_coverPlaceholder').style.display='block'; }
+
+    // Populate working hours
+    let wh = [];
+    if (r.working_hours) {
+        try { wh = typeof r.working_hours === 'string' ? JSON.parse(r.working_hours) : r.working_hours; } catch(e) {}
+    }
+    for (let d = 0; d <= 6; d++) {
+        const entry = wh.find(x => x.day === d);
+        const cbx = document.getElementById('er_wh_' + d);
+        const openInp  = document.getElementById('er_wh_open_'  + d);
+        const closeInp = document.getElementById('er_wh_close_' + d);
+        if (cbx)       cbx.checked     = entry ? !entry.is_closed : (d >= 1 && d <= 5);
+        if (openInp)   openInp.value   = entry?.open  || '08:00';
+        if (closeInp)  closeInp.value  = entry?.close || '22:00';
+    }
+
+    openModal('editRestaurantModal');
+}
+
+// ─── Category ─────────────────────────────────────────────────────
+function openEditCategory(c) {
+    document.getElementById('editCategoryForm').action = `/admin/module-data/efood/categories/${c.id}`;
+    document.getElementById('ec_name').value   = c.name || '';
+    document.getElementById('ec_image').value  = c.image || '';
+    document.getElementById('ec_sort').value   = c.sort_order || 0;
+    document.getElementById('ec_active').checked = c.is_active == 1;
+    if (c.image) previewFromUrl(c.image, 'editCat_imgPreview', 'editCat_imgPlaceholder');
+    else { document.getElementById('editCat_imgPreview').style.display='none'; document.getElementById('editCat_imgPlaceholder').style.display='block'; }
+    openModal('editCategoryModal');
+}
+
+// ─── Food Item ────────────────────────────────────────────────────
+function openEditItem(p) {
+    document.getElementById('editItemForm').action     = `/admin/module-data/efood/items/${p.id}`;
+    document.getElementById('ei_vendor').value         = p.vendor_id || '';
+    document.getElementById('ei_cat').value            = p.category_id || '';
+    document.getElementById('ei_name').value           = p.name || '';
+    document.getElementById('ei_desc').value           = p.description || '';
+    document.getElementById('ei_price').value          = p.price || '';
+    document.getElementById('ei_compare').value        = p.compare_price || '';
+    document.getElementById('ei_sort').value           = p.sort_order || 0;
+    document.getElementById('ei_image').value          = p.image || '';
+    document.getElementById('ei_active').checked       = p.is_active == 1;
+    document.getElementById('ei_featured').checked     = p.is_featured == 1;
+    document.getElementById('ei_avail_from').value     = p.available_from  ? p.available_from.substring(0,5)  : '';
+    document.getElementById('ei_avail_until').value    = p.available_until ? p.available_until.substring(0,5) : '';
+    // Show existing image preview
+    const url = p.thumbnail || p.image || '';
+    const prev = document.getElementById('editItemImgPreview');
+    const ph   = document.getElementById('editItemImgPlaceholder');
+    if (url) { prev.src = url; prev.style.display = 'block'; ph.style.display = 'none'; }
+    else      { prev.src = ''; prev.style.display = 'none';  ph.style.display = 'block'; }
+    openModal('editItemModal');
+}
+
+// ─── Addon ────────────────────────────────────────────────────────
+function openEditAddon(a) {
+    document.getElementById('editAddonForm').action = `/admin/module-data/efood/addons/${a.id}`;
+    document.getElementById('ea_vendor').value      = a.vendor_id || '';
+    document.getElementById('ea_name').value        = a.name || '';
+    document.getElementById('ea_price').value       = a.price || '';
+    document.getElementById('ea_active').checked    = a.is_active == 1;
+    openModal('editAddonModal');
+}
+
+// ─── Banner ───────────────────────────────────────────────────────
+function openEditBanner(b) {
+    document.getElementById('editBannerForm').action = `/admin/module-data/efood/banners/${b.id}`;
+    document.getElementById('eb_title').value    = b.title || '';
+    document.getElementById('eb_subtitle').value = b.subtitle || '';
+    document.getElementById('eb_image').value    = b.image || '';
+    document.getElementById('eb_action').value   = b.action_url || '';
+    document.getElementById('eb_sort').value     = b.sort_order || 0;
+    document.getElementById('eb_active').checked = b.is_active == 1;
+    if (b.image) previewFromUrl(b.image, 'editBanner_imgPreview', 'editBanner_imgPlaceholder');
+    else { document.getElementById('editBanner_imgPreview').style.display='none'; document.getElementById('editBanner_imgPlaceholder').style.display='block'; }
+    openModal('editBannerModal');
+}
+
+// ─── Coupon ───────────────────────────────────────────────────────
+function openEditCoupon(c) {
+    document.getElementById('editCouponForm').action = `/admin/module-data/efood/coupons/${c.id}`;
+    document.getElementById('ecp_title').value  = c.title || '';
+    document.getElementById('ecp_type').value   = c.type || 'percentage';
+    document.getElementById('ecp_value').value  = c.value || '';
+    document.getElementById('ecp_min').value    = c.min_order_amount || '';
+    document.getElementById('ecp_max').value    = c.max_discount || '';
+    document.getElementById('ecp_limit').value  = c.usage_limit || '';
+    document.getElementById('ecp_vendor').value = c.vendor_id || '';
+    document.getElementById('ecp_ends').value   = c.ends_at ? c.ends_at.substring(0,10) : '';
+    document.getElementById('ecp_active').checked = c.is_active == 1;
+    openModal('editCouponModal');
+}
+
+// ─── Discount Campaign ───────────────────────────────────────────────────
+function openEditCampaign(c) {
+    document.getElementById('editCampaignForm').action = `/admin/module-data/efood/campaigns/${c.id}`;
+    document.getElementById('ecmp_vendor').value    = c.vendor_id || '';
+    document.getElementById('ecmp_name').value      = c.name || '';
+    document.getElementById('ecmp_desc').value      = c.description || '';
+    document.getElementById('ecmp_type').value      = c.discount_type || 'percentage';
+    document.getElementById('ecmp_value').value     = c.discount_value || '';
+    // starts_at: split into date + time
+    if (c.starts_at) {
+        const sd = c.starts_at.substring(0, 10);
+        const st = c.starts_at.length > 10 ? c.starts_at.substring(11, 16) : '00:00';
+        document.getElementById('ecmp_starts_date').value = sd;
+        document.getElementById('ecmp_starts_time').value = st;
+    }
+    if (c.ends_at) {
+        const ed = c.ends_at.substring(0, 10);
+        const et = c.ends_at.length > 10 ? c.ends_at.substring(11, 16) : '23:59';
+        document.getElementById('ecmp_ends_date').value = ed;
+        document.getElementById('ecmp_ends_time').value = et;
+    }
+    document.getElementById('ecmp_badge_text').value   = c.badge_text || 'Special Offer';
+    document.getElementById('ecmp_badge_color').value  = c.badge_color || 'orange';
+    document.getElementById('ecmp_all').checked        = c.apply_to_all == 1;
+    document.getElementById('ecmp_active').checked     = c.is_active == 1;
+    document.getElementById('ecmp_notes').value        = c.internal_notes || '';
+    openModal('editCampaignModal');
+}
+
+// ─── Image upload helpers ─────────────────────────────────────────────────
+function previewImage(input, previewId, placeholderId) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        const prev = document.getElementById(previewId);
+        const ph   = document.getElementById(placeholderId);
+        prev.src = e.target.result;
+        prev.style.display = 'block';
+        if (ph) ph.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+}
+
+function previewFromUrl(url, previewId, placeholderId) {
+    const prev = document.getElementById(previewId);
+    const ph   = document.getElementById(placeholderId);
+    if (url && url.startsWith('http')) {
+        prev.src = url;
+        prev.style.display = 'block';
+        if (ph) ph.style.display = 'none';
+    } else {
+        prev.style.display = 'none';
+        if (ph) ph.style.display = 'block';
+    }
+}
+
+// Reset add item image picker when modal closes
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.modal-close').forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Reset add item image
+            const prev = document.getElementById('addItemImgPreview');
+            const ph   = document.getElementById('addItemImgPlaceholder');
+            if (prev) { prev.src = ''; prev.style.display = 'none'; }
+            if (ph)   ph.style.display = 'block';
+            const fileInput = document.getElementById('addItemImgFile');
+            if (fileInput) fileInput.value = '';
+        });
+    });
+});
+</script>
+@endpush
+@endsection

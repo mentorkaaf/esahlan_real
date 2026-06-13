@@ -1,0 +1,441 @@
+{
+  "info": {
+    "name": "eSahlan API",
+    "description": "Complete API collection for eSahlan Super App",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000/api/v1" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Register Customer",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Ahmed Omar\",\n  \"phone\": \"+252617123456\",\n  \"password\": \"Test@1234\",\n  \"password_confirmation\": \"Test@1234\"\n}" }
+          }
+        },
+        {
+          "name": "Send OTP",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/send-otp",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+252617123456\"\n}" }
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/verify-otp",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+252617123456\",\n  \"code\": \"1234\"\n}" }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": ["if (pm.response.code === 200) { const r = pm.response.json(); if (r.data && r.data.token) { pm.collectionVariables.set('token', r.data.token); } }"] }
+          }],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+252617123456\",\n  \"password\": \"Test@1234\"\n}" }
+          }
+        },
+        {
+          "name": "Me (Profile)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/auth/me",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/logout",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏠 Home & Discovery",
+      "item": [
+        {
+          "name": "Home Screen",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/home",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "All Modules",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/modules",
+            "header": [{ "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "All Districts",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/districts",
+            "header": [{ "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Search",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/search?q=pizza", "query": [{ "key": "q", "value": "pizza" }] },
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Module Details (eFood)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/modules/efood",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏪 Vendors",
+      "item": [
+        {
+          "name": "List Vendors",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/vendors?module_id=1", "query": [{ "key": "module_id", "value": "1" }] },
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Vendor Details",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/vendors/1",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Vendor Products",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/vendors/1/products",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Vendor Reviews",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/vendors/1/reviews",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "🛒 Cart",
+      "item": [
+        {
+          "name": "Get Cart",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/cart",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Add to Cart",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/cart/add",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 2\n}" }
+          }
+        },
+        {
+          "name": "Clear Cart",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/cart",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "📦 Orders",
+      "item": [
+        {
+          "name": "Place Order",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/orders",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"vendor_id\": 1,\n  \"module_id\": 1,\n  \"items\": [\n    { \"product_id\": 1, \"quantity\": 2, \"price\": 5.00 }\n  ],\n  \"delivery_address\": \"KM4, Mogadishu\",\n  \"delivery_latitude\": 2.0469,\n  \"delivery_longitude\": 45.3182,\n  \"payment_method\": \"wallet\",\n  \"notes\": \"Please knock twice\"\n}" }
+          }
+        },
+        {
+          "name": "My Orders",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/orders",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Order Details",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/orders/1",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/orders/1/cancel",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Changed my mind\"\n}" }
+          }
+        },
+        {
+          "name": "Order Tracking",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/orders/1/tracking",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "💰 Wallet",
+      "item": [
+        {
+          "name": "Wallet Info",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/wallet",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Transactions",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/wallet/transactions",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Top Up (Waafi Pay)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/wallet/topup",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 20.00,\n  \"phone\": \"+252617123456\"\n}" }
+          }
+        },
+        {
+          "name": "Loyalty Points",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/wallet/loyalty-points",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "📍 Addresses",
+      "item": [
+        {
+          "name": "My Addresses",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/addresses",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Add Address",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/addresses",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"label\": \"Home\",\n  \"address\": \"Hodan District, Near KM4\",\n  \"latitude\": 2.0469,\n  \"longitude\": 45.3182,\n  \"district_id\": 11,\n  \"is_default\": true\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🚗 Deliveryman",
+      "item": [
+        {
+          "name": "Register Deliveryman",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/delivery/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Ali Hassan\",\n  \"phone\": \"+252617999888\",\n  \"password\": \"Rider@1234\",\n  \"password_confirmation\": \"Rider@1234\",\n  \"vehicle_type\": \"motorcycle\",\n  \"vehicle_plate\": \"MG-1234\",\n  \"district_id\": 11\n}" }
+          }
+        },
+        {
+          "name": "Deliveryman Login",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": ["if (pm.response.code === 200) { const r = pm.response.json(); if (r.data && r.data.token) { pm.collectionVariables.set('token', r.data.token); } }"] }
+          }],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+252617999888\",\n  \"password\": \"Rider@1234\"\n}" }
+          }
+        },
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/delivery/dashboard",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Available Orders",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/delivery/orders/available",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Update Location",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/delivery/location",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"latitude\": 2.0469,\n  \"longitude\": 45.3182,\n  \"order_id\": null\n}" }
+          }
+        },
+        {
+          "name": "Toggle Online Status",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/delivery/toggle-status",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏬 Vendor Panel",
+      "item": [
+        {
+          "name": "Vendor Dashboard",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/vendor/dashboard",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Vendor Orders",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/vendor/orders?status=pending", "query": [{ "key": "status", "value": "pending" }] },
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Accept Order",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/vendor/orders/1/accept",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Vendor Products",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/vendor/products",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Toggle Store Open/Close",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/vendor/store/toggle",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "📱 eData Module",
+      "item": [
+        {
+          "name": "Data Providers",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/edata/providers",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Packages by Provider",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/edata/providers/1/packages",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "💱 eExchange Module",
+      "item": [
+        {
+          "name": "Exchange Rates",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/eexchange/rates",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Accept", "value": "application/json" }]
+          }
+        },
+        {
+          "name": "Calculate Exchange",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/eexchange/calculate",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"from_currency\": \"USD\",\n  \"to_currency\": \"SOS\",\n  \"amount\": 100\n}" }
+          }
+        }
+      ]
+    }
+  ]
+}
