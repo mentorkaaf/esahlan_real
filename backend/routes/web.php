@@ -195,6 +195,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::patch('/rent/bookings/{id}',           [$ctrl, 'bookingUpdate'])->name('rent.booking.update');
             Route::post('/rent/bookings/{id}/approve-refund', [$ctrl, 'bookingApproveRefund'])->name('rent.booking.approve_refund');
             Route::post('/rent/bookings/{id}/deny-refund',    [$ctrl, 'bookingDenyRefund'])->name('rent.booking.deny_refund');
+            Route::post('/rent/districts',          [$ctrl, 'districtStore'])->name('rent.district.store');
+            Route::patch('/rent/districts/{id}',    [$ctrl, 'districtUpdate'])->name('rent.district.update');
+            Route::delete('/rent/districts/{id}',   [$ctrl, 'districtDestroy'])->name('rent.district.destroy');
 
             // eFood — full management
             Route::prefix('efood')->name('efood.')->group(function () {

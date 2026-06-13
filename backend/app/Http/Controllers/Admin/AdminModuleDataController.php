@@ -692,7 +692,10 @@ class AdminModuleDataController extends Controller
             ->join('districts', 'properties.district_id', '=', 'districts.id')
             ->select('properties.*', 'districts.name as district_name')
             ->orderByDesc('properties.id')->paginate(25);
-        $districts  = DB::table('districts')->where('status', 'active')->orderBy('sort_order')->get();
+        $propCounts = DB::table('properties')->select('district_id', DB::raw('COUNT(*) as cnt'))->groupBy('district_id')->pluck('cnt', 'district_id');
+        $districts  = DB::table('districts')->where('status', 'active')->orderBy('sort_order')->get()->each(function($d) use ($propCounts) {
+            $d->property_count = $propCounts[$d->id] ?? 0;
+        });
         $bookings   = DB::table('property_bookings')
             ->join('properties', 'property_bookings.property_id', '=', 'properties.id')
             ->join('users', 'property_bookings.user_id', '=', 'users.id')
@@ -906,6 +909,45 @@ class AdminModuleDataController extends Controller
             'updated_at'    => now(),
         ]);
         return back()->with('success', 'Refund request denied. Booking restored to pending.');
+    }
+
+    // ── eRent Districts ────────────────────────────────────────────
+
+    public function districtStore(Request $request)
+    {
+        $data = $request->validate([
+            'name'        => 'required|string|max:120',
+            'name_so'     => 'nullable|string|max:120',
+            'description' => 'nullable|string|max:500',
+        ]);
+        DB::table('districts')->insert(array_merge($data, [
+            'slug'       => \Illuminate\Support\Str::slug($data['name']),
+            'status'     => 'active',
+            'sort_order' => DB::table('districts')->max('sort_order') + 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]));
+        return back()->with('success', 'District added.');
+    }
+
+    public function districtUpdate(int $id, Request $request)
+    {
+        $data = $request->validate([
+            'name'        => 'required|string|max:120',
+            'name_so'     => 'nullable|string|max:120',
+            'description' => 'nullable|string|max:500',
+            'status'      => 'nullable|in:active,inactive',
+        ]);
+        DB::table('districts')->where('id', $id)->update(array_merge($data, ['updated_at' => now()]));
+        return back()->with('success', 'District updated.');
+    }
+
+    public function districtDestroy(int $id)
+    {
+        $count = DB::table('properties')->where('district_id', $id)->count();
+        if ($count > 0) return back()->with('error', "Cannot delete: {$count} propert" . ($count === 1 ? 'y' : 'ies') . ' still in this district.');
+        DB::table('districts')->where('id', $id)->delete();
+        return back()->with('success', 'District deleted.');
     }
 
     // ══════════════════════════════════════════════════════════════

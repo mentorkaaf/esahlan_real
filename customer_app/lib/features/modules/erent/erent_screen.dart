@@ -105,9 +105,29 @@ class _ERentScreenState extends ConsumerState<ERentScreen>
 // ─────────────────────────────────────────────────────────────────────────────
 // BROWSE TAB — Districts 4x4 grid
 // ─────────────────────────────────────────────────────────────────────────────
-class _BrowseTab extends ConsumerWidget {
+class _BrowseTab extends ConsumerStatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_BrowseTab> createState() => _BrowseTabState();
+}
+
+class _BrowseTabState extends ConsumerState<_BrowseTab> {
+  int? _districtId;
+  String? _type;
+  int? _bedrooms;
+  int _priceIdx = 0;
+
+  static final _priceRanges = <Map<String, dynamic>>[
+    {'label': 'Any Price', 'min': null, 'max': null},
+    {'label': r'$0–300', 'min': 0.0, 'max': 300.0},
+    {'label': r'$300–600', 'min': 300.0, 'max': 600.0},
+    {'label': r'$600–1000', 'min': 600.0, 'max': 1000.0},
+    {'label': r'$1000+', 'min': 1000.0, 'max': null},
+  ];
+  static const _typeOptions = <String>['apartment', 'house', 'villa', 'room', 'office', 'studio'];
+  static const _bedroomOptions = <int>[1, 2, 3, 4, 5];
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(_districtsProvider);
     return async.when(
       loading: () => _buildShimmer(),
@@ -119,6 +139,47 @@ class _BrowseTab extends ConsumerWidget {
           subtitle: 'Districts will appear here');
         return CustomScrollView(slivers: [
           SliverToBoxAdapter(child: _RentHeader()),
+          SliverToBoxAdapter(child: _SearchSection(
+            districts: districts,
+            districtId: _districtId,
+            type: _type,
+            bedrooms: _bedrooms,
+            priceIdx: _priceIdx,
+            priceRanges: _priceRanges,
+            typeOptions: _typeOptions,
+            bedroomOptions: _bedroomOptions,
+            onDistrictChanged: (v) => setState(() => _districtId = v),
+            onTypeChanged: (v) => setState(() => _type = v),
+            onBedroomsChanged: (v) => setState(() => _bedrooms = v),
+            onPriceChanged: (v) => setState(() => _priceIdx = v),
+            onSearch: () {
+              final pr = _priceRanges[_priceIdx];
+              final district = _districtId != null
+                  ? districts.firstWhere(
+                      (d) => d['id'].toString() == _districtId.toString(),
+                      orElse: () => {'id': null, 'name': 'All Districts'})
+                  : {'id': null, 'name': 'All Districts'};
+              Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+                builder: (_) => _PropertyListScreen(
+                  district: district,
+                  initialType: _type,
+                  initialBedrooms: _bedrooms,
+                  initialMinPrice: pr['min'] as double?,
+                  initialMaxPrice: pr['max'] as double?,
+                ),
+              ));
+            },
+          )),
+          SliverToBoxAdapter(child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(children: [
+              Container(width: 4, height: 18,
+                  decoration: BoxDecoration(color: _kOrange, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(width: 8),
+              const Text('Browse by District',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: _kNavy)),
+            ]),
+          )),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             sliver: SliverGrid(
@@ -149,6 +210,244 @@ class _BrowseTab extends ConsumerWidget {
         child: Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14))),
       ),
     ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SEARCH SECTION — 4 filter cards (2×2) + Search button
+// ─────────────────────────────────────────────────────────────────────────────
+class _SearchSection extends StatelessWidget {
+  final List<Map> districts;
+  final int? districtId;
+  final String? type;
+  final int? bedrooms;
+  final int priceIdx;
+  final List<Map<String, dynamic>> priceRanges;
+  final List<String> typeOptions;
+  final List<int> bedroomOptions;
+  final ValueChanged<int?> onDistrictChanged;
+  final ValueChanged<String?> onTypeChanged;
+  final ValueChanged<int?> onBedroomsChanged;
+  final ValueChanged<int> onPriceChanged;
+  final VoidCallback onSearch;
+
+  const _SearchSection({
+    required this.districts, required this.districtId, required this.type,
+    required this.bedrooms, required this.priceIdx, required this.priceRanges,
+    required this.typeOptions, required this.bedroomOptions,
+    required this.onDistrictChanged, required this.onTypeChanged,
+    required this.onBedroomsChanged, required this.onPriceChanged, required this.onSearch,
+  });
+
+  String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
+  @override
+  Widget build(BuildContext context) {
+    final districtName = districtId != null
+        ? (districts.firstWhere(
+              (d) => d['id'].toString() == districtId.toString(),
+              orElse: () => {'name': 'Any'})['name'] ?? 'Any').toString()
+        : 'Any District';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _kCard,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 4))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(width: 4, height: 16,
+              decoration: BoxDecoration(color: _kOrange, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 8),
+          const Text('Search Properties', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _kNavy)),
+        ]),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: _FilterCard(
+            icon: Icons.location_on_rounded, label: 'Location', value: districtName,
+            color: _kOrange, onTap: () => _showDistrictSheet(context),
+          )),
+          const SizedBox(width: 10),
+          Expanded(child: _FilterCard(
+            icon: Icons.home_work_rounded, label: 'Type',
+            value: type != null ? _cap(type!) : 'Any Type',
+            color: const Color(0xFF1565C0), onTap: () => _showTypeSheet(context),
+          )),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(child: _FilterCard(
+            icon: Icons.bed_rounded, label: 'Unit Type',
+            value: bedrooms != null ? '$bedrooms Bedroom${bedrooms! > 1 ? 's' : ''}' : 'Any',
+            color: const Color(0xFF2E7D32), onTap: () => _showBedroomsSheet(context),
+          )),
+          const SizedBox(width: 10),
+          Expanded(child: _FilterCard(
+            icon: Icons.attach_money_rounded, label: 'Price',
+            value: priceRanges[priceIdx]['label'] as String,
+            color: const Color(0xFF6A1B9A), onTap: () => _showPriceSheet(context),
+          )),
+        ]),
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: onSearch,
+            icon: const Icon(Icons.search_rounded, size: 18),
+            label: const Text('Search Properties', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _kOrange, foregroundColor: Colors.white,
+              minimumSize: const Size(0, 50),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              elevation: 0,
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  void _showDistrictSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+      builder: (_) => _BottomSheetPicker(
+        title: 'Select Location',
+        items: [
+          {'label': 'Any District', 'value': null},
+          ...districts.map((d) => {'label': (d['name'] ?? '').toString(), 'value': d['id']}),
+        ],
+        selectedValue: districtId,
+        onSelected: (v) { Navigator.pop(context); onDistrictChanged(v as int?); },
+      ),
+    );
+  }
+
+  void _showTypeSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context, backgroundColor: Colors.transparent,
+      builder: (_) => _BottomSheetPicker(
+        title: 'Property Type',
+        items: [
+          {'label': 'Any Type', 'value': null},
+          ...typeOptions.map((t) => {'label': _cap(t), 'value': t}),
+        ],
+        selectedValue: type,
+        onSelected: (v) { Navigator.pop(context); onTypeChanged(v as String?); },
+      ),
+    );
+  }
+
+  void _showBedroomsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context, backgroundColor: Colors.transparent,
+      builder: (_) => _BottomSheetPicker(
+        title: 'Unit Type (Bedrooms)',
+        items: [
+          {'label': 'Any', 'value': null},
+          ...bedroomOptions.map((b) => {'label': '$b Bedroom${b > 1 ? 's' : ''}', 'value': b}),
+        ],
+        selectedValue: bedrooms,
+        onSelected: (v) { Navigator.pop(context); onBedroomsChanged(v as int?); },
+      ),
+    );
+  }
+
+  void _showPriceSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context, backgroundColor: Colors.transparent,
+      builder: (_) => _BottomSheetPicker(
+        title: 'Price Range',
+        items: List.generate(priceRanges.length,
+            (i) => {'label': priceRanges[i]['label'] as String, 'value': i}),
+        selectedValue: priceIdx,
+        onSelected: (v) { Navigator.pop(context); onPriceChanged(v as int); },
+      ),
+    );
+  }
+}
+
+class _FilterCard extends StatelessWidget {
+  final IconData icon;
+  final String label, value;
+  final Color color;
+  final VoidCallback onTap;
+  const _FilterCard({required this.icon, required this.label, required this.value,
+      required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            width: 28, height: 28,
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+            child: Icon(icon, size: 15, color: color),
+          ),
+          const Spacer(),
+          Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: color),
+        ]),
+        const SizedBox(height: 8),
+        Text(label, style: const TextStyle(fontSize: 10, color: _kMuted, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: color),
+            maxLines: 1, overflow: TextOverflow.ellipsis),
+      ]),
+    ),
+  );
+}
+
+class _BottomSheetPicker extends StatelessWidget {
+  final String title;
+  final List<Map<String, dynamic>> items;
+  final dynamic selectedValue;
+  final ValueChanged<dynamic> onSelected;
+  const _BottomSheetPicker({required this.title, required this.items,
+      required this.selectedValue, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const SizedBox(height: 12),
+      Container(width: 40, height: 4,
+          decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+      const SizedBox(height: 16),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _kNavy)),
+        ),
+      ),
+      const SizedBox(height: 8),
+      ...items.map((item) {
+        final isSelected = item['value'] == selectedValue;
+        return ListTile(
+          onTap: () => onSelected(item['value']),
+          leading: isSelected
+              ? const Icon(Icons.check_circle_rounded, color: _kOrange)
+              : Icon(Icons.circle_outlined, color: Colors.grey.shade400, size: 20),
+          title: Text(item['label'] as String,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                color: isSelected ? _kOrange : _kNavy,
+              )),
+        );
+      }),
+      const SizedBox(height: 20),
+    ]),
   );
 }
 
@@ -261,20 +560,45 @@ class _DistrictCard extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 class _PropertyListScreen extends ConsumerStatefulWidget {
   final Map district;
-  const _PropertyListScreen({required this.district});
+  final String? initialType;
+  final int? initialBedrooms;
+  final double? initialMinPrice;
+  final double? initialMaxPrice;
+  const _PropertyListScreen({
+    required this.district,
+    this.initialType,
+    this.initialBedrooms,
+    this.initialMinPrice,
+    this.initialMaxPrice,
+  });
   @override
   ConsumerState<_PropertyListScreen> createState() => _PropertyListScreenState();
 }
 
 class _PropertyListScreenState extends ConsumerState<_PropertyListScreen> {
   String? _typeFilter;
+  int? _bedroomsFilter;
+  double? _minPriceFilter;
+  double? _maxPriceFilter;
   final _filterTypes = ['apartment', 'villa', 'room', 'office', 'studio'];
+
+  @override
+  void initState() {
+    super.initState();
+    _typeFilter     = widget.initialType;
+    _bedroomsFilter = widget.initialBedrooms;
+    _minPriceFilter = widget.initialMinPrice;
+    _maxPriceFilter = widget.initialMaxPrice;
+  }
 
   // Use a stable String key so Riverpod family equality works correctly
   // (Maps don't implement == by value — new Map each build = provider never matches)
   String get _paramsKey => jsonEncode({
-    'district_id': int.parse(widget.district['id'].toString()),
+    if (widget.district['id'] != null) 'district_id': int.parse(widget.district['id'].toString()),
     'type': _typeFilter,
+    if (_bedroomsFilter != null) 'bedrooms': _bedroomsFilter,
+    if (_minPriceFilter != null) 'min_price': _minPriceFilter,
+    if (_maxPriceFilter != null) 'max_price': _maxPriceFilter,
   });
 
   @override

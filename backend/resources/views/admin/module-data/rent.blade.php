@@ -232,6 +232,7 @@
     <button class="module-tab active" onclick="switchTab('properties',this)"><i class="fas fa-building"></i> Properties</button>
     <button class="module-tab" onclick="switchTab('bookings',this)"><i class="fas fa-calendar-check"></i> Bookings</button>
     <button class="module-tab" onclick="switchTab('add-property',this)"><i class="fas fa-plus-circle"></i> Add Property</button>
+    <button class="module-tab" onclick="switchTab('districts',this)"><i class="fas fa-map-marker-alt"></i> Districts</button>
 </div>
 
 {{-- ══════════════════════════════════════════════════════════════ --}}
@@ -733,6 +734,138 @@
     </div>
 </div>
 
+{{-- ══════════════════════════════════════════════════════════════ --}}
+{{-- TAB: DISTRICTS --}}
+{{-- ══════════════════════════════════════════════════════════════ --}}
+<div id="tab-districts" class="tab-pane">
+    <div class="sc">
+        <div class="sc-head">
+            <span class="sc-title"><i class="fas fa-map-marker-alt" style="color:#7c3aed"></i> Districts</span>
+            <button class="btn-add" onclick="document.getElementById('addDistrictModal').classList.add('open')">
+                <i class="fas fa-plus"></i> Add District
+            </button>
+        </div>
+        <div class="sc-body">
+            <table class="dtbl">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Somali Name</th>
+                        <th>Properties</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($districts as $dist)
+                    <tr>
+                        <td style="color:#8A8A9A;font-size:12px;">{{ $dist->id }}</td>
+                        <td style="font-weight:700;">{{ $dist->name }}</td>
+                        <td style="color:#8A8A9A;">{{ $dist->name_so ?? '—' }}</td>
+                        <td>
+                            <span style="background:rgba(124,58,237,.08);color:#7c3aed;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">
+                                {{ $dist->property_count ?? 0 }} props
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge-xs {{ $dist->status === 'active' ? 'badge-active' : 'badge-cancelled' }}">
+                                {{ ucfirst($dist->status) }}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn-icon edit" title="Edit"
+                                onclick='openEditDistrict({{ json_encode(["id"=>$dist->id,"name"=>$dist->name,"name_so"=>$dist->name_so,"description"=>$dist->description,"status"=>$dist->status]) }})'
+                            ><i class="fas fa-pen"></i></button>
+                            <form method="POST" action="{{ route('admin.module-data.rent.district.destroy', $dist->id) }}" style="display:inline"
+                                onsubmit="return confirm('Delete district {{ addslashes($dist->name) }}? This will fail if it has properties.')">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="btn-icon del" title="Delete"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr class="empty-row"><td colspan="6">No districts found</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{{-- ADD DISTRICT MODAL --}}
+<div class="modal-overlay" id="addDistrictModal">
+    <div class="modal-box" style="width:min(480px,95vw)">
+        <div class="modal-head">
+            <h3>Add District</h3>
+            <button class="modal-close" onclick="document.getElementById('addDistrictModal').classList.remove('open')">✕</button>
+        </div>
+        <form method="POST" action="{{ route('admin.module-data.rent.district.store') }}">
+            @csrf
+            <div class="modal-body">
+                <div class="form-grid-2">
+                    <div class="fgroup">
+                        <label>Name (English) *</label>
+                        <input name="name" required placeholder="e.g. Hodan">
+                    </div>
+                    <div class="fgroup">
+                        <label>Name (Somali)</label>
+                        <input name="name_so" placeholder="e.g. Xodan">
+                    </div>
+                </div>
+                <div class="fgroup" style="margin-top:12px">
+                    <label>Description</label>
+                    <textarea name="description" rows="2" placeholder="Optional description"></textarea>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-outline" onclick="document.getElementById('addDistrictModal').classList.remove('open')">Cancel</button>
+                <button type="submit" class="btn-add"><i class="fas fa-plus"></i> Add District</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- EDIT DISTRICT MODAL --}}
+<div class="modal-overlay" id="editDistrictModal">
+    <div class="modal-box" style="width:min(480px,95vw)">
+        <div class="modal-head">
+            <h3>Edit District</h3>
+            <button class="modal-close" onclick="document.getElementById('editDistrictModal').classList.remove('open')">✕</button>
+        </div>
+        <form method="POST" id="editDistrictForm">
+            @csrf @method('PATCH')
+            <div class="modal-body">
+                <div class="form-grid-2">
+                    <div class="fgroup">
+                        <label>Name (English) *</label>
+                        <input name="name" id="ed_name" required>
+                    </div>
+                    <div class="fgroup">
+                        <label>Name (Somali)</label>
+                        <input name="name_so" id="ed_name_so">
+                    </div>
+                </div>
+                <div class="fgroup" style="margin-top:12px">
+                    <label>Description</label>
+                    <textarea name="description" id="ed_description" rows="2"></textarea>
+                </div>
+                <div class="fgroup" style="margin-top:12px">
+                    <label>Status</label>
+                    <select name="status" id="ed_status">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-outline" onclick="document.getElementById('editDistrictModal').classList.remove('open')">Cancel</button>
+                <button type="submit" class="btn-add"><i class="fas fa-save"></i> Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 function switchTab(name, el) {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
@@ -852,6 +985,16 @@ function previewReels(input, containerId) {
         wrap.appendChild(vid); wrap.appendChild(lbl);
         container.appendChild(wrap);
     });
+}
+
+function openEditDistrict(d) {
+    const base = '{{ url("/admin/module-data/rent/districts") }}/';
+    document.getElementById('editDistrictForm').action = base + d.id;
+    document.getElementById('ed_name').value        = d.name || '';
+    document.getElementById('ed_name_so').value     = d.name_so || '';
+    document.getElementById('ed_description').value = d.description || '';
+    document.getElementById('ed_status').value      = d.status || 'active';
+    document.getElementById('editDistrictModal').classList.add('open');
 }
 
 // Close modal on backdrop click
