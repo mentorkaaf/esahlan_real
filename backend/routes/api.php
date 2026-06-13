@@ -26,6 +26,18 @@ use App\Http\Controllers\Api\Vendor\VendorProductController;
 use App\Http\Controllers\Api\Vendor\VendorStoreController;
 use App\Http\Controllers\Api\Vendor\VendorWalletController;
 
+// ─── Community ───────────────────────────────────────────────────────────────
+use App\Http\Controllers\Api\Community\CommunityFeedController;
+use App\Http\Controllers\Api\Community\CommunityPostController;
+use App\Http\Controllers\Api\Community\CommunityProfileController;
+use App\Http\Controllers\Api\Community\CommunityGroupController;
+use App\Http\Controllers\Api\Community\CommunityFollowController;
+use App\Http\Controllers\Api\Community\CommunityStoryController;
+use App\Http\Controllers\Api\Community\CommunityChatController;
+use App\Http\Controllers\Api\Community\CommunityCommentController;
+use App\Http\Controllers\Api\Community\CommunityNotificationController;
+use App\Http\Controllers\Api\Community\CommunityReportController;
+
 // ─── Modules ─────────────────────────────────────────────────────────────────
 use App\Http\Controllers\Api\Modules\EDataController;
 use App\Http\Controllers\Api\Modules\EParcelController;
@@ -282,6 +294,76 @@ Route::prefix('v1')->group(function () {
             Route::post('egrocery/order',       [EGroceryController::class, 'createOrder']);
             Route::post('eticket/book',         [ETicketController::class, 'book']);
             Route::get('eticket/my-bookings',   [ETicketController::class, 'myBookings']);
+
+            // ─── COMMUNITY ────────────────────────────────────────
+            Route::prefix('community')->group(function () {
+                // Feed
+                Route::get('feed/following',    [CommunityFeedController::class, 'following']);
+                Route::get('feed/explore',      [CommunityFeedController::class, 'explore']);
+                Route::get('feed/reels',        [CommunityFeedController::class, 'reels']);
+                Route::get('feed/trending',     [CommunityFeedController::class, 'trending']);
+                Route::get('feed/suggestions',  [CommunityFeedController::class, 'suggestions']);
+                Route::get('feed/stories',      [CommunityFeedController::class, 'stories']);
+                Route::get('search',            [CommunityFeedController::class, 'search']);
+
+                // Posts
+                Route::post('posts',                        [CommunityPostController::class, 'store']);
+                Route::get('posts/{id}',                    [CommunityPostController::class, 'show']);
+                Route::delete('posts/{id}',                 [CommunityPostController::class, 'destroy']);
+                Route::post('posts/{id}/react',             [CommunityPostController::class, 'react']);
+                Route::post('posts/{id}/save',              [CommunityPostController::class, 'save']);
+                Route::post('posts/{id}/share',             [CommunityPostController::class, 'share']);
+                Route::post('posts/{id}/view',              [CommunityPostController::class, 'view']);
+                Route::post('posts/{id}/poll-vote',         [CommunityPostController::class, 'pollVote']);
+                Route::get('saved-posts',                   [CommunityPostController::class, 'savedPosts']);
+
+                // Comments
+                Route::get('posts/{postId}/comments',       [CommunityCommentController::class, 'index']);
+                Route::post('posts/{postId}/comments',      [CommunityCommentController::class, 'store']);
+                Route::delete('comments/{id}',              [CommunityCommentController::class, 'destroy']);
+                Route::post('comments/{id}/react',          [CommunityCommentController::class, 'react']);
+
+                // Profile
+                Route::get('profile', function(\Illuminate\Http\Request $r) {
+                    return app(CommunityProfileController::class)->show(auth()->id());
+                });
+                Route::post('profile',              [CommunityProfileController::class, 'update']);
+                Route::get('profile/{userId}',      [CommunityProfileController::class, 'show']);
+                Route::get('profile/{userId}/posts',[CommunityProfileController::class, 'posts']);
+
+                // Follow
+                Route::post('follow/{userId}',      [CommunityFollowController::class, 'toggle']);
+                Route::get('followers/{userId}',    [CommunityProfileController::class, 'followers']);
+                Route::get('following/{userId}',    [CommunityProfileController::class, 'following']);
+
+                // Groups
+                Route::get('groups',                [CommunityGroupController::class, 'index']);
+                Route::post('groups',               [CommunityGroupController::class, 'store']);
+                Route::get('groups/{id}',           [CommunityGroupController::class, 'show']);
+                Route::post('groups/{id}/join',     [CommunityGroupController::class, 'join']);
+                Route::post('groups/{id}/leave',    [CommunityGroupController::class, 'leave']);
+                Route::get('groups/{id}/posts',     [CommunityGroupController::class, 'posts']);
+                Route::post('groups/{id}/post',     [CommunityGroupController::class, 'createPost']);
+
+                // Stories
+                Route::post('stories',              [CommunityStoryController::class, 'store']);
+                Route::post('stories/{id}/view',    [CommunityStoryController::class, 'view']);
+                Route::delete('stories/{id}',       [CommunityStoryController::class, 'destroy']);
+
+                // DM Chat
+                Route::get('chats',                         [CommunityChatController::class, 'index']);
+                Route::post('chats',                        [CommunityChatController::class, 'create']);
+                Route::get('chats/{chatId}/messages',       [CommunityChatController::class, 'messages']);
+                Route::post('chats/{chatId}/messages',      [CommunityChatController::class, 'send']);
+
+                // Notifications
+                Route::get('notifications',             [CommunityNotificationController::class, 'index']);
+                Route::post('notifications/{id}/read',  [CommunityNotificationController::class, 'markRead']);
+                Route::post('notifications/read-all',   [CommunityNotificationController::class, 'markAllRead']);
+
+                // Reports
+                Route::post('report',               [CommunityReportController::class, 'store']);
+            });
         });
 
         // ─── DELIVERYMAN ──────────────────────────────────────────

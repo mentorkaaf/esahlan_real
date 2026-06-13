@@ -19,8 +19,11 @@ use App\Http\Controllers\Admin\AdminCommunityController;
 use App\Http\Controllers\Admin\AdminWalletController;
 use App\Http\Controllers\Admin\AdminLandingController;
 
-// Redirect root to admin
-Route::get('/', fn() => redirect('/admin'));
+// Public landing page
+Route::get('/', fn() => view('landing'));
+
+// Admin root redirect to login/dashboard
+Route::get('/admin', fn() => redirect('/admin/dashboard'));
 
 // Deploy webhook (called by GitHub Actions)
 Route::get('/api-sync', function (\Illuminate\Http\Request $request) {

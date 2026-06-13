@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Customer;
 
 use App\Http\Controllers\Controller;
+use App\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -12,13 +13,13 @@ class WalletController extends Controller
     public function index(Request $request)
     {
         $user   = $request->user();
-        $wallet = $user->wallet;
+        $wallet = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
 
         return response()->json([
             'success' => true,
             'data'    => [
-                'balance'        => $wallet?->balance ?? 0,
-                'currency'       => $wallet?->currency ?? 'USD',
+                'balance'        => $wallet->balance ?? 0,
+                'currency'       => $wallet->currency ?? 'USD',
                 'loyalty_points' => $user->loyalty_points ?? 0,
             ],
         ]);
@@ -26,16 +27,10 @@ class WalletController extends Controller
 
     public function transactions(Request $request)
     {
-        $wallet = $request->user()->wallet;
+        $user   = $request->user();
+        $wallet = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
 
-        if (!$wallet) {
-            return response()->json(['success' => true, 'data' => []]);
-        }
-
-        $txns = DB::table('wallet_transactions')
-            ->where('wallet_id', $wallet->id)
-            ->latest()
-            ->paginate(20);
+        $txns = $wallet->transactions()->latest()->paginate(20);
 
         return response()->json(['success' => true, 'data' => $txns]);
     }
@@ -49,34 +44,12 @@ class WalletController extends Controller
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
-        // TODO: integrate Waafi Pay gateway
-        // For now, simulate success in local/dev
         $user   = $request->user();
-        $wallet = $user->wallet;
+        $wallet = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
         $amount = (float) $request->amount;
+        $gateway = $request->gateway;
 
-        DB::transaction(function () use ($wallet, $amount, $user) {
-            $wallet->increment('balance', $amount);
-
-            DB::table('wallet_transactions')->insert([
-                'wallet_id'   => $wallet->id,
-                'type'        => 'credit',
-                'amount'      => $amount,
-                'description' => 'Wallet top-up via ' . request('gateway'),
-                'created_at'  => now(),
-                'updated_at'  => now(),
-            ]);
-
-            DB::table('payment_transactions')->insert([
-                'user_id'          => $user->id,
-                'gateway'          => request('gateway'),
-                'amount'           => $amount,
-                'status'           => 'completed',
-                'transaction_type' => 'topup',
-                'created_at'       => now(),
-                'updated_at'       => now(),
-            ]);
-        });
+        $wallet->credit($amount, "Wallet top-up via {$gateway}", null, null, $gateway);
 
         return response()->json([
             'success' => true,
@@ -96,16 +69,15 @@ class WalletController extends Controller
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
         $user   = $request->user();
-        $wallet = $user->wallet;
+        $wallet = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
         $amount = (float) $request->amount;
 
-        if (!$wallet || $wallet->balance < $amount) {
+        if ($wallet->balance < $amount) {
             return response()->json(['success' => false, 'message' => 'Insufficient wallet balance'], 422);
         }
 
         DB::transaction(function () use ($wallet, $user, $amount, $request) {
-            // Hold the amount
-            $wallet->decrement('balance', $amount);
+            $wallet->debit($amount, 'Withdrawal request pending');
 
             DB::table('withdrawal_requests')->insert([
                 'owner_type'     => 'App\\Models\\User',
