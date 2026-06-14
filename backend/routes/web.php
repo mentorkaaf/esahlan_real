@@ -1,6 +1,7 @@
 <?php
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Vendor\VendorAuthController;
+use App\Http\Controllers\Vendor\VendorRegisterController;
 use App\Http\Controllers\Vendor\VendorDashboardWebController;
 use App\Http\Controllers\Vendor\VendorOrderWebController;
 use App\Http\Controllers\Vendor\VendorProductWebController;
@@ -31,6 +32,8 @@ Route::prefix('vendor')->name('vendor.')->group(function () {
     Route::middleware('guest')->group(function () {
         Route::get('/login', [VendorAuthController::class, 'showLogin'])->name('login');
         Route::post('/login', [VendorAuthController::class, 'login'])->name('login.post');
+        Route::get('/register', [VendorRegisterController::class, 'showRegister'])->name('register');
+        Route::post('/register', [VendorRegisterController::class, 'register'])->name('register.post');
     });
 
     // Authenticated vendor routes

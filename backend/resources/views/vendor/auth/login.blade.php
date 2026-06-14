@@ -122,7 +122,10 @@
         <button type="submit" class="btn-login"><i class="fa-solid fa-right-to-bracket"></i> &nbsp;Sign In</button>
     </form>
 
-    <div class="login-footer">
+    <div style="text-align:center;margin-top:18px;font-size:13px;color:#7b7fa8;">
+        Don't have a vendor account? <a href="{{ route('vendor.register') }}" style="color:#FF8A00;font-weight:700;text-decoration:none;">Register here</a>
+    </div>
+    <div class="login-footer" style="margin-top:12px;">
         <a href="{{ url('/admin/login') }}">Admin Panel</a> &nbsp;·&nbsp;
         <a href="{{ url('/') }}">Back to Home</a>
     </div>
