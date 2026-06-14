@@ -2,16 +2,18 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../features/home/presentation/providers/home_provider.dart';
 
-class ConnectivityWrapper extends StatefulWidget {
+class ConnectivityWrapper extends ConsumerStatefulWidget {
   final Widget child;
   const ConnectivityWrapper({super.key, required this.child});
 
   @override
-  State<ConnectivityWrapper> createState() => _ConnectivityWrapperState();
+  ConsumerState<ConnectivityWrapper> createState() => _ConnectivityWrapperState();
 }
 
-class _ConnectivityWrapperState extends State<ConnectivityWrapper> {
+class _ConnectivityWrapperState extends ConsumerState<ConnectivityWrapper> {
   bool _isOnline = true;
   late StreamSubscription<List<ConnectivityResult>> _sub;
 
@@ -24,7 +26,15 @@ class _ConnectivityWrapperState extends State<ConnectivityWrapper> {
 
   void _updateStatus(List<ConnectivityResult> results) {
     final online = results.any((r) => r != ConnectivityResult.none);
-    if (online != _isOnline) setState(() => _isOnline = online);
+    if (online == _isOnline) return;
+    setState(() => _isOnline = online);
+    if (online) _refreshProviders();
+  }
+
+  void _refreshProviders() {
+    ref.invalidate(modulesProvider);
+    ref.invalidate(homeDataProvider);
+    ref.invalidate(homeBannersProvider);
   }
 
   @override
