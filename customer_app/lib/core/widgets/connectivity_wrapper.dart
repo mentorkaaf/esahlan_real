@@ -35,8 +35,16 @@ class _ConnectivityWrapperState extends State<ConnectivityWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isOnline) return widget.child;
-    return const _NoInternetScreen();
+    return Stack(
+      children: [
+        widget.child,
+        if (!_isOnline)
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: const _NoInternetScreen(),
+          ),
+      ],
+    );
   }
 }
 
