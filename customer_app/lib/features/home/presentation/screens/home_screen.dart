@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/api/module_api_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/home_provider.dart';
 import '../../data/models/home_models.dart';
@@ -281,15 +282,17 @@ class _SkeletonServiceCard extends StatelessWidget {
 
 // ─── Premium Service Card ─────────────────────────────────────────────────────
 
-class _PremiumServiceCard extends StatefulWidget {
+class _PremiumServiceCard extends ConsumerStatefulWidget {
   final ModuleModel module;
   const _PremiumServiceCard({required this.module});
 
   @override
-  State<_PremiumServiceCard> createState() => _PremiumServiceCardState();
+  ConsumerState<_PremiumServiceCard> createState() => _PremiumServiceCardState();
 }
 
-class _PremiumServiceCardState extends State<_PremiumServiceCard>
+final _modSvc = ModuleApiService.create();
+
+class _PremiumServiceCardState extends ConsumerState<_PremiumServiceCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _scale;
@@ -310,9 +313,29 @@ class _PremiumServiceCardState extends State<_PremiumServiceCard>
     super.dispose();
   }
 
+  void _prefetch(String slug) {
+    // Fire-and-forget: warm up cache before navigation starts
+    switch (slug) {
+      case 'efood':      _modSvc.getRestaurants().ignore(); _modSvc.getFoodBanners().ignore(); _modSvc.getFoodCategories().ignore(); break;
+      case 'erent':      _modSvc.getProperties().ignore(); _modSvc.getRentDistricts().ignore(); break;
+      case 'egrocery':   _modSvc.getGroceryCategories().ignore(); _modSvc.getGroceryProducts().ignore(); break;
+      case 'eticket':    _modSvc.getTicketHome().ignore(); _modSvc.getFlightCities().ignore(); break;
+      case 'edata':      _modSvc.getDataAll().ignore(); _modSvc.getDataProviders().ignore(); break;
+      case 'eshop':      _modSvc.getShopHome().ignore(); _modSvc.getShopBanners().ignore(); break;
+      case 'ehealth':    _modSvc.getHealthCategories().ignore(); _modSvc.getDoctors().ignore(); break;
+      case 'ewholesale': _modSvc.getWholesaleCategories().ignore(); break;
+      case 'eexchange':  _modSvc.getExchangeRates().ignore(); break;
+      case 'elaundry':   _modSvc.getLaundryItems().ignore(); break;
+      case 'emoving':    _modSvc.getMovingMoveTypes().ignore(); _modSvc.getMovingDistricts().ignore(); break;
+      case 'eparcel':    _modSvc.getParcelTypes().ignore(); _modSvc.getParcelDistricts().ignore(); break;
+      default: break;
+    }
+  }
+
   void _onDown(_) {
     setState(() => _pressed = true);
     _ctrl.forward();
+    _prefetch(widget.module.slug);
   }
 
   void _onUp(_) {

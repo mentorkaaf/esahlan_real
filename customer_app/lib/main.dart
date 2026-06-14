@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/api/http_cache_interceptor.dart';
 import 'core/router/app_router.dart';
 import 'core/services/firebase_service.dart';
 import 'core/theme/app_theme.dart';
@@ -31,6 +32,9 @@ void main() async {
   } catch (e) {
     debugPrint('[Firebase] Init error (non-fatal): $e');
   }
+
+  // ── HTTP Cache ──────────────────────────────────────────────────────────
+  await HttpCacheInterceptor.init();
 
   // ── UI ───────────────────────────────────────────────────────────────────
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
