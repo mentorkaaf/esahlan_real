@@ -55,6 +55,16 @@ use App\Http\Controllers\Api\Modules\ETicketController;
 // ─── Image proxy — serves storage files with CORS headers ────────────────────
 // Flutter Web (CanvasKit) needs CORS on images; static storage files bypass
 // Laravel middleware. This route proxies them through the API (which has CORS).
+// OPTIONS preflight for img/* (required by Flutter Web CanvasKit renderer)
+Route::options('img/{path}', function () {
+    return response('', 200, [
+        'Access-Control-Allow-Origin'  => '*',
+        'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+        'Access-Control-Allow-Headers' => 'Origin, Accept, Content-Type, Range',
+        'Access-Control-Max-Age'       => '86400',
+    ]);
+})->where('path', '.*');
+
 Route::get('img/{path}', function (\Illuminate\Http\Request $request, string $path) {
     $realPath = storage_path('app/public/' . $path);
     if (!file_exists($realPath) || is_dir($realPath)) {
