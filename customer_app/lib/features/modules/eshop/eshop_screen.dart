@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/network_image_widget.dart';
 import 'eshop_providers.dart';
 
 // ─────────────────────────────────────────────────────────────────
@@ -15,7 +16,7 @@ Widget _netImg(String? url, {BoxFit fit = BoxFit.cover, Widget? placeholder}) {
   if (url == null || url.isEmpty) {
     return placeholder ?? Container(color: AppColors.surface, child: const Icon(Icons.image_outlined, color: AppColors.divider, size: 40));
   }
-  return Image.network(url, fit: fit,
+  return Image.network(fixImgUrl(url), fit: fit,
       errorBuilder: (_, __, ___) => placeholder ?? Container(color: AppColors.surface, child: const Icon(Icons.image_outlined, color: AppColors.divider, size: 40)));
 }
 

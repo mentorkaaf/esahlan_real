@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import 'eshop_providers.dart';
 
@@ -152,7 +153,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                           },
                           itemBuilder: (_, i) => Container(
                             color: Colors.white,
-                            child: Image.network(allImages[i], fit: BoxFit.contain,
+                            child: Image.network(fixImgUrl(allImages[i]), fit: BoxFit.contain,
                               loadingBuilder: (_, child, progress) => progress == null ? child
                                   : Center(child: CircularProgressIndicator(
                                       value: progress.expectedTotalBytes != null

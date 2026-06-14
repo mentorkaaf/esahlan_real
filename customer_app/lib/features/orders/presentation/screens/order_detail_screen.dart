@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import '../providers/order_provider.dart';
 import '../../data/models/order_model.dart';
 
@@ -135,7 +136,7 @@ class _OrderDetailBody extends StatelessWidget {
                             borderRadius: BorderRadius.circular(10)),
                           child: item.imageUrl != null
                               ? ClipRRect(borderRadius: BorderRadius.circular(10),
-                                  child: Image.network(item.imageUrl!, fit: BoxFit.cover,
+                                  child: Image.network(fixImgUrl(item.imageUrl!), fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => const Icon(Icons.shopping_bag_outlined, size: 18, color: AppColors.textGrey)))
                               : const Icon(Icons.shopping_bag_outlined, size: 18, color: AppColors.textGrey),
                         ),

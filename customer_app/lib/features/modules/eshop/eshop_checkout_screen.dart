@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
@@ -179,7 +180,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: item.product['thumbnail'] != null
-                    ? Image.network(item.product['thumbnail'], width: 50, height: 50, fit: BoxFit.cover,
+                    ? Image.network(fixImgUrl(item.product['thumbnail']), width: 50, height: 50, fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Container(width: 50, height: 50, color: AppColors.surface))
                     : Container(width: 50, height: 50, color: AppColors.surface),
               ),

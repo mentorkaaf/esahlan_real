@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/module_widgets.dart';
 import '../../payment/waafi_pay_sheet.dart';
@@ -373,7 +374,7 @@ class _DoctorSectionState extends ConsumerState<_DoctorSection> {
                       width: 60, height: 60,
                       decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
                       child: doc['avatar'] != null
-                          ? ClipOval(child: Image.network(doc['avatar'], fit: BoxFit.cover))
+                          ? ClipOval(child: Image.network(fixImgUrl(doc['avatar']), fit: BoxFit.cover))
                           : const Icon(Icons.person_rounded, color: AppColors.primary, size: 30),
                     ),
                     const SizedBox(width: 12),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import 'eshop_providers.dart';
 
@@ -104,7 +105,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: p['thumbnail'] != null
-                            ? Image.network(p['thumbnail'], width: 72, height: 72, fit: BoxFit.cover,
+                            ? Image.network(fixImgUrl(p['thumbnail']), width: 72, height: 72, fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => Container(width: 72, height: 72, color: AppColors.surface, child: const Icon(Icons.image_outlined, color: AppColors.divider)))
                             : Container(width: 72, height: 72, color: AppColors.surface, child: const Icon(Icons.image_outlined, color: AppColors.divider)),
                       ),

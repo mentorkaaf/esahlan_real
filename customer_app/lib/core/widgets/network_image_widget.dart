@@ -2,6 +2,17 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+// On Flutter Web the CDN (hcdn) caches /api/img/* as static files and strips
+// CORS headers. /api/v1/* is treated as DYNAMIC so CORS headers pass through.
+// Rewrite image URLs on web to use the v1 path and bypass CDN caching.
+String fixImgUrl(String? url) {
+  if (url == null || url.isEmpty) return '';
+  if (!kIsWeb) return url;
+  return url.replaceFirst('/api/img/', '/api/v1/img/');
+}
+
+String _fixUrl(String url) => fixImgUrl(url);
+
 /// Cross-platform network image:
 /// - Web: uses Image.network (<img> tag, no CORS restriction)
 /// - Native: uses CachedNetworkImage (disk-cached, efficient)
@@ -36,10 +47,12 @@ class NetImage extends StatelessWidget {
 
     if (url == null || url!.isEmpty) return _wrap(fallback);
 
+    final resolvedUrl = _fixUrl(url!);
+
     Widget img;
     if (kIsWeb) {
       img = Image.network(
-        url!,
+        resolvedUrl,
         fit: fit,
         width: width,
         height: height,
@@ -49,7 +62,7 @@ class NetImage extends StatelessWidget {
       );
     } else {
       img = CachedNetworkImage(
-        imageUrl: url!,
+        imageUrl: resolvedUrl,
         fit: fit,
         width: width,
         height: height,

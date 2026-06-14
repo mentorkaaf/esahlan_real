@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../payment/waafi_pay_sheet.dart';
 
@@ -131,7 +132,7 @@ class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
                         ),
                         child: item['image'] != null
                             ? ClipRRect(borderRadius: BorderRadius.circular(12),
-                                child: Image.network(item['image'], fit: BoxFit.cover))
+                                child: Image.network(fixImgUrl(item['image']), fit: BoxFit.cover))
                             : const Icon(Icons.checkroom_outlined, color: AppColors.primary, size: 28),
                       ),
                       const SizedBox(width: 12),

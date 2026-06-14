@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 
 final _svc = ModuleApiService.create();
@@ -93,7 +94,7 @@ class _EWholesaleScreenState extends ConsumerState<EWholesaleScreen> {
                       // Image
                       ClipRRect(borderRadius: const BorderRadius.horizontal(left: Radius.circular(14)),
                         child: p['image'] != null
-                            ? Image.network(p['image'], width: 110, height: 110, fit: BoxFit.cover,
+                            ? Image.network(fixImgUrl(p['image']), width: 110, height: 110, fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => Container(width: 110, height: 110, color: AppColors.surface, child: const Icon(Icons.inventory_2_outlined, size: 40, color: AppColors.divider)))
                             : Container(width: 110, height: 110, color: AppColors.surface, child: const Icon(Icons.inventory_2_outlined, size: 40, color: AppColors.divider)),
                       ),

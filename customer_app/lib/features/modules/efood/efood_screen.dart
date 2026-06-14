@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/module_api_service.dart';
+import '../../../core/widgets/network_image_widget.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../../features/wallet/presentation/providers/wallet_provider.dart';
@@ -478,7 +479,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 8)],
                       ),
                       child: c['image'] != null
-                          ? ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.network(c['image'], fit: BoxFit.cover))
+                          ? ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.network(fixImgUrl(c['image']), fit: BoxFit.cover))
                           : const Center(child: Icon(Icons.fastfood_rounded, color: _primary, size: 24)),
                     ),
                     const SizedBox(height: 6),
@@ -914,7 +915,7 @@ class _RestaurantDetailPageState extends ConsumerState<_RestaurantDetailPage> wi
       );
     }
     return Image.network(
-      u,
+      fixImgUrl(u),
       fit: BoxFit.cover,
       errorBuilder: (_, __, ___) => Container(
         color: _primary.withValues(alpha: 0.2),
@@ -1466,7 +1467,7 @@ class _NetImg extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: Image.network(
-        u,
+        fixImgUrl(u),
         width: width == double.infinity ? null : width,
         height: height,
         fit: BoxFit.cover,
@@ -1909,7 +1910,7 @@ class _FoodItemDetailPageState extends ConsumerState<_FoodItemDetailPage> {
               final url = (p['thumbnail'] ?? p['image'])?.toString().trim() ?? '';
               final valid = url.isNotEmpty && (url.startsWith('http://') || url.startsWith('https://'));
               return valid
-                  ? Image.network(url, fit: BoxFit.cover,
+                  ? Image.network(fixImgUrl(url), fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(color: _primary.withValues(alpha: 0.2),
                           child: const Center(child: Text('🍕', style: TextStyle(fontSize: 100)))))
                   : Container(color: _primary.withValues(alpha: 0.2),
@@ -2197,7 +2198,7 @@ class _CartItemTile extends ConsumerWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(10),
           child: p['image'] != null
-              ? Image.network(p['image'], width: 70, height: 70, fit: BoxFit.cover)
+              ? Image.network(fixImgUrl(p['image']), width: 70, height: 70, fit: BoxFit.cover)
               : Container(width: 70, height: 70, color: _primary.withValues(alpha: 0.1), child: const Center(child: Text('🍕', style: TextStyle(fontSize: 30)))),
         ),
         const SizedBox(width: 12),

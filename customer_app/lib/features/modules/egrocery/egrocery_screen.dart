@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 
 final _svc = ModuleApiService.create();
@@ -150,7 +151,7 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Expanded(child: ClipRRect(borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                       child: p['image'] != null
-                          ? Image.network(p['image'], fit: BoxFit.cover, width: double.infinity, height: double.infinity,
+                          ? Image.network(fixImgUrl(p['image']), fit: BoxFit.cover, width: double.infinity, height: double.infinity,
                               errorBuilder: (_, __, ___) => Container(color: AppColors.surface, child: const Icon(Icons.local_grocery_store_outlined, size: 40, color: AppColors.divider)))
                           : Container(color: AppColors.surface, child: const Icon(Icons.local_grocery_store_outlined, size: 40, color: AppColors.divider)),
                     )),
