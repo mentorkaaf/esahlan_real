@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import '../../../../core/api/module_api_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../payment/waafi_pay_sheet.dart';
 import '../providers/wallet_provider.dart';
+import '../../../../shared/widgets/wallet_pin_dialog.dart';
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -17,16 +19,26 @@ class WalletScreen extends ConsumerStatefulWidget {
 }
 
 class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
-  int _tab = 0; // 0=all, 1=credit, 2=debit
+  int _tab = 0;
+  bool _pinVerified = false;
   final _scrollCtrl = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    // Always fetch fresh wallet data on open
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPin());
+  }
+
+  Future<void> _checkPin() async {
+    final ok = await showWalletPinDialog(context);
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _pinVerified = true);
       ref.invalidate(walletProvider);
-    });
+    } else {
+      // User cancelled PIN — go back
+      Navigator.of(context).maybePop();
+    }
   }
 
   @override
@@ -36,17 +48,27 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
   }
 
   void _scrollToTransactions() {
-    // Scroll past the appbar + actions + stats to reach the transaction list
-    _scrollCtrl.animateTo(
-      360,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOut,
-    );
+    _scrollCtrl.animateTo(360, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+  }
+
+  /// Extracts a readable message from DioException or any other error
+  String _errorMsg(dynamic e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map) {
+        return data['message']?.toString() ?? data['error']?.toString() ?? 'Request failed';
+      }
+    }
+    return e.toString();
   }
 
   @override
   Widget build(BuildContext context) {
     final walletAsync = ref.watch(walletProvider);
+
+    if (!_pinVerified) {
+      return const Scaffold(backgroundColor: AppColors.background, body: SizedBox.shrink());
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -144,8 +166,14 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
       child: Row(
         children: [
           _ActionBtn(icon: Icons.add_circle_rounded,    label: 'Top Up',   color: AppColors.primary,    onTap: () => _showTopUp(context)),
-          _ActionBtn(icon: Icons.send_rounded,          label: 'Send',     color: const Color(0xFF7B1FA2), onTap: () => _showSend(context, wallet.balance)),
-          _ActionBtn(icon: Icons.arrow_circle_up_rounded, label: 'Withdraw', color: const Color(0xFFC62828), onTap: () => _showWithdraw(context, wallet.balance)),
+          _ActionBtn(icon: Icons.send_rounded,          label: 'Send',     color: const Color(0xFF7B1FA2), onTap: () async {
+            final ok = await showWalletPinDialog(context);
+            if (ok && mounted) _showSend(context, wallet.balance);
+          }),
+          _ActionBtn(icon: Icons.arrow_circle_up_rounded, label: 'Withdraw', color: const Color(0xFFC62828), onTap: () async {
+            final ok = await showWalletPinDialog(context);
+            if (ok && mounted) _showWithdraw(context, wallet.balance);
+          }),
           _ActionBtn(icon: Icons.history_rounded,       label: 'History',  color: const Color(0xFF00695C), onTap: () { setState(() => _tab = 0); _scrollToTransactions(); }),
         ],
       ),
@@ -398,7 +426,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                   setModal(() { loading = true; error = null; });
                   try {
                     final svc = ModuleApiService.create();
-                    final res = await svc.walletSend({'phone': phone, 'amount': amount});
+                    // Include country code so backend finds the user (stored as +252XXXXXXXXX)
+                    final fullPhone = '252$phone';
+                    final res = await svc.walletSend({'phone': fullPhone, 'amount': amount});
                     if (res['success'] == true) {
                       Navigator.pop(ctx);
                       ref.refresh(walletProvider);
@@ -409,7 +439,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                       setModal(() { loading = false; error = res['message'] ?? 'Transfer failed'; });
                     }
                   } catch (e) {
-                    setModal(() { loading = false; error = e.toString(); });
+                    setModal(() { loading = false; error = _errorMsg(e); });
                   }
                 },
                 icon: loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.send_rounded),
@@ -550,7 +580,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                         setModal(() { loading = false; error = res['message'] ?? 'Withdrawal failed'; });
                       }
                     } catch (e) {
-                      setModal(() { loading = false; error = e.toString(); });
+                      setModal(() { loading = false; error = _errorMsg(e); });
                     }
                   },
                   icon: loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.arrow_circle_up_rounded),

@@ -271,6 +271,7 @@ class WalletController extends Controller
             $wallet->debit($amount, 'Withdrawal request - pending admin approval');
 
             DB::table('withdrawal_requests')->insert([
+                'wallet_id'      => $wallet->id,
                 'owner_type'     => 'App\\Models\\User',
                 'owner_id'       => $user->id,
                 'amount'         => $amount,
