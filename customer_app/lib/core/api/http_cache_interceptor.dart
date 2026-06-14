@@ -7,8 +7,21 @@ class HttpCacheInterceptor extends Interceptor {
   static final Map<String, int> _memTs = {};
   static SharedPreferences? _prefs;
   static const _p = 'hc_';
-  static const _memTtl = 600000; // 10 min in ms
-  static const _diskTtl = 3600000; // 1 hour in ms
+  static const _memTtl = 600000;   // 10 min default
+  static const _diskTtl = 3600000; // 1 hour default
+
+  // Endpoints that must never be cached — vendor/restaurant lists change
+  // immediately when admin adds, approves, or deletes a vendor.
+  static const _noCachePatterns = [
+    'efood/restaurants',
+    'vendors',
+    'egrocery',
+    'ewholesale',
+  ];
+
+  static bool _shouldSkipCache(String url) {
+    return _noCachePatterns.any((p) => url.contains(p));
+  }
 
   static Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -28,9 +41,15 @@ class HttpCacheInterceptor extends Interceptor {
     }
 
     final key = options.uri.toString();
+
+    // Skip cache entirely for vendor/restaurant list endpoints
+    if (_shouldSkipCache(key)) {
+      return handler.next(options);
+    }
+
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    // 1. Memory cache (fastest)
+    // 1. Memory cache
     final memData = _mem[key];
     final memAge = now - (_memTs[key] ?? 0);
     if (memData != null && memAge < _memTtl) {
@@ -58,10 +77,14 @@ class HttpCacheInterceptor extends Interceptor {
   void onResponse(Response response, ResponseInterceptorHandler handler) {
     if (response.requestOptions.method == 'GET' && response.statusCode == 200) {
       final key = response.requestOptions.uri.toString();
-      final now = DateTime.now().millisecondsSinceEpoch;
-      _mem[key] = response.data;
-      _memTs[key] = now;
-      _persistAsync(key, response.data, now);
+
+      // Don't cache vendor/restaurant lists
+      if (!_shouldSkipCache(key)) {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        _mem[key] = response.data;
+        _memTs[key] = now;
+        _persistAsync(key, response.data, now);
+      }
     }
     handler.next(response);
   }

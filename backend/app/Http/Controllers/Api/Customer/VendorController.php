@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\Customer;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ProductResource;
+use App\Http\Resources\VendorResource;
 use App\Models\Vendor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -25,7 +27,7 @@ class VendorController extends Controller
 
         $vendors = $query->with('module')->paginate(20);
 
-        return response()->json(['success' => true, 'data' => $vendors]);
+        return response()->json(['success' => true, 'data' => VendorResource::collection($vendors)]);
     }
 
     public function show(Vendor $vendor)
@@ -36,7 +38,7 @@ class VendorController extends Controller
 
         $vendor->load(['module', 'schedules', 'district']);
 
-        return response()->json(['success' => true, 'data' => $vendor]);
+        return response()->json(['success' => true, 'data' => new VendorResource($vendor)]);
     }
 
     public function products(Request $request, Vendor $vendor)
@@ -47,7 +49,7 @@ class VendorController extends Controller
             ->when($request->category_id, fn($q) => $q->where('category_id', $request->category_id))
             ->paginate(20);
 
-        return response()->json(['success' => true, 'data' => $products]);
+        return response()->json(['success' => true, 'data' => ProductResource::collection($products)]);
     }
 
     public function reviews(Request $request, Vendor $vendor)

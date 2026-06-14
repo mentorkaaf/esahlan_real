@@ -59,6 +59,7 @@ class EFoodController extends Controller
         $query = DB::table('vendors')
             ->where('vendors.module_id', $module->id)
             ->where('vendors.is_active', true)
+            ->where('vendors.is_approved', true)
             ->whereNull('vendors.deleted_at')
             ->select([
                 'vendors.id', 'vendors.name', 'vendors.logo', 'vendors.cover_image',
@@ -123,7 +124,20 @@ class EFoodController extends Controller
                     }
                 }
 
+                // Pre-load vendor_schedules for all vendors in one query
+                $scheduleMap = [];
+                $scheduleRows = DB::table('vendor_schedules')
+                    ->whereIn('vendor_id', $vendorIds)
+                    ->get();
+                foreach ($scheduleRows as $s) {
+                    $scheduleMap[$s->vendor_id][$s->day] = $s;
+                }
+
                 foreach ($items as &$r) {
+                    // Fix image URLs — convert relative paths to full storage URLs
+                    $r->logo        = $this->resolveImageUrl($r->logo);
+                    $r->cover_image = $this->resolveImageUrl($r->cover_image);
+
                     $c = $campaignMap[$r->id] ?? null;
                     if ($c) {
                         $label = $c->discount_type === 'percentage'
@@ -136,13 +150,18 @@ class EFoodController extends Controller
                         $r->campaign_badge_color = null;
                     }
 
-                    // Compute real-time is_open from working_hours schedule
-                    if (!empty($r->working_hours)) {
-                        $r->is_open = WorkingHours::isOpen($r->working_hours, (bool)$r->is_open);
-                    }
                     // Temporarily closed overrides everything
                     if (!empty($r->temporarily_closed)) {
                         $r->is_open = false;
+                    } elseif ((bool)$r->is_open) {
+                        // Use vendor_schedules table (new vendors), fall back to working_hours JSON (old vendors)
+                        $vendorSchedules = $scheduleMap[$r->id] ?? [];
+                        if (!empty($vendorSchedules)) {
+                            $r->is_open = $this->isOpenFromSchedules($vendorSchedules);
+                        } elseif (!empty($r->working_hours)) {
+                            $r->is_open = WorkingHours::isOpen($r->working_hours, true);
+                        }
+                        // else: no schedule at all = open 24/7 (keep is_open = true)
                     }
                     // Strip working_hours JSON from response (not needed by app)
                     unset($r->working_hours);
@@ -179,12 +198,22 @@ class EFoodController extends Controller
             return response()->json(['success' => false, 'message' => 'Restaurant not found'], 404);
         }
 
-        // Compute real-time open status from working_hours
-        if (!empty($vendor->working_hours)) {
-            $vendor->is_open = WorkingHours::isOpen($vendor->working_hours, (bool)$vendor->is_open);
-        }
+        // Fix image URLs
+        $vendor->logo        = $this->resolveImageUrl($vendor->logo);
+        $vendor->cover_image = $this->resolveImageUrl($vendor->cover_image);
+
+        // Compute real-time open status — prefer vendor_schedules, fall back to working_hours JSON
         if (!empty($vendor->temporarily_closed)) {
             $vendor->is_open = false;
+        } elseif ((bool)$vendor->is_open) {
+            $scheduleRows = DB::table('vendor_schedules')->where('vendor_id', $id)->get();
+            if ($scheduleRows->isNotEmpty()) {
+                $scheduleMap = [];
+                foreach ($scheduleRows as $s) { $scheduleMap[$s->day] = $s; }
+                $vendor->is_open = $this->isOpenFromSchedules($scheduleMap);
+            } elseif (!empty($vendor->working_hours)) {
+                $vendor->is_open = WorkingHours::isOpen($vendor->working_hours, true);
+            }
         }
 
         // Schedule
@@ -309,7 +338,11 @@ class EFoodController extends Controller
                 $p->available_until ?? null
             );
 
+            $thumbUrl = $this->resolveImageUrl($p->thumbnail ?? $p->image ?? null);
             return array_merge((array)$p, [
+                'thumbnail'        => $thumbUrl,
+                'image'            => $thumbUrl,
+                'image_url'        => $thumbUrl,
                 'addons'           => $addons,
                 'variants'         => $variants,
                 'is_time_available'=> $isTimeAvailable,
@@ -616,6 +649,29 @@ class EFoodController extends Controller
             ->get(['id', 'name', 'image', 'slug']);
 
         return response()->json(['success' => true, 'data' => $categories]);
+    }
+
+    // ── Convert relative image path to full URL ───────────────────────
+    private function resolveImageUrl(?string $path): ?string
+    {
+        if (!$path) return null;
+        if (str_starts_with($path, 'http')) return $path;
+        return asset('storage/' . $path);
+    }
+
+    // ── Compute is_open from vendor_schedules rows ────────────────────
+    // $scheduleMap: day => schedule_row
+    private function isOpenFromSchedules(array $scheduleMap): bool
+    {
+        // No active days configured = open 24/7
+        $hasActiveDays = collect($scheduleMap)->contains(fn($s) => (bool)$s->is_open);
+        if (!$hasActiveDays) return true;
+
+        $todaySchedule = $scheduleMap[now()->dayOfWeek] ?? null;
+        if (!$todaySchedule || !(bool)$todaySchedule->is_open) return false;
+
+        $now = now()->format('H:i:s');
+        return $now >= $todaySchedule->open_time && $now <= $todaySchedule->close_time;
     }
 
     // ── Resolve user ID from Bearer token (routes are public, no auth middleware) ─

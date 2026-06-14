@@ -134,7 +134,7 @@
                     <td><strong>#{{ $order->order_number }}</strong></td>
                     <td>{{ $order->user?->name ?? '—' }}</td>
                     <td>{{ $order->items->count() }} items</td>
-                    <td><strong>${{ number_format($order->total, 2) }}</strong></td>
+                    <td><strong>${{ number_format($order->total_amount, 2) }}</strong></td>
                     <td>
                         @php
                         $cls = match($order->status) {

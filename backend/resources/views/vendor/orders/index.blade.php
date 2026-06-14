@@ -52,7 +52,7 @@
                     <td><a href="{{ route('vendor.orders.show',$order) }}" style="font-weight:700;color:var(--brand);text-decoration:none;">#{{ $order->order_number }}</a></td>
                     <td>{{ $order->user?->name ?? '—' }}</td>
                     <td>{{ $order->items->count() }}</td>
-                    <td><strong>${{ number_format($order->total,2) }}</strong></td>
+                    <td><strong>${{ number_format($order->total_amount,2) }}</strong></td>
                     <td><span class="badge badge-neutral">{{ $order->payment_method ?? '—' }}</span></td>
                     <td>
                         @php

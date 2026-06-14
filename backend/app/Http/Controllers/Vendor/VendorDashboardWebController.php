@@ -15,12 +15,12 @@ class VendorDashboardWebController extends Controller
         $stats = [
             'today_orders'   => Order::where('vendor_id', $vendor->id)->whereDate('created_at', $today)->count(),
             'today_revenue'  => Order::where('vendor_id', $vendor->id)->whereDate('created_at', $today)
-                ->where('status', '!=', 'cancelled')->sum('total'),
+                ->where('status', '!=', 'cancelled')->sum('total_amount'),
             'pending_orders' => Order::where('vendor_id', $vendor->id)->where('status', 'pending')->count(),
             'total_orders'   => Order::where('vendor_id', $vendor->id)->count(),
             'this_month'     => Order::where('vendor_id', $vendor->id)
                 ->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)
-                ->where('status', '!=', 'cancelled')->sum('total'),
+                ->where('status', '!=', 'cancelled')->sum('total_amount'),
             'rating'         => round($vendor->rating ?? 0, 1),
             'total_reviews'  => $vendor->review_count ?? 0,
         ];
@@ -34,7 +34,7 @@ class VendorDashboardWebController extends Controller
         $chartData = Order::where('vendor_id', $vendor->id)
             ->where('status', '!=', 'cancelled')
             ->whereDate('created_at', '>=', now()->subDays(7))
-            ->selectRaw('DATE(created_at) as date, COUNT(*) as orders, SUM(total) as revenue')
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as orders, SUM(total_amount) as revenue')
             ->groupBy(DB::raw('DATE(created_at)'))
             ->orderBy('date')
             ->get();

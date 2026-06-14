@@ -86,7 +86,7 @@ class VendorRegisterController extends Controller
                 'status'      => 'pending',
                 'is_approved' => false,
                 'is_active'   => false,
-                'is_open'     => false,
+                'is_open'     => true,
             ]);
         });
 

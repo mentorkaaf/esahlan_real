@@ -48,10 +48,11 @@ class VendorProductWebController extends Controller
             'is_available'   => 'boolean',
         ]);
 
-        $data['vendor_id'] = $vendor->id;
-        $data['module_id'] = $vendor->module_id;
-        $data['slug']      = Str::slug($data['name']) . '-' . Str::random(5);
-        $data['is_available'] = $request->boolean('is_available', true);
+        $data['vendor_id']      = $vendor->id;
+        $data['module_id']      = $vendor->module_id;
+        $data['slug']           = Str::slug($data['name']) . '-' . Str::random(5);
+        $data['is_available']   = $request->boolean('is_available', true);
+        $data['stock_quantity'] = (int) ($data['stock_quantity'] ?? 0);
 
         if ($request->hasFile('thumbnail')) {
             $data['thumbnail'] = $request->file('thumbnail')->store('products', 'public');
@@ -85,7 +86,8 @@ class VendorProductWebController extends Controller
             'is_available'   => 'boolean',
         ]);
 
-        $data['is_available'] = $request->boolean('is_available');
+        $data['is_available']   = $request->boolean('is_available');
+        $data['stock_quantity'] = (int) ($data['stock_quantity'] ?? 0);
 
         if ($request->hasFile('thumbnail')) {
             $data['thumbnail'] = $request->file('thumbnail')->store('products', 'public');

@@ -58,7 +58,7 @@
             </div>
             <div class="card-footer">
                 <div style="display:flex;flex-direction:column;gap:6px;max-width:280px;margin-left:auto;">
-                    <div style="display:flex;justify-content:space-between;font-size:13px;"><span style="color:var(--text-muted);">Subtotal</span><span>${{ number_format($order->subtotal ?? $order->total,2) }}</span></div>
+                    <div style="display:flex;justify-content:space-between;font-size:13px;"><span style="color:var(--text-muted);">Subtotal</span><span>${{ number_format($order->subtotal ?? $order->total_amount ?? 0,2) }}</span></div>
                     @if(($order->delivery_fee ?? 0) > 0)
                     <div style="display:flex;justify-content:space-between;font-size:13px;"><span style="color:var(--text-muted);">Delivery Fee</span><span>${{ number_format($order->delivery_fee,2) }}</span></div>
                     @endif
@@ -66,7 +66,7 @@
                     <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--success);"><span>Discount</span><span>-${{ number_format($order->discount_amount,2) }}</span></div>
                     @endif
                     <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;border-top:1px solid var(--border);padding-top:8px;margin-top:4px;">
-                        <span>Total</span><span style="color:var(--brand);">${{ number_format($order->total,2) }}</span>
+                        <span>Total</span><span style="color:var(--brand);">${{ number_format($order->total_amount,2) }}</span>
                     </div>
                 </div>
             </div>
