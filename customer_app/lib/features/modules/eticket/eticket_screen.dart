@@ -1245,7 +1245,7 @@ class _AirlineLogo extends StatelessWidget {
     child: logo != null && logo!.startsWith('http')
         ? NetImage(url: logo!,
             fit: BoxFit.contain,
-            errorWidget: (_, __, ___) => _fallback(name, color))
+            errorWidget: _fallback(name, color))
         : _fallback(name, color),
   );
 
