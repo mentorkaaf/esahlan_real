@@ -253,7 +253,7 @@ class WalletController extends Controller
     {
         $v = Validator::make($request->all(), [
             'amount'         => 'required|numeric|min:1',
-            'payment_method' => 'required|in:waafi,evc,bank',
+            'payment_method' => 'required|in:waafi,evc,others',
             'account_number' => 'required|string',
             'account_name'   => 'required|string',
         ]);
@@ -275,6 +275,7 @@ class WalletController extends Controller
                 'owner_type'     => 'App\\Models\\User',
                 'owner_id'       => $user->id,
                 'amount'         => $amount,
+                'method'         => $request->payment_method,
                 'payment_method' => $request->payment_method,
                 'account_number' => $request->account_number,
                 'account_name'   => $request->account_name,

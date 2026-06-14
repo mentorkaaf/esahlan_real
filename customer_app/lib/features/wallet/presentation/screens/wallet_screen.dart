@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../payment/waafi_pay_sheet.dart';
 import '../providers/wallet_provider.dart';
 import '../../../../shared/widgets/wallet_pin_dialog.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -460,10 +461,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
   // ─── Withdraw sheet ───────────────────────────────────────────────────────
 
   void _showWithdraw(BuildContext context, double currentBalance) {
+    // Auto-fill from logged-in user profile
+    final user = ref.read(authStateProvider).value;
     final amtCtrl     = TextEditingController();
-    final accountCtrl = TextEditingController();
-    final nameCtrl    = TextEditingController();
-    // Backend accepts: waafi, evc, bank
+    final accountCtrl = TextEditingController(text: user?.phone ?? '');
+    final nameCtrl    = TextEditingController(text: user?.name ?? '');
+    // Backend accepts: waafi, evc, others
     String method = 'evc';
     bool loading = false;
     String? error;
@@ -474,6 +477,18 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setModal) {
+        // When switching to "others", clear auto-filled fields so user can type freely
+        void switchMethod(String m) {
+          setModal(() => method = m);
+          if (m == 'others') {
+            nameCtrl.clear();
+            accountCtrl.clear();
+          } else {
+            nameCtrl.text = user?.name ?? '';
+            accountCtrl.text = user?.phone ?? '';
+          }
+        }
+
         return SingleChildScrollView(
           child: Container(
             decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -489,14 +504,14 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  {'key': 'evc',   'label': 'EVC Plus'},
-                  {'key': 'waafi', 'label': 'Waafi'},
-                  {'key': 'bank',  'label': 'Bank'},
+                  {'key': 'evc',    'label': 'EVC Plus'},
+                  {'key': 'waafi',  'label': 'Waafi'},
+                  {'key': 'others', 'label': 'Others'},
                 ].map((m) => Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 3),
                     child: GestureDetector(
-                      onTap: () => setModal(() => method = m['key']!),
+                      onTap: () => switchMethod(m['key']!),
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
@@ -509,12 +524,27 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                   ),
                 )).toList(),
               ),
+              if (method != 'others') ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.06), borderRadius: BorderRadius.circular(10)),
+                  child: Row(children: [
+                    const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Flexible(child: Text('Auto-filled from your registered account', style: TextStyle(fontSize: 12, color: AppColors.primary.withOpacity(0.8)))),
+                  ]),
+                ),
+              ],
               const SizedBox(height: 12),
               TextField(
                 controller: nameCtrl,
+                readOnly: method != 'others',
                 decoration: InputDecoration(
                   labelText: 'Account Name',
                   prefixIcon: const Icon(Icons.person_rounded, color: AppColors.primary),
+                  filled: method != 'others',
+                  fillColor: method != 'others' ? Colors.grey.shade50 : null,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
                 ),
@@ -523,9 +553,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
               TextField(
                 controller: accountCtrl,
                 keyboardType: TextInputType.phone,
+                readOnly: method != 'others',
                 decoration: InputDecoration(
                   labelText: 'Account Number / Phone',
                   prefixIcon: const Icon(Icons.phone_rounded, color: AppColors.primary),
+                  filled: method != 'others',
+                  fillColor: method != 'others' ? Colors.grey.shade50 : null,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
                 ),
