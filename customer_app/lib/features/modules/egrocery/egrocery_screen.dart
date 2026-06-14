@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -6,8 +6,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_button.dart';
 
 final _svc = ModuleApiService.create();
-final _groceryCategoriesProvider = FutureProvider.autoDispose((_) => _svc.getGroceryCategories());
-final _groceryProductsProvider   = FutureProvider.autoDispose.family<dynamic, Map?>((_, p) =>
+final _groceryCategoriesProvider = FutureProvider((_) => _svc.getGroceryCategories());
+final _groceryProductsProvider   = FutureProvider.family<dynamic, Map?>((_, p) =>
     _svc.getGroceryProducts(categoryId: p?['category_id'], search: p?['search']));
 
 class EGroceryScreen extends ConsumerStatefulWidget {

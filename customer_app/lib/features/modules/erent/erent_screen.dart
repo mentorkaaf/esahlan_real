@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'web_video_helper.dart' as webvideo;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -27,10 +27,10 @@ const _kMuted  = Color(0xFF8A8A9A);
 // Providers
 // ─────────────────────────────────────────────────────────────────────────────
 final _svc = ModuleApiService.create();
-final _districtsProvider = FutureProvider.autoDispose((_) => _svc.getRentDistricts());
+final _districtsProvider = FutureProvider((_) => _svc.getRentDistricts());
 // Key is a JSON-encoded string so Riverpod equality works correctly
 // (Maps don't implement == by value, causing infinite provider misses)
-final _propertiesProvider = FutureProvider.autoDispose.family<dynamic, String>(
+final _propertiesProvider = FutureProvider.family<dynamic, String>(
   (_, key) {
     final p = jsonDecode(key) as Map<String, dynamic>;
     return _svc.getProperties(
@@ -42,10 +42,10 @@ final _propertiesProvider = FutureProvider.autoDispose.family<dynamic, String>(
     );
   },
 );
-final _propertyProvider = FutureProvider.autoDispose.family<dynamic, int>(
+final _propertyProvider = FutureProvider.family<dynamic, int>(
   (_, id) => _svc.getProperty(id),
 );
-final _myBookingsProvider = FutureProvider.autoDispose((_) => _svc.getRentMyBookings());
+final _myBookingsProvider = FutureProvider((_) => _svc.getRentMyBookings());
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen

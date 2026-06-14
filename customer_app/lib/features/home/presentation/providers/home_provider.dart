@@ -5,10 +5,12 @@ import '../../data/repositories/home_repository.dart';
 final homeRepositoryProvider = Provider<HomeRepository>((ref) => HomeRepository());
 
 final modulesProvider = FutureProvider<List<ModuleModel>>((ref) {
+  ref.keepAlive();
   return ref.read(homeRepositoryProvider).getModules();
 });
 
 final homeDataProvider = FutureProvider<Map<String, dynamic>>((ref) {
+  ref.keepAlive();
   return ref.read(homeRepositoryProvider).getHomeData();
 });
 
@@ -18,9 +20,8 @@ final bannersProvider = FutureProvider<List<BannerModel>>((ref) async {
   return list.map((e) => BannerModel.fromJson(e)).toList();
 });
 
-/// Public banner provider — uses GET /api/banners (no auth needed).
-/// Used by home screen hero slider so it works even before full home data loads.
-final homeBannersProvider = FutureProvider.autoDispose<List<BannerModel>>((ref) {
+final homeBannersProvider = FutureProvider<List<BannerModel>>((ref) {
+  ref.keepAlive();
   return ref.read(homeRepositoryProvider).getHomeBanners();
 });
 
@@ -36,17 +37,17 @@ final popularProductsProvider = FutureProvider<List<ProductModel>>((ref) async {
   return list.map((e) => ProductModel.fromJson(e)).toList();
 });
 
-// Vendors by module
 final vendorsByModuleProvider = FutureProvider.family<List<VendorModel>, String>((ref, slug) {
+  ref.keepAlive();
   return ref.read(homeRepositoryProvider).getVendorsByModule(slug);
 });
 
-// Single vendor
 final vendorProvider = FutureProvider.family<VendorModel, int>((ref, id) {
+  ref.keepAlive();
   return ref.read(homeRepositoryProvider).getVendor(id);
 });
 
-// Vendor products
 final vendorProductsProvider = FutureProvider.family<List<ProductModel>, int>((ref, vendorId) {
+  ref.keepAlive();
   return ref.read(homeRepositoryProvider).getVendorProducts(vendorId);
 });

@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart';
+﻿import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +11,7 @@ import '../../payment/waafi_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 
 final _svc = ModuleApiService.create();
-final _exchangeRatesProvider = FutureProvider.autoDispose((_) => _svc.getExchangeRates());
+final _exchangeRatesProvider = FutureProvider((_) => _svc.getExchangeRates());
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

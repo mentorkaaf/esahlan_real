@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -7,7 +7,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../payment/waafi_pay_sheet.dart';
 
 final _svc = ModuleApiService.create();
-final _laundryItemsProvider = FutureProvider.autoDispose((_) => _svc.getLaundryItems());
+final _laundryItemsProvider = FutureProvider((_) => _svc.getLaundryItems());
 
 class ELaundryScreen extends ConsumerStatefulWidget {
   const ELaundryScreen({super.key});

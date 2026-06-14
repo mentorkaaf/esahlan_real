@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -25,10 +25,10 @@ const _kDivider= Color(0xFFF0F1F5);
 // Providers
 // ─────────────────────────────────────────────────────────────────────────────
 final _svc = ModuleApiService.create();
-final _providersProvider  = FutureProvider.autoDispose((_) => _svc.getDataProviders());
-final _historyProvider    = FutureProvider.autoDispose((_) => _svc.getDataHistory());
-final _packagesProvider   = FutureProvider.autoDispose.family<dynamic,int>((_, id) => _svc.getDataPackages(id));
-final _pkgBundlesProvider = FutureProvider.autoDispose.family<dynamic,int>((_, id) => _svc.getDataPackageBundles(id));
+final _providersProvider  = FutureProvider((_) => _svc.getDataProviders());
+final _historyProvider    = FutureProvider((_) => _svc.getDataHistory());
+final _packagesProvider   = FutureProvider.family<dynamic,int>((_, id) => _svc.getDataPackages(id));
+final _pkgBundlesProvider = FutureProvider.family<dynamic,int>((_, id) => _svc.getDataPackageBundles(id));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN SCREEN

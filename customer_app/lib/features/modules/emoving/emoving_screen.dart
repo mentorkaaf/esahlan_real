@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:intl/intl.dart';
@@ -27,12 +27,12 @@ final _svc = ModuleApiService.create();
 // PROVIDERS
 // ═══════════════════════════════════════════════════════════════════════════
 
-final _moveTypesProvider      = FutureProvider.autoDispose((_) => _svc.getMovingMoveTypes());
-final _districtsProvider      = FutureProvider.autoDispose((_) => _svc.getMovingDistricts());
-final _extraServicesProvider  = FutureProvider.autoDispose((_) => _svc.getMovingExtraServices());
-final _myOrdersProvider       = FutureProvider.autoDispose((_) => _svc.getMovingMyOrders());
+final _moveTypesProvider      = FutureProvider((_) => _svc.getMovingMoveTypes());
+final _districtsProvider      = FutureProvider((_) => _svc.getMovingDistricts());
+final _extraServicesProvider  = FutureProvider((_) => _svc.getMovingExtraServices());
+final _myOrdersProvider       = FutureProvider((_) => _svc.getMovingMyOrders());
 
-final _packagesProvider = FutureProvider.autoDispose
+final _packagesProvider = FutureProvider
     .family<dynamic, String>((_, type) => _svc.getMovingPackages(type));
 
 // ═══════════════════════════════════════════════════════════════════════════

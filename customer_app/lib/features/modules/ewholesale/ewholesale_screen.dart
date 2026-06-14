@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -6,8 +6,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_button.dart';
 
 final _svc = ModuleApiService.create();
-final _wholesaleCategoriesProvider = FutureProvider.autoDispose((_) => _svc.getWholesaleCategories());
-final _wholesaleProductsProvider   = FutureProvider.autoDispose.family<dynamic, Map>((_, p) =>
+final _wholesaleCategoriesProvider = FutureProvider((_) => _svc.getWholesaleCategories());
+final _wholesaleProductsProvider   = FutureProvider.family<dynamic, Map>((_, p) =>
     _svc.getWholesaleProducts(categoryId: p['category_id'], search: p['search']));
 
 class EWholesaleScreen extends ConsumerStatefulWidget {

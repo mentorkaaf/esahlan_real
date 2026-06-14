@@ -1,8 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import '../../../../core/widgets/app_shimmer.dart';
 import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../../data/models/community_models.dart';
@@ -188,11 +189,9 @@ class _FeedTab extends ConsumerWidget {
                 ],
               );
             },
-            loading: () => const Center(
-              child: Padding(
-                padding: EdgeInsets.all(40),
-                child: CircularProgressIndicator(color: kOrange),
-              ),
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: ShimmerPostList(count: 3),
             ),
             error: (e, _) => Center(
               child: Padding(
@@ -222,7 +221,7 @@ class _TrendingTab extends ConsumerWidget {
             children: posts.map((p) => _PostCard(post: p, onDelete: () {})).toList(),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
+        loading: () => const Padding(padding: EdgeInsets.all(16), child: ShimmerPostList(count: 3)),
         error: (e, _) => const _EmptyTab(message: 'No trending posts yet', icon: Icons.trending_up_rounded),
       ),
     );
@@ -636,7 +635,7 @@ class _BusinessesTab extends ConsumerWidget {
     final async = ref.watch(efoodRestaurantsProvider);
 
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
+      loading: () => const Padding(padding: EdgeInsets.all(16), child: ShimmerPostList(count: 3)),
       error: (_, __) => const _EmptyTab(message: 'Could not load restaurants', icon: Icons.restaurant_rounded),
       data: (restaurants) {
         if (restaurants.isEmpty) {

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,8 +10,8 @@ import '../../payment/waafi_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 
 final _svc = ModuleApiService.create();
-final _parcelTypesProvider     = FutureProvider.autoDispose((_) => _svc.getParcelTypes());
-final _parcelDistrictsProvider = FutureProvider.autoDispose((_) => _svc.getParcelDistricts());
+final _parcelTypesProvider     = FutureProvider((_) => _svc.getParcelTypes());
+final _parcelDistrictsProvider = FutureProvider((_) => _svc.getParcelDistricts());
 
 // ── Brand colors ──────────────────────────────────────────────────────────────
 const _navy  = Color(0xFF07003B);

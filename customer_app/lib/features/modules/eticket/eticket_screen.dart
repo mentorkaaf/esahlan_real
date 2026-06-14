@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
@@ -24,7 +24,7 @@ const _kDivider = Color(0xFFF0F1F5);
 // ─────────────────────────────────────────────────────────────────────────────
 final _svc = ModuleApiService.create();
 
-final _citiesProvider = FutureProvider.autoDispose<List<Map<String, String>>>((_) async {
+final _citiesProvider = FutureProvider<List<Map<String, String>>>((_) async {
   final resp = await _svc.getFlightCities();
   final list = List<Map>.from(resp is Map ? (resp['data'] ?? []) : (resp ?? []));
   return list
@@ -34,14 +34,14 @@ final _citiesProvider = FutureProvider.autoDispose<List<Map<String, String>>>((_
     ..sort((a, b) => a['city']!.compareTo(b['city']!));
 });
 
-final _activeDatesProvider = FutureProvider.autoDispose
+final _activeDatesProvider = FutureProvider
     .family<Set<String>, Map<String, String>>((_, p) async {
   final resp = await _svc.getFlightActiveDates(from: p['from']!, to: p['to']!);
   final list = List<dynamic>.from(resp is Map ? (resp['data'] ?? []) : (resp ?? []));
   return list.map((d) => d.toString()).toSet();
 });
 
-final _searchProvider = FutureProvider.autoDispose
+final _searchProvider = FutureProvider
     .family<List<Map<String, dynamic>>, Map<String, dynamic>>((_, p) async {
   final resp = await _svc.searchFlights(
     from: p['from'], to: p['to'], date: p['date'],
@@ -54,7 +54,7 @@ final _searchProvider = FutureProvider.autoDispose
   return List<Map<String, dynamic>>.from(data);
 });
 
-final _myBookingsProvider = FutureProvider.autoDispose((_) async {
+final _myBookingsProvider = FutureProvider((_) async {
   final resp = await _svc.getMyFlightBookings();
   final data = resp is Map ? (resp['data'] ?? []) : (resp ?? []);
   return List<Map<String, dynamic>>.from(data);

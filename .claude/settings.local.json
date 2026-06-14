@@ -134,7 +134,11 @@
       "PowerShell(\\(Get-Content \"C:\\\\Users\\\\CITYSIGN\\\\Desktop\\\\esahlan-project\\\\backend\\\\resources\\\\views\\\\admin\\\\module-data\\\\rent.blade.php\" | Measure-Object -Line\\).Lines)",
       "Bash(Get-ChildItem \"C:\\\\Users\\\\CITYSIGN\\\\Desktop\\\\esahlan-project\")",
       "Bash(Select-Object Name, PSIsContainer)",
-      "Bash(Format-Table -AutoSize)"
+      "Bash(Format-Table -AutoSize)",
+      "Bash(pip3 install *)",
+      "PowerShell(Install-Module -Name Posh-SSH -Force -Scope CurrentUser 2>&1 | Select-Object -Last 5)",
+      "Bash(tar -czf /tmp/flutter_web.tar.gz .)",
+      "Bash(scp -P 65002 -i C:/Users/CITYSIGN/.ssh/id_rsa -o StrictHostKeyChecking=no /tmp/flutter_web.tar.gz u801770158@31.170.161.118:/home/u801770158/domains/esahlan.com/public_html/web/flutter_web.tar.gz)"
     ]
   }
 }

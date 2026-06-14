@@ -227,18 +227,18 @@ class NotifNotifier
 
 // ── Profile provider ───────────────────────────────────────────────────────
 final communityProfileProvider = FutureProvider.family<CommunityUser, int>(
-    (ref, userId) => _repo.getProfile(userId));
+    (ref, userId) { ref.keepAlive(); return _repo.getProfile(userId); });
 
 final communityMyProfileProvider =
-    FutureProvider<CommunityUser>((ref) => _repo.getMyProfile());
+    FutureProvider<CommunityUser>((ref) { ref.keepAlive(); return _repo.getMyProfile(); });
 
 final communityProfilePostsProvider =
     FutureProvider.family<List<CommunityPost>, int>(
-        (ref, userId) => _repo.getProfilePosts(userId));
+        (ref, userId) { ref.keepAlive(); return _repo.getProfilePosts(userId); });
 
 final communityGroupPostsProvider =
     FutureProvider.family<List<CommunityPost>, int>(
-        (ref, groupId) => _repo.getGroupPosts(groupId));
+        (ref, groupId) { ref.keepAlive(); return _repo.getGroupPosts(groupId); });
 
 // ── Repo accessor ──────────────────────────────────────────────────────────
 final communityRepoProvider = Provider<CommunityRepository>((ref) => _repo);

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -8,7 +8,7 @@ import '../../../shared/widgets/module_widgets.dart';
 import '../../payment/waafi_pay_sheet.dart';
 
 final _svc = ModuleApiService.create();
-final _doctorsProvider = FutureProvider.autoDispose.family<dynamic, String>((_, spec) => _svc.getDoctors(specialization: spec));
+final _doctorsProvider = FutureProvider.family<dynamic, String>((_, spec) => _svc.getDoctors(specialization: spec));
 
 class EHealthScreen extends ConsumerStatefulWidget {
   const EHealthScreen({super.key});

@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/module_api_service.dart';
 
 double _toD(dynamic v) => double.tryParse(v?.toString() ?? '0') ?? 0;
@@ -101,7 +101,7 @@ final _svc = ModuleApiService.create();
 // ─────────────────────────────────────────────────────────────────
 // Home data
 // ─────────────────────────────────────────────────────────────────
-final eshopHomeProvider = FutureProvider.autoDispose<Map<String, dynamic>>((_) async {
+final eshopHomeProvider = FutureProvider<Map<String, dynamic>>((_) async {
   final res = await _svc.getShopHome();
   return (res['data'] as Map<String, dynamic>?) ?? {};
 });
@@ -109,7 +109,7 @@ final eshopHomeProvider = FutureProvider.autoDispose<Map<String, dynamic>>((_) a
 // ─────────────────────────────────────────────────────────────────
 // Categories
 // ─────────────────────────────────────────────────────────────────
-final eshopCategoriesProvider = FutureProvider.autoDispose<List<dynamic>>((_) async {
+final eshopCategoriesProvider = FutureProvider<List<dynamic>>((_) async {
   final res = await _svc.getShopCategories();
   return (res['data'] as List?) ?? [];
 });
@@ -139,7 +139,7 @@ class ProductsParams {
   int get hashCode => Object.hash(categoryId, search, sort, page, featured);
 }
 
-final eshopProductsProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, ProductsParams>((_, p) async {
+final eshopProductsProvider = FutureProvider.family<Map<String, dynamic>, ProductsParams>((_, p) async {
   final res = await _svc.getShopProducts(
     categoryId: p.categoryId,
     search: p.search,
@@ -153,7 +153,7 @@ final eshopProductsProvider = FutureProvider.autoDispose.family<Map<String, dyna
 // ─────────────────────────────────────────────────────────────────
 // Flash deals
 // ─────────────────────────────────────────────────────────────────
-final eshopFlashDealsProvider = FutureProvider.autoDispose<List<dynamic>>((_) async {
+final eshopFlashDealsProvider = FutureProvider<List<dynamic>>((_) async {
   final res = await _svc.getShopFlashDeals();
   return (res['data'] as List?) ?? [];
 });
@@ -161,7 +161,7 @@ final eshopFlashDealsProvider = FutureProvider.autoDispose<List<dynamic>>((_) as
 // ─────────────────────────────────────────────────────────────────
 // Deals of day
 // ─────────────────────────────────────────────────────────────────
-final eshopDealsOfDayProvider = FutureProvider.autoDispose<List<dynamic>>((_) async {
+final eshopDealsOfDayProvider = FutureProvider<List<dynamic>>((_) async {
   final res = await _svc.getShopDealsOfDay();
   return (res['data'] as List?) ?? [];
 });
@@ -169,7 +169,7 @@ final eshopDealsOfDayProvider = FutureProvider.autoDispose<List<dynamic>>((_) as
 // ─────────────────────────────────────────────────────────────────
 // Campaigns
 // ─────────────────────────────────────────────────────────────────
-final eshopCampaignsProvider = FutureProvider.autoDispose<List<dynamic>>((_) async {
+final eshopCampaignsProvider = FutureProvider<List<dynamic>>((_) async {
   final res = await _svc.getShopCampaigns();
   return (res['data'] as List?) ?? [];
 });
@@ -177,7 +177,7 @@ final eshopCampaignsProvider = FutureProvider.autoDispose<List<dynamic>>((_) asy
 // ─────────────────────────────────────────────────────────────────
 // Single product
 // ─────────────────────────────────────────────────────────────────
-final eshopProductProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, int>((_, id) async {
+final eshopProductProvider = FutureProvider.family<Map<String, dynamic>, int>((_, id) async {
   final res = await _svc.getShopProduct(id);
   return (res['data'] as Map<String, dynamic>?) ?? {};
 });

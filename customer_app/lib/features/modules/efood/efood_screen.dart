@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,15 +49,15 @@ final _svc = ModuleApiService.create();
 // PROVIDERS
 // ════════════════════════════════════════════════════════════════════
 
-final _bannersProvider    = FutureProvider.autoDispose((_) => _svc.getFoodBanners());
-final _catsProvider       = FutureProvider.autoDispose((_) => _svc.getFoodCategories());
-final _favoritesProvider  = FutureProvider.autoDispose((_) => _svc.getFoodFavorites());
-final _ordersProvider     = FutureProvider.autoDispose((_) => _svc.getFoodOrders());
+final _bannersProvider    = FutureProvider((_) => _svc.getFoodBanners());
+final _catsProvider       = FutureProvider((_) => _svc.getFoodCategories());
+final _favoritesProvider  = FutureProvider((_) => _svc.getFoodFavorites());
+final _ordersProvider     = FutureProvider((_) => _svc.getFoodOrders());
 
 // ── Restaurant list provider ──────────────────────────────────────────
 // KEY must be a String (not Map!) so Riverpod can do proper equality checks.
 // Encoding: "search|category|featured|topRated"
-final _restaurantsProvider = FutureProvider.autoDispose.family<dynamic, String>((_, key) {
+final _restaurantsProvider = FutureProvider.family<dynamic, String>((_, key) {
   final parts = key.split('|');
   final search   = parts[0].isEmpty ? null : parts[0];
   final category = parts[1].isEmpty ? null : parts[1];
@@ -75,12 +75,12 @@ final _restaurantsProvider = FutureProvider.autoDispose.family<dynamic, String>(
 String _rKey({String? search, String? category, bool? featured, bool? topRated}) =>
     '${search ?? ""}|${category ?? ""}|${featured == null ? "" : featured ? "1" : "0"}|${topRated == null ? "" : topRated ? "1" : "0"}';
 
-final _restaurantProvider = FutureProvider.autoDispose.family<dynamic, int>((_, id) =>
+final _restaurantProvider = FutureProvider.family<dynamic, int>((_, id) =>
     _svc.getRestaurant(id));
 
 // ── Menu/products provider ─────────────────────────────────────────────
 // KEY: "restaurantId|categoryId|search"
-final _menuProvider = FutureProvider.autoDispose.family<dynamic, String>((_, key) {
+final _menuProvider = FutureProvider.family<dynamic, String>((_, key) {
   final parts      = key.split('|');
   final rid        = int.parse(parts[0]);
   final categoryId = parts[1].isEmpty ? null : int.tryParse(parts[1]);
@@ -92,14 +92,14 @@ final _menuProvider = FutureProvider.autoDispose.family<dynamic, String>((_, key
 String _mKey(int restaurantId, {int? categoryId, String? search}) =>
     '$restaurantId|${categoryId ?? ""}|${search ?? ""}';
 
-final _restaurantCouponsProvider   = FutureProvider.autoDispose.family<dynamic, int>((_, id) =>
+final _restaurantCouponsProvider   = FutureProvider.family<dynamic, int>((_, id) =>
     _svc.getRestaurantCoupons(id));
 
-final _restaurantCampaignsProvider = FutureProvider.autoDispose.family<dynamic, int>((_, id) =>
+final _restaurantCampaignsProvider = FutureProvider.family<dynamic, int>((_, id) =>
     _svc.getRestaurantCampaigns(id));
 
 
-final _trackProvider = FutureProvider.autoDispose.family<dynamic, int>((_, id) =>
+final _trackProvider = FutureProvider.family<dynamic, int>((_, id) =>
     _svc.trackFoodOrder(id));
 
 // ════════════════════════════════════════════════════════════════════
