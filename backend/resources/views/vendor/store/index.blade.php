@@ -141,9 +141,9 @@
                         <span class="toggle-slider"></span>
                     </label>
                     <div style="display:flex;align-items:center;gap:8px;">
-                        <input type="time" name="schedule[{{ $dayNum }}][open_time]" class="filter-input" value="{{ $sch?->open_time ?? '08:00' }}" style="width:130px;">
+                        <input type="time" name="schedule[{{ $dayNum }}][open_time]" class="filter-input" value="{{ $sch ? substr($sch->open_time, 0, 5) : '08:00' }}" style="width:130px;">
                         <span style="color:var(--text-muted);">–</span>
-                        <input type="time" name="schedule[{{ $dayNum }}][close_time]" class="filter-input" value="{{ $sch?->close_time ?? '22:00' }}" style="width:130px;">
+                        <input type="time" name="schedule[{{ $dayNum }}][close_time]" class="filter-input" value="{{ $sch ? substr($sch->close_time, 0, 5) : '22:00' }}" style="width:130px;">
                     </div>
                 </div>
                 @endforeach

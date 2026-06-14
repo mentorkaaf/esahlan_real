@@ -47,19 +47,20 @@ class VendorStoreWebController extends Controller
         $vendor = auth()->user()->vendor;
 
         $request->validate([
-            'schedule'              => 'required|array',
-            'schedule.*.is_open'    => 'boolean',
-            'schedule.*.open_time'  => 'nullable|date_format:H:i',
-            'schedule.*.close_time' => 'nullable|date_format:H:i',
+            'schedule'   => 'required|array',
         ]);
 
         foreach ($request->schedule as $day => $hours) {
+            // Strip seconds from time if browser sends HH:MM:SS
+            $openTime  = substr($hours['open_time']  ?? '08:00', 0, 5);
+            $closeTime = substr($hours['close_time'] ?? '22:00', 0, 5);
+
             VendorSchedule::updateOrCreate(
                 ['vendor_id' => $vendor->id, 'day' => $day],
                 [
                     'is_open'    => isset($hours['is_open']),
-                    'open_time'  => $hours['open_time'] ?? '08:00',
-                    'close_time' => $hours['close_time'] ?? '22:00',
+                    'open_time'  => $openTime,
+                    'close_time' => $closeTime,
                 ]
             );
         }
