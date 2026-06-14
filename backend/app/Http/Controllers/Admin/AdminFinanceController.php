@@ -14,9 +14,9 @@ class AdminFinanceController extends Controller
     public function index()
     {
         $stats = [
-            'total_revenue'       => Commission::sum('platform_amount'),
+            'total_revenue'       => Commission::sum('commission_amount'),
             'pending_withdrawals' => WithdrawalRequest::where('status', 'pending')->sum('amount'),
-            'total_payouts'       => WithdrawalRequest::where('status', 'completed')->sum('amount'),
+            'total_payouts'       => WithdrawalRequest::whereIn('status', ['approved', 'processed', 'completed'])->sum('amount'),
             'wallet_balances'     => Wallet::where('owner_type', 'App\\Models\\User')->sum('balance'),
         ];
 
@@ -32,17 +32,13 @@ class AdminFinanceController extends Controller
     {
         $request->validate(['transaction_reference' => 'required|string']);
 
-        DB::transaction(function () use ($withdrawal, $request) {
-            $wallet = Wallet::getOrCreateFor($withdrawal->owner_type, $withdrawal->owner_id);
-            $wallet->debit($withdrawal->amount, 'withdrawal', "Withdrawal approved: {$request->transaction_reference}");
-
-            $withdrawal->update([
-                'status'                  => 'completed',
-                'transaction_reference'   => $request->transaction_reference,
-                'processed_at'            => now(),
-                'processed_by'            => auth()->id(),
-            ]);
-        });
+        // Wallet was already debited when the user submitted the request — just mark as processed
+        $withdrawal->update([
+            'status'                => 'processed',
+            'transaction_reference' => $request->transaction_reference,
+            'processed_at'          => now(),
+            'processed_by'          => auth()->id(),
+        ]);
 
         return back()->with('success', 'Withdrawal approved and processed.');
     }
