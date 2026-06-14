@@ -23,7 +23,7 @@ class AdminModuleDataController extends Controller
     private function storeUpload($file, string $folder = 'uploads'): string
     {
         $path = $file->store($folder, 'public');
-        return url('/api/img/' . $path);
+        return url('/api/v1/img/' . $path);
     }
 
     // ══════════════════════════════════════════════════════════════

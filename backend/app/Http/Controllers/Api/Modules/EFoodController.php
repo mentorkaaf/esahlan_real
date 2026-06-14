@@ -34,7 +34,7 @@ class EFoodController extends Controller
                 if ($b->image) {
                     $imgUrl = str_starts_with($b->image, 'http')
                         ? $b->image
-                        : url('/api/img/' . $b->image);
+                        : url('/api/v1/img/' . $b->image);
                 }
                 return [
                     'id'          => $b->id,
@@ -658,7 +658,7 @@ class EFoodController extends Controller
     {
         if (!$path) return null;
         if (str_starts_with($path, 'http')) return $path;
-        return url('/api/img/' . $path);
+        return url('/api/v1/img/' . $path);
     }
 
     // ── Compute is_open from vendor_schedules rows ────────────────────

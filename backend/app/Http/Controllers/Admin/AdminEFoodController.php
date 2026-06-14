@@ -122,7 +122,7 @@ class AdminEFoodController extends Controller
         $path = $file->store($folder, 'public');
         // Use /api/img/ proxy — goes through Laravel middleware (has CORS headers)
         // so Flutter Web (CanvasKit) can load images cross-origin.
-        return url('/api/img/' . $path);
+        return url('/api/v1/img/' . $path);
     }
 
     public function restaurantStore(Request $request)
@@ -317,7 +317,7 @@ class AdminEFoodController extends Controller
         $request->validate(['image' => 'required|image|max:5120']); // 5 MB max
 
         $path = $request->file('image')->store('efood', 'public');
-        $url  = url('/api/img/' . $path);
+        $url  = url('/api/v1/img/' . $path);
 
         return response()->json(['success' => true, 'url' => $url]);
     }

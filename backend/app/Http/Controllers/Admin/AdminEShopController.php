@@ -31,7 +31,7 @@ class AdminEShopController extends Controller
     private function storeUpload($file, string $folder = 'eshop'): string
     {
         $path = $file->store($folder, 'public');
-        return url('/api/img/' . $path);
+        return url('/api/v1/img/' . $path);
     }
 
     private function syncVariants(int $productId, array $variants): void
@@ -79,7 +79,7 @@ class AdminEShopController extends Controller
         $img = DB::table('product_images')->find($imageId);
         if ($img) {
             // image stored as full URL — extract relative path for storage deletion
-            $relative = str_replace(url('/api/img/'), '', $img->image);
+            $relative = str_replace(url('/api/v1/img/'), '', $img->image);
             \Illuminate\Support\Facades\Storage::disk('public')->delete($relative);
             DB::table('product_images')->delete($imageId);
         }

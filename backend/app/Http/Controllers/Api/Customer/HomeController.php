@@ -46,7 +46,7 @@ class HomeController extends Controller
                 if ($b->image) {
                     $imgUrl = str_starts_with($b->image, 'http')
                         ? $b->image
-                        : url('/api/img/' . $b->image);
+                        : url('/api/v1/img/' . $b->image);
                 }
                 return [
                     'id'          => $b->id,
@@ -108,7 +108,7 @@ class HomeController extends Controller
                     if ($b->image) {
                         $imgUrl = str_starts_with($b->image, 'http')
                             ? $b->image
-                            : url('/api/img/' . $b->image);
+                            : url('/api/v1/img/' . $b->image);
                     }
                     return [
                         'id'          => $b->id,

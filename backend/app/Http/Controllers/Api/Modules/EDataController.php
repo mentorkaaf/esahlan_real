@@ -17,7 +17,7 @@ class EDataController extends Controller
     private function imgUrl(?string $v): ?string {
         if (!$v) return null;
         if (str_starts_with($v, 'http')) return $v;
-        return url('/api/img/' . $v);
+        return url('/api/v1/img/' . $v);
     }
 
     // GET /edata/providers

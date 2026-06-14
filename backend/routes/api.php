@@ -65,6 +65,7 @@ Route::options('img/{path}', function () {
     ]);
 })->where('path', '.*');
 
+// Keep old path for backwards compat, but the v1 path (below) is canonical.
 Route::get('img/{path}', function (\Illuminate\Http\Request $request, string $path) {
     $realPath = storage_path('app/public/' . $path);
     if (!file_exists($realPath) || is_dir($realPath)) {
@@ -98,6 +99,37 @@ Route::get('img/{path}', function (\Illuminate\Http\Request $request, string $pa
 })->where('path', '.*');
 
 Route::prefix('v1')->group(function () {
+
+    // Image proxy under v1 prefix — CDN treats /api/v1/* as DYNAMIC (no caching),
+    // so CORS headers pass through. The /api/img/ path above gets cached and strips them.
+    Route::get('img/{path}', function (\Illuminate\Http\Request $request, string $path) {
+        $realPath = storage_path('app/public/' . $path);
+        if (!file_exists($realPath) || is_dir($realPath)) {
+            abort(404);
+        }
+        $ext  = strtolower(pathinfo($realPath, PATHINFO_EXTENSION));
+        $mime = match($ext) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png'         => 'image/png',
+            'gif'         => 'image/gif',
+            'webp'        => 'image/webp',
+            'svg'         => 'image/svg+xml',
+            'mp4'         => 'video/mp4',
+            'webm'        => 'video/webm',
+            'mov'         => 'video/quicktime',
+            'ogg'         => 'video/ogg',
+            default       => 'application/octet-stream',
+        };
+        $headers = [
+            'Content-Type'                 => $mime,
+            'Access-Control-Allow-Origin'  => '*',
+            'Access-Control-Allow-Headers' => 'Range, Content-Type',
+            'Access-Control-Expose-Headers'=> 'Content-Range, Accept-Ranges, Content-Length',
+            'Accept-Ranges'                => 'bytes',
+            'Cache-Control'                => 'no-cache, private',
+        ];
+        return response()->file($realPath, $headers);
+    })->where('path', '.*');
 
     // ═══════════════════════════════════════════════════════════════
     // PUBLIC ROUTES

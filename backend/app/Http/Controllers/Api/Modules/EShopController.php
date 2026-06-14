@@ -66,7 +66,7 @@ class EShopController extends Controller
     {
         if (!$path) return null;
         if (str_starts_with($path, 'http')) return $path;
-        return url('/api/img/' . $path);
+        return url('/api/v1/img/' . $path);
     }
 
     // Apply the best active deal price to a product array/object
@@ -197,7 +197,7 @@ class EShopController extends Controller
         $galleryRows = DB::table('product_images')->where('product_id', $id)->orderBy('sort_order')->get();
         $images = $galleryRows->map(fn($img) => [
             'id'    => $img->id,
-            'image' => str_starts_with($img->image, 'http') ? $img->image : url('/api/img/'.$img->image),
+            'image' => str_starts_with($img->image, 'http') ? $img->image : url('/api/v1/img/'.$img->image),
         ]);
 
         // Variants: cast is_active to bool, decode attributes JSON
@@ -352,7 +352,7 @@ class EShopController extends Controller
                 'id'         => $b->id,
                 'title'      => $b->title,
                 'subtitle'   => $b->subtitle,
-                'image'      => $b->image ? (str_starts_with($b->image,'http') ? $b->image : url('/api/img/'.$b->image)) : null,
+                'image'      => $b->image ? (str_starts_with($b->image,'http') ? $b->image : url('/api/v1/img/'.$b->image)) : null,
                 'action_url' => $b->action_url,
             ]);
 
