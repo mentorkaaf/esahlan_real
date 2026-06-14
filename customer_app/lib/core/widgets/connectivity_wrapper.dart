@@ -45,15 +45,14 @@ class _ConnectivityWrapperState extends ConsumerState<ConnectivityWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        widget.child,
-        if (!_isOnline)
-          Directionality(
-            textDirection: TextDirection.ltr,
-            child: const _NoInternetScreen(),
-          ),
-      ],
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Stack(
+        children: [
+          widget.child,
+          if (!_isOnline) const _NoInternetScreen(),
+        ],
+      ),
     );
   }
 }
