@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -132,7 +132,7 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
   final _repo = CommunityRepository();
   final _picker = ImagePicker();
   final _textCtrl = TextEditingController();
-  File? _mediaFile;
+  XFile? _mediaFile;
   String _storyType = 'text'; // text | image | video
   bool _posting = false;
   Color _bgColor = const Color(0xFF140465);
@@ -148,12 +148,12 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
 
   Future<void> _pickImage() async {
     final img = await _picker.pickImage(source: ImageSource.gallery);
-    if (img != null) setState(() { _mediaFile = File(img.path); _storyType = 'image'; });
+    if (img != null) setState(() { _mediaFile = img; _storyType = 'image'; });
   }
 
   Future<void> _pickVideo() async {
     final vid = await _picker.pickVideo(source: ImageSource.gallery);
-    if (vid != null) setState(() { _mediaFile = File(vid.path); _storyType = 'video'; });
+    if (vid != null) setState(() { _mediaFile = vid; _storyType = 'video'; });
   }
 
   Future<void> _post() async {
@@ -162,7 +162,8 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
     try {
       MultipartFile? mediaFile;
       if (_mediaFile != null) {
-        mediaFile = await MultipartFile.fromFile(_mediaFile!.path, filename: _mediaFile!.path.split('/').last);
+        final bytes = await _mediaFile!.readAsBytes();
+        mediaFile = MultipartFile.fromBytes(bytes, filename: _mediaFile!.name);
       }
       await _repo.createStory(
         type: _storyType,
@@ -229,9 +230,9 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
                       ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                           const Icon(Icons.videocam_rounded, color: Colors.white, size: 80),
                           const SizedBox(height: 12),
-                          Text(_mediaFile!.path.split('/').last, style: const TextStyle(color: Colors.white70, fontSize: 13), textAlign: TextAlign.center),
+                          Text(_mediaFile!.name, style: const TextStyle(color: Colors.white70, fontSize: 13), textAlign: TextAlign.center),
                         ]))
-                      : Image.file(_mediaFile!, fit: BoxFit.contain)
+                      : _XFilePreview(file: _mediaFile!)
                   : Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                       const Icon(Icons.add_photo_alternate_rounded, color: Colors.white54, size: 80),
                       const SizedBox(height: 12),
@@ -272,6 +273,26 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
       ]),
     );
   }
+}
+
+class _XFilePreview extends StatefulWidget {
+  final XFile file;
+  const _XFilePreview({required this.file});
+  @override
+  State<_XFilePreview> createState() => _XFilePreviewState();
+}
+
+class _XFilePreviewState extends State<_XFilePreview> {
+  late Future<Uint8List> _bytesFuture;
+  @override
+  void initState() { super.initState(); _bytesFuture = widget.file.readAsBytes(); }
+  @override
+  Widget build(BuildContext context) => FutureBuilder<Uint8List>(
+    future: _bytesFuture,
+    builder: (ctx, snap) => snap.hasData
+        ? Image.memory(snap.data!, fit: BoxFit.contain)
+        : const Center(child: CircularProgressIndicator(color: Colors.white)),
+  );
 }
 
 class _TypeBtn extends StatelessWidget {

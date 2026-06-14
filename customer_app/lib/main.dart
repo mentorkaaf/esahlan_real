@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/services/firebase_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/connectivity_wrapper.dart';
 import 'firebase_options.dart';
 
 /// Deep link from cold-start (app was killed when notification was tapped).
@@ -98,11 +99,13 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
-    return MaterialApp.router(
-      title: 'eSahlan',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      routerConfig: router,
+    return ConnectivityWrapper(
+      child: MaterialApp.router(
+        title: 'eSahlan',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        routerConfig: router,
+      ),
     );
   }
 }

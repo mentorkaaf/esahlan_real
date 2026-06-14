@@ -1,7 +1,6 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -24,7 +23,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   String _privacy = 'Public';
   String? _feeling;
   String? _location;
-  List<File> _mediaFiles = [];
+  List<XFile> _mediaFiles = [];
   bool _hasVideo = false;
   bool _posting = false;
 
@@ -40,14 +39,14 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Future<void> _pickMedia() async {
     final imgs = await _picker.pickMultiImage();
     if (imgs.isNotEmpty) {
-      setState(() { _mediaFiles = imgs.map((x) => File(x.path)).toList(); _hasVideo = false; });
+      setState(() { _mediaFiles = imgs; _hasVideo = false; });
     }
   }
 
   Future<void> _pickVideo() async {
     final video = await _picker.pickVideo(source: ImageSource.gallery);
     if (video != null) {
-      setState(() { _mediaFiles = [File(video.path)]; _hasVideo = true; });
+      setState(() { _mediaFiles = [video]; _hasVideo = true; });
     }
   }
 
@@ -60,8 +59,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       final type = _hasVideo ? 'video' : (_mediaFiles.isNotEmpty ? 'image' : 'text');
       List<dynamic>? files;
       if (_mediaFiles.isNotEmpty) {
-        files = await Future.wait(_mediaFiles.map((f) async =>
-            MultipartFile.fromFile(f.path, filename: f.path.split('/').last)));
+        files = await Future.wait(_mediaFiles.map((f) async {
+          final bytes = await f.readAsBytes();
+          return MultipartFile.fromBytes(bytes, filename: f.name);
+        }));
       }
       final post = await repo.createPost(
         type: type,
@@ -202,12 +203,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                                 const Icon(Icons.videocam_rounded, color: Colors.white54, size: 40),
                                 const SizedBox(height: 6),
-                                Text(_mediaFiles[i].path.split('/').last, style: const TextStyle(color: Colors.white54, fontSize: 10), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                Text(_mediaFiles[i].name, style: const TextStyle(color: Colors.white54, fontSize: 10), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
                               ]),
                             )
-                          : kIsWeb
-                              ? Image.network(_mediaFiles[i].path, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
-                              : Image.file(_mediaFiles[i], fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                          : _XFileImage(file: _mediaFiles[i]),
                     ),
                     Positioned(
                       top: 4, right: 4,
@@ -405,6 +404,36 @@ class _AddBtn extends StatelessWidget {
       width: 34, height: 34,
       decoration: BoxDecoration(color: const Color(0xFFF0F2F5), shape: BoxShape.circle),
       child: Center(child: Text(emoji, style: const TextStyle(fontSize: 16))),
+    );
+  }
+}
+
+class _XFileImage extends StatefulWidget {
+  final XFile file;
+  const _XFileImage({required this.file});
+  @override
+  State<_XFileImage> createState() => _XFileImageState();
+}
+
+class _XFileImageState extends State<_XFileImage> {
+  late Future<Uint8List> _bytesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _bytesFuture = widget.file.readAsBytes();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Uint8List>(
+      future: _bytesFuture,
+      builder: (ctx, snap) {
+        if (snap.hasData) {
+          return Image.memory(snap.data!, fit: BoxFit.cover, width: double.infinity, height: double.infinity);
+        }
+        return Container(color: const Color(0xFFE5E7EB));
+      },
     );
   }
 }

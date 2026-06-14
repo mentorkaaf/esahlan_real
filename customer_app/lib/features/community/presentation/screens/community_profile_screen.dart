@@ -65,7 +65,8 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     final f = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (f == null) return;
     try {
-      final mf = await MultipartFile.fromFile(f.path, filename: f.name);
+      final bytes = await f.readAsBytes();
+      final mf = MultipartFile.fromBytes(bytes, filename: f.name);
       final res = await ref.read(communityRepoProvider).uploadProfilePhoto(avatarFile: mf);
       setState(() => _localAvatar = res['avatar'] as String?);
       ref.invalidate(communityMyProfileProvider);
@@ -77,7 +78,8 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     final f = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (f == null) return;
     try {
-      final mf = await MultipartFile.fromFile(f.path, filename: f.name);
+      final bytes = await f.readAsBytes();
+      final mf = MultipartFile.fromBytes(bytes, filename: f.name);
       final res = await ref.read(communityRepoProvider).uploadProfilePhoto(coverFile: mf);
       setState(() => _localCover = res['cover_photo'] as String?);
       ref.invalidate(communityMyProfileProvider);
