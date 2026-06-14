@@ -90,7 +90,7 @@ Route::get('img/{path}', function (\Illuminate\Http\Request $request, string $pa
         'Access-Control-Allow-Headers' => 'Range, Content-Type',
         'Access-Control-Expose-Headers'=> 'Content-Range, Accept-Ranges, Content-Length',
         'Accept-Ranges'                => 'bytes',
-        'Cache-Control'                => 'public, max-age=86400',
+        'Cache-Control'                => 'no-cache, private',
     ];
 
     // response()->file() handles Range/206 automatically in Laravel
