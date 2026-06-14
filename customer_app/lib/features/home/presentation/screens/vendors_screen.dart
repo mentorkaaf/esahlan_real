@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import '../providers/home_provider.dart';
 import '../../data/models/home_models.dart';
 
@@ -115,10 +115,12 @@ class _VendorListCard extends StatelessWidget {
                 color: AppColors.surface,
               ),
               clipBehavior: Clip.antiAlias,
-              child: vendor.coverUrl != null
-                  ? CachedNetworkImage(imageUrl: vendor.coverUrl!, fit: BoxFit.cover, width: double.infinity,
-                      errorWidget: (_, __, ___) => _Placeholder(name: vendor.name))
-                  : _Placeholder(name: vendor.name),
+              child: NetImage(
+                url: vendor.coverUrl,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                errorWidget: _Placeholder(name: vendor.name),
+              ),
             ),
             // Info
             Padding(
@@ -134,10 +136,11 @@ class _VendorListCard extends StatelessWidget {
                       border: Border.all(color: AppColors.divider),
                     ),
                     clipBehavior: Clip.antiAlias,
-                    child: vendor.logoUrl != null
-                        ? CachedNetworkImage(imageUrl: vendor.logoUrl!, fit: BoxFit.cover,
-                            errorWidget: (_, __, ___) => const Icon(Icons.store, color: AppColors.textLight))
-                        : const Icon(Icons.store, color: AppColors.textLight),
+                    child: NetImage(
+                      url: vendor.logoUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: const Icon(Icons.store, color: AppColors.textLight),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

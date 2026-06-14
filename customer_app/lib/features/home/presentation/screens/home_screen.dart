@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/api/module_api_service.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/home_provider.dart';
 import '../../data/models/home_models.dart';
@@ -508,16 +508,15 @@ class _BannerCard extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
         clipBehavior: Clip.antiAlias,
-        child: CachedNetworkImage(
-          imageUrl: banner.imageUrl!,
+        child: NetImage(
+          url: banner.imageUrl,
           fit: BoxFit.cover,
           width: double.infinity,
-          placeholder: (_, __) => Container(
+          placeholder: Container(
             color: const Color(0xFFE8E8F0),
-            child: const Center(
-                child: CircularProgressIndicator(strokeWidth: 2)),
+            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
           ),
-          errorWidget: (_, __, ___) => _FallbackHeroBanner(),
+          errorWidget: _FallbackHeroBanner(),
         ),
       ),
     );

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import '../providers/home_provider.dart';
 import '../../data/models/home_models.dart';
 
@@ -48,10 +48,11 @@ class VendorDetailScreen extends ConsumerWidget {
                 ),
               ],
               flexibleSpace: FlexibleSpaceBar(
-                background: vendor.coverUrl != null
-                    ? CachedNetworkImage(imageUrl: vendor.coverUrl!, fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => Container(color: AppColors.primary.withOpacity(0.2)))
-                    : Container(color: AppColors.primary.withOpacity(0.2)),
+                background: NetImage(
+                  url: vendor.coverUrl,
+                  fit: BoxFit.cover,
+                  errorWidget: Container(color: AppColors.primary.withOpacity(0.2)),
+                ),
               ),
             ),
 
@@ -75,10 +76,11 @@ class VendorDetailScreen extends ConsumerWidget {
                             color: AppColors.surface,
                           ),
                           clipBehavior: Clip.antiAlias,
-                          child: vendor.logoUrl != null
-                              ? CachedNetworkImage(imageUrl: vendor.logoUrl!, fit: BoxFit.cover,
-                                  errorWidget: (_, __, ___) => const Icon(Icons.store, color: AppColors.textLight, size: 28))
-                              : const Icon(Icons.store, color: AppColors.textLight, size: 28),
+                          child: NetImage(
+                            url: vendor.logoUrl,
+                            fit: BoxFit.cover,
+                            errorWidget: const Icon(Icons.store, color: AppColors.textLight, size: 28),
+                          ),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -225,10 +227,11 @@ class _ProductRow extends StatelessWidget {
             width: 72, height: 72,
             decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: AppColors.surface),
             clipBehavior: Clip.antiAlias,
-            child: product.imageUrl != null
-                ? CachedNetworkImage(imageUrl: product.imageUrl!, fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => const Icon(Icons.fastfood_outlined, color: AppColors.textLight, size: 28))
-                : const Icon(Icons.fastfood_outlined, color: AppColors.textLight, size: 28),
+            child: NetImage(
+                url: product.imageUrl,
+                fit: BoxFit.cover,
+                errorWidget: const Icon(Icons.fastfood_outlined, color: AppColors.textLight, size: 28),
+              ),
           ),
           const SizedBox(width: 12),
           // Info
