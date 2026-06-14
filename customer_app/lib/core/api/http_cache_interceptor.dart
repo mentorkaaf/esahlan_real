@@ -13,10 +13,13 @@ class HttpCacheInterceptor extends Interceptor {
   // Endpoints that must never be cached — vendor/restaurant lists change
   // immediately when admin adds, approves, or deletes a vendor.
   static const _noCachePatterns = [
-    'efood/restaurants',
+    'efood',
     'vendors',
     'egrocery',
     'ewholesale',
+    'eshop',
+    'categories',
+    'banners',
   ];
 
   static bool _shouldSkipCache(String url) {
@@ -31,6 +34,13 @@ class HttpCacheInterceptor extends Interceptor {
     _mem.removeWhere((k, _) => k.contains(pattern));
     _memTs.removeWhere((k, _) => k.contains(pattern));
     final keys = _prefs?.getKeys().where((k) => k.startsWith(_p) && k.contains(pattern)).toList() ?? [];
+    for (final k in keys) _prefs?.remove(k);
+  }
+
+  static void invalidateAll() {
+    _mem.clear();
+    _memTs.clear();
+    final keys = _prefs?.getKeys().where((k) => k.startsWith(_p)).toList() ?? [];
     for (final k in keys) _prefs?.remove(k);
   }
 

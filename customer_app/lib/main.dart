@@ -36,11 +36,11 @@ void main() async {
 
   // ── HTTP Cache ──────────────────────────────────────────────────────────
   await HttpCacheInterceptor.init();
-  // Clear vendor cache once after API response format was updated (v2)
-  const cacheVersion = 'cache_v5';
+  // v6: clear ALL cache after image URL format was fixed across all modules
+  const cacheVersion = 'cache_v6';
   final prefs = await SharedPreferences.getInstance();
   if (prefs.getString('_cache_version') != cacheVersion) {
-    HttpCacheInterceptor.invalidatePattern('vendors');
+    HttpCacheInterceptor.invalidateAll();
     await prefs.setString('_cache_version', cacheVersion);
   }
 
