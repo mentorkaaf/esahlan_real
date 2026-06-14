@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role'          => \App\Http\Middleware\RoleMiddleware::class,
             'module.active' => \App\Http\Middleware\CheckModuleActive::class,
+            'vendor'        => \App\Http\Middleware\VendorMiddleware::class,
         ]);
 
         // CORS must run before everything — prepend to global stack
@@ -36,6 +37,10 @@ return Application::configure(basePath: dirname(__DIR__))
             // Admin routes → redirect to admin login
             if ($request->is('admin/*') || $request->is('admin')) {
                 return redirect()->route('admin.login');
+            }
+            // Vendor routes → redirect to vendor login
+            if ($request->is('vendor/*') || $request->is('vendor')) {
+                return redirect()->route('vendor.login');
             }
         });
 

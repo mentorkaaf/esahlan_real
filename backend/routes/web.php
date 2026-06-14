@@ -1,5 +1,11 @@
 <?php
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Vendor\VendorAuthController;
+use App\Http\Controllers\Vendor\VendorDashboardWebController;
+use App\Http\Controllers\Vendor\VendorOrderWebController;
+use App\Http\Controllers\Vendor\VendorProductWebController;
+use App\Http\Controllers\Vendor\VendorStoreWebController;
+use App\Http\Controllers\Vendor\VendorWalletWebController;
 use App\Http\Controllers\Admin\Auth\AdminAuthController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\AdminUserController;
@@ -18,6 +24,58 @@ use App\Http\Controllers\Admin\AdminEFoodController;
 use App\Http\Controllers\Admin\AdminWalletController;
 use App\Http\Controllers\Admin\AdminLandingController;
 use App\Http\Controllers\Admin\AdminExchangeController;
+
+// ─── Vendor Panel ────────────────────────────────────────────────────────────
+Route::prefix('vendor')->name('vendor.')->group(function () {
+    // Guest-only routes
+    Route::middleware('guest')->group(function () {
+        Route::get('/login', [VendorAuthController::class, 'showLogin'])->name('login');
+        Route::post('/login', [VendorAuthController::class, 'login'])->name('login.post');
+    });
+
+    // Authenticated vendor routes
+    Route::middleware('vendor')->group(function () {
+        Route::post('/logout', [VendorAuthController::class, 'logout'])->name('logout');
+
+        // Dashboard
+        Route::get('/', [VendorDashboardWebController::class, 'index'])->name('dashboard');
+        Route::post('/toggle-store', [VendorDashboardWebController::class, 'toggleStore'])->name('toggle-store');
+
+        // Orders
+        Route::prefix('orders')->name('orders.')->group(function () {
+            Route::get('/', [VendorOrderWebController::class, 'index'])->name('index');
+            Route::get('/{order}', [VendorOrderWebController::class, 'show'])->name('show');
+            Route::post('/{order}/accept', [VendorOrderWebController::class, 'accept'])->name('accept');
+            Route::post('/{order}/reject', [VendorOrderWebController::class, 'reject'])->name('reject');
+            Route::post('/{order}/ready', [VendorOrderWebController::class, 'markReady'])->name('ready');
+        });
+
+        // Products
+        Route::prefix('products')->name('products.')->group(function () {
+            Route::get('/', [VendorProductWebController::class, 'index'])->name('index');
+            Route::get('/create', [VendorProductWebController::class, 'create'])->name('create');
+            Route::post('/', [VendorProductWebController::class, 'store'])->name('store');
+            Route::get('/{product}/edit', [VendorProductWebController::class, 'edit'])->name('edit');
+            Route::patch('/{product}', [VendorProductWebController::class, 'update'])->name('update');
+            Route::delete('/{product}', [VendorProductWebController::class, 'destroy'])->name('destroy');
+            Route::post('/{product}/toggle', [VendorProductWebController::class, 'toggle'])->name('toggle');
+        });
+
+        // Store Profile
+        Route::prefix('store')->name('store.')->group(function () {
+            Route::get('/', [VendorStoreWebController::class, 'index'])->name('index');
+            Route::post('/', [VendorStoreWebController::class, 'update'])->name('update');
+            Route::post('/schedule', [VendorStoreWebController::class, 'updateSchedule'])->name('schedule');
+            Route::post('/toggle-open', [VendorStoreWebController::class, 'toggleOpen'])->name('toggle-open');
+        });
+
+        // Wallet
+        Route::prefix('wallet')->name('wallet.')->group(function () {
+            Route::get('/', [VendorWalletWebController::class, 'index'])->name('index');
+            Route::post('/withdraw', [VendorWalletWebController::class, 'requestWithdrawal'])->name('withdraw');
+        });
+    });
+});
 
 // Public landing page
 Route::get('/', fn() => view('landing'));
