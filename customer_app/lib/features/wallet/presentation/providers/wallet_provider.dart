@@ -16,12 +16,15 @@ class WalletData {
   });
 }
 
+// Wallet data must always be fresh — never serve from cache
+final _noCache = Options(extra: {'noCache': true});
+
 final walletProvider = FutureProvider<WalletData>((ref) async {
   try {
     final dio = ApiClient.instance;
-    final res = await dio.get('/wallet');
-    final data = res.data['data'] ?? res.data;
-    final txRes = await dio.get('/wallet/transactions');
+    final res   = await dio.get('/wallet', options: _noCache);
+    final data  = res.data['data'] ?? res.data;
+    final txRes = await dio.get('/wallet/transactions', options: _noCache);
     final txRaw = txRes.data['data'];
     final List txList = txRaw is List
         ? txRaw

@@ -18,14 +18,30 @@ class WalletScreen extends ConsumerStatefulWidget {
 
 class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
   int _tab = 0; // 0=all, 1=credit, 2=debit
+  final _scrollCtrl = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    // Refresh on first load so data is always fresh
+    // Always fetch fresh wallet data on open
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.invalidate(walletProvider);
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  void _scrollToTransactions() {
+    // Scroll past the appbar + actions + stats to reach the transaction list
+    _scrollCtrl.animateTo(
+      360,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
@@ -49,6 +65,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
           color: AppColors.primary,
           onRefresh: () async => ref.refresh(walletProvider),
           child: CustomScrollView(
+            controller: _scrollCtrl,
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               _buildSliverAppBar(wallet),
@@ -129,7 +146,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
           _ActionBtn(icon: Icons.add_circle_rounded,    label: 'Top Up',   color: AppColors.primary,    onTap: () => _showTopUp(context)),
           _ActionBtn(icon: Icons.send_rounded,          label: 'Send',     color: const Color(0xFF7B1FA2), onTap: () => _showSend(context, wallet.balance)),
           _ActionBtn(icon: Icons.arrow_circle_up_rounded, label: 'Withdraw', color: const Color(0xFFC62828), onTap: () => _showWithdraw(context, wallet.balance)),
-          _ActionBtn(icon: Icons.history_rounded,       label: 'History',  color: const Color(0xFF00695C), onTap: () => setState(() => _tab = 0)),
+          _ActionBtn(icon: Icons.history_rounded,       label: 'History',  color: const Color(0xFF00695C), onTap: () { setState(() => _tab = 0); _scrollToTransactions(); }),
         ],
       ),
     );
@@ -415,6 +432,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
   void _showWithdraw(BuildContext context, double currentBalance) {
     final amtCtrl     = TextEditingController();
     final accountCtrl = TextEditingController();
+    final nameCtrl    = TextEditingController();
+    // Backend accepts: waafi, evc, bank
     String method = 'evc';
     bool loading = false;
     String? error;
@@ -425,107 +444,126 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setModal) {
-        return Container(
-          decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-          padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
-            const SizedBox(height: 20),
-            const Text('Withdraw', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.secondary)),
-            const SizedBox(height: 4),
-            Text('Balance: \$${currentBalance.toStringAsFixed(2)}', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
-            const SizedBox(height: 20),
-            // Method selector
-            const Text('Payment Method', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textDark)),
-            const SizedBox(height: 8),
-            Row(
-              children: ['evc', 'edahab', 'premier', 'jeep'].map((m) => Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: GestureDetector(
-                    onTap: () => setModal(() => method = m),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: method == m ? AppColors.primary : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(10),
+        return SingleChildScrollView(
+          child: Container(
+            decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+            padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(ctx).viewInsets.bottom + 32),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: 20),
+              const Text('Withdraw', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.secondary)),
+              const SizedBox(height: 4),
+              Text('Balance: \$${currentBalance.toStringAsFixed(2)}', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+              const SizedBox(height: 20),
+              const Text('Payment Method', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  {'key': 'evc',   'label': 'EVC Plus'},
+                  {'key': 'waafi', 'label': 'Waafi'},
+                  {'key': 'bank',  'label': 'Bank'},
+                ].map((m) => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: GestureDetector(
+                      onTap: () => setModal(() => method = m['key']!),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: method == m['key'] ? AppColors.primary : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Center(child: Text(m['label']!, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: method == m['key'] ? Colors.white : AppColors.textGrey))),
                       ),
-                      child: Center(child: Text(m.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: method == m ? Colors.white : AppColors.textGrey))),
                     ),
                   ),
+                )).toList(),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: nameCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Account Name',
+                  prefixIcon: const Icon(Icons.person_rounded, color: AppColors.primary),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
                 ),
-              )).toList(),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: accountCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: 'Account Number / Phone',
-                prefixIcon: const Icon(Icons.phone_rounded, color: AppColors.primary),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: amtCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-              decoration: InputDecoration(
-                labelText: 'Amount (USD)',
-                prefixText: '\$ ',
-                prefixStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.red),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.red, width: 2)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: accountCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  labelText: 'Account Number / Phone',
+                  prefixIcon: const Icon(Icons.phone_rounded, color: AppColors.primary),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+                ),
               ),
-            ),
-            if (error != null) ...[
-              const SizedBox(height: 8),
-              Text(error!, style: TextStyle(color: Colors.red.shade700, fontSize: 13)),
-            ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity, height: 52,
-              child: ElevatedButton.icon(
-                onPressed: loading ? null : () async {
-                  final amount  = double.tryParse(amtCtrl.text.trim()) ?? 0;
-                  final account = accountCtrl.text.trim();
-                  if (amount < 1)              { setModal(() => error = 'Minimum withdrawal is \$1'); return; }
-                  if (amount > currentBalance) { setModal(() => error = 'Insufficient balance'); return; }
-                  if (account.isEmpty)         { setModal(() => error = 'Enter account number'); return; }
+              const SizedBox(height: 12),
+              TextField(
+                controller: amtCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))],
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                decoration: InputDecoration(
+                  labelText: 'Amount (USD)',
+                  prefixText: '\$ ',
+                  prefixStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.red),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.red, width: 2)),
+                ),
+              ),
+              if (error != null) ...[
+                const SizedBox(height: 8),
+                Text(error!, style: TextStyle(color: Colors.red.shade700, fontSize: 13)),
+              ],
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity, height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: loading ? null : () async {
+                    final amount  = double.tryParse(amtCtrl.text.trim()) ?? 0;
+                    final account = accountCtrl.text.trim();
+                    final name    = nameCtrl.text.trim();
+                    if (name.isEmpty)            { setModal(() => error = 'Enter account name'); return; }
+                    if (account.isEmpty)         { setModal(() => error = 'Enter account number'); return; }
+                    if (amount < 1)              { setModal(() => error = 'Minimum withdrawal is \$1'); return; }
+                    if (amount > currentBalance) { setModal(() => error = 'Insufficient balance'); return; }
 
-                  setModal(() { loading = true; error = null; });
-                  try {
-                    final svc = ModuleApiService.create();
-                    final res = await svc.walletWithdraw({
-                      'amount':         amount,
-                      'payment_method': method,
-                      'account_number': account,
-                    });
-                    if (res['success'] == true) {
-                      Navigator.pop(ctx);
-                      ref.refresh(walletProvider);
-                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Withdrawal request submitted. Admin will process it shortly.'), backgroundColor: Colors.orange),
-                      );
-                    } else {
-                      setModal(() { loading = false; error = res['message'] ?? 'Withdrawal failed'; });
+                    setModal(() { loading = true; error = null; });
+                    try {
+                      final svc = ModuleApiService.create();
+                      final res = await svc.walletWithdraw({
+                        'amount':         amount,
+                        'payment_method': method,
+                        'account_number': account,
+                        'account_name':   name,
+                      });
+                      if (res['success'] == true) {
+                        Navigator.pop(ctx);
+                        ref.refresh(walletProvider);
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Withdrawal request submitted. Admin will process it shortly.'), backgroundColor: Colors.orange),
+                        );
+                      } else {
+                        setModal(() { loading = false; error = res['message'] ?? 'Withdrawal failed'; });
+                      }
+                    } catch (e) {
+                      setModal(() { loading = false; error = e.toString(); });
                     }
-                  } catch (e) {
-                    setModal(() { loading = false; error = e.toString(); });
-                  }
-                },
-                icon: loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.arrow_circle_up_rounded),
-                label: const Text('Request Withdrawal', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade700,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  },
+                  icon: loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.arrow_circle_up_rounded),
+                  label: const Text('Request Withdrawal', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade700,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
                 ),
               ),
-            ),
-          ]),
+            ]),
+          ),
         );
       }),
     );
@@ -617,6 +655,7 @@ class _TransactionTile extends StatelessWidget {
     'transfer_out':  Icons.call_made_rounded,
     'withdrawal':    Icons.arrow_circle_up_rounded,
     'refund':        Icons.replay_rounded,
+    'admin_credit':  Icons.admin_panel_settings_rounded,
     'credit':        Icons.arrow_downward_rounded,
     'debit':         Icons.arrow_upward_rounded,
   };
@@ -628,6 +667,7 @@ class _TransactionTile extends StatelessWidget {
     'transfer_out':  Color(0xFFC62828),
     'withdrawal':    Color(0xFFE65100),
     'refund':        Color(0xFF00695C),
+    'admin_credit':  Color(0xFF0097A7),
     'credit':        Color(0xFF2E7D32),
     'debit':         Color(0xFFC62828),
   };
