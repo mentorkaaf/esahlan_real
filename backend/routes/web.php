@@ -56,8 +56,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Users
         Route::prefix('users')->name('users.')->group(function () {
             Route::get('/', [AdminUserController::class, 'index'])->name('index');
+            Route::delete('/bulk-destroy', [AdminUserController::class, 'bulkDestroy'])->name('bulk-destroy');
             Route::get('/{user}', [AdminUserController::class, 'show'])->name('show');
             Route::patch('/{user}/status', [AdminUserController::class, 'updateStatus'])->name('status');
+            Route::post('/{user}/reset-pin', [AdminUserController::class, 'resetPin'])->name('reset-pin');
             Route::delete('/{user}', [AdminUserController::class, 'destroy'])->name('destroy');
         });
 

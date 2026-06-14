@@ -49,11 +49,21 @@
             Users
             <span class="badge badge-info" style="margin-left:4px;">{{ $users->total() }}</span>
         </div>
+        <div id="bulkActions" style="display:none;gap:8px;align-items:center;">
+            <span id="selectedCount" style="font-size:13px;color:#888;"></span>
+            <button onclick="confirmBulkDelete()" class="btn btn-danger btn-sm">
+                <i class="fas fa-trash"></i> Delete Selected
+            </button>
+        </div>
     </div>
     <div class="table-wrap">
+        <form id="bulkForm" action="{{ route('admin.users.bulk-destroy') }}" method="POST">
+            @csrf @method('DELETE')
+        </form>
         <table>
             <thead>
                 <tr>
+                    <th style="width:36px;"><input type="checkbox" id="selectAll" title="Select all" style="cursor:pointer;width:16px;height:16px;"></th>
                     <th>User</th>
                     <th>Phone</th>
                     <th>Role</th>
@@ -70,6 +80,11 @@
                     $c = $colors[$user->role?->name ?? ''] ?? 'orange';
                 @endphp
                 <tr>
+                    <td>
+                        @if($user->role?->slug !== 'super_admin')
+                        <input type="checkbox" class="row-check" value="{{ $user->id }}" style="cursor:pointer;width:16px;height:16px;">
+                        @endif
+                    </td>
                     <td>
                         <div style="display:flex;align-items:center;gap:10px;">
                             @if(!empty($user->avatar_url) && !str_contains($user->avatar_url,'null'))
@@ -124,7 +139,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7">
+                    <td colspan="8">
                         <div class="empty-state">
                             <i class="fas fa-users"></i>
                             <h3>No users found</h3>
@@ -136,6 +151,48 @@
             </tbody>
         </table>
     </div>
+
+    <script>
+    (function(){
+        const selectAll = document.getElementById('selectAll');
+        const bulkActions = document.getElementById('bulkActions');
+        const selectedCount = document.getElementById('selectedCount');
+
+        function updateBulkBar(){
+            const checked = document.querySelectorAll('.row-check:checked');
+            if(checked.length > 0){
+                bulkActions.style.display = 'flex';
+                selectedCount.textContent = checked.length + ' selected';
+            } else {
+                bulkActions.style.display = 'none';
+            }
+        }
+
+        selectAll.addEventListener('change', function(){
+            document.querySelectorAll('.row-check').forEach(cb => cb.checked = this.checked);
+            updateBulkBar();
+        });
+
+        document.querySelectorAll('.row-check').forEach(cb => {
+            cb.addEventListener('change', updateBulkBar);
+        });
+
+        window.confirmBulkDelete = function(){
+            const checked = document.querySelectorAll('.row-check:checked');
+            if(!checked.length) return;
+            if(!confirm('Delete ' + checked.length + ' user(s)? They will lose all app access immediately. This cannot be undone.')) return;
+            const form = document.getElementById('bulkForm');
+            document.querySelectorAll('.bulk-id-input').forEach(el => el.remove());
+            checked.forEach(cb => {
+                const inp = document.createElement('input');
+                inp.type = 'hidden'; inp.name = 'ids[]'; inp.value = cb.value;
+                inp.className = 'bulk-id-input';
+                form.appendChild(inp);
+            });
+            form.submit();
+        };
+    })();
+    </script>
     @if($users->hasPages())
     <div class="card-footer" style="display:flex;justify-content:center;">
         {{ $users->withQueryString()->links() }}

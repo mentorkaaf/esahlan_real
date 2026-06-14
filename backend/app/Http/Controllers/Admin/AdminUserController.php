@@ -44,8 +44,35 @@ class AdminUserController extends Controller
         if ($user->role?->slug === 'super_admin') {
             return back()->with('error', 'Cannot delete super admin.');
         }
+        $user->tokens()->delete();
         $user->delete();
-        return back()->with('success', 'User deleted.');
+        return redirect()->route('admin.users.index')->with('success', 'User deleted.');
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate(['ids' => 'required|array', 'ids.*' => 'integer|exists:users,id']);
+
+        $users = User::whereIn('id', $request->ids)
+            ->whereDoesntHave('role', fn($q) => $q->where('slug', 'super_admin'))
+            ->get();
+
+        foreach ($users as $user) {
+            $user->tokens()->delete();
+            $user->delete();
+        }
+
+        return back()->with('success', count($users) . ' user(s) deleted successfully.');
+    }
+
+    public function resetPin(Request $request, User $user)
+    {
+        $request->validate(['pin' => 'required|digits:4']);
+
+        $user->update(['password' => Hash::make($request->pin)]);
+        $user->tokens()->delete();
+
+        return back()->with('success', 'PIN reset successfully. User will need to log in again.');
     }
 
     // API methods for datatables

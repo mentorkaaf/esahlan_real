@@ -11,6 +11,9 @@
         </ol>
     </div>
     <div class="d-flex gap-2">
+        <button class="btn btn-warning" onclick="document.getElementById('resetPinModal').style.display='flex'">
+            <i class="fas fa-key"></i> Reset PIN
+        </button>
         <form action="{{ route('admin.users.status', $user->id) }}" method="POST">
             @csrf @method('PATCH')
             @if($user->status === 'active')
@@ -22,6 +25,29 @@
             @endif
         </form>
     </div>
+
+{{-- Reset PIN Modal --}}
+<div id="resetPinModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:32px;width:360px;max-width:90vw;">
+        <h3 style="margin:0 0 6px;font-size:18px;"><i class="fas fa-key" style="color:var(--warning);margin-right:8px;"></i>Reset PIN</h3>
+        <p style="font-size:13px;color:#888;margin:0 0 20px;">Set a new 4-digit PIN for <strong>{{ $user->name }}</strong>. The user will be logged out of all devices.</p>
+        <form action="{{ route('admin.users.reset-pin', $user->id) }}" method="POST">
+            @csrf
+            <div style="margin-bottom:16px;">
+                <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">New PIN (4 digits)</label>
+                <input type="password" name="pin" maxlength="4" pattern="\d{4}" inputmode="numeric"
+                    placeholder="••••"
+                    style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:20px;letter-spacing:8px;text-align:center;"
+                    required>
+            </div>
+            <div style="display:flex;gap:10px;">
+                <button type="button" onclick="document.getElementById('resetPinModal').style.display='none'"
+                    class="btn btn-outline" style="flex:1;">Cancel</button>
+                <button type="submit" class="btn btn-warning" style="flex:1;"><i class="fas fa-save"></i> Save PIN</button>
+            </div>
+        </form>
+    </div>
+</div>
 </div>
 
 <div class="grid-2">
