@@ -232,7 +232,8 @@ class EFoodController extends Controller
             ->select('categories.id', 'categories.name', 'categories.image')
             ->distinct()
             ->orderBy('categories.sort_order')
-            ->get();
+            ->get()
+            ->map(fn($c) => array_merge((array)$c, ['image' => $this->resolveImageUrl($c->image)]));
 
         return response()->json([
             'success' => true,
@@ -646,7 +647,8 @@ class EFoodController extends Controller
             ->whereNull('vendor_id')
             ->where('is_active', true)
             ->orderBy('sort_order')
-            ->get(['id', 'name', 'image', 'slug']);
+            ->get(['id', 'name', 'image', 'slug'])
+            ->map(fn($c) => array_merge((array)$c, ['image' => $this->resolveImageUrl($c->image)]));
 
         return response()->json(['success' => true, 'data' => $categories]);
     }
@@ -656,7 +658,7 @@ class EFoodController extends Controller
     {
         if (!$path) return null;
         if (str_starts_with($path, 'http')) return $path;
-        return asset('storage/' . $path);
+        return url('/api/img/' . $path);
     }
 
     // ── Compute is_open from vendor_schedules rows ────────────────────

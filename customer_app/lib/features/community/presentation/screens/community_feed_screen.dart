@@ -1,4 +1,5 @@
 ﻿import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -263,7 +264,7 @@ class _CreatePostBar extends ConsumerWidget {
               CircleAvatar(
                 radius: 20,
                 backgroundColor: const Color(0xFFF0F2F5),
-                backgroundImage: avatar != null ? CachedNetworkImageProvider(avatar) : null,
+                backgroundImage: avatar != null ? NetworkImage(avatar) : null,
                 child: avatar == null ? const Icon(Icons.person, color: Color(0xFF9CA3AF), size: 22) : null,
               ),
               const SizedBox(width: 10),
@@ -428,7 +429,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
               child: CircleAvatar(
                 radius: 20,
                 backgroundColor: const Color(0xFFF0F2F5),
-                backgroundImage: p.user.avatar != null ? CachedNetworkImageProvider(p.user.avatar!) : null,
+                backgroundImage: p.user.avatar != null ? NetworkImage(p.user.avatar!) : null,
                 child: p.user.avatar == null ? Text(p.user.name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)) : null,
               ),
             ),
@@ -682,8 +683,8 @@ class _RestaurantFeedCard extends StatelessWidget {
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             child: r['cover_image'] != null
-                ? CachedNetworkImage(imageUrl: r['cover_image'], height: 140, width: double.infinity, fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => Container(height: 140, color: const Color(0xFFF0F2F5), child: const Center(child: Text('🍽️', style: TextStyle(fontSize: 48)))))
+                ? NetImage(url: r['cover_image'], height: 140, width: double.infinity, fit: BoxFit.cover,
+                    errorWidget: Container(height: 140, color: const Color(0xFFF0F2F5), child: const Center(child: Text('🍽️', style: TextStyle(fontSize: 48)))))
                 : Container(height: 140, color: const Color(0xFFF0F2F5), child: const Center(child: Text('🍽️', style: TextStyle(fontSize: 48)))),
           ),
           if (!isOpen)
@@ -711,8 +712,8 @@ class _RestaurantFeedCard extends StatelessWidget {
               if (r['logo'] != null) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(imageUrl: r['logo'], width: 40, height: 40, fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Container(width: 40, height: 40, color: const Color(0xFFF0F2F5), child: const Icon(Icons.restaurant_rounded, color: kOrange, size: 20))),
+                  child: NetImage(url: r['logo'], width: 40, height: 40, fit: BoxFit.cover,
+                      errorWidget: Container(width: 40, height: 40, color: const Color(0xFFF0F2F5), child: const Icon(Icons.restaurant_rounded, color: kOrange, size: 20))),
                 ),
                 const SizedBox(width: 10),
               ],
@@ -849,12 +850,12 @@ class _MediaItemState extends State<_MediaItem> {
     if (!_isVideo) {
       // Single image: show full without cropping; multi-image grid uses fixed height
       if (widget.height == 0) {
-        return CachedNetworkImage(
-          imageUrl: widget.m.url,
+        return NetImage(
+          url: widget.m.url,
           fit: BoxFit.fitWidth,
           width: double.infinity,
-          placeholder: (_, __) => Container(color: const Color(0xFFE5E7EB), height: 200),
-          errorWidget: (_, __, ___) => Container(
+          placeholder: Container(color: const Color(0xFFE5E7EB), height: 200),
+          errorWidget: Container(
             color: const Color(0xFFE5E7EB), height: 200,
             child: const Icon(Icons.broken_image_rounded, color: Color(0xFF9CA3AF), size: 32),
           ),
@@ -863,11 +864,11 @@ class _MediaItemState extends State<_MediaItem> {
       return SizedBox(
         height: widget.height,
         width: double.infinity,
-        child: CachedNetworkImage(
-          imageUrl: widget.m.url,
+        child: NetImage(
+          url: widget.m.url,
           fit: BoxFit.cover,
-          placeholder: (_, __) => Container(color: const Color(0xFFE5E7EB)),
-          errorWidget: (_, __, ___) => Container(
+          placeholder: Container(color: const Color(0xFFE5E7EB)),
+          errorWidget: Container(
             color: const Color(0xFFE5E7EB),
             child: const Icon(Icons.broken_image_rounded, color: Color(0xFF9CA3AF), size: 32),
           ),
@@ -896,11 +897,11 @@ class _MediaItemState extends State<_MediaItem> {
                       ),
                     )
                   : widget.m.thumbnail != null
-                      ? CachedNetworkImage(
-                          imageUrl: widget.m.thumbnail!,
+                      ? NetImage(
+                          url: widget.m.thumbnail!,
                           fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(color: const Color(0xFF1A1B2E)),
-                          errorWidget: (_, __, ___) => Container(color: const Color(0xFF1A1B2E)),
+                          placeholder: Container(color: const Color(0xFF1A1B2E)),
+                          errorWidget: Container(color: const Color(0xFF1A1B2E)),
                         )
                       : Container(
                           height: widget.height,

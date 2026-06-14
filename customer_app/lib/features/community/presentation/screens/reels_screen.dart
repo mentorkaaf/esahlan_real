@@ -1,4 +1,5 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
@@ -206,9 +207,9 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         if (_videoReady && _videoCtrl != null)
           Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!)))
         else if (media?.thumbnail != null)
-          CachedNetworkImage(imageUrl: media!.thumbnail!, fit: BoxFit.cover)
+          NetImage(url: media!.thumbnail!, fit: BoxFit.cover)
         else if (media != null && media.type == 'image')
-          CachedNetworkImage(imageUrl: media.url, fit: BoxFit.cover)
+          NetImage(url: media.url, fit: BoxFit.cover)
         else
           Container(color: const Color(0xFF1A1A2E)),
 
@@ -355,7 +356,7 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
         if (_videoReady && _videoCtrl != null)
           Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!)))
         else if (thumbnail != null)
-          CachedNetworkImage(imageUrl: thumbnail, fit: BoxFit.cover)
+          NetImage(url: thumbnail, fit: BoxFit.cover)
         else
           Container(color: const Color(0xFF1A1B2E)),
 

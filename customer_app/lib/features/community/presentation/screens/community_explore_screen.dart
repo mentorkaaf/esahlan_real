@@ -1,4 +1,5 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -143,7 +144,7 @@ class _PersonCard extends ConsumerWidget {
               child: CircleAvatar(
                 radius: 28,
                 backgroundColor: const Color(0xFFF0F2F5),
-                backgroundImage: user.avatar != null ? CachedNetworkImageProvider(user.avatar!) : null,
+                backgroundImage: user.avatar != null ? NetworkImage(user.avatar!) : null,
                 child: user.avatar == null
                     ? Text(user.name[0].toUpperCase(),
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20))
@@ -176,7 +177,7 @@ class _MiniPostCard extends StatelessWidget {
           CircleAvatar(
             radius: 18,
             backgroundColor: const Color(0xFFF0F2F5),
-            backgroundImage: post.user.avatar != null ? CachedNetworkImageProvider(post.user.avatar!) : null,
+            backgroundImage: post.user.avatar != null ? NetworkImage(post.user.avatar!) : null,
             child: post.user.avatar == null
                 ? Text(post.user.name[0].toUpperCase(),
                     style: const TextStyle(fontWeight: FontWeight.bold))
@@ -207,8 +208,8 @@ class _MiniPostCard extends StatelessWidget {
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: CachedNetworkImage(
-              imageUrl: post.media[0].url,
+            child: NetImage(
+              url: post.media[0].url,
               height: 160, width: double.infinity, fit: BoxFit.cover,
             ),
           ),

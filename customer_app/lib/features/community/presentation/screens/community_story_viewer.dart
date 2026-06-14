@@ -1,5 +1,6 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
@@ -301,11 +302,11 @@ class _StoryContentState extends State<_StoryContent> {
     }
 
     if (story.mediaUrl != null) {
-      return CachedNetworkImage(
-        imageUrl: story.mediaUrl!,
+      return NetImage(
+        url: story.mediaUrl!,
         fit: BoxFit.cover,
-        placeholder: (_, __) => const Center(child: CircularProgressIndicator(color: Colors.white)),
-        errorWidget: (_, __, ___) => const Center(child: Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64)),
+        placeholder: const Center(child: CircularProgressIndicator(color: Colors.white)),
+        errorWidget: const Center(child: Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64)),
       );
     }
 

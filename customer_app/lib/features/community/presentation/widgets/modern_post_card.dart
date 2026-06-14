@@ -1,4 +1,5 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -209,7 +210,7 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
           aspectRatio: 16 / 9,
           child: Stack(fit: StackFit.expand, children: [
             if (m.thumbnail != null)
-              CachedNetworkImage(imageUrl: m.thumbnail!, fit: BoxFit.cover)
+              NetImage(url: m.thumbnail!, fit: BoxFit.cover)
             else
               Container(color: Colors.black),
             Container(color: Colors.black26),
@@ -223,8 +224,8 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
           ]),
         );
       }
-      return CachedNetworkImage(
-        imageUrl: m.url,
+      return NetImage(
+        url: m.url,
         fit: BoxFit.fitWidth,
         width: double.infinity,
       );
@@ -237,7 +238,7 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
             aspectRatio: 1,
             child: Padding(
               padding: const EdgeInsets.all(1),
-              child: CachedNetworkImage(imageUrl: m.url, fit: BoxFit.cover),
+              child: NetImage(url: m.url, fit: BoxFit.cover),
             ),
           ),
         )).toList(),
@@ -252,7 +253,7 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
             flex: 2,
             child: Padding(
               padding: const EdgeInsets.only(right: 1),
-              child: CachedNetworkImage(imageUrl: media[0].url, fit: BoxFit.cover, height: double.infinity),
+              child: NetImage(url: media[0].url, fit: BoxFit.cover, height: double.infinity),
             ),
           ),
           Expanded(
@@ -264,7 +265,7 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
                       padding: const EdgeInsets.only(bottom: 1),
                       child: i == 3 && media.length > 4
                           ? Stack(fit: StackFit.expand, children: [
-                              CachedNetworkImage(imageUrl: media[3].url, fit: BoxFit.cover),
+                              NetImage(url: media[3].url, fit: BoxFit.cover),
                               Container(
                                 color: Colors.black54,
                                 child: Center(
@@ -273,7 +274,7 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
                                 ),
                               ),
                             ])
-                          : CachedNetworkImage(imageUrl: media[i].url, fit: BoxFit.cover),
+                          : NetImage(url: media[i].url, fit: BoxFit.cover),
                     ),
                   ),
               ],

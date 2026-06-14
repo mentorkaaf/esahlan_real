@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/widgets/network_image_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:video_player/video_player.dart';
 import '../../../core/api/module_api_service.dart';
@@ -706,8 +707,8 @@ class _PropertyGridCard extends StatelessWidget {
               child: AspectRatio(
                 aspectRatio: 1.0,
                 child: images.isNotEmpty
-                    ? CachedNetworkImage(imageUrl: images.first, fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => Container(color: Colors.grey.shade100,
+                    ? NetImage(url: images.first, fit: BoxFit.cover,
+                        errorWidget: Container(color: Colors.grey.shade100,
                             child: const Icon(Icons.home_outlined, color: Colors.grey)))
                     : Container(color: Colors.grey.shade100,
                         child: const Icon(Icons.home_outlined, color: Colors.grey)),
@@ -813,8 +814,8 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                       SizedBox(
                         height: 260, width: double.infinity,
                         child: images.isNotEmpty
-                            ? CachedNetworkImage(imageUrl: images[_imgIndex], fit: BoxFit.cover,
-                                errorWidget: (_, __, ___) => Container(color: Colors.grey.shade300,
+                            ? NetImage(url: images[_imgIndex], fit: BoxFit.cover,
+                                errorWidget: Container(color: Colors.grey.shade300,
                                     child: const Icon(Icons.home_rounded, size: 80, color: Colors.grey)))
                             : Container(color: Colors.grey.shade300,
                                 child: const Icon(Icons.home_rounded, size: 80, color: Colors.grey)),
@@ -853,8 +854,8 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: CachedNetworkImage(imageUrl: images[i], fit: BoxFit.cover,
-                                  errorWidget: (_, __, ___) => Container(color: Colors.grey.shade200)),
+                              child: NetImage(url: images[i], fit: BoxFit.cover,
+                                  errorWidget: Container(color: Colors.grey.shade200)),
                             ),
                           ),
                         ),
@@ -2436,10 +2437,10 @@ class _ReelPlayerScreenState extends State<_ReelPlayerScreen> {
                   // Property thumbnail
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: CachedNetworkImage(
-                      imageUrl: (p['thumbnail'] ?? p['images']?[0] ?? '').toString(),
+                    child: NetImage(
+                      url: (p['thumbnail'] ?? p['images']?[0] ?? '').toString(),
                       width: 60, height: 60, fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Container(
+                      errorWidget: Container(
                         width: 60, height: 60,
                         color: _kNavy,
                         child: const Icon(Icons.home_rounded, color: Colors.white38, size: 28),

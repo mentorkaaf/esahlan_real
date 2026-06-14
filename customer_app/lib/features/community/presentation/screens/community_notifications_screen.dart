@@ -1,4 +1,5 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -178,7 +179,7 @@ class _NotifTile extends StatelessWidget {
               radius: 24,
               backgroundColor: const Color(0xFFF0F2F5),
               backgroundImage: notif.actor?.avatar != null
-                  ? CachedNetworkImageProvider(notif.actor!.avatar!)
+                  ? NetworkImage(notif.actor!.avatar!)
                   : null,
               child: notif.actor?.avatar == null
                   ? Text(notif.actor?.name[0].toUpperCase() ?? '?',

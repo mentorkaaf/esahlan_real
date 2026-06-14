@@ -1,4 +1,5 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -109,7 +110,7 @@ class _ChatTile extends StatelessWidget {
         CircleAvatar(
           radius: 26,
           backgroundColor: const Color(0xFFF0F2F5),
-          backgroundImage: other?.avatar != null ? CachedNetworkImageProvider(other!.avatar!) : null,
+          backgroundImage: other?.avatar != null ? NetworkImage(other!.avatar!) : null,
           child: other?.avatar == null
               ? Text(other?.name[0].toUpperCase() ?? '?',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))

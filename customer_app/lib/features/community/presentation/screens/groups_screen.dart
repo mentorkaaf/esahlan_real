@@ -1,4 +1,5 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/community_models.dart';
@@ -157,8 +158,8 @@ class _GroupCard extends ConsumerWidget {
             borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)),
             child: group.coverPhoto != null
-                ? CachedNetworkImage(
-                    imageUrl: group.coverPhoto!,
+                ? NetImage(
+                    url: group.coverPhoto!,
                     width: 80, height: 80, fit: BoxFit.cover,
                   )
                 : Container(
@@ -291,7 +292,7 @@ class GroupDetailScreen extends ConsumerWidget {
             ),
             flexibleSpace: FlexibleSpaceBar(
               background: group.coverPhoto != null
-                  ? CachedNetworkImage(imageUrl: group.coverPhoto!, fit: BoxFit.cover)
+                  ? NetImage(url: group.coverPhoto!, fit: BoxFit.cover)
                   : Container(
                       decoration: const BoxDecoration(
                         gradient: LinearGradient(

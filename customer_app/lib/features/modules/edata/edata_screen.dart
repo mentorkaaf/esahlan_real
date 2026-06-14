@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/widgets/network_image_widget.dart';
 import 'package:intl/intl.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -252,9 +253,9 @@ class _ProviderCard extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(14),
               child: logoUrl != null && logoUrl.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: logoUrl, fit: BoxFit.contain,
-                      errorWidget: (_, __, ___) => Icon(Icons.sim_card_rounded, color: _color, size: 32))
+                  ? NetImage(
+                      url: logoUrl, fit: BoxFit.contain,
+                      errorWidget: Icon(Icons.sim_card_rounded, color: _color, size: 32))
                   : Icon(Icons.sim_card_rounded, color: _color, size: 32),
             ),
           ),
@@ -429,8 +430,8 @@ class _EDataFlowDialogState extends ConsumerState<_EDataFlowDialog> {
             if (logoUrl != null && logoUrl.isNotEmpty) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImage(imageUrl: logoUrl, width: 28, height: 28, fit: BoxFit.contain,
-                    errorWidget: (_, __, ___) => const SizedBox()),
+                child: NetImage(url: logoUrl, width: 28, height: 28, fit: BoxFit.contain,
+                    errorWidget: const SizedBox()),
               ),
               const SizedBox(width: 8),
             ],
@@ -543,13 +544,13 @@ class _PackageCard extends StatelessWidget {
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               child: imageUrl != null && imageUrl.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: imageUrl,
+                  ? NetImage(
+                      url: imageUrl,
                       fit: BoxFit.cover,
                       width: double.infinity,
-                      placeholder: (_, __) => Container(color: color.withValues(alpha: 0.1),
+                      placeholder: Container(color: color.withValues(alpha: 0.1),
                           child: Icon(Icons.image_rounded, color: color.withValues(alpha: 0.3), size: 32)),
-                      errorWidget: (_, __, ___) => _PackageGradient(color: color, name: name),
+                      errorWidget: _PackageGradient(color: color, name: name),
                     )
                   : _PackageGradient(color: color, name: name),
             ),
@@ -711,11 +712,11 @@ class _BundleCard extends StatelessWidget {
             child: SizedBox(
               width: 100, height: 140,
               child: imageUrl != null && imageUrl.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: imageUrl, fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(color: color.withValues(alpha: 0.15),
+                  ? NetImage(
+                      url: imageUrl, fit: BoxFit.cover,
+                      placeholder: Container(color: color.withValues(alpha: 0.15),
                           child: Icon(Icons.data_usage_rounded, color: color.withValues(alpha: 0.4), size: 32)),
-                      errorWidget: (_, __, ___) => _BundleImageGradient(color: color),
+                      errorWidget: _BundleImageGradient(color: color),
                     )
                   : _BundleImageGradient(color: color),
             ),
@@ -824,8 +825,8 @@ class _OrderSummaryStep extends StatelessWidget {
                     width: 52, height: 52,
                     color: Colors.white.withValues(alpha: 0.15),
                     child: logoUrl != null && logoUrl.isNotEmpty
-                        ? CachedNetworkImage(imageUrl: logoUrl, fit: BoxFit.contain,
-                            errorWidget: (_, __, ___) => const Icon(Icons.sim_card_rounded, color: Colors.white, size: 28))
+                        ? NetImage(url: logoUrl, fit: BoxFit.contain,
+                            errorWidget: const Icon(Icons.sim_card_rounded, color: Colors.white, size: 28))
                         : const Icon(Icons.sim_card_rounded, color: Colors.white, size: 28),
                   ),
                 ),

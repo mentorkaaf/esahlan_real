@@ -12,6 +12,12 @@ use Illuminate\Support\Str;
 
 class EWholesaleController extends Controller
 {
+    private function resolveImg(?string $p): ?string
+    {
+        if (!$p) return null;
+        return str_starts_with($p, 'http') ? $p : url('/api/img/' . $p);
+    }
+
     // GET /ewholesale/categories
     public function categories()
     {
@@ -21,7 +27,8 @@ class EWholesaleController extends Controller
             ->whereNull('vendor_id')
             ->where('is_active', true)
             ->orderBy('sort_order')
-            ->get(['id', 'name', 'image', 'slug']);
+            ->get(['id', 'name', 'image', 'slug'])
+            ->map(fn($c) => array_merge((array)$c, ['image' => $this->resolveImg($c->image)]));
 
         return response()->json(['success' => true, 'data' => $cats]);
     }
@@ -54,9 +61,11 @@ class EWholesaleController extends Controller
 
         $products = $query->orderByDesc('products.is_featured')->paginate(20);
 
+        $items = array_map(fn($p) => array_merge((array)$p, ['thumbnail' => $this->resolveImg(((array)$p)['thumbnail'] ?? null)]), $products->items());
+
         return response()->json([
             'success' => true,
-            'data'    => $products->items(),
+            'data'    => $items,
             'meta'    => ['total' => $products->total(), 'last_page' => $products->lastPage()],
         ]);
     }

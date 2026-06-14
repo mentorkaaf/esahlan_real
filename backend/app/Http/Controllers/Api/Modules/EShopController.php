@@ -62,10 +62,18 @@ class EShopController extends Controller
         return [$flashMap, $dealMap, $campMap];
     }
 
+    private function resolveImg(?string $path): ?string
+    {
+        if (!$path) return null;
+        if (str_starts_with($path, 'http')) return $path;
+        return url('/api/img/' . $path);
+    }
+
     // Apply the best active deal price to a product array/object
     private function applyDealPrice($product, array $flashMap, array $dealMap, array $campMap): array
     {
         $p = is_array($product) ? $product : (array)$product;
+        $p['thumbnail'] = $this->resolveImg($p['thumbnail'] ?? null);
         $origPrice = (float)($p['price'] ?? 0);
 
         if (isset($flashMap[$p['id']])) {
@@ -92,7 +100,8 @@ class EShopController extends Controller
             ->where('is_active', true)
             ->where(fn($q) => $q->where('module_slug', 'eshop')->orWhere('link_value', 'eshop'))
             ->orderBy('sort_order')
-            ->get(['id', 'title', 'subtitle', 'image', 'action_url']);
+            ->get(['id', 'title', 'subtitle', 'image', 'action_url'])
+            ->map(fn($b) => array_merge((array)$b, ['image' => $this->resolveImg($b->image)]));
 
         return response()->json(['success' => true, 'data' => $banners]);
     }
@@ -106,7 +115,8 @@ class EShopController extends Controller
             ->whereNull('vendor_id')
             ->where('is_active', true)
             ->orderBy('sort_order')
-            ->get(['id', 'name', 'image', 'slug']);
+            ->get(['id', 'name', 'image', 'slug'])
+            ->map(fn($c) => array_merge((array)$c, ['image' => $this->resolveImg($c->image)]));
 
         return response()->json(['success' => true, 'data' => $cats]);
     }
@@ -350,7 +360,8 @@ class EShopController extends Controller
         $categories = DB::table('categories')
             ->where('module_id', $mid)->whereNull('vendor_id')
             ->where('is_active', true)->orderBy('sort_order')
-            ->get(['id','name','image','slug']);
+            ->get(['id','name','image','slug'])
+            ->map(fn($c) => array_merge((array)$c, ['image' => $this->resolveImg($c->image)]));
 
         // Active flash deals with dynamic pricing applied per-product
         $flashDealsRaw = FlashDeal::where('is_active', true)
@@ -368,6 +379,7 @@ class EShopController extends Controller
                 );
                 $p->sale_price = $effective;
                 $p->deal_badge = '⚡ Flash';
+                $p->thumbnail  = $this->resolveImg($p->thumbnail);
                 return $p;
             });
             return $deal;
@@ -388,7 +400,8 @@ class EShopController extends Controller
                     $deal->discount_type ?? 'percentage',
                     (float)($deal->discount_value ?? 0)
                 );
-                $p->deal_badge = '🔥 Deal';
+                $p->deal_badge  = '🔥 Deal';
+                $p->thumbnail   = $this->resolveImg($p->thumbnail);
             }
             return $deal;
         });
@@ -440,6 +453,7 @@ class EShopController extends Controller
                     isset($p->pivot->override_price) && $p->pivot->override_price > 0 ? (float)$p->pivot->override_price : null
                 );
                 $p->deal_badge = '⚡ Flash';
+                $p->thumbnail  = $this->resolveImg($p->thumbnail);
                 return $p;
             });
             return $deal;
@@ -466,6 +480,7 @@ class EShopController extends Controller
                     (float)($deal->discount_value ?? 0)
                 );
                 $deal->product->deal_badge = '🔥 Deal';
+                $deal->product->thumbnail  = $this->resolveImg($deal->product->thumbnail);
             }
             return $deal;
         });
@@ -490,6 +505,7 @@ class EShopController extends Controller
                     (float)($camp->discount_value ?? 0)
                 );
                 $p->deal_badge = '🏷️ Offer';
+                $p->thumbnail  = $this->resolveImg($p->thumbnail);
                 return $p;
             });
             return $camp;

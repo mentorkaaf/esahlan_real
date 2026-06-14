@@ -12,6 +12,12 @@ use Illuminate\Support\Str;
 
 class EGroceryController extends Controller
 {
+    private function resolveImg(?string $p): ?string
+    {
+        if (!$p) return null;
+        return str_starts_with($p, 'http') ? $p : url('/api/img/' . $p);
+    }
+
     // GET /egrocery/categories
     public function categories()
     {
@@ -21,7 +27,8 @@ class EGroceryController extends Controller
             ->whereNull('vendor_id')
             ->where('is_active', true)
             ->orderBy('sort_order')
-            ->get(['id', 'name', 'name_so', 'image', 'slug']);
+            ->get(['id', 'name', 'name_so', 'image', 'slug'])
+            ->map(fn($c) => array_merge((array)$c, ['image' => $this->resolveImg($c->image)]));
 
         return response()->json(['success' => true, 'data' => $cats]);
     }
@@ -59,9 +66,11 @@ class EGroceryController extends Controller
 
         $products = $query->orderByDesc('products.is_featured')->orderBy('products.sort_order')->paginate(30);
 
+        $items = array_map(fn($p) => array_merge((array)$p, ['thumbnail' => $this->resolveImg(((array)$p)['thumbnail'] ?? null)]), $products->items());
+
         return response()->json([
             'success' => true,
-            'data'    => $products->items(),
+            'data'    => $items,
             'meta'    => ['total' => $products->total(), 'last_page' => $products->lastPage()],
         ]);
     }

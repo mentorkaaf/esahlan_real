@@ -1,4 +1,5 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -188,10 +189,10 @@ class _PostCardState extends ConsumerState<PostCard>
         child: m.type == 'video'
             ? Stack(fit: StackFit.expand, children: [
                 if (m.thumbnail != null)
-                  CachedNetworkImage(imageUrl: m.thumbnail!, fit: BoxFit.cover),
+                  NetImage(url: m.thumbnail!, fit: BoxFit.cover),
                 const Center(child: Icon(Icons.play_circle_fill, size: 64, color: Colors.white)),
               ])
-            : CachedNetworkImage(imageUrl: m.url, fit: BoxFit.cover),
+            : NetImage(url: m.url, fit: BoxFit.cover),
       );
     }
     return GridView.builder(
@@ -203,13 +204,13 @@ class _PostCardState extends ConsumerState<PostCard>
       itemBuilder: (_, i) {
         if (i == 3 && media.length > 4) {
           return Stack(fit: StackFit.expand, children: [
-            CachedNetworkImage(imageUrl: media[3].url, fit: BoxFit.cover),
+            NetImage(url: media[3].url, fit: BoxFit.cover),
             Container(color: Colors.black54,
                 child: Center(child: Text('+${media.length - 3}',
                     style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)))),
           ]);
         }
-        return CachedNetworkImage(imageUrl: media[i].url, fit: BoxFit.cover);
+        return NetImage(url: media[i].url, fit: BoxFit.cover);
       },
     );
   }

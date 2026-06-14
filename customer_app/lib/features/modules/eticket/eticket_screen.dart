@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/widgets/network_image_widget.dart';
 import 'package:intl/intl.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -1242,7 +1243,7 @@ class _AirlineLogo extends StatelessWidget {
     ),
     clipBehavior: Clip.antiAlias,
     child: logo != null && logo!.startsWith('http')
-        ? CachedNetworkImage(imageUrl: logo!,
+        ? NetImage(url: logo!,
             fit: BoxFit.contain,
             errorWidget: (_, __, ___) => _fallback(name, color))
         : _fallback(name, color),

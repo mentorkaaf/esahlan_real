@@ -1,4 +1,5 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -142,7 +143,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   // Cover photo
                   () {
                     final coverUrl = _localCover ?? u.coverPhoto;
-                    if (coverUrl != null) return CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover);
+                    if (coverUrl != null) return NetImage(url: coverUrl, fit: BoxFit.cover);
                     return Container(decoration: const BoxDecoration(gradient: LinearGradient(colors: [kOrange, Color(0xFFFF8C42)], begin: Alignment.topLeft, end: Alignment.bottomRight)));
                   }(),
                   // Gradient overlay
@@ -184,7 +185,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                             child: CircleAvatar(
                               radius: 44,
                               backgroundColor: const Color(0xFFE5E7EB),
-                              backgroundImage: (_localAvatar ?? u.avatar) != null ? CachedNetworkImageProvider(_localAvatar ?? u.avatar!) : null,
+                              backgroundImage: (_localAvatar ?? u.avatar) != null ? NetworkImage(_localAvatar ?? u.avatar!) : null,
                               child: (_localAvatar ?? u.avatar) == null
                                   ? Text(u.name[0].toUpperCase(),
                                       style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Color(0xFF6B7280)))
@@ -424,7 +425,7 @@ class _PostsGrid extends ConsumerWidget {
               child: Container(
                 color: const Color(0xFFE5E7EB),
                 child: img != null
-                    ? CachedNetworkImage(imageUrl: img, fit: BoxFit.cover)
+                    ? NetImage(url: img, fit: BoxFit.cover)
                     : Center(
                         child: Text(
                           p.content?.substring(0, p.content!.length.clamp(0, 30)) ?? '',
