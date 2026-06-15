@@ -628,6 +628,6 @@ function setLocation(lat, lng, address) {
     document.getElementById('map-error-msg').style.display = 'none';
 }
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.maps_api_key') }}&libraries=places&callback=initVendorMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google.maps_api_key') }}&libraries=places&callback=initVendorMap" async defer></script>
 </body>
 </html>
