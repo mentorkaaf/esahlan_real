@@ -114,7 +114,7 @@ class CourseBuilderScreen extends ConsumerWidget {
     final ctrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Add Section'),
         content: TextField(
@@ -123,10 +123,10 @@ class CourseBuilderScreen extends ConsumerWidget {
           decoration: const InputDecoration(hintText: 'Section title, e.g. Introduction'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogCtx, true),
             child: const Text('Add'),
           ),
         ],
@@ -136,11 +136,20 @@ class CourseBuilderScreen extends ConsumerWidget {
       try {
         await ref.read(elearningServiceProvider).addSection(courseId: courseId, title: ctrl.text.trim());
         ref.invalidate(courseStructureProvider(courseId));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Section added'), backgroundColor: Colors.green));
+        }
       } on DioException catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(e.response?.data?['message']?.toString() ?? 'Failed to add section'),
               backgroundColor: Colors.red));
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Failed to add section: $e'), backgroundColor: Colors.red));
         }
       }
     }
@@ -149,15 +158,15 @@ class CourseBuilderScreen extends ConsumerWidget {
   Future<void> _submitForReview(BuildContext context, WidgetRef ref) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Submit for Review?'),
         content: const Text('Once submitted, admin will review your course before it goes live. You can still edit while it\'s in review.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.secondary),
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogCtx, true),
             child: const Text('Submit'),
           ),
         ],
