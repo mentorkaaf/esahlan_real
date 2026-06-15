@@ -14,17 +14,10 @@ class CreateCourseScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateCourseScreenState extends ConsumerState<CreateCourseScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
-  final _subtitleCtrl = TextEditingController();
-  final _descCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
-  final _outcomesCtrl = TextEditingController();
-  final _requirementsCtrl = TextEditingController();
 
   int? _categoryId;
-  String _level = 'all';
-  String _language = 'so';
   bool _isFree = false;
   MultipartFile? _thumb;
   String? _thumbName;
@@ -33,17 +26,12 @@ class _CreateCourseScreenState extends ConsumerState<CreateCourseScreen> {
   @override
   void dispose() {
     _titleCtrl.dispose();
-    _subtitleCtrl.dispose();
-    _descCtrl.dispose();
     _priceCtrl.dispose();
-    _outcomesCtrl.dispose();
-    _requirementsCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _pickThumb() async {
-    final picker = ImagePicker();
-    final f = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final f = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (f != null) {
       final bytes = await f.readAsBytes();
       setState(() {
@@ -53,44 +41,55 @@ class _CreateCourseScreenState extends ConsumerState<CreateCourseScreen> {
     }
   }
 
-  List<String> _splitLines(String s) =>
-      s.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_categoryId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a category')));
+    final title = _titleCtrl.text.trim();
+    if (title.isEmpty) {
+      _snack('Course title is required');
       return;
+    }
+    if (_categoryId == null) {
+      _snack('Please select a category');
+      return;
+    }
+    if (!_isFree) {
+      final p = double.tryParse(_priceCtrl.text.trim());
+      if (p == null || p <= 0) {
+        _snack('Enter a valid price');
+        return;
+      }
     }
     setState(() => _submitting = true);
     try {
       final svc = ref.read(elearningServiceProvider);
       final res = await svc.createCourse(
-        title: _titleCtrl.text.trim(),
-        subtitle: _subtitleCtrl.text.trim(),
-        description: _descCtrl.text.trim(),
+        title: title,
+        subtitle: '',
+        description: '',
         categoryId: _categoryId!,
-        level: _level,
-        language: _language,
+        level: 'all',
+        language: 'so',
         price: _isFree ? 0 : (double.tryParse(_priceCtrl.text.trim()) ?? 0),
         isFree: _isFree,
-        learningOutcomes: _splitLines(_outcomesCtrl.text),
-        requirements: _splitLines(_requirementsCtrl.text),
+        learningOutcomes: [],
+        requirements: [],
         thumbnail: _thumb,
       );
-      final data = res['data'] as Map<String, dynamic>;
-      final courseId = data['id'] as int;
+      final courseId = (res['data'] as Map<String, dynamic>)['id'] as int;
       ref.invalidate(instructorCoursesProvider);
       if (!mounted) return;
-      // Go straight to the content builder
-      context.pushReplacement('/elearning/instructor/course-builder/$courseId', extra: _titleCtrl.text.trim());
+      context.pushReplacement(
+        '/elearning/instructor/course-builder/$courseId',
+        extra: title,
+      );
     } on DioException catch (e) {
-      final msg = e.response?.data?['message']?.toString() ?? 'Could not create course.';
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+      _snack(e.response?.data?['message']?.toString() ?? 'Could not create course.');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
+
+  void _snack(String msg) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
   @override
   Widget build(BuildContext context) {
@@ -101,173 +100,206 @@ class _CreateCourseScreenState extends ConsumerState<CreateCourseScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Create Course', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800)),
+        title: const Text('New Course',
+            style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.secondary),
           onPressed: () => context.pop(),
         ),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Thumbnail
-            GestureDetector(
-              onTap: _pickThumb,
-              child: Container(
-                height: 160,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.grey[300]!, style: BorderStyle.solid),
-                ),
-                child: _thumbName != null
-                    ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        const Icon(Icons.check_circle, color: Colors.green, size: 40),
-                        const SizedBox(height: 8),
-                        Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text(_thumbName!, maxLines: 1, overflow: TextOverflow.ellipsis)),
-                      ])
-                    : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        const Icon(Icons.add_photo_alternate_rounded, color: AppColors.primary, size: 40),
-                        const SizedBox(height: 8),
-                        Text('Add course thumbnail', style: TextStyle(color: Colors.grey[600])),
-                      ]),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AppColors.secondary, Color(0xFF3D2B8E)],
               ),
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(height: 20),
-
-            _label('Course Title *'),
-            _field(_titleCtrl, 'e.g. Complete Flutter Development',
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
-            const SizedBox(height: 16),
-
-            _label('Subtitle'),
-            _field(_subtitleCtrl, 'Short tagline for the course'),
-            const SizedBox(height: 16),
-
-            _label('Description *'),
-            _field(_descCtrl, 'What will students learn in this course?', maxLines: 4,
-                validator: (v) => (v == null || v.trim().length < 20) ? 'At least 20 characters' : null),
-            const SizedBox(height: 16),
-
-            _label('Category *'),
-            categoriesAsync.when(
-              loading: () => const LinearProgressIndicator(),
-              error: (e, _) => const Text('Failed to load categories'),
-              data: (cats) => Container(
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey[200]!)),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    isExpanded: true,
-                    value: _categoryId,
-                    hint: const Text('Select category'),
-                    items: cats.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
-                    onChanged: (v) => setState(() => _categoryId = v),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            Row(children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _label('Level'),
-                _dropdown<String>(_level, const {
-                  'all': 'All Levels', 'beginner': 'Beginner', 'intermediate': 'Intermediate', 'advanced': 'Advanced',
-                }, (v) => setState(() => _level = v!)),
-              ])),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _label('Language'),
-                _dropdown<String>(_language, const {'so': 'Somali', 'en': 'English', 'ar': 'Arabic'},
-                    (v) => setState(() => _language = v!)),
-              ])),
+            child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.rocket_launch_rounded, color: Colors.white70, size: 28),
+              SizedBox(height: 10),
+              Text('Quick Start',
+                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+              SizedBox(height: 4),
+              Text('3 xog oo kaliya — goor dambe wax badan ku dar',
+                  style: TextStyle(color: Colors.white70, fontSize: 13)),
             ]),
-            const SizedBox(height: 16),
+          ),
+          const SizedBox(height: 24),
 
-            // Free toggle + price
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey[200]!)),
-              child: SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                activeColor: AppColors.primary,
-                title: const Text('Free Course', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.secondary)),
-                value: _isFree,
-                onChanged: (v) => setState(() => _isFree = v),
+          // Thumbnail (optional)
+          GestureDetector(
+            onTap: _pickThumb,
+            child: Container(
+              height: 130,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _thumb != null ? AppColors.primary : Colors.grey[300]!,
+                  width: _thumb != null ? 2 : 1,
+                ),
+              ),
+              child: _thumb != null
+                  ? Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      const Icon(Icons.check_circle_rounded, color: Colors.green, size: 30),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(_thumbName!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w600)),
+                      ),
+                    ])
+                  : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(Icons.add_photo_alternate_rounded,
+                          color: Colors.grey[400], size: 36),
+                      const SizedBox(height: 8),
+                      Text('Sawir ku dar (ikhtiyaari)',
+                          style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                    ]),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // 1. Title
+          _Step(number: '1', label: 'Magaca course-ka *'),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _titleCtrl,
+            decoration: _inputDeco('Tusaale: Complete Flutter Development'),
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 20),
+
+          // 2. Category
+          _Step(number: '2', label: 'Category *'),
+          const SizedBox(height: 8),
+          categoriesAsync.when(
+            loading: () => const LinearProgressIndicator(color: AppColors.primary),
+            error: (_, __) => const Text('Category load failed'),
+            data: (cats) => Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[200]!),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  isExpanded: true,
+                  value: _categoryId,
+                  hint: const Text('Dooro category'),
+                  items: cats
+                      .map((c) => DropdownMenuItem(value: c.id, child: Text(c.name)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _categoryId = v),
+                ),
               ),
             ),
-            if (!_isFree) ...[
-              const SizedBox(height: 16),
-              _label('Price (\$) *'),
-              _field(_priceCtrl, 'e.g. 19.99', keyboardType: TextInputType.number,
-                  validator: (v) => (!_isFree && (v == null || double.tryParse(v.trim()) == null)) ? 'Enter a valid price' : null),
-            ],
-            const SizedBox(height: 16),
+          ),
+          const SizedBox(height: 20),
 
-            _label('Learning Outcomes (one per line)'),
-            _field(_outcomesCtrl, 'Build real apps\nMaster state management\n...', maxLines: 3),
-            const SizedBox(height: 16),
-
-            _label('Requirements (one per line)'),
-            _field(_requirementsCtrl, 'A computer\nBasic programming knowledge\n...', maxLines: 3),
-            const SizedBox(height: 28),
-
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              onPressed: _submitting ? null : _submit,
-              child: _submitting
-                  ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                  : const Text('Create & Add Content', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          // 3. Lacag
+          _Step(number: '3', label: 'Lacagta'),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[200]!),
             ),
-            const SizedBox(height: 40),
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              activeColor: AppColors.primary,
+              title: const Text('Bilaash (Free)',
+                  style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.secondary)),
+              value: _isFree,
+              onChanged: (v) => setState(() => _isFree = v),
+            ),
+          ),
+          if (!_isFree) ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: _priceCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: _inputDeco('Qiimaha (\$) — tusaale: 19.99'),
+            ),
           ],
-        ),
+          const SizedBox(height: 32),
+
+          // Submit
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            onPressed: _submitting ? null : _submit,
+            icon: _submitting
+                ? const SizedBox(
+                    width: 18, height: 18,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.arrow_forward_rounded),
+            label: Text(
+              _submitting ? 'Creating…' : 'Create & Add Lessons',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: Text(
+              'Details (subtitle, description, outcomes…)\nwaxaad ku dari kartaa builder-ka kadib',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: Colors.grey[400], height: 1.5),
+            ),
+          ),
+          const SizedBox(height: 40),
+        ],
       ),
     );
   }
 
-  Widget _label(String t) => Padding(
-        padding: const EdgeInsets.only(bottom: 6, left: 2),
-        child: Text(t, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.secondary, fontSize: 13)),
-      );
-
-  Widget _dropdown<T>(T value, Map<T, String> items, ValueChanged<T?> onChanged) => Container(
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey[200]!)),
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<T>(
-            isExpanded: true,
-            value: value,
-            items: items.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
-            onChanged: onChanged,
-          ),
-        ),
-      );
-
-  Widget _field(TextEditingController c, String hint,
-      {int maxLines = 1, TextInputType? keyboardType, String? Function(String?)? validator}) {
-    return TextFormField(
-      controller: c,
-      maxLines: maxLines,
-      keyboardType: keyboardType,
-      validator: validator,
-      decoration: InputDecoration(
+  InputDecoration _inputDeco(String hint) => InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
         filled: true,
         fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[200]!)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[200]!)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
-      ),
-    );
-  }
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey[200]!)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey[200]!)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+      );
+}
+
+class _Step extends StatelessWidget {
+  final String number, label;
+  const _Step({required this.number, required this.label});
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Container(
+          width: 24, height: 24,
+          decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+          child: Center(
+            child: Text(number,
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(label,
+            style: const TextStyle(
+                fontWeight: FontWeight.w700, color: AppColors.secondary, fontSize: 14)),
+      ]);
 }

@@ -4,15 +4,73 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/models/elearning_models.dart';
 import '../providers/elearning_provider.dart';
 
-class CourseBuilderScreen extends ConsumerWidget {
+class CourseBuilderScreen extends ConsumerStatefulWidget {
   final int courseId;
   final String? courseTitle;
   const CourseBuilderScreen({super.key, required this.courseId, this.courseTitle});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CourseBuilderScreen> createState() => _CourseBuilderScreenState();
+}
+
+class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
+  int get courseId => widget.courseId;
+
+  Future<void> _showEditSheet(Map<String, dynamic> courseData) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EditCourseSheet(courseId: courseId, data: courseData,
+          onSaved: () => ref.invalidate(courseStructureProvider(courseId))),
+    );
+  }
+
+  Future<void> _confirmDelete(String status) async {
+    if (status == 'published') {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Published courses cannot be deleted')));
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Course?'),
+        content: const Text('This will permanently delete the course and all its sections and lessons. This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      try {
+        await ref.read(elearningServiceProvider).deleteCourse(courseId);
+        ref.invalidate(instructorCoursesProvider);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Course deleted'), backgroundColor: Colors.red));
+          context.pop();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final structAsync = ref.watch(courseStructureProvider(courseId));
 
     return Scaffold(
@@ -20,13 +78,39 @@ class CourseBuilderScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Text(courseTitle ?? 'Course Content',
+        title: Text(widget.courseTitle ?? 'Course Content',
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.secondary),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          structAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (data) => PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded, color: AppColors.secondary),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (v) {
+                if (v == 'edit') _showEditSheet(data);
+                if (v == 'delete') _confirmDelete(data['status'] as String? ?? 'draft');
+              },
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'edit', child: Row(children: [
+                  Icon(Icons.edit_rounded, size: 18, color: AppColors.primary),
+                  SizedBox(width: 10),
+                  Text('Edit Details'),
+                ])),
+                const PopupMenuItem(value: 'delete', child: Row(children: [
+                  Icon(Icons.delete_rounded, size: 18, color: Colors.red),
+                  SizedBox(width: 10),
+                  Text('Delete Course', style: TextStyle(color: Colors.red)),
+                ])),
+              ],
+            ),
+          ),
+        ],
       ),
       body: structAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
@@ -78,7 +162,7 @@ class CourseBuilderScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  onPressed: () => _addSection(context, ref),
+                  onPressed: () => _addSection(context),
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('Add Section'),
                 ),
@@ -92,7 +176,7 @@ class CourseBuilderScreen extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
-                    onPressed: totalLessons > 0 ? () => _submitForReview(context, ref) : null,
+                    onPressed: totalLessons > 0 ? () => _submitForReview(context) : null,
                     icon: const Icon(Icons.send_rounded),
                     label: const Text('Submit for Review', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                   ),
@@ -111,7 +195,8 @@ class CourseBuilderScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _addSection(BuildContext context, WidgetRef ref) async {
+  Future<void> _addSection(BuildContext context) async {
+    final ref = this.ref;
     final ctrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
@@ -156,7 +241,8 @@ class CourseBuilderScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _submitForReview(BuildContext context, WidgetRef ref) async {
+  Future<void> _submitForReview(BuildContext context) async {
+    final ref = this.ref;
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
@@ -515,4 +601,275 @@ class _AddLessonSheetState extends ConsumerState<_AddLessonSheet> {
       ),
     );
   }
+}
+
+// ── Edit Course Details Sheet ─────────────────────────────────────────────────
+class _EditCourseSheet extends ConsumerStatefulWidget {
+  final int courseId;
+  final Map<String, dynamic> data;
+  final VoidCallback onSaved;
+  const _EditCourseSheet({required this.courseId, required this.data, required this.onSaved});
+
+  @override
+  ConsumerState<_EditCourseSheet> createState() => _EditCourseSheetState();
+}
+
+class _EditCourseSheetState extends ConsumerState<_EditCourseSheet> {
+  late final TextEditingController _titleCtrl;
+  late final TextEditingController _subtitleCtrl;
+  late final TextEditingController _descCtrl;
+  late final TextEditingController _priceCtrl;
+  late final TextEditingController _outcomesCtrl;
+  late final TextEditingController _requirementsCtrl;
+  int? _categoryId;
+  String _level = 'all';
+  String _language = 'so';
+  bool _isFree = false;
+  MultipartFile? _thumb;
+  String? _thumbName;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final d = widget.data;
+    _titleCtrl = TextEditingController(text: d['title'] as String? ?? '');
+    _subtitleCtrl = TextEditingController(text: d['subtitle'] as String? ?? '');
+    _descCtrl = TextEditingController(text: d['description'] as String? ?? '');
+    _priceCtrl = TextEditingController(text: (d['price'] ?? '').toString());
+    final outcomes = (d['learning_outcomes'] as List<dynamic>? ?? []).join('\n');
+    _outcomesCtrl = TextEditingController(text: outcomes);
+    final reqs = (d['requirements'] as List<dynamic>? ?? []).join('\n');
+    _requirementsCtrl = TextEditingController(text: reqs);
+    _isFree = d['is_free'] == true;
+    _level = d['level'] as String? ?? 'all';
+    _language = d['language'] as String? ?? 'so';
+    final cat = d['category'];
+    if (cat is Map) _categoryId = cat['id'] as int?;
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose(); _subtitleCtrl.dispose(); _descCtrl.dispose();
+    _priceCtrl.dispose(); _outcomesCtrl.dispose(); _requirementsCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickThumb() async {
+    final f = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (f != null) {
+      final bytes = await f.readAsBytes();
+      setState(() {
+        _thumb = MultipartFile.fromBytes(bytes, filename: f.name);
+        _thumbName = f.name;
+      });
+    }
+  }
+
+  List<String> _lines(String s) =>
+      s.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+
+  Future<void> _save() async {
+    if (_titleCtrl.text.trim().isEmpty) return;
+    setState(() => _saving = true);
+    try {
+      await ref.read(elearningServiceProvider).updateCourse(
+        widget.courseId,
+        title: _titleCtrl.text.trim(),
+        subtitle: _subtitleCtrl.text.trim(),
+        description: _descCtrl.text.trim(),
+        categoryId: _categoryId,
+        level: _level,
+        language: _language,
+        price: _isFree ? 0 : (double.tryParse(_priceCtrl.text.trim()) ?? 0),
+        isFree: _isFree,
+        learningOutcomes: _lines(_outcomesCtrl.text),
+        requirements: _lines(_requirementsCtrl.text),
+        thumbnail: _thumb,
+      );
+      widget.onSaved();
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Course updated!'), backgroundColor: Colors.green));
+      }
+    } on DioException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.response?.data?['message']?.toString() ?? 'Update failed'),
+          backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cats = ref.watch(elearningCategoriesProvider);
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 8, 12),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(colors: [AppColors.secondary, Color(0xFF3D2B8E)]),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Row(children: [
+              const Expanded(child: Text('Edit Course Details',
+                  style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800))),
+              IconButton(onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Colors.white70)),
+            ]),
+          ),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+                // Thumbnail
+                GestureDetector(
+                  onTap: _pickThumb,
+                  child: Container(
+                    height: 90,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F6FA),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _thumb != null ? AppColors.primary : Colors.grey[300]!),
+                    ),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(_thumb != null ? Icons.check_circle_rounded : Icons.add_photo_alternate_rounded,
+                          color: _thumb != null ? Colors.green : Colors.grey[400], size: 24),
+                      const SizedBox(width: 10),
+                      Text(_thumb != null ? _thumbName! : 'Change thumbnail',
+                          style: TextStyle(color: _thumb != null ? Colors.green[700] : Colors.grey[500])),
+                    ]),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                _lbl('Title'), _tf(_titleCtrl, 'Course title'),
+                const SizedBox(height: 12),
+                _lbl('Subtitle'), _tf(_subtitleCtrl, 'Short tagline'),
+                const SizedBox(height: 12),
+                _lbl('Description'), _tf(_descCtrl, 'What will students learn?', lines: 3),
+                const SizedBox(height: 12),
+
+                _lbl('Category'),
+                cats.when(
+                  loading: () => const LinearProgressIndicator(color: AppColors.primary),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (list) => _drop<int?>(
+                    value: _categoryId,
+                    items: list.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+                    hint: 'Select category',
+                    onChanged: (v) => setState(() => _categoryId = v),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                Row(children: [
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    _lbl('Level'),
+                    _drop<String>(value: _level, items: const [
+                      DropdownMenuItem(value: 'all', child: Text('All Levels')),
+                      DropdownMenuItem(value: 'beginner', child: Text('Beginner')),
+                      DropdownMenuItem(value: 'intermediate', child: Text('Intermediate')),
+                      DropdownMenuItem(value: 'advanced', child: Text('Advanced')),
+                    ], onChanged: (v) => setState(() => _level = v!)),
+                  ])),
+                  const SizedBox(width: 10),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    _lbl('Language'),
+                    _drop<String>(value: _language, items: const [
+                      DropdownMenuItem(value: 'so', child: Text('Somali')),
+                      DropdownMenuItem(value: 'en', child: Text('English')),
+                      DropdownMenuItem(value: 'ar', child: Text('Arabic')),
+                    ], onChanged: (v) => setState(() => _language = v!)),
+                  ])),
+                ]),
+                const SizedBox(height: 12),
+
+                // Free toggle
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  activeColor: AppColors.primary,
+                  title: const Text('Bilaash (Free)',
+                      style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.secondary, fontSize: 14)),
+                  value: _isFree,
+                  onChanged: (v) => setState(() => _isFree = v),
+                ),
+                if (!_isFree) ...[
+                  _lbl('Price (\$)'),
+                  _tf(_priceCtrl, 'e.g. 19.99', type: TextInputType.number),
+                  const SizedBox(height: 12),
+                ],
+
+                _lbl('Learning Outcomes (mid kasta mid line ah)'),
+                _tf(_outcomesCtrl, 'Build real apps\nMaster Riverpod\n...', lines: 3),
+                const SizedBox(height: 12),
+                _lbl('Requirements (mid kasta mid line ah)'),
+                _tf(_requirementsCtrl, 'Computer\nBasic Dart\n...', lines: 2),
+                const SizedBox(height: 20),
+
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    minimumSize: const Size.fromHeight(50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                      ? const SizedBox(height: 20, width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                ),
+                const SizedBox(height: 16),
+              ]),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _lbl(String t) => Padding(
+      padding: const EdgeInsets.only(bottom: 5, left: 2),
+      child: Text(t, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.secondary, fontSize: 12)));
+
+  Widget _tf(TextEditingController c, String hint, {int lines = 1, TextInputType? type}) =>
+      TextField(
+        controller: c,
+        maxLines: lines,
+        keyboardType: type,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+          filled: true,
+          fillColor: const Color(0xFFF5F6FA),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+        ),
+      );
+
+  Widget _drop<T>({required T value, required List<DropdownMenuItem<T>> items,
+      required ValueChanged<T?> onChanged, String? hint}) =>
+      Container(
+        decoration: BoxDecoration(color: const Color(0xFFF5F6FA), borderRadius: BorderRadius.circular(10)),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<T>(
+            isExpanded: true,
+            value: value,
+            hint: hint != null ? Text(hint) : null,
+            items: items,
+            onChanged: onChanged,
+          ),
+        ),
+      );
 }

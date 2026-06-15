@@ -268,13 +268,43 @@ class ELearningInstructorApiController extends Controller
         ]);
 
         if ($request->hasFile('thumbnail')) {
-            if ($course->thumbnail) Storage::disk('public')->delete($course->thumbnail);
-            $data['thumbnail'] = $request->file('thumbnail')->store('elearning/thumbnails', 'public');
+            // Delete old thumbnail
+            if ($course->thumbnail) {
+                $oldPath = str_replace(asset('storage') . '/', '', $course->thumbnail);
+                Storage::disk('public')->delete($oldPath);
+            }
+            $path = $request->file('thumbnail')->store('elearning/thumbnails', 'public');
+            $data['thumbnail'] = asset('storage/' . $path);
+        }
+
+        // Recalculate effective_price
+        if (isset($data['is_free']) && $data['is_free']) {
+            $data['price'] = 0;
+            $data['discount_price'] = null;
         }
 
         $course->update($data);
 
         return response()->json(['status' => 'success', 'message' => 'Course updated']);
+    }
+
+    public function deleteCourse(int $id)
+    {
+        $instructor = $this->requireInstructor();
+        $course = ELearningCourse::where('id', $id)->where('instructor_id', $instructor->id)->firstOrFail();
+
+        if ($course->status === 'published') {
+            return response()->json(['status' => 'error', 'message' => 'Published courses cannot be deleted. Archive it first.'], 422);
+        }
+
+        // Delete thumbnail
+        if ($course->thumbnail) {
+            $path = str_replace(asset('storage') . '/', '', $course->thumbnail);
+            \Storage::disk('public')->delete($path);
+        }
+
+        $course->delete();
+        return response()->json(['status' => 'success', 'message' => 'Course deleted']);
     }
 
     public function addSection(Request $request)

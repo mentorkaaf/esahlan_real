@@ -299,4 +299,39 @@ class ELearningApiService {
     final r = await _dio.put('$_base/instructor/courses/$courseId', data: {'status': 'pending'});
     return r.data as Map<String, dynamic>;
   }
+
+  Future<Map<String, dynamic>> updateCourse(int courseId, {
+    String? title,
+    String? subtitle,
+    String? description,
+    int? categoryId,
+    String? level,
+    String? language,
+    double? price,
+    bool? isFree,
+    List<String>? learningOutcomes,
+    List<String>? requirements,
+    MultipartFile? thumbnail,
+  }) async {
+    final data = FormData.fromMap({
+      if (title != null) 'title': title,
+      if (subtitle != null) 'subtitle': subtitle,
+      if (description != null) 'description': description,
+      if (categoryId != null) 'category_id': categoryId,
+      if (level != null) 'level': level,
+      if (language != null) 'language': language,
+      if (price != null) 'price': price,
+      if (isFree != null) 'is_free': isFree ? 1 : 0,
+      if (learningOutcomes != null) 'learning_outcomes': learningOutcomes,
+      if (requirements != null) 'requirements': requirements,
+      if (thumbnail != null) 'thumbnail': thumbnail,
+      '_method': 'PUT',
+    });
+    final r = await _dio.post('$_base/instructor/courses/$courseId', data: data);
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<void> deleteCourse(int courseId) async {
+    await _dio.delete('$_base/instructor/courses/$courseId');
+  }
 }

@@ -523,6 +523,7 @@ Route::prefix('v1/elearning')->group(function () {
             Route::get('courses/{id}/structure', [ELearningInstructorApiController::class, 'courseStructure']);
             Route::post('courses', [ELearningInstructorApiController::class, 'createCourse']);
             Route::put('courses/{id}', [ELearningInstructorApiController::class, 'updateCourse']);
+            Route::delete('courses/{id}', [ELearningInstructorApiController::class, 'deleteCourse']);
             Route::post('sections', [ELearningInstructorApiController::class, 'addSection']);
             Route::post('lessons', [ELearningInstructorApiController::class, 'addLesson']);
             Route::get('students', [ELearningInstructorApiController::class, 'students']);
