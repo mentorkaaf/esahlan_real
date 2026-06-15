@@ -25,7 +25,7 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _EditCourseSheet(courseId: courseId, data: courseData,
-          onSaved: () => ref.invalidate(courseStructureProvider(courseId))),
+          onSaved: () => ref.refresh(courseStructureProvider(courseId).future)),
     );
   }
 
@@ -151,7 +151,7 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
                         index: e.key,
                         section: e.value,
                         courseId: courseId,
-                        onChanged: () => ref.invalidate(courseStructureProvider(courseId)),
+                        onChanged: () => ref.refresh(courseStructureProvider(courseId).future),
                       )),
 
                 const SizedBox(height: 8),
@@ -221,7 +221,8 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
     if (ok == true && ctrl.text.trim().isNotEmpty) {
       try {
         await ref.read(elearningServiceProvider).addSection(courseId: courseId, title: ctrl.text.trim());
-        ref.invalidate(courseStructureProvider(courseId));
+        // Force immediate re-fetch and wait for it to complete so the list updates
+        await ref.refresh(courseStructureProvider(courseId).future);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               content: Text('Section added'), backgroundColor: Colors.green));
@@ -262,7 +263,7 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
     if (ok == true) {
       try {
         await ref.read(elearningServiceProvider).submitCourseForReview(courseId);
-        ref.invalidate(courseStructureProvider(courseId));
+        await ref.refresh(courseStructureProvider(courseId).future);
         ref.invalidate(instructorCoursesProvider);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
