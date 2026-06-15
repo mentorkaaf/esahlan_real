@@ -13,19 +13,29 @@ const _bg     = Color(0xFFF5F6FA);
 
 // ─── Screen ────────────────────────────────────────────────────────────────────
 
-class CourseBuilderScreen extends ConsumerWidget {
+class CourseBuilderScreen extends ConsumerStatefulWidget {
   final int    courseId;
   final String? courseTitle;
   const CourseBuilderScreen({super.key, required this.courseId, this.courseTitle});
 
-  // Forces the FutureProvider to re-fetch immediately (no freeze, no setState needed).
-  void _reload(WidgetRef ref) => ref.refresh(courseStructureProvider(courseId));
+  @override
+  ConsumerState<CourseBuilderScreen> createState() => _CourseBuilderScreenState();
+}
+
+class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
+  int get courseId => widget.courseId;
+
+  // ref here is always ConsumerState.ref — never stale after async gaps.
+  void _reload() {
+    ref.invalidate(courseStructureProvider(courseId));
+    if (mounted) setState(() {});
+  }
 
   // ── Add section ─────────────────────────────────────────────────────────────
 
-  Future<void> _addSection(BuildContext ctx, WidgetRef ref) async {
+  Future<void> _addSection() async {
     final title = await showModalBottomSheet<String>(
-      context: ctx,
+      context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const _AddSectionSheet(),
@@ -34,20 +44,20 @@ class CourseBuilderScreen extends ConsumerWidget {
     try {
       await ref.read(elearningServiceProvider)
           .addSection(courseId: courseId, title: title);
-      _reload(ref);
-      if (ctx.mounted) _snack(ctx, 'Section added ✓', Colors.green);
+      _reload();
+      if (mounted) _snack('Section added ✓', Colors.green);
     } on DioException catch (e) {
-      if (ctx.mounted) _snack(ctx, e.response?.data?['message']?.toString() ?? 'Failed to add section', Colors.red);
+      if (mounted) _snack(e.response?.data?['message']?.toString() ?? 'Failed to add section', Colors.red);
     } catch (e) {
-      if (ctx.mounted) _snack(ctx, e.toString(), Colors.red);
+      if (mounted) _snack(e.toString(), Colors.red);
     }
   }
 
   // ── Submit for review ────────────────────────────────────────────────────────
 
-  Future<void> _submit(BuildContext ctx, WidgetRef ref) async {
+  Future<void> _submit() async {
     final ok = await showModalBottomSheet<bool>(
-      context: ctx,
+      context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _ConfirmSheet(
         icon: Icons.rocket_launch_rounded,
@@ -62,22 +72,22 @@ class CourseBuilderScreen extends ConsumerWidget {
     try {
       await ref.read(elearningServiceProvider).submitCourseForReview(courseId);
       ref.invalidate(instructorCoursesProvider);
-      _reload(ref);
-      if (ctx.mounted) _snack(ctx, 'Submitted for review! ✓', Colors.green);
+      _reload();
+      if (mounted) _snack('Submitted for review! ✓', Colors.green);
     } on DioException catch (e) {
-      if (ctx.mounted) _snack(ctx, e.response?.data?['message']?.toString() ?? 'Failed to submit', Colors.red);
+      if (mounted) _snack(e.response?.data?['message']?.toString() ?? 'Failed to submit', Colors.red);
     }
   }
 
   // ── Delete ──────────────────────────────────────────────────────────────────
 
-  Future<void> _delete(BuildContext ctx, WidgetRef ref, String status) async {
+  Future<void> _delete(String status) async {
     if (status == 'published') {
-      _snack(ctx, 'Cannot delete a published course.', Colors.red);
+      _snack('Cannot delete a published course.', Colors.red);
       return;
     }
     final ok = await showModalBottomSheet<bool>(
-      context: ctx,
+      context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => const _ConfirmSheet(
         icon: Icons.delete_forever_rounded,
@@ -92,34 +102,34 @@ class CourseBuilderScreen extends ConsumerWidget {
     try {
       await ref.read(elearningServiceProvider).deleteCourse(courseId);
       ref.invalidate(instructorCoursesProvider);
-      if (ctx.mounted) { ctx.pop(); _snack(ctx, 'Course deleted.', Colors.red); }
+      if (mounted) { context.pop(); _snack('Course deleted.', Colors.red); }
     } catch (e) {
-      if (ctx.mounted) _snack(ctx, e.toString(), Colors.red);
+      if (mounted) _snack(e.toString(), Colors.red);
     }
   }
 
   // ── Edit ────────────────────────────────────────────────────────────────────
 
-  Future<void> _edit(BuildContext ctx, WidgetRef ref, Map<String, dynamic> data) async {
+  Future<void> _edit(Map<String, dynamic> data) async {
     await showModalBottomSheet(
-      context: ctx,
+      context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _EditSheet(
         courseId: courseId, data: data,
-        onSaved: () => _reload(ref),
+        onSaved: _reload,
       ),
     );
   }
 
-  static void _snack(BuildContext ctx, String msg, [Color? bg]) =>
-      ScaffoldMessenger.of(ctx).showSnackBar(
+  void _snack(String msg, [Color? bg]) =>
+      ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(msg), backgroundColor: bg));
 
   // ── Build ────────────────────────────────────────────────────────────────────
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final async = ref.watch(courseStructureProvider(courseId));
 
     return Scaffold(
@@ -131,7 +141,7 @@ class CourseBuilderScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _navy),
           onPressed: () => context.pop(),
         ),
-        title: Text(courseTitle ?? 'Course Builder',
+        title: Text(widget.courseTitle ?? 'Course Builder',
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: _navy, fontWeight: FontWeight.w800, fontSize: 17)),
         actions: [
@@ -140,8 +150,8 @@ class CourseBuilderScreen extends ConsumerWidget {
               icon: const Icon(Icons.more_vert_rounded, color: _navy),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               onSelected: (v) {
-                if (v == 'edit')   _edit(context, ref, data);
-                if (v == 'delete') _delete(context, ref, data['status'] as String? ?? 'draft');
+                if (v == 'edit')   _edit(data);
+                if (v == 'delete') _delete(data['status'] as String? ?? 'draft');
               },
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'edit',
@@ -167,7 +177,7 @@ class CourseBuilderScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator(color: _orange)),
         error: (e, _) => _ErrorView(
             message: e.toString(),
-            onRetry: () => _reload(ref)),
+            onRetry: _reload),
         data: (data) {
           final sections = (data['sections'] as List? ?? []).cast<Map<String, dynamic>>();
           final status   = data['status'] as String? ?? 'draft';
@@ -178,7 +188,7 @@ class CourseBuilderScreen extends ConsumerWidget {
 
           return RefreshIndicator(
             color: _orange,
-            onRefresh: () async => _reload(ref),
+            onRefresh: () async => _reload(),
             child: ListView(
               padding: EdgeInsets.only(
                 left: 16, right: 16, top: 16,
@@ -189,21 +199,18 @@ class CourseBuilderScreen extends ConsumerWidget {
                     status: status, totalLessons: total),
                 const SizedBox(height: 20),
 
-                // Section list
                 if (sections.isEmpty)
-                  _EmptyState(onAdd: () => _addSection(context, ref))
+                  _EmptyState(onAdd: _addSection)
                 else ...[
                   ...sections.asMap().entries.map((e) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _SectionCard(
-                      index:    e.key,
-                      section:  e.value,
-                      onChanged: () => _reload(ref),
+                      index:     e.key,
+                      section:   e.value,
+                      onChanged: _reload,
                     ),
                   )),
-
-                  // Add section button (shown below existing sections)
-                  _AddSectionButton(onTap: () => _addSection(context, ref)),
+                  _AddSectionButton(onTap: _addSection),
                 ],
               ],
             ),
@@ -211,7 +218,6 @@ class CourseBuilderScreen extends ConsumerWidget {
         },
       ),
 
-      // ── Submit bar at bottom ──────────────────────────────────────────────────
       bottomNavigationBar: async.maybeWhen(
         data: (data) {
           final status = data['status'] as String? ?? 'draft';
@@ -219,10 +225,7 @@ class CourseBuilderScreen extends ConsumerWidget {
           if (status == 'published') return const SizedBox.shrink();
           if (status == 'pending')   return _StatusBar(label: 'Under Review — waiting for admin approval', color: Colors.orange);
           if (status == 'rejected')  return _StatusBar(label: 'Rejected — edit your course and resubmit', color: Colors.red);
-          return _SubmitBar(
-            hasLessons: total > 0,
-            onSubmit: () => _submit(context, ref),
-          );
+          return _SubmitBar(hasLessons: total > 0, onSubmit: _submit);
         },
         orElse: () => const SizedBox.shrink(),
       ),
