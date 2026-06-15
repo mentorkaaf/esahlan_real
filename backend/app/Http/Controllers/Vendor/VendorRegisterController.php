@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Vendor;
 
 use App\Http\Controllers\Controller;
+use App\Models\District;
 use App\Models\Module;
 use App\Models\User;
 use App\Models\Vendor;
@@ -9,7 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\Storage;
 
 class VendorRegisterController extends Controller
 {
@@ -24,69 +25,84 @@ class VendorRegisterController extends Controller
             }
         }
 
-        $modules = Module::whereIn('slug', self::VENDOR_MODULES)->get();
-        return view('vendor.auth.register', compact('modules'));
+        $modules   = Module::whereIn('slug', self::VENDOR_MODULES)->get();
+        $districts = District::orderBy('name')->get(['id', 'name']);
+        return view('vendor.auth.register', compact('modules', 'districts'));
     }
 
     public function register(Request $request)
     {
         $request->validate([
-            'name'            => 'required|string|max:100',
-            'phone'           => 'required|string|max:20|unique:users,phone',
-            'pin'             => 'required|digits:4',
-            'pin_confirmation'=> 'required|same:pin',
-            'store_name'      => 'required|string|max:200',
-            'store_description'=> 'nullable|string|max:500',
-            'module_id'       => 'required|exists:modules,id',
+            'name'              => 'required|string|max:100',
+            'email'             => 'required|email|max:150|unique:users,email',
+            'phone'             => 'required|string|max:20|unique:users,phone',
+            'password'          => 'required|string|min:8|confirmed',
+            'store_name'        => 'required|string|max:200',
+            'store_description' => 'nullable|string|max:500',
+            'district_id'       => 'required|exists:districts,id',
+            'business_license'  => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'module_id'         => 'required|exists:modules,id',
         ], [
-            'phone.unique'         => 'This phone number is already registered.',
-            'pin.digits'           => 'PIN must be exactly 4 digits.',
-            'pin_confirmation.same'=> 'PINs do not match.',
-            'module_id.required'   => 'Please select the module you want to work with.',
+            'email.required'          => 'Email address is required.',
+            'email.unique'            => 'This email is already registered.',
+            'phone.unique'            => 'This phone number is already registered.',
+            'password.min'            => 'Password must be at least 8 characters.',
+            'password.confirmed'      => 'Passwords do not match.',
+            'district_id.required'    => 'Please select your district.',
+            'module_id.required'      => 'Please select the module you want to work with.',
+            'business_license.mimes'  => 'Business license must be a JPG, PNG, or PDF file.',
+            'business_license.max'    => 'Business license file must not exceed 5MB.',
         ]);
 
         $module = Module::findOrFail($request->module_id);
 
-        // Only allow vendor modules
         if (!in_array($module->slug, self::VENDOR_MODULES)) {
             return back()->withErrors(['module_id' => 'Invalid module selected.'])->withInput();
         }
 
-        // Normalize phone — ensure it starts with +252
+        // Normalize phone
         $phone = preg_replace('/\D/', '', $request->phone);
         if (!str_starts_with($phone, '252')) {
-            // If user typed just local digits like 612345678
             if (strlen($phone) <= 9) {
                 $phone = '252' . $phone;
             }
         }
         $phone = '+' . ltrim($phone, '+');
 
-        // Check again after normalization
         if (User::where('phone', $phone)->exists()) {
             return back()->withErrors(['phone' => 'This phone number is already registered.'])->withInput();
         }
 
-        DB::transaction(function () use ($request, $module, $phone) {
+        // Handle business license upload
+        $licensePath = null;
+        if ($request->hasFile('business_license')) {
+            $licensePath = $request->file('business_license')
+                ->store('vendors/licenses', 'public');
+        }
+
+        DB::transaction(function () use ($request, $module, $phone, $licensePath) {
             $vendorOwnerRoleId = DB::table('roles')->where('slug', 'vendor_owner')->value('id');
 
             $user = User::create([
                 'name'     => $request->name,
+                'email'    => $request->email,
                 'phone'    => $phone,
-                'password' => Hash::make($request->pin),
+                'password' => Hash::make($request->password),
                 'role_id'  => $vendorOwnerRoleId,
             ]);
 
             Vendor::create([
-                'user_id'     => $user->id,
-                'module_id'   => $module->id,
-                'module_slug' => $module->slug,
-                'name'        => $request->store_name,
-                'description' => $request->store_description,
-                'status'      => 'pending',
-                'is_approved' => false,
-                'is_active'   => false,
-                'is_open'     => true,
+                'user_id'          => $user->id,
+                'module_id'        => $module->id,
+                'module_slug'      => $module->slug,
+                'district_id'      => $request->district_id,
+                'business_license' => $licensePath,
+                'name'             => $request->store_name,
+                'description'      => $request->store_description,
+                'status'           => 'pending',
+                'is_approved'      => false,
+                'is_active'        => false,
+                'is_open'          => true,
             ]);
         });
 

@@ -12,7 +12,7 @@ class Vendor extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'uuid','user_id','module_id','module_slug','district_id','name','slug',
+        'uuid','user_id','module_id','module_slug','district_id','business_license','name','slug',
         'description','logo','cover_image','phone','email','address',
         'latitude','longitude','vendor_type','status','is_open','is_active','is_approved',
         'is_featured','is_verified','temporarily_closed','minimum_order','delivery_fee',
