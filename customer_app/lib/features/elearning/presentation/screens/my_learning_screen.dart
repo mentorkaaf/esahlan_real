@@ -215,7 +215,7 @@ class _EnrollmentCard extends StatelessWidget {
                   Text(course.title, maxLines: 2, overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.secondary)),
                   if (course.instructor != null)
-                    Text(course.instructor!, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                    Text(course.instructor!.name, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                   const SizedBox(height: 8),
                   if (!isCompleted) ...[
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
