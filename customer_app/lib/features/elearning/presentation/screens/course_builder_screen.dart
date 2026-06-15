@@ -25,7 +25,7 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _EditCourseSheet(courseId: courseId, data: courseData,
-          onSaved: () => ref.refresh(courseStructureProvider(courseId).future)),
+          onSaved: () => ref.invalidate(courseStructureProvider(courseId))),
     );
   }
 
@@ -151,7 +151,7 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
                         index: e.key,
                         section: e.value,
                         courseId: courseId,
-                        onChanged: () => ref.refresh(courseStructureProvider(courseId).future),
+                        onChanged: () => ref.invalidate(courseStructureProvider(courseId)),
                       )),
 
                 const SizedBox(height: 8),
@@ -196,32 +196,32 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
   }
 
   Future<void> _addSection(BuildContext context) async {
-    // Use bottom sheet instead of dialog to avoid GoRouter ShellRoute navigator bug
     final title = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const _AddSectionSheet(),
     );
-    if (title != null && title.trim().isNotEmpty) {
-      try {
-        await ref.read(elearningServiceProvider).addSection(courseId: courseId, title: title.trim());
-        await ref.refresh(courseStructureProvider(courseId).future);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Section added'), backgroundColor: Colors.green));
-        }
-      } on DioException catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(e.response?.data?['message']?.toString() ?? 'Failed to add section'),
-              backgroundColor: Colors.red));
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Error: $e'), backgroundColor: Colors.red));
-        }
+    if (title == null || title.trim().isEmpty) return;
+    try {
+      await ref.read(elearningServiceProvider).addSection(courseId: courseId, title: title.trim());
+      // Invalidate + setState: provider marks stale, build() re-watches and fetches fresh data
+      ref.invalidate(courseStructureProvider(courseId));
+      if (mounted) setState(() {});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Section added'), backgroundColor: Colors.green));
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(e.response?.data?['message']?.toString() ?? 'Failed to add section'),
+            backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error: $e'), backgroundColor: Colors.red));
       }
     }
   }
@@ -267,8 +267,9 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
     if (ok == true) {
       try {
         await ref.read(elearningServiceProvider).submitCourseForReview(courseId);
-        await ref.refresh(courseStructureProvider(courseId).future);
+        ref.invalidate(courseStructureProvider(courseId));
         ref.invalidate(instructorCoursesProvider);
+        if (mounted) setState(() {});
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               content: Text('Course submitted for review!'), backgroundColor: Colors.green));
