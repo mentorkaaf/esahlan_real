@@ -337,6 +337,48 @@
                 <textarea name="store_description" class="form-control no-icon" rows="3" placeholder="Describe your store briefly...">{{ old('store_description') }}</textarea>
             </div>
 
+            {{-- Store Location Map --}}
+            <div class="form-group">
+                <label class="form-label">
+                    Store Location <span style="color:var(--danger);">*</span>
+                    <span style="font-weight:400;color:var(--text-muted);margin-left:4px;font-size:11px;">(Click the map or search)</span>
+                </label>
+
+                {{-- Search box --}}
+                <div class="input-wrap" style="margin-bottom:10px;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="map-search" class="form-control" placeholder="Search for your store location..." autocomplete="off">
+                </div>
+
+                {{-- Map container --}}
+                <div id="map-container" style="position:relative;border-radius:12px;overflow:hidden;border:1.5px solid var(--border);box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+                    <div id="vendor-map" style="width:100%;height:280px;"></div>
+                    {{-- Center pin overlay --}}
+                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);pointer-events:none;z-index:10;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
+                        <i class="fa-solid fa-location-dot" style="font-size:32px;color:var(--brand);"></i>
+                    </div>
+                    {{-- My location button --}}
+                    <button type="button" id="my-location-btn" title="Use my location"
+                        style="position:absolute;bottom:10px;right:10px;z-index:10;width:38px;height:38px;border-radius:8px;background:#fff;border:1.5px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+                        <i class="fa-solid fa-location-crosshairs" style="color:var(--brand);font-size:15px;"></i>
+                    </button>
+                </div>
+
+                {{-- Selected address display --}}
+                <div id="selected-address-box" style="display:none;margin-top:8px;padding:10px 12px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:9px;font-size:13px;color:#166534;">
+                    <i class="fa-solid fa-circle-check" style="margin-right:6px;color:#16a34a;"></i>
+                    <span id="selected-address-text"></span>
+                </div>
+                <div id="map-error-msg" style="display:none;margin-top:6px;font-size:12px;color:var(--danger);">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Please pick your store location on the map.
+                </div>
+
+                {{-- Hidden fields submitted with form --}}
+                <input type="hidden" name="latitude"  id="vendor-lat">
+                <input type="hidden" name="longitude" id="vendor-lng">
+                <input type="hidden" name="store_address" id="vendor-address">
+            </div>
+
             <div class="form-group">
                 <label class="form-label">
                     Business License / Government Permit <span style="color:var(--danger);">*</span>
@@ -492,11 +534,100 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Please upload your Business License / Government Permit.');
             return;
         }
-        // Ensure full phone is set as "phone" field
+        // Validate location
+        const lat = document.getElementById('vendor-lat').value;
+        const lng = document.getElementById('vendor-lng').value;
+        if (!lat || !lng) {
+            e.preventDefault();
+            document.getElementById('map-error-msg').style.display = 'block';
+            document.getElementById('vendor-map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+        // Ensure full phone is set
         const local = document.getElementById('phone-local').value.trim();
         document.getElementById('phone-full').value = '+252' + local;
     });
 });
 </script>
+
+{{-- Google Maps --}}
+<script>
+let vendorMap, geocoder, searchBox;
+
+function initVendorMap() {
+    geocoder = new google.maps.Geocoder();
+
+    // Default center: Mogadishu
+    const defaultCenter = { lat: 2.0469, lng: 45.3182 };
+
+    vendorMap = new google.maps.Map(document.getElementById('vendor-map'), {
+        center: defaultCenter,
+        zoom: 13,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        zoomControlOptions: { position: google.maps.ControlPosition.LEFT_BOTTOM },
+    });
+
+    // Search box
+    const searchInput = document.getElementById('map-search');
+    searchBox = new google.maps.places.SearchBox(searchInput);
+    vendorMap.addListener('bounds_changed', () => searchBox.setBounds(vendorMap.getBounds()));
+
+    searchBox.addListener('places_changed', () => {
+        const places = searchBox.getPlaces();
+        if (!places || places.length === 0) return;
+        const place = places[0];
+        if (!place.geometry || !place.geometry.location) return;
+        vendorMap.setCenter(place.geometry.location);
+        vendorMap.setZoom(16);
+        setLocation(place.geometry.location.lat(), place.geometry.location.lng(), place.formatted_address || searchInput.value);
+    });
+
+    // Update location when map is dragged (pin stays center)
+    vendorMap.addListener('dragend', () => {
+        const center = vendorMap.getCenter();
+        reverseGeocode(center.lat(), center.lng());
+    });
+
+    vendorMap.addListener('click', (e) => {
+        vendorMap.setCenter(e.latLng);
+        reverseGeocode(e.latLng.lat(), e.latLng.lng());
+    });
+
+    // My location button
+    document.getElementById('my-location-btn').addEventListener('click', () => {
+        if (!navigator.geolocation) { alert('Geolocation is not supported by your browser.'); return; }
+        navigator.geolocation.getCurrentPosition(pos => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            vendorMap.setCenter({ lat, lng });
+            vendorMap.setZoom(17);
+            reverseGeocode(lat, lng);
+        }, () => alert('Unable to get your location. Please pick manually.'));
+    });
+}
+
+function reverseGeocode(lat, lng) {
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+        const address = (status === 'OK' && results[0]) ? results[0].formatted_address : `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        setLocation(lat, lng, address);
+    });
+}
+
+function setLocation(lat, lng, address) {
+    document.getElementById('vendor-lat').value     = lat;
+    document.getElementById('vendor-lng').value     = lng;
+    document.getElementById('vendor-address').value = address;
+    document.getElementById('map-search').value     = address;
+
+    const box = document.getElementById('selected-address-box');
+    box.style.display = 'flex';
+    box.style.alignItems = 'center';
+    document.getElementById('selected-address-text').textContent = address;
+    document.getElementById('map-error-msg').style.display = 'none';
+}
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.maps_api_key') }}&libraries=places&callback=initVendorMap" async defer></script>
 </body>
 </html>
