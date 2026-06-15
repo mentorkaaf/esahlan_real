@@ -503,6 +503,7 @@ Route::prefix('v1/elearning')->group(function () {
         Route::get('wishlist', [ELearningStudentController::class, 'wishlist']);
         Route::post('wishlist/toggle', [ELearningStudentController::class, 'toggleWishlist']);
         Route::post('reviews', [ELearningStudentController::class, 'submitReview']);
+        Route::get('lessons/{id}', [ELearningStudentController::class, 'getLesson']);
         Route::get('notes', [ELearningStudentController::class, 'notes']);
         Route::post('notes', [ELearningStudentController::class, 'saveNote']);
         Route::get('quiz/{quizId}', [ELearningStudentController::class, 'quizStart']);

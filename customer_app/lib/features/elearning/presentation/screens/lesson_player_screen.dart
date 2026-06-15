@@ -1,6 +1,10 @@
+import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/elearning_models.dart';
 import '../../data/services/elearning_api_service.dart';
@@ -15,271 +19,570 @@ class LessonPlayerScreen extends ConsumerStatefulWidget {
 
 class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
     with SingleTickerProviderStateMixin {
-  late TabController _tabCtrl;
+
   final _svc = ELearningApiService.create();
-  bool _completed = false;
-  bool _completing = false;
+  late TabController _tabs;
+
+  // Lesson data
+  Map<String, dynamic>? _lesson;
+  bool   _loadingLesson = true;
+  String? _lessonError;
+
+  // Video
+  VideoPlayerController? _vpc;
+  ChewieController?      _chewieCtrl;
+  bool _videoError = false;
+
+  // Notes
   List<ELearningNote> _notes = [];
-  final _noteCtrl = TextEditingController();
-  bool _savingNote = false;
+  final _noteCtrl  = TextEditingController();
+  bool  _savingNote = false;
+
+  // Complete
+  bool _completed   = false;
+  bool _completing  = false;
 
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 2, vsync: this);
-    _loadNotes();
+    _tabs = TabController(length: 2, vsync: this);
+    _loadLesson();
   }
 
   @override
   void dispose() {
-    _tabCtrl.dispose();
+    _tabs.dispose();
     _noteCtrl.dispose();
+    _vpc?.dispose();
+    _chewieCtrl?.dispose();
     super.dispose();
   }
+
+  // ── Load lesson ─────────────────────────────────────────────────────────────
+
+  Future<void> _loadLesson() async {
+    try {
+      final data = await _svc.getLesson(widget.lessonId);
+      if (!mounted) return;
+      setState(() {
+        _lesson        = data;
+        _completed     = data['is_completed'] == true;
+        _loadingLesson = false;
+      });
+      _initVideo(data['video_url'] as String?);
+      _loadNotes();
+    } catch (e) {
+      if (mounted) setState(() { _lessonError = e.toString(); _loadingLesson = false; });
+    }
+  }
+
+  // ── Video init ──────────────────────────────────────────────────────────────
+
+  Future<void> _initVideo(String? url) async {
+    if (url == null || url.isEmpty) return;
+
+    // YouTube / Vimeo → open in browser (chewie can't embed these)
+    if (_isExternalUrl(url)) return;
+
+    try {
+      final vpc = VideoPlayerController.networkUrl(Uri.parse(url));
+      await vpc.initialize();
+      if (!mounted) { vpc.dispose(); return; }
+
+      final chewie = ChewieController(
+        videoPlayerController: vpc,
+        autoPlay:          false,
+        looping:           false,
+        allowFullScreen:   true,
+        allowMuting:       true,
+        showOptions:       false,
+        deviceOrientationsAfterFullScreen: [DeviceOrientation.portraitUp],
+        placeholder: Container(color: AppColors.secondary),
+        errorBuilder: (_, msg) => _VideoErrorBox(message: msg),
+      );
+
+      setState(() { _vpc = vpc; _chewieCtrl = chewie; });
+    } catch (_) {
+      if (mounted) setState(() => _videoError = true);
+    }
+  }
+
+  bool _isExternalUrl(String url) =>
+      url.contains('youtube.com') ||
+      url.contains('youtu.be')    ||
+      url.contains('vimeo.com');
+
+  // ── Notes ───────────────────────────────────────────────────────────────────
 
   Future<void> _loadNotes() async {
     try {
       final notes = await _svc.getNotes(widget.lessonId);
       if (mounted) setState(() => _notes = notes);
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load notes: $e'), backgroundColor: Colors.red));
-    }
-  }
-
-  Future<void> _markComplete() async {
-    setState(() => _completing = true);
-    try {
-      final result = await _svc.completeLesson(widget.lessonId);
-      setState(() { _completed = true; _completing = false; });
-      if (mounted) {
-        if (result['course_done'] == true) {
-          _showCourseCompletedDialog(result['certificate_number']);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Lesson completed! Progress: ${result['progress_percent']}%'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      setState(() => _completing = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  void _showCourseCompletedDialog(String? certNumber) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.workspace_premium_rounded, size: 72, color: Colors.amber),
-          const SizedBox(height: 12),
-          const Text('Course Completed!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.secondary)),
-          const SizedBox(height: 8),
-          const Text('Congratulations! You have completed this course.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
-          if (certNumber != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: Colors.amber[50], borderRadius: BorderRadius.circular(10)),
-              child: Text('Certificate: $certNumber', style: const TextStyle(fontWeight: FontWeight.w700, fontFamily: 'monospace', fontSize: 12)),
-            ),
-          ],
-        ]),
-        actions: [
-          TextButton(onPressed: () { Navigator.pop(context); context.pop(); }, child: const Text('Close')),
-          FilledButton(
-            onPressed: () { Navigator.pop(context); context.push('/elearning/my-learning'); },
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('View Certificate'),
-          ),
-        ],
-      ),
-    );
+    } catch (_) {}
   }
 
   Future<void> _saveNote() async {
     if (_noteCtrl.text.trim().isEmpty) return;
     setState(() => _savingNote = true);
     try {
-      final note = await _svc.saveNote(widget.lessonId, _noteCtrl.text.trim(), 0);
-      setState(() { _notes.insert(0, note); _noteCtrl.clear(); _savingNote = false; });
+      final currentPos = _vpc != null
+          ? _vpc!.value.position.inSeconds : 0;
+      final note = await _svc.saveNote(widget.lessonId,
+          _noteCtrl.text.trim(), currentPos);
+      setState(() { _notes.insert(0, note); _noteCtrl.clear(); });
     } catch (e) {
-      setState(() => _savingNote = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-      }
+      if (mounted) _snack(e.toString(), Colors.red);
+    } finally {
+      if (mounted) setState(() => _savingNote = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          'Lesson #${widget.lessonId}',
-          style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w700, fontSize: 16),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.secondary),
-          onPressed: () => context.pop(),
-        ),
-      ),
-      body: Column(
-        children: [
-          // ── Video Player Placeholder ─────────────────────────────────────
-          Container(
-            width: double.infinity,
-            height: 220,
-            color: AppColors.secondary,
-            child: const Center(
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.play_circle_fill_rounded, size: 64, color: Colors.white54),
-                SizedBox(height: 8),
-                Text('Video Player', style: TextStyle(color: Colors.white54, fontSize: 14)),
-                Text('(chewie/video_player integration)', style: TextStyle(color: Colors.white38, fontSize: 11)),
-              ]),
-            ),
-          ),
+  // ── Complete ─────────────────────────────────────────────────────────────────
 
-          // ── Complete Button ──────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: FilledButton.icon(
-                onPressed: _completed || _completing ? null : _markComplete,
-                icon: _completing
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : Icon(_completed ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded),
-                label: Text(_completed ? 'Completed!' : 'Mark as Complete'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _completed ? Colors.green : AppColors.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-          ),
+  Future<void> _markComplete() async {
+    setState(() => _completing = true);
+    try {
+      final result = await _svc.completeLesson(widget.lessonId);
+      if (!mounted) return;
+      setState(() { _completed = true; _completing = false; });
+      if (result['course_done'] == true) {
+        _showCertDialog(result['certificate_number'] as String?);
+      } else {
+        _snack('Lesson completed! Progress: ${result['progress_percent']}%',
+            Colors.green);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _completing = false);
+      if (mounted) _snack(e.toString(), Colors.red);
+    }
+  }
 
-          // ── Tabs ─────────────────────────────────────────────────────────
-          Container(
-            color: Colors.white,
-            child: TabBar(
-              controller: _tabCtrl,
-              labelColor: AppColors.primary,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: AppColors.primary,
-              tabs: const [Tab(text: 'Notes'), Tab(text: 'Info')],
+  void _showCertDialog(String? cert) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.workspace_premium_rounded,
+              size: 72, color: Colors.amber),
+          const SizedBox(height: 12),
+          const Text('Course Completed!',
+              style: TextStyle(fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.secondary)),
+          const SizedBox(height: 8),
+          const Text('Congratulations! You have finished this course.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey)),
+          if (cert != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  borderRadius: BorderRadius.circular(10)),
+              child: Text('Certificate: $cert',
+                  style: const TextStyle(fontWeight: FontWeight.w700,
+                      fontFamily: 'monospace', fontSize: 12)),
             ),
-          ),
-
-          Expanded(
-            child: TabBarView(
-              controller: _tabCtrl,
-              children: [
-                // Notes tab
-                Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _noteCtrl,
-                              maxLines: 2,
-                              decoration: InputDecoration(
-                                hintText: 'Add a note…',
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey[300]!)),
-                                contentPadding: const EdgeInsets.all(10),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          FilledButton(
-                            onPressed: _savingNote ? null : _saveNote,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                            child: _savingNote
-                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : const Icon(Icons.send_rounded),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: _notes.isEmpty
-                          ? Center(child: Text('No notes yet', style: TextStyle(color: Colors.grey[400])))
-                          : ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              itemCount: _notes.length,
-                              itemBuilder: (_, i) {
-                                final note = _notes[i];
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
-                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text(note.note, style: const TextStyle(fontSize: 13)),
-                                    const SizedBox(height: 4),
-                                    Text(note.createdAt, style: TextStyle(fontSize: 11, color: Colors.grey[400])),
-                                  ]),
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                ),
-
-                // Info tab
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Lesson Information', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.secondary)),
-                    const SizedBox(height: 12),
-                    _InfoRow(label: 'Lesson ID', value: '${widget.lessonId}'),
-                    const _InfoRow(label: 'Status', value: 'In Progress'),
-                  ]),
-                ),
-              ],
-            ),
-          ),
+          ],
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () { Navigator.pop(context); context.pop(); },
+              child: const Text('Close')),
+          FilledButton(
+              onPressed: () {
+                Navigator.pop(context);
+                context.push('/elearning/my-learning');
+              },
+              style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary),
+              child: const Text('My Learning')),
         ],
       ),
     );
   }
-}
 
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _InfoRow({required this.label, required this.value});
+  void _snack(String msg, [Color? bg]) =>
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: bg));
+
+  // ── Build ────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(children: [
-        SizedBox(width: 100, child: Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 13))),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.secondary)),
+    if (_loadingLesson) {
+      return const Scaffold(
+        backgroundColor: AppColors.secondary,
+        body: Center(child: CircularProgressIndicator(color: Colors.white)),
+      );
+    }
+    if (_lessonError != null) {
+      return Scaffold(
+        appBar: AppBar(backgroundColor: AppColors.secondary,
+            leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: Colors.white),
+                onPressed: () => context.pop())),
+        body: Center(child: Text(_lessonError!,
+            style: const TextStyle(color: Colors.red))),
+      );
+    }
+
+    final type     = _lesson!['type']  as String? ?? 'video';
+    final title    = _lesson!['title'] as String? ?? '';
+    final videoUrl = _lesson!['video_url'] as String?;
+    final content  = _lesson!['content'] as String?;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F6FA),
+      appBar: AppBar(
+        backgroundColor: AppColors.secondary,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Colors.white, size: 20),
+          onPressed: () => context.pop(),
+        ),
+        title: Text(title,
+            maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white,
+                fontWeight: FontWeight.w700, fontSize: 15)),
+      ),
+      body: Column(children: [
+
+        // ── Video / content area ────────────────────────────────────────────
+        _buildMediaArea(type, videoUrl, content),
+
+        // ── Mark complete ───────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+          child: SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: FilledButton.icon(
+              onPressed: (_completed || _completing) ? null : _markComplete,
+              style: FilledButton.styleFrom(
+                backgroundColor: _completed ? Colors.green : AppColors.primary,
+                disabledBackgroundColor:
+                    _completed ? Colors.green : Colors.grey[300],
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: _completing
+                  ? const SizedBox(width: 18, height: 18,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : Icon(_completed
+                      ? Icons.check_circle_rounded
+                      : Icons.check_circle_outline_rounded),
+              label: Text(_completed ? 'Completed ✓' : 'Mark as Complete',
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ),
+
+        // ── Tabs ────────────────────────────────────────────────────────────
+        Container(
+          color: Colors.white,
+          child: TabBar(
+            controller: _tabs,
+            labelColor: AppColors.primary,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: AppColors.primary,
+            tabs: const [Tab(text: 'Notes'), Tab(text: 'Info')],
+          ),
+        ),
+
+        Expanded(child: TabBarView(controller: _tabs, children: [
+          _NotesTab(
+            notes:      _notes,
+            ctrl:       _noteCtrl,
+            saving:     _savingNote,
+            onSend:     _saveNote,
+          ),
+          _InfoTab(lesson: _lesson!),
+        ])),
       ]),
     );
+  }
+
+  // ── Media area ───────────────────────────────────────────────────────────────
+
+  Widget _buildMediaArea(String type, String? videoUrl, String? content) {
+    // Direct MP4 / HLS video loaded into chewie
+    if (type == 'video' && _chewieCtrl != null) {
+      return AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Chewie(controller: _chewieCtrl!),
+      );
+    }
+
+    // External video (YouTube / Vimeo) — show thumbnail + open button
+    if (type == 'video' && videoUrl != null && videoUrl.isNotEmpty) {
+      final isYT = videoUrl.contains('youtu');
+      return _ExternalVideoCard(
+        url: videoUrl,
+        isYoutube: isYT,
+        onOpen: () => _openUrl(videoUrl),
+      );
+    }
+
+    // Error loading direct video
+    if (type == 'video' && _videoError) {
+      return _VideoErrorBox(
+          message: 'Could not load video. Tap to open in browser.',
+          onTap: videoUrl != null ? () => _openUrl(videoUrl) : null);
+    }
+
+    // Text / document content
+    if (content != null && content.isNotEmpty) {
+      return Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(maxHeight: 200),
+        color: AppColors.secondary,
+        padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          child: Text(content,
+              style: const TextStyle(color: Colors.white70,
+                  fontSize: 13, height: 1.6)),
+        ),
+      );
+    }
+
+    // No video, no content
+    return Container(
+      width: double.infinity,
+      height: 200,
+      color: AppColors.secondary,
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(_typeIcon(type), size: 48, color: Colors.white38),
+        const SizedBox(height: 8),
+        Text(type.toUpperCase(),
+            style: const TextStyle(color: Colors.white38,
+                fontSize: 13, letterSpacing: 1)),
+      ]),
+    );
+  }
+
+  IconData _typeIcon(String t) => switch (t) {
+    'pdf'        => Icons.picture_as_pdf_rounded,
+    'quiz'       => Icons.quiz_rounded,
+    'assignment' => Icons.assignment_rounded,
+    'live'       => Icons.videocam_rounded,
+    _            => Icons.play_circle_rounded,
+  };
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+// ─── External video card (YouTube / Vimeo) ────────────────────────────────────
+
+class _ExternalVideoCard extends StatelessWidget {
+  final String url;
+  final bool   isYoutube;
+  final VoidCallback onOpen;
+  const _ExternalVideoCard(
+      {required this.url, required this.isYoutube, required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    // Extract YouTube thumbnail
+    String? thumbUrl;
+    if (isYoutube) {
+      final match = RegExp(r'(?:v=|youtu\.be/)([^&?\s]+)').firstMatch(url);
+      final vid   = match?.group(1);
+      if (vid != null) {
+        thumbUrl = 'https://img.youtube.com/vi/$vid/hqdefault.jpg';
+      }
+    }
+
+    return GestureDetector(
+      onTap: onOpen,
+      child: Stack(fit: StackFit.passthrough, children: [
+        // Background / thumbnail
+        AspectRatio(
+          aspectRatio: 16 / 9,
+          child: thumbUrl != null
+              ? Image.network(thumbUrl, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                      Container(color: AppColors.secondary))
+              : Container(color: AppColors.secondary),
+        ),
+        // Overlay
+        AspectRatio(
+          aspectRatio: 16 / 9,
+          child: Container(
+            color: Colors.black45,
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Container(
+                width: 64, height: 64,
+                decoration: const BoxDecoration(
+                    color: Colors.red, shape: BoxShape.circle),
+                child: const Icon(Icons.play_arrow_rounded,
+                    color: Colors.white, size: 38),
+              ),
+              const SizedBox(height: 8),
+              Text(isYoutube ? 'Open in YouTube' : 'Open Video',
+                  style: const TextStyle(color: Colors.white,
+                      fontWeight: FontWeight.w700, fontSize: 13)),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ─── Video error box ──────────────────────────────────────────────────────────
+
+class _VideoErrorBox extends StatelessWidget {
+  final String   message;
+  final VoidCallback? onTap;
+  const _VideoErrorBox({required this.message, this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: AspectRatio(
+      aspectRatio: 16 / 9,
+      child: Container(
+        color: const Color(0xFF1A1A2E),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Icon(Icons.error_outline_rounded,
+              color: Colors.redAccent, size: 42),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white60,
+                    fontSize: 12)),
+          ),
+        ]),
+      ),
+    ),
+  );
+}
+
+// ─── Notes tab ────────────────────────────────────────────────────────────────
+
+class _NotesTab extends StatelessWidget {
+  final List<ELearningNote> notes;
+  final TextEditingController ctrl;
+  final bool saving;
+  final VoidCallback onSend;
+  const _NotesTab({required this.notes, required this.ctrl,
+      required this.saving, required this.onSend});
+
+  @override
+  Widget build(BuildContext context) => Column(children: [
+    Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+      child: Row(children: [
+        Expanded(child: TextField(
+          controller: ctrl, maxLines: 2,
+          decoration: InputDecoration(
+            hintText: 'Add a note…',
+            filled: true, fillColor: Colors.white,
+            contentPadding: const EdgeInsets.all(10),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey[300]!)),
+            enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey[300]!)),
+          ),
+        )),
+        const SizedBox(width: 8),
+        FilledButton(
+          onPressed: saving ? null : onSend,
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          ),
+          child: saving
+              ? const SizedBox(width: 18, height: 18,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2))
+              : const Icon(Icons.send_rounded),
+        ),
+      ]),
+    ),
+    Expanded(
+      child: notes.isEmpty
+          ? Center(child: Text('No notes yet',
+              style: TextStyle(color: Colors.grey[400])))
+          : ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: notes.length,
+              itemBuilder: (_, i) {
+                final n = notes[i];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.white,
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(n.note, style: const TextStyle(fontSize: 13)),
+                    const SizedBox(height: 4),
+                    Text(n.createdAt,
+                        style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+                  ]),
+                );
+              }),
+    ),
+  ]);
+}
+
+// ─── Info tab ─────────────────────────────────────────────────────────────────
+
+class _InfoTab extends StatelessWidget {
+  final Map<String, dynamic> lesson;
+  const _InfoTab({required this.lesson});
+
+  @override
+  Widget build(BuildContext context) {
+    final type        = lesson['type']          as String? ?? '';
+    final dur         = (lesson['video_duration_seconds'] as num?)?.toInt() ?? 0;
+    final courseTitle = lesson['course_title']  as String?;
+    final section     = lesson['section_title'] as String?;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text('Lesson Info',
+            style: TextStyle(fontWeight: FontWeight.w800,
+                fontSize: 16, color: AppColors.secondary)),
+        const SizedBox(height: 12),
+        if (courseTitle != null) _row('Course', courseTitle),
+        if (section != null)     _row('Section', section),
+        _row('Type', type.toUpperCase()),
+        if (dur > 0)             _row('Duration', _fmt(dur)),
+      ],
+    );
+  }
+
+  Widget _row(String label, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      SizedBox(width: 80,
+          child: Text(label,
+              style: TextStyle(color: Colors.grey[500], fontSize: 13))),
+      Expanded(child: Text(value,
+          style: const TextStyle(fontWeight: FontWeight.w600,
+              fontSize: 13, color: AppColors.secondary))),
+    ]),
+  );
+
+  String _fmt(int s) {
+    final m = s ~/ 60, r = s % 60;
+    return '${m.toString().padLeft(2,'0')}:${r.toString().padLeft(2,'0')}';
   }
 }

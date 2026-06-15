@@ -269,6 +269,42 @@ class ELearningStudentController extends Controller
         return response()->json(['status' => 'success', 'message' => 'Review submitted', 'data' => $review]);
     }
 
+    public function getLesson(int $id)
+    {
+        $lesson = ELearningLesson::with('section.course')->findOrFail($id);
+        $userId = auth()->id();
+
+        // Allow access if free preview OR user is enrolled
+        if (!$lesson->is_free_preview) {
+            $enrolled = ELearningEnrollment::where('user_id', $userId)
+                ->where('course_id', $lesson->course_id)
+                ->exists();
+            if (!$enrolled) {
+                return response()->json(['status' => 'error', 'message' => 'Not enrolled'], 403);
+            }
+        }
+
+        // Progress for this lesson
+        $progress = ELearningLessonProgress::where('user_id', $userId)
+            ->where('lesson_id', $lesson->id)
+            ->first();
+
+        return response()->json(['status' => 'success', 'data' => [
+            'id'                     => $lesson->id,
+            'title'                  => $lesson->title,
+            'type'                   => $lesson->type,
+            'video_url'              => $lesson->video_url,
+            'content'                => $lesson->content,
+            'video_duration_seconds' => $lesson->video_duration_seconds,
+            'is_free_preview'        => (bool) $lesson->is_free_preview,
+            'course_id'              => $lesson->course_id,
+            'section_title'          => $lesson->section?->title,
+            'course_title'           => $lesson->section?->course?->title,
+            'is_completed'           => $progress ? (bool) $progress->completed : false,
+            'last_position_seconds'  => $progress?->last_position_seconds ?? 0,
+        ]]);
+    }
+
     public function notes(Request $request)
     {
         $request->validate(['lesson_id' => 'required|integer|exists:el_lessons,id']);

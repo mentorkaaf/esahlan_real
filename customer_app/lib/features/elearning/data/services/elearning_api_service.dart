@@ -123,6 +123,11 @@ class ELearningApiService {
     });
   }
 
+  Future<Map<String, dynamic>> getLesson(int lessonId) async {
+    final res = await _get('$_base/lessons/$lessonId');
+    return res['data'] as Map<String, dynamic>;
+  }
+
   Future<List<ELearningNote>> getNotes(int lessonId) async {
     final res = await _get('$_base/notes', params: {'lesson_id': lessonId});
     final list = res['data'] as List<dynamic>? ?? [];
