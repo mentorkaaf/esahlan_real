@@ -18,7 +18,6 @@ return new class extends Migration
                 'sort_order'       => 13,
                 'commission_type'  => 'percentage',
                 'commission_value' => 20,
-                'delivery_fee'     => 0,
                 'settings'         => json_encode(['certificate_enabled' => true, 'quiz_enabled' => true]),
                 'is_active'        => true,
                 'created_at'       => now(),
