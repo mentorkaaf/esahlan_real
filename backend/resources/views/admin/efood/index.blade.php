@@ -667,248 +667,391 @@
 
 {{-- ─── ADD RESTAURANT ─────────────────────────────────────────────── --}}
 <div class="modal-overlay" id="addRestaurantModal">
-    <div class="modal-box" style="max-width:640px;">
-        <div class="modal-header">
-            <h3 class="modal-title"><i class="fas fa-store" style="color:var(--primary)"></i> Add Restaurant</h3>
-            <button class="modal-close" onclick="closeModal('addRestaurantModal')">✕</button>
-        </div>
-        <form action="{{ route('admin.module-data.efood.restaurant.store') }}" method="POST" enctype="multipart/form-data">
-            @csrf
-            <div class="grid-2">
-                <div class="form-group">
-                    <label class="form-label">Restaurant Name *</label>
-                    <input type="text" name="name" class="form-control" required placeholder="e.g. Pizza House">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Cuisine / Type</label>
-                    <input type="text" name="vendor_type" class="form-control" placeholder="e.g. Italian, Pizza, Fast Food">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">District</label>
-                    <select name="district_id" class="form-control">
-                        <option value="">Select district</option>
-                        @foreach($districts as $d)
-                            <option value="{{ $d->id }}">{{ $d->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Status</label>
-                    <select name="status" class="form-control">
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="pending">Pending</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Phone</label>
-                    <input type="text" name="phone" class="form-control" placeholder="+252 61 XXXXXXX">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-control" placeholder="info@restaurant.com">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Delivery Time</label>
-                    <input type="text" name="delivery_time" class="form-control" placeholder="30-40 min">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Minimum Order ($)</label>
-                    <input type="number" name="minimum_order" class="form-control" step="0.01" placeholder="10.00">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Logo Image</label>
-                    <div class="img-upload-box" onclick="document.getElementById('addR_logoFile').click()" style="border:2px dashed #FF8A00;border-radius:10px;padding:10px;text-align:center;cursor:pointer;background:#fff9f2;min-height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
-                        <img id="addR_logoPreview" src="" style="display:none;max-height:70px;border-radius:8px;object-fit:cover;">
-                        <span id="addR_logoPlaceholder" style="color:#FF8A00;font-size:12px;">🏪 Upload Logo</span>
-                    </div>
-                    <input type="file" id="addR_logoFile" name="logo_file" accept="image/*" style="display:none" onchange="previewImage(this,'addR_logoPreview','addR_logoPlaceholder')">
-                    <input type="text" name="logo" class="form-control" placeholder="Or paste logo URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'addR_logoPreview','addR_logoPlaceholder')">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Cover Image</label>
-                    <div class="img-upload-box" onclick="document.getElementById('addR_coverFile').click()" style="border:2px dashed #07003B;border-radius:10px;padding:10px;text-align:center;cursor:pointer;background:#f7f7ff;min-height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
-                        <img id="addR_coverPreview" src="" style="display:none;max-height:70px;border-radius:8px;object-fit:cover;">
-                        <span id="addR_coverPlaceholder" style="color:#07003B;font-size:12px;">🖼️ Upload Cover</span>
-                    </div>
-                    <input type="file" id="addR_coverFile" name="cover_file" accept="image/*" style="display:none" onchange="previewImage(this,'addR_coverPreview','addR_coverPlaceholder')">
-                    <input type="text" name="cover_image" class="form-control" placeholder="Or paste cover URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'addR_coverPreview','addR_coverPlaceholder')">
-                </div>
+    <div class="modal-box" style="max-width:680px;max-height:90vh;overflow-y:auto;padding:0;border-radius:16px;">
+
+        {{-- Header --}}
+        <div style="background:linear-gradient(135deg,#07003B 0%,#1a0874 100%);padding:22px 24px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <h3 style="color:#fff;font-size:17px;font-weight:800;margin:0;display:flex;align-items:center;gap:10px;">
+                    <span style="width:36px;height:36px;background:rgba(255,138,0,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-store" style="color:#FF8A00;font-size:15px;"></i>
+                    </span>
+                    Add New Restaurant
+                </h3>
+                <p style="color:rgba(255,255,255,.55);font-size:12px;margin:4px 0 0 46px;">Fill in the details to register a new restaurant</p>
             </div>
-            {{-- ── Location Map (Add) ──────────────────────────────── --}}
-            <div class="form-group">
-                <label class="form-label"><i class="fas fa-map-marker-alt" style="color:var(--primary);margin-right:4px;"></i> Store Location</label>
-                <input type="text" id="addR_mapSearch" class="form-control" placeholder="Search location..." style="margin-bottom:8px;">
-                <div style="position:relative;border-radius:10px;overflow:hidden;border:1.5px solid #e2e8f0;">
-                    <div id="adminAddMap" style="width:100%;height:220px;"></div>
-                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);pointer-events:none;z-index:5;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3));"><i class="fas fa-location-dot" style="font-size:28px;color:#FF8A00;"></i></div>
-                    <button type="button" onclick="adminAddMyLocation()" title="My location" style="position:absolute;bottom:8px;right:8px;z-index:5;width:34px;height:34px;border-radius:8px;background:#fff;border:1.5px solid #e2e8f0;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.12);">
-                        <i class="fas fa-location-crosshairs" style="color:#FF8A00;font-size:13px;"></i>
-                    </button>
+            <button onclick="closeModal('addRestaurantModal')" style="background:rgba(255,255,255,.1);border:none;width:34px;height:34px;border-radius:8px;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+        </div>
+
+        <form action="{{ route('admin.module-data.efood.restaurant.store') }}" method="POST" enctype="multipart/form-data" style="padding:24px;display:flex;flex-direction:column;gap:0;">
+            @csrf
+
+            {{-- Section: Basic Info --}}
+            <div style="margin-bottom:20px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                    <span style="width:4px;height:18px;background:#FF8A00;border-radius:2px;display:block;"></span>
+                    <span style="font-size:12px;font-weight:800;color:#07003B;text-transform:uppercase;letter-spacing:.6px;">Basic Information</span>
                 </div>
-                <div id="addR_addrBox" style="display:none;margin-top:6px;padding:8px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;color:#166534;"></div>
-                <input type="hidden" name="latitude"  id="addR_lat">
-                <input type="hidden" name="longitude" id="addR_lng">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Restaurant Name <span style="color:#ef4444;">*</span></label>
+                        <input type="text" name="name" class="form-control" required placeholder="e.g. Pizza House">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Cuisine / Type</label>
+                        <input type="text" name="vendor_type" class="form-control" placeholder="e.g. Italian, Fast Food">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">District</label>
+                        <select name="district_id" class="form-control">
+                            <option value="">Select district</option>
+                            @foreach($districts as $d)
+                                <option value="{{ $d->id }}">{{ $d->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-control">
+                            <option value="active">✅ Active</option>
+                            <option value="inactive">⛔ Inactive</option>
+                            <option value="pending">⏳ Pending</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Phone</label>
+                        <input type="text" name="phone" class="form-control" placeholder="+252 61 XXXXXXX">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" placeholder="info@restaurant.com">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Delivery Time</label>
+                        <input type="text" name="delivery_time" class="form-control" placeholder="30-40 min">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Minimum Order ($)</label>
+                        <input type="number" name="minimum_order" class="form-control" step="0.01" placeholder="10.00">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top:14px;margin-bottom:0;">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2" placeholder="Brief description of the restaurant..."></textarea>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">Address</label>
-                <input type="text" name="address" id="addR_address" class="form-control" placeholder="Full address">
+            {{-- Divider --}}
+            <div style="height:1px;background:linear-gradient(90deg,#e2e8f0,transparent);margin-bottom:20px;"></div>
+
+            {{-- Section: Images --}}
+            <div style="margin-bottom:20px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                    <span style="width:4px;height:18px;background:#FF8A00;border-radius:2px;display:block;"></span>
+                    <span style="font-size:12px;font-weight:800;color:#07003B;text-transform:uppercase;letter-spacing:.6px;">Images</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Logo</label>
+                        <div onclick="document.getElementById('addR_logoFile').click()" style="border:2px dashed #FF8A00;border-radius:12px;padding:16px 10px;text-align:center;cursor:pointer;background:linear-gradient(135deg,#fffbf5,#fff9f0);min-height:100px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;transition:all .2s;" onmouseenter="this.style.background='#fff5e6'" onmouseleave="this.style.background='linear-gradient(135deg,#fffbf5,#fff9f0)'">
+                            <img id="addR_logoPreview" src="" style="display:none;max-height:70px;border-radius:8px;object-fit:cover;">
+                            <div id="addR_logoPlaceholder">
+                                <i class="fas fa-store" style="font-size:24px;color:#FF8A00;margin-bottom:6px;display:block;"></i>
+                                <span style="font-size:11px;color:#FF8A00;font-weight:700;">Upload Logo</span>
+                            </div>
+                        </div>
+                        <input type="file" id="addR_logoFile" name="logo_file" accept="image/*" style="display:none" onchange="previewImage(this,'addR_logoPreview','addR_logoPlaceholder')">
+                        <input type="text" name="logo" class="form-control" placeholder="Or paste URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'addR_logoPreview','addR_logoPlaceholder')">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Cover Image</label>
+                        <div onclick="document.getElementById('addR_coverFile').click()" style="border:2px dashed #07003B;border-radius:12px;padding:16px 10px;text-align:center;cursor:pointer;background:linear-gradient(135deg,#f7f7ff,#f0f0ff);min-height:100px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;transition:all .2s;" onmouseenter="this.style.background='#ebebff'" onmouseleave="this.style.background='linear-gradient(135deg,#f7f7ff,#f0f0ff)'">
+                            <img id="addR_coverPreview" src="" style="display:none;max-height:70px;border-radius:8px;object-fit:cover;">
+                            <div id="addR_coverPlaceholder">
+                                <i class="fas fa-image" style="font-size:24px;color:#07003B;margin-bottom:6px;display:block;"></i>
+                                <span style="font-size:11px;color:#07003B;font-weight:700;">Upload Cover</span>
+                            </div>
+                        </div>
+                        <input type="file" id="addR_coverFile" name="cover_file" accept="image/*" style="display:none" onchange="previewImage(this,'addR_coverPreview','addR_coverPlaceholder')">
+                        <input type="text" name="cover_image" class="form-control" placeholder="Or paste URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'addR_coverPreview','addR_coverPlaceholder')">
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Description</label>
-                <textarea name="description" class="form-control" rows="2" placeholder="Brief description of the restaurant..."></textarea>
+
+            {{-- Divider --}}
+            <div style="height:1px;background:linear-gradient(90deg,#e2e8f0,transparent);margin-bottom:20px;"></div>
+
+            {{-- Section: Location --}}
+            <div style="margin-bottom:20px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                    <span style="width:4px;height:18px;background:#FF8A00;border-radius:2px;display:block;"></span>
+                    <span style="font-size:12px;font-weight:800;color:#07003B;text-transform:uppercase;letter-spacing:.6px;">Store Location</span>
+                </div>
+                {{-- Search bar --}}
+                <div style="position:relative;margin-bottom:10px;">
+                    <i class="fas fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;z-index:1;"></i>
+                    <input type="text" id="addR_mapSearch" class="form-control" placeholder="Search for location..." style="padding-left:36px;">
+                </div>
+                {{-- Map --}}
+                <div style="position:relative;border-radius:12px;overflow:hidden;border:1.5px solid #e2e8f0;box-shadow:0 2px 12px rgba(0,0,0,.07);">
+                    <div id="adminAddMap" style="width:100%;height:240px;"></div>
+                    {{-- Center pin --}}
+                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);pointer-events:none;z-index:5;">
+                        <i class="fas fa-location-dot" style="font-size:32px;color:#FF8A00;filter:drop-shadow(0 2px 6px rgba(255,138,0,.5));"></i>
+                    </div>
+                    {{-- My location --}}
+                    <button type="button" onclick="adminAddMyLocation()" title="Use my location"
+                        style="position:absolute;top:10px;right:10px;z-index:5;width:36px;height:36px;border-radius:10px;background:#fff;border:1.5px solid #e2e8f0;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15);">
+                        <i class="fas fa-location-crosshairs" style="color:#FF8A00;font-size:14px;"></i>
+                    </button>
+                </div>
+                {{-- Selected location display --}}
+                <div id="addR_addrBox" style="display:none;margin-top:8px;padding:10px 14px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #bbf7d0;border-radius:10px;font-size:12.5px;color:#166534;font-weight:600;display:none;align-items:center;gap:8px;">
+                    <i class="fas fa-circle-check" style="color:#16a34a;font-size:15px;"></i>
+                    <span id="addR_addrText"></span>
+                </div>
+                <input type="hidden" name="latitude"  id="addR_lat">
+                <input type="hidden" name="longitude" id="addR_lng">
+                <div class="form-group" style="margin-top:10px;margin-bottom:0;">
+                    <label class="form-label">Address <small style="font-weight:400;color:#94a3b8;">(auto-filled from map)</small></label>
+                    <input type="text" name="address" id="addR_address" class="form-control" placeholder="Full street address">
+                </div>
             </div>
-            {{-- ── Working Hours ──────────────────────────────────────── --}}
-            <div style="margin-top:12px;margin-bottom:8px;">
-                <label class="form-label" style="font-weight:700;color:#140465;display:flex;align-items:center;gap:6px;">
-                    <i class="fas fa-clock"></i> Working Hours Schedule
-                    <small style="font-weight:400;color:#94a3b8;font-size:11px;">(leave unchecked for closed that day)</small>
-                </label>
+
+            {{-- Divider --}}
+            <div style="height:1px;background:linear-gradient(90deg,#e2e8f0,transparent);margin-bottom:20px;"></div>
+
+            {{-- Section: Working Hours --}}
+            <div style="margin-bottom:20px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                    <span style="width:4px;height:18px;background:#FF8A00;border-radius:2px;display:block;"></span>
+                    <span style="font-size:12px;font-weight:800;color:#07003B;text-transform:uppercase;letter-spacing:.6px;">Working Hours</span>
+                    <span style="font-size:11px;color:#94a3b8;font-weight:400;">(uncheck = closed)</span>
+                </div>
                 @php $dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']; @endphp
-                <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+                <div style="border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;">
                     @foreach($dayNames as $di => $dn)
-                    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;{{ $di % 2 === 0 ? 'background:#f8fafc' : 'background:#fff' }};border-bottom:{{ $di < 6 ? '1px solid #f0f2f6' : 'none' }};">
+                    <div style="display:flex;align-items:center;gap:12px;padding:9px 14px;background:{{ $di % 2 === 0 ? '#f8fafc' : '#fff' }};border-bottom:{{ $di < 6 ? '1px solid #f0f2f6' : 'none' }};">
                         <input type="checkbox" name="wh_open[]" value="{{ $di }}" id="addR_wh_{{ $di }}"
                             {{ in_array($di, [0,1,2,3,4]) ? 'checked' : '' }}
-                            style="width:16px;height:16px;cursor:pointer;accent-color:#140465;">
-                        <label for="addR_wh_{{ $di }}" style="width:82px;font-size:13px;font-weight:600;color:#374151;cursor:pointer;">
-                            {{ $dn }}
-                        </label>
-                        <input type="time" name="wh_open_time[{{ $di }}]" value="08:00" class="form-control" style="width:120px;font-size:13px;padding:5px 8px;">
-                        <span style="color:#94a3b8;font-size:12px;">to</span>
-                        <input type="time" name="wh_close_time[{{ $di }}]" value="22:00" class="form-control" style="width:120px;font-size:13px;padding:5px 8px;">
+                            style="width:16px;height:16px;cursor:pointer;accent-color:#FF8A00;">
+                        <label for="addR_wh_{{ $di }}" style="min-width:82px;font-size:13px;font-weight:600;color:#374151;cursor:pointer;">{{ $dn }}</label>
+                        <input type="time" name="wh_open_time[{{ $di }}]" value="08:00" class="form-control" style="width:110px;font-size:12px;padding:5px 8px;">
+                        <span style="color:#94a3b8;font-size:11px;font-weight:600;">TO</span>
+                        <input type="time" name="wh_close_time[{{ $di }}]" value="22:00" class="form-control" style="width:110px;font-size:12px;padding:5px 8px;">
                     </div>
                     @endforeach
                 </div>
             </div>
-            <div style="display:flex;gap:16px;margin-top:12px;">
-                <label style="display:flex;align-items:center;gap:6px;">
-                    <input type="checkbox" name="is_featured" value="1"> Featured
+
+            {{-- Footer options + Submit --}}
+            <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#374151;">
+                    <input type="checkbox" name="is_featured" value="1" style="width:16px;height:16px;accent-color:#FF8A00;">
+                    <i class="fas fa-star" style="color:#f59e0b;"></i> Mark as Featured
                 </label>
+                <div style="display:flex;gap:10px;">
+                    <button type="button" onclick="closeModal('addRestaurantModal')" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="min-width:160px;">
+                        <i class="fas fa-plus"></i> Add Restaurant
+                    </button>
+                </div>
             </div>
-            <button type="submit" class="btn btn-primary" style="width:100%;margin-top:16px;">Add Restaurant</button>
         </form>
     </div>
 </div>
 
 {{-- ─── EDIT RESTAURANT ─────────────────────────────────────────────── --}}
 <div class="modal-overlay" id="editRestaurantModal">
-    <div class="modal-box" style="max-width:640px;max-height:85vh;overflow-y:auto;">
-        <div class="modal-header">
-            <h3 class="modal-title"><i class="fas fa-edit" style="color:var(--primary)"></i> Edit Restaurant</h3>
-            <button class="modal-close" onclick="closeModal('editRestaurantModal')">✕</button>
-        </div>
-        <form id="editRestaurantForm" method="POST" enctype="multipart/form-data">
-            @csrf @method('PATCH')
-            <div class="grid-2">
-                <div class="form-group">
-                    <label class="form-label">Restaurant Name *</label>
-                    <input type="text" name="name" id="er_name" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Cuisine / Type</label>
-                    <input type="text" name="vendor_type" id="er_type" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">District</label>
-                    <select name="district_id" id="er_district" class="form-control">
-                        <option value="">Select district</option>
-                        @foreach($districts as $d)
-                            <option value="{{ $d->id }}">{{ $d->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Status</label>
-                    <select name="status" id="er_status" class="form-control">
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="pending">Pending</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Phone</label>
-                    <input type="text" name="phone" id="er_phone" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" id="er_email" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Delivery Time</label>
-                    <input type="text" name="delivery_time" id="er_delivery_time" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Minimum Order ($)</label>
-                    <input type="number" name="minimum_order" id="er_min_order" class="form-control" step="0.01">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Logo Image</label>
-                    <div class="img-upload-box" onclick="document.getElementById('editR_logoFile').click()" style="border:2px dashed #FF8A00;border-radius:10px;padding:10px;text-align:center;cursor:pointer;background:#fff9f2;min-height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
-                        <img id="editR_logoPreview" src="" style="display:none;max-height:70px;border-radius:8px;object-fit:cover;">
-                        <span id="editR_logoPlaceholder" style="color:#FF8A00;font-size:12px;">🏪 Click to change logo</span>
-                    </div>
-                    <input type="file" id="editR_logoFile" name="logo_file" accept="image/*" style="display:none" onchange="previewImage(this,'editR_logoPreview','editR_logoPlaceholder')">
-                    <input type="text" name="logo" id="er_logo" class="form-control" placeholder="Or paste logo URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'editR_logoPreview','editR_logoPlaceholder')">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Cover Image</label>
-                    <div class="img-upload-box" onclick="document.getElementById('editR_coverFile').click()" style="border:2px dashed #07003B;border-radius:10px;padding:10px;text-align:center;cursor:pointer;background:#f7f7ff;min-height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
-                        <img id="editR_coverPreview" src="" style="display:none;max-height:70px;border-radius:8px;object-fit:cover;">
-                        <span id="editR_coverPlaceholder" style="color:#07003B;font-size:12px;">🖼️ Click to change cover</span>
-                    </div>
-                    <input type="file" id="editR_coverFile" name="cover_file" accept="image/*" style="display:none" onchange="previewImage(this,'editR_coverPreview','editR_coverPlaceholder')">
-                    <input type="text" name="cover_image" id="er_cover" class="form-control" placeholder="Or paste cover URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'editR_coverPreview','editR_coverPlaceholder')">
-                </div>
+    <div class="modal-box" style="max-width:680px;max-height:90vh;overflow-y:auto;padding:0;border-radius:16px;">
+
+        {{-- Header --}}
+        <div style="background:linear-gradient(135deg,#1a0874 0%,#FF8A00 100%);padding:22px 24px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;">
+            <div>
+                <h3 style="color:#fff;font-size:17px;font-weight:800;margin:0;display:flex;align-items:center;gap:10px;">
+                    <span style="width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-pen-to-square" style="color:#fff;font-size:15px;"></i>
+                    </span>
+                    Edit Restaurant
+                </h3>
+                <p style="color:rgba(255,255,255,.7);font-size:12px;margin:4px 0 0 46px;">Update the restaurant details below</p>
             </div>
-            {{-- ── Location Map (Edit) ─────────────────────────────── --}}
-            <div class="form-group">
-                <label class="form-label"><i class="fas fa-map-marker-alt" style="color:var(--primary);margin-right:4px;"></i> Store Location</label>
-                <input type="text" id="editR_mapSearch" class="form-control" placeholder="Search location..." style="margin-bottom:8px;">
-                <div style="position:relative;border-radius:10px;overflow:hidden;border:1.5px solid #e2e8f0;">
-                    <div id="adminEditMap" style="width:100%;height:220px;"></div>
-                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);pointer-events:none;z-index:5;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3));"><i class="fas fa-location-dot" style="font-size:28px;color:#FF8A00;"></i></div>
-                    <button type="button" onclick="adminEditMyLocation()" title="My location" style="position:absolute;bottom:8px;right:8px;z-index:5;width:34px;height:34px;border-radius:8px;background:#fff;border:1.5px solid #e2e8f0;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.12);">
-                        <i class="fas fa-location-crosshairs" style="color:#FF8A00;font-size:13px;"></i>
-                    </button>
+            <button onclick="closeModal('editRestaurantModal')" style="background:rgba(255,255,255,.15);border:none;width:34px;height:34px;border-radius:8px;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+        </div>
+
+        <form id="editRestaurantForm" method="POST" enctype="multipart/form-data" style="padding:24px;display:flex;flex-direction:column;gap:0;">
+            @csrf @method('PATCH')
+
+            {{-- Section: Basic Info --}}
+            <div style="margin-bottom:20px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                    <span style="width:4px;height:18px;background:#FF8A00;border-radius:2px;display:block;"></span>
+                    <span style="font-size:12px;font-weight:800;color:#07003B;text-transform:uppercase;letter-spacing:.6px;">Basic Information</span>
                 </div>
-                <div id="editR_addrBox" style="display:none;margin-top:6px;padding:8px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;color:#166534;"></div>
-                <input type="hidden" name="latitude"  id="er_lat">
-                <input type="hidden" name="longitude" id="er_lng">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Restaurant Name <span style="color:#ef4444;">*</span></label>
+                        <input type="text" name="name" id="er_name" class="form-control" required>
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Cuisine / Type</label>
+                        <input type="text" name="vendor_type" id="er_type" class="form-control">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">District</label>
+                        <select name="district_id" id="er_district" class="form-control">
+                            <option value="">Select district</option>
+                            @foreach($districts as $d)
+                                <option value="{{ $d->id }}">{{ $d->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Status</label>
+                        <select name="status" id="er_status" class="form-control">
+                            <option value="active">✅ Active</option>
+                            <option value="inactive">⛔ Inactive</option>
+                            <option value="pending">⏳ Pending</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Phone</label>
+                        <input type="text" name="phone" id="er_phone" class="form-control">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" id="er_email" class="form-control">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Delivery Time</label>
+                        <input type="text" name="delivery_time" id="er_delivery_time" class="form-control">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Minimum Order ($)</label>
+                        <input type="number" name="minimum_order" id="er_min_order" class="form-control" step="0.01">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top:14px;margin-bottom:0;">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" id="er_desc" class="form-control" rows="2"></textarea>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">Address</label>
-                <input type="text" name="address" id="er_address" class="form-control">
+            {{-- Divider --}}
+            <div style="height:1px;background:linear-gradient(90deg,#e2e8f0,transparent);margin-bottom:20px;"></div>
+
+            {{-- Section: Images --}}
+            <div style="margin-bottom:20px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                    <span style="width:4px;height:18px;background:#FF8A00;border-radius:2px;display:block;"></span>
+                    <span style="font-size:12px;font-weight:800;color:#07003B;text-transform:uppercase;letter-spacing:.6px;">Images</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Logo</label>
+                        <div onclick="document.getElementById('editR_logoFile').click()" style="border:2px dashed #FF8A00;border-radius:12px;padding:16px 10px;text-align:center;cursor:pointer;background:linear-gradient(135deg,#fffbf5,#fff9f0);min-height:100px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
+                            <img id="editR_logoPreview" src="" style="display:none;max-height:70px;border-radius:8px;object-fit:cover;">
+                            <div id="editR_logoPlaceholder">
+                                <i class="fas fa-store" style="font-size:24px;color:#FF8A00;margin-bottom:6px;display:block;"></i>
+                                <span style="font-size:11px;color:#FF8A00;font-weight:700;">Change Logo</span>
+                            </div>
+                        </div>
+                        <input type="file" id="editR_logoFile" name="logo_file" accept="image/*" style="display:none" onchange="previewImage(this,'editR_logoPreview','editR_logoPlaceholder')">
+                        <input type="text" name="logo" id="er_logo" class="form-control" placeholder="Or paste URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'editR_logoPreview','editR_logoPlaceholder')">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Cover Image</label>
+                        <div onclick="document.getElementById('editR_coverFile').click()" style="border:2px dashed #07003B;border-radius:12px;padding:16px 10px;text-align:center;cursor:pointer;background:linear-gradient(135deg,#f7f7ff,#f0f0ff);min-height:100px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
+                            <img id="editR_coverPreview" src="" style="display:none;max-height:70px;border-radius:8px;object-fit:cover;">
+                            <div id="editR_coverPlaceholder">
+                                <i class="fas fa-image" style="font-size:24px;color:#07003B;margin-bottom:6px;display:block;"></i>
+                                <span style="font-size:11px;color:#07003B;font-weight:700;">Change Cover</span>
+                            </div>
+                        </div>
+                        <input type="file" id="editR_coverFile" name="cover_file" accept="image/*" style="display:none" onchange="previewImage(this,'editR_coverPreview','editR_coverPlaceholder')">
+                        <input type="text" name="cover_image" id="er_cover" class="form-control" placeholder="Or paste URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'editR_coverPreview','editR_coverPlaceholder')">
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Description</label>
-                <textarea name="description" id="er_desc" class="form-control" rows="2"></textarea>
+
+            {{-- Divider --}}
+            <div style="height:1px;background:linear-gradient(90deg,#e2e8f0,transparent);margin-bottom:20px;"></div>
+
+            {{-- Section: Location --}}
+            <div style="margin-bottom:20px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                    <span style="width:4px;height:18px;background:#FF8A00;border-radius:2px;display:block;"></span>
+                    <span style="font-size:12px;font-weight:800;color:#07003B;text-transform:uppercase;letter-spacing:.6px;">Store Location</span>
+                </div>
+                <div style="position:relative;margin-bottom:10px;">
+                    <i class="fas fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;z-index:1;"></i>
+                    <input type="text" id="editR_mapSearch" class="form-control" placeholder="Search for location..." style="padding-left:36px;">
+                </div>
+                <div style="position:relative;border-radius:12px;overflow:hidden;border:1.5px solid #e2e8f0;box-shadow:0 2px 12px rgba(0,0,0,.07);">
+                    <div id="adminEditMap" style="width:100%;height:240px;"></div>
+                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);pointer-events:none;z-index:5;">
+                        <i class="fas fa-location-dot" style="font-size:32px;color:#FF8A00;filter:drop-shadow(0 2px 6px rgba(255,138,0,.5));"></i>
+                    </div>
+                    <button type="button" onclick="adminEditMyLocation()" title="Use my location"
+                        style="position:absolute;top:10px;right:10px;z-index:5;width:36px;height:36px;border-radius:10px;background:#fff;border:1.5px solid #e2e8f0;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15);">
+                        <i class="fas fa-location-crosshairs" style="color:#FF8A00;font-size:14px;"></i>
+                    </button>
+                </div>
+                <div id="editR_addrBox" style="display:none;margin-top:8px;padding:10px 14px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #bbf7d0;border-radius:10px;font-size:12.5px;color:#166534;font-weight:600;align-items:center;gap:8px;">
+                    <i class="fas fa-circle-check" style="color:#16a34a;font-size:15px;"></i>
+                    <span id="editR_addrText"></span>
+                </div>
+                <input type="hidden" name="latitude"  id="er_lat">
+                <input type="hidden" name="longitude" id="er_lng">
+                <div class="form-group" style="margin-top:10px;margin-bottom:0;">
+                    <label class="form-label">Address</label>
+                    <input type="text" name="address" id="er_address" class="form-control">
+                </div>
             </div>
-            {{-- ── Working Hours (edit) ────────────────────────────────── --}}
-            <div style="margin-top:12px;margin-bottom:8px;">
-                <label class="form-label" style="font-weight:700;color:#140465;display:flex;align-items:center;gap:6px;">
-                    <i class="fas fa-clock"></i> Working Hours Schedule
-                </label>
-                <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;" id="editWhGrid">
+
+            {{-- Divider --}}
+            <div style="height:1px;background:linear-gradient(90deg,#e2e8f0,transparent);margin-bottom:20px;"></div>
+
+            {{-- Section: Working Hours --}}
+            <div style="margin-bottom:20px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                    <span style="width:4px;height:18px;background:#FF8A00;border-radius:2px;display:block;"></span>
+                    <span style="font-size:12px;font-weight:800;color:#07003B;text-transform:uppercase;letter-spacing:.6px;">Working Hours</span>
+                    <span style="font-size:11px;color:#94a3b8;font-weight:400;">(uncheck = closed)</span>
+                </div>
+                <div style="border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;" id="editWhGrid">
                     @foreach($dayNames as $di => $dn)
-                    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;{{ $di % 2 === 0 ? 'background:#f8fafc' : 'background:#fff' }};border-bottom:{{ $di < 6 ? '1px solid #f0f2f6' : 'none' }};">
+                    <div style="display:flex;align-items:center;gap:12px;padding:9px 14px;background:{{ $di % 2 === 0 ? '#f8fafc' : '#fff' }};border-bottom:{{ $di < 6 ? '1px solid #f0f2f6' : 'none' }};">
                         <input type="checkbox" name="wh_open[]" value="{{ $di }}" id="er_wh_{{ $di }}"
-                            style="width:16px;height:16px;cursor:pointer;accent-color:#140465;">
-                        <label for="er_wh_{{ $di }}" style="width:82px;font-size:13px;font-weight:600;color:#374151;cursor:pointer;">{{ $dn }}</label>
-                        <input type="time" name="wh_open_time[{{ $di }}]" id="er_wh_open_{{ $di }}" value="08:00" class="form-control" style="width:120px;font-size:13px;padding:5px 8px;">
-                        <span style="color:#94a3b8;font-size:12px;">to</span>
-                        <input type="time" name="wh_close_time[{{ $di }}]" id="er_wh_close_{{ $di }}" value="22:00" class="form-control" style="width:120px;font-size:13px;padding:5px 8px;">
+                            style="width:16px;height:16px;cursor:pointer;accent-color:#FF8A00;">
+                        <label for="er_wh_{{ $di }}" style="min-width:82px;font-size:13px;font-weight:600;color:#374151;cursor:pointer;">{{ $dn }}</label>
+                        <input type="time" name="wh_open_time[{{ $di }}]" id="er_wh_open_{{ $di }}" value="08:00" class="form-control" style="width:110px;font-size:12px;padding:5px 8px;">
+                        <span style="color:#94a3b8;font-size:11px;font-weight:600;">TO</span>
+                        <input type="time" name="wh_close_time[{{ $di }}]" id="er_wh_close_{{ $di }}" value="22:00" class="form-control" style="width:110px;font-size:12px;padding:5px 8px;">
                     </div>
                     @endforeach
                 </div>
             </div>
-            <div style="display:flex;gap:20px;margin-top:12px;">
-                <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_featured" id="er_featured" value="1"> Featured</label>
-                <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_open" id="er_open" value="1"> Currently Open</label>
+
+            {{-- Footer --}}
+            <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px;">
+                <div style="display:flex;gap:16px;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#374151;">
+                        <input type="checkbox" name="is_featured" id="er_featured" value="1" style="width:16px;height:16px;accent-color:#f59e0b;">
+                        <i class="fas fa-star" style="color:#f59e0b;"></i> Featured
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#374151;">
+                        <input type="checkbox" name="is_open" id="er_open" value="1" style="width:16px;height:16px;accent-color:#22c55e;">
+                        <i class="fas fa-door-open" style="color:#22c55e;"></i> Currently Open
+                    </label>
+                </div>
+                <div style="display:flex;gap:10px;">
+                    <button type="button" onclick="closeModal('editRestaurantModal')" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="min-width:160px;">
+                        <i class="fas fa-floppy-disk"></i> Save Changes
+                    </button>
+                </div>
             </div>
-            <button type="submit" class="btn btn-primary" style="width:100%;margin-top:16px;">Save Changes</button>
         </form>
     </div>
 </div>
@@ -1955,16 +2098,16 @@ function setAdminLocation(mode, lat, lng, address) {
         document.getElementById('addR_address').value = address;
         document.getElementById('addR_mapSearch').value = address;
         const box = document.getElementById('addR_addrBox');
-        box.style.display = 'block';
-        box.innerHTML = '<i class="fas fa-circle-check" style="color:#16a34a;margin-right:6px;"></i>' + address;
+        box.style.display = 'flex';
+        document.getElementById('addR_addrText').textContent = address;
     } else {
         document.getElementById('er_lat').value     = lat;
         document.getElementById('er_lng').value     = lng;
         document.getElementById('er_address').value = address;
         document.getElementById('editR_mapSearch').value = address;
         const box = document.getElementById('editR_addrBox');
-        box.style.display = 'block';
-        box.innerHTML = '<i class="fas fa-circle-check" style="color:#16a34a;margin-right:6px;"></i>' + address;
+        box.style.display = 'flex';
+        document.getElementById('editR_addrText').textContent = address;
     }
 }
 
