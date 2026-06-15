@@ -514,8 +514,13 @@ Route::prefix('v1/elearning')->group(function () {
 
         // Instructor
         Route::prefix('instructor')->group(function () {
+            // Application (open to any authenticated user)
+            Route::get('status', [ELearningInstructorApiController::class, 'status']);
+            Route::post('apply', [ELearningInstructorApiController::class, 'apply']);
+
             Route::get('dashboard', [ELearningInstructorApiController::class, 'dashboard']);
             Route::get('courses', [ELearningInstructorApiController::class, 'myCourses']);
+            Route::get('courses/{id}/structure', [ELearningInstructorApiController::class, 'courseStructure']);
             Route::post('courses', [ELearningInstructorApiController::class, 'createCourse']);
             Route::put('courses/{id}', [ELearningInstructorApiController::class, 'updateCourse']);
             Route::post('sections', [ELearningInstructorApiController::class, 'addSection']);

@@ -70,6 +70,126 @@ class ELearningInstructor {
   String get displayPhoto => profilePhoto ?? avatar ?? '';
 }
 
+// ── Instructor (self) ─────────────────────────────────────────────────────────
+
+class InstructorStatus {
+  /// none | pending | approved | rejected
+  final String applicationStatus;
+  final int? id;
+  final String? bio;
+  final String? expertise;
+  final String? qualifications;
+  final int experienceYears;
+  final String? profilePhoto;
+  final double rating;
+  final int totalCourses;
+  final int totalStudents;
+
+  const InstructorStatus({
+    required this.applicationStatus,
+    this.id,
+    this.bio,
+    this.expertise,
+    this.qualifications,
+    this.experienceYears = 0,
+    this.profilePhoto,
+    this.rating = 0,
+    this.totalCourses = 0,
+    this.totalStudents = 0,
+  });
+
+  bool get isApproved => applicationStatus == 'approved';
+  bool get isPending  => applicationStatus == 'pending';
+  bool get isRejected => applicationStatus == 'rejected';
+  bool get hasApplied => applicationStatus != 'none';
+
+  factory InstructorStatus.fromJson(Map<String, dynamic> j) {
+    final inst = j['instructor'] as Map<String, dynamic>?;
+    return InstructorStatus(
+      applicationStatus: j['application_status'] as String? ?? 'none',
+      id:               inst?['id'] as int?,
+      bio:              inst?['bio'] as String?,
+      expertise:        inst?['expertise'] as String?,
+      qualifications:   inst?['qualifications'] as String?,
+      experienceYears:  (inst?['experience_years'] as num?)?.toInt() ?? 0,
+      profilePhoto:     inst?['profile_photo'] as String?,
+      rating:           (inst?['rating'] as num?)?.toDouble() ?? 0,
+      totalCourses:     (inst?['total_courses'] as num?)?.toInt() ?? 0,
+      totalStudents:    (inst?['total_students'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class InstructorDashboard {
+  final int totalStudents;
+  final int totalCourses;
+  final double totalEarnings;
+  final double pendingEarnings;
+  final double rating;
+  final List<Map<String, dynamic>> recentEnrollments;
+
+  const InstructorDashboard({
+    required this.totalStudents,
+    required this.totalCourses,
+    required this.totalEarnings,
+    required this.pendingEarnings,
+    required this.rating,
+    required this.recentEnrollments,
+  });
+
+  factory InstructorDashboard.fromJson(Map<String, dynamic> j) => InstructorDashboard(
+    totalStudents:   (j['total_students'] as num?)?.toInt() ?? 0,
+    totalCourses:    (j['total_courses'] as num?)?.toInt() ?? 0,
+    totalEarnings:   (j['total_earnings'] as num?)?.toDouble() ?? 0,
+    pendingEarnings: (j['pending_earnings'] as num?)?.toDouble() ?? 0,
+    rating:          (j['rating'] as num?)?.toDouble() ?? 0,
+    recentEnrollments: (j['recent_enrollments'] as List<dynamic>? ?? [])
+        .map((e) => e as Map<String, dynamic>).toList(),
+  );
+}
+
+class InstructorCourse {
+  final int id;
+  final String title;
+  final String slug;
+  final String? thumbnail;
+  final String status;
+  final double price;
+  final int totalStudents;
+  final double rating;
+  final int totalLessons;
+  final String? category;
+  final String createdAt;
+
+  const InstructorCourse({
+    required this.id,
+    required this.title,
+    required this.slug,
+    this.thumbnail,
+    required this.status,
+    required this.price,
+    required this.totalStudents,
+    required this.rating,
+    required this.totalLessons,
+    this.category,
+    required this.createdAt,
+  });
+
+  factory InstructorCourse.fromJson(Map<String, dynamic> j) => InstructorCourse(
+    id:            j['id'] as int,
+    title:         j['title'] as String,
+    slug:          j['slug'] as String,
+    thumbnail:     j['thumbnail'] as String?,
+    status:        j['status'] as String? ?? 'draft',
+    price:         (j['price'] as num?)?.toDouble() ?? 0,
+    totalStudents: (j['total_students'] as num?)?.toInt() ?? 0,
+    rating:        (j['rating'] as num?)?.toDouble() ?? 0,
+    totalLessons:  (j['total_lessons'] as num?)?.toInt() ?? 0,
+    category:      j['category'] as String?,
+    createdAt:     j['created_at'] as String? ?? '',
+  );
+}
+
 class ELearningCourse {
   final int id;
   final String title;

@@ -78,3 +78,23 @@ final wishlistProvider = FutureProvider<List<dynamic>>((ref) async {
 final quizProvider = FutureProvider.family<QuizData, int>((ref, quizId) async {
   return _svc.getQuiz(quizId);
 });
+
+// ── Instructor ────────────────────────────────────────────────────────────────
+
+final elearningServiceProvider = Provider<ELearningApiService>((ref) => _svc);
+
+final instructorStatusProvider = FutureProvider<InstructorStatus>((ref) async {
+  return _svc.getInstructorStatus();
+});
+
+final instructorDashboardProvider = FutureProvider<InstructorDashboard>((ref) async {
+  return _svc.getInstructorDashboard();
+});
+
+final instructorCoursesProvider = FutureProvider<List<InstructorCourse>>((ref) async {
+  return _svc.getInstructorCourses();
+});
+
+final courseStructureProvider = FutureProvider.family<Map<String, dynamic>, int>((ref, courseId) async {
+  return _svc.getCourseStructure(courseId);
+});

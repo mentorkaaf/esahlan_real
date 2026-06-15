@@ -32,6 +32,90 @@ class ELearningInstructorApiController extends Controller
         return $instructor;
     }
 
+    /**
+     * Return the current user's instructor status.
+     * none = never applied, pending/approved/rejected = application state.
+     */
+    public function status()
+    {
+        $instructor = $this->getInstructor();
+
+        if (!$instructor) {
+            return response()->json([
+                'status' => 'success',
+                'data'   => ['application_status' => 'none', 'instructor' => null],
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => [
+                'application_status' => $instructor->verification_status,
+                'instructor' => [
+                    'id'               => $instructor->id,
+                    'bio'              => $instructor->bio,
+                    'expertise'        => $instructor->expertise,
+                    'qualifications'   => $instructor->qualifications,
+                    'experience_years' => $instructor->experience_years,
+                    'profile_photo'    => $instructor->profile_photo ? asset('storage/' . $instructor->profile_photo) : null,
+                    'rating'           => $instructor->rating,
+                    'total_courses'    => $instructor->total_courses,
+                    'total_students'   => $instructor->total_students,
+                    'is_active'        => $instructor->is_active,
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * Apply to become an instructor. Creates a pending record for admin review.
+     */
+    public function apply(Request $request)
+    {
+        $existing = $this->getInstructor();
+        if ($existing) {
+            if ($existing->verification_status === 'rejected') {
+                // allow re-apply: reset to pending with new details
+            } else {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'You already have an instructor application ('
+                        . $existing->verification_status . ').',
+                ], 422);
+            }
+        }
+
+        $data = $request->validate([
+            'bio'              => 'required|string|max:2000',
+            'expertise'        => 'required|string|max:255',
+            'qualifications'   => 'nullable|string|max:2000',
+            'experience_years' => 'nullable|integer|min:0|max:80',
+            'social_links'     => 'nullable|array',
+            'profile_photo'    => 'nullable|image|max:4096',
+        ]);
+
+        if ($request->hasFile('profile_photo')) {
+            $data['profile_photo'] = $request->file('profile_photo')->store('elearning/instructors', 'public');
+        }
+
+        $data['verification_status'] = 'pending';
+        $data['is_active']           = false;
+
+        if ($existing) {
+            $existing->update($data);
+            $instructor = $existing;
+        } else {
+            $data['user_id'] = auth()->id();
+            $instructor = ELearningInstructor::create($data);
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Application submitted! Admin will review within 24 hours.',
+            'data'    => ['application_status' => 'pending', 'id' => $instructor->id],
+        ], 201);
+    }
+
     public function dashboard()
     {
         $instructor = $this->requireInstructor();
@@ -88,6 +172,44 @@ class ELearningInstructorApiController extends Controller
             ]);
 
         return response()->json(['status' => 'success', 'data' => $courses]);
+    }
+
+    /**
+     * Return a single course owned by the instructor with its sections + lessons,
+     * for the in-app course builder (works for draft/pending courses too).
+     */
+    public function courseStructure(int $id)
+    {
+        $instructor = $this->requireInstructor();
+        $course = ELearningCourse::with(['sections.lessons' => fn($q) => $q->orderBy('sort_order')])
+            ->where('id', $id)
+            ->where('instructor_id', $instructor->id)
+            ->firstOrFail();
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => [
+                'id'            => $course->id,
+                'title'         => $course->title,
+                'slug'          => $course->slug,
+                'status'        => $course->status,
+                'thumbnail'     => $course->thumbnail_url,
+                'price'         => $course->price,
+                'is_free'       => $course->is_free,
+                'total_lessons' => $course->total_lessons,
+                'sections'      => $course->sections->sortBy('sort_order')->values()->map(fn($s) => [
+                    'id'      => $s->id,
+                    'title'   => $s->title,
+                    'lessons' => $s->lessons->map(fn($l) => [
+                        'id'                     => $l->id,
+                        'title'                  => $l->title,
+                        'type'                   => $l->type,
+                        'video_duration_seconds' => $l->video_duration_seconds,
+                        'is_free_preview'        => $l->is_free_preview,
+                    ]),
+                ]),
+            ],
+        ]);
     }
 
     public function createCourse(Request $request)

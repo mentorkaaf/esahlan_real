@@ -37,6 +37,10 @@ import '../../features/elearning/presentation/screens/my_learning_screen.dart';
 import '../../features/elearning/presentation/screens/lesson_player_screen.dart';
 import '../../features/elearning/presentation/screens/elearning_certificate_screen.dart';
 import '../../features/elearning/presentation/screens/quiz_screen.dart';
+import '../../features/elearning/presentation/screens/instructor_hub_screen.dart';
+import '../../features/elearning/presentation/screens/instructor_apply_screen.dart';
+import '../../features/elearning/presentation/screens/create_course_screen.dart';
+import '../../features/elearning/presentation/screens/course_builder_screen.dart';
 
 // Module screens
 import '../../features/modules/efood/efood_screen.dart';
@@ -185,6 +189,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/elearning/quiz/:id',
             builder: (_, state) => QuizScreen(quizId: int.parse(state.pathParameters['id']!)),
+          ),
+          // Instructor area
+          GoRoute(path: '/elearning/instructor', builder: (_, __) => const InstructorHubScreen()),
+          GoRoute(path: '/elearning/instructor/apply', builder: (_, __) => const InstructorApplyScreen()),
+          GoRoute(path: '/elearning/instructor/create-course', builder: (_, __) => const CreateCourseScreen()),
+          GoRoute(
+            path: '/elearning/instructor/course-builder/:id',
+            builder: (_, state) => CourseBuilderScreen(
+              courseId: int.parse(state.pathParameters['id']!),
+              courseTitle: state.extra as String?,
+            ),
           ),
         ],
       ),

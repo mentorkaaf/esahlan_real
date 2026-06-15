@@ -162,4 +162,122 @@ class ELearningApiService {
   Future<Map<String, dynamic>> verifyPurchase(int courseId) async {
     return await _post('$_base/purchase/verify', {'course_id': courseId});
   }
+
+  // ── Instructor (self) ──────────────────────────────────────────────────────────
+
+  Future<InstructorStatus> getInstructorStatus() async {
+    final res = await _get('$_base/instructor/status');
+    return InstructorStatus.fromJson(res['data'] as Map<String, dynamic>);
+  }
+
+  Future<Map<String, dynamic>> applyInstructor({
+    required String bio,
+    required String expertise,
+    String? qualifications,
+    int? experienceYears,
+    MultipartFile? profilePhoto,
+  }) async {
+    final form = FormData.fromMap({
+      'bio':       bio,
+      'expertise': expertise,
+      if (qualifications != null && qualifications.isNotEmpty) 'qualifications': qualifications,
+      if (experienceYears != null) 'experience_years': experienceYears,
+      if (profilePhoto != null) 'profile_photo': profilePhoto,
+    });
+    final r = await _dio.post('$_base/instructor/apply', data: form);
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<InstructorDashboard> getInstructorDashboard() async {
+    final res = await _get('$_base/instructor/dashboard');
+    return InstructorDashboard.fromJson(res['data'] as Map<String, dynamic>);
+  }
+
+  Future<List<InstructorCourse>> getInstructorCourses() async {
+    final res = await _get('$_base/instructor/courses');
+    final list = res['data'] as List<dynamic>? ?? [];
+    return list.map((c) => InstructorCourse.fromJson(c as Map<String, dynamic>)).toList();
+  }
+
+  /// Course structure (sections + lessons) for the in-app builder. Works for drafts.
+  Future<Map<String, dynamic>> getCourseStructure(int courseId) async {
+    final res = await _get('$_base/instructor/courses/$courseId/structure');
+    return res['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> createCourse({
+    required String title,
+    String? subtitle,
+    required String description,
+    required int categoryId,
+    required String level,
+    required String language,
+    required double price,
+    double? discountPrice,
+    bool isFree = false,
+    List<String>? learningOutcomes,
+    List<String>? requirements,
+    String? targetAudience,
+    MultipartFile? thumbnail,
+  }) async {
+    final form = FormData.fromMap({
+      'title':       title,
+      if (subtitle != null && subtitle.isNotEmpty) 'subtitle': subtitle,
+      'description': description,
+      'category_id': categoryId,
+      'level':       level,
+      'language':    language,
+      'price':       price,
+      if (discountPrice != null) 'discount_price': discountPrice,
+      'is_free':     isFree ? 1 : 0,
+      if (learningOutcomes != null)
+        for (var i = 0; i < learningOutcomes.length; i++) 'learning_outcomes[$i]': learningOutcomes[i],
+      if (requirements != null)
+        for (var i = 0; i < requirements.length; i++) 'requirements[$i]': requirements[i],
+      if (targetAudience != null && targetAudience.isNotEmpty) 'target_audience': targetAudience,
+      if (thumbnail != null) 'thumbnail': thumbnail,
+    });
+    final r = await _dio.post('$_base/instructor/courses', data: form);
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> addSection({
+    required int courseId,
+    required String title,
+    int? sortOrder,
+  }) async {
+    return await _post('$_base/instructor/sections', {
+      'course_id': courseId,
+      'title':     title,
+      if (sortOrder != null) 'sort_order': sortOrder,
+    });
+  }
+
+  Future<Map<String, dynamic>> addLesson({
+    required int sectionId,
+    required String title,
+    required String type,
+    String? videoUrl,
+    int? videoDurationSeconds,
+    String? content,
+    bool isFreePreview = false,
+    int? sortOrder,
+  }) async {
+    return await _post('$_base/instructor/lessons', {
+      'section_id':              sectionId,
+      'title':                   title,
+      'type':                    type,
+      if (videoUrl != null && videoUrl.isNotEmpty) 'video_url': videoUrl,
+      if (videoDurationSeconds != null) 'video_duration_seconds': videoDurationSeconds,
+      if (content != null && content.isNotEmpty) 'content': content,
+      'is_free_preview':         isFreePreview ? 1 : 0,
+      if (sortOrder != null) 'sort_order': sortOrder,
+    });
+  }
+
+  /// Submit a draft course for admin review (status -> pending).
+  Future<Map<String, dynamic>> submitCourseForReview(int courseId) async {
+    final r = await _dio.put('$_base/instructor/courses/$courseId', data: {'status': 'pending'});
+    return r.data as Map<String, dynamic>;
+  }
 }

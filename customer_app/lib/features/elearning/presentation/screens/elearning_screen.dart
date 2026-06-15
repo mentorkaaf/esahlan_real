@@ -48,6 +48,11 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
             ),
             actions: [
               IconButton(
+                icon: const Icon(Icons.cast_for_education_rounded, color: AppColors.secondary),
+                onPressed: () => context.push('/elearning/instructor'),
+                tooltip: 'Teach / Instructor',
+              ),
+              IconButton(
                 icon: const Icon(Icons.school_rounded, color: AppColors.primary),
                 onPressed: () => context.push('/elearning/my-learning'),
                 tooltip: 'My Learning',
