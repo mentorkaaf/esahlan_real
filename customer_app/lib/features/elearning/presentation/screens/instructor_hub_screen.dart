@@ -7,11 +7,31 @@ import '../providers/elearning_provider.dart';
 
 /// Entry point for the instructor area. Decides what to show based on the
 /// user's instructor application status.
-class InstructorHubScreen extends ConsumerWidget {
+class InstructorHubScreen extends ConsumerStatefulWidget {
   const InstructorHubScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<InstructorHubScreen> createState() => _InstructorHubScreenState();
+}
+
+class _InstructorHubScreenState extends ConsumerState<InstructorHubScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Always re-fetch fresh status when opening the hub so that an approval/
+    // rejection that happened on the admin side is reflected immediately.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(instructorStatusProvider);
+    });
+  }
+
+  Future<void> _refresh() async {
+    ref.invalidate(instructorStatusProvider);
+    await ref.read(instructorStatusProvider.future);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final statusAsync = ref.watch(instructorStatusProvider);
 
     return Scaffold(
@@ -24,6 +44,13 @@ class InstructorHubScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.secondary),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
+            onPressed: _refresh,
+            tooltip: 'Refresh status',
+          ),
+        ],
       ),
       body: statusAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
@@ -33,7 +60,7 @@ class InstructorHubScreen extends ConsumerWidget {
             case 'approved':
               return const _ApprovedDashboard();
             case 'pending':
-              return const _PendingState();
+              return _PendingState(onRefresh: _refresh);
             case 'rejected':
               return _RejectedState(onReapply: () => context.push('/elearning/instructor/apply'));
             default:
@@ -127,27 +154,47 @@ class _Benefit extends StatelessWidget {
 
 // ── Pending ─────────────────────────────────────────────────────────────────────
 class _PendingState extends StatelessWidget {
-  const _PendingState();
+  final Future<void> Function() onRefresh;
+  const _PendingState({required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.1), shape: BoxShape.circle),
-            child: const Icon(Icons.hourglass_top_rounded, size: 60, color: Colors.orange),
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: onRefresh,
+      child: ListView(
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * 0.18),
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.1), shape: BoxShape.circle),
+              child: const Icon(Icons.hourglass_top_rounded, size: 60, color: Colors.orange),
+            ),
           ),
           const SizedBox(height: 24),
           const Text('Application Under Review',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.secondary)),
           const SizedBox(height: 10),
-          Text('Your instructor application is being reviewed. Admin usually responds within 24 hours.',
-              textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600], height: 1.5)),
-        ]),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text('Your instructor application is being reviewed. Admin usually responds within 24 hours.',
+                textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600], height: 1.5)),
+          ),
+          const SizedBox(height: 24),
+          Center(
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+              ),
+              onPressed: onRefresh,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Check Status'),
+            ),
+          ),
+        ],
       ),
     );
   }
