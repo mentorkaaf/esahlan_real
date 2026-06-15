@@ -81,7 +81,18 @@ Route::prefix('vendor')->name('vendor.')->group(function () {
 });
 
 // Public landing page
-Route::get('/', fn() => view('landing'));
+Route::get('/', function () {
+    if (auth()->check()) {
+        $role = auth()->user()->role?->slug ?? '';
+        if (in_array($role, ['vendor_owner', 'vendor_employee'])) {
+            return redirect()->route('vendor.dashboard');
+        }
+        if ($role === 'admin' || str_starts_with($role, 'admin')) {
+            return redirect()->route('admin.dashboard');
+        }
+    }
+    return view('landing');
+});
 
 // Admin root redirect
 Route::get('/admin', fn() => redirect('/admin/dashboard'));
