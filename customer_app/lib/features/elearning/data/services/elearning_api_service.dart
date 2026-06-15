@@ -321,6 +321,8 @@ class ELearningApiService {
     List<String>? learningOutcomes,
     List<String>? requirements,
     MultipartFile? thumbnail,
+    String? trailerVideoUrl,
+    MultipartFile? trailerVideoFile,
   }) async {
     final data = FormData.fromMap({
       if (title != null) 'title': title,
@@ -334,6 +336,8 @@ class ELearningApiService {
       if (learningOutcomes != null) 'learning_outcomes': learningOutcomes,
       if (requirements != null) 'requirements': requirements,
       if (thumbnail != null) 'thumbnail': thumbnail,
+      if (trailerVideoUrl != null) 'trailer_video_url': trailerVideoUrl,
+      if (trailerVideoFile != null) 'trailer_video_file': trailerVideoFile,
       '_method': 'PUT',
     });
     final r = await _dio.post('$_base/instructor/courses/$courseId', data: data);

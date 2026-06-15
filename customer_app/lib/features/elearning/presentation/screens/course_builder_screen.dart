@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:video_player/video_player.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/elearning_provider.dart';
 
@@ -779,7 +781,16 @@ class _AddLessonSheetState extends ConsumerState<_AddLessonSheet> {
 
   Future<void> _pickVideo() async {
     final f = await ImagePicker().pickVideo(source: ImageSource.gallery);
-    if (f != null) setState(() => _videoFile = f);
+    if (f == null) return;
+    setState(() => _videoFile = f);
+    // Auto-detect duration
+    try {
+      final vpc = VideoPlayerController.file(File(f.path));
+      await vpc.initialize();
+      final secs = vpc.value.duration.inSeconds;
+      await vpc.dispose();
+      if (secs > 0) setState(() => _durCtrl.text = secs.toString());
+    } catch (_) {}
   }
 
   Future<void> _save() async {
@@ -1076,13 +1087,15 @@ class _EditSheet extends ConsumerStatefulWidget {
 }
 
 class _EditSheetState extends ConsumerState<_EditSheet> {
-  late final TextEditingController _title, _subtitle, _desc, _price;
+  late final TextEditingController _title, _subtitle, _desc, _price, _trailerUrl;
   int?   _catId;
   String _level = 'all', _lang = 'so';
   bool   _free  = false;
   bool   _saving = false;
   MultipartFile? _thumb;
   String?        _thumbName;
+  XFile?         _trailerFile;
+  MultipartFile? _trailerMultipart;
 
   static const _levels = {'all': 'All Levels', 'beginner': 'Beginner',
       'intermediate': 'Intermediate', 'advanced': 'Advanced'};
@@ -1092,11 +1105,12 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
   void initState() {
     super.initState();
     final d = widget.data;
-    _title    = TextEditingController(text: d['title']       as String? ?? '');
-    _subtitle = TextEditingController(text: d['subtitle']    as String? ?? '');
-    _desc     = TextEditingController(text: d['description'] as String? ?? '');
-    _price    = TextEditingController(text: (d['price'] ?? '').toString());
-    _free     = d['is_free'] == true;
+    _title      = TextEditingController(text: d['title']         as String? ?? '');
+    _subtitle   = TextEditingController(text: d['subtitle']      as String? ?? '');
+    _desc       = TextEditingController(text: d['description']   as String? ?? '');
+    _price      = TextEditingController(text: (d['price'] ?? '').toString());
+    _trailerUrl = TextEditingController(text: d['trailer_video'] as String? ?? '');
+    _free       = d['is_free'] == true;
     _level    = d['level']    as String? ?? 'all';
     _lang     = d['language'] as String? ?? 'so';
     final cat = d['category'];
@@ -1106,8 +1120,19 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
   @override
   void dispose() {
     _title.dispose(); _subtitle.dispose();
-    _desc.dispose(); _price.dispose();
+    _desc.dispose(); _price.dispose(); _trailerUrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickTrailer() async {
+    final f = await ImagePicker().pickVideo(source: ImageSource.gallery);
+    if (f == null) return;
+    final mp = await MultipartFile.fromFile(f.path, filename: f.name);
+    setState(() {
+      _trailerFile      = f;
+      _trailerMultipart = mp;
+      _trailerUrl.clear();
+    });
   }
 
   Future<void> _pickThumb() async {
@@ -1131,6 +1156,9 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
         level: _level, language: _lang,
         price: _free ? 0 : (double.tryParse(_price.text.trim()) ?? 0),
         isFree: _free, thumbnail: _thumb,
+        trailerVideoUrl:  _trailerMultipart == null && _trailerUrl.text.trim().isNotEmpty
+                              ? _trailerUrl.text.trim() : null,
+        trailerVideoFile: _trailerMultipart,
       );
       widget.onSaved();
       if (mounted) {
@@ -1187,6 +1215,41 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
                     Text(_thumb != null ? _thumbName! : 'Change Thumbnail',
                         style: TextStyle(color: _thumb != null
                             ? Colors.green[700] : Colors.grey[500])),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Trailer video
+              _lbl('Trailer Video URL (YouTube ama MP4)'),
+              const SizedBox(height: 5),
+              _tf(_trailerUrl, 'https://youtube.com/watch?v=...'),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: _pickTrailer,
+                child: Container(
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: _bg,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _trailerFile != null ? _orange : Colors.grey[300]!,
+                    ),
+                  ),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(
+                      _trailerFile != null ? Icons.videocam_rounded : Icons.video_library_outlined,
+                      color: _trailerFile != null ? _orange : Colors.grey[400], size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _trailerFile != null ? _trailerFile!.name : 'Upload Trailer Video',
+                      style: TextStyle(
+                        color: _trailerFile != null ? _navy : Colors.grey[500],
+                        fontWeight: _trailerFile != null ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ]),
                 ),
               ),
