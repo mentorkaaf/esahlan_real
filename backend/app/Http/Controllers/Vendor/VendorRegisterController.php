@@ -35,23 +35,25 @@ class VendorRegisterController extends Controller
         $request->validate([
             'name'              => 'required|string|max:100',
             'email'             => 'required|email|max:150|unique:users,email',
-            'phone'             => 'required|string|max:20|unique:users,phone',
+            'phone_full'        => 'required|string|max:20|unique:users,phone',
             'password'          => 'required|string|min:8|confirmed',
             'store_name'        => 'required|string|max:200',
             'store_description' => 'nullable|string|max:500',
             'district_id'       => 'required|exists:districts,id',
-            'business_license'  => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'business_license'  => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'module_id'         => 'required|exists:modules,id',
         ], [
             'email.required'          => 'Email address is required.',
             'email.unique'            => 'This email is already registered.',
-            'phone.unique'            => 'This phone number is already registered.',
+            'phone_full.required'     => 'Phone number is required.',
+            'phone_full.unique'       => 'This phone number is already registered.',
             'password.min'            => 'Password must be at least 8 characters.',
             'password.confirmed'      => 'Passwords do not match.',
             'district_id.required'    => 'Please select your district.',
             'module_id.required'      => 'Please select the module you want to work with.',
-            'business_license.mimes'  => 'Business license must be a JPG, PNG, or PDF file.',
-            'business_license.max'    => 'Business license file must not exceed 5MB.',
+            'business_license.required' => 'Business license / government permit is required.',
+            'business_license.mimes'    => 'Business license must be a JPG, PNG, or PDF file.',
+            'business_license.max'      => 'Business license file must not exceed 5MB.',
         ]);
 
         $module = Module::findOrFail($request->module_id);
@@ -60,17 +62,11 @@ class VendorRegisterController extends Controller
             return back()->withErrors(['module_id' => 'Invalid module selected.'])->withInput();
         }
 
-        // Normalize phone
-        $phone = preg_replace('/\D/', '', $request->phone);
-        if (!str_starts_with($phone, '252')) {
-            if (strlen($phone) <= 9) {
-                $phone = '252' . $phone;
-            }
-        }
-        $phone = '+' . ltrim($phone, '+');
+        // Phone comes pre-formatted as +252XXXXXXXXX from the form
+        $phone = '+252' . preg_replace('/\D/', '', $request->phone_full);
 
         if (User::where('phone', $phone)->exists()) {
-            return back()->withErrors(['phone' => 'This phone number is already registered.'])->withInput();
+            return back()->withErrors(['phone_full' => 'This phone number is already registered.'])->withInput();
         }
 
         // Handle business license upload

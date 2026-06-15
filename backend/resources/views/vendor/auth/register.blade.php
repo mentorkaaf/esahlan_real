@@ -265,11 +265,12 @@
 
             <div class="form-group">
                 <label class="form-label">Phone Number <span style="color:var(--danger);">*</span></label>
-                <div class="input-wrap">
-                    <i class="fa-solid fa-phone"></i>
-                    <input type="text" name="phone" class="form-control" value="{{ old('phone') }}" placeholder="e.g. 252612345678" required>
+                <div class="input-wrap" style="display:flex;align-items:stretch;">
+                    <span style="display:flex;align-items:center;padding:0 12px;background:#f0f2f8;border:1.5px solid var(--border);border-right:none;border-radius:10px 0 0 10px;font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;">+252</span>
+                    <input type="text" name="phone_local" id="phone-local" class="form-control no-icon" value="{{ old('phone_local') }}" placeholder="612345678" maxlength="9" inputmode="numeric" oninput="this.value=this.value.replace(/\D/,'')" style="border-radius:0 10px 10px 0;" required>
+                    <input type="hidden" name="phone_full" id="phone-full">
                 </div>
-                <div class="form-hint">Include country code or start with 0.</div>
+                <div class="form-hint">Enter local number without country code (e.g. 612345678)</div>
                 @error('phone')<div class="field-error">{{ $message }}</div>@enderror
             </div>
 
@@ -338,8 +339,7 @@
 
             <div class="form-group">
                 <label class="form-label">
-                    Business License / Government Permit
-                    <span style="font-weight:400;color:var(--text-muted);">(optional)</span>
+                    Business License / Government Permit <span style="color:var(--danger);">*</span>
                 </label>
                 <div class="file-upload-area" id="license-area">
                     <input type="file" name="business_license" id="license-input" accept=".jpg,.jpeg,.png,.pdf" onchange="handleFileSelect(this)">
@@ -443,19 +443,21 @@ function nextStep(from) {
     if (from === 2) {
         const name  = document.querySelector('input[name=name]').value.trim();
         const email = document.querySelector('input[name=email]').value.trim();
-        const phone = document.querySelector('input[name=phone]').value.trim();
+        const local = document.getElementById('phone-local').value.trim();
         const pw    = document.getElementById('password').value;
         const pw2   = document.getElementById('password_confirmation').value;
         if (!name)  { alert('Please enter your full name.'); return; }
         if (!email) { alert('Please enter your email address.'); return; }
-        if (!phone) { alert('Please enter your phone number.'); return; }
+        if (!local || local.length < 7) { alert('Please enter a valid local phone number.'); return; }
         if (pw.length < 8) { alert('Password must be at least 8 characters.'); return; }
         if (pw !== pw2) { alert('Passwords do not match.'); return; }
+
+        document.getElementById('phone-full').value = '+252' + local;
 
         const modId = document.querySelector('input[name=module_id]:checked')?.value;
         document.getElementById('sum-module').textContent = moduleNames[modId] || '—';
         document.getElementById('sum-name').textContent   = name;
-        document.getElementById('sum-phone').textContent  = phone;
+        document.getElementById('sum-phone').textContent  = fullPhone;
     }
     goStep(from + 1);
 }
@@ -480,6 +482,19 @@ document.addEventListener('DOMContentLoaded', () => {
     @endif
     const checked = document.querySelector('input[name=module_id]:checked');
     if (checked) checked.closest('.module-card').classList.add('selected');
+
+    // Intercept form submit to validate license and build phone
+    document.getElementById('reg-form').addEventListener('submit', function(e) {
+        const license = document.getElementById('license-input');
+        if (!license.files || license.files.length === 0) {
+            e.preventDefault();
+            alert('Please upload your Business License / Government Permit.');
+            return;
+        }
+        // Ensure full phone is set as "phone" field
+        const local = document.getElementById('phone-local').value.trim();
+        document.getElementById('phone-full').value = '+252' + local;
+    });
 });
 </script>
 </body>
