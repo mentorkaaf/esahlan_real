@@ -196,68 +196,72 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
   }
 
   Future<void> _addSection(BuildContext context) async {
-    final ref = this.ref;
-    final ctrl = TextEditingController();
-    final ok = await showDialog<bool>(
+    // Use bottom sheet instead of dialog to avoid GoRouter ShellRoute navigator bug
+    final title = await showModalBottomSheet<String>(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Add Section'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Section title, e.g. Introduction'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () => Navigator.pop(dialogCtx, true),
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _AddSectionSheet(),
     );
-    if (ok == true && ctrl.text.trim().isNotEmpty) {
+    if (title != null && title.trim().isNotEmpty) {
       try {
-        await ref.read(elearningServiceProvider).addSection(courseId: courseId, title: ctrl.text.trim());
-        // Force immediate re-fetch and wait for it to complete so the list updates
+        await ref.read(elearningServiceProvider).addSection(courseId: courseId, title: title.trim());
         await ref.refresh(courseStructureProvider(courseId).future);
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               content: Text('Section added'), backgroundColor: Colors.green));
         }
       } on DioException catch (e) {
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(e.response?.data?['message']?.toString() ?? 'Failed to add section'),
               backgroundColor: Colors.red));
         }
       } catch (e) {
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Failed to add section: $e'), backgroundColor: Colors.red));
+              content: Text('Error: $e'), backgroundColor: Colors.red));
         }
       }
     }
   }
 
   Future<void> _submitForReview(BuildContext context) async {
-    final ref = this.ref;
-    final ok = await showDialog<bool>(
+    final ok = await showModalBottomSheet<bool>(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Submit for Review?'),
-        content: const Text('Once submitted, admin will review your course before it goes live. You can still edit while it\'s in review.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.secondary),
-            onPressed: () => Navigator.pop(dialogCtx, true),
-            child: const Text('Submit'),
-          ),
-        ],
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4,
+              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 20),
+          const Icon(Icons.send_rounded, color: AppColors.secondary, size: 40),
+          const SizedBox(height: 12),
+          const Text('Submit for Review?',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.secondary)),
+          const SizedBox(height: 8),
+          Text('Admin ayaa course-kaaga dib u eegi doona ka hor inta uusan nool noqon.',
+              textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600], height: 1.5)),
+          const SizedBox(height: 24),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () => Navigator.pop(sheetCtx, false),
+              child: const Text('Cancel'),
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.secondary),
+              onPressed: () => Navigator.pop(sheetCtx, true),
+              child: const Text('Submit'),
+            )),
+          ]),
+          const SizedBox(height: 8),
+        ]),
       ),
     );
     if (ok == true) {
@@ -277,6 +281,80 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
         }
       }
     }
+  }
+}
+
+// ── Add Section bottom sheet (avoids GoRouter ShellRoute navigator bug) ───────
+class _AddSectionSheet extends StatefulWidget {
+  const _AddSectionSheet();
+
+  @override
+  State<_AddSectionSheet> createState() => _AddSectionSheetState();
+}
+
+class _AddSectionSheetState extends State<_AddSectionSheet> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4,
+              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          const Text('Add Section',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.secondary)),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _ctrl,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (v) {
+              if (v.trim().isNotEmpty) Navigator.pop(context, v.trim());
+            },
+            decoration: InputDecoration(
+              hintText: 'Tusaale: Introduction, Chapter 1...',
+              hintStyle: TextStyle(color: Colors.grey[400]),
+              filled: true,
+              fillColor: const Color(0xFFF5F6FA),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () => Navigator.pop(context, null),
+              child: const Text('Cancel'),
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              onPressed: () {
+                final v = _ctrl.text.trim();
+                if (v.isNotEmpty) Navigator.pop(context, v);
+              },
+              child: const Text('Add', style: TextStyle(fontWeight: FontWeight.w700)),
+            )),
+          ]),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
   }
 }
 
