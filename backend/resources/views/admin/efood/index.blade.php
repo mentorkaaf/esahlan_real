@@ -735,9 +735,25 @@
                     <input type="text" name="cover_image" class="form-control" placeholder="Or paste cover URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'addR_coverPreview','addR_coverPlaceholder')">
                 </div>
             </div>
+            {{-- ── Location Map (Add) ──────────────────────────────── --}}
+            <div class="form-group">
+                <label class="form-label"><i class="fas fa-map-marker-alt" style="color:var(--primary);margin-right:4px;"></i> Store Location</label>
+                <input type="text" id="addR_mapSearch" class="form-control" placeholder="Search location..." style="margin-bottom:8px;">
+                <div style="position:relative;border-radius:10px;overflow:hidden;border:1.5px solid #e2e8f0;">
+                    <div id="adminAddMap" style="width:100%;height:220px;"></div>
+                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);pointer-events:none;z-index:5;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3));"><i class="fas fa-location-dot" style="font-size:28px;color:#FF8A00;"></i></div>
+                    <button type="button" onclick="adminAddMyLocation()" title="My location" style="position:absolute;bottom:8px;right:8px;z-index:5;width:34px;height:34px;border-radius:8px;background:#fff;border:1.5px solid #e2e8f0;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.12);">
+                        <i class="fas fa-location-crosshairs" style="color:#FF8A00;font-size:13px;"></i>
+                    </button>
+                </div>
+                <div id="addR_addrBox" style="display:none;margin-top:6px;padding:8px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;color:#166534;"></div>
+                <input type="hidden" name="latitude"  id="addR_lat">
+                <input type="hidden" name="longitude" id="addR_lng">
+            </div>
+
             <div class="form-group">
                 <label class="form-label">Address</label>
-                <input type="text" name="address" class="form-control" placeholder="Full address">
+                <input type="text" name="address" id="addR_address" class="form-control" placeholder="Full address">
             </div>
             <div class="form-group">
                 <label class="form-label">Description</label>
@@ -846,6 +862,22 @@
                     <input type="text" name="cover_image" id="er_cover" class="form-control" placeholder="Or paste cover URL..." style="margin-top:6px;font-size:12px;" oninput="previewFromUrl(this.value,'editR_coverPreview','editR_coverPlaceholder')">
                 </div>
             </div>
+            {{-- ── Location Map (Edit) ─────────────────────────────── --}}
+            <div class="form-group">
+                <label class="form-label"><i class="fas fa-map-marker-alt" style="color:var(--primary);margin-right:4px;"></i> Store Location</label>
+                <input type="text" id="editR_mapSearch" class="form-control" placeholder="Search location..." style="margin-bottom:8px;">
+                <div style="position:relative;border-radius:10px;overflow:hidden;border:1.5px solid #e2e8f0;">
+                    <div id="adminEditMap" style="width:100%;height:220px;"></div>
+                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);pointer-events:none;z-index:5;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3));"><i class="fas fa-location-dot" style="font-size:28px;color:#FF8A00;"></i></div>
+                    <button type="button" onclick="adminEditMyLocation()" title="My location" style="position:absolute;bottom:8px;right:8px;z-index:5;width:34px;height:34px;border-radius:8px;background:#fff;border:1.5px solid #e2e8f0;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.12);">
+                        <i class="fas fa-location-crosshairs" style="color:#FF8A00;font-size:13px;"></i>
+                    </button>
+                </div>
+                <div id="editR_addrBox" style="display:none;margin-top:6px;padding:8px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;color:#166534;"></div>
+                <input type="hidden" name="latitude"  id="er_lat">
+                <input type="hidden" name="longitude" id="er_lng">
+            </div>
+
             <div class="form-group">
                 <label class="form-label">Address</label>
                 <input type="text" name="address" id="er_address" class="form-control">
@@ -1694,7 +1726,27 @@ function openEditRestaurant(r) {
         if (closeInp)  closeInp.value  = entry?.close || '22:00';
     }
 
+    // Map: populate lat/lng hidden fields and recenter
+    const lat = parseFloat(r.latitude);
+    const lng = parseFloat(r.longitude);
+    document.getElementById('er_lat').value = r.latitude || '';
+    document.getElementById('er_lng').value = r.longitude || '';
     openModal('editRestaurantModal');
+
+    // Init or recenter edit map after modal is visible
+    setTimeout(() => {
+        const center = (!isNaN(lat) && !isNaN(lng)) ? {lat, lng} : {lat:2.0469, lng:45.3182};
+        if (!adminEditMapObj) {
+            initAdminEditMap(center);
+        } else {
+            adminEditMapObj.setCenter(center);
+            adminEditMapObj.setZoom(!isNaN(lat) ? 16 : 13);
+        }
+        if (r.address) {
+            document.getElementById('editR_mapSearch').value = r.address;
+            setAdminLocation('edit', lat||2.0469, lng||45.3182, r.address);
+        }
+    }, 150);
 }
 
 // ─── Category ─────────────────────────────────────────────────────
@@ -1829,6 +1881,123 @@ function previewFromUrl(url, previewId, placeholderId) {
     }
 }
 
+// ─── Admin Google Maps ────────────────────────────────────────────
+let adminAddMapObj = null, adminAddGeocoder = null, adminAddSearchBox = null;
+let adminEditMapObj = null, adminEditGeocoder = null, adminEditSearchBox = null;
+
+function initAdminMaps() {
+    adminAddGeocoder  = new google.maps.Geocoder();
+    adminEditGeocoder = new google.maps.Geocoder();
+}
+
+function initAdminAddMap() {
+    if (adminAddMapObj) { google.maps.event.trigger(adminAddMapObj,'resize'); return; }
+    const center = {lat:2.0469, lng:45.3182};
+    adminAddMapObj = new google.maps.Map(document.getElementById('adminAddMap'), {
+        center, zoom:13, mapTypeControl:false, streetViewControl:false, fullscreenControl:false,
+    });
+    adminAddSearchBox = new google.maps.places.SearchBox(document.getElementById('addR_mapSearch'));
+    adminAddMapObj.addListener('bounds_changed', () => adminAddSearchBox.setBounds(adminAddMapObj.getBounds()));
+    adminAddSearchBox.addListener('places_changed', () => {
+        const p = adminAddSearchBox.getPlaces();
+        if (!p || !p.length) return;
+        const loc = p[0].geometry.location;
+        adminAddMapObj.setCenter(loc); adminAddMapObj.setZoom(16);
+        setAdminLocation('add', loc.lat(), loc.lng(), p[0].formatted_address || '');
+    });
+    adminAddMapObj.addListener('dragend', () => {
+        const c = adminAddMapObj.getCenter();
+        adminReverseGeocode('add', c.lat(), c.lng());
+    });
+    adminAddMapObj.addListener('click', e => {
+        adminAddMapObj.setCenter(e.latLng);
+        adminReverseGeocode('add', e.latLng.lat(), e.latLng.lng());
+    });
+}
+
+function initAdminEditMap(center) {
+    adminEditMapObj = new google.maps.Map(document.getElementById('adminEditMap'), {
+        center, zoom: center.lat===2.0469 ? 13 : 16,
+        mapTypeControl:false, streetViewControl:false, fullscreenControl:false,
+    });
+    adminEditSearchBox = new google.maps.places.SearchBox(document.getElementById('editR_mapSearch'));
+    adminEditMapObj.addListener('bounds_changed', () => adminEditSearchBox.setBounds(adminEditMapObj.getBounds()));
+    adminEditSearchBox.addListener('places_changed', () => {
+        const p = adminEditSearchBox.getPlaces();
+        if (!p || !p.length) return;
+        const loc = p[0].geometry.location;
+        adminEditMapObj.setCenter(loc); adminEditMapObj.setZoom(16);
+        setAdminLocation('edit', loc.lat(), loc.lng(), p[0].formatted_address || '');
+    });
+    adminEditMapObj.addListener('dragend', () => {
+        const c = adminEditMapObj.getCenter();
+        adminReverseGeocode('edit', c.lat(), c.lng());
+    });
+    adminEditMapObj.addListener('click', e => {
+        adminEditMapObj.setCenter(e.latLng);
+        adminReverseGeocode('edit', e.latLng.lat(), e.latLng.lng());
+    });
+}
+
+function adminReverseGeocode(mode, lat, lng) {
+    const gc = mode === 'add' ? adminAddGeocoder : adminEditGeocoder;
+    if (!gc) return;
+    gc.geocode({location:{lat,lng}}, (results, status) => {
+        const addr = (status === 'OK' && results[0]) ? results[0].formatted_address : `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        setAdminLocation(mode, lat, lng, addr);
+    });
+}
+
+function setAdminLocation(mode, lat, lng, address) {
+    if (mode === 'add') {
+        document.getElementById('addR_lat').value     = lat;
+        document.getElementById('addR_lng').value     = lng;
+        document.getElementById('addR_address').value = address;
+        document.getElementById('addR_mapSearch').value = address;
+        const box = document.getElementById('addR_addrBox');
+        box.style.display = 'block';
+        box.innerHTML = '<i class="fas fa-circle-check" style="color:#16a34a;margin-right:6px;"></i>' + address;
+    } else {
+        document.getElementById('er_lat').value     = lat;
+        document.getElementById('er_lng').value     = lng;
+        document.getElementById('er_address').value = address;
+        document.getElementById('editR_mapSearch').value = address;
+        const box = document.getElementById('editR_addrBox');
+        box.style.display = 'block';
+        box.innerHTML = '<i class="fas fa-circle-check" style="color:#16a34a;margin-right:6px;"></i>' + address;
+    }
+}
+
+function adminAddMyLocation() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        if (adminAddMapObj) { adminAddMapObj.setCenter({lat,lng}); adminAddMapObj.setZoom(17); }
+        adminReverseGeocode('add', lat, lng);
+    }, null, {enableHighAccuracy:true, timeout:8000});
+}
+
+function adminEditMyLocation() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        if (adminEditMapObj) { adminEditMapObj.setCenter({lat,lng}); adminEditMapObj.setZoom(17); }
+        adminReverseGeocode('edit', lat, lng);
+    }, null, {enableHighAccuracy:true, timeout:8000});
+}
+
+// Init Add map when Add modal opens
+const _origOpenModal = window.openModal;
+window.openModal = function(id) {
+    _origOpenModal && _origOpenModal(id);
+    if (id === 'addRestaurantModal') {
+        setTimeout(() => {
+            if (!adminAddMapObj) initAdminAddMap();
+            else google.maps.event.trigger(adminAddMapObj,'resize');
+        }, 150);
+    }
+};
+
 // Reset add item image picker when modal closes
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.modal-close').forEach(btn => {
@@ -1844,5 +2013,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google.maps_api_key') }}&libraries=places&callback=initAdminMaps" async defer></script>
 @endpush
 @endsection
