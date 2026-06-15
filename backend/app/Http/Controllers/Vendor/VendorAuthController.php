@@ -21,20 +21,32 @@ class VendorAuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'phone'    => 'required|string',
+            'login'    => 'required|string',
             'password' => 'required|string',
         ], [
-            'phone.required'    => 'Telefon numarası gereklidir.',
-            'password.required' => 'PIN gereklidir.',
+            'login.required'    => 'Phone number or email is required.',
+            'password.required' => 'Password is required.',
         ]);
 
+        $login = trim($request->login);
+        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
+
+        // Normalize phone if needed
+        if ($field === 'phone') {
+            $digits = preg_replace('/\D/', '', $login);
+            if (!str_starts_with($digits, '252') && strlen($digits) <= 9) {
+                $digits = '252' . $digits;
+            }
+            $login = '+' . ltrim($digits, '+');
+        }
+
         $credentials = [
-            'phone'    => $request->phone,
+            $field     => $login,
             'password' => $request->password,
         ];
 
         if (!Auth::attempt($credentials, $request->boolean('remember'))) {
-            return back()->withErrors(['phone' => 'Telefon numarası veya PIN hatalı.'])->withInput();
+            return back()->withErrors(['login' => 'Invalid phone/email or password.'])->withInput();
         }
 
         $user = auth()->user();

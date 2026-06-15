@@ -106,10 +106,10 @@
     <form action="{{ route('vendor.login.post') }}" method="POST">
         @csrf
         <div class="form-group">
-            <label class="form-label">Phone Number</label>
+            <label class="form-label">Phone Number or Email</label>
             <div class="input-wrap">
-                <i class="fa-solid fa-phone"></i>
-                <input type="text" name="phone" class="form-control" placeholder="e.g. 252612345678" value="{{ old('phone') }}" required autofocus>
+                <i class="fa-solid fa-user"></i>
+                <input type="text" name="login" class="form-control" placeholder="Phone number or email address" value="{{ old('login') }}" required autofocus>
             </div>
         </div>
         <div class="form-group">
