@@ -479,3 +479,54 @@ Route::prefix('v1')->group(function () {
         });
     });
 });
+
+// ─── eLearning ────────────────────────────────────────────────────────────────
+use App\Http\Controllers\Api\ELearning\ELearningPublicController;
+use App\Http\Controllers\Api\ELearning\ELearningStudentController;
+use App\Http\Controllers\Api\ELearning\ELearningInstructorApiController;
+use App\Http\Controllers\Api\ELearning\ELearningPaymentController;
+
+Route::prefix('v1/elearning')->group(function () {
+    // Public
+    Route::get('categories', [ELearningPublicController::class, 'categories']);
+    Route::get('courses', [ELearningPublicController::class, 'courses']);
+    Route::get('courses/{slug}', [ELearningPublicController::class, 'courseDetail']);
+    Route::get('instructors', [ELearningPublicController::class, 'instructors']);
+
+    // Student + Instructor — authenticated
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('my-learning', [ELearningStudentController::class, 'myLearning']);
+        Route::post('enroll', [ELearningStudentController::class, 'enroll']);
+        Route::post('lesson-progress', [ELearningStudentController::class, 'lessonProgress']);
+        Route::post('complete-lesson', [ELearningStudentController::class, 'completeLesson']);
+        Route::get('certificates', [ELearningStudentController::class, 'myCertificates']);
+        Route::get('wishlist', [ELearningStudentController::class, 'wishlist']);
+        Route::post('wishlist/toggle', [ELearningStudentController::class, 'toggleWishlist']);
+        Route::post('reviews', [ELearningStudentController::class, 'submitReview']);
+        Route::get('notes', [ELearningStudentController::class, 'notes']);
+        Route::post('notes', [ELearningStudentController::class, 'saveNote']);
+        Route::get('quiz/{quizId}', [ELearningStudentController::class, 'quizStart']);
+        Route::post('quiz/submit', [ELearningStudentController::class, 'quizSubmit']);
+
+        // Payment
+        Route::post('purchase', [ELearningPaymentController::class, 'initiatePurchase']);
+        Route::post('purchase/verify', [ELearningPaymentController::class, 'verifyPurchase']);
+
+        // Instructor
+        Route::prefix('instructor')->group(function () {
+            Route::get('dashboard', [ELearningInstructorApiController::class, 'dashboard']);
+            Route::get('courses', [ELearningInstructorApiController::class, 'myCourses']);
+            Route::post('courses', [ELearningInstructorApiController::class, 'createCourse']);
+            Route::put('courses/{id}', [ELearningInstructorApiController::class, 'updateCourse']);
+            Route::post('sections', [ELearningInstructorApiController::class, 'addSection']);
+            Route::post('lessons', [ELearningInstructorApiController::class, 'addLesson']);
+            Route::get('students', [ELearningInstructorApiController::class, 'students']);
+            Route::get('earnings', [ELearningInstructorApiController::class, 'earnings']);
+            Route::post('withdrawal', [ELearningInstructorApiController::class, 'requestWithdrawal']);
+            Route::post('quizzes', [ELearningInstructorApiController::class, 'createQuiz']);
+            Route::post('quiz-questions', [ELearningInstructorApiController::class, 'addQuestion']);
+            Route::get('submissions', [ELearningInstructorApiController::class, 'reviewSubmissions']);
+            Route::put('submissions/{id}/grade', [ELearningInstructorApiController::class, 'gradeSubmission']);
+        });
+    });
+});

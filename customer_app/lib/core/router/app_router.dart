@@ -30,6 +30,14 @@ import '../../features/community/presentation/screens/community_explore_screen.d
 import '../../features/community/presentation/screens/groups_screen.dart';
 import '../../features/community/data/models/community_models.dart';
 
+// eLearning screens
+import '../../features/elearning/presentation/screens/elearning_screen.dart';
+import '../../features/elearning/presentation/screens/course_detail_screen.dart';
+import '../../features/elearning/presentation/screens/my_learning_screen.dart';
+import '../../features/elearning/presentation/screens/lesson_player_screen.dart';
+import '../../features/elearning/presentation/screens/elearning_certificate_screen.dart';
+import '../../features/elearning/presentation/screens/quiz_screen.dart';
+
 // Module screens
 import '../../features/modules/efood/efood_screen.dart';
 import '../../features/modules/eparcel/eparcel_screen.dart';
@@ -158,6 +166,26 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(path: '/eshop/cart',     builder: (_, __) => const EShopCartScreen()),
           GoRoute(path: '/eshop/checkout', builder: (_, __) => const EShopCheckoutScreen()),
+
+          // eLearning routes (inside shell for bottom nav)
+          GoRoute(path: '/elearning', builder: (_, __) => const ELearningScreen()),
+          GoRoute(
+            path: '/elearning/course/:slug',
+            builder: (_, state) => CourseDetailScreen(slug: state.pathParameters['slug']!),
+          ),
+          GoRoute(path: '/elearning/my-learning', builder: (_, __) => const MyLearningScreen()),
+          GoRoute(
+            path: '/elearning/lesson/:id',
+            builder: (_, state) => LessonPlayerScreen(lessonId: int.parse(state.pathParameters['id']!)),
+          ),
+          GoRoute(
+            path: '/elearning/certificate/:id',
+            builder: (_, state) => ELearningCertificateScreen(certId: int.parse(state.pathParameters['id']!)),
+          ),
+          GoRoute(
+            path: '/elearning/quiz/:id',
+            builder: (_, state) => QuizScreen(quizId: int.parse(state.pathParameters['id']!)),
+          ),
         ],
       ),
 

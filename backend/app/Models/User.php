@@ -53,6 +53,8 @@ class User extends Authenticatable
     public function vendor() { return $this->hasOne(Vendor::class); }
     public function deliveryman() { return $this->hasOne(Deliveryman::class); }
     public function communityProfile() { return $this->hasOne(\App\Models\CommunityProfile::class); }
+    public function elInstructor() { return $this->hasOne(\App\Models\ELearningInstructor::class); }
+    public function elEnrollments() { return $this->hasMany(\App\Models\ELearningEnrollment::class); }
     public function stories() { return $this->hasMany(\App\Models\CommunityStory::class); }
     public function permissions() {
         return $this->belongsToMany(Permission::class, 'user_permissions')->withPivot('granted');

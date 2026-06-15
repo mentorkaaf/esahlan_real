@@ -32,6 +32,7 @@ const Map<String, _ModuleStyle> _moduleStyles = {
   'egrocery':   _ModuleStyle(Icons.shopping_basket_rounded),
   'eexchange':  _ModuleStyle(Icons.currency_exchange_rounded),
   'elaundry':   _ModuleStyle(Icons.local_laundry_service_rounded),
+  'elearning':  _ModuleStyle(Icons.school_rounded),
 };
 
 _ModuleStyle _styleFor(String slug) =>

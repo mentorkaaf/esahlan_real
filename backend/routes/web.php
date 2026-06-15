@@ -25,6 +25,7 @@ use App\Http\Controllers\Admin\AdminEFoodController;
 use App\Http\Controllers\Admin\AdminWalletController;
 use App\Http\Controllers\Admin\AdminLandingController;
 use App\Http\Controllers\Admin\AdminExchangeController;
+use App\Http\Controllers\Admin\AdminELearningController;
 
 // ─── Vendor Panel ────────────────────────────────────────────────────────────
 Route::prefix('vendor')->name('vendor.')->group(function () {
@@ -436,5 +437,33 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/dispatch/orders', [DispatchController::class, 'activeOrders'])->name('dispatch.orders');
         Route::post('/dispatch/assign', [DispatchController::class, 'manualAssign'])->name('dispatch.assign');
         Route::get('/dispatch/deliverymen/available', [DispatchController::class, 'availableDeliverymen'])->name('dispatch.deliverymen');
+
+        // ─── eLearning ────────────────────────────────────────────────────────
+        Route::prefix('elearning')->name('elearning.')->group(function () {
+            Route::get('/', [AdminELearningController::class, 'dashboard'])->name('dashboard');
+            Route::get('instructors', [AdminELearningController::class, 'instructors'])->name('instructors');
+            Route::get('instructors/{id}', [AdminELearningController::class, 'instructorDetail'])->name('instructors.show');
+            Route::post('instructors/{id}/approve', [AdminELearningController::class, 'approveInstructor'])->name('instructors.approve');
+            Route::post('instructors/{id}/reject', [AdminELearningController::class, 'rejectInstructor'])->name('instructors.reject');
+            Route::get('courses', [AdminELearningController::class, 'courses'])->name('courses');
+            Route::get('courses/{id}', [AdminELearningController::class, 'courseDetail'])->name('courses.show');
+            Route::post('courses/{id}/approve', [AdminELearningController::class, 'approveCourse'])->name('courses.approve');
+            Route::post('courses/{id}/reject', [AdminELearningController::class, 'rejectCourse'])->name('courses.reject');
+            Route::get('categories', [AdminELearningController::class, 'categories'])->name('categories');
+            Route::post('categories', [AdminELearningController::class, 'storeCategory'])->name('categories.store');
+            Route::put('categories/{id}', [AdminELearningController::class, 'updateCategory'])->name('categories.update');
+            Route::delete('categories/{id}', [AdminELearningController::class, 'destroyCategory'])->name('categories.destroy');
+            Route::get('students', [AdminELearningController::class, 'students'])->name('students');
+            Route::get('certificates', [AdminELearningController::class, 'certificates'])->name('certificates');
+            Route::delete('certificates/{id}', [AdminELearningController::class, 'revokeCertificate'])->name('certificates.revoke');
+            Route::get('withdrawals', [AdminELearningController::class, 'withdrawals'])->name('withdrawals');
+            Route::post('withdrawals/{id}/approve', [AdminELearningController::class, 'approveWithdrawal'])->name('withdrawals.approve');
+            Route::post('withdrawals/{id}/reject', [AdminELearningController::class, 'rejectWithdrawal'])->name('withdrawals.reject');
+            Route::get('reviews', [AdminELearningController::class, 'reviews'])->name('reviews');
+            Route::delete('reviews/{id}', [AdminELearningController::class, 'deleteReview'])->name('reviews.destroy');
+            Route::get('settings', [AdminELearningController::class, 'settings'])->name('settings');
+            Route::put('settings', [AdminELearningController::class, 'updateSettings'])->name('settings.update');
+            Route::get('reports', [AdminELearningController::class, 'reports'])->name('reports');
+        });
     });
 });

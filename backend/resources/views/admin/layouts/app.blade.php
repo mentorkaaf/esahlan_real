@@ -686,6 +686,52 @@
             </a>
         </div>
 
+        {{-- eLearning --}}
+        <div class="nav-section-label">eLearning</div>
+        <div class="nav-link nav-toggle-btn {{ request()->is('admin/elearning*') ? 'open active' : '' }}"
+             onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+            <div class="nav-icon"><i class="fas fa-graduation-cap"></i></div> eLearning
+            <i class="fas fa-chevron-right ms-auto toggle-arrow" style="font-size:10px"></i>
+        </div>
+        <div class="nav-submenu {{ request()->is('admin/elearning*') ? 'open' : '' }}">
+            <a href="{{ route('admin.elearning.dashboard') }}" class="nav-link {{ request()->routeIs('admin.elearning.dashboard') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-tachometer-alt"></i></div> Dashboard
+            </a>
+            <a href="{{ route('admin.elearning.instructors') }}" class="nav-link {{ request()->routeIs('admin.elearning.instructors*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-chalkboard-teacher"></i></div> Instructors
+                @php try { $__pInst = \App\Models\ELearningInstructor::where('verification_status','pending')->count(); } catch(\Exception $e){ $__pInst=0; } @endphp
+                @if($__pInst > 0)<span class="nav-badge">{{ $__pInst }}</span>@endif
+            </a>
+            <a href="{{ route('admin.elearning.courses') }}" class="nav-link {{ request()->routeIs('admin.elearning.courses*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-book-open"></i></div> Courses
+                @php try { $__pCrs = \App\Models\ELearningCourse::where('status','pending')->count(); } catch(\Exception $e){ $__pCrs=0; } @endphp
+                @if($__pCrs > 0)<span class="nav-badge">{{ $__pCrs }}</span>@endif
+            </a>
+            <a href="{{ route('admin.elearning.categories') }}" class="nav-link {{ request()->routeIs('admin.elearning.categories*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-tags"></i></div> Categories
+            </a>
+            <a href="{{ route('admin.elearning.students') }}" class="nav-link {{ request()->routeIs('admin.elearning.students*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-user-graduate"></i></div> Students
+            </a>
+            <a href="{{ route('admin.elearning.certificates') }}" class="nav-link {{ request()->routeIs('admin.elearning.certificates*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-certificate"></i></div> Certificates
+            </a>
+            <a href="{{ route('admin.elearning.withdrawals') }}" class="nav-link {{ request()->routeIs('admin.elearning.withdrawals*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-money-bill-wave"></i></div> Withdrawals
+                @php try { $__pWdr = \App\Models\ELearningWithdrawal::where('status','pending')->count(); } catch(\Exception $e){ $__pWdr=0; } @endphp
+                @if($__pWdr > 0)<span class="nav-badge">{{ $__pWdr }}</span>@endif
+            </a>
+            <a href="{{ route('admin.elearning.reviews') }}" class="nav-link {{ request()->routeIs('admin.elearning.reviews*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-star"></i></div> Reviews
+            </a>
+            <a href="{{ route('admin.elearning.settings') }}" class="nav-link {{ request()->routeIs('admin.elearning.settings*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-sliders-h"></i></div> Settings
+            </a>
+            <a href="{{ route('admin.elearning.reports') }}" class="nav-link {{ request()->routeIs('admin.elearning.reports*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-chart-line"></i></div> Reports
+            </a>
+        </div>
+
         {{-- System --}}
         <div class="nav-section-label">System</div>
         <a href="{{ route('admin.landing.index') }}" class="nav-link {{ request()->routeIs('admin.landing.*') ? 'active' : '' }}">
