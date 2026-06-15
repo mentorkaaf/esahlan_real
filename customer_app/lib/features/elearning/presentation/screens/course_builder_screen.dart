@@ -14,24 +14,45 @@ const _bg     = Color(0xFFF5F6FA);
 // ─── Screen ────────────────────────────────────────────────────────────────────
 
 class CourseBuilderScreen extends ConsumerStatefulWidget {
-  final int    courseId;
+  final int     courseId;
   final String? courseTitle;
-  const CourseBuilderScreen({super.key, required this.courseId, this.courseTitle});
+  const CourseBuilderScreen(
+      {super.key, required this.courseId, this.courseTitle});
 
   @override
-  ConsumerState<CourseBuilderScreen> createState() => _CourseBuilderScreenState();
+  ConsumerState<CourseBuilderScreen> createState() =>
+      _CourseBuilderScreenState();
 }
 
 class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
-  int get courseId => widget.courseId;
+  // Local state — bypasses Riverpod cache entirely so data is always fresh.
+  Map<String, dynamic>? _data;
+  bool   _loading = true;
+  String? _error;
 
-  // ref here is always ConsumerState.ref — never stale after async gaps.
-  void _reload() {
-    ref.invalidate(courseStructureProvider(courseId));
-    if (mounted) setState(() {});
+  int get _id => widget.courseId;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
   }
 
-  // ── Add section ─────────────────────────────────────────────────────────────
+  // ── Load / reload ────────────────────────────────────────────────────────────
+
+  Future<void> _load() async {
+    if (!mounted) return;
+    setState(() { _loading = true; _error = null; });
+    try {
+      final data =
+          await ref.read(elearningServiceProvider).getCourseStructure(_id);
+      if (mounted) setState(() { _data = data; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  // ── Add section ──────────────────────────────────────────────────────────────
 
   Future<void> _addSection() async {
     final title = await showModalBottomSheet<String>(
@@ -43,8 +64,8 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
     if (title == null || title.isEmpty) return;
     try {
       await ref.read(elearningServiceProvider)
-          .addSection(courseId: courseId, title: title);
-      _reload();
+          .addSection(courseId: _id, title: title);
+      await _load();                          // always fetches fresh from server
       if (mounted) _snack('Section added ✓', Colors.green);
     } on DioException catch (e) {
       if (mounted) _snack(e.response?.data?['message']?.toString() ?? 'Failed to add section', Colors.red);
@@ -59,27 +80,27 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
     final ok = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ConfirmSheet(
+      builder: (_) => const _ConfirmSheet(
         icon: Icons.rocket_launch_rounded,
         iconColor: _navy,
         title: 'Submit for Review?',
-        body: 'An admin will review your course before it goes live. You can still edit it while it is under review.',
+        body: 'An admin will review your course before it goes live.',
         confirmLabel: 'Submit',
         confirmColor: _navy,
       ),
     );
     if (ok != true) return;
     try {
-      await ref.read(elearningServiceProvider).submitCourseForReview(courseId);
+      await ref.read(elearningServiceProvider).submitCourseForReview(_id);
       ref.invalidate(instructorCoursesProvider);
-      _reload();
+      await _load();
       if (mounted) _snack('Submitted for review! ✓', Colors.green);
     } on DioException catch (e) {
       if (mounted) _snack(e.response?.data?['message']?.toString() ?? 'Failed to submit', Colors.red);
     }
   }
 
-  // ── Delete ──────────────────────────────────────────────────────────────────
+  // ── Delete ───────────────────────────────────────────────────────────────────
 
   Future<void> _delete(String status) async {
     if (status == 'published') {
@@ -100,7 +121,7 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
     );
     if (ok != true) return;
     try {
-      await ref.read(elearningServiceProvider).deleteCourse(courseId);
+      await ref.read(elearningServiceProvider).deleteCourse(_id);
       ref.invalidate(instructorCoursesProvider);
       if (mounted) { context.pop(); _snack('Course deleted.', Colors.red); }
     } catch (e) {
@@ -108,16 +129,18 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
     }
   }
 
-  // ── Edit ────────────────────────────────────────────────────────────────────
+  // ── Edit details ─────────────────────────────────────────────────────────────
 
-  Future<void> _edit(Map<String, dynamic> data) async {
+  Future<void> _edit() async {
+    if (_data == null) return;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _EditSheet(
-        courseId: courseId, data: data,
-        onSaved: _reload,
+        courseId: _id,
+        data: _data!,
+        onSaved: _load,
       ),
     );
   }
@@ -130,7 +153,12 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(courseStructureProvider(courseId));
+    final status   = _data?['status']        as String? ?? 'draft';
+    final total    = (_data?['total_lessons'] as num?)?.toInt() ?? 0;
+    final sections = (_data?['sections']      as List? ?? []).cast<Map<String, dynamic>>();
+    final thumb    = _data?['thumbnail']      as String?;
+    final title    = _data?['title']          as String? ?? '';
+    final cat      = (_data?['category']      as Map?)?['name'] as String? ?? '';
 
     return Scaffold(
       backgroundColor: _bg,
@@ -143,15 +171,17 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
         ),
         title: Text(widget.courseTitle ?? 'Course Builder',
             maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: _navy, fontWeight: FontWeight.w800, fontSize: 17)),
+            style: const TextStyle(
+                color: _navy, fontWeight: FontWeight.w800, fontSize: 17)),
         actions: [
-          async.maybeWhen(
-            data: (data) => PopupMenuButton<String>(
+          if (_data != null)
+            PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert_rounded, color: _navy),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               onSelected: (v) {
-                if (v == 'edit')   _edit(data);
-                if (v == 'delete') _delete(data['status'] as String? ?? 'draft');
+                if (v == 'edit')   _edit();
+                if (v == 'delete') _delete(status);
               },
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'edit',
@@ -163,72 +193,63 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
                     child: Row(children: [
                       Icon(Icons.delete_rounded, size: 18, color: Colors.red),
                       SizedBox(width: 10),
-                      Text('Delete Course', style: TextStyle(color: Colors.red)),
+                      Text('Delete Course',
+                          style: TextStyle(color: Colors.red)),
                     ])),
               ],
             ),
-            orElse: () => const SizedBox.shrink(),
-          ),
         ],
       ),
 
-      // ── Body ─────────────────────────────────────────────────────────────────
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: _orange)),
-        error: (e, _) => _ErrorView(
-            message: e.toString(),
-            onRetry: _reload),
-        data: (data) {
-          final sections = (data['sections'] as List? ?? []).cast<Map<String, dynamic>>();
-          final status   = data['status'] as String? ?? 'draft';
-          final total    = (data['total_lessons'] as num?)?.toInt() ?? 0;
-          final thumb    = data['thumbnail'] as String?;
-          final title    = data['title']     as String? ?? '';
-          final cat      = (data['category'] as Map?)?['name'] as String? ?? '';
-
-          return RefreshIndicator(
-            color: _orange,
-            onRefresh: () async => _reload(),
-            child: ListView(
-              padding: EdgeInsets.only(
-                left: 16, right: 16, top: 16,
-                bottom: 100 + MediaQuery.of(context).padding.bottom,
-              ),
-              children: [
-                _HeaderCard(thumb: thumb, title: title, category: cat,
-                    status: status, totalLessons: total),
-                const SizedBox(height: 20),
-
-                if (sections.isEmpty)
-                  _EmptyState(onAdd: _addSection)
-                else ...[
-                  ...sections.asMap().entries.map((e) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _SectionCard(
-                      index:     e.key,
-                      section:   e.value,
-                      onChanged: _reload,
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: _orange))
+          : _error != null
+              ? _ErrorView(message: _error!, onRetry: _load)
+              : RefreshIndicator(
+                  color: _orange,
+                  onRefresh: _load,
+                  child: ListView(
+                    padding: EdgeInsets.only(
+                      left: 16, right: 16, top: 16,
+                      bottom: 110 + MediaQuery.of(context).padding.bottom,
                     ),
-                  )),
-                  _AddSectionButton(onTap: _addSection),
-                ],
-              ],
-            ),
-          );
-        },
-      ),
+                    children: [
+                      _HeaderCard(
+                          thumb: thumb, title: title,
+                          category: cat, status: status,
+                          totalLessons: total),
+                      const SizedBox(height: 20),
 
-      bottomNavigationBar: async.maybeWhen(
-        data: (data) {
-          final status = data['status'] as String? ?? 'draft';
-          final total  = (data['total_lessons'] as num?)?.toInt() ?? 0;
-          if (status == 'published') return const SizedBox.shrink();
-          if (status == 'pending')   return _StatusBar(label: 'Under Review — waiting for admin approval', color: Colors.orange);
-          if (status == 'rejected')  return _StatusBar(label: 'Rejected — edit your course and resubmit', color: Colors.red);
-          return _SubmitBar(hasLessons: total > 0, onSubmit: _submit);
-        },
-        orElse: () => const SizedBox.shrink(),
-      ),
+                      if (sections.isEmpty)
+                        _EmptyState(onAdd: _addSection)
+                      else ...[
+                        ...sections.asMap().entries.map((e) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _SectionCard(
+                            index:     e.key,
+                            section:   e.value,
+                            onChanged: _load,
+                          ),
+                        )),
+                        _AddSectionButton(onTap: _addSection),
+                      ],
+                    ],
+                  ),
+                ),
+
+      bottomNavigationBar: _data == null
+          ? const SizedBox.shrink()
+          : status == 'published'
+              ? const SizedBox.shrink()
+              : status == 'pending'
+                  ? _StatusBar(
+                      label: 'Under Review — waiting for admin approval',
+                      color: Colors.orange)
+                  : status == 'rejected'
+                      ? _StatusBar(
+                          label: 'Rejected — edit your course and resubmit',
+                          color: Colors.red)
+                      : _SubmitBar(hasLessons: total > 0, onSubmit: _submit),
     );
   }
 }
