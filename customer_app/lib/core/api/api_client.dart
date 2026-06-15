@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import '../constants/app_constants.dart';
 import '../storage/local_storage.dart';
-import 'http_cache_interceptor.dart';
 
 class ApiClient {
   static Dio? _instance;
@@ -25,7 +24,6 @@ class ApiClient {
     );
 
     dio.interceptors.add(_AuthInterceptor());
-    dio.interceptors.add(HttpCacheInterceptor());
     dio.interceptors.add(LogInterceptor(
       requestBody: true,
       responseBody: true,
