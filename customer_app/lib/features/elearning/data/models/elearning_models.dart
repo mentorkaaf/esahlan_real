@@ -19,8 +19,8 @@ class ELearningCategory {
 
   factory ELearningCategory.fromJson(Map<String, dynamic> j) => ELearningCategory(
     id:          j['id'] as int,
-    name:        j['name'] as String,
-    slug:        j['slug'] as String,
+    name:        j['name'] as String? ?? '',
+    slug:        j['slug'] as String? ?? '',
     icon:        j['icon'] as String?,
     description: j['description'] as String?,
     children:    (j['children'] as List<dynamic>? ?? [])
@@ -56,7 +56,7 @@ class ELearningInstructor {
 
   factory ELearningInstructor.fromJson(Map<String, dynamic> j) => ELearningInstructor(
     id:               j['id'] as int,
-    name:             j['name'] as String,
+    name:             j['name'] as String? ?? '',
     avatar:           j['avatar'] as String?,
     profilePhoto:     j['profile_photo'] as String?,
     expertise:        j['expertise'] as String?,
@@ -177,8 +177,8 @@ class InstructorCourse {
 
   factory InstructorCourse.fromJson(Map<String, dynamic> j) => InstructorCourse(
     id:            j['id'] as int,
-    title:         j['title'] as String,
-    slug:          j['slug'] as String,
+    title:         j['title'] as String? ?? '',
+    slug:          j['slug'] as String? ?? '',
     thumbnail:     j['thumbnail'] as String?,
     status:        j['status'] as String? ?? 'draft',
     price:         (j['price'] as num?)?.toDouble() ?? 0,
@@ -260,8 +260,8 @@ class ELearningCourse {
     }
     return ELearningCourse(
       id:               j['id'] as int,
-      title:            j['title'] as String,
-      slug:             j['slug'] as String,
+      title:            j['title'] as String? ?? '',
+      slug:             j['slug'] as String? ?? '',
       subtitle:         j['subtitle'] as String?,
       description:      j['description'] as String?,
       thumbnail:        j['thumbnail'] as String?,
@@ -311,7 +311,7 @@ class ELearningLesson {
 
   factory ELearningLesson.fromJson(Map<String, dynamic> j) => ELearningLesson(
     id:                    j['id'] as int,
-    title:                 j['title'] as String,
+    title:                 j['title'] as String? ?? '',
     type:                  j['type'] as String? ?? 'video',
     videoDurationSeconds:  (j['video_duration_seconds'] as num?)?.toInt() ?? 0,
     isFreePreview:         j['is_free_preview'] == true,
@@ -336,7 +336,7 @@ class ELearningSection {
 
   factory ELearningSection.fromJson(Map<String, dynamic> j) => ELearningSection(
     id:      j['id'] as int,
-    title:   j['title'] as String,
+    title:   j['title'] as String? ?? '',
     lessons: (j['lessons'] as List<dynamic>? ?? [])
                 .map((l) => ELearningLesson.fromJson(l as Map<String, dynamic>))
                 .toList(),
@@ -487,7 +487,7 @@ class QuizData {
 
   factory QuizData.fromJson(Map<String, dynamic> j) => QuizData(
     quizId:           j['quiz_id'] as int,
-    title:            j['title'] as String,
+    title:            j['title'] as String? ?? '',
     description:      j['description'] as String?,
     passScore:        (j['pass_score'] as num?)?.toInt() ?? 70,
     timeLimitMinutes: (j['time_limit_minutes'] as num?)?.toInt(),
