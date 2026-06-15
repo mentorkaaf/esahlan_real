@@ -8,7 +8,7 @@ class ELearningApiService {
   ELearningApiService(this._dio);
   static ELearningApiService create() => ELearningApiService(ApiClient.instance);
 
-  static const String _base = '/v1/elearning';
+  static const String _base = '/elearning';
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   Future<dynamic> _get(String path, {Map<String, dynamic>? params}) async {
