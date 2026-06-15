@@ -48,7 +48,7 @@
         </td></tr>
       </table>
 
-      <div class="d-flex gap-2">
+      <div class="d-flex gap-2 flex-wrap">
         @if($course->status !== 'published')
           <form method="POST" action="{{ route('admin.elearning.courses.approve', $course->id) }}">
             @csrf <button class="btn btn-success">Approve & Publish</button>
@@ -59,6 +59,13 @@
             @csrf <button class="btn btn-danger" onclick="return confirm('Reject this course?')">Reject</button>
           </form>
         @endif
+        <form method="POST" action="{{ route('admin.elearning.courses.destroy', $course->id) }}">
+          @csrf @method('DELETE')
+          <button class="btn" style="background:#7f1d1d;color:#fff;border:none"
+            onclick="return confirm('Delete this course permanently? This cannot be undone.')">
+            <i class="fas fa-trash me-1"></i> Delete Course
+          </button>
+        </form>
       </div>
     </div>
 

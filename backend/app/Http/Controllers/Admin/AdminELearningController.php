@@ -124,6 +124,19 @@ class AdminELearningController extends Controller
         return back()->with('success', 'Course rejected.');
     }
 
+    public function deleteCourse(int $id)
+    {
+        $course = ELearningCourse::findOrFail($id);
+
+        // Delete thumbnail file if stored locally
+        if ($course->thumbnail && !str_starts_with($course->thumbnail, 'http')) {
+            \Storage::disk('public')->delete($course->thumbnail);
+        }
+
+        $course->delete();
+        return redirect()->route('admin.elearning.courses')->with('success', 'Course deleted permanently.');
+    }
+
     // ── Categories ────────────────────────────────────────────────────────────
     public function categories()
     {

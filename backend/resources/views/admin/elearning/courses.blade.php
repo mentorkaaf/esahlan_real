@@ -108,6 +108,13 @@
                     <button class="btn btn-danger btn-sm" title="Reject" onclick="return confirm('Reject this course?')"><i class="fas fa-times"></i></button>
                   </form>
                 @endif
+                <form method="POST" action="{{ route('admin.elearning.courses.destroy', $c->id) }}" style="display:inline">
+                  @csrf @method('DELETE')
+                  <button class="btn btn-sm" style="background:#7f1d1d;color:#fff;border:none" title="Delete permanently"
+                    onclick="return confirm('Delete this course permanently? This cannot be undone.')">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </form>
               </div>
             </td>
           </tr>

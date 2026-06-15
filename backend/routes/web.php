@@ -449,6 +449,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('courses/{id}', [AdminELearningController::class, 'courseDetail'])->name('courses.show');
             Route::post('courses/{id}/approve', [AdminELearningController::class, 'approveCourse'])->name('courses.approve');
             Route::post('courses/{id}/reject', [AdminELearningController::class, 'rejectCourse'])->name('courses.reject');
+            Route::delete('courses/{id}', [AdminELearningController::class, 'deleteCourse'])->name('courses.destroy');
             Route::get('categories', [AdminELearningController::class, 'categories'])->name('categories');
             Route::post('categories', [AdminELearningController::class, 'storeCategory'])->name('categories.store');
             Route::put('categories/{id}', [AdminELearningController::class, 'updateCategory'])->name('categories.update');
