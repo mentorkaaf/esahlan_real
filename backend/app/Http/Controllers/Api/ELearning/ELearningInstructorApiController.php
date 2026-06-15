@@ -217,19 +217,21 @@ class ELearningInstructorApiController extends Controller
         $instructor = $this->requireInstructor();
 
         $data = $request->validate([
-            'title'             => 'required|string|max:255',
-            'subtitle'          => 'nullable|string|max:500',
-            'description'       => 'nullable|string',
-            'category_id'       => 'required|integer|exists:el_categories,id',
-            'level'             => 'nullable|in:beginner,intermediate,advanced,all',
-            'language'          => 'nullable|string|max:10',
-            'price'             => 'nullable|numeric|min:0',
-            'discount_price'    => 'nullable|numeric|min:0',
-            'is_free'           => 'boolean',
-            'learning_outcomes' => 'nullable|array',
-            'requirements'      => 'nullable|array',
-            'target_audience'   => 'nullable|string',
-            'tags'              => 'nullable|array',
+            'title'              => 'required|string|max:255',
+            'subtitle'           => 'nullable|string|max:500',
+            'description'        => 'nullable|string',
+            'category_id'        => 'required|integer|exists:el_categories,id',
+            'level'              => 'nullable|in:beginner,intermediate,advanced,all',
+            'language'           => 'nullable|string|max:10',
+            'price'              => 'nullable|numeric|min:0',
+            'discount_price'     => 'nullable|numeric|min:0',
+            'is_free'            => 'boolean',
+            'learning_outcomes'  => 'nullable|array',
+            'requirements'       => 'nullable|array',
+            'target_audience'    => 'nullable|string',
+            'tags'               => 'nullable|array',
+            'trailer_video_url'  => 'nullable|string|max:500',
+            'trailer_video_file' => 'nullable|file|mimes:mp4,mov,webm,avi|max:512000',
         ]);
 
         $data['instructor_id'] = $instructor->id;
@@ -244,6 +246,15 @@ class ELearningInstructorApiController extends Controller
             $data['thumbnail'] = asset('storage/' . $path);
         }
 
+        // Trailer video: uploaded file takes priority over URL
+        if ($request->hasFile('trailer_video_file')) {
+            $path = $request->file('trailer_video_file')->store('elearning/trailers', 'public');
+            $data['trailer_video'] = asset('storage/' . $path);
+        } elseif (!empty($data['trailer_video_url'])) {
+            $data['trailer_video'] = $data['trailer_video_url'];
+        }
+        unset($data['trailer_video_url'], $data['trailer_video_file']);
+
         $course = ELearningCourse::create($data);
         $instructor->increment('total_courses');
 
@@ -256,30 +267,38 @@ class ELearningInstructorApiController extends Controller
         $course = ELearningCourse::where('id', $id)->where('instructor_id', $instructor->id)->firstOrFail();
 
         $data = $request->validate([
-            'title'             => 'sometimes|string|max:255',
-            'subtitle'          => 'nullable|string|max:500',
-            'description'       => 'sometimes|string',
-            'category_id'       => 'sometimes|integer|exists:el_categories,id',
-            'level'             => 'sometimes|in:beginner,intermediate,advanced,all',
-            'price'             => 'sometimes|numeric|min:0',
-            'discount_price'    => 'nullable|numeric|min:0',
-            'is_free'           => 'boolean',
-            'status'            => 'sometimes|in:draft,pending',
-            'learning_outcomes' => 'nullable|array',
-            'requirements'      => 'nullable|array',
-            'target_audience'   => 'nullable|string',
-            'tags'              => 'nullable|array',
+            'title'              => 'sometimes|string|max:255',
+            'subtitle'           => 'nullable|string|max:500',
+            'description'        => 'sometimes|string',
+            'category_id'        => 'sometimes|integer|exists:el_categories,id',
+            'level'              => 'sometimes|in:beginner,intermediate,advanced,all',
+            'price'              => 'sometimes|numeric|min:0',
+            'discount_price'     => 'nullable|numeric|min:0',
+            'is_free'            => 'boolean',
+            'status'             => 'sometimes|in:draft,pending',
+            'learning_outcomes'  => 'nullable|array',
+            'requirements'       => 'nullable|array',
+            'target_audience'    => 'nullable|string',
+            'tags'               => 'nullable|array',
+            'trailer_video_url'  => 'nullable|string|max:500',
+            'trailer_video_file' => 'nullable|file|mimes:mp4,mov,webm,avi|max:512000',
         ]);
 
         if ($request->hasFile('thumbnail')) {
-            // Delete old thumbnail
-            if ($course->thumbnail) {
-                $oldPath = str_replace(asset('storage') . '/', '', $course->thumbnail);
-                Storage::disk('public')->delete($oldPath);
+            if ($course->thumbnail && !str_starts_with($course->thumbnail, 'http')) {
+                Storage::disk('public')->delete($course->thumbnail);
             }
             $path = $request->file('thumbnail')->store('elearning/thumbnails', 'public');
             $data['thumbnail'] = asset('storage/' . $path);
         }
+
+        if ($request->hasFile('trailer_video_file')) {
+            $path = $request->file('trailer_video_file')->store('elearning/trailers', 'public');
+            $data['trailer_video'] = asset('storage/' . $path);
+        } elseif (isset($data['trailer_video_url'])) {
+            $data['trailer_video'] = $data['trailer_video_url'] ?: null;
+        }
+        unset($data['trailer_video_url'], $data['trailer_video_file']);
 
         // Recalculate effective_price
         if (isset($data['is_free']) && $data['is_free']) {

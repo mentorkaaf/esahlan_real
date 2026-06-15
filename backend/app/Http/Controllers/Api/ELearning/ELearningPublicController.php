@@ -145,7 +145,7 @@ class ELearningPublicController extends Controller
             'slug'            => $c->slug,
             'subtitle'        => $c->subtitle,
             'thumbnail'       => $c->thumbnail_url,
-            'trailer_video'   => $c->trailer_video,
+            'trailer_video'   => $c->trailer_video_url,
             'language'        => $c->language,
             'level'           => $c->level,
             'price'           => $c->price,

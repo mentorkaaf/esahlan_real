@@ -26,11 +26,15 @@ class _CreateCourseScreenState extends ConsumerState<CreateCourseScreen> {
   _Step _step = _Step.basics;
 
   // Step 1 – Basics
-  final _titleCtrl = TextEditingController();
+  final _titleCtrl        = TextEditingController();
+  final _trailerUrlCtrl   = TextEditingController();
   int? _categoryId;
   MultipartFile? _thumb;
   String?        _thumbPath;
   String?        _thumbName;
+  // Trailer video
+  XFile?         _trailerFile;
+  MultipartFile? _trailerMultipart;
 
   // Step 2 – Details
   final _subtitleCtrl = TextEditingController();
@@ -48,6 +52,7 @@ class _CreateCourseScreenState extends ConsumerState<CreateCourseScreen> {
   void dispose() {
     _pageCtrl.dispose();
     _titleCtrl.dispose();
+    _trailerUrlCtrl.dispose();
     _subtitleCtrl.dispose();
     _descCtrl.dispose();
     _priceCtrl.dispose();
@@ -87,7 +92,7 @@ class _CreateCourseScreenState extends ConsumerState<CreateCourseScreen> {
     );
   }
 
-  // ── Image picker ────────────────────────────────────────────────────────────
+  // ── Pickers ─────────────────────────────────────────────────────────────────
 
   Future<void> _pickThumb() async {
     final f = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
@@ -97,6 +102,17 @@ class _CreateCourseScreenState extends ConsumerState<CreateCourseScreen> {
       _thumb     = MultipartFile.fromBytes(bytes, filename: f.name);
       _thumbPath = f.path;
       _thumbName = f.name;
+    });
+  }
+
+  Future<void> _pickTrailerVideo() async {
+    final f = await ImagePicker().pickVideo(source: ImageSource.gallery);
+    if (f == null) return;
+    final mp = await MultipartFile.fromFile(f.path, filename: f.name);
+    setState(() {
+      _trailerFile       = f;
+      _trailerMultipart  = mp;
+      _trailerUrlCtrl.clear(); // clear URL when file picked
     });
   }
 
@@ -111,15 +127,18 @@ class _CreateCourseScreenState extends ConsumerState<CreateCourseScreen> {
     try {
       final svc = ref.read(elearningServiceProvider);
       final res = await svc.createCourse(
-        title:           _titleCtrl.text.trim(),
-        subtitle:        _subtitleCtrl.text.trim(),
-        description:     _descCtrl.text.trim(),
-        categoryId:      _categoryId!,
-        level:           _level,
-        language:        _language,
-        price:           _isFree ? 0 : (double.tryParse(_priceCtrl.text.trim()) ?? 0),
-        isFree:          _isFree,
-        thumbnail:       _thumb,
+        title:            _titleCtrl.text.trim(),
+        subtitle:         _subtitleCtrl.text.trim(),
+        description:      _descCtrl.text.trim(),
+        categoryId:       _categoryId!,
+        level:            _level,
+        language:         _language,
+        price:            _isFree ? 0 : (double.tryParse(_priceCtrl.text.trim()) ?? 0),
+        isFree:           _isFree,
+        thumbnail:        _thumb,
+        trailerVideoUrl:  _trailerUrlCtrl.text.trim().isNotEmpty
+                              ? _trailerUrlCtrl.text.trim() : null,
+        trailerVideoFile: _trailerMultipart,
       );
       final courseId = (res['data'] as Map<String, dynamic>)['id'] as int;
       ref.invalidate(instructorCoursesProvider);
@@ -165,12 +184,15 @@ class _CreateCourseScreenState extends ConsumerState<CreateCourseScreen> {
         physics: const NeverScrollableScrollPhysics(),
         children: [
           _BasicsPage(
-            titleCtrl:    _titleCtrl,
-            categoryId:   _categoryId,
-            thumbPath:    _thumbPath,
-            thumbName:    _thumbName,
-            onPickThumb:  _pickThumb,
-            onCategory:   (v) => setState(() => _categoryId = v),
+            titleCtrl:       _titleCtrl,
+            trailerUrlCtrl:  _trailerUrlCtrl,
+            categoryId:      _categoryId,
+            thumbPath:       _thumbPath,
+            thumbName:       _thumbName,
+            onPickThumb:     _pickThumb,
+            onPickTrailer:   _pickTrailerVideo,
+            trailerFileName: _trailerFile?.name,
+            onCategory:      (v) => setState(() => _categoryId = v),
           ),
           _DetailsPage(
             subtitleCtrl: _subtitleCtrl,
@@ -307,14 +329,18 @@ class _BottomBar extends StatelessWidget {
 
 class _BasicsPage extends ConsumerWidget {
   final TextEditingController titleCtrl;
+  final TextEditingController trailerUrlCtrl;
   final int? categoryId;
-  final String? thumbPath, thumbName;
-  final VoidCallback onPickThumb;
+  final String? thumbPath, thumbName, trailerFileName;
+  final VoidCallback onPickThumb, onPickTrailer;
   final ValueChanged<int?> onCategory;
   const _BasicsPage({
-    required this.titleCtrl, required this.categoryId,
+    required this.titleCtrl, required this.trailerUrlCtrl,
+    required this.categoryId,
     required this.thumbPath, required this.thumbName,
-    required this.onPickThumb, required this.onCategory,
+    required this.onPickThumb, required this.onPickTrailer,
+    this.trailerFileName,
+    required this.onCategory,
   });
 
   @override
@@ -398,6 +424,66 @@ class _BasicsPage extends ConsumerWidget {
             items: cats.map((c) => DropdownMenuItem(
                 value: c.id, child: Text(c.name))).toList(),
             onChanged: onCategory,
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Trailer video section
+        _SectionHeader(icon: Icons.play_circle_outline_rounded,
+            title: 'Trailer Video (Ikhtiyaari)',
+            subtitle: 'URL geli ama video soo upload'),
+        const SizedBox(height: 12),
+        _InputField(
+          ctrl: trailerUrlCtrl,
+          hint: 'https://youtube.com/watch?v=...',
+          action: TextInputAction.done,
+        ),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(child: Divider(color: Colors.grey[300])),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text('ama', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+          ),
+          Expanded(child: Divider(color: Colors.grey[300])),
+        ]),
+        const SizedBox(height: 10),
+        GestureDetector(
+          onTap: onPickTrailer,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: trailerFileName != null ? _orange : Colors.grey[300]!,
+                width: trailerFileName != null ? 2 : 1,
+              ),
+            ),
+            child: Row(children: [
+              Icon(
+                trailerFileName != null
+                    ? Icons.videocam_rounded
+                    : Icons.video_library_outlined,
+                color: trailerFileName != null ? _orange : Colors.grey[500],
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  trailerFileName ?? 'Dooro video file-ka...',
+                  style: TextStyle(
+                    color: trailerFileName != null ? _navy : Colors.grey[500],
+                    fontSize: 13,
+                    fontWeight: trailerFileName != null
+                        ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (trailerFileName != null)
+                const Icon(Icons.check_circle_rounded, color: _orange, size: 18),
+            ]),
           ),
         ),
         const SizedBox(height: 40),

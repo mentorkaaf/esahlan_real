@@ -1,7 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:video_player/video_player.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/elearning_models.dart';
 import '../../data/services/elearning_api_service.dart';
@@ -22,6 +25,13 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
   bool _purchasing = false;
   final _svc = ELearningApiService.create();
 
+  // Trailer player state
+  VideoPlayerController? _trailerVpc;
+  ChewieController?      _trailerChewie;
+  YoutubePlayerController? _trailerYtCtrl;
+  bool _showTrailer = false;
+  bool _trailerLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -31,7 +41,79 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
   @override
   void dispose() {
     _tabCtrl.dispose();
+    _trailerChewie?.dispose();
+    _trailerVpc?.dispose();
+    _trailerYtCtrl?.close();
     super.dispose();
+  }
+
+  String? _extractYouTubeId(String url) {
+    final patterns = [
+      RegExp(r'[?&]v=([a-zA-Z0-9_-]{11})'),
+      RegExp(r'youtu\.be/([a-zA-Z0-9_-]{11})'),
+      RegExp(r'youtube\.com/embed/([a-zA-Z0-9_-]{11})'),
+      RegExp(r'youtube\.com/shorts/([a-zA-Z0-9_-]{11})'),
+    ];
+    for (final re in patterns) {
+      final m = re.firstMatch(url);
+      if (m != null) return m.group(1);
+    }
+    return null;
+  }
+
+  Future<void> _initTrailer(String url) async {
+    if (_showTrailer) return;
+    setState(() => _trailerLoading = true);
+    final ytId = _extractYouTubeId(url);
+    if (ytId != null) {
+      final ctrl = YoutubePlayerController(
+        params: const YoutubePlayerParams(
+          showControls: true,
+          showFullscreenButton: true,
+          mute: false,
+          playsInline: true,
+          enableCaption: false,
+        ),
+      );
+      ctrl.loadVideoById(videoId: ytId);
+      setState(() {
+        _trailerYtCtrl  = ctrl;
+        _showTrailer    = true;
+        _trailerLoading = false;
+      });
+    } else {
+      try {
+        final vpc = VideoPlayerController.networkUrl(Uri.parse(url));
+        await vpc.initialize();
+        final chewie = ChewieController(
+          videoPlayerController: vpc,
+          autoPlay: true,
+          looping: false,
+          aspectRatio: 16 / 9,
+        );
+        setState(() {
+          _trailerVpc     = vpc;
+          _trailerChewie  = chewie;
+          _showTrailer    = true;
+          _trailerLoading = false;
+        });
+      } catch (_) {
+        setState(() => _trailerLoading = false);
+      }
+    }
+  }
+
+  Widget _buildTrailerPlayer() {
+    if (_trailerYtCtrl != null) {
+      return YoutubePlayerControllerProvider(
+        controller: _trailerYtCtrl!,
+        child: YoutubePlayer(controller: _trailerYtCtrl!),
+      );
+    }
+    if (_trailerChewie != null) {
+      return Chewie(controller: _trailerChewie!);
+    }
+    return _thumbnailPlaceholder();
   }
 
   Future<void> _toggleWishlist(int courseId) async {
@@ -175,7 +257,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                 ],
               ),
 
-              // ── Thumbnail 16:9 card with rounded corners ──────────────────
+              // ── Thumbnail / Trailer player ────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -183,35 +265,43 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                     borderRadius: BorderRadius.circular(12),
                     child: AspectRatio(
                       aspectRatio: 16 / 9,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          course.thumbnail != null
-                              ? CachedNetworkImage(
-                                  imageUrl: course.thumbnail!,
-                                  fit: BoxFit.cover,
-                                  placeholder: (_, __) => _thumbnailPlaceholder(),
-                                  errorWidget: (_, __, ___) => _thumbnailPlaceholder(),
-                                )
-                              : _thumbnailPlaceholder(),
-                          if (course.trailerVideo != null)
-                            Container(
-                              color: Colors.black26,
-                              child: Center(
-                                child: Container(
-                                  width: 56,
-                                  height: 56,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                    shape: BoxShape.circle,
+                      child: _showTrailer
+                          ? _buildTrailerPlayer()
+                          : Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                course.thumbnail != null
+                                    ? CachedNetworkImage(
+                                        imageUrl: course.thumbnail!,
+                                        fit: BoxFit.cover,
+                                        placeholder: (_, __) => _thumbnailPlaceholder(),
+                                        errorWidget: (_, __, ___) => _thumbnailPlaceholder(),
+                                      )
+                                    : _thumbnailPlaceholder(),
+                                if (course.trailerVideo != null)
+                                  GestureDetector(
+                                    onTap: () => _initTrailer(course.trailerVideo!),
+                                    child: Container(
+                                      color: Colors.black26,
+                                      child: Center(
+                                        child: _trailerLoading
+                                            ? const CircularProgressIndicator(
+                                                color: Colors.white)
+                                            : Container(
+                                                width: 64,
+                                                height: 64,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white.withValues(alpha: 0.9),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(Icons.play_arrow_rounded,
+                                                    color: AppColors.secondary, size: 36),
+                                              ),
+                                      ),
+                                    ),
                                   ),
-                                  child: const Icon(Icons.play_arrow_rounded,
-                                      color: AppColors.secondary, size: 32),
-                                ),
-                              ),
+                              ],
                             ),
-                        ],
-                      ),
                     ),
                   ),
                 ),

@@ -55,7 +55,14 @@ class ELearningCourse extends Model
         $url = str_starts_with($this->thumbnail, 'http')
             ? $this->thumbnail
             : asset('storage/' . $this->thumbnail);
-        // Ensure HTTPS so Android doesn't block cleartext HTTP
+        return str_replace('http://', 'https://', $url);
+    }
+
+    public function getTrailerVideoUrlAttribute(): ?string
+    {
+        $raw = $this->attributes['trailer_video'] ?? null;
+        if (!$raw) return null;
+        $url = str_starts_with($raw, 'http') ? $raw : asset('storage/' . $raw);
         return str_replace('http://', 'https://', $url);
     }
 }

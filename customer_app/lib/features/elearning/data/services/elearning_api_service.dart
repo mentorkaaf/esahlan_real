@@ -239,6 +239,8 @@ class ELearningApiService {
     List<String>? requirements,
     String? targetAudience,
     MultipartFile? thumbnail,
+    String? trailerVideoUrl,
+    MultipartFile? trailerVideoFile,
   }) async {
     final form = FormData.fromMap({
       'title':       title,
@@ -256,6 +258,8 @@ class ELearningApiService {
         for (var i = 0; i < requirements.length; i++) 'requirements[$i]': requirements[i],
       if (targetAudience != null && targetAudience.isNotEmpty) 'target_audience': targetAudience,
       if (thumbnail != null) 'thumbnail': thumbnail,
+      if (trailerVideoUrl != null && trailerVideoUrl.isNotEmpty) 'trailer_video_url': trailerVideoUrl,
+      if (trailerVideoFile != null) 'trailer_video_file': trailerVideoFile,
     });
     final r = await _dio.post('$_base/instructor/courses', data: form);
     return r.data as Map<String, dynamic>;
