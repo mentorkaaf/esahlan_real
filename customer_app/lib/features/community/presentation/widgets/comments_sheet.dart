@@ -43,8 +43,10 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     try {
       final comments = await _repo.getComments(widget.postId);
       if (mounted) setState(() { _comments = comments; _loading = false; });
-    } catch (_) {
+    } catch (e) {
       if (mounted) setState(() => _loading = false);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load comments: $e'), backgroundColor: Colors.red));
     }
   }
 
@@ -61,8 +63,10 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
         _replyToName = null;
         _sending = false;
       });
-    } catch (_) {
+    } catch (e) {
       setState(() => _sending = false);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send comment: $e'), backgroundColor: Colors.red));
     }
   }
 

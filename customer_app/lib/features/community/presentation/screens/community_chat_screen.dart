@@ -48,7 +48,10 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
           curve: Curves.easeOut,
         );
       }
-    } catch (_) {} finally {
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send: $e'), backgroundColor: Colors.red));
+    } finally {
       if (mounted) setState(() => _sending = false);
     }
   }

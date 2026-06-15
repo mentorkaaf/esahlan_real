@@ -71,7 +71,10 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
       final res = await ref.read(communityRepoProvider).uploadProfilePhoto(avatarFile: mf);
       setState(() => _localAvatar = res['avatar'] as String?);
       ref.invalidate(communityMyProfileProvider);
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to upload photo: $e'), backgroundColor: Colors.red));
+    }
   }
 
   Future<void> _pickCover() async {
@@ -84,7 +87,10 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
       final res = await ref.read(communityRepoProvider).uploadProfilePhoto(coverFile: mf);
       setState(() => _localCover = res['cover_photo'] as String?);
       ref.invalidate(communityMyProfileProvider);
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to upload cover: $e'), backgroundColor: Colors.red));
+    }
   }
 
   @override
@@ -215,7 +221,10 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                           if (context.mounted) {
                             Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityChatScreen(chat: chat)));
                           }
-                        } catch (_) {}
+                        } catch (e) {
+                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Failed to open chat: $e'), backgroundColor: Colors.red));
+                        }
                       }),
                     ],
                   ]),

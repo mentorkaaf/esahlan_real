@@ -43,7 +43,10 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
           SnackBar(content: Text(result ? 'Added to wishlist' : 'Removed from wishlist'), duration: const Duration(seconds: 2)),
         );
       }
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Wishlist error: $e'), backgroundColor: Colors.red));
+    }
   }
 
   Future<void> _purchase(int courseId, bool isFree, String slug) async {

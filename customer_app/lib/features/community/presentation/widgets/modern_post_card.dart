@@ -304,7 +304,10 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
                       post.pollOptions[i].votes = opts[i]['votes'] as int;
                     }
                   });
-                } catch (_) {}
+                } catch (err) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to vote: $err'), backgroundColor: Colors.red));
+                }
               },
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(6),

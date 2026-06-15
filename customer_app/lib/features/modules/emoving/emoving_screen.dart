@@ -295,8 +295,10 @@ class _BookTabState extends ConsumerState<_BookTab> {
         _priceBreakdown = res['data'] ?? res;
         _calculating = false;
       });
-    } catch (_) {
+    } catch (e) {
       setState(() => _calculating = false);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Calculation failed: $e'), backgroundColor: Colors.red));
     }
   }
 

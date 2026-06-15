@@ -209,10 +209,13 @@ class _GroupCard extends ConsumerWidget {
               onPressed: () async {
                 try {
                   await ref.read(communityRepoProvider).joinGroup(group.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Joined group!'), backgroundColor: kOrange),
                   );
-                } catch (_) {}
+                } catch (e) {
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to join: $e'), backgroundColor: Colors.red));
+                }
               },
               child: const Text('Join', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
             ),
@@ -331,12 +334,13 @@ class GroupDetailScreen extends ConsumerWidget {
                       onPressed: () async {
                         try {
                           await ref.read(communityRepoProvider).joinGroup(group.id);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Joined!'), backgroundColor: kOrange),
-                            );
-                          }
-                        } catch (_) {}
+                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Joined!'), backgroundColor: kOrange),
+                          );
+                        } catch (e) {
+                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Failed to join: $e'), backgroundColor: Colors.red));
+                        }
                       },
                       child: const Text('Join Group', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                     ),
@@ -438,7 +442,10 @@ class _CreateGroupSheetState extends ConsumerState<_CreateGroupSheet> {
         Navigator.pop(context);
         ref.read(communityGroupsProvider.notifier).load();
       }
-    } catch (_) {} finally {
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to create group: $e'), backgroundColor: Colors.red));
+    } finally {
       if (mounted) setState(() => _loading = false);
     }
   }

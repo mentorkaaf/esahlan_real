@@ -247,23 +247,15 @@ final communityRepoProvider = Provider<CommunityRepository>((ref) => _repo);
 final _modSvc = ModuleApiService.create();
 
 final erentReelsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  try {
-    final r = await _modSvc.getRentReels();
-    final list = r is Map ? (r['data'] ?? []) : (r is List ? r : []);
-    return List<Map<String, dynamic>>.from(
-        (list as List).map((e) => Map<String, dynamic>.from(e as Map)));
-  } catch (_) {
-    return [];
-  }
+  final r = await _modSvc.getRentReels();
+  final list = r is Map ? (r['data'] ?? []) : (r is List ? r : []);
+  return List<Map<String, dynamic>>.from(
+      (list as List).map((e) => Map<String, dynamic>.from(e as Map)));
 });
 
 final efoodRestaurantsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  try {
-    final r = await _modSvc.getRestaurants();
-    final list = r is Map ? (r['data'] ?? []) : (r is List ? r : []);
-    return List<Map<String, dynamic>>.from(
-        (list as List).map((e) => Map<String, dynamic>.from(e as Map)));
-  } catch (_) {
-    return [];
-  }
+  final r = await _modSvc.getRestaurants();
+  final list = r is Map ? (r['data'] ?? []) : (r is List ? r : []);
+  return List<Map<String, dynamic>>.from(
+      (list as List).map((e) => Map<String, dynamic>.from(e as Map)));
 });

@@ -41,7 +41,10 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
     try {
       final notes = await _svc.getNotes(widget.lessonId);
       if (mounted) setState(() => _notes = notes);
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load notes: $e'), backgroundColor: Colors.red));
+    }
   }
 
   Future<void> _markComplete() async {

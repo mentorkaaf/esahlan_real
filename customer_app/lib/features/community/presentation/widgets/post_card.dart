@@ -57,7 +57,10 @@ class _PostCardState extends ConsumerState<PostCard>
         widget.post.isSaved = saved;
         widget.post.savesCount += saved ? 1 : -1;
       });
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save: $e'), backgroundColor: Colors.red));
+    }
   }
 
   @override
@@ -234,7 +237,10 @@ class _PostCardState extends ConsumerState<PostCard>
                       post.pollOptions[i].votes = opts[i]['votes'] as int;
                     }
                   });
-                } catch (_) {}
+                } catch (e) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to vote: $e'), backgroundColor: Colors.red));
+                }
               },
               borderRadius: BorderRadius.circular(10),
               child: ClipRRect(
@@ -371,7 +377,10 @@ class _PostCardState extends ConsumerState<PostCard>
     try {
       await _repo.sharePost(post.id);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Post shared!')));
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to share: $e'), backgroundColor: Colors.red));
+    }
   }
 
   void _handlePostMenu(String value, CommunityPost post) {
