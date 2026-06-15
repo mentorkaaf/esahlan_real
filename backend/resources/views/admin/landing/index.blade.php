@@ -236,7 +236,7 @@
                 <span class="toggle-slider"></span>
             </label>
         </div>
-        <div class="form-grid" style="margin:12px 0 20px;">
+        <div class="form-grid" style="margin:12px 0 8px;">
             <div class="form-group">
                 <label>Vendor Button Title</label>
                 <input type="text" name="landing_vendor_label" value="{{ $settings['landing_vendor_label'] ?: 'Vendor' }}">
@@ -244,6 +244,12 @@
             <div class="form-group">
                 <label>Vendor Button Subtitle</label>
                 <input type="text" name="landing_vendor_sub" value="{{ $settings['landing_vendor_sub'] ?: 'List your store & start selling' }}">
+            </div>
+        </div>
+        <div class="form-grid one" style="margin:0 0 20px;">
+            <div class="form-group">
+                <label>Vendor Registration URL</label>
+                <input type="url" name="landing_vendor_url" value="{{ $settings['landing_vendor_url'] ?? '' }}" placeholder="https://esahlan.com/vendor/register">
             </div>
         </div>
 
@@ -258,7 +264,7 @@
                 <span class="toggle-slider"></span>
             </label>
         </div>
-        <div class="form-grid" style="margin:12px 0 20px;">
+        <div class="form-grid" style="margin:12px 0 8px;">
             <div class="form-group">
                 <label>Driver Button Title</label>
                 <input type="text" name="landing_driver_label" value="{{ $settings['landing_driver_label'] ?: 'Delivery Driver' }}">
@@ -266,6 +272,12 @@
             <div class="form-group">
                 <label>Driver Button Subtitle</label>
                 <input type="text" name="landing_driver_sub" value="{{ $settings['landing_driver_sub'] ?: 'Deliver orders & earn daily' }}">
+            </div>
+        </div>
+        <div class="form-grid one" style="margin:0 0 20px;">
+            <div class="form-group">
+                <label>Driver Registration URL</label>
+                <input type="url" name="landing_driver_url" value="{{ $settings['landing_driver_url'] ?? '' }}" placeholder="https://esahlan.com/driver/register">
             </div>
         </div>
 
@@ -280,7 +292,7 @@
                 <span class="toggle-slider"></span>
             </label>
         </div>
-        <div class="form-grid" style="margin:12px 0 0;">
+        <div class="form-grid" style="margin:12px 0 8px;">
             <div class="form-group">
                 <label>Agent Button Title</label>
                 <input type="text" name="landing_agent_label" value="{{ $settings['landing_agent_label'] ?: 'Property Agent' }}">
@@ -288,6 +300,12 @@
             <div class="form-group">
                 <label>Agent Button Subtitle</label>
                 <input type="text" name="landing_agent_sub" value="{{ $settings['landing_agent_sub'] ?: 'List properties on eRent' }}">
+            </div>
+        </div>
+        <div class="form-grid one" style="margin:0 0 0;">
+            <div class="form-group">
+                <label>Agent Registration URL</label>
+                <input type="url" name="landing_agent_url" value="{{ $settings['landing_agent_url'] ?? '' }}" placeholder="https://esahlan.com/agent/register">
             </div>
         </div>
     </div>

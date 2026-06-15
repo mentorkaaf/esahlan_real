@@ -16,9 +16,9 @@ class AdminLandingController extends Controller
         'landing_stat3_num', 'landing_stat3_label',
         'landing_stat4_num', 'landing_stat4_label',
         'landing_cta_title', 'landing_cta_subtitle',
-        'landing_vendor_label', 'landing_vendor_sub',
-        'landing_driver_label', 'landing_driver_sub',
-        'landing_agent_label',  'landing_agent_sub',
+        'landing_vendor_label', 'landing_vendor_sub', 'landing_vendor_url',
+        'landing_driver_label', 'landing_driver_sub', 'landing_driver_url',
+        'landing_agent_label',  'landing_agent_sub',  'landing_agent_url',
         'landing_show_vendor',  'landing_show_driver', 'landing_show_agent',
     ];
 

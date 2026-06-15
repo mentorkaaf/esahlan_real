@@ -126,7 +126,6 @@
         Don't have a vendor account? <a href="{{ route('vendor.register') }}" style="color:#FF8A00;font-weight:700;text-decoration:none;">Register here</a>
     </div>
     <div class="login-footer" style="margin-top:12px;">
-        <a href="{{ url('/admin/login') }}">Admin Panel</a> &nbsp;·&nbsp;
         <a href="{{ url('/') }}">Back to Home</a>
     </div>
 </div>

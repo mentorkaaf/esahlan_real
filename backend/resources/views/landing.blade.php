@@ -21,6 +21,9 @@ $driver_label  = Setting::get('landing_driver_label',  'Delivery Driver');
 $driver_sub    = Setting::get('landing_driver_sub',    'Deliver orders & earn daily');
 $agent_label   = Setting::get('landing_agent_label',   'Property Agent');
 $agent_sub     = Setting::get('landing_agent_sub',     'List properties on eRent');
+$vendor_url    = Setting::get('landing_vendor_url',    '');
+$driver_url    = Setting::get('landing_driver_url',    '');
+$agent_url     = Setting::get('landing_agent_url',     '');
 $show_vendor   = Setting::get('landing_show_vendor',   '1');
 $show_driver   = Setting::get('landing_show_driver',   '1');
 $show_agent    = Setting::get('landing_show_agent',    '1');
@@ -456,7 +459,7 @@ $show_agent    = Setting::get('landing_show_agent',    '1');
     <p>{{ $cta_subtitle }}</p>
     <div class="register-grid" style="position:relative;">
         @if($show_vendor)
-        <a href="#" class="register-card">
+        <a href="{{ $vendor_url ?: '#' }}" class="register-card" {{ $vendor_url ? 'target="_blank" rel="noopener noreferrer"' : '' }}>
             <div class="register-icon"><i class="fas fa-store"></i></div>
             <div class="register-info">
                 <span class="register-title">{{ $vendor_label }}</span>
@@ -466,7 +469,7 @@ $show_agent    = Setting::get('landing_show_agent',    '1');
         </a>
         @endif
         @if($show_driver)
-        <a href="#" class="register-card">
+        <a href="{{ $driver_url ?: '#' }}" class="register-card" {{ $driver_url ? 'target="_blank" rel="noopener noreferrer"' : '' }}>
             <div class="register-icon"><i class="fas fa-motorcycle"></i></div>
             <div class="register-info">
                 <span class="register-title">{{ $driver_label }}</span>
@@ -476,7 +479,7 @@ $show_agent    = Setting::get('landing_show_agent',    '1');
         </a>
         @endif
         @if($show_agent)
-        <a href="#" class="register-card">
+        <a href="{{ $agent_url ?: '#' }}" class="register-card" {{ $agent_url ? 'target="_blank" rel="noopener noreferrer"' : '' }}>
             <div class="register-icon"><i class="fas fa-building"></i></div>
             <div class="register-info">
                 <span class="register-title">{{ $agent_label }}</span>
