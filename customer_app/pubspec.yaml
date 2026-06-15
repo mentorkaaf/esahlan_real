@@ -52,6 +52,7 @@ dependencies:
   video_player: ^2.9.2
   chewie: ^1.8.5
   visibility_detector: ^0.4.0+2
+  youtube_player_flutter: ^10.0.1
 
   # Image
   image_picker: ^1.1.2

@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/elearning_models.dart';
 import '../../data/services/elearning_api_service.dart';
@@ -23,24 +23,26 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
   final _svc = ELearningApiService.create();
   late TabController _tabs;
 
-  // Lesson data
   Map<String, dynamic>? _lesson;
   bool   _loadingLesson = true;
   String? _lessonError;
 
-  // Video
+  // Direct video (mp4/hls)
   VideoPlayerController? _vpc;
-  ChewieController?      _chewieCtrl;
+  ChewieController?      _chewie;
   bool _videoError = false;
+
+  // YouTube
+  YoutubePlayerController? _ytCtrl;
 
   // Notes
   List<ELearningNote> _notes = [];
   final _noteCtrl  = TextEditingController();
   bool  _savingNote = false;
 
-  // Complete
-  bool _completed   = false;
-  bool _completing  = false;
+  // Completion
+  bool _completed  = false;
+  bool _completing = false;
 
   @override
   void initState() {
@@ -54,11 +56,12 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
     _tabs.dispose();
     _noteCtrl.dispose();
     _vpc?.dispose();
-    _chewieCtrl?.dispose();
+    _chewie?.dispose();
+    _ytCtrl?.dispose();
     super.dispose();
   }
 
-  // ── Load lesson ─────────────────────────────────────────────────────────────
+  // ── Load ─────────────────────────────────────────────────────────────────────
 
   Future<void> _loadLesson() async {
     try {
@@ -69,50 +72,62 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
         _completed     = data['is_completed'] == true;
         _loadingLesson = false;
       });
-      _initVideo(data['video_url'] as String?);
+      _initPlayer(data['video_url'] as String?);
       _loadNotes();
     } catch (e) {
       if (mounted) setState(() { _lessonError = e.toString(); _loadingLesson = false; });
     }
   }
 
-  // ── Video init ──────────────────────────────────────────────────────────────
+  // ── Player init ───────────────────────────────────────────────────────────────
 
-  Future<void> _initVideo(String? url) async {
+  void _initPlayer(String? url) {
     if (url == null || url.isEmpty) return;
 
-    // YouTube / Vimeo → open in browser (chewie can't embed these)
-    if (_isExternalUrl(url)) return;
+    final ytId = YoutubePlayer.convertUrlToId(url);
+    if (ytId != null) {
+      // YouTube — embed in-app
+      _ytCtrl = YoutubePlayerController(
+        initialVideoId: ytId,
+        flags: const YoutubePlayerFlags(
+          autoPlay:       false,
+          mute:           false,
+          enableCaption:  false,
+          hideControls:   false,
+          forceHD:        false,
+        ),
+      );
+      if (mounted) setState(() {});
+      return;
+    }
 
+    // Direct video file (mp4, m3u8…)
+    _initDirectVideo(url);
+  }
+
+  Future<void> _initDirectVideo(String url) async {
     try {
       final vpc = VideoPlayerController.networkUrl(Uri.parse(url));
       await vpc.initialize();
       if (!mounted) { vpc.dispose(); return; }
-
       final chewie = ChewieController(
         videoPlayerController: vpc,
-        autoPlay:          false,
-        looping:           false,
-        allowFullScreen:   true,
-        allowMuting:       true,
-        showOptions:       false,
+        autoPlay:        false,
+        looping:         false,
+        allowFullScreen: true,
+        allowMuting:     true,
+        showOptions:     false,
         deviceOrientationsAfterFullScreen: [DeviceOrientation.portraitUp],
         placeholder: Container(color: AppColors.secondary),
-        errorBuilder: (_, msg) => _VideoErrorBox(message: msg),
+        errorBuilder: (_, msg) => _ErrBox(message: msg),
       );
-
-      setState(() { _vpc = vpc; _chewieCtrl = chewie; });
+      setState(() { _vpc = vpc; _chewie = chewie; });
     } catch (_) {
       if (mounted) setState(() => _videoError = true);
     }
   }
 
-  bool _isExternalUrl(String url) =>
-      url.contains('youtube.com') ||
-      url.contains('youtu.be')    ||
-      url.contains('vimeo.com');
-
-  // ── Notes ───────────────────────────────────────────────────────────────────
+  // ── Notes ─────────────────────────────────────────────────────────────────────
 
   Future<void> _loadNotes() async {
     try {
@@ -125,10 +140,9 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
     if (_noteCtrl.text.trim().isEmpty) return;
     setState(() => _savingNote = true);
     try {
-      final currentPos = _vpc != null
-          ? _vpc!.value.position.inSeconds : 0;
-      final note = await _svc.saveNote(widget.lessonId,
-          _noteCtrl.text.trim(), currentPos);
+      final pos = _vpc?.value.position.inSeconds ??
+                  _ytCtrl?.value.position.inSeconds ?? 0;
+      final note = await _svc.saveNote(widget.lessonId, _noteCtrl.text.trim(), pos);
       setState(() { _notes.insert(0, note); _noteCtrl.clear(); });
     } catch (e) {
       if (mounted) _snack(e.toString(), Colors.red);
@@ -137,7 +151,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
     }
   }
 
-  // ── Complete ─────────────────────────────────────────────────────────────────
+  // ── Complete ──────────────────────────────────────────────────────────────────
 
   Future<void> _markComplete() async {
     setState(() => _completing = true);
@@ -148,8 +162,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
       if (result['course_done'] == true) {
         _showCertDialog(result['certificate_number'] as String?);
       } else {
-        _snack('Lesson completed! Progress: ${result['progress_percent']}%',
-            Colors.green);
+        _snack('Lesson completed! ${result['progress_percent']}% done', Colors.green);
       }
     } catch (e) {
       if (mounted) setState(() => _completing = false);
@@ -164,12 +177,10 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.workspace_premium_rounded,
-              size: 72, color: Colors.amber),
+          const Icon(Icons.workspace_premium_rounded, size: 72, color: Colors.amber),
           const SizedBox(height: 12),
           const Text('Course Completed!',
-              style: TextStyle(fontSize: 20,
-                  fontWeight: FontWeight.w800,
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800,
                   color: AppColors.secondary)),
           const SizedBox(height: 8),
           const Text('Congratulations! You have finished this course.',
@@ -179,8 +190,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                  color: Colors.amber[50],
+              decoration: BoxDecoration(color: Colors.amber[50],
                   borderRadius: BorderRadius.circular(10)),
               child: Text('Certificate: $cert',
                   style: const TextStyle(fontWeight: FontWeight.w700,
@@ -189,17 +199,13 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
           ],
         ]),
         actions: [
-          TextButton(
-              onPressed: () { Navigator.pop(context); context.pop(); },
+          TextButton(onPressed: () { Navigator.pop(context); context.pop(); },
               child: const Text('Close')),
           FilledButton(
-              onPressed: () {
-                Navigator.pop(context);
-                context.push('/elearning/my-learning');
-              },
-              style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary),
-              child: const Text('My Learning')),
+            onPressed: () { Navigator.pop(context); context.push('/elearning/my-learning'); },
+            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            child: const Text('My Learning'),
+          ),
         ],
       ),
     );
@@ -209,7 +215,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(msg), backgroundColor: bg));
 
-  // ── Build ────────────────────────────────────────────────────────────────────
+  // ── Build ─────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -222,19 +228,50 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
     if (_lessonError != null) {
       return Scaffold(
         appBar: AppBar(backgroundColor: AppColors.secondary,
-            leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: Colors.white),
+            leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white),
                 onPressed: () => context.pop())),
-        body: Center(child: Text(_lessonError!,
-            style: const TextStyle(color: Colors.red))),
+        body: Center(child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(_lessonError!,
+              style: const TextStyle(color: Colors.red)),
+        )),
       );
     }
 
-    final type     = _lesson!['type']  as String? ?? 'video';
-    final title    = _lesson!['title'] as String? ?? '';
-    final videoUrl = _lesson!['video_url'] as String?;
-    final content  = _lesson!['content'] as String?;
+    final title   = _lesson!['title']   as String? ?? '';
+    final type    = _lesson!['type']    as String? ?? 'video';
+    final content = _lesson!['content'] as String?;
+    final videoUrl= _lesson!['video_url'] as String?;
 
+    // Wrap in YoutubePlayerBuilder when YT is active (needed for fullscreen)
+    Widget body = _buildBody(type, videoUrl, content, title);
+
+    if (_ytCtrl != null) {
+      body = YoutubePlayerBuilder(
+        player: YoutubePlayer(
+          controller: _ytCtrl!,
+          showVideoProgressIndicator: true,
+          progressIndicatorColor: AppColors.primary,
+          progressColors: const ProgressBarColors(
+            playedColor:  AppColors.primary,
+            handleColor:  AppColors.primary,
+            bufferedColor: Colors.white30,
+            backgroundColor: Colors.white12,
+          ),
+          onReady: () {},
+        ),
+        builder: (ctx, player) => _buildBody(type, videoUrl, content, title,
+            ytPlayer: player),
+      );
+    }
+
+    return body;
+  }
+
+  Widget _buildBody(String type, String? videoUrl, String? content, String title,
+      {Widget? ytPlayer}) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
@@ -245,17 +282,16 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
               color: Colors.white, size: 20),
           onPressed: () => context.pop(),
         ),
-        title: Text(title,
-            maxLines: 1, overflow: TextOverflow.ellipsis,
+        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: Colors.white,
                 fontWeight: FontWeight.w700, fontSize: 15)),
       ),
       body: Column(children: [
 
-        // ── Video / content area ────────────────────────────────────────────
-        _buildMediaArea(type, videoUrl, content),
+        // ── Media area ────────────────────────────────────────────────────────
+        _buildMedia(type, videoUrl, content, ytPlayer),
 
-        // ── Mark complete ───────────────────────────────────────────────────
+        // ── Complete button ───────────────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
           child: SizedBox(
@@ -265,15 +301,12 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
               onPressed: (_completed || _completing) ? null : _markComplete,
               style: FilledButton.styleFrom(
                 backgroundColor: _completed ? Colors.green : AppColors.primary,
-                disabledBackgroundColor:
-                    _completed ? Colors.green : Colors.grey[300],
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                disabledBackgroundColor: _completed ? Colors.green : Colors.grey[300],
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               icon: _completing
                   ? const SizedBox(width: 18, height: 18,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                   : Icon(_completed
                       ? Icons.check_circle_rounded
                       : Icons.check_circle_outline_rounded),
@@ -283,7 +316,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
           ),
         ),
 
-        // ── Tabs ────────────────────────────────────────────────────────────
+        // ── Tabs ──────────────────────────────────────────────────────────────
         Container(
           color: Colors.white,
           child: TabBar(
@@ -294,49 +327,47 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
             tabs: const [Tab(text: 'Notes'), Tab(text: 'Info')],
           ),
         ),
-
         Expanded(child: TabBarView(controller: _tabs, children: [
-          _NotesTab(
-            notes:      _notes,
-            ctrl:       _noteCtrl,
-            saving:     _savingNote,
-            onSend:     _saveNote,
-          ),
+          _NotesTab(notes: _notes, ctrl: _noteCtrl,
+              saving: _savingNote, onSend: _saveNote),
           _InfoTab(lesson: _lesson!),
         ])),
       ]),
     );
   }
 
-  // ── Media area ───────────────────────────────────────────────────────────────
+  Widget _buildMedia(String type, String? videoUrl, String? content, Widget? ytPlayer) {
+    // ── YouTube embedded ──────────────────────────────────────────────────────
+    if (ytPlayer != null) return ytPlayer;
 
-  Widget _buildMediaArea(String type, String? videoUrl, String? content) {
-    // Direct MP4 / HLS video loaded into chewie
-    if (type == 'video' && _chewieCtrl != null) {
+    // ── Direct video (Chewie) ─────────────────────────────────────────────────
+    if (_chewie != null) {
       return AspectRatio(
         aspectRatio: 16 / 9,
-        child: Chewie(controller: _chewieCtrl!),
+        child: Chewie(controller: _chewie!),
       );
     }
 
-    // External video (YouTube / Vimeo) — show thumbnail + open button
-    if (type == 'video' && videoUrl != null && videoUrl.isNotEmpty) {
-      final isYT = videoUrl.contains('youtu');
-      return _ExternalVideoCard(
-        url: videoUrl,
-        isYoutube: isYT,
-        onOpen: () => _openUrl(videoUrl),
-      );
+    // ── Video loading ─────────────────────────────────────────────────────────
+    if (type == 'video' && videoUrl != null && !_videoError) {
+      // Still initializing
+      if (_vpc == null && _ytCtrl == null) {
+        return AspectRatio(
+          aspectRatio: 16 / 9,
+          child: Container(
+            color: AppColors.secondary,
+            child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+          ),
+        );
+      }
     }
 
-    // Error loading direct video
-    if (type == 'video' && _videoError) {
-      return _VideoErrorBox(
-          message: 'Could not load video. Tap to open in browser.',
-          onTap: videoUrl != null ? () => _openUrl(videoUrl) : null);
+    // ── Video error ───────────────────────────────────────────────────────────
+    if (_videoError) {
+      return _ErrBox(message: 'Could not load video.');
     }
 
-    // Text / document content
+    // ── Text / document content ───────────────────────────────────────────────
     if (content != null && content.isNotEmpty) {
       return Container(
         width: double.infinity,
@@ -351,18 +382,19 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
       );
     }
 
-    // No video, no content
-    return Container(
-      width: double.infinity,
-      height: 200,
-      color: AppColors.secondary,
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(_typeIcon(type), size: 48, color: Colors.white38),
-        const SizedBox(height: 8),
-        Text(type.toUpperCase(),
-            style: const TextStyle(color: Colors.white38,
-                fontSize: 13, letterSpacing: 1)),
-      ]),
+    // ── No media ──────────────────────────────────────────────────────────────
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: Container(
+        color: AppColors.secondary,
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(_typeIcon(type), size: 48, color: Colors.white38),
+          const SizedBox(height: 8),
+          Text(type.toUpperCase(),
+              style: const TextStyle(color: Colors.white38,
+                  fontSize: 12, letterSpacing: 1)),
+        ]),
+      ),
     );
   }
 
@@ -373,95 +405,27 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
     'live'       => Icons.videocam_rounded,
     _            => Icons.play_circle_rounded,
   };
-
-  Future<void> _openUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
 }
 
-// ─── External video card (YouTube / Vimeo) ────────────────────────────────────
+// ─── Error box ────────────────────────────────────────────────────────────────
 
-class _ExternalVideoCard extends StatelessWidget {
-  final String url;
-  final bool   isYoutube;
-  final VoidCallback onOpen;
-  const _ExternalVideoCard(
-      {required this.url, required this.isYoutube, required this.onOpen});
+class _ErrBox extends StatelessWidget {
+  final String message;
+  const _ErrBox({required this.message});
 
   @override
-  Widget build(BuildContext context) {
-    // Extract YouTube thumbnail
-    String? thumbUrl;
-    if (isYoutube) {
-      final match = RegExp(r'(?:v=|youtu\.be/)([^&?\s]+)').firstMatch(url);
-      final vid   = match?.group(1);
-      if (vid != null) {
-        thumbUrl = 'https://img.youtube.com/vi/$vid/hqdefault.jpg';
-      }
-    }
-
-    return GestureDetector(
-      onTap: onOpen,
-      child: Stack(fit: StackFit.passthrough, children: [
-        // Background / thumbnail
-        AspectRatio(
-          aspectRatio: 16 / 9,
-          child: thumbUrl != null
-              ? Image.network(thumbUrl, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
-                      Container(color: AppColors.secondary))
-              : Container(color: AppColors.secondary),
-        ),
-        // Overlay
-        AspectRatio(
-          aspectRatio: 16 / 9,
-          child: Container(
-            color: Colors.black45,
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Container(
-                width: 64, height: 64,
-                decoration: const BoxDecoration(
-                    color: Colors.red, shape: BoxShape.circle),
-                child: const Icon(Icons.play_arrow_rounded,
-                    color: Colors.white, size: 38),
-              ),
-              const SizedBox(height: 8),
-              Text(isYoutube ? 'Open in YouTube' : 'Open Video',
-                  style: const TextStyle(color: Colors.white,
-                      fontWeight: FontWeight.w700, fontSize: 13)),
-            ]),
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-// ─── Video error box ──────────────────────────────────────────────────────────
-
-class _VideoErrorBox extends StatelessWidget {
-  final String   message;
-  final VoidCallback? onTap;
-  const _VideoErrorBox({required this.message, this.onTap});
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: AspectRatio(
+  Widget build(BuildContext context) => AspectRatio(
       aspectRatio: 16 / 9,
       child: Container(
         color: const Color(0xFF1A1A2E),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const Icon(Icons.error_outline_rounded,
-              color: Colors.redAccent, size: 42),
+          const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 40),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white60,
-                    fontSize: 12)),
+                style: const TextStyle(color: Colors.white60, fontSize: 12)),
           ),
         ]),
       ),
@@ -487,14 +451,11 @@ class _NotesTab extends StatelessWidget {
         Expanded(child: TextField(
           controller: ctrl, maxLines: 2,
           decoration: InputDecoration(
-            hintText: 'Add a note…',
-            filled: true, fillColor: Colors.white,
+            hintText: 'Add a note…', filled: true, fillColor: Colors.white,
             contentPadding: const EdgeInsets.all(10),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(color: Colors.grey[300]!)),
-            enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(color: Colors.grey[300]!)),
           ),
         )),
@@ -503,14 +464,12 @@ class _NotesTab extends StatelessWidget {
           onPressed: saving ? null : onSend,
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           ),
           child: saving
               ? const SizedBox(width: 18, height: 18,
-                  child: CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2))
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
               : const Icon(Icons.send_rounded),
         ),
       ]),
@@ -549,11 +508,10 @@ class _InfoTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final type        = lesson['type']          as String? ?? '';
-    final dur         = (lesson['video_duration_seconds'] as num?)?.toInt() ?? 0;
-    final courseTitle = lesson['course_title']  as String?;
-    final section     = lesson['section_title'] as String?;
-
+    final type    = lesson['type']          as String? ?? '';
+    final dur     = (lesson['video_duration_seconds'] as num?)?.toInt() ?? 0;
+    final course  = lesson['course_title']  as String?;
+    final section = lesson['section_title'] as String?;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -561,10 +519,10 @@ class _InfoTab extends StatelessWidget {
             style: TextStyle(fontWeight: FontWeight.w800,
                 fontSize: 16, color: AppColors.secondary)),
         const SizedBox(height: 12),
-        if (courseTitle != null) _row('Course', courseTitle),
-        if (section != null)     _row('Section', section),
+        if (course  != null) _row('Course',  course),
+        if (section != null) _row('Section', section),
         _row('Type', type.toUpperCase()),
-        if (dur > 0)             _row('Duration', _fmt(dur)),
+        if (dur > 0) _row('Duration', _fmt(dur)),
       ],
     );
   }
@@ -572,9 +530,8 @@ class _InfoTab extends StatelessWidget {
   Widget _row(String label, String value) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
     child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SizedBox(width: 80,
-          child: Text(label,
-              style: TextStyle(color: Colors.grey[500], fontSize: 13))),
+      SizedBox(width: 80, child: Text(label,
+          style: TextStyle(color: Colors.grey[500], fontSize: 13))),
       Expanded(child: Text(value,
           style: const TextStyle(fontWeight: FontWeight.w600,
               fontSize: 13, color: AppColors.secondary))),
