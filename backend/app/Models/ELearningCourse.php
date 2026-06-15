@@ -52,7 +52,10 @@ class ELearningCourse extends Model
     public function getThumbnailUrlAttribute(): ?string
     {
         if (!$this->thumbnail) return null;
-        if (str_starts_with($this->thumbnail, 'http')) return $this->thumbnail;
-        return asset('storage/' . $this->thumbnail);
+        $url = str_starts_with($this->thumbnail, 'http')
+            ? $this->thumbnail
+            : asset('storage/' . $this->thumbnail);
+        // Ensure HTTPS so Android doesn't block cleartext HTTP
+        return str_replace('http://', 'https://', $url);
     }
 }

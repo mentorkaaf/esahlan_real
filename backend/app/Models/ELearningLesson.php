@@ -14,6 +14,14 @@ class ELearningLesson extends Model
         'is_free_preview' => 'boolean',
     ];
 
+    public function getVideoUrlAttribute(): ?string
+    {
+        $raw = $this->attributes['video_url'] ?? null;
+        if (!$raw) return null;
+        $url = str_starts_with($raw, 'http') ? $raw : asset('storage/' . $raw);
+        return str_replace('http://', 'https://', $url);
+    }
+
     public function section()    { return $this->belongsTo(ELearningSection::class, 'section_id'); }
     public function course()     { return $this->belongsTo(ELearningCourse::class, 'course_id'); }
     public function progress()   { return $this->hasMany(ELearningLessonProgress::class, 'lesson_id'); }
