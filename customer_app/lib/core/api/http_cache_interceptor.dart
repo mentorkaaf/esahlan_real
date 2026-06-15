@@ -20,6 +20,8 @@ class HttpCacheInterceptor extends Interceptor {
     'eshop',
     'categories',
     'banners',
+    // Instructor endpoints change immediately after every write (sections/lessons/status)
+    'instructor',
   ];
 
   static bool _shouldSkipCache(String url) {
