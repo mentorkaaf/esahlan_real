@@ -459,7 +459,11 @@ $show_agent    = Setting::get('landing_show_agent',    '1');
     <p>{{ $cta_subtitle }}</p>
     <div class="register-grid" style="position:relative;">
         @if($show_vendor)
-        <a href="{{ $vendor_url ?: '#' }}" class="register-card" {{ $vendor_url ? 'target="_blank" rel="noopener noreferrer"' : '' }}>
+        @if($vendor_url)
+        <a href="{{ $vendor_url }}" target="_blank" rel="noopener noreferrer" class="register-card">
+        @else
+        <a href="#" class="register-card">
+        @endif
             <div class="register-icon"><i class="fas fa-store"></i></div>
             <div class="register-info">
                 <span class="register-title">{{ $vendor_label }}</span>
@@ -469,7 +473,11 @@ $show_agent    = Setting::get('landing_show_agent',    '1');
         </a>
         @endif
         @if($show_driver)
-        <a href="{{ $driver_url ?: '#' }}" class="register-card" {{ $driver_url ? 'target="_blank" rel="noopener noreferrer"' : '' }}>
+        @if($driver_url)
+        <a href="{{ $driver_url }}" target="_blank" rel="noopener noreferrer" class="register-card">
+        @else
+        <a href="#" class="register-card">
+        @endif
             <div class="register-icon"><i class="fas fa-motorcycle"></i></div>
             <div class="register-info">
                 <span class="register-title">{{ $driver_label }}</span>
@@ -479,7 +487,11 @@ $show_agent    = Setting::get('landing_show_agent',    '1');
         </a>
         @endif
         @if($show_agent)
-        <a href="{{ $agent_url ?: '#' }}" class="register-card" {{ $agent_url ? 'target="_blank" rel="noopener noreferrer"' : '' }}>
+        @if($agent_url)
+        <a href="{{ $agent_url }}" target="_blank" rel="noopener noreferrer" class="register-card">
+        @else
+        <a href="#" class="register-card">
+        @endif
             <div class="register-icon"><i class="fas fa-building"></i></div>
             <div class="register-info">
                 <span class="register-title">{{ $agent_label }}</span>
