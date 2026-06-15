@@ -47,16 +47,19 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
               ),
             ),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.cast_for_education_rounded, color: AppColors.secondary),
-                onPressed: () => context.push('/elearning/instructor'),
-                tooltip: 'Teach / Instructor',
+              _AppBarAction(
+                icon: Icons.cast_for_education_rounded,
+                label: 'Teach',
+                color: AppColors.secondary,
+                onTap: () => context.push('/elearning/instructor'),
               ),
-              IconButton(
-                icon: const Icon(Icons.school_rounded, color: AppColors.primary),
-                onPressed: () => context.push('/elearning/my-learning'),
-                tooltip: 'My Learning',
+              _AppBarAction(
+                icon: Icons.school_rounded,
+                label: 'My Learning',
+                color: AppColors.primary,
+                onTap: () => context.push('/elearning/my-learning'),
               ),
+              const SizedBox(width: 4),
             ],
           ),
 
@@ -243,6 +246,33 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
           }),
           const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
         ],
+      ),
+    );
+  }
+}
+
+// ── AppBar action with icon + label ──────────────────────────────────────────
+class _AppBarAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _AppBarAction({required this.icon, required this.label, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 2),
+            Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+          ],
+        ),
       ),
     );
   }
