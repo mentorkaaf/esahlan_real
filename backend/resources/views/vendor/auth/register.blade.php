@@ -597,14 +597,41 @@ function initVendorMap() {
 
     // My location button
     document.getElementById('my-location-btn').addEventListener('click', () => {
-        if (!navigator.geolocation) { alert('Geolocation is not supported by your browser.'); return; }
+        if (!navigator.geolocation) {
+            alert('Geolocation is not supported by your browser. Please search or click the map.');
+            return;
+        }
+        const btn = document.getElementById('my-location-btn');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="color:var(--brand);font-size:15px;"></i>';
+        btn.disabled = true;
+
         navigator.geolocation.getCurrentPosition(pos => {
+            btn.innerHTML = '<i class="fa-solid fa-location-crosshairs" style="color:var(--brand);font-size:15px;"></i>';
+            btn.disabled = false;
+
+            const accuracy = pos.coords.accuracy; // meters
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
             vendorMap.setCenter({ lat, lng });
-            vendorMap.setZoom(17);
+            vendorMap.setZoom(accuracy < 100 ? 18 : accuracy < 1000 ? 16 : 14);
             reverseGeocode(lat, lng);
-        }, () => alert('Unable to get your location. Please pick manually.'));
+
+            // Warn if accuracy is low (desktop IP-based location)
+            if (accuracy > 500) {
+                showMapInfo(
+                    '⚠️ Your device location is approximate (' + Math.round(accuracy) + 'm accuracy). ' +
+                    'Please drag the map or search to set the exact store location.'
+                );
+            }
+        }, (err) => {
+            btn.innerHTML = '<i class="fa-solid fa-location-crosshairs" style="color:var(--brand);font-size:15px;"></i>';
+            btn.disabled = false;
+            showMapInfo('❌ Could not detect location. Please search or click on the map to pick your store location.');
+        }, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        });
     });
 }
 
@@ -613,6 +640,14 @@ function reverseGeocode(lat, lng) {
         const address = (status === 'OK' && results[0]) ? results[0].formatted_address : `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
         setLocation(lat, lng, address);
     });
+}
+
+function showMapInfo(msg) {
+    const box = document.getElementById('selected-address-box');
+    box.style.display = 'flex';
+    box.style.background = '#fffbeb';
+    box.style.border = '1.5px solid #fde68a';
+    document.getElementById('selected-address-text').textContent = msg;
 }
 
 function setLocation(lat, lng, address) {
@@ -624,6 +659,8 @@ function setLocation(lat, lng, address) {
     const box = document.getElementById('selected-address-box');
     box.style.display = 'flex';
     box.style.alignItems = 'center';
+    box.style.background = '#f0fdf4';
+    box.style.border = '1.5px solid #bbf7d0';
     document.getElementById('selected-address-text').textContent = address;
     document.getElementById('map-error-msg').style.display = 'none';
 }
