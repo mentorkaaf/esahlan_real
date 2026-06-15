@@ -18,6 +18,9 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
   String _selectedSort = 'newest';
   int? _selectedCategory;
 
+  // Filter chips mapped to sort values + isFree flag
+  String _activeFilter = 'all'; // all | popular | newest | free | rating
+
   @override
   void dispose() {
     _searchCtrl.dispose();
@@ -25,7 +28,28 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
   }
 
   void _applySearch() {
-    ref.read(elearningFiltersProvider.notifier).update((f) => f.copyWith(search: _searchCtrl.text.trim().isEmpty ? null : _searchCtrl.text.trim()));
+    ref.read(elearningFiltersProvider.notifier).update(
+        (f) => f.copyWith(search: _searchCtrl.text.trim().isEmpty ? null : _searchCtrl.text.trim()));
+  }
+
+  void _applyFilterChip(String filter) {
+    setState(() => _activeFilter = filter);
+    switch (filter) {
+      case 'popular':
+        ref.read(elearningFiltersProvider.notifier).update((f) => f.copyWith(sort: 'popular', isFree: null));
+        setState(() => _selectedSort = 'popular');
+      case 'newest':
+        ref.read(elearningFiltersProvider.notifier).update((f) => f.copyWith(sort: 'newest', isFree: null));
+        setState(() => _selectedSort = 'newest');
+      case 'free':
+        ref.read(elearningFiltersProvider.notifier).update((f) => f.copyWith(sort: 'newest', isFree: true));
+      case 'rating':
+        ref.read(elearningFiltersProvider.notifier).update((f) => f.copyWith(sort: 'rating', isFree: null));
+        setState(() => _selectedSort = 'rating');
+      default: // all
+        ref.read(elearningFiltersProvider.notifier).update((f) => f.copyWith(sort: 'newest', isFree: null));
+        setState(() => _selectedSort = 'newest');
+    }
   }
 
   @override
@@ -41,11 +65,7 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
             elevation: 0,
             title: const Text(
               'eLearning',
-              style: TextStyle(
-                color: AppColors.secondary,
-                fontWeight: FontWeight.w800,
-                fontSize: 20,
-              ),
+              style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 20),
             ),
             actions: [
               _AppBarAction(
@@ -84,7 +104,8 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
                                 icon: const Icon(Icons.clear, size: 18),
                                 onPressed: () {
                                   _searchCtrl.clear();
-                                  ref.read(elearningFiltersProvider.notifier).update((f) => f.copyWith(search: null));
+                                  ref.read(elearningFiltersProvider.notifier)
+                                      .update((f) => f.copyWith(search: null));
                                 },
                               )
                             : null,
@@ -113,6 +134,54 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
             ),
           ),
 
+          // ── Filter Chips Row: All | Popular | Newest | Free | Top Rated ──
+          SliverToBoxAdapter(
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final chip in [
+                      ('all', 'All'),
+                      ('popular', 'Popular'),
+                      ('newest', 'Newest'),
+                      ('free', 'Free'),
+                      ('rating', 'Top Rated'),
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () => _applyFilterChip(chip.$1),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _activeFilter == chip.$1 ? AppColors.secondary : Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: _activeFilter == chip.$1
+                                    ? AppColors.secondary
+                                    : Colors.grey[300]!,
+                              ),
+                            ),
+                            child: Text(
+                              chip.$2,
+                              style: TextStyle(
+                                color: _activeFilter == chip.$1 ? Colors.white : AppColors.secondary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
           // ── Category Chips ────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Consumer(builder: (_, ref, __) {
@@ -131,17 +200,19 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
                         selected: _selectedCategory == null,
                         onTap: () {
                           setState(() => _selectedCategory = null);
-                          ref.read(elearningFiltersProvider.notifier).update((f) => f.copyWith(categoryId: null));
+                          ref.read(elearningFiltersProvider.notifier)
+                              .update((f) => f.copyWith(categoryId: null));
                         },
                       ),
                       ...categories.map((cat) => _CategoryChip(
-                        label: cat.name,
-                        selected: _selectedCategory == cat.id,
-                        onTap: () {
-                          setState(() => _selectedCategory = cat.id);
-                          ref.read(elearningFiltersProvider.notifier).update((f) => f.copyWith(categoryId: cat.id));
-                        },
-                      )),
+                            label: cat.name,
+                            selected: _selectedCategory == cat.id,
+                            onTap: () {
+                              setState(() => _selectedCategory = cat.id);
+                              ref.read(elearningFiltersProvider.notifier)
+                                  .update((f) => f.copyWith(categoryId: cat.id));
+                            },
+                          )),
                     ],
                   ),
                 ),
@@ -152,7 +223,7 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
           // ── Sort Tabs ─────────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -175,7 +246,8 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
                           ),
                           onSelected: (_) {
                             setState(() => _selectedSort = tab.$1);
-                            ref.read(elearningFiltersProvider.notifier).update((f) => f.copyWith(sort: tab.$1));
+                            ref.read(elearningFiltersProvider.notifier)
+                                .update((f) => f.copyWith(sort: tab.$1));
                           },
                         ),
                       ),
@@ -185,20 +257,37 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
             ),
           ),
 
-          // ── Course Grid ───────────────────────────────────────────────────
+          // ── "Popular Courses" heading + See All ───────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Row(
+                children: [
+                  const Text(
+                    'Popular Courses',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.secondary),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () {
+                      _applyFilterChip('popular');
+                    },
+                    child: const Text('See All',
+                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Course List ───────────────────────────────────────────────────
           Consumer(builder: (_, ref, __) {
             final coursesAsync = ref.watch(elearningCoursesProvider);
             return coursesAsync.when(
-              loading: () => SliverPadding(
-                padding: const EdgeInsets.all(16),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 0.72,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (_, __) => const _CourseCardSkeleton(),
-                    childCount: 6,
-                  ),
+              loading: () => SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (_, __) => const _CourseCardSkeleton(),
+                  childCount: 5,
                 ),
               ),
               error: (e, _) => SliverToBoxAdapter(
@@ -207,7 +296,8 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
                   child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                     const Icon(Icons.cloud_off_rounded, size: 48, color: Colors.grey),
                     const SizedBox(height: 12),
-                    Text(e.toString(), textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)),
+                    Text(e.toString(),
+                        textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)),
                     const SizedBox(height: 12),
                     ElevatedButton(
                       onPressed: () => ref.invalidate(elearningCoursesProvider),
@@ -225,17 +315,16 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
                       child: Column(children: [
                         Icon(Icons.school_rounded, size: 64, color: Colors.grey[300]),
                         const SizedBox(height: 16),
-                        Text('No courses found', style: TextStyle(color: Colors.grey[500], fontSize: 16, fontWeight: FontWeight.w600)),
+                        Text('No courses found',
+                            style: TextStyle(
+                                color: Colors.grey[500], fontSize: 16, fontWeight: FontWeight.w600)),
                       ]),
                     ),
                   );
                 }
                 return SliverPadding(
-                  padding: const EdgeInsets.all(16),
-                  sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 0.72,
-                    ),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                  sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (_, i) => _CourseCard(course: courses[i]),
                       childCount: courses.length,
@@ -258,7 +347,8 @@ class _AppBarAction extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
-  const _AppBarAction({required this.icon, required this.label, required this.color, required this.onTap});
+  const _AppBarAction(
+      {required this.icon, required this.label, required this.color, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -313,7 +403,7 @@ class _CategoryChip extends StatelessWidget {
   }
 }
 
-// ── Course Card ───────────────────────────────────────────────────────────────
+// ── Course Card — horizontal list layout ──────────────────────────────────────
 class _CourseCard extends StatelessWidget {
   final ELearningCourse course;
   const _CourseCard({required this.course});
@@ -323,81 +413,122 @@ class _CourseCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => context.push('/elearning/course/${course.slug}'),
       child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2))
+          ],
         ),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Thumbnail
+            // Square thumbnail 80x80
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+              borderRadius: BorderRadius.circular(12),
               child: course.thumbnail != null
                   ? CachedNetworkImage(
                       imageUrl: course.thumbnail!,
-                      height: 110,
-                      width: double.infinity,
+                      width: 80,
+                      height: 80,
                       fit: BoxFit.cover,
-                      placeholder: (_, __) => _thumbnailPlaceholder(),
-                      errorWidget: (_, __, ___) => _thumbnailPlaceholder(),
+                      placeholder: (_, __) => _thumbPlaceholder(),
+                      errorWidget: (_, __, ___) => _thumbPlaceholder(),
                     )
-                  : _thumbnailPlaceholder(),
+                  : _thumbPlaceholder(),
             ),
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(10),
+            const SizedBox(width: 12),
+            // Right side content
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Title
                   Text(
                     course.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.secondary, height: 1.3),
+                    style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.secondary,
+                        height: 1.3),
                   ),
-                  if (course.instructor != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      course.instructor!.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                    ),
-                  ],
                   const SizedBox(height: 6),
+                  // Instructor row
+                  if (course.instructor != null)
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 9,
+                          backgroundImage: course.instructor!.avatar != null
+                              ? NetworkImage(course.instructor!.avatar!)
+                              : null,
+                          backgroundColor: AppColors.secondary,
+                          child: course.instructor!.avatar == null
+                              ? Text(course.instructor!.name[0],
+                                  style: const TextStyle(color: Colors.white, fontSize: 8))
+                              : null,
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            course.instructor!.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                          ),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 5),
+                  // Star rating + review count
                   Row(
                     children: [
                       const Icon(Icons.star_rounded, color: Colors.amber, size: 13),
                       const SizedBox(width: 2),
-                      Text(course.rating.toStringAsFixed(1), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                      const SizedBox(width: 4),
-                      Text('(${course.totalStudents})', style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+                      Text(course.rating.toStringAsFixed(1),
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                      const SizedBox(width: 3),
+                      Text('(${course.totalReviews})',
+                          style: TextStyle(fontSize: 11, color: Colors.grey[400])),
                     ],
                   ),
                   const SizedBox(height: 6),
+                  // Price row
                   course.isFree
                       ? Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(color: Colors.green[50], borderRadius: BorderRadius.circular(6)),
-                          child: const Text('FREE', style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.w800)),
+                          decoration: BoxDecoration(
+                              color: Colors.green[50], borderRadius: BorderRadius.circular(6)),
+                          child: const Text('FREE',
+                              style: TextStyle(
+                                  color: Colors.green,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800)),
                         )
                       : Row(
                           children: [
                             Text(
                               '\$${course.effectivePrice.toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.primary),
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.primary),
                             ),
                             if (course.discountPrice != null) ...[
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 6),
                               Text(
                                 '\$${course.price.toStringAsFixed(2)}',
                                 style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey,
-                                  decoration: TextDecoration.lineThrough,
-                                ),
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                    decoration: TextDecoration.lineThrough),
                               ),
                             ],
                           ],
@@ -411,10 +542,10 @@ class _CourseCard extends StatelessWidget {
     );
   }
 
-  Widget _thumbnailPlaceholder() {
+  Widget _thumbPlaceholder() {
     return Container(
-      height: 110,
-      width: double.infinity,
+      width: 80,
+      height: 80,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [AppColors.secondary, Color(0xFF3D2B8E)],
@@ -422,7 +553,7 @@ class _CourseCard extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
       ),
-      child: const Icon(Icons.school_rounded, color: Colors.white54, size: 36),
+      child: const Icon(Icons.school_rounded, color: Colors.white54, size: 28),
     );
   }
 }
@@ -434,22 +565,45 @@ class _CourseCardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Container(height: 110, decoration: BoxDecoration(color: Colors.grey[200], borderRadius: const BorderRadius.vertical(top: Radius.circular(14)))),
-          Padding(
-            padding: const EdgeInsets.all(10),
+          Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                  color: Colors.grey[200], borderRadius: BorderRadius.circular(12))),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Container(height: 12, width: double.infinity, decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(6))),
+              Container(
+                  height: 13,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                      color: Colors.grey[200], borderRadius: BorderRadius.circular(6))),
               const SizedBox(height: 6),
-              Container(height: 10, width: 80, decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(6))),
-              const SizedBox(height: 10),
-              Container(height: 14, width: 60, decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(6))),
+              Container(
+                  height: 11,
+                  width: 120,
+                  decoration: BoxDecoration(
+                      color: Colors.grey[200], borderRadius: BorderRadius.circular(6))),
+              const SizedBox(height: 8),
+              Container(
+                  height: 11,
+                  width: 80,
+                  decoration: BoxDecoration(
+                      color: Colors.grey[200], borderRadius: BorderRadius.circular(6))),
+              const SizedBox(height: 6),
+              Container(
+                  height: 13,
+                  width: 60,
+                  decoration: BoxDecoration(
+                      color: Colors.grey[200], borderRadius: BorderRadius.circular(6))),
             ]),
           ),
         ],

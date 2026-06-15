@@ -339,4 +339,13 @@ class ELearningApiService {
   Future<void> deleteCourse(int courseId) async {
     await _dio.delete('$_base/instructor/courses/$courseId');
   }
+
+  Future<Map<String, dynamic>> getMyEarnings() async {
+    final res = await _get('$_base/instructor/earnings');
+    return res['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  Future<Map<String, dynamic>> requestWithdrawal(double amount) async {
+    return await _post('$_base/instructor/withdrawal', {'amount': amount});
+  }
 }

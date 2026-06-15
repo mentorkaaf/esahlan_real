@@ -40,12 +40,16 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
       setState(() => _inWishlist = result);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result ? 'Added to wishlist' : 'Removed from wishlist'), duration: const Duration(seconds: 2)),
+          SnackBar(
+              content: Text(result ? 'Added to wishlist' : 'Removed from wishlist'),
+              duration: const Duration(seconds: 2)),
         );
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Wishlist error: $e'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Wishlist error: $e'), backgroundColor: Colors.red));
+      }
     }
   }
 
@@ -55,19 +59,15 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
       if (isFree) {
         await _svc.enrollFree(courseId);
       } else {
-        // Get price + wallet balance first
         final info = await _svc.initiatePurchase(courseId);
         final price = (info['data']?['price'] as num?)?.toDouble() ?? 0;
         final walletBalance = (info['data']?['wallet_balance'] as num?)?.toDouble() ?? 0;
 
-        // Show payment method selection
+        if (!mounted) return;
         final method = await showModalBottomSheet<String>(
           context: context,
           backgroundColor: Colors.transparent,
-          builder: (sheetCtx) => _PaymentSheet(
-            price: price,
-            walletBalance: walletBalance,
-          ),
+          builder: (sheetCtx) => _PaymentSheet(price: price, walletBalance: walletBalance),
         );
 
         if (method == null) {
@@ -78,23 +78,26 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
         if (method == 'wallet') {
           await _svc.verifyPurchase(courseId, paymentMethod: 'wallet');
         } else if (method.startsWith('waafi:')) {
-          // method = 'waafi:PHONE:REFERENCE'
           final parts = method.split(':');
           await _svc.verifyPurchase(courseId,
-              paymentMethod: 'waafi', paymentReference: parts.length > 2 ? parts[2] : '');
+              paymentMethod: 'waafi',
+              paymentReference: parts.length > 2 ? parts[2] : '');
         }
       }
       ref.invalidate(courseDetailProvider(slug));
       ref.invalidate(myLearningProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enrolled successfully! 🎉'), backgroundColor: Colors.green),
+          const SnackBar(
+              content: Text('Enrolled successfully!'), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -109,14 +112,17 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       body: detailAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        loading: () =>
+            const Center(child: CircularProgressIndicator(color: AppColors.primary)),
         error: (e, _) => Center(
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             const Icon(Icons.error_outline, size: 48, color: Colors.grey),
             const SizedBox(height: 12),
             Text(e.toString(), textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: () => ref.invalidate(courseDetailProvider(widget.slug)), child: const Text('Retry')),
+            ElevatedButton(
+                onPressed: () => ref.invalidate(courseDetailProvider(widget.slug)),
+                child: const Text('Retry')),
           ]),
         ),
         data: (data) {
@@ -128,171 +134,306 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
               .map((r) => ELearningReview.fromJson(r as Map<String, dynamic>))
               .toList();
 
+          // Discount percentage
+          int? discountPercent;
+          if (course.discountPrice != null && course.price > 0) {
+            discountPercent =
+                (((course.price - course.effectivePrice) / course.price) * 100).round();
+          }
+
           return CustomScrollView(
             slivers: [
-              // ── Hero ──────────────────────────────────────────────────────
+              // ── AppBar: white bg, back arrow, title, share + heart ────────
               SliverAppBar(
-                expandedHeight: 220,
                 pinned: true,
-                backgroundColor: AppColors.secondary,
+                backgroundColor: Colors.white,
+                elevation: 0.5,
                 leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                      color: AppColors.secondary, size: 20),
                   onPressed: () => context.pop(),
+                ),
+                title: const Text(
+                  'Course Details',
+                  style: TextStyle(
+                      color: AppColors.secondary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16),
                 ),
                 actions: [
                   IconButton(
+                    icon: const Icon(Icons.share_outlined, color: AppColors.secondary),
+                    onPressed: () {},
+                  ),
+                  IconButton(
                     icon: Icon(
                       _inWishlist ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                      color: _inWishlist ? Colors.redAccent : Colors.white,
+                      color: _inWishlist ? Colors.redAccent : AppColors.secondary,
                     ),
                     onPressed: () => _toggleWishlist(course.id),
                   ),
                 ],
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      course.thumbnail != null
-                          ? CachedNetworkImage(
-                              imageUrl: course.thumbnail!,
-                              fit: BoxFit.cover,
-                              placeholder: (_, __) => _heroPlaceholder(),
-                              errorWidget: (_, __, ___) => _heroPlaceholder(),
-                            )
-                          : _heroPlaceholder(),
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Colors.transparent, AppColors.secondary.withValues(alpha: 0.9)],
-                          ),
-                        ),
-                      ),
-                      if (course.trailerVideo != null)
-                        Center(
-                          child: Container(
-                            width: 56, height: 56,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
+              ),
+
+              // ── Thumbnail 16:9 card with rounded corners ──────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          course.thumbnail != null
+                              ? CachedNetworkImage(
+                                  imageUrl: course.thumbnail!,
+                                  fit: BoxFit.cover,
+                                  placeholder: (_, __) => _thumbnailPlaceholder(),
+                                  errorWidget: (_, __, ___) => _thumbnailPlaceholder(),
+                                )
+                              : _thumbnailPlaceholder(),
+                          if (course.trailerVideo != null)
+                            Container(
+                              color: Colors.black26,
+                              child: Center(
+                                child: Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.play_arrow_rounded,
+                                      color: AppColors.secondary, size: 32),
+                                ),
+                              ),
                             ),
-                            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32),
-                          ),
-                        ),
-                    ],
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
 
-              // ── Course header ──────────────────────────────────────────────
+              // ── Course header card ────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Container(
                   color: Colors.white,
-                  padding: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Category badge
                       if (course.category != null)
                         Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Text(course.category!.name, style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                          child: Text(course.category!.name,
+                              style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
                         ),
-                      Text(course.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.secondary)),
-                      if (course.subtitle != null) ...[
-                        const SizedBox(height: 6),
-                        Text(course.subtitle!, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-                      ],
-                      const SizedBox(height: 12),
-                      // Instructor
+
+                      // Course title
+                      Text(
+                        course.title,
+                        style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.secondary),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Instructor row: avatar + name bold + "Instructor" subtitle
                       if (course.instructor != null)
                         Row(children: [
                           CircleAvatar(
                             radius: 16,
-                            backgroundImage: course.instructor!.avatar != null ? NetworkImage(course.instructor!.avatar!) : null,
+                            backgroundImage: course.instructor!.avatar != null
+                                ? NetworkImage(course.instructor!.avatar!)
+                                : null,
                             backgroundColor: AppColors.secondary,
                             child: course.instructor!.avatar == null
-                                ? Text(course.instructor!.name[0], style: const TextStyle(color: Colors.white, fontSize: 12))
+                                ? Text(course.instructor!.name[0],
+                                    style:
+                                        const TextStyle(color: Colors.white, fontSize: 12))
                                 : null,
                           ),
-                          const SizedBox(width: 8),
-                          Text(course.instructor!.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(course.instructor!.name,
+                                  style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.secondary)),
+                              Text('Instructor',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                            ],
+                          ),
                         ]),
-                      const SizedBox(height: 12),
-                      // Meta row
-                      Wrap(
-                        spacing: 16,
-                        runSpacing: 6,
+                      const SizedBox(height: 14),
+
+                      // Stats row: star rating + reviews + students
+                      Row(
                         children: [
-                          _MetaBadge(icon: Icons.star_rounded, text: '${course.rating.toStringAsFixed(1)} (${course.totalReviews})', color: Colors.amber),
-                          _MetaBadge(icon: Icons.people_rounded, text: '${course.totalStudents} students', color: AppColors.primary),
-                          _MetaBadge(icon: Icons.access_time_rounded, text: '${course.durationHours.toStringAsFixed(1)}h', color: Colors.teal),
-                          _MetaBadge(icon: Icons.bar_chart_rounded, text: course.level[0].toUpperCase() + course.level.substring(1), color: AppColors.secondary),
+                          const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                          const SizedBox(width: 3),
+                          Text(course.rating.toStringAsFixed(1),
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.secondary)),
+                          const SizedBox(width: 4),
+                          Text('(${course.totalReviews} Reviews)',
+                              style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                          const SizedBox(width: 16),
+                          Icon(Icons.people_rounded,
+                              size: 16, color: Colors.grey[500]),
+                          const SizedBox(width: 4),
+                          Text('${course.totalStudents} Students',
+                              style: TextStyle(fontSize: 13, color: Colors.grey[500])),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-              ),
+                      const SizedBox(height: 14),
 
-              // ── Price + Enroll ─────────────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10)],
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      // Description
+                      if (course.description != null)
+                        Text(
+                          course.description!,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 14, color: Colors.grey[600], height: 1.5),
+                        ),
+                      const SizedBox(height: 20),
+
+                      // Stats 3-box row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _StatBox(
+                              icon: Icons.access_time_rounded,
+                              value:
+                                  '${course.durationHours.toStringAsFixed(1)}h',
+                              label: 'Duration',
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _StatBox(
+                              icon: Icons.menu_book_rounded,
+                              value: '${course.totalLessons}',
+                              label: 'Lectures',
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _StatBox(
+                              icon: Icons.emoji_events_rounded,
+                              value: course.level[0].toUpperCase() +
+                                  course.level.substring(1),
+                              label: 'Level',
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      const Divider(height: 1),
+                      const SizedBox(height: 20),
+
+                      // Price row
+                      if (course.isFree)
+                        const Text('FREE',
+                            style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.green))
+                      else
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            if (course.isFree)
-                              const Text('FREE', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.green))
-                            else ...[
+                            Text(
+                              '\$${course.effectivePrice.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.secondary),
+                            ),
+                            if (course.discountPrice != null) ...[
+                              const SizedBox(width: 10),
                               Text(
-                                '\$${course.effectivePrice.toStringAsFixed(2)}',
-                                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.secondary),
+                                '\$${course.price.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                    fontSize: 15,
+                                    color: Colors.grey,
+                                    decoration: TextDecoration.lineThrough),
                               ),
-                              if (course.discountPrice != null)
-                                Text(
-                                  '\$${course.price.toStringAsFixed(2)}',
-                                  style: const TextStyle(fontSize: 14, color: Colors.grey, decoration: TextDecoration.lineThrough),
+                              if (discountPercent != null) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green[50],
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '$discountPercent% OFF',
+                                    style: const TextStyle(
+                                        color: Colors.green,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700),
+                                  ),
                                 ),
+                              ],
                             ],
                           ],
                         ),
-                      ),
+                      const SizedBox(height: 16),
+
+                      // Enroll button — full width, 56px, orange, rounded 14
                       SizedBox(
-                        height: 48,
+                        width: double.infinity,
+                        height: 56,
                         child: FilledButton(
-                          onPressed: _purchasing ? null : () {
-                            if (course.isEnrolled) {
-                              context.push('/elearning/my-learning');
-                            } else {
-                              _purchase(course.id, course.isFree, course.slug);
-                            }
-                          },
+                          onPressed: _purchasing
+                              ? null
+                              : () {
+                                  if (course.isEnrolled) {
+                                    context.push('/elearning/my-learning');
+                                  } else {
+                                    _purchase(course.id, course.isFree, course.slug);
+                                  }
+                                },
                           style: FilledButton.styleFrom(
-                            backgroundColor: course.isEnrolled ? Colors.green : AppColors.primary,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            backgroundColor:
+                                course.isEnrolled ? Colors.green : AppColors.primary,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
                           ),
                           child: _purchasing
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2))
                               : Text(
-                                  course.isEnrolled ? 'Continue Learning' : (course.isFree ? 'Enroll Free' : 'Buy Now'),
-                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                                  course.isEnrolled
+                                      ? 'Continue Learning'
+                                      : (course.isFree ? 'Enroll Free' : 'Enroll Now'),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700, fontSize: 16),
                                 ),
                         ),
                       ),
@@ -305,12 +446,14 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
               SliverToBoxAdapter(
                 child: Container(
                   color: Colors.white,
+                  margin: const EdgeInsets.only(top: 12),
                   child: TabBar(
                     controller: _tabCtrl,
                     labelColor: AppColors.primary,
                     unselectedLabelColor: Colors.grey,
                     indicatorColor: AppColors.primary,
-                    labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                    labelStyle:
+                        const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                     tabs: const [
                       Tab(text: 'Overview'),
                       Tab(text: 'Curriculum'),
@@ -320,7 +463,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                 ),
               ),
 
-              // ── Tab Views (static, no need for nested scroll) ──────────────
+              // ── Tab Views ──────────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: SizedBox(
                   height: 600,
@@ -342,10 +485,43 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
     );
   }
 
-  Widget _heroPlaceholder() => Container(
-    color: AppColors.secondary,
-    child: const Icon(Icons.school_rounded, size: 80, color: Colors.white30),
-  );
+  Widget _thumbnailPlaceholder() => Container(
+        color: AppColors.secondary,
+        child: const Icon(Icons.school_rounded, size: 60, color: Colors.white30),
+      );
+}
+
+// ── Stat box widget ──────────────────────────────────────────────────────────
+class _StatBox extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  const _StatBox({required this.icon, required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppColors.primary, size: 20),
+          const SizedBox(height: 6),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.secondary)),
+          const SizedBox(height: 2),
+          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+        ],
+      ),
+    );
+  }
 }
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
@@ -361,35 +537,48 @@ class _OverviewTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (course.description != null) ...[
-            const Text('About this course', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+            const Text('About this course',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.secondary)),
             const SizedBox(height: 8),
-            Text(course.description!, style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.6)),
+            Text(course.description!,
+                style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.6)),
             const SizedBox(height: 20),
           ],
           if (course.learningOutcomes.isNotEmpty) ...[
-            const Text('What you\'ll learn', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+            const Text("What you'll learn",
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.secondary)),
             const SizedBox(height: 10),
             ...course.learningOutcomes.map((o) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.green, size: 18),
-                const SizedBox(width: 8),
-                Expanded(child: Text(o, style: const TextStyle(fontSize: 13))),
-              ]),
-            )),
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Icon(Icons.check_circle_rounded, color: Colors.green, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(o, style: const TextStyle(fontSize: 13))),
+                  ]),
+                )),
             const SizedBox(height: 20),
           ],
           if (course.requirements.isNotEmpty) ...[
-            const Text('Requirements', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+            const Text('Requirements',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.secondary)),
             const SizedBox(height: 10),
             ...course.requirements.map((r) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Icon(Icons.circle, color: AppColors.primary, size: 8),
-                const SizedBox(width: 10),
-                Expanded(child: Text(r, style: const TextStyle(fontSize: 13))),
-              ]),
-            )),
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Icon(Icons.circle, color: AppColors.primary, size: 8),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(r, style: const TextStyle(fontSize: 13))),
+                  ]),
+                )),
           ],
         ],
       ),
@@ -421,17 +610,30 @@ class _CurriculumTabState extends State<_CurriculumTab> {
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
+              color: Colors.white, borderRadius: BorderRadius.circular(12)),
           child: Column(
             children: [
               ListTile(
-                onTap: () => setState(() { if (isOpen) _expanded.remove(i); else _expanded.add(i); }),
-                leading: Icon(isOpen ? Icons.folder_open_rounded : Icons.folder_rounded, color: AppColors.primary),
-                title: Text(section.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.secondary)),
-                subtitle: Text('${section.lessons.length} lessons', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                trailing: Icon(isOpen ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded),
+                onTap: () => setState(() {
+                  if (isOpen) {
+                    _expanded.remove(i);
+                  } else {
+                    _expanded.add(i);
+                  }
+                }),
+                leading: Icon(
+                    isOpen ? Icons.folder_open_rounded : Icons.folder_rounded,
+                    color: AppColors.primary),
+                title: Text(section.title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: AppColors.secondary)),
+                subtitle: Text('${section.lessons.length} lessons',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                trailing: Icon(isOpen
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.keyboard_arrow_down_rounded),
               ),
               if (isOpen)
                 ...section.lessons.map((lesson) {
@@ -445,12 +647,16 @@ class _CurriculumTabState extends State<_CurriculumTab> {
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                       child: Row(
                         children: [
-                          Icon(_lessonIcon(lesson.type), size: 16,
-                              color: canOpen ? _lessonColor(lesson.type) : Colors.grey[400]),
+                          Icon(_lessonIcon(lesson.type),
+                              size: 16,
+                              color: canOpen
+                                  ? _lessonColor(lesson.type)
+                                  : Colors.grey[400]),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(lesson.title,
-                                style: TextStyle(fontSize: 13,
+                                style: TextStyle(
+                                    fontSize: 13,
                                     color: canOpen ? Colors.black87 : Colors.grey[500])),
                           ),
                           if (lesson.formattedDuration.isNotEmpty)
@@ -461,15 +667,20 @@ class _CurriculumTabState extends State<_CurriculumTab> {
                             Icon(Icons.lock_rounded, size: 14, color: Colors.grey[400])
                           else if (lesson.isFreePreview && !widget.isEnrolled)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                  color: Colors.teal[50], borderRadius: BorderRadius.circular(4)),
+                                  color: Colors.teal[50],
+                                  borderRadius: BorderRadius.circular(4)),
                               child: Text('Preview',
-                                  style: TextStyle(fontSize: 10,
-                                      color: Colors.teal[700], fontWeight: FontWeight.w600)),
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.teal[700],
+                                      fontWeight: FontWeight.w600)),
                             )
                           else if (widget.isEnrolled)
-                            Icon(Icons.play_circle_outline_rounded, size: 16, color: AppColors.primary),
+                            const Icon(Icons.play_circle_outline_rounded,
+                                size: 16, color: AppColors.primary),
                         ],
                       ),
                     ),
@@ -483,22 +694,22 @@ class _CurriculumTabState extends State<_CurriculumTab> {
   }
 
   IconData _lessonIcon(String type) => switch (type) {
-    'video'      => Icons.play_circle_rounded,
-    'pdf'        => Icons.picture_as_pdf_rounded,
-    'quiz'       => Icons.quiz_rounded,
-    'assignment' => Icons.assignment_rounded,
-    'live'       => Icons.videocam_rounded,
-    _            => Icons.description_rounded,
-  };
+        'video' => Icons.play_circle_rounded,
+        'pdf' => Icons.picture_as_pdf_rounded,
+        'quiz' => Icons.quiz_rounded,
+        'assignment' => Icons.assignment_rounded,
+        'live' => Icons.videocam_rounded,
+        _ => Icons.description_rounded,
+      };
 
   Color _lessonColor(String type) => switch (type) {
-    'video'      => Colors.blue,
-    'pdf'        => Colors.red,
-    'quiz'       => Colors.purple,
-    'assignment' => Colors.orange,
-    'live'       => Colors.green,
-    _            => Colors.grey,
-  };
+        'video' => Colors.blue,
+        'pdf' => Colors.red,
+        'quiz' => Colors.purple,
+        'assignment' => Colors.orange,
+        'live' => Colors.green,
+        _ => Colors.grey,
+      };
 }
 
 // ── Reviews Tab ───────────────────────────────────────────────────────────────
@@ -512,69 +723,75 @@ class _ReviewsTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Rating summary
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+              color: Colors.white, borderRadius: BorderRadius.circular(12)),
           child: Row(
             children: [
               Column(children: [
-                Text(rating.toStringAsFixed(1), style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: AppColors.secondary)),
-                Row(children: List.generate(5, (i) => Icon(
-                  i < rating.round() ? Icons.star_rounded : Icons.star_outline_rounded,
-                  color: Colors.amber, size: 18,
-                ))),
+                Text(rating.toStringAsFixed(1),
+                    style: const TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.secondary)),
+                Row(
+                    children: List.generate(
+                        5,
+                        (i) => Icon(
+                            i < rating.round()
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            color: Colors.amber,
+                            size: 18))),
                 const SizedBox(height: 4),
-                Text('${reviews.length} reviews', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                Text('${reviews.length} reviews',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500])),
               ]),
             ],
           ),
         ),
         const SizedBox(height: 12),
         ...reviews.map((r) => Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              CircleAvatar(
-                radius: 16, backgroundColor: AppColors.secondary,
-                child: Text((r.user['name'] as String? ?? '?')[0], style: const TextStyle(color: Colors.white, fontSize: 12)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(r.user['name'] as String? ?? 'Student', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                Text(r.createdAt, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-              ])),
-              Row(children: List.generate(5, (i) => Icon(
-                i < r.rating ? Icons.star_rounded : Icons.star_outline_rounded,
-                color: Colors.amber, size: 14,
-              ))),
-            ]),
-            if (r.comment != null) ...[
-              const SizedBox(height: 8),
-              Text(r.comment!, style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.5)),
-            ],
-          ]),
-        )),
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(12)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: AppColors.secondary,
+                    child: Text((r.user['name'] as String? ?? '?')[0],
+                        style: const TextStyle(color: Colors.white, fontSize: 12)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(r.user['name'] as String? ?? 'Student',
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    Text(r.createdAt,
+                        style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                  ])),
+                  Row(
+                      children: List.generate(
+                          5,
+                          (i) => Icon(
+                              i < r.rating
+                                  ? Icons.star_rounded
+                                  : Icons.star_outline_rounded,
+                              color: Colors.amber,
+                              size: 14))),
+                ]),
+                if (r.comment != null) ...[
+                  const SizedBox(height: 8),
+                  Text(r.comment!,
+                      style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.5)),
+                ],
+              ]),
+            )),
       ],
     );
-  }
-}
-
-class _MetaBadge extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  final Color color;
-  const _MetaBadge({required this.icon, required this.text, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, size: 14, color: color),
-      const SizedBox(width: 4),
-      Text(text, style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500)),
-    ]);
   }
 }
 
@@ -608,15 +825,15 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
     setState(() => _loadingWaafi = true);
     try {
       final svc = ELearningApiService.create();
-      final result = await svc.initiateWaafiPayment(
-          amount: widget.price, phone: phone);
+      final result =
+          await svc.initiateWaafiPayment(amount: widget.price, phone: phone);
       if (!mounted) return;
       Navigator.pop(context, 'waafi:$phone:${result['reference']}');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')),
-                backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => _loadingWaafi = false);
@@ -632,110 +849,143 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Center(child: Container(width: 40, height: 4,
-            decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
-        const SizedBox(height: 16),
-        Text('Buy Course — \$${widget.price.toStringAsFixed(2)}',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.secondary)),
-        const SizedBox(height: 4),
-        Text('Dooro hab lacag bixinta', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
-        const SizedBox(height: 20),
-
-        // Wallet option
-        GestureDetector(
-          onTap: hasEnough ? () => Navigator.pop(context, 'wallet') : null,
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: hasEnough ? AppColors.primary.withValues(alpha: 0.07) : Colors.grey[50],
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: hasEnough ? AppColors.primary : Colors.grey[300]!),
-            ),
-            child: Row(children: [
-              Container(
-                width: 44, height: 44,
+      child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+                child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 16),
+            Text('Buy Course — \$${widget.price.toStringAsFixed(2)}',
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.secondary)),
+            const SizedBox(height: 4),
+            Text('Dooro hab lacag bixinta',
+                style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: hasEnough ? () => Navigator.pop(context, 'wallet') : null,
+              child: Container(
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: hasEnough ? AppColors.primary : Colors.grey[200],
-                  borderRadius: BorderRadius.circular(12),
+                  color: hasEnough
+                      ? AppColors.primary.withValues(alpha: 0.07)
+                      : Colors.grey[50],
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: hasEnough ? AppColors.primary : Colors.grey[300]!),
                 ),
-                child: Icon(Icons.account_balance_wallet_rounded,
-                    color: hasEnough ? Colors.white : Colors.grey[400], size: 22),
-              ),
-              const SizedBox(width: 14),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('eSahlan Wallet', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                Text('Balance: \$${widget.walletBalance.toStringAsFixed(2)}',
-                    style: TextStyle(color: hasEnough ? Colors.grey[600] : Colors.red[400], fontSize: 13)),
-                if (!hasEnough)
-                  Text('Kharashku waa ka badan yahay balance-kaaga',
-                      style: TextStyle(color: Colors.red[400], fontSize: 11)),
-              ])),
-              if (hasEnough)
-                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
-            ]),
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Waafi Pay option
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.purple.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
-          ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Container(
-                width: 44, height: 44,
-                decoration: BoxDecoration(color: Colors.purple, borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.phone_android_rounded, color: Colors.white, size: 22),
-              ),
-              const SizedBox(width: 14),
-              const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Waafi Pay', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                Text('Geli lambarka Waafi-ga', style: TextStyle(color: Colors.grey, fontSize: 13)),
-              ])),
-            ]),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _phoneCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                hintText: 'e.g. 252615xxxxxx',
-                prefixIcon: const Icon(Icons.phone_rounded, size: 18),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.grey[300]!)),
-                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                child: Row(children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: hasEnough ? AppColors.primary : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.account_balance_wallet_rounded,
+                        color: hasEnough ? Colors.white : Colors.grey[400], size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                        const Text('eSahlan Wallet',
+                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                        Text('Balance: \$${widget.walletBalance.toStringAsFixed(2)}',
+                            style: TextStyle(
+                                color: hasEnough ? Colors.grey[600] : Colors.red[400],
+                                fontSize: 13)),
+                        if (!hasEnough)
+                          Text('Kharashku waa ka badan yahay balance-kaaga',
+                              style: TextStyle(color: Colors.red[400], fontSize: 11)),
+                      ])),
+                  if (hasEnough)
+                    const Icon(Icons.arrow_forward_ios_rounded,
+                        size: 14, color: AppColors.primary),
+                ]),
               ),
             ),
-            const SizedBox(height: 10),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.purple,
-                minimumSize: const Size.fromHeight(44),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.purple.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(14),
+                border:
+                    Border.all(color: Colors.purple.withValues(alpha: 0.3)),
               ),
-              onPressed: _loadingWaafi ? null : _payWaafi,
-              child: _loadingWaafi
-                  ? const SizedBox(width: 20, height: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Pay with Waafi', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                        color: Colors.purple, borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.phone_android_rounded,
+                        color: Colors.white, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Waafi Pay',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                    Text('Geli lambarka Waafi-ga',
+                        style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  ])),
+                ]),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    hintText: 'e.g. 252615xxxxxx',
+                    prefixIcon: const Icon(Icons.phone_rounded, size: 18),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey[300]!)),
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.purple,
+                    minimumSize: const Size.fromHeight(44),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: _loadingWaafi ? null : _payWaafi,
+                  child: _loadingWaafi
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Text('Pay with Waafi',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              ),
             ),
           ]),
-        ),
-        const SizedBox(height: 8),
-        Center(
-          child: TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-        ),
-      ]),
     );
   }
 }
