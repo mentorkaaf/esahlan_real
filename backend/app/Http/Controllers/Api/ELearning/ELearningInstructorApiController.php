@@ -219,11 +219,11 @@ class ELearningInstructorApiController extends Controller
         $data = $request->validate([
             'title'             => 'required|string|max:255',
             'subtitle'          => 'nullable|string|max:500',
-            'description'       => 'required|string',
+            'description'       => 'nullable|string',
             'category_id'       => 'required|integer|exists:el_categories,id',
-            'level'             => 'required|in:beginner,intermediate,advanced,all',
-            'language'          => 'required|string|max:10',
-            'price'             => 'required|numeric|min:0',
+            'level'             => 'nullable|in:beginner,intermediate,advanced,all',
+            'language'          => 'nullable|string|max:10',
+            'price'             => 'nullable|numeric|min:0',
             'discount_price'    => 'nullable|numeric|min:0',
             'is_free'           => 'boolean',
             'learning_outcomes' => 'nullable|array',
@@ -235,9 +235,13 @@ class ELearningInstructorApiController extends Controller
         $data['instructor_id'] = $instructor->id;
         $data['slug']          = Str::slug($data['title']) . '-' . Str::random(6);
         $data['status']        = 'draft';
+        $data['level']         = $data['level'] ?? 'all';
+        $data['language']      = $data['language'] ?? 'so';
+        $data['price']         = $data['price'] ?? 0;
 
         if ($request->hasFile('thumbnail')) {
-            $data['thumbnail'] = $request->file('thumbnail')->store('elearning/thumbnails', 'public');
+            $path = $request->file('thumbnail')->store('elearning/thumbnails', 'public');
+            $data['thumbnail'] = asset('storage/' . $path);
         }
 
         $course = ELearningCourse::create($data);

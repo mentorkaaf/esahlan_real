@@ -238,7 +238,7 @@ class ELearningApiService {
     final form = FormData.fromMap({
       'title':       title,
       if (subtitle != null && subtitle.isNotEmpty) 'subtitle': subtitle,
-      'description': description,
+      if (description.isNotEmpty) 'description': description,
       'category_id': categoryId,
       'level':       level,
       'language':    language,
