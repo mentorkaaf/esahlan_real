@@ -452,7 +452,8 @@ function nextStep(from) {
         if (pw.length < 8) { alert('Password must be at least 8 characters.'); return; }
         if (pw !== pw2) { alert('Passwords do not match.'); return; }
 
-        document.getElementById('phone-full').value = '+252' + local;
+        const fullPhone = '+252' + local;
+        document.getElementById('phone-full').value = fullPhone;
 
         const modId = document.querySelector('input[name=module_id]:checked')?.value;
         document.getElementById('sum-module').textContent = moduleNames[modId] || '—';
