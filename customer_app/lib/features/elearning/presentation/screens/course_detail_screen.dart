@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -51,39 +52,50 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
       if (isFree) {
         await _svc.enrollFree(courseId);
       } else {
-        // Show confirmation dialog
-        final confirm = await showDialog<bool>(
+        // Get price + wallet balance first
+        final info = await _svc.initiatePurchase(courseId);
+        final price = (info['data']?['price'] as num?)?.toDouble() ?? 0;
+        final walletBalance = (info['data']?['wallet_balance'] as num?)?.toDouble() ?? 0;
+
+        // Show payment method selection
+        final method = await showModalBottomSheet<String>(
           context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Confirm Purchase'),
-            content: const Text('Amount will be deducted from your eSahlan wallet.'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Purchase')),
-            ],
+          backgroundColor: Colors.transparent,
+          builder: (sheetCtx) => _PaymentSheet(
+            price: price,
+            walletBalance: walletBalance,
           ),
         );
-        if (confirm != true) {
+
+        if (method == null) {
           setState(() => _purchasing = false);
           return;
         }
-        await _svc.verifyPurchase(courseId);
+
+        if (method == 'wallet') {
+          await _svc.verifyPurchase(courseId, paymentMethod: 'wallet');
+        } else if (method.startsWith('waafi:')) {
+          // method = 'waafi:PHONE:REFERENCE'
+          final parts = method.split(':');
+          await _svc.verifyPurchase(courseId,
+              paymentMethod: 'waafi', paymentReference: parts.length > 2 ? parts[2] : '');
+        }
       }
       ref.invalidate(courseDetailProvider(slug));
       ref.invalidate(myLearningProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enrolled successfully!'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('Enrolled successfully! 🎉'), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
         );
       }
     } finally {
-      setState(() => _purchasing = false);
+      if (mounted) setState(() => _purchasing = false);
     }
   }
 
@@ -138,8 +150,12 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                     fit: StackFit.expand,
                     children: [
                       course.thumbnail != null
-                          ? Image.network(course.thumbnail!, fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => _heroPlaceholder())
+                          ? CachedNetworkImage(
+                              imageUrl: course.thumbnail!,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => _heroPlaceholder(),
+                              errorWidget: (_, __, ___) => _heroPlaceholder(),
+                            )
                           : _heroPlaceholder(),
                       Container(
                         decoration: BoxDecoration(
@@ -415,29 +431,47 @@ class _CurriculumTabState extends State<_CurriculumTab> {
                 trailing: Icon(isOpen ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded),
               ),
               if (isOpen)
-                ...section.lessons.map((lesson) => Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: Row(
-                    children: [
-                      Icon(_lessonIcon(lesson.type), size: 16, color: _lessonColor(lesson.type)),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(lesson.title, style: const TextStyle(fontSize: 13)),
+                ...section.lessons.map((lesson) {
+                  final canOpen = widget.isEnrolled || lesson.isFreePreview;
+                  return GestureDetector(
+                    onTap: canOpen
+                        ? () => context.push('/elearning/lesson/${lesson.id}')
+                        : null,
+                    child: Container(
+                      color: Colors.transparent,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: Row(
+                        children: [
+                          Icon(_lessonIcon(lesson.type), size: 16,
+                              color: canOpen ? _lessonColor(lesson.type) : Colors.grey[400]),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(lesson.title,
+                                style: TextStyle(fontSize: 13,
+                                    color: canOpen ? Colors.black87 : Colors.grey[500])),
+                          ),
+                          if (lesson.formattedDuration.isNotEmpty)
+                            Text(lesson.formattedDuration,
+                                style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                          const SizedBox(width: 6),
+                          if (lesson.isLocked && !widget.isEnrolled)
+                            Icon(Icons.lock_rounded, size: 14, color: Colors.grey[400])
+                          else if (lesson.isFreePreview && !widget.isEnrolled)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                  color: Colors.teal[50], borderRadius: BorderRadius.circular(4)),
+                              child: Text('Preview',
+                                  style: TextStyle(fontSize: 10,
+                                      color: Colors.teal[700], fontWeight: FontWeight.w600)),
+                            )
+                          else if (widget.isEnrolled)
+                            Icon(Icons.play_circle_outline_rounded, size: 16, color: AppColors.primary),
+                        ],
                       ),
-                      if (lesson.formattedDuration.isNotEmpty)
-                        Text(lesson.formattedDuration, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-                      const SizedBox(width: 6),
-                      if (lesson.isLocked)
-                        Icon(Icons.lock_rounded, size: 14, color: Colors.grey[400])
-                      else if (lesson.isFreePreview)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: Colors.teal[50], borderRadius: BorderRadius.circular(4)),
-                          child: Text('Preview', style: TextStyle(fontSize: 10, color: Colors.teal[700], fontWeight: FontWeight.w600)),
-                        ),
-                    ],
-                  ),
-                )),
+                    ),
+                  );
+                }),
             ],
           ),
         );
@@ -538,5 +572,167 @@ class _MetaBadge extends StatelessWidget {
       const SizedBox(width: 4),
       Text(text, style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500)),
     ]);
+  }
+}
+
+// ── Payment method selection sheet ────────────────────────────────────────────
+class _PaymentSheet extends ConsumerStatefulWidget {
+  final double price;
+  final double walletBalance;
+  const _PaymentSheet({required this.price, required this.walletBalance});
+
+  @override
+  ConsumerState<_PaymentSheet> createState() => _PaymentSheetState();
+}
+
+class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
+  final _phoneCtrl = TextEditingController();
+  bool _loadingWaafi = false;
+
+  @override
+  void dispose() {
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _payWaafi() async {
+    final phone = _phoneCtrl.text.trim();
+    if (phone.length < 9) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Geli lambarka telefoonka saxda ah')));
+      return;
+    }
+    setState(() => _loadingWaafi = true);
+    try {
+      final svc = ELearningApiService.create();
+      final result = await svc.initiateWaafiPayment(
+          amount: widget.price, phone: phone);
+      if (!mounted) return;
+      Navigator.pop(context, 'waafi:$phone:${result['reference']}');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')),
+                backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingWaafi = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasEnough = widget.walletBalance >= widget.price;
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Center(child: Container(width: 40, height: 4,
+            decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+        const SizedBox(height: 16),
+        Text('Buy Course — \$${widget.price.toStringAsFixed(2)}',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.secondary)),
+        const SizedBox(height: 4),
+        Text('Dooro hab lacag bixinta', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+        const SizedBox(height: 20),
+
+        // Wallet option
+        GestureDetector(
+          onTap: hasEnough ? () => Navigator.pop(context, 'wallet') : null,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: hasEnough ? AppColors.primary.withValues(alpha: 0.07) : Colors.grey[50],
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: hasEnough ? AppColors.primary : Colors.grey[300]!),
+            ),
+            child: Row(children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  color: hasEnough ? AppColors.primary : Colors.grey[200],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.account_balance_wallet_rounded,
+                    color: hasEnough ? Colors.white : Colors.grey[400], size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('eSahlan Wallet', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                Text('Balance: \$${widget.walletBalance.toStringAsFixed(2)}',
+                    style: TextStyle(color: hasEnough ? Colors.grey[600] : Colors.red[400], fontSize: 13)),
+                if (!hasEnough)
+                  Text('Kharashku waa ka badan yahay balance-kaaga',
+                      style: TextStyle(color: Colors.red[400], fontSize: 11)),
+              ])),
+              if (hasEnough)
+                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Waafi Pay option
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.purple.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(color: Colors.purple, borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.phone_android_rounded, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Waafi Pay', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                Text('Geli lambarka Waafi-ga', style: TextStyle(color: Colors.grey, fontSize: 13)),
+              ])),
+            ]),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _phoneCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                hintText: 'e.g. 252615xxxxxx',
+                prefixIcon: const Icon(Icons.phone_rounded, size: 18),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey[300]!)),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              ),
+            ),
+            const SizedBox(height: 10),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.purple,
+                minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: _loadingWaafi ? null : _payWaafi,
+              child: _loadingWaafi
+                  ? const SizedBox(width: 20, height: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Pay with Waafi', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+        ),
+      ]),
+    );
   }
 }

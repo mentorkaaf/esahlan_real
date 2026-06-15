@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/elearning_provider.dart';
 
@@ -322,6 +323,7 @@ class _AddLessonSheetState extends ConsumerState<_AddLessonSheet> {
   String _type = 'video';
   bool _freePreview = false;
   bool _saving = false;
+  XFile? _videoFile;
 
   @override
   void dispose() {
@@ -332,18 +334,31 @@ class _AddLessonSheetState extends ConsumerState<_AddLessonSheet> {
     super.dispose();
   }
 
+  Future<void> _pickVideo() async {
+    final picked = await ImagePicker().pickVideo(source: ImageSource.gallery);
+    if (picked != null) setState(() => _videoFile = picked);
+  }
+
   Future<void> _save() async {
     if (_titleCtrl.text.trim().isEmpty) return;
     setState(() => _saving = true);
     try {
+      MultipartFile? videoMultipart;
+      if (_videoFile != null) {
+        videoMultipart = await MultipartFile.fromFile(
+          _videoFile!.path,
+          filename: _videoFile!.name,
+        );
+      }
       await ref.read(elearningServiceProvider).addLesson(
             sectionId: widget.sectionId,
             title: _titleCtrl.text.trim(),
             type: _type,
-            videoUrl: _videoUrlCtrl.text.trim(),
+            videoUrl: _videoUrlCtrl.text.trim().isEmpty ? null : _videoUrlCtrl.text.trim(),
             videoDurationSeconds: int.tryParse(_durationCtrl.text.trim()),
             content: _contentCtrl.text.trim(),
             isFreePreview: _freePreview,
+            videoFile: videoMultipart,
           );
       widget.onAdded();
       if (mounted) Navigator.pop(context);
@@ -395,14 +410,60 @@ class _AddLessonSheetState extends ConsumerState<_AddLessonSheet> {
                     DropdownMenuItem(value: 'assignment', child: Text('📋 Assignment')),
                     DropdownMenuItem(value: 'live', child: Text('🔴 Live Session')),
                   ],
-                  onChanged: (v) => setState(() => _type = v ?? 'video'),
+                  onChanged: (v) => setState(() { _type = v ?? 'video'; _videoFile = null; }),
                 ),
               ),
             ),
             const SizedBox(height: 12),
 
             if (isVideo) ...[
-              _field(_videoUrlCtrl, 'Video URL (YouTube / Vimeo / direct)'),
+              // Video: URL or file upload
+              _field(_videoUrlCtrl, 'Video URL (YouTube / Vimeo / direct link)'),
+              const SizedBox(height: 8),
+              const Center(child: Text('— OR —', style: TextStyle(color: Colors.grey, fontSize: 12))),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: _pickVideo,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: _videoFile != null
+                        ? Colors.green.withValues(alpha: 0.08)
+                        : const Color(0xFFF5F6FA),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _videoFile != null ? Colors.green : Colors.grey[300]!,
+                      style: BorderStyle.solid,
+                    ),
+                  ),
+                  child: Row(children: [
+                    Icon(
+                      _videoFile != null ? Icons.check_circle_rounded : Icons.video_library_rounded,
+                      color: _videoFile != null ? Colors.green : Colors.grey[500],
+                      size: 22,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _videoFile != null
+                            ? _videoFile!.name
+                            : 'Upload video from gallery',
+                        style: TextStyle(
+                          color: _videoFile != null ? Colors.green[700] : Colors.grey[600],
+                          fontWeight: _videoFile != null ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (_videoFile != null)
+                      GestureDetector(
+                        onTap: () => setState(() => _videoFile = null),
+                        child: Icon(Icons.close, size: 16, color: Colors.grey[400]),
+                      ),
+                  ]),
+                ),
+              ),
               const SizedBox(height: 12),
               _field(_durationCtrl, 'Duration in seconds (e.g. 600)', keyboardType: TextInputType.number),
               const SizedBox(height: 12),

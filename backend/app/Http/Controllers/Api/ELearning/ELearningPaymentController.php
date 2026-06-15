@@ -62,8 +62,13 @@ class ELearningPaymentController extends Controller
 
     public function verifyPurchase(Request $request)
     {
-        $request->validate(['course_id' => 'required|integer|exists:el_courses,id']);
+        $request->validate([
+            'course_id'         => 'required|integer|exists:el_courses,id',
+            'payment_method'    => 'nullable|in:wallet,waafi',
+            'payment_reference' => 'nullable|string',
+        ]);
         $userId = auth()->id();
+        $paymentMethod = $request->input('payment_method', 'wallet');
 
         $course = ELearningCourse::where('id', $request->course_id)
             ->where('status', 'published')
@@ -80,12 +85,32 @@ class ELearningPaymentController extends Controller
 
         DB::beginTransaction();
         try {
-            $wallet = Wallet::where('owner_id', $userId)
-                ->where('owner_type', 'App\\Models\\User')
-                ->firstOrFail();
-
-            // Use Wallet's debit() method — handles locking, balance check, and transaction log
-            $wallet->debit($price, 'Course purchase: ' . $course->title, 'elearning_course', $course->id);
+            if ($paymentMethod === 'waafi') {
+                // Verify Waafi transaction was successful
+                $ref = $request->input('payment_reference');
+                if (!$ref) {
+                    return response()->json(['status' => 'error', 'message' => 'Payment reference required for Waafi'], 422);
+                }
+                $ptx = DB::table('payment_transactions')
+                    ->where('reference', $ref)
+                    ->where('user_id', $userId)
+                    ->where('status', 'success')
+                    ->first();
+                if (!$ptx) {
+                    return response()->json(['status' => 'error', 'message' => 'Waafi payment not confirmed yet. Please wait and try again.'], 422);
+                }
+                if ((float)$ptx->amount < $price) {
+                    return response()->json(['status' => 'error', 'message' => 'Waafi payment amount does not match course price'], 422);
+                }
+                // Mark transaction as used
+                DB::table('payment_transactions')->where('id', $ptx->id)->update(['status' => 'used', 'updated_at' => now()]);
+            } else {
+                // Wallet payment
+                $wallet = Wallet::where('owner_id', $userId)
+                    ->where('owner_type', 'App\\Models\\User')
+                    ->firstOrFail();
+                $wallet->debit($price, 'Course purchase: ' . $course->title, 'elearning_course', $course->id);
+            }
 
             // Create enrollment
             $enrollment = ELearningEnrollment::create([

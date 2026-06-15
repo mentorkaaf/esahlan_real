@@ -308,6 +308,7 @@ class ELearningInstructorApiController extends Controller
             'title'                   => 'required|string|max:255',
             'type'                    => 'required|in:video,pdf,document,quiz,assignment,live',
             'video_url'               => 'nullable|string',
+            'video_file'              => 'nullable|file|mimes:mp4,mov,avi,webm|max:512000',
             'video_duration_seconds'  => 'nullable|integer|min:0',
             'content'                 => 'nullable|string',
             'is_free_preview'         => 'boolean',
@@ -322,7 +323,10 @@ class ELearningInstructorApiController extends Controller
         $lessonData = $request->only(['section_id','title','type','video_url','video_duration_seconds','content','is_free_preview','sort_order']);
         $lessonData['course_id'] = $course->id;
 
-        if ($request->hasFile('file')) {
+        if ($request->hasFile('video_file')) {
+            $path = $request->file('video_file')->store('elearning/videos', 'public');
+            $lessonData['video_url'] = asset('storage/' . $path);
+        } elseif ($request->hasFile('file')) {
             $lessonData['file_path'] = $request->file('file')->store('elearning/lessons', 'public');
         }
 

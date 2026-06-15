@@ -159,8 +159,23 @@ class ELearningApiService {
     return await _post('$_base/purchase', {'course_id': courseId});
   }
 
-  Future<Map<String, dynamic>> verifyPurchase(int courseId) async {
-    return await _post('$_base/purchase/verify', {'course_id': courseId});
+  Future<Map<String, dynamic>> verifyPurchase(int courseId,
+      {String paymentMethod = 'wallet', String? paymentReference}) async {
+    return await _post('$_base/purchase/verify', {
+      'course_id': courseId,
+      'payment_method': paymentMethod,
+      if (paymentReference != null) 'payment_reference': paymentReference,
+    });
+  }
+
+  Future<Map<String, dynamic>> initiateWaafiPayment(
+      {required double amount, required String phone}) async {
+    return await _post('/payment/initiate', {
+      'amount': amount,
+      'phone': phone,
+      'type': 'custom',
+      'description': 'eLearning course purchase',
+    });
   }
 
   // ── Instructor (self) ──────────────────────────────────────────────────────────
@@ -262,17 +277,21 @@ class ELearningApiService {
     String? content,
     bool isFreePreview = false,
     int? sortOrder,
+    MultipartFile? videoFile,
   }) async {
-    return await _post('$_base/instructor/lessons', {
-      'section_id':              sectionId,
-      'title':                   title,
-      'type':                    type,
+    final data = FormData.fromMap({
+      'section_id':    sectionId,
+      'title':         title,
+      'type':          type,
       if (videoUrl != null && videoUrl.isNotEmpty) 'video_url': videoUrl,
       if (videoDurationSeconds != null) 'video_duration_seconds': videoDurationSeconds,
       if (content != null && content.isNotEmpty) 'content': content,
-      'is_free_preview':         isFreePreview ? 1 : 0,
+      'is_free_preview': isFreePreview ? 1 : 0,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (videoFile != null) 'video_file': videoFile,
     });
+    final r = await _dio.post('$_base/instructor/lessons', data: data);
+    return r.data as Map<String, dynamic>;
   }
 
   /// Submit a draft course for admin review (status -> pending).
