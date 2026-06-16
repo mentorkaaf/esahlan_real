@@ -107,15 +107,7 @@ class _ChatTile extends StatelessWidget {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Stack(children: [
-        CircleAvatar(
-          radius: 26,
-          backgroundColor: const Color(0xFFF0F2F5),
-          backgroundImage: other?.avatar != null ? NetworkImage(other!.avatar!) : null,
-          child: other?.avatar == null
-              ? Text(other?.name[0].toUpperCase() ?? '?',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))
-              : null,
-        ),
+        CircleNetImage(url: other?.avatar, size: 52, fallbackText: other?.name),
         Positioned(
           right: 0, bottom: 0,
           child: Container(

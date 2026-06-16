@@ -175,17 +175,7 @@ class _NotifTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
           Stack(clipBehavior: Clip.none, children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: const Color(0xFFF0F2F5),
-              backgroundImage: notif.actor?.avatar != null
-                  ? NetworkImage(notif.actor!.avatar!)
-                  : null,
-              child: notif.actor?.avatar == null
-                  ? Text(notif.actor?.name[0].toUpperCase() ?? '?',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
-                  : null,
-            ),
+            CircleNetImage(url: notif.actor?.avatar, size: 48, fallbackText: notif.actor?.name),
             Positioned(
               bottom: -3, right: -3,
               child: Container(

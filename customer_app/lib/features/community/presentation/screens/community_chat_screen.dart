@@ -72,15 +72,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: const Color(0xFFF0F2F5),
-            backgroundImage: other?.avatar != null ? NetworkImage(other!.avatar!) : null,
-            child: other?.avatar == null
-                ? Text(other?.name[0].toUpperCase() ?? '?',
-                    style: const TextStyle(fontWeight: FontWeight.bold))
-                : null,
-          ),
+          CircleNetImage(url: other?.avatar, size: 36, fallbackText: other?.name),
           const SizedBox(width: 10),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
@@ -109,15 +101,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
               if (msgs.isEmpty) {
                 return Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    CircleAvatar(
-                      radius: 36,
-                      backgroundColor: const Color(0xFFF0F2F5),
-                      backgroundImage: other?.avatar != null ? NetworkImage(other!.avatar!) : null,
-                      child: other?.avatar == null
-                          ? Text(other?.name[0].toUpperCase() ?? '?',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24))
-                          : null,
-                    ),
+                    CircleNetImage(url: other?.avatar, size: 72, fallbackText: other?.name),
                     const SizedBox(height: 12),
                     Text(other?.name ?? '',
                         style: const TextStyle(color: Color(0xFF1A1B2E), fontWeight: FontWeight.w700, fontSize: 16)),
@@ -203,15 +187,7 @@ class _MessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
-            CircleAvatar(
-              radius: 14,
-              backgroundColor: const Color(0xFFF0F2F5),
-              backgroundImage: msg.user?.avatar != null ? NetworkImage(msg.user!.avatar!) : null,
-              child: msg.user?.avatar == null
-                  ? Text(msg.user?.name[0].toUpperCase() ?? '?',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold))
-                  : null,
-            ),
+            CircleNetImage(url: msg.user?.avatar, size: 28, fallbackText: msg.user?.name),
             const SizedBox(width: 8),
           ],
           Flexible(

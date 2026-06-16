@@ -188,14 +188,10 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white, width: 4),
                             ),
-                            child: CircleAvatar(
-                              radius: 44,
-                              backgroundColor: const Color(0xFFE5E7EB),
-                              backgroundImage: (_localAvatar ?? u.avatar) != null ? NetworkImage(_localAvatar ?? u.avatar!) : null,
-                              child: (_localAvatar ?? u.avatar) == null
-                                  ? Text(u.name[0].toUpperCase(),
-                                      style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Color(0xFF6B7280)))
-                                  : null,
+                            child: CircleNetImage(
+                              url: _localAvatar ?? u.avatar,
+                              size: 88,
+                              fallbackText: u.name,
                             ),
                           ),
                           if (widget.isMe)

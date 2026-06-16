@@ -141,15 +141,7 @@ class _PersonCard extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.all(2),
               decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-              child: CircleAvatar(
-                radius: 28,
-                backgroundColor: const Color(0xFFF0F2F5),
-                backgroundImage: user.avatar != null ? NetworkImage(user.avatar!) : null,
-                child: user.avatar == null
-                    ? Text(user.name[0].toUpperCase(),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20))
-                    : null,
-              ),
+              child: CircleNetImage(url: user.avatar, size: 56, fallbackText: user.name),
             ),
           ),
           const SizedBox(height: 6),
@@ -174,15 +166,7 @@ class _MiniPostCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: const Color(0xFFF0F2F5),
-            backgroundImage: post.user.avatar != null ? NetworkImage(post.user.avatar!) : null,
-            child: post.user.avatar == null
-                ? Text(post.user.name[0].toUpperCase(),
-                    style: const TextStyle(fontWeight: FontWeight.bold))
-                : null,
-          ),
+          CircleNetImage(url: post.user.avatar, size: 36, fallbackText: post.user.name),
           const SizedBox(width: 8),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
