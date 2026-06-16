@@ -40,7 +40,7 @@ class FcmService
                 'android' => [
                     'priority'     => 'high',
                     'notification' => array_filter([
-                        'channel_id' => 'esahlan_orders',
+                        'channel_id' => 'esahlan_high_v3',
                         'sound'      => 'default',
                         'color'      => '#140465',
                         'image'      => $imageUrl,

@@ -51,6 +51,13 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _setupNotifications();
+    // Ask for notification permission after first frame
+    // (must run after runApp so Android dialog can appear)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) FirebaseService().requestPermissionIfNeeded();
+      });
+    });
   }
 
   @override
