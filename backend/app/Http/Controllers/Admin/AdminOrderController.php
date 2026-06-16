@@ -151,6 +151,7 @@ class AdminOrderController extends Controller
                     $order->order_number,
                     $request->status,
                     $order->id,
+                    $order->module_slug,
                 );
             } catch (\Throwable $e) {
                 // Never block the response on FCM failure
@@ -194,6 +195,7 @@ class AdminOrderController extends Controller
                     $order->order_number,
                     'out_for_delivery',
                     $order->id,
+                    $order->module_slug,
                 );
             } catch (\Throwable $e) {
                 \Log::warning('[FCM] Assign notification failed: ' . $e->getMessage());
@@ -305,7 +307,7 @@ class AdminOrderController extends Controller
         foreach ($orders as $order) {
             if ($order->user?->fcm_token) {
                 try {
-                    FcmService::sendOrderUpdate($order->user->fcm_token, $order->order_number ?? '#'.$order->id, $request->status, $order->id);
+                    FcmService::sendOrderUpdate($order->user->fcm_token, $order->order_number ?? '#'.$order->id, $request->status, $order->id, $order->module_slug);
                 } catch (\Throwable $e) {}
             }
         }

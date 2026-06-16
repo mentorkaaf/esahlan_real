@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\PushNotificationLog;
+use App\Models\OrderNotificationTemplate;
 use App\Services\Notification\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -21,6 +22,55 @@ class AdminNotificationController extends Controller
             'with_token' => User::whereNotNull('fcm_token')->count(),
         ];
         return view('admin.notifications.index', compact('logs', 'stats'));
+    }
+
+    // ── Order Status Notification Templates ───────────────────────────────────
+
+    public function templates(Request $request)
+    {
+        $moduleSlug = $request->get('module'); // null = global
+        $statuses   = ['pending','confirmed','preparing','ready_for_pickup','out_for_delivery','delivered','cancelled','refunded','failed'];
+
+        // Get all templates for this module (or global)
+        $existing = OrderNotificationTemplate::where('module_slug', $moduleSlug ?: null)
+            ->get()->keyBy('status');
+
+        // Also get global defaults for display when module has no override
+        $globals = OrderNotificationTemplate::whereNull('module_slug')
+            ->get()->keyBy('status');
+
+        $modules = \App\Models\Module::orderBy('name')->get(['slug','name']);
+
+        return view('admin.notifications.templates', compact('statuses','existing','globals','modules','moduleSlug'));
+    }
+
+    public function saveTemplates(Request $request)
+    {
+        $moduleSlug = $request->input('module_slug') ?: null;
+        $statuses   = ['pending','confirmed','preparing','ready_for_pickup','out_for_delivery','delivered','cancelled','refunded','failed'];
+
+        foreach ($statuses as $status) {
+            $title = trim($request->input("title_{$status}", ''));
+            $body  = trim($request->input("body_{$status}", ''));
+
+            if ($title === '' && $body === '') {
+                // Delete override for this status (revert to global)
+                OrderNotificationTemplate::where('module_slug', $moduleSlug)
+                    ->where('status', $status)->delete();
+                continue;
+            }
+
+            OrderNotificationTemplate::updateOrCreate(
+                ['module_slug' => $moduleSlug, 'status' => $status],
+                ['title' => $title, 'body' => $body]
+            );
+        }
+
+        // Clear cache for this module
+        OrderNotificationTemplate::clearCache($moduleSlug);
+
+        $label = $moduleSlug ? ucfirst($moduleSlug) : 'Global';
+        return back()->with('success', "{$label} notification templates saved.");
     }
 
     public function send(Request $request)

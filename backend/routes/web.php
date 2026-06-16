@@ -249,6 +249,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('/{id}', [AdminNotificationController::class, 'destroy'])->name('destroy');
             Route::delete('/', [AdminNotificationController::class, 'bulkDestroy'])->name('bulk-destroy');
             Route::get('/users/search', [AdminNotificationController::class, 'searchUsers'])->name('users.search');
+            Route::get('/templates', [AdminNotificationController::class, 'templates'])->name('templates');
+            Route::post('/templates', [AdminNotificationController::class, 'saveTemplates'])->name('templates.save');
         });
 
         // Settings

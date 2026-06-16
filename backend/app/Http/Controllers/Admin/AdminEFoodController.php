@@ -704,7 +704,7 @@ class AdminEFoodController extends Controller
             ]);
         } catch (\Throwable $e) { /* non-critical */ }
 
-        try{$order->load('user');if($order->user?->fcm_token)FcmService::sendOrderUpdate($order->user->fcm_token,$order->order_number??'#'.$order->id,$request->status,$order->id);}catch(\Throwable $er){}
+        try{$order->load('user');if($order->user?->fcm_token)FcmService::sendOrderUpdate($order->user->fcm_token,$order->order_number??'#'.$order->id,$request->status,$order->id,$order->module_slug);}catch(\Throwable $er){}
         return back()->with('success', 'Order status updated!');
     }
 }
