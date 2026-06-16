@@ -1,3 +1,27 @@
+<IfModule mod_headers.c>
+    # ── CORS for the image/media proxy (/api/img/... and /api/v1/img/...) ─────────
+    # These URLs are rewritten to index.php, so a FilesMatch on the file extension
+    # never matches them. Match the URL instead and force the headers at the server
+    # level so they survive regardless of what PHP/Laravel emits or caches. Wildcard
+    # origin is used (images need no credentials); any credentials header is stripped
+    # so the wildcard stays valid for cross-origin XHR (Flutter Web CanvasKit).
+    SetEnvIf Request_URI "/api/(v1/)?img/" ESAHLAN_MEDIA=1
+    Header always unset Access-Control-Allow-Origin           env=ESAHLAN_MEDIA
+    Header always set   Access-Control-Allow-Origin      "*"  env=ESAHLAN_MEDIA
+    Header always set   Access-Control-Allow-Methods     "GET, OPTIONS" env=ESAHLAN_MEDIA
+    Header always set   Access-Control-Allow-Headers     "Origin, Accept, Content-Type, Range" env=ESAHLAN_MEDIA
+    Header always set   Access-Control-Expose-Headers    "Content-Length, Content-Range, Accept-Ranges" env=ESAHLAN_MEDIA
+    Header always unset Access-Control-Allow-Credentials      env=ESAHLAN_MEDIA
+    Header always set   Cross-Origin-Resource-Policy "cross-origin" env=ESAHLAN_MEDIA
+
+    # ── CORS for static media served directly from disk (/storage/...) ────────────
+    <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico|mp4|webm|mov|mp3|pdf|woff|woff2|ttf|eot)$">
+        Header always set Access-Control-Allow-Origin "*"
+        Header always set Access-Control-Allow-Methods "GET, OPTIONS"
+        Header always set Access-Control-Allow-Headers "Origin, Accept, Content-Type, Range"
+    </FilesMatch>
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

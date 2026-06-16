@@ -29,13 +29,12 @@
 
     RewriteEngine On
 
-    # Handle Authorization Header
+    # Handle Authorization Header (important for API Bearer tokens)
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Route /vendor path to Laravel (prevents Composer vendor dir 403)
-    RewriteCond %{REQUEST_URI} ^/vendor(/.*)?$
-    RewriteRule ^ index.php [L]
+    # Force vendor panel routes through Laravel (physical vendor/ directory must not block these)
+    RewriteRule ^vendor(/.*)?$ index.php [L]
 
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
