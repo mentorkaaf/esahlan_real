@@ -66,70 +66,17 @@ Route::options('img/{path}', function () {
 })->where('path', '.*');
 
 // Keep old path for backwards compat, but the v1 path (below) is canonical.
-Route::get('img/{path}', function (\Illuminate\Http\Request $request, string $path) {
-    $realPath = storage_path('app/public/' . $path);
-    if (!file_exists($realPath) || is_dir($realPath)) {
-        abort(404);
-    }
-    $ext  = strtolower(pathinfo($realPath, PATHINFO_EXTENSION));
-    $mime = match($ext) {
-        'jpg', 'jpeg' => 'image/jpeg',
-        'png'         => 'image/png',
-        'gif'         => 'image/gif',
-        'webp'        => 'image/webp',
-        'svg'         => 'image/svg+xml',
-        'mp4'         => 'video/mp4',
-        'webm'        => 'video/webm',
-        'mov'         => 'video/quicktime',
-        'ogg'         => 'video/ogg',
-        default       => 'application/octet-stream',
-    };
-
-    $headers = [
-        'Content-Type'                 => $mime,
-        'Access-Control-Allow-Origin'  => '*',
-        'Access-Control-Allow-Headers' => 'Range, Content-Type',
-        'Access-Control-Expose-Headers'=> 'Content-Range, Accept-Ranges, Content-Length',
-        'Accept-Ranges'                => 'bytes',
-        'Cache-Control'                => 'no-cache, private',
-    ];
-
-    // response()->file() handles Range/206 automatically in Laravel
-    return response()->file($realPath, $headers);
-})->where('path', '.*');
+// Streams via PHP (see proxy_storage_file) so CORS headers survive on LiteSpeed.
+Route::get('img/{path}', fn (string $path) => proxy_storage_file($path))
+    ->where('path', '.*');
 
 Route::prefix('v1')->group(function () {
 
-    // Image proxy under v1 prefix — CDN treats /api/v1/* as DYNAMIC (no caching),
-    // so CORS headers pass through. The /api/img/ path above gets cached and strips them.
-    Route::get('img/{path}', function (\Illuminate\Http\Request $request, string $path) {
-        $realPath = storage_path('app/public/' . $path);
-        if (!file_exists($realPath) || is_dir($realPath)) {
-            abort(404);
-        }
-        $ext  = strtolower(pathinfo($realPath, PATHINFO_EXTENSION));
-        $mime = match($ext) {
-            'jpg', 'jpeg' => 'image/jpeg',
-            'png'         => 'image/png',
-            'gif'         => 'image/gif',
-            'webp'        => 'image/webp',
-            'svg'         => 'image/svg+xml',
-            'mp4'         => 'video/mp4',
-            'webm'        => 'video/webm',
-            'mov'         => 'video/quicktime',
-            'ogg'         => 'video/ogg',
-            default       => 'application/octet-stream',
-        };
-        $headers = [
-            'Content-Type'                 => $mime,
-            'Access-Control-Allow-Origin'  => '*',
-            'Access-Control-Allow-Headers' => 'Range, Content-Type',
-            'Access-Control-Expose-Headers'=> 'Content-Range, Accept-Ranges, Content-Length',
-            'Accept-Ranges'                => 'bytes',
-            'Cache-Control'                => 'no-cache, private',
-        ];
-        return response()->file($realPath, $headers);
-    })->where('path', '.*');
+    // Image/media proxy. Streams via PHP (proxy_storage_file) so the CORS headers
+    // are actually emitted on 200 responses — response()->file() would trigger the
+    // LiteSpeed sendfile path and the headers would never reach Flutter Web.
+    Route::get('img/{path}', fn (string $path) => proxy_storage_file($path))
+        ->where('path', '.*');
 
     // ═══════════════════════════════════════════════════════════════
     // PUBLIC ROUTES
