@@ -53,6 +53,11 @@ tbody tr.selected td{background:rgba(255,138,0,.04);}
 
 {{-- Bulk Bar --}}
 <div class="bulk-bar" id="bulkBar">
+    <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap;">
+        <input type="checkbox" id="selectAllGlobal" onchange="globalToggleAll(this)" style="width:15px;height:15px;cursor:pointer;">
+        All
+    </label>
+    <div class="bulk-sep"></div>
     <div class="bulk-count"><span id="bulkCount">0</span> selected</div>
     <div class="bulk-sep"></div>
     <select class="bulk-status-sel" id="bulkStatusSel">
@@ -129,15 +134,8 @@ function orderBadge($status) {
 @if($moduleGroups)
 
 @php
-$knownSlugs = array_keys($moduleMeta);
-// Sort groups: known modules first in defined order, then unknowns
-$sortedGroups = collect();
-foreach ($knownSlugs as $slug) {
-    if ($moduleGroups->has($slug)) $sortedGroups->put($slug, $moduleGroups->get($slug));
-}
-foreach ($moduleGroups as $slug => $grpOrders) {
-    if (!in_array($slug, $knownSlugs)) $sortedGroups->put($slug, $grpOrders);
-}
+// Sort module groups by the most recent order's created_at (newest module first)
+$sortedGroups = $moduleGroups->sortByDesc(fn($grp) => $grp->max('created_at'));
 @endphp
 
 @foreach($sortedGroups as $slug => $grpOrders)
@@ -472,9 +470,15 @@ document.querySelectorAll('.select-all-module').forEach(sa => {
 });
 document.querySelectorAll('.order-cb').forEach(cb => cb.addEventListener('change', updateBar));
 
+function globalToggleAll(el) {
+    document.querySelectorAll('.order-cb').forEach(cb => cb.checked = el.checked);
+    document.querySelectorAll('.select-all-module').forEach(sa => sa.checked = el.checked);
+    updateBar();
+}
 function clearSelection() {
-    document.querySelectorAll('.order-cb').forEach(cb => cb.checked = false);
-    document.querySelectorAll('.select-all-module').forEach(sa => sa.checked = false);
+    document.querySelectorAll('.order-cb, .select-all-module').forEach(cb => cb.checked = false);
+    const ga = document.getElementById('selectAllGlobal');
+    if (ga) ga.checked = false;
     updateBar();
 }
 function bulkApply() {
