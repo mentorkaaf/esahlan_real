@@ -70,6 +70,68 @@ if (!function_exists('asset_url')) {
     }
 }
 
+if (!function_exists('resized_image_variant')) {
+    /**
+     * Return the path to a width-downscaled copy of an image, generating and caching
+     * it on first request. Returns null to signal "serve the original" (GD missing,
+     * unreadable, or source already small enough).
+     *
+     * Cached at storage/app/public/_thumbs/{w}/{original-path}.
+     */
+    function resized_image_variant(string $src, string $relPath, string $ext, int $w): ?string
+    {
+        // Clamp + bucket the width so we don't generate endless variants and to
+        // maximise cache hits (round up to the nearest 100, cap at 1600).
+        $w = (int) min(1600, max(80, ceil($w / 100) * 100));
+
+        if (!function_exists('imagecreatetruecolor') || !function_exists('getimagesize')) {
+            return null; // GD not available — serve original.
+        }
+
+        $info = @getimagesize($src);
+        if ($info === false || empty($info[0])) return null;
+        [$ow, $oh] = $info;
+        if ($ow <= $w) return null; // already small enough — serve original.
+
+        $cachePath = storage_path('app/public/_thumbs/' . $w . '/' . $relPath);
+        if (is_file($cachePath) && filemtime($cachePath) >= filemtime($src)) {
+            return $cachePath; // fresh cached variant.
+        }
+
+        $srcImg = match ($ext) {
+            'jpg', 'jpeg' => @imagecreatefromjpeg($src),
+            'png'         => @imagecreatefrompng($src),
+            'webp'        => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($src) : null,
+            default       => null,
+        };
+        if (!$srcImg) return null;
+
+        $nh  = (int) max(1, round($oh * ($w / $ow)));
+        $dst = imagecreatetruecolor($w, $nh);
+
+        if (in_array($ext, ['png', 'webp'], true)) {
+            imagealphablending($dst, false);
+            imagesavealpha($dst, true);
+        }
+        imagecopyresampled($dst, $srcImg, 0, 0, 0, 0, $w, $nh, $ow, $oh);
+
+        if (!is_dir(dirname($cachePath))) {
+            @mkdir(dirname($cachePath), 0775, true);
+        }
+
+        $ok = match ($ext) {
+            'png'  => imagepng($dst, $cachePath, 6),
+            'webp' => function_exists('imagewebp') ? imagewebp($dst, $cachePath, 82) : imagejpeg($dst, $cachePath, 82),
+            default => imagejpeg($dst, $cachePath, 82),
+        };
+
+        imagedestroy($srcImg);
+        imagedestroy($dst);
+
+        return ($ok && is_file($cachePath)) ? $cachePath : null;
+    }
+}
+
 if (!function_exists('proxy_storage_file')) {
     /**
      * Stream a public-storage file through PHP with CORS headers.
@@ -90,7 +152,20 @@ if (!function_exists('proxy_storage_file')) {
             abort(404);
         }
 
-        $ext  = strtolower(pathinfo($realPath, PATHINFO_EXTENSION));
+        $ext = strtolower(pathinfo($realPath, PATHINFO_EXTENSION));
+
+        // On-the-fly downscale for raster images (?w=). Generates a smaller variant
+        // once, caches it on disk, and serves that — so a 1.7 MB banner becomes a
+        // ~50 KB thumbnail. Falls back to the original if GD is missing or the source
+        // is already small enough.
+        $w = (int) request()->query('w', 0);
+        if ($w > 0 && in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+            $variant = resized_image_variant($realPath, $path, $ext, $w);
+            if ($variant !== null) {
+                $realPath = $variant;
+            }
+        }
+
         $mime = match ($ext) {
             'jpg', 'jpeg' => 'image/jpeg',
             'png'         => 'image/png',
@@ -115,12 +190,12 @@ if (!function_exists('proxy_storage_file')) {
             'Access-Control-Expose-Headers' => 'Content-Length, Content-Range, Accept-Ranges',
             'Cross-Origin-Resource-Policy'  => 'cross-origin',
             'Accept-Ranges'                 => 'bytes',
-            // MUST stay uncacheable: the Hostinger CDN (hcdn) caches image-extension
-            // URLs as static assets and strips the per-origin CORS headers in the
-            // process. Keeping it private/no-store makes the CDN treat it as DYNAMIC
-            // (pass-through), so the CORS headers from HandleCors reach the browser.
-            'Cache-Control'                 => 'no-store, no-cache, must-revalidate, private',
-            'Pragma'                        => 'no-cache',
+            // `private` keeps the Hostinger CDN (a shared cache) OUT — it must not
+            // cache+strip the per-origin CORS headers — while still letting the
+            // BROWSER cache the bytes for a week. That makes repeat image loads
+            // instant without the CDN ever touching CORS. (The /api/v1/media path has
+            // no file extension, so the CDN already treats it as DYNAMIC.)
+            'Cache-Control'                 => 'private, max-age=604800, immutable',
         ];
 
         $start  = 0;
