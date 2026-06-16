@@ -63,4 +63,12 @@ class AdminExchangeController extends Controller
         \Illuminate\Support\Facades\DB::table('exchange_orders')->where('id', $id)->delete();
         return back()->with('success', 'Exchange order deleted.');
     }
+
+    public function bulkDestroy(\Illuminate\Http\Request $request)
+    {
+        $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
+        if (empty($ids)) return back()->with('error', 'No orders selected.');
+        \Illuminate\Support\Facades\DB::table('exchange_orders')->whereIn('id', $ids)->delete();
+        return back()->with('success', count($ids) . ' exchange order(s) deleted.');
+    }
 }

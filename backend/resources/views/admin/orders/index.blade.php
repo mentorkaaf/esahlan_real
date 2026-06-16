@@ -338,78 +338,117 @@ $count = $grpOrders->count();
         </a>
     </div>
 
-    <div class="section-card">
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Reference</th>
-                        <th>Customer</th>
-                        <th>Exchange</th>
-                        <th>Sent</th>
-                        <th>Fee</th>
-                        <th>Received</th>
-                        <th>Recipient Phone</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($exchangeOrders as $ex)
-                    @php
-                        $exBadge=['pending'=>'badge-warning','processing'=>'badge-info','completed'=>'badge-success','failed'=>'badge-danger'][$ex->status]??'badge-secondary';
-                        $wc=['EVC'=>'#e74c3c','EDAHAB'=>'#27ae60','JEEP'=>'#2980b9','PREMIER'=>'#8e44ad'];
-                        $fc=$wc[$ex->from_wallet]??'#64748b';
-                        $tc=$wc[$ex->to_wallet]??'#64748b';
-                    @endphp
-                    <tr>
-                        <td style="font-weight:700;font-size:13px;font-family:monospace;color:var(--navy);">{{ $ex->reference }}</td>
-                        <td>
-                            <div style="display:flex;align-items:center;gap:8px;">
-                                <div class="avatar avatar-sm" style="background:rgba(59,130,246,.15);color:#3b82f6;font-weight:700;">{{ strtoupper(substr($ex->user_name,0,1)) }}</div>
-                                <div>
-                                    <div style="font-weight:600;font-size:13px;">{{ $ex->user_name }}</div>
-                                    <div style="font-size:11px;color:var(--text-muted);">{{ $ex->user_phone }}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>
-                            <div style="display:flex;align-items:center;gap:6px;">
-                                <span style="background:{{ $fc }}18;color:{{ $fc }};border:1px solid {{ $fc }}30;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;">{{ $ex->from_wallet }}</span>
-                                <i class="fas fa-arrow-right" style="color:var(--text-muted);font-size:10px;"></i>
-                                <span style="background:{{ $tc }}18;color:{{ $tc }};border:1px solid {{ $tc }}30;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;">{{ $ex->to_wallet }}</span>
-                            </div>
-                        </td>
-                        <td style="font-weight:700;">${{ number_format($ex->sent_amount,2) }}</td>
-                        <td style="color:#ef4444;font-weight:600;">-${{ number_format($ex->fee_amount,2) }}</td>
-                        <td style="color:#10b981;font-weight:700;">${{ number_format($ex->converted_amount,2) }}</td>
-                        <td style="font-size:12.5px;font-weight:600;">
-                            <i class="fas fa-phone" style="color:var(--text-muted);font-size:10px;margin-right:4px;"></i>{{ $ex->recipient_phone }}
-                        </td>
-                        <td><span class="badge {{ $exBadge }}">{{ ucfirst($ex->status) }}</span></td>
-                        <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">
-                            {{ \Carbon\Carbon::parse($ex->created_at)->timezone('Africa/Mogadishu')->format('d M') }}<br>
-                            <span style="font-size:11px;">{{ \Carbon\Carbon::parse($ex->created_at)->timezone('Africa/Mogadishu')->format('H:i') }}</span>
-                        </td>
-                        <td style="display:flex;gap:6px;align-items:center;">
-                            <a href="{{ route('admin.exchange.show',$ex->id) }}" class="btn btn-outline btn-xs">
-                                <i class="fas fa-eye"></i> View
-                            </a>
-                            <form method="POST" action="{{ route('admin.exchange.destroy',$ex->id) }}" onsubmit="return confirm('Delete this exchange order?')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="btn btn-xs" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
+    {{-- Bulk-delete bar --}}
+    <div id="excBulkBar" style="display:none;align-items:center;gap:10px;background:var(--navy);color:#fff;
+        padding:10px 16px;border-radius:10px;margin-bottom:8px;">
+        <span style="font-weight:700;font-size:13px;">
+            <span id="excBulkCount" style="background:var(--brand);color:#fff;padding:2px 9px;border-radius:20px;margin-right:6px;">0</span> selected
+        </span>
+        <button onclick="excBulkDelete()" style="padding:7px 14px;border-radius:8px;border:1.5px solid rgba(239,68,68,.5);
+            background:rgba(239,68,68,.15);color:#fca5a5;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+            <i class="fas fa-trash"></i> Delete Selected
+        </button>
+        <button onclick="excClearSelection()" style="margin-left:auto;padding:5px 12px;border-radius:8px;
+            border:1.5px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.5);font-size:12px;cursor:pointer;">
+            <i class="fas fa-times"></i> Cancel
+        </button>
     </div>
+
+    <form id="excBulkForm" method="POST" action="{{ route('admin.exchange.bulk-destroy') }}">
+        @csrf
+        <div class="section-card">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:36px;"><input type="checkbox" id="excSelectAll" onchange="excToggleAll(this)"></th>
+                            <th>Reference</th>
+                            <th>Customer</th>
+                            <th>Exchange</th>
+                            <th>Sent</th>
+                            <th>Fee</th>
+                            <th>Received</th>
+                            <th>Recipient Phone</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($exchangeOrders as $ex)
+                        @php
+                            $exBadge=['pending'=>'badge-warning','processing'=>'badge-info','completed'=>'badge-success','failed'=>'badge-danger'][$ex->status]??'badge-secondary';
+                            $wc=['EVC'=>'#e74c3c','EDAHAB'=>'#27ae60','JEEP'=>'#2980b9','PREMIER'=>'#8e44ad'];
+                            $fc=$wc[$ex->from_wallet]??'#64748b';
+                            $tc=$wc[$ex->to_wallet]??'#64748b';
+                        @endphp
+                        <tr>
+                            <td><input type="checkbox" name="ids[]" value="{{ $ex->id }}" class="exc-cb" onchange="excUpdateBar()"></td>
+                            <td style="font-weight:700;font-size:13px;font-family:monospace;color:var(--navy);">{{ $ex->reference }}</td>
+                            <td>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <div class="avatar avatar-sm" style="background:rgba(59,130,246,.15);color:#3b82f6;font-weight:700;">{{ strtoupper(substr($ex->user_name,0,1)) }}</div>
+                                    <div>
+                                        <div style="font-weight:600;font-size:13px;">{{ $ex->user_name }}</div>
+                                        <div style="font-size:11px;color:var(--text-muted);">{{ $ex->user_phone }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <span style="background:{{ $fc }}18;color:{{ $fc }};border:1px solid {{ $fc }}30;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;">{{ $ex->from_wallet }}</span>
+                                    <i class="fas fa-arrow-right" style="color:var(--text-muted);font-size:10px;"></i>
+                                    <span style="background:{{ $tc }}18;color:{{ $tc }};border:1px solid {{ $tc }}30;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;">{{ $ex->to_wallet }}</span>
+                                </div>
+                            </td>
+                            <td style="font-weight:700;">${{ number_format($ex->sent_amount,2) }}</td>
+                            <td style="color:#ef4444;font-weight:600;">-${{ number_format($ex->fee_amount,2) }}</td>
+                            <td style="color:#10b981;font-weight:700;">${{ number_format($ex->converted_amount,2) }}</td>
+                            <td style="font-size:12.5px;font-weight:600;">
+                                <i class="fas fa-phone" style="color:var(--text-muted);font-size:10px;margin-right:4px;"></i>{{ $ex->recipient_phone }}
+                            </td>
+                            <td><span class="badge {{ $exBadge }}">{{ ucfirst($ex->status) }}</span></td>
+                            <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">
+                                {{ \Carbon\Carbon::parse($ex->created_at)->timezone('Africa/Mogadishu')->format('d M') }}<br>
+                                <span style="font-size:11px;">{{ \Carbon\Carbon::parse($ex->created_at)->timezone('Africa/Mogadishu')->format('H:i') }}</span>
+                            </td>
+                            <td>
+                                <a href="{{ route('admin.exchange.show',$ex->id) }}" class="btn btn-outline btn-xs">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </form>
 </div>
+
+<script>
+function excUpdateBar() {
+    const cbs  = document.querySelectorAll('.exc-cb:checked');
+    const bar  = document.getElementById('excBulkBar');
+    const cnt  = document.getElementById('excBulkCount');
+    cnt.textContent = cbs.length;
+    bar.style.display = cbs.length > 0 ? 'flex' : 'none';
+}
+function excToggleAll(el) {
+    document.querySelectorAll('.exc-cb').forEach(cb => cb.checked = el.checked);
+    excUpdateBar();
+}
+function excClearSelection() {
+    document.querySelectorAll('.exc-cb, #excSelectAll').forEach(cb => cb.checked = false);
+    excUpdateBar();
+}
+function excBulkDelete() {
+    const n = document.querySelectorAll('.exc-cb:checked').length;
+    if (!n) return;
+    if (!confirm('Delete ' + n + ' exchange order(s)?')) return;
+    document.getElementById('excBulkForm').submit();
+}
+</script>
 @endif
 
 @push('scripts')

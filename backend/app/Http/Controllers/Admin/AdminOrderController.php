@@ -215,6 +215,27 @@ class AdminOrderController extends Controller
             'url'          => route('admin.orders.show', $o->id),
         ]);
 
+        // Include exchange orders (not in orders table) — full admins only
+        $exchange = [];
+        if (!$user->isEmployee()) {
+            $exchange = \DB::table('exchange_orders')
+                ->join('users', 'users.id', '=', 'exchange_orders.user_id')
+                ->select('exchange_orders.id', 'exchange_orders.created_at', 'exchange_orders.sent_amount',
+                         'exchange_orders.from_wallet', 'exchange_orders.to_wallet', 'exchange_orders.reference',
+                         'users.name as user_name')
+                ->where('exchange_orders.created_at', '>', $sinceDate)
+                ->orderByDesc('exchange_orders.created_at')
+                ->limit(10)->get()
+                ->map(fn($e) => [
+                    'id'           => 'exc_' . $e->id,
+                    'order_number' => $e->reference,
+                    'module'       => 'eexchange',
+                    'customer'     => $e->user_name ?? 'Customer',
+                    'total'        => number_format($e->sent_amount ?? 0, 2),
+                    'url'          => route('admin.exchange.show', $e->id),
+                ])->all();
+        }
+
         // Include eLearning enrollments (not in orders table) — full admins only
         $elearning = [];
         if (!$user->isEmployee()) {
@@ -236,7 +257,7 @@ class AdminOrderController extends Controller
                 ])->all();
         }
 
-        $all = $orders->concat($elearning)->values();
+        $all = $orders->concat($exchange)->concat($elearning)->values();
 
         return response()->json(['orders' => $all, 'ts' => now()->timestamp]);
     }

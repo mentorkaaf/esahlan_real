@@ -465,9 +465,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // eExchange Orders
         Route::prefix('exchange')->name('exchange.')->group(function () {
-            Route::get('/',         [AdminExchangeController::class, 'index'])->name('index');
-            Route::get('/{id}',     [AdminExchangeController::class, 'show'])->name('show');
-            Route::delete('/{id}',  [AdminExchangeController::class, 'destroy'])->name('destroy');
+            Route::get('/',              [AdminExchangeController::class, 'index'])->name('index');
+            Route::post('/bulk-delete',  [AdminExchangeController::class, 'bulkDestroy'])->name('bulk-destroy');
+            Route::get('/{id}',          [AdminExchangeController::class, 'show'])->name('show');
+            Route::delete('/{id}',       [AdminExchangeController::class, 'destroy'])->name('destroy');
         });
 
         // Dispatch Center
