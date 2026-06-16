@@ -66,6 +66,16 @@ class NotificationService
             if ($code !== 200) {
                 Log::error('FCM send failed', ['code' => $code, 'resp' => $resp, 'project' => $this->projectId]);
                 $success = false;
+
+                // Auto-clear stale tokens
+                if ($code === 404) {
+                    $data2 = json_decode($resp, true);
+                    $errCode = $data2['error']['details'][0]['errorCode'] ?? '';
+                    if (in_array($errCode, ['UNREGISTERED', 'SENDER_ID_MISMATCH'])) {
+                        User::where('fcm_token', $token)->update(['fcm_token' => null]);
+                        Log::info('FCM cleared stale token', ['errorCode' => $errCode]);
+                    }
+                }
             } else {
                 Log::info('FCM send OK', ['code' => $code]);
             }

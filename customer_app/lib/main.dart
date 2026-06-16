@@ -48,11 +48,29 @@ class eSahlanApp extends ConsumerStatefulWidget {
   ConsumerState<eSahlanApp> createState() => _eSahlanAppState();
 }
 
-class _eSahlanAppState extends ConsumerState<eSahlanApp> {
+class _eSahlanAppState extends ConsumerState<eSahlanApp>
+    with WidgetsBindingObserver {
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _setupNotifications();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Re-upload FCM token every time app comes to foreground.
+      // This keeps the server token fresh even if it rotated while app was closed.
+      FirebaseService().refreshTokenIfNeeded();
+    }
   }
 
   void _setupNotifications() {

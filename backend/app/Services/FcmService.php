@@ -67,6 +67,16 @@ class FcmService
 
             if ($response->failed()) {
                 Log::warning('[FCM] Send failed', ['status' => $response->status(), 'body' => $response->body()]);
+
+                // Auto-clear stale/unregistered tokens
+                if ($response->status() === 404) {
+                    $body = $response->json();
+                    $errCode = $body['error']['details'][0]['errorCode'] ?? '';
+                    if (in_array($errCode, ['UNREGISTERED', 'SENDER_ID_MISMATCH'])) {
+                        \App\Models\User::where('fcm_token', $fcmToken)->update(['fcm_token' => null]);
+                        Log::info('[FCM] Cleared stale token', ['errorCode' => $errCode]);
+                    }
+                }
                 return false;
             }
 

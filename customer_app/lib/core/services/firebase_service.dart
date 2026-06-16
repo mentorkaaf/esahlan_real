@@ -217,21 +217,37 @@ class FirebaseService {
     }
   }
 
-  Future<void> _uploadToken(String token) async {
-    final stored = await LocalStorage.getString(AppConstants.fcmTokenKey);
-    if (stored == token) return;
+  Future<void> _uploadToken(String token, {bool force = false}) async {
+    if (!force) {
+      final stored = await LocalStorage.getString(AppConstants.fcmTokenKey);
+      if (stored == token) return;
+    }
     try {
       await ApiClient.instance.post('/auth/fcm-token', data: {'fcm_token': token});
       await LocalStorage.saveString(AppConstants.fcmTokenKey, token);
       debugPrint('[FCM] Token uploaded');
     } catch (e) {
+      // Upload failed (e.g. not logged in yet) — clear local cache so next
+      // authenticated upload attempt will retry
+      await LocalStorage.remove(AppConstants.fcmTokenKey);
       debugPrint('[FCM] Token upload failed: $e');
     }
   }
 
+  /// Call this after login to force-upload the current FCM token.
   Future<void> registerTokenAfterLogin() async {
     await LocalStorage.remove(AppConstants.fcmTokenKey);
     await _registerToken();
+  }
+
+  /// Call this when the app resumes from background to keep the token fresh.
+  Future<void> refreshTokenIfNeeded() async {
+    try {
+      final token = await _fcm.getToken();
+      if (token != null) await _uploadToken(token, force: true);
+    } catch (e) {
+      debugPrint('[FCM] Token refresh error: $e');
+    }
   }
 
   Future<String?> getToken() => _fcm.getToken();
