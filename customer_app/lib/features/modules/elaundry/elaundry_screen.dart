@@ -207,43 +207,25 @@ class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
 
   void _placeOrder(BuildContext context, List items) {
     final total = _calcTotal(items);
-    showModalBottomSheet(
-      context: context,
-      useRootNavigator: true,
-      backgroundColor: Colors.white,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _OrderSheet(
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _OrderConfirmPage(
         serviceType: _serviceType,
         items: items,
         qty: _qty,
         total: total,
-        onConfirm: (districtId, address, payMethod, waafiRef) async {
-          try {
-            final selected = <Map<String, dynamic>>[];
-            _qty.forEach((id, q) { if (q > 0) selected.add({'id': id, 'qty': q}); });
-            await _svc.placeLaundryOrder({
-              'service_type': _serviceType,
-              'items': selected,
-              'pickup_district_id': districtId,
-              'pickup_address': address,
-              'payment_method': payMethod,
-              if (waafiRef != null) 'payment_reference': waafiRef,
-            });
-            if (context.mounted) {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Laundry order placed!'), backgroundColor: AppColors.success));
-            }
-          } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error));
-            }
-          }
+        onConfirm: (districtId, payMethod, waafiRef) async {
+          final selected = <Map<String, dynamic>>[];
+          _qty.forEach((id, q) { if (q > 0) selected.add({'id': id, 'qty': q}); });
+          await _svc.placeLaundryOrder({
+            'service_type': _serviceType,
+            'items': selected,
+            'pickup_district_id': districtId,
+            'payment_method': payMethod,
+            if (waafiRef != null) 'payment_reference': waafiRef,
+          });
         },
       ),
-    );
+    ));
   }
 }
 
@@ -279,117 +261,177 @@ class _ServiceTypeCard extends StatelessWidget {
   );
 }
 
-class _OrderSheet extends StatefulWidget {
+// ─── Full-screen order confirmation page ────────────────────────────────────
+class _OrderConfirmPage extends StatefulWidget {
   final String serviceType;
   final List items;
   final Map<int, int> qty;
   final double total;
-  final Function(int, String, String, String?) onConfirm;
+  final Future<void> Function(int districtId, String payMethod, String? waafiRef) onConfirm;
 
-  const _OrderSheet({required this.serviceType, required this.items, required this.qty,
-      required this.total, required this.onConfirm});
+  const _OrderConfirmPage({required this.serviceType, required this.items,
+      required this.qty, required this.total, required this.onConfirm});
 
   @override
-  State<_OrderSheet> createState() => _OrderSheetState();
+  State<_OrderConfirmPage> createState() => _OrderConfirmPageState();
 }
 
-class _OrderSheetState extends State<_OrderSheet> {
-  final _districts = ['Abdiaziz','Howlwadaag','Waaberi','Hamarweyne','Hamarjajab','Warta Nabadda',
-      'Deyniile','Dharkeynley','Wadajir','Hiliwaa','Hodan','Kaaraan','Daarusalaam',
-      'Kahda','Garasbaaley','Shibis','Shangaani','Gubadleey','Yaqshiid','Boondheere'];
-  int _districtId = 1;
-  final _addrCtrl = TextEditingController();
-  String _payMethod = 'wallet';
+class _OrderConfirmPageState extends State<_OrderConfirmPage> {
+  static const _districts = [
+    'Abdiaziz','Howlwadaag','Waaberi','Hamarweyne','Hamarjajab','Warta Nabadda',
+    'Deyniile','Dharkeynley','Wadajir','Hiliwaa','Hodan','Kaaraan','Daarusalaam',
+    'Kahda','Garasbaaley','Shibis','Shangaani','Gubadleey','Yaqshiid','Boondheere',
+  ];
+
+  int    _districtId = 1;
+  String _payMethod  = 'wallet';
   String? _waafiRef;
-  bool _loading = false;
+  bool   _loading    = false;
+  bool   _success    = false;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: SingleChildScrollView(
+    if (_success) return _SuccessView(onDone: () => Navigator.of(context).pop());
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.secondary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('Confirm Order', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+        leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            onPressed: () => Navigator.of(context).pop()),
+      ),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('Confirm Order', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: AppColors.secondary)),
-            IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-          ]),
-          const Divider(),
-          const Text('Pickup District', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.secondary)),
+
+          // ── Order summary card ─────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white, borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12)],
+            ),
+            child: Column(children: [
+              Row(children: [
+                Container(width: 44, height: 44, decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.local_laundry_service_rounded, color: AppColors.primary, size: 24)),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('eLaundry Order', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.secondary)),
+                  Text(widget.serviceType == 'express' ? 'Express — 24 Hours' : 'Normal — 1-2 Days',
+                      style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
+                ])),
+                Text('\$${widget.total.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.primary)),
+              ]),
+              const SizedBox(height: 14),
+              const Divider(),
+              const SizedBox(height: 10),
+              ...widget.items.where((it) => (widget.qty[it['id']] ?? 0) > 0).map((it) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text(it['name'] ?? '', style: const TextStyle(fontSize: 13, color: AppColors.secondary)),
+                  Text('×${widget.qty[it['id']]}  \$${((it['price'] ?? 0) * (widget.qty[it['id']] ?? 0)).toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+                ]),
+              )),
+            ]),
+          ),
+
+          const SizedBox(height: 22),
+
+          // ── Pickup District ────────────────────────────────────────────
+          const Text('Pickup District', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppColors.secondary)),
           const SizedBox(height: 8),
           DropdownButtonFormField<int>(
             value: _districtId,
             onChanged: (v) => setState(() => _districtId = v!),
+            decoration: InputDecoration(
+              filled: true, fillColor: Colors.white,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.divider)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.divider)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            ),
             items: _districts.asMap().entries.map((e) =>
                 DropdownMenuItem(value: e.key + 1, child: Text(e.value))).toList(),
-            decoration: InputDecoration(
-              filled: true, fillColor: AppColors.surface,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),
-            ),
           ),
-          const SizedBox(height: 14),
-          const Text('Pickup Address', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.secondary)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _addrCtrl,
-            decoration: InputDecoration(
-              hintText: 'House number, street name...',
-              filled: true, fillColor: AppColors.surface,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
-            child: Column(children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                const Text('Service type', style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
-                Text(widget.serviceType == 'express' ? 'Express (24h)' : 'Normal (1-2 days)',
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.secondary)),
-              ]),
-              const SizedBox(height: 8),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                const Text('Total', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.secondary)),
-                Text('\$${widget.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: AppColors.primary)),
-              ]),
-            ]),
-          ),
-          const SizedBox(height: 16),
-          const Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.secondary)),
-          const SizedBox(height: 8),
+
+          const SizedBox(height: 22),
+
+          // ── Payment Method ─────────────────────────────────────────────
+          const Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppColors.secondary)),
+          const SizedBox(height: 10),
           Row(children: [
             Expanded(child: _PayChip(label: 'Wallet',    icon: Icons.account_balance_wallet_rounded, selected: _payMethod == 'wallet',    onTap: () => setState(() => _payMethod = 'wallet'))),
             const SizedBox(width: 10),
             Expanded(child: _PayChip(label: 'Waafi Pay', icon: Icons.phone_android_rounded,          selected: _payMethod == 'waafi_pay', onTap: () => setState(() => _payMethod = 'waafi_pay'))),
           ]),
-          const SizedBox(height: 16),
-          AppButton(
+
+          const SizedBox(height: 30),
+        ]),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          child: AppButton(
             label: _loading ? 'Placing Order...' : 'Confirm Order',
             isLoading: _loading,
-            onPressed: _addrCtrl.text.trim().isEmpty ? null : () async {
+            onPressed: _loading ? null : () async {
               if (_payMethod == 'wallet') {
                 final ok = await showWalletPinDialog(context);
                 if (!ok) return;
-              } else if (_payMethod == 'waafi_pay') {
+              } else {
                 final result = await showWaafiPaySheet(
-                  context, amount: widget.total, type: 'order', description: 'eLaundry Order',
-                );
+                  context, amount: widget.total, type: 'order', description: 'eLaundry Order');
                 if (result?.success != true) return;
                 _waafiRef = result!.reference;
               }
               setState(() => _loading = true);
-              await widget.onConfirm(_districtId, _addrCtrl.text.trim(), _payMethod, _waafiRef);
-              setState(() => _loading = false);
+              try {
+                await widget.onConfirm(_districtId, _payMethod, _waafiRef);
+                if (mounted) setState(() { _loading = false; _success = true; });
+              } catch (e) {
+                if (mounted) {
+                  setState(() => _loading = false);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error));
+                }
+              }
             },
           ),
-          const SizedBox(height: 8),
-        ]),
+        ),
       ),
     );
   }
+}
+
+class _SuccessView extends StatelessWidget {
+  final VoidCallback onDone;
+  const _SuccessView({required this.onDone});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: AppColors.background,
+    body: Center(child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 90, height: 90,
+          decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+          child: const Icon(Icons.check_rounded, color: Colors.white, size: 52)),
+        const SizedBox(height: 24),
+        const Text('Order Placed!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.secondary)),
+        const SizedBox(height: 10),
+        const Text('Your laundry order has been placed.\nWe\'ll notify you when it\'s picked up.',
+            textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: AppColors.textGrey, height: 1.5)),
+        const SizedBox(height: 32),
+        AppButton(label: 'Back to eLaundry', onPressed: onDone),
+      ]),
+    )),
+  );
 }
 
 class _PayChip extends StatelessWidget {

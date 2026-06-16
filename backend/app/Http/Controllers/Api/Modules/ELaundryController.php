@@ -76,7 +76,7 @@ class ELaundryController extends Controller
             'items.*.id'         => 'required|exists:laundry_items,id',
             'items.*.qty'        => 'required|integer|min:1',
             'pickup_district_id' => 'required|exists:districts,id',
-            'pickup_address'     => 'required|string',
+            'pickup_address'     => 'nullable|string',
             'delivery_address'   => 'nullable|string',
             'payment_method'     => 'required|in:wallet,cod',
         ]);

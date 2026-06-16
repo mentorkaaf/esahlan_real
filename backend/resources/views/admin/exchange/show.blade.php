@@ -58,7 +58,7 @@ $toMeta   = $walletMeta[$order->to_wallet]   ?? [$order->to_wallet,   '#64748b',
                     <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Reference</div>
                     <div style="font-size:20px;font-weight:800;color:var(--navy);font-family:monospace;margin-top:2px;">{{ $order->reference }}</div>
                 </div>
-                <div style="font-size:12px;color:var(--text-muted);">{{ \Carbon\Carbon::parse($order->created_at)->format('d M Y, H:i:s') }}</div>
+                <div style="font-size:12px;color:var(--text-muted);">{{ \Carbon\Carbon::parse($order->created_at)->timezone('Africa/Mogadishu')->format('d M Y, H:i:s') }}</div>
             </div>
 
             {{-- Exchange flow visual --}}
@@ -186,9 +186,9 @@ $toMeta   = $walletMeta[$order->to_wallet]   ?? [$order->to_wallet,   '#64748b',
                     ['Order ID',    '#'.$order->id],
                     ['Reference',   $order->reference],
                     ['Status',      ucfirst($order->status)],
-                    ['Created',     \Carbon\Carbon::parse($order->created_at)->format('d M Y')],
-                    ['Time',        \Carbon\Carbon::parse($order->created_at)->format('H:i:s')],
-                    ['Ago',         \Carbon\Carbon::parse($order->created_at)->diffForHumans()],
+                    ['Created',     \Carbon\Carbon::parse($order->created_at)->timezone('Africa/Mogadishu')->format('d M Y')],
+                    ['Time',        \Carbon\Carbon::parse($order->created_at)->timezone('Africa/Mogadishu')->format('H:i:s')],
+                    ['Ago',         \Carbon\Carbon::parse($order->created_at)->timezone('Africa/Mogadishu')->diffForHumans()],
                 ];
                 @endphp
                 @foreach($meta as [$k, $v])
