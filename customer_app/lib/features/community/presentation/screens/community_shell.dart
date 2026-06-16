@@ -9,10 +9,12 @@ import 'create_post_screen.dart';
 
 final communityNavIndexProvider = StateProvider<int>((ref) => 0);
 
-const kOrange = Color(0xFFF97316);
-const kNavBg = Color(0xFF1A1B2E);
-const kNavInactive = Color(0xFF8A8D91);
-const kBg = Color(0xFFF0F2F5);
+// ── eSahlan brand palette (shared across the whole community module) ──────────
+const kOrange = Color(0xFFFF8A00);     // brand orange
+const kNavy = Color(0xFF140465);       // brand navy (cards/accents)
+const kNavBg = Color(0xFF140465);      // bottom-nav background = brand navy
+const kNavInactive = Color(0xFF9AA0C2);
+const kBg = Color(0xFFF0F2F5);         // Facebook-style page background
 
 class CommunityShell extends ConsumerWidget {
   const CommunityShell({super.key});

@@ -1,5 +1,4 @@
-﻿import 'package:cached_network_image/cached_network_image.dart';
-import '../../../../core/widgets/network_image_widget.dart';
+﻿import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,7 +11,6 @@ import '../providers/community_provider.dart';
 import '../widgets/stories_bar.dart';
 import 'community_shell.dart';
 import 'community_notifications_screen.dart';
-import 'groups_screen.dart';
 import 'create_post_screen.dart';
 import '../widgets/comments_sheet.dart';
 
@@ -261,12 +259,7 @@ class _CreatePostBar extends ConsumerWidget {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: const Color(0xFFF0F2F5),
-                backgroundImage: avatar != null ? NetworkImage(avatar) : null,
-                child: avatar == null ? const Icon(Icons.person, color: Color(0xFF9CA3AF), size: 22) : null,
-              ),
+              CircleNetImage(url: avatar, size: 40),
               const SizedBox(width: 10),
               Expanded(
                 child: GestureDetector(
@@ -426,12 +419,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
           child: Row(children: [
             GestureDetector(
               onTap: () => context.push('/community/profile/${p.user.id}'),
-              child: CircleAvatar(
-                radius: 20,
-                backgroundColor: const Color(0xFFF0F2F5),
-                backgroundImage: p.user.avatar != null ? NetworkImage(p.user.avatar!) : null,
-                child: p.user.avatar == null ? Text(p.user.name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)) : null,
-              ),
+              child: CircleNetImage(url: p.user.avatar, size: 40, fallbackText: p.user.name),
             ),
             const SizedBox(width: 10),
             Expanded(
