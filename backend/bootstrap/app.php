@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role'          => \App\Http\Middleware\RoleMiddleware::class,
             'module.active' => \App\Http\Middleware\CheckModuleActive::class,
             'vendor'        => \App\Http\Middleware\VendorMiddleware::class,
+            'admin.gate'    => \App\Http\Middleware\AdminModuleGate::class,
         ]);
 
         // CORS must run before everything — prepend to global stack

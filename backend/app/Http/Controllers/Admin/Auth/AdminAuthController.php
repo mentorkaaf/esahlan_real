@@ -27,9 +27,9 @@ class AdminAuthController extends Controller
         }
 
         $user = Auth::user();
-        $adminRoles = ['super_admin', 'admin', 'operations_manager', 'finance_manager', 'marketing_manager', 'customer_support'];
 
-        if (!in_array($user->role?->slug, $adminRoles)) {
+        // Full admins, or employees who have at least one assigned module.
+        if (!$user->canAccessAdminPanel()) {
             Auth::logout();
             return back()->withErrors(['email' => 'You do not have admin access.']);
         }

@@ -70,6 +70,52 @@ class User extends Authenticatable
     public function hasRole(string $slug): bool { return $this->role?->slug === $slug; }
     public function isAdmin(): bool { return in_array($this->role?->slug, ['super_admin','admin']); }
 
+    /** Modules this employee is assigned to manage. */
+    public function managedModules()
+    {
+        return $this->belongsToMany(Module::class, 'user_modules');
+    }
+
+    public function isEmployee(): bool { return $this->role?->slug === 'employee'; }
+
+    /** Roles that may sign in to the admin panel and manage everything. */
+    public function isFullAdmin(): bool
+    {
+        return in_array($this->role?->slug, [
+            'super_admin', 'admin', 'operations_manager',
+            'finance_manager', 'marketing_manager', 'customer_support',
+        ]);
+    }
+
+    /** Slugs of modules this user can manage in the admin panel. */
+    public function manageableModuleSlugs(): array
+    {
+        if ($this->isFullAdmin()) {
+            return Module::pluck('slug')->all();
+        }
+        if ($this->isEmployee()) {
+            return $this->managedModules()->pluck('slug')->all();
+        }
+        return [];
+    }
+
+    /** Can this user manage the given module's admin pages? */
+    public function canManageModule(string $slug): bool
+    {
+        if ($this->isFullAdmin()) return true;
+        if ($this->isEmployee()) {
+            return $this->managedModules()->where('slug', $slug)->exists();
+        }
+        return false;
+    }
+
+    /** May this user reach the admin panel at all? */
+    public function canAccessAdminPanel(): bool
+    {
+        return $this->isFullAdmin()
+            || ($this->isEmployee() && $this->managedModules()->exists());
+    }
+
     public function getLoyaltyPointsBalance(): int
     {
         return (int) $this->loyaltyPoints()

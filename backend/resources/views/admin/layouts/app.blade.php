@@ -559,12 +559,14 @@
     </a>
 
     <div class="sidebar-scroll">
+        @php $u = auth()->user(); @endphp
         {{-- Main --}}
         <div class="nav-section-label">Main</div>
         <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-chart-pie"></i></div> Dashboard
         </a>
 
+        @if($u->isFullAdmin())
         {{-- People --}}
         <div class="nav-section-label">People</div>
         <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
@@ -594,8 +596,9 @@
         <a href="{{ route('admin.modules.index') }}" class="nav-link {{ request()->routeIs('admin.modules.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-th-large"></i></div> Modules
         </a>
+        @endif
 
-        {{-- Module Data (collapsible) --}}
+        {{-- Module Data (collapsible) — each link gated by module access --}}
         <div class="nav-section-label">Module Data</div>
         <div class="nav-link nav-toggle-btn {{ request()->is('admin/module-data*') ? 'open active' : '' }}"
              onclick="toggleNav(this,'moduleDataNav')">
@@ -604,45 +607,69 @@
             <i class="fas fa-chevron-right toggle-arrow"></i>
         </div>
         <div class="nav-submenu {{ request()->is('admin/module-data*') ? 'open' : '' }}" id="moduleDataNav">
+            @if($u->canManageModule('efood'))
             <a href="{{ route('admin.module-data.efood.index') }}" class="nav-link {{ request()->routeIs('admin.module-data.efood*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-utensils"></i></div> eFood
             </a>
+            @endif
+            @if($u->canManageModule('eshop'))
             <a href="{{ route('admin.eshop.index') }}" class="nav-link {{ request()->routeIs('admin.eshop*') ? 'active' : '' }}" style="{{ request()->routeIs('admin.eshop*') ? 'background:rgba(255,138,0,0.15);color:#FF8A00;' : '' }}">
                 <div class="nav-icon"><i class="fas fa-shopping-bag"></i></div> eShop
             </a>
+            @endif
+            @if($u->canManageModule('elaundry'))
             <a href="{{ route('admin.module-data.laundry') }}" class="nav-link {{ request()->routeIs('admin.module-data.laundry*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-tshirt"></i></div> eLaundry
             </a>
+            @endif
+            @if($u->canManageModule('emoving'))
             <a href="{{ route('admin.module-data.moving') }}" class="nav-link {{ request()->routeIs('admin.module-data.moving*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-truck-moving"></i></div> eMoving
             </a>
+            @endif
+            @if($u->canManageModule('eparcel'))
             <a href="{{ route('admin.module-data.parcel') }}" class="nav-link {{ request()->routeIs('admin.module-data.parcel*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-box"></i></div> eParcel
             </a>
+            @endif
+            @if($u->canManageModule('edata'))
             <a href="{{ route('admin.module-data.data') }}" class="nav-link {{ request()->routeIs('admin.module-data.data*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-wifi"></i></div> eData
             </a>
+            @endif
+            @if($u->canManageModule('eexchange'))
             <a href="{{ route('admin.module-data.exchange') }}" class="nav-link {{ request()->routeIs('admin.module-data.exchange*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-exchange-alt"></i></div> eExchange
             </a>
+            @endif
+            @if($u->canManageModule('ehealth'))
             <a href="{{ route('admin.module-data.health') }}" class="nav-link {{ request()->routeIs('admin.module-data.health*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-user-md"></i></div> eHealth
             </a>
+            @endif
+            @if($u->canManageModule('erent'))
             <a href="{{ route('admin.module-data.rent') }}" class="nav-link {{ request()->routeIs('admin.module-data.rent*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-home"></i></div> eRent
             </a>
-
+            @endif
+            @if($u->canManageModule('ewholesale'))
             <a href="{{ route('admin.module-data.wholesale') }}" class="nav-link {{ request()->routeIs('admin.module-data.wholesale*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-warehouse"></i></div> Wholesale
             </a>
+            @endif
+            @if($u->canManageModule('egrocery'))
             <a href="{{ route('admin.module-data.grocery') }}" class="nav-link {{ request()->routeIs('admin.module-data.grocery*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-carrot"></i></div> eGrocery
             </a>
+            @endif
+            @if($u->canManageModule('eticket'))
             <a href="{{ route('admin.module-data.ticket') }}" class="nav-link {{ request()->routeIs('admin.module-data.ticket*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-plane"></i></div> eTicket
             </a>
+            @endif
         </div>
 
+        @if($u->isFullAdmin())
         {{-- Finance --}}
         <div class="nav-section-label">Finance</div>
         <a href="{{ route('admin.finance.index') }}" class="nav-link {{ request()->routeIs('admin.finance.*') ? 'active' : '' }}">
@@ -685,8 +712,10 @@
                 <div class="nav-icon"><i class="fas fa-user-shield"></i></div> Users
             </a>
         </div>
+        @endif
 
-        {{-- eLearning --}}
+        {{-- eLearning (visible to managers of the elearning module) --}}
+        @if($u->canManageModule('elearning'))
         <div class="nav-section-label">eLearning</div>
         <div class="nav-link nav-toggle-btn {{ request()->is('admin/elearning*') ? 'open active' : '' }}"
              onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
@@ -731,15 +760,23 @@
                 <div class="nav-icon"><i class="fas fa-chart-line"></i></div> Reports
             </a>
         </div>
+        @endif
 
+        @if($u->isFullAdmin())
         {{-- System --}}
         <div class="nav-section-label">System</div>
+        @if(in_array($u->role?->slug, ['super_admin','admin']))
+        <a href="{{ route('admin.access.index') }}" class="nav-link {{ request()->routeIs('admin.access.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-user-shield"></i></div> Roles &amp; Access
+        </a>
+        @endif
         <a href="{{ route('admin.landing.index') }}" class="nav-link {{ request()->routeIs('admin.landing.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-paint-brush"></i></div> Landing Page
         </a>
         <a href="{{ route('admin.settings.index') }}" class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-cog"></i></div> Settings
         </a>
+        @endif
     </div>
 
     <div class="sidebar-footer">

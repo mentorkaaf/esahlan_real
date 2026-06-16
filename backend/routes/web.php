@@ -98,6 +98,20 @@ Route::get('/', function () {
 // Admin root redirect
 Route::get('/admin', fn() => redirect('/admin/dashboard'));
 
+// Run pending migrations + clear caches (token-guarded, same secret as deploy).
+Route::get('/api-migrate', function (\Illuminate\Http\Request $request) {
+    $secret = 'eSahlan_Deploy_2026_Secret';
+    $token  = $request->header('X-Deploy-Token') ?? $request->query('token', '');
+    if (!hash_equals($secret, $token)) { abort(403); }
+
+    \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+    $clear = \Illuminate\Support\Facades\Artisan::output();
+    \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+    $migrate = \Illuminate\Support\Facades\Artisan::output();
+
+    return response('<pre>' . e($clear . "\n" . $migrate) . '</pre>');
+});
+
 // Deploy webhook (called by GitHub Actions)
 Route::get('/api-sync', function (\Illuminate\Http\Request $request) {
     $secret = 'eSahlan_Deploy_2026_Secret';
@@ -122,7 +136,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/login', [AdminAuthController::class, 'login'])->name('login.post');
     });
 
-    Route::middleware(['auth', 'role:super_admin,admin,operations_manager,finance_manager,marketing_manager,customer_support'])->group(function () {
+    Route::middleware(['auth', 'role:super_admin,admin,operations_manager,finance_manager,marketing_manager,customer_support,employee', 'admin.gate'])->group(function () {
         Route::post('/logout', [AdminAuthController::class, 'logout'])->name('logout');
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -412,6 +426,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Landing Page Management
         Route::get('/landing', [AdminLandingController::class, 'index'])->name('landing.index');
         Route::put('/landing', [AdminLandingController::class, 'update'])->name('landing.update');
+
+        // ── Roles & Access (assign roles + scope employees to modules) ────────
+        Route::middleware('role:super_admin,admin')->prefix('access')->name('access.')->group(function () {
+            Route::get('/',        [\App\Http\Controllers\Admin\AdminAccessController::class, 'index'])->name('index');
+            Route::put('/{user}',  [\App\Http\Controllers\Admin\AdminAccessController::class, 'update'])->name('update');
+        });
 
         // Wallet Management & Payment Settings
         Route::prefix('wallet')->name('wallet.')->group(function () {
