@@ -21,7 +21,7 @@ class CommunityStoryController extends Controller
         $mediaUrl = null;
         if ($request->hasFile('media')) {
             $path = $request->file('media')->store('community/stories','public');
-            $mediaUrl = asset('storage/'.$path);
+            $mediaUrl = cdn_url($path);
         }
 
         $story = CommunityStory::create([

@@ -52,7 +52,7 @@ class CommunityPostController extends Controller
                 CommunityPostMedia::create([
                     'post_id' => $post->id,
                     'type' => $isVideo ? 'video' : 'image',
-                    'url' => asset('storage/'.$path),
+                    'url' => cdn_url($path),
                     'sort_order' => $i,
                 ]);
             }

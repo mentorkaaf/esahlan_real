@@ -9,4 +9,7 @@ class CommunityProfile extends Model {
     public function user() { return $this->belongsTo(User::class); }
     public function posts() { return $this->hasMany(CommunityPost::class, 'user_id', 'user_id'); }
     public function followers() { return $this->hasMany(CommunityFollow::class, 'following_id', 'user_id'); }
+
+    // CORS-safe media URL for Flutter Web.
+    public function getCoverPhotoAttribute(): ?string { return cdn_url($this->attributes['cover_photo'] ?? null); }
 }

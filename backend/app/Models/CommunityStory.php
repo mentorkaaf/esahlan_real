@@ -8,6 +8,11 @@ class CommunityStory extends Model {
 
     public function user() { return $this->belongsTo(User::class); }
     public function views() { return $this->hasMany(CommunityStoryView::class, 'story_id'); }
+
+    // CORS-safe media URLs for Flutter Web.
+    public function getMediaUrlAttribute(): ?string { return cdn_url($this->attributes['media_url'] ?? null); }
+    public function getThumbnailAttribute(): ?string { return cdn_url($this->attributes['thumbnail'] ?? null); }
+
     public function isExpired(): bool { return $this->expires_at->isPast(); }
     public function isViewedBy(int $userId): bool {
         return $this->views()->where('user_id', $userId)->exists();

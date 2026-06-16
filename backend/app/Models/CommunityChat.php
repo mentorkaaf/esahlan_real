@@ -16,4 +16,7 @@ class CommunityChat extends Model {
         if (!$member) return 0;
         return $this->messages()->when($member->last_read_at, fn($q) => $q->where('created_at','>',$member->last_read_at))->count();
     }
+
+    // CORS-safe group-chat avatar for Flutter Web.
+    public function getAvatarAttribute(): ?string { return cdn_url($this->attributes['avatar'] ?? null); }
 }

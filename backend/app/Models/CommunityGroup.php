@@ -12,4 +12,8 @@ class CommunityGroup extends Model {
     public function membership() {
         return $this->hasOne(CommunityGroupMember::class, 'group_id')->where('user_id', auth()->id());
     }
+
+    // CORS-safe media URLs for Flutter Web.
+    public function getCoverPhotoAttribute(): ?string { return cdn_url($this->attributes['cover_photo'] ?? null); }
+    public function getAvatarAttribute(): ?string     { return cdn_url($this->attributes['avatar'] ?? null); }
 }

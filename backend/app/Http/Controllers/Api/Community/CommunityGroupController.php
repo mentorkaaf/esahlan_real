@@ -40,7 +40,7 @@ class CommunityGroupController extends Controller
         $coverUrl = null;
         if ($request->hasFile('cover_photo')) {
             $path = $request->file('cover_photo')->store('community/groups','public');
-            $coverUrl = asset('storage/'.$path);
+            $coverUrl = cdn_url($path);
         }
 
         $group = CommunityGroup::create([

@@ -34,7 +34,7 @@ class CommunityProfileController extends Controller
 
         if ($request->hasFile('cover_photo')) {
             $path = $request->file('cover_photo')->store('community/covers','public');
-            $data['cover_photo'] = asset('storage/'.$path);
+            $data['cover_photo'] = cdn_url($path);
         }
 
         $profile->update($data);
@@ -54,7 +54,7 @@ class CommunityProfileController extends Controller
 
         if ($request->hasFile('avatar')) {
             $path = $request->file('avatar')->store('community/avatars', 'public');
-            $url = asset('storage/' . $path);
+            $url = cdn_url($path);
             // Update user's avatar
             $user->update(['avatar' => $url]);
             $data['avatar'] = $url;
@@ -62,7 +62,7 @@ class CommunityProfileController extends Controller
 
         if ($request->hasFile('cover_photo')) {
             $path = $request->file('cover_photo')->store('community/covers', 'public');
-            $data['cover_photo'] = asset('storage/' . $path);
+            $data['cover_photo'] = cdn_url($path);
         }
 
         if (!empty($data)) $profile->update($data);

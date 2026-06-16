@@ -79,6 +79,13 @@ class User extends Authenticatable
 
     public function getAvatarUrlAttribute(): ?string
     {
-        return cdn_url($this->avatar);
+        return cdn_url($this->attributes['avatar'] ?? null);
+    }
+
+    // Serve avatars through the CORS-safe proxy so they load on Flutter Web.
+    // Idempotent: proxied/external URLs pass through unchanged.
+    public function getAvatarAttribute(): ?string
+    {
+        return cdn_url($this->attributes['avatar'] ?? null);
     }
 }
