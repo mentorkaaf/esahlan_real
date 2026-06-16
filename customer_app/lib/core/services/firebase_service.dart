@@ -1,20 +1,33 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../api/api_client.dart';
 import '../constants/app_constants.dart';
 import '../storage/local_storage.dart';
 
-// Top-level — required by firebase_messaging for background isolate
+// ─────────────────────────────────────────────────────────────────────────────
+// BACKGROUND HANDLER — must be top-level, called in native isolate
+// Registered via FirebaseMessaging.onBackgroundMessage() in main() before runApp()
+// ─────────────────────────────────────────────────────────────────────────────
 @pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
+  // Notifications with a 'notification' object are displayed by Android system.
+  // Data-only messages land here too — no manual display needed unless desired.
+  debugPrint('[FCM:BG] Received: ${message.messageId}');
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// FirebaseService — singleton
+// ─────────────────────────────────────────────────────────────────────────────
 class FirebaseService {
   static final FirebaseService _instance = FirebaseService._internal();
   factory FirebaseService() => _instance;
@@ -24,9 +37,68 @@ class FirebaseService {
   final FlutterLocalNotificationsPlugin _localNotif =
       FlutterLocalNotificationsPlugin();
 
-  void Function(String deepLink)? onDeepLink;
+  bool _initialized = false;
+  StreamSubscription<RemoteMessage>? _fgSubscription;
 
-  static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
+  /// Called by main() BEFORE runApp() to register the native-level handlers.
+  /// Must NOT touch flutter_local_notifications here — plugin is not bound yet.
+  static Future<void> setupBeforeRunApp() async {
+    // Background handler registration is native — safe before runApp()
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+    // iOS foreground presentation — FCM config, not a plugin method call
+    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+  }
+
+  /// Called from widget initState() AFTER runApp() — plugin registry is ready.
+  Future<void> initialize() async {
+    if (_initialized) return;
+
+    try {
+      // 1. Create Android notification channel (plugin bound after runApp)
+      await _localNotif
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(_notifChannel);
+
+      // 2. Initialize flutter_local_notifications
+      await _localNotif.initialize(
+        const InitializationSettings(
+          android: AndroidInitializationSettings('ic_notification'),
+          iOS: DarwinInitializationSettings(
+            requestAlertPermission: false,
+            requestBadgePermission: false,
+            requestSoundPermission: false,
+          ),
+        ),
+        onDidReceiveNotificationResponse: _onNotificationTap,
+      );
+
+      // 3. Subscribe to foreground FCM messages
+      await _fgSubscription?.cancel();
+      _fgSubscription = FirebaseMessaging.onMessage.listen(
+        _handleForegroundMessage,
+        onError: (e) => debugPrint('[FCM] onMessage error: $e'),
+      );
+
+      // 4. Register FCM token
+      await _registerToken();
+      _fcm.onTokenRefresh.listen(_uploadToken);
+
+      _initialized = true;
+      debugPrint('[FCM] Initialized ✓');
+    } catch (e, st) {
+      debugPrint('[FCM] Init error: $e\n$st');
+    }
+  }
+
+  // ── Android notification channel ──────────────────────────────────────────
+  static const AndroidNotificationChannel _notifChannel =
+      AndroidNotificationChannel(
     AppConstants.fcmChannelId,
     AppConstants.fcmChannelName,
     description: AppConstants.fcmChannelDesc,
@@ -36,175 +108,236 @@ class FirebaseService {
     showBadge: true,
   );
 
-  // ── Initialize ─────────────────────────────────────────────────────────────
-  Future<void> initialize() async {
+  // ── Notification tap callback (foreground local notifications) ─────────────
+  void Function(String deepLink)? onDeepLink;
+
+  void _onNotificationTap(NotificationResponse response) {
+    if (response.payload == null || response.payload!.isEmpty) return;
     try {
-      // Must be registered before runApp()
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-      // iOS foreground banners
-      await _fcm.setForegroundNotificationPresentationOptions(
-        alert: true, badge: true, sound: true,
-      );
-
-      // Setup local notifications (channel + plugin init)
-      await _setupLocalNotifications();
-
-      // Listen for foreground messages
-      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-
-      // Register token
-      await _registerToken();
-      _fcm.onTokenRefresh.listen(_uploadToken);
-
+      final data = jsonDecode(response.payload!) as Map<String, dynamic>;
+      final dl = data['deep_link'] as String?;
+      if (dl != null && dl.isNotEmpty) {
+        debugPrint('[FCM] Notification tapped → $dl');
+        onDeepLink?.call(dl);
+      }
     } catch (e) {
-      debugPrint('[FCM] Init error: $e');
+      debugPrint('[FCM] Tap parse error: $e');
     }
   }
 
-  // ── Setup flutter_local_notifications ─────────────────────────────────────
-  Future<void> _setupLocalNotifications() async {
-    // 1. Create Android channel first
-    await _localNotif
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(_channel);
-
-    // 2. Initialize plugin
-    // 'ic_notification' = raw drawable name, no @drawable/ prefix
-    // DO NOT request permission here — this runs before runApp()
-    // Permission is requested later via requestPermissionIfNeeded() post-frame
-    await _localNotif.initialize(
-      const InitializationSettings(
-        android: AndroidInitializationSettings('ic_notification'),
-        iOS: DarwinInitializationSettings(
-          requestAlertPermission: false,
-          requestBadgePermission: false,
-          requestSoundPermission: false,
-        ),
-      ),
-      onDidReceiveNotificationResponse: (details) {
-        if (details.payload == null || details.payload!.isEmpty) return;
-        try {
-          final data = jsonDecode(details.payload!) as Map<String, dynamic>;
-          final dl = data['deep_link'] as String?;
-          if (dl != null && dl.isNotEmpty) onDeepLink?.call(dl);
-        } catch (_) {}
-      },
-    );
-  }
-
-  // ── Foreground notification handler ────────────────────────────────────────
+  // ── Foreground message handler ────────────────────────────────────────────
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    try {
-      final title = message.notification?.title
-          ?? message.data['title'] as String?
-          ?? 'eSahlan';
-      final body = message.notification?.body
-          ?? message.data['body'] as String?
-          ?? '';
+    debugPrint('[FCM:FG] Received: ${message.messageId}');
+    debugPrint('[FCM:FG] Title: ${message.notification?.title} | Body: ${message.notification?.body}');
+    debugPrint('[FCM:FG] Data: ${message.data}');
 
-      debugPrint('[FCM] Foreground: "$title" | "$body"');
+    final title = message.notification?.title
+        ?? message.data['title'] as String?
+        ?? AppConstants.appName;
+    final body = message.notification?.body
+        ?? message.data['body'] as String?
+        ?? '';
+
+    if (title.isEmpty && body.isEmpty) {
+      debugPrint('[FCM:FG] Empty notification — skipping');
+      return;
+    }
+
+    // Resolve image URL from multiple possible sources
+    final imageUrl = message.notification?.android?.imageUrl
+        ?? message.notification?.apple?.imageUrl
+        ?? message.data['image'] as String?
+        ?? message.data['image_url'] as String?;
+
+    // Download image if present
+    final imageFile = imageUrl != null && imageUrl.isNotEmpty
+        ? await _downloadImage(imageUrl)
+        : null;
+
+    try {
+      AndroidNotificationDetails androidDetails;
+
+      if (imageFile != null) {
+        // Rich notification with BigPicture
+        androidDetails = AndroidNotificationDetails(
+          _notifChannel.id,
+          _notifChannel.name,
+          channelDescription: _notifChannel.description,
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: 'ic_notification',
+          color: const Color(0xFF140465),
+          enableVibration: true,
+          playSound: true,
+          largeIcon: FilePathAndroidBitmap(imageFile.path),
+          styleInformation: BigPictureStyleInformation(
+            FilePathAndroidBitmap(imageFile.path),
+            contentTitle: title,
+            summaryText: body,
+            htmlFormatContentTitle: false,
+            htmlFormatSummaryText: false,
+            hideExpandedLargeIcon: false,
+          ),
+        );
+        debugPrint('[FCM:FG] Showing with image: ${imageFile.path}');
+      } else {
+        // Text-only notification
+        androidDetails = AndroidNotificationDetails(
+          _notifChannel.id,
+          _notifChannel.name,
+          channelDescription: _notifChannel.description,
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: 'ic_notification',
+          color: const Color(0xFF140465),
+          enableVibration: true,
+          playSound: true,
+        );
+      }
 
       await _localNotif.show(
-        DateTime.now().millisecondsSinceEpoch % 100000,
+        DateTime.now().millisecondsSinceEpoch % 2147483647,
         title,
         body,
         NotificationDetails(
-          android: AndroidNotificationDetails(
-            _channel.id,
-            _channel.name,
-            channelDescription: _channel.description,
-            importance: Importance.max,
-            priority: Priority.high,
-            icon: 'ic_notification',
-            color: const Color(0xFF140465),
-            enableVibration: true,
-            playSound: true,
-          ),
+          android: androidDetails,
           iOS: const DarwinNotificationDetails(
             presentAlert: true,
             presentBadge: true,
             presentSound: true,
+            attachments: [],
           ),
         ),
         payload: jsonEncode(message.data),
       );
-
-      debugPrint('[FCM] Foreground notification shown ✓');
+      debugPrint('[FCM:FG] Notification shown ✓');
     } catch (e, st) {
-      debugPrint('[FCM] Foreground error: $e\n$st');
+      debugPrint('[FCM:FG] show() error: $e\n$st');
     }
   }
 
-  // ── Permission ─────────────────────────────────────────────────────────────
-  Future<bool> requestPermissionIfNeeded() async {
-    const key = 'notif_permission_v4';
-    final asked = await LocalStorage.getBool(key);
-
-    if (!asked) {
-      final s = await _fcm.requestPermission(
-        alert: true, badge: true, sound: true,
+  // ── Download image to temp dir ────────────────────────────────────────────
+  Future<File?> _downloadImage(String url) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      // Use URL hash as filename to reuse cached downloads
+      final filename = 'fcm_img_${url.hashCode.abs()}.jpg';
+      final file = File('${dir.path}/$filename');
+      if (await file.exists()) {
+        debugPrint('[FCM] Using cached image: $filename');
+        return file;
+      }
+      final dio = Dio();
+      final response = await dio.get<List<int>>(
+        url,
+        options: Options(responseType: ResponseType.bytes, sendTimeout: const Duration(seconds: 10), receiveTimeout: const Duration(seconds: 10)),
       );
-      await LocalStorage.saveBool(key, true);
+      await file.writeAsBytes(response.data!);
+      debugPrint('[FCM] Image downloaded: $filename (${response.data!.length} bytes)');
+      return file;
+    } catch (e) {
+      debugPrint('[FCM] Image download failed: $e');
+      return null;
+    }
+  }
 
-      // Android 13+
+  // ── Permission ────────────────────────────────────────────────────────────
+  /// Call this from a post-frame callback (after UI is ready) to show system dialog.
+  Future<bool> requestPermissionIfNeeded() async {
+    // Check actual current permission status first
+    final settings = await _fcm.getNotificationSettings();
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      return true;
+    }
+
+    // If already denied (permanently), can't re-request
+    if (settings.authorizationStatus == AuthorizationStatus.denied) {
+      debugPrint('[FCM] Permission permanently denied');
+      return false;
+    }
+
+    // Request permission (works on iOS; on Android <13 always authorized)
+    final result = await _fcm.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    // Android 13+: also request POST_NOTIFICATIONS via local_notifications
+    try {
       await _localNotif
           .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>()
           ?.requestNotificationsPermission();
-
-      debugPrint('[FCM] Permission: ${s.authorizationStatus}');
-      return s.authorizationStatus == AuthorizationStatus.authorized;
+    } catch (e) {
+      debugPrint('[FCM] Android permission request error: $e');
     }
 
-    final s = await _fcm.getNotificationSettings();
-    return s.authorizationStatus == AuthorizationStatus.authorized;
+    final granted = result.authorizationStatus == AuthorizationStatus.authorized;
+    debugPrint('[FCM] Permission: ${result.authorizationStatus}');
+    return granted;
   }
 
-  // ── Token ──────────────────────────────────────────────────────────────────
+  // ── Token management ──────────────────────────────────────────────────────
   Future<void> _registerToken() async {
     try {
       final token = await _fcm.getToken();
-      if (token != null) await _uploadToken(token);
+      if (token == null) {
+        debugPrint('[FCM] getToken() returned null');
+        return;
+      }
+      debugPrint('[FCM] Token: ${token.substring(0, 20)}...');
+      await _uploadToken(token);
     } catch (e) {
-      debugPrint('[FCM] Token error: $e');
+      debugPrint('[FCM] Token registration error: $e');
     }
   }
 
-  Future<void> _uploadToken(String token, {bool force = false}) async {
-    if (!force) {
-      final stored = await LocalStorage.getString(AppConstants.fcmTokenKey);
-      if (stored == token) return;
+  Future<void> _uploadToken(String token) async {
+    final stored = await LocalStorage.getString(AppConstants.fcmTokenKey);
+    if (stored == token) {
+      debugPrint('[FCM] Token unchanged — skipping upload');
+      return;
     }
     try {
       await ApiClient.instance.post('/auth/fcm-token', data: {'fcm_token': token});
       await LocalStorage.saveString(AppConstants.fcmTokenKey, token);
       debugPrint('[FCM] Token uploaded ✓');
     } catch (e) {
+      // Clear cached token so next launch retries
       await LocalStorage.remove(AppConstants.fcmTokenKey);
       debugPrint('[FCM] Token upload failed: $e');
     }
   }
 
-  Future<void> registerTokenAfterLogin() async {
-    await LocalStorage.remove(AppConstants.fcmTokenKey);
-    await _registerToken();
-  }
-
+  /// Force-refresh and re-upload token (called on app resume).
   Future<void> refreshTokenIfNeeded() async {
+    if (!_initialized) return;
     try {
       final token = await _fcm.getToken();
-      if (token != null) await _uploadToken(token, force: true);
+      if (token == null) return;
+      final stored = await LocalStorage.getString(AppConstants.fcmTokenKey);
+      if (stored != token) {
+        debugPrint('[FCM] Token changed — re-uploading');
+        await _uploadToken(token);
+      }
     } catch (e) {
       debugPrint('[FCM] Refresh error: $e');
     }
   }
 
+  /// Call after login so the current user's token is registered.
+  Future<void> registerTokenAfterLogin() async {
+    await LocalStorage.remove(AppConstants.fcmTokenKey);
+    await _registerToken();
+  }
+
   Future<String?> getToken() => _fcm.getToken();
 
   Future<void> deleteToken() async {
-    await _fcm.deleteToken();
+    try {
+      await _fcm.deleteToken();
+    } catch (_) {}
     await LocalStorage.remove(AppConstants.fcmTokenKey);
   }
 }

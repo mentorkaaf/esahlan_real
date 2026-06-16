@@ -125,23 +125,24 @@ class FcmService
             'order_number' => $orderNumber,
             'status'       => $status,
             'module'       => (string) ($moduleSlug ?? ''),
+            'deep_link'    => '/orders/' . $orderId,
         ]);
     }
 
     // ── Wallet / withdrawal helpers ───────────────────────────────────────────
     public static function sendWalletCredit(string $t, float $a, float $b): bool
     {
-        return self::sendToToken($t, 'Wallet Topped Up', '$' . number_format($a, 2) . ' added. Balance: $' . number_format($b, 2), ['type' => 'wallet_credit', 'amount' => (string) $a, 'balance' => (string) $b]);
+        return self::sendToToken($t, 'Wallet Topped Up', '$' . number_format($a, 2) . ' added. Balance: $' . number_format($b, 2), ['type' => 'wallet_credit', 'amount' => (string) $a, 'balance' => (string) $b, 'deep_link' => '/wallet']);
     }
 
     public static function sendWithdrawalApproved(string $t, float $a): bool
     {
-        return self::sendToToken($t, 'Withdrawal Approved', 'Your withdrawal of $' . number_format($a, 2) . ' is approved.', ['type' => 'withdrawal_approved', 'amount' => (string) $a]);
+        return self::sendToToken($t, 'Withdrawal Approved', 'Your withdrawal of $' . number_format($a, 2) . ' is approved.', ['type' => 'withdrawal_approved', 'amount' => (string) $a, 'deep_link' => '/wallet']);
     }
 
     public static function sendWithdrawalRejected(string $t, float $a): bool
     {
-        return self::sendToToken($t, 'Withdrawal Rejected', 'Your withdrawal of $' . number_format($a, 2) . ' was rejected and refunded.', ['type' => 'withdrawal_rejected', 'amount' => (string) $a]);
+        return self::sendToToken($t, 'Withdrawal Rejected', 'Your withdrawal of $' . number_format($a, 2) . ' was rejected and refunded.', ['type' => 'withdrawal_rejected', 'amount' => (string) $a, 'deep_link' => '/wallet']);
     }
 
     public static function sendBookingUpdate(string $t, string $mod, string $st, int $id): bool
@@ -155,7 +156,7 @@ class FcmService
             'rejected'    => ['Rejected', "Your {$mod} booking was rejected."],
         ];
         [$ti, $bo] = $msgs[$st] ?? ['Booking Update', "Status: {$st}"];
-        return self::sendToToken($t, $ti, $bo, ['type' => 'booking_update', 'module' => $mod, 'booking_id' => (string) $id, 'status' => $st]);
+        return self::sendToToken($t, $ti, $bo, ['type' => 'booking_update', 'module' => $mod, 'booking_id' => (string) $id, 'status' => $st, 'deep_link' => '/orders']);
     }
 
     // ── Internal: load service account JSON ──────────────────────────────────

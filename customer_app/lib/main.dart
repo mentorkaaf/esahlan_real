@@ -4,28 +4,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/constants/app_constants.dart';
 import 'core/router/app_router.dart';
 import 'core/services/firebase_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/connectivity_wrapper.dart';
 import 'firebase_options.dart';
 
+// Cold-start deep link captured before runApp()
 String? _coldStartDeepLink;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// main() — keep lean: only native-level setup + runApp()
+// flutter_local_notifications must NOT be initialized here (plugin not bound yet)
+// ─────────────────────────────────────────────────────────────────────────────
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+    // Native-level FCM setup: background handler + iOS foreground options
+    await FirebaseService.setupBeforeRunApp();
+
+    // Capture deep link from a cold-start notification tap (app was killed)
     final initial = await FirebaseMessaging.instance.getInitialMessage();
     if (initial != null) {
       _coldStartDeepLink = initial.data['deep_link'] as String?;
+      debugPrint('[FCM] Cold-start deep link: $_coldStartDeepLink');
     }
-
-    await FirebaseService().initialize();
   } catch (e) {
-    debugPrint('[Firebase] Init error: $e');
+    debugPrint('[Firebase] Pre-runApp error: $e');
   }
 
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
@@ -37,6 +46,7 @@ void main() async {
   runApp(const ProviderScope(child: eSahlanApp()));
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 class eSahlanApp extends ConsumerStatefulWidget {
   const eSahlanApp({super.key});
   @override
@@ -50,11 +60,17 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _setupNotifications();
-    // Ask for notification permission after first frame
-    // (must run after runApp so Android dialog can appear)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 1500), () {
+
+    // Post-frame: plugin registry is fully bound after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // 1. Initialize flutter_local_notifications + onMessage listener
+      await FirebaseService().initialize();
+
+      // 2. Wire up deep-link navigation (router is ready by now)
+      _setupNotificationNavigation();
+
+      // 3. Request notification permission (300ms after init so UI is stable)
+      Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) FirebaseService().requestPermissionIfNeeded();
       });
     });
@@ -69,33 +85,37 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      // Re-upload token in case it was rotated while app was backgrounded
       FirebaseService().refreshTokenIfNeeded();
     }
   }
 
-  void _setupNotifications() {
+  void _setupNotificationNavigation() {
     void navigate(String path) {
       try {
         ref.read(routerProvider).go(path);
+        debugPrint('[Nav] Navigated to: $path');
       } catch (e) {
-        debugPrint('[Nav] Error: $e');
+        debugPrint('[Nav] Error navigating to $path: $e');
       }
     }
 
-    // Foreground local-notification tap → deep link
+    // Foreground local-notification tap
     FirebaseService().onDeepLink = navigate;
 
-    // Background tap (app minimized, user taps FCM notification)
+    // Background tap (app was minimised, user tapped the FCM banner)
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
       final dl = message.data['deep_link'] as String?;
+      debugPrint('[FCM] onMessageOpenedApp deep_link: $dl');
       if (dl != null && dl.isNotEmpty) navigate(dl);
     });
 
-    // Cold-start tap (app was killed)
+    // Cold-start tap (app was fully killed)
     if (_coldStartDeepLink != null) {
       final dl = _coldStartDeepLink!;
       _coldStartDeepLink = null;
-      Future.delayed(const Duration(milliseconds: 2000), () {
+      // Small delay so the router redirect has settled
+      Future.delayed(const Duration(milliseconds: 1500), () {
         if (mounted) navigate(dl);
       });
     }
@@ -103,13 +123,12 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
 
   @override
   Widget build(BuildContext context) {
-    final router = ref.watch(routerProvider);
     return ConnectivityWrapper(
       child: MaterialApp.router(
-        title: 'eSahlan',
+        title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
-        routerConfig: router,
+        routerConfig: ref.watch(routerProvider),
       ),
     );
   }
