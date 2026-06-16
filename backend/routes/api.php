@@ -72,9 +72,28 @@ Route::get('img/{path}', fn (string $path) => proxy_storage_file($path))
 
 Route::prefix('v1')->group(function () {
 
-    // Image/media proxy. Streams via PHP (proxy_storage_file) so the CORS headers
-    // are actually emitted on 200 responses — response()->file() would trigger the
-    // LiteSpeed sendfile path and the headers would never reach Flutter Web.
+    // Canonical media proxy. The storage path is a ?f= query param so the URL has NO
+    // file extension — the Hostinger CDN then treats it as DYNAMIC (pass-through) and
+    // does not cache+strip the CORS headers. Streams via PHP (proxy_storage_file) so
+    // the headers actually reach Flutter Web. See media_proxy_url()/cdn_url().
+    Route::match(['GET', 'OPTIONS'], 'media', function (\Illuminate\Http\Request $request) {
+        if ($request->isMethod('OPTIONS')) {
+            return response('', 204, [
+                'Access-Control-Allow-Origin'  => '*',
+                'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+                'Access-Control-Allow-Headers' => 'Origin, Accept, Content-Type, Range',
+                'Access-Control-Max-Age'       => '86400',
+            ]);
+        }
+        $f = (string) $request->query('f', '');
+        // Disallow path traversal; only allow the public storage tree.
+        $f = ltrim(str_replace(['..', "\0"], '', $f), '/');
+        abort_if($f === '', 404);
+        return proxy_storage_file($f);
+    });
+
+    // Legacy extension-based proxy. Kept for backwards compatibility, but the CDN
+    // caches these and strips CORS — new URLs use /media above.
     Route::get('img/{path}', fn (string $path) => proxy_storage_file($path))
         ->where('path', '.*');
 

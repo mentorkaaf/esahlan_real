@@ -156,17 +156,36 @@ if (!function_exists('proxy_storage_file')) {
     }
 }
 
+if (!function_exists('media_proxy_url')) {
+    /**
+     * Build the CORS-safe media-proxy URL for a public-storage path.
+     *
+     * The path is passed as a query parameter so the URL has NO file extension.
+     * This matters: the Hostinger CDN (hcdn) classifies URLs that end in an image
+     * extension (.jpg/.png/...) as cacheable static assets and routes them through a
+     * caching pipeline that STRIPS the per-origin CORS headers. An extension-less URL
+     * like /api/v1/media?f=... is treated as DYNAMIC (pass-through), so the CORS
+     * headers from HandleCors survive and Flutter Web can load the image.
+     */
+    function media_proxy_url(string $path): string
+    {
+        $path    = ltrim($path, '/');
+        $encoded = implode('/', array_map('rawurlencode', explode('/', $path)));
+        return url('/api/v1/media') . '?f=' . $encoded;
+    }
+}
+
 if (!function_exists('cdn_url')) {
     /**
-     * Convert a stored image/video reference into a CORS-safe URL.
+     * Convert a stored image/video reference into a CORS-safe, CDN-DYNAMIC URL.
      *
-     * Flutter Web (CanvasKit) requires CORS headers on images/videos, but static
-     * files under /storage/ are served directly and carry none. This routes our
-     * own storage files through the /api/v1/img/ proxy (which sends CORS headers),
-     * while leaving external URLs (YouTube, other CDNs) untouched.
+     * Flutter Web (CanvasKit) requires CORS headers on images/videos. Our own storage
+     * files are routed through the /api/v1/media proxy (extension-less so the CDN
+     * doesn't cache+strip CORS); external URLs (YouTube, other CDNs) are left as-is.
      *
-     * Accepts either a relative storage path ("banners/foo.jpg") or a full legacy
-     * URL ("https://esahlan.com/storage/banners/foo.jpg").
+     * Accepts a relative storage path ("banners/foo.jpg"), a legacy storage URL
+     * ("https://esahlan.com/storage/banners/foo.jpg"), or a legacy proxy URL
+     * ("https://esahlan.com/api/v1/img/banners/foo.jpg").
      */
     function cdn_url(?string $pathOrUrl): ?string
     {
@@ -175,16 +194,20 @@ if (!function_exists('cdn_url')) {
         $val = trim($pathOrUrl);
 
         if (str_starts_with($val, 'http://') || str_starts_with($val, 'https://')) {
-            // Full URL. If it points at our own /storage/ files, rewrite it through
-            // the proxy. Otherwise it's external (YouTube, etc.) — just force https.
-            if (preg_match('#/storage/(.+)$#', $val, $m)) {
-                return url('/api/v1/img/' . ltrim($m[1], '/'));
+            // Already one of our proxy URLs (old /api/img or /api/v1/img form).
+            if (preg_match('#/api/(?:v1/)?img/(.+)$#', $val, $m)) {
+                return media_proxy_url($m[1]);
             }
+            // Our own /storage/ file → route through the proxy.
+            if (preg_match('#/storage/(.+)$#', $val, $m)) {
+                return media_proxy_url($m[1]);
+            }
+            // External URL (YouTube, etc.) — just force https.
             return str_replace('http://', 'https://', $val);
         }
 
         // Relative storage path.
-        return url('/api/v1/img/' . ltrim($val, '/'));
+        return media_proxy_url($val);
     }
 }
 
