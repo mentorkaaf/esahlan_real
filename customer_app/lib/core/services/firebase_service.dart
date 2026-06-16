@@ -1,12 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../api/api_client.dart';
 import '../constants/app_constants.dart';
@@ -27,12 +24,12 @@ class FirebaseService {
   final FlutterLocalNotificationsPlugin _localNotif =
       FlutterLocalNotificationsPlugin();
 
-  /// Called when a LOCAL notification (shown while app is open) is tapped.
-  /// Set this from main.dart so navigation can use Riverpod.
+  /// Called when a foreground notification's deep link should trigger navigation.
   void Function(String deepLink)? onDeepLink;
 
+  // Notification channel — must match AndroidManifest default_notification_channel_id
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    AppConstants.fcmChannelId,
+    AppConstants.fcmChannelId,   // 'esahlan_high_v3'
     AppConstants.fcmChannelName,
     description: AppConstants.fcmChannelDesc,
     importance: Importance.max,
@@ -46,13 +43,15 @@ class FirebaseService {
     try {
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
+      // iOS: show notification banner even when app is in foreground
       await _fcm.setForegroundNotificationPresentationOptions(
         alert: true, badge: true, sound: true,
       );
 
-      await _setupLocalNotifications();
+      // Create Android notification channel first, then init plugin
+      await _createChannelAndInit();
 
-      // Show notification while app is open
+      // Foreground message listener
       FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
       await _registerToken();
@@ -62,128 +61,114 @@ class FirebaseService {
     }
   }
 
-  // ── Foreground: show via flutter_local_notifications ──────────────────────
-  Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    final notif = message.notification;
-    if (notif == null) return;
-    debugPrint('[FCM] Foreground message: ${notif.title} data:${message.data}');
-
-    // image_url is always in data (added by backend) — most reliable source
-    final imageUrl = (message.data['image_url'] as String?)?.isNotEmpty == true
-        ? message.data['image_url'] as String
-        : (notif.android?.imageUrl ?? notif.apple?.imageUrl);
-
-    AndroidNotificationDetails android;
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      final localPath = await _downloadImage(imageUrl);
-      if (localPath != null) {
-        android = AndroidNotificationDetails(
-          _channel.id, _channel.name,
-          channelDescription: _channel.description,
-          importance: Importance.max,
-          priority: Priority.high,
-          icon: '@drawable/ic_notification',
-          color: const Color(0xFF140465),
-          styleInformation: BigPictureStyleInformation(
-            FilePathAndroidBitmap(localPath),
-            largeIcon: FilePathAndroidBitmap(localPath),
-            contentTitle: notif.title,
-            summaryText: notif.body,
-            hideExpandedLargeIcon: false,
-          ),
-        );
-      } else {
-        android = _simpleAndroid();
-      }
-    } else {
-      android = _simpleAndroid();
-    }
-
-    try {
-      await _localNotif.show(
-        notif.hashCode,
-        notif.title,
-        notif.body,
-        NotificationDetails(
-          android: android,
-          iOS: const DarwinNotificationDetails(
-            presentAlert: true, presentBadge: true, presentSound: true,
-          ),
-        ),
-        payload: jsonEncode(message.data),
-      );
-      debugPrint('[FCM] Local notification shown');
-    } catch (e) {
-      debugPrint('[FCM] Show error: $e');
-    }
-  }
-
-  AndroidNotificationDetails _simpleAndroid() => AndroidNotificationDetails(
-        _channel.id, _channel.name,
-        channelDescription: _channel.description,
-        importance: Importance.max,
-        priority: Priority.high,
-        icon: '@drawable/ic_notification',
-        color: const Color(0xFF140465),
-      );
-
-  // ── Download image to temp file ────────────────────────────────────────────
-  Future<String?> _downloadImage(String url) async {
-    try {
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/fcm_${url.hashCode}.jpg');
-      if (await file.exists()) return file.path;
-      await Dio().download(url, file.path,
-          options: Options(receiveTimeout: const Duration(seconds: 10)));
-      return file.path;
-    } catch (e) {
-      debugPrint('[FCM] Image download failed: $e');
-      return null;
-    }
-  }
-
-  // ── Local notification tap handler ─────────────────────────────────────────
-  void _setupLocalNotificationTapHandler() {
-    // already set up in initialize via _setupLocalNotifications
-  }
-
-  // ── Setup flutter_local_notifications ─────────────────────────────────────
-  Future<void> _setupLocalNotifications() async {
-    // Create channel FIRST (must exist before any notification is shown)
-    await _localNotif
+  // ── Create Android channel and init flutter_local_notifications ──────────
+  Future<void> _createChannelAndInit() async {
+    // Step 1: Create the channel (must exist before any show() call)
+    final android = _localNotif
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(_channel);
+            AndroidFlutterLocalNotificationsPlugin>();
 
+    await android?.createNotificationChannel(_channel);
+
+    // Step 2: Initialize plugin
     await _localNotif.initialize(
       const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        android: AndroidInitializationSettings('@drawable/ic_notification'),
         iOS: DarwinInitializationSettings(
           requestAlertPermission: false,
           requestBadgePermission: false,
           requestSoundPermission: false,
         ),
       ),
-      onDidReceiveNotificationResponse: (details) {
-        debugPrint('[FCM] Local notif tapped payload: ${details.payload}');
-        if (details.payload == null || details.payload!.isEmpty) return;
-        try {
-          final data = jsonDecode(details.payload!) as Map<String, dynamic>;
-          final dl = data['deep_link'] as String?;
-          debugPrint('[FCM] Deep link from local notif: $dl');
-          if (dl != null && dl.isNotEmpty) {
-            onDeepLink?.call(dl);
-          }
-        } catch (e) {
-          debugPrint('[FCM] Payload parse error: $e');
-        }
-      },
+      onDidReceiveNotificationResponse: _onNotificationTapped,
+      onDidReceiveBackgroundNotificationResponse: _onNotificationTappedBackground,
     );
+  }
+
+  // ── Foreground message → show heads-up notification ───────────────────────
+  Future<void> _handleForegroundMessage(RemoteMessage message) async {
+    try {
+      // Get title/body — prefer notification field, fall back to data
+      final title = message.notification?.title
+          ?? message.data['title'] as String?
+          ?? 'eSahlan';
+      final body = message.notification?.body
+          ?? message.data['body'] as String?
+          ?? '';
+
+      debugPrint('[FCM] Foreground: title=$title body=$body data=${message.data}');
+
+      final notifDetails = NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channel.id,
+          _channel.name,
+          channelDescription: _channel.description,
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@drawable/ic_notification',
+          color: const Color(0xFF140465),
+          enableVibration: true,
+          playSound: true,
+          // Show as heads-up (peek) notification
+          fullScreenIntent: false,
+          styleInformation: BigTextStyleInformation(
+            body,
+            contentTitle: title,
+            summaryText: 'eSahlan',
+          ),
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      );
+
+      // Use message hash as unique notification id
+      final id = (message.messageId ?? message.data['order_id'] ?? '0')
+          .hashCode
+          .abs() % 100000;
+
+      await _localNotif.show(
+        id,
+        title,
+        body,
+        notifDetails,
+        payload: jsonEncode(message.data),
+      );
+
+      debugPrint('[FCM] Foreground notification shown (id=$id)');
+    } catch (e, st) {
+      debugPrint('[FCM] Foreground show error: $e\n$st');
+    }
+  }
+
+  // ── Notification tap handlers ─────────────────────────────────────────────
+  void _onNotificationTapped(NotificationResponse details) {
+    _handlePayload(details.payload);
+  }
+
+  @pragma('vm:entry-point')
+  static void _onNotificationTappedBackground(NotificationResponse details) {
+    // Background tap is handled by onMessageOpenedApp in main.dart
+  }
+
+  void _handlePayload(String? payload) {
+    if (payload == null || payload.isEmpty) return;
+    try {
+      final data = jsonDecode(payload) as Map<String, dynamic>;
+      final dl = data['deep_link'] as String?;
+      if (dl != null && dl.isNotEmpty) {
+        debugPrint('[FCM] Navigating to deep link: $dl');
+        onDeepLink?.call(dl);
+      }
+    } catch (e) {
+      debugPrint('[FCM] Payload parse error: $e');
+    }
   }
 
   // ── Permission ─────────────────────────────────────────────────────────────
   Future<bool> requestPermissionIfNeeded() async {
-    // Use v3 key so previous denials are re-asked after app update
     const permKey = 'notif_permission_asked_v3';
     final already = await LocalStorage.getBool(permKey);
     if (already) {
@@ -196,7 +181,7 @@ class FirebaseService {
     );
     await LocalStorage.saveBool(permKey, true);
 
-    // Android 13+
+    // Android 13+: also request via local notifications plugin
     final android = _localNotif
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
@@ -206,14 +191,14 @@ class FirebaseService {
     return settings.authorizationStatus == AuthorizationStatus.authorized;
   }
 
-  // ── Token ──────────────────────────────────────────────────────────────────
+  // ── Token management ───────────────────────────────────────────────────────
   Future<void> _registerToken() async {
     try {
       final token = await _fcm.getToken();
-      debugPrint('[FCM] Token: $token');
+      debugPrint('[FCM] Device token: $token');
       if (token != null) await _uploadToken(token);
     } catch (e) {
-      debugPrint('[FCM] Token error: $e');
+      debugPrint('[FCM] Token get error: $e');
     }
   }
 
@@ -225,22 +210,21 @@ class FirebaseService {
     try {
       await ApiClient.instance.post('/auth/fcm-token', data: {'fcm_token': token});
       await LocalStorage.saveString(AppConstants.fcmTokenKey, token);
-      debugPrint('[FCM] Token uploaded');
+      debugPrint('[FCM] Token uploaded to server');
     } catch (e) {
-      // Upload failed (e.g. not logged in yet) — clear local cache so next
-      // authenticated upload attempt will retry
+      // Clear local copy so next auth attempt retries
       await LocalStorage.remove(AppConstants.fcmTokenKey);
       debugPrint('[FCM] Token upload failed: $e');
     }
   }
 
-  /// Call this after login to force-upload the current FCM token.
+  /// Call after login — forces a fresh token upload.
   Future<void> registerTokenAfterLogin() async {
     await LocalStorage.remove(AppConstants.fcmTokenKey);
     await _registerToken();
   }
 
-  /// Call this when the app resumes from background to keep the token fresh.
+  /// Call on app resume — keeps server token fresh.
   Future<void> refreshTokenIfNeeded() async {
     try {
       final token = await _fcm.getToken();
