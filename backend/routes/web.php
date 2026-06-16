@@ -26,6 +26,8 @@ use App\Http\Controllers\Admin\AdminWalletController;
 use App\Http\Controllers\Admin\AdminLandingController;
 use App\Http\Controllers\Admin\AdminExchangeController;
 use App\Http\Controllers\Admin\AdminELearningController;
+use App\Http\Controllers\Employee\EmployeeAuthController;
+use App\Http\Controllers\Employee\EmployeeController;
 
 // ─── Vendor Panel ────────────────────────────────────────────────────────────
 Route::prefix('vendor')->name('vendor.')->group(function () {
@@ -91,12 +93,26 @@ Route::get('/', function () {
         if ($role === 'admin' || str_starts_with($role, 'admin')) {
             return redirect()->route('admin.dashboard');
         }
+        if ($role === 'employee') {
+            return redirect()->route('employee.dashboard');
+        }
     }
     return view('landing');
 });
 
 // Admin root redirect
 Route::get('/admin', fn() => redirect('/admin/dashboard'));
+
+// ─── Employee Panel (module staff) ───────────────────────────────────────────
+Route::prefix('employee')->name('employee.')->group(function () {
+    Route::get('/login',  [EmployeeAuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [EmployeeAuthController::class, 'login'])->name('login.post');
+
+    Route::middleware(['auth', 'role:employee'])->group(function () {
+        Route::get('/',       [EmployeeController::class, 'dashboard'])->name('dashboard');
+        Route::post('/logout', [EmployeeAuthController::class, 'logout'])->name('logout');
+    });
+});
 
 // Run pending migrations + clear caches (token-guarded, same secret as deploy).
 Route::get('/api-migrate', function (\Illuminate\Http\Request $request) {

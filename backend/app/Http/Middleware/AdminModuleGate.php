@@ -44,10 +44,14 @@ class AdminModuleGate
 
         $path = $request->path(); // e.g. "admin/module-data/efood/items"
 
-        // Always allow the landing dashboard + logout.
-        if ($path === 'admin'
-            || $path === 'admin/dashboard'
-            || str_starts_with($path, 'admin/logout')) {
+        // Employees have their own dashboard — send them there instead of the
+        // admin dashboard/root.
+        if ($path === 'admin' || $path === 'admin/dashboard') {
+            return redirect()->route('employee.dashboard');
+        }
+
+        // Logout is allowed (the layout points employees at employee.logout, but be safe).
+        if (str_starts_with($path, 'admin/logout')) {
             return $next($request);
         }
 
