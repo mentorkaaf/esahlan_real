@@ -64,6 +64,11 @@ class AdminModuleGate
             }
         }
 
+        // Employees can access orders + deliverymen pages (controller scopes to their modules).
+        if (str_starts_with($path, 'admin/orders') || str_starts_with($path, 'admin/deliverymen')) {
+            return $next($request);
+        }
+
         // Any other admin page is off-limits to a module employee.
         abort(403, 'Employees can only access their assigned modules.');
     }

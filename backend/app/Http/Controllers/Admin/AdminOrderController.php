@@ -35,6 +35,14 @@ class AdminOrderController extends Controller
         $dateTo    = $request->date_to;
         $module    = $request->module; // optional single-module filter
 
+        /** @var \App\Models\User $authUser */
+        $authUser = auth()->user();
+
+        // Employees are scoped to their assigned modules only.
+        $employeeModuleSlugs = $authUser->isEmployee()
+            ? $authUser->managedModules()->pluck('slug')->all()
+            : null;
+
         // Base query with filters
         $baseQuery = Order::with(['user', 'vendor', 'deliveryman'])
             ->when($status,   fn($q) => $q->where('status', $status))
@@ -44,10 +52,15 @@ class AdminOrderController extends Controller
                 $q2->where('order_number', 'like', "%{$search}%")
                    ->orWhereHas('user', fn($u) => $u->where('name', 'like', "%{$search}%"));
             }))
+            ->when($employeeModuleSlugs, fn($q) => $q->whereIn('module_slug', $employeeModuleSlugs))
             ->latest();
 
         // If a single module is requested, just paginate that
         if ($module) {
+            // Employees cannot bypass scope via URL parameter
+            if ($employeeModuleSlugs && !in_array($module, $employeeModuleSlugs)) {
+                abort(403, 'You are not assigned to this module.');
+            }
             $orders = $baseQuery->where('module_slug', $module)->paginate(20);
             $moduleGroups = null;
         } else {
@@ -84,12 +97,20 @@ class AdminOrderController extends Controller
         ));
     }
 
+    private function authorizeOrderAccess(Order $order): void
+    {
+        $user = auth()->user();
+        if ($user->isEmployee() && !$user->canManageModule($order->module_slug ?? '')) {
+            abort(403, 'You are not assigned to manage orders for this module.');
+        }
+    }
+
     public function show(Order $order)
     {
+        $this->authorizeOrderAccess($order);
         try {
             $order->load(['user', 'vendor', 'deliveryman', 'items.product', 'statusHistory']);
         } catch (\Throwable $e) {
-            // Load without statusHistory if table issues
             $order->load(['user', 'vendor', 'deliveryman', 'items.product']);
         }
         $deliverymen = Deliveryman::where('is_approved', true)->where('status', 'available')->with('user')->get();
@@ -98,6 +119,7 @@ class AdminOrderController extends Controller
 
     public function updateStatus(Request $request, Order $order)
     {
+        $this->authorizeOrderAccess($order);
         $request->validate([
             'status' => 'required|in:pending,confirmed,preparing,ready_for_pickup,out_for_delivery,delivered,cancelled,refunded,failed',
             'note'   => 'nullable|string',
@@ -141,6 +163,7 @@ class AdminOrderController extends Controller
 
     public function assignDeliveryman(Request $request, Order $order)
     {
+        $this->authorizeOrderAccess($order);
         $request->validate(['deliveryman_id' => 'required|exists:deliverymen,id']);
 
         DB::transaction(function () use ($order, $request) {

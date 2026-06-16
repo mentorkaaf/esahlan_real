@@ -39,7 +39,7 @@
             box-shadow: 0 4px 18px rgba(7,0,59,0.06); border: 2px solid transparent; transition: all .25s;
             display: flex; flex-direction: column; gap: 14px;
         }
-        .mod-card:hover { transform: translateY(-5px); border-color: #FF8A00; box-shadow: 0 14px 34px rgba(7,0,59,0.12); }
+        .mod-card:hover { border-color: #FF8A00; box-shadow: 0 14px 34px rgba(7,0,59,0.12); }
         .mod-icon {
             width: 58px; height: 58px; border-radius: 15px;
             background: linear-gradient(135deg,#140465,#0c0148); color: #fff;
@@ -48,6 +48,16 @@
         .mod-card:hover .mod-icon { background: linear-gradient(135deg,#FF8A00,#ff6200); }
         .mod-name { font-size: 17px; font-weight: 800; color: #07003B; }
         .mod-go { font-size: 12.5px; color: #FF8A00; font-weight: 700; display:flex; align-items:center; gap:6px; }
+        .mod-actions { display:flex; gap:8px; margin-top:4px; flex-wrap:wrap; }
+        .mod-btn {
+            flex:1; padding:8px 10px; border-radius:9px; font-size:12px; font-weight:700; cursor:pointer;
+            border:none; display:inline-flex; align-items:center; justify-content:center; gap:6px;
+            text-decoration:none; transition:all .2s;
+        }
+        .mod-btn-primary { background:linear-gradient(135deg,#140465,#0c0148); color:#fff; }
+        .mod-btn-primary:hover { background:linear-gradient(135deg,#FF8A00,#ff6200); color:#fff; }
+        .mod-btn-outline { background:#fff; color:#140465; border:2px solid #e5e7eb; }
+        .mod-btn-outline:hover { border-color:#FF8A00; color:#FF8A00; }
         .empty { background:#fff; border-radius:16px; padding:40px; text-align:center; color:#9ca3af; }
     </style>
 </head>
@@ -86,11 +96,20 @@
         @else
             <div class="grid">
                 @foreach($modules as $m)
-                <a class="mod-card" href="{{ $m['url'] ?? '#' }}">
+                <div class="mod-card">
                     <div class="mod-icon"><i class="fas {{ $m['icon'] }}"></i></div>
                     <div class="mod-name">{{ $m['name'] }}</div>
-                    <div class="mod-go">Manage <i class="fas fa-arrow-right"></i></div>
-                </a>
+                    <div class="mod-actions">
+                        @if(!empty($m['url']))
+                        <a class="mod-btn mod-btn-primary" href="{{ $m['url'] }}">
+                            <i class="fas fa-cog"></i> Manage
+                        </a>
+                        @endif
+                        <a class="mod-btn mod-btn-outline" href="{{ route('admin.orders.index', ['module' => $m['slug']]) }}">
+                            <i class="fas fa-receipt"></i> Orders
+                        </a>
+                    </div>
+                </div>
                 @endforeach
             </div>
         @endif
