@@ -48,6 +48,9 @@ class FirebaseService {
         alert: true, badge: true, sound: true,
       );
 
+      // Request permission first — notifications silently fail if not granted
+      await _fcm.requestPermission(alert: true, badge: true, sound: true);
+
       // Create Android notification channel first, then init plugin
       await _createChannelAndInit();
 
@@ -71,9 +74,10 @@ class FirebaseService {
     await android?.createNotificationChannel(_channel);
 
     // Step 2: Initialize plugin
+    // AndroidInitializationSettings takes the raw drawable name — no @drawable/ prefix
     await _localNotif.initialize(
       const InitializationSettings(
-        android: AndroidInitializationSettings('@drawable/ic_notification'),
+        android: AndroidInitializationSettings('ic_notification'),
         iOS: DarwinInitializationSettings(
           requestAlertPermission: false,
           requestBadgePermission: false,
@@ -105,7 +109,7 @@ class FirebaseService {
           channelDescription: _channel.description,
           importance: Importance.max,
           priority: Priority.high,
-          icon: '@drawable/ic_notification',
+          icon: 'ic_notification',
           color: const Color(0xFF140465),
           enableVibration: true,
           playSound: true,
