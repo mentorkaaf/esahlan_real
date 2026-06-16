@@ -109,5 +109,6 @@
             </div>
         @endif
     </div>
+@include('partials.order-notifier')
 </body>
 </html>

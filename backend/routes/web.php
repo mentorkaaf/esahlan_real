@@ -443,6 +443,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/landing', [AdminLandingController::class, 'index'])->name('landing.index');
         Route::put('/landing', [AdminLandingController::class, 'update'])->name('landing.update');
 
+        // ── New-order polling (admin + employee) ──────────────────────────────
+        Route::get('/orders/poll-new', [AdminOrderController::class, 'pollNew'])->name('orders.poll');
+
         // ── Roles & Access (assign roles + scope employees to modules) ────────
         Route::middleware('role:super_admin,admin')->prefix('access')->name('access.')->group(function () {
             Route::get('/',        [\App\Http\Controllers\Admin\AdminAccessController::class, 'index'])->name('index');

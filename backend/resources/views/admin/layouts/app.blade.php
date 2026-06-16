@@ -906,5 +906,6 @@ document.getElementById('globalSearch')?.addEventListener('keydown', e => {
 });
 </script>
 @stack('scripts')
+@include('partials.order-notifier')
 </body>
 </html>

@@ -187,6 +187,37 @@ class AdminOrderController extends Controller
         return back()->with('success', 'Deliveryman assigned successfully.');
     }
 
+    public function pollNew(Request $request)
+    {
+        $since = $request->query('since'); // Unix timestamp (seconds)
+        if (!$since || !is_numeric($since)) {
+            return response()->json(['orders' => [], 'ts' => now()->timestamp]);
+        }
+
+        $user = auth()->user();
+        $sinceDate = \Carbon\Carbon::createFromTimestamp((int) $since);
+
+        $query = Order::with('user')
+            ->where('created_at', '>', $sinceDate)
+            ->latest();
+
+        if ($user->isEmployee()) {
+            $slugs = $user->managedModules()->pluck('slug')->all();
+            $query->whereIn('module_slug', $slugs);
+        }
+
+        $orders = $query->limit(20)->get()->map(fn($o) => [
+            'id'           => $o->id,
+            'order_number' => $o->order_number ?? '#' . $o->id,
+            'module'       => $o->module_slug ?? 'order',
+            'customer'     => $o->user?->name ?? 'Customer',
+            'total'        => number_format($o->total_amount ?? 0, 2),
+            'url'          => route('admin.orders.show', $o->id),
+        ]);
+
+        return response()->json(['orders' => $orders, 'ts' => now()->timestamp]);
+    }
+
     public function bulkAction(Request $request)
     {
         $rules = [

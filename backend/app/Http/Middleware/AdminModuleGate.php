@@ -34,7 +34,7 @@ class AdminModuleGate
             return $next($request);
         }
 
-        // Employees may only access orders and deliverymen (controller scopes by module).
+        // Employees may only access orders, poll endpoint, and deliverymen (controller scopes by module).
         if (str_starts_with($path, 'admin/orders') || str_starts_with($path, 'admin/deliverymen')) {
             return $next($request);
         }
