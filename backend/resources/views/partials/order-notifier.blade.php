@@ -74,26 +74,44 @@
         return audioCtx;
     }
 
-    function beep(freq = 880, duration = 0.18, gain = 0.55) {
+    // Play one rich "ding" note: sine fundamental + harmonics + fast decay
+    function ding(freq, startTime) {
         try {
-            const ctx = getAudioCtx();
-            const osc = ctx.createOscillator();
-            const gn  = ctx.createGain();
-            osc.connect(gn);
-            gn.connect(ctx.destination);
-            osc.type      = 'square';
-            osc.frequency.value = freq;
-            gn.gain.setValueAtTime(gain, ctx.currentTime);
-            gn.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + duration + 0.05);
+            const ctx  = getAudioCtx();
+            const t    = startTime ?? ctx.currentTime;
+            const gain = ctx.createGain();
+            gain.connect(ctx.destination);
+
+            // Fundamental + 2nd harmonic for richness
+            [1, 2].forEach((mult, i) => {
+                const osc = ctx.createOscillator();
+                const g   = ctx.createGain();
+                osc.connect(g);
+                g.connect(gain);
+                osc.type = 'sine';
+                osc.frequency.value = freq * mult;
+                // Harmonic gets lower gain
+                g.gain.setValueAtTime(i === 0 ? 1.0 : 0.35, t);
+                osc.start(t);
+                osc.stop(t + 1.6);
+            });
+
+            // Master envelope: punch attack, long natural decay
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(1.0, t + 0.008);  // sharp attack
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 1.5); // slow bell decay
         } catch (e) {}
     }
 
     function playAlarm() {
-        // Double beep pattern
-        beep(880, 0.15, 0.6);
-        setTimeout(() => beep(1100, 0.15, 0.6), 200);
+        // Three-note ascending chime: E5 → G#5 → B5  (major triad)
+        try {
+            const ctx = getAudioCtx();
+            const t   = ctx.currentTime;
+            ding(659.25, t);           // E5
+            ding(830.61, t + 0.22);    // G#5
+            ding(987.77, t + 0.44);    // B5
+        } catch (e) {}
     }
 
     function startAlarm(orderId) {
