@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../../shared/widgets/wallet_pin_dialog.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Theme Constants
@@ -1413,7 +1414,10 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
   }
 
   Future<void> _confirmBooking() async {
-    if (_payMethod == 'waafi_pay') {
+    if (_payMethod == 'wallet') {
+      final ok = await showWalletPinDialog(context);
+      if (!ok) return;
+    } else if (_payMethod == 'waafi_pay') {
       final result = await showWaafiPaySheet(
         context,
         amount: _total,

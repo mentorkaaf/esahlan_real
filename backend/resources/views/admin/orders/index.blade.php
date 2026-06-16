@@ -389,13 +389,19 @@ $count = $grpOrders->count();
                         </td>
                         <td><span class="badge {{ $exBadge }}">{{ ucfirst($ex->status) }}</span></td>
                         <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">
-                            {{ \Carbon\Carbon::parse($ex->created_at)->format('d M') }}<br>
-                            <span style="font-size:11px;">{{ \Carbon\Carbon::parse($ex->created_at)->format('H:i') }}</span>
+                            {{ \Carbon\Carbon::parse($ex->created_at)->timezone('Africa/Mogadishu')->format('d M') }}<br>
+                            <span style="font-size:11px;">{{ \Carbon\Carbon::parse($ex->created_at)->timezone('Africa/Mogadishu')->format('H:i') }}</span>
                         </td>
-                        <td>
+                        <td style="display:flex;gap:6px;align-items:center;">
                             <a href="{{ route('admin.exchange.show',$ex->id) }}" class="btn btn-outline btn-xs">
                                 <i class="fas fa-eye"></i> View
                             </a>
+                            <form method="POST" action="{{ route('admin.exchange.destroy',$ex->id) }}" onsubmit="return confirm('Delete this exchange order?')">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="btn btn-xs" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
                         </td>
                     </tr>
                     @endforeach

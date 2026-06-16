@@ -142,7 +142,7 @@ class ETicketController extends Controller
         $v = Validator::make($request->all(), [
             'flight_id'          => 'required|exists:flights,id',
             'seat_class'         => 'required|in:economy,business,first',
-            'payment_method'     => 'required|in:wallet,cod',
+            'payment_method'     => 'required|in:wallet,waafi_pay,cod',
             'passengers'         => 'required|array|min:1',
             'passengers.*.name'  => 'required|string',
             'passengers.*.passport_number' => 'required|string',
@@ -181,7 +181,7 @@ class ETicketController extends Controller
                 'module_slug'     => 'eticket',
                 'status'          => 'confirmed',
                 'payment_method'  => $request->payment_method,
-                'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'unpaid',
+                'payment_status'  => in_array($request->payment_method, ['wallet','waafi_pay']) ? 'paid' : 'unpaid',
                 'delivery_address'=> ['flight_id' => $flight->id],
                 'subtotal'        => $total,
                 'delivery_fee'    => 0,

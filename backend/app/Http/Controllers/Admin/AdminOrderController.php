@@ -215,7 +215,30 @@ class AdminOrderController extends Controller
             'url'          => route('admin.orders.show', $o->id),
         ]);
 
-        return response()->json(['orders' => $orders, 'ts' => now()->timestamp]);
+        // Include eLearning enrollments (not in orders table) — full admins only
+        $elearning = [];
+        if (!$user->isEmployee()) {
+            $elearning = \DB::table('el_enrollments')
+                ->join('el_courses', 'el_courses.id', '=', 'el_enrollments.course_id')
+                ->join('users', 'users.id', '=', 'el_enrollments.user_id')
+                ->select('el_enrollments.id', 'el_enrollments.created_at', 'el_enrollments.amount_paid',
+                         'el_courses.title', 'users.name as user_name')
+                ->where('el_enrollments.created_at', '>', $sinceDate)
+                ->orderByDesc('el_enrollments.created_at')
+                ->limit(10)->get()
+                ->map(fn($e) => [
+                    'id'           => 'el_' . $e->id,
+                    'order_number' => 'Course Enrollment',
+                    'module'       => 'elearning',
+                    'customer'     => $e->user_name ?? 'Student',
+                    'total'        => number_format($e->amount_paid ?? 0, 2),
+                    'url'          => route('admin.elearning.dashboard'),
+                ])->all();
+        }
+
+        $all = $orders->concat($elearning)->values();
+
+        return response()->json(['orders' => $all, 'ts' => now()->timestamp]);
     }
 
     public function bulkAction(Request $request)

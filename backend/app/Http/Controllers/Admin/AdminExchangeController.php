@@ -57,4 +57,10 @@ class AdminExchangeController extends Controller
 
         return view('admin.exchange.show', compact('order'));
     }
+
+    public function destroy(int $id)
+    {
+        \Illuminate\Support\Facades\DB::table('exchange_orders')->where('id', $id)->delete();
+        return back()->with('success', 'Exchange order deleted.');
+    }
 }

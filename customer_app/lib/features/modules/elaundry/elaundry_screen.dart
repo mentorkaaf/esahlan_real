@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../../shared/widgets/wallet_pin_dialog.dart';
 
 final _svc = ModuleApiService.create();
 final _laundryItemsProvider = FutureProvider((_) => _svc.getLaundryItems());
@@ -369,7 +370,10 @@ class _OrderSheetState extends State<_OrderSheet> {
             label: _loading ? 'Placing Order...' : 'Confirm Order',
             isLoading: _loading,
             onPressed: _addrCtrl.text.trim().isEmpty ? null : () async {
-              if (_payMethod == 'waafi_pay') {
+              if (_payMethod == 'wallet') {
+                final ok = await showWalletPinDialog(context);
+                if (!ok) return;
+              } else if (_payMethod == 'waafi_pay') {
                 final result = await showWaafiPaySheet(
                   context, amount: widget.total, type: 'order', description: 'eLaundry Order',
                 );
