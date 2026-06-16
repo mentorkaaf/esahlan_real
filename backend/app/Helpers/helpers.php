@@ -115,7 +115,12 @@ if (!function_exists('proxy_storage_file')) {
             'Access-Control-Expose-Headers' => 'Content-Length, Content-Range, Accept-Ranges',
             'Cross-Origin-Resource-Policy'  => 'cross-origin',
             'Accept-Ranges'                 => 'bytes',
-            'Cache-Control'                 => 'public, max-age=86400',
+            // MUST stay uncacheable: the Hostinger CDN (hcdn) caches image-extension
+            // URLs as static assets and strips the per-origin CORS headers in the
+            // process. Keeping it private/no-store makes the CDN treat it as DYNAMIC
+            // (pass-through), so the CORS headers from HandleCors reach the browser.
+            'Cache-Control'                 => 'no-store, no-cache, must-revalidate, private',
+            'Pragma'                        => 'no-cache',
         ];
 
         $start  = 0;
