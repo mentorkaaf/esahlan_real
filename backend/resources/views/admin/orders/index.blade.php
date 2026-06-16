@@ -473,7 +473,11 @@ document.querySelectorAll('.order-cb').forEach(cb => cb.addEventListener('change
 function globalToggleAll(el) {
     document.querySelectorAll('.order-cb').forEach(cb => cb.checked = el.checked);
     document.querySelectorAll('.select-all-module').forEach(sa => sa.checked = el.checked);
+    document.querySelectorAll('.exc-cb').forEach(cb => cb.checked = el.checked);
+    const excSa = document.getElementById('excSelectAll');
+    if (excSa) excSa.checked = el.checked;
     updateBar();
+    excUpdateBar();
 }
 function clearSelection() {
     document.querySelectorAll('.order-cb, .select-all-module').forEach(cb => cb.checked = false);
