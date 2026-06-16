@@ -179,10 +179,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Orders
         Route::prefix('orders')->name('orders.')->group(function () {
             Route::get('/', [AdminOrderController::class, 'index'])->name('index');
+            Route::get('/poll-new', [AdminOrderController::class, 'pollNew'])->name('poll');
+            Route::post('/bulk', [AdminOrderController::class, 'bulkAction'])->name('bulk');
             Route::get('/{order}', [AdminOrderController::class, 'show'])->name('show');
             Route::patch('/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('status');
             Route::post('/{order}/assign', [AdminOrderController::class, 'assignDeliveryman'])->name('assign');
-            Route::post('/bulk', [AdminOrderController::class, 'bulkAction'])->name('bulk');
         });
 
         // Deliverymen
@@ -442,9 +443,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Landing Page Management
         Route::get('/landing', [AdminLandingController::class, 'index'])->name('landing.index');
         Route::put('/landing', [AdminLandingController::class, 'update'])->name('landing.update');
-
-        // ── New-order polling (admin + employee) ──────────────────────────────
-        Route::get('/orders/poll-new', [AdminOrderController::class, 'pollNew'])->name('orders.poll');
 
         // ── Roles & Access (assign roles + scope employees to modules) ────────
         Route::middleware('role:super_admin,admin')->prefix('access')->name('access.')->group(function () {

@@ -55,8 +55,13 @@
     const TS_KEY    = 'on_last_ts';
 
     // ── Init timestamp ─────────────────────────────────────────────────
-    if (!localStorage.getItem(TS_KEY)) {
-        localStorage.setItem(TS_KEY, Math.floor(Date.now() / 1000));
+    // On first load (or after a long gap) start from 5 min ago so very
+    // recent orders placed just before the page opened are still caught.
+    const nowTs = Math.floor(Date.now() / 1000);
+    const stored = parseInt(localStorage.getItem(TS_KEY) || '0', 10);
+    if (!stored || nowTs - stored > 3600) {
+        // No stored value, or stored value is stale (> 1 h old) — reset to 5 min ago
+        localStorage.setItem(TS_KEY, nowTs - 300);
     }
 
     // ── Audio: generate alarm beep via Web Audio API ───────────────────
