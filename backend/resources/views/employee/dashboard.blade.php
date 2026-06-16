@@ -100,13 +100,8 @@
                     <div class="mod-icon"><i class="fas {{ $m['icon'] }}"></i></div>
                     <div class="mod-name">{{ $m['name'] }}</div>
                     <div class="mod-actions">
-                        @if(!empty($m['url']))
-                        <a class="mod-btn mod-btn-primary" href="{{ $m['url'] }}">
-                            <i class="fas fa-cog"></i> Manage
-                        </a>
-                        @endif
-                        <a class="mod-btn mod-btn-outline" href="{{ route('admin.orders.index', ['module' => $m['slug']]) }}">
-                            <i class="fas fa-receipt"></i> Orders
+                        <a class="mod-btn mod-btn-primary" href="{{ route('admin.orders.index', ['module' => $m['slug']]) }}">
+                            <i class="fas fa-receipt"></i> View Orders
                         </a>
                     </div>
                 </div>

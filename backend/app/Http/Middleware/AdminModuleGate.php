@@ -13,63 +13,33 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class AdminModuleGate
 {
-    /** admin path prefix => module slug it manages. */
-    private array $map = [
-        'admin/module-data/efood'     => 'efood',
-        'admin/module-data/shop'      => 'eshop',
-        'admin/module-data/wholesale' => 'ewholesale',
-        'admin/module-data/grocery'   => 'egrocery',
-        'admin/module-data/laundry'   => 'elaundry',
-        'admin/module-data/moving'    => 'emoving',
-        'admin/module-data/parcel'    => 'eparcel',
-        'admin/module-data/data'      => 'edata',
-        'admin/module-data/exchange'  => 'eexchange',
-        'admin/module-data/health'    => 'ehealth',
-        'admin/module-data/rent'      => 'erent',
-        'admin/module-data/ticket'    => 'eticket',
-        'admin/eshop'                 => 'eshop',
-        'admin/exchange'              => 'eexchange',
-        'admin/elearning'             => 'elearning',
-    ];
-
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
 
-        // Full admins (and anything that isn't an employee) are unrestricted here;
-        // role:* middleware already gated who reaches this point.
+        // Full admins pass through unrestricted.
         if (!$user || !$user->isEmployee()) {
             return $next($request);
         }
 
-        $path = $request->path(); // e.g. "admin/module-data/efood/items"
+        $path = $request->path();
 
-        // Employees have their own dashboard — send them there instead of the
-        // admin dashboard/root.
+        // Redirect employees away from admin dashboard.
         if ($path === 'admin' || $path === 'admin/dashboard') {
             return redirect()->route('employee.dashboard');
         }
 
-        // Logout is allowed (the layout points employees at employee.logout, but be safe).
+        // Logout is always allowed.
         if (str_starts_with($path, 'admin/logout')) {
             return $next($request);
         }
 
-        foreach ($this->map as $prefix => $slug) {
-            if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
-                if ($user->canManageModule($slug)) {
-                    return $next($request);
-                }
-                abort(403, 'You are not assigned to manage this module.');
-            }
-        }
-
-        // Employees can access orders + deliverymen pages (controller scopes to their modules).
+        // Employees may only access orders and deliverymen (controller scopes by module).
         if (str_starts_with($path, 'admin/orders') || str_starts_with($path, 'admin/deliverymen')) {
             return $next($request);
         }
 
-        // Any other admin page is off-limits to a module employee.
-        abort(403, 'Employees can only access their assigned modules.');
+        // Everything else is off-limits.
+        abort(403, 'Employees can only access their assigned module orders.');
     }
 }
