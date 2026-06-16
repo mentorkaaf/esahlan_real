@@ -183,7 +183,7 @@ class ELearningStudentController extends Controller
                 'id'                 => $c->id,
                 'certificate_number' => $c->certificate_number,
                 'issued_at'          => $c->issued_at->toDateString(),
-                'pdf_path'           => $c->pdf_path ? asset('storage/' . $c->pdf_path) : null,
+                'pdf_path'           => cdn_url($c->pdf_path),
                 'course'             => [
                     'id'        => $c->course->id,
                     'title'     => $c->course->title,

@@ -64,9 +64,7 @@ class EShopController extends Controller
 
     private function resolveImg(?string $path): ?string
     {
-        if (!$path) return null;
-        if (str_starts_with($path, 'http')) return $path;
-        return url('/api/v1/img/' . $path);
+        return cdn_url($path);
     }
 
     // Apply the best active deal price to a product array/object

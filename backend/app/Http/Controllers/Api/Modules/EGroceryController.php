@@ -14,8 +14,7 @@ class EGroceryController extends Controller
 {
     private function resolveImg(?string $p): ?string
     {
-        if (!$p) return null;
-        return str_starts_with($p, 'http') ? $p : url('/api/v1/img/' . $p);
+        return cdn_url($p);
     }
 
     // GET /egrocery/categories

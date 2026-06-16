@@ -42,12 +42,7 @@ class HomeController extends Controller
             return $query->orderBy('sort_order')->get()->map(function ($b) {
                 // Use /api/img/ proxy — has CORS headers for Flutter Web.
                 // If the stored path is already a full URL, use it directly.
-                $imgUrl = null;
-                if ($b->image) {
-                    $imgUrl = str_starts_with($b->image, 'http')
-                        ? $b->image
-                        : url('/api/v1/img/' . $b->image);
-                }
+                $imgUrl = cdn_url($b->image);
                 return [
                     'id'          => $b->id,
                     'title'       => $b->title ?? '',
@@ -104,12 +99,7 @@ class HomeController extends Controller
                 ->orderBy('sort_order')
                 ->get()
                 ->map(function ($b) {
-                    $imgUrl = null;
-                    if ($b->image) {
-                        $imgUrl = str_starts_with($b->image, 'http')
-                            ? $b->image
-                            : url('/api/v1/img/' . $b->image);
-                    }
+                    $imgUrl = cdn_url($b->image);
                     return [
                         'id'          => $b->id,
                         'title'       => $b->title ?? '',

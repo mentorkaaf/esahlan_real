@@ -57,7 +57,7 @@ class ELearningInstructorApiController extends Controller
                     'expertise'        => $instructor->expertise,
                     'qualifications'   => $instructor->qualifications,
                     'experience_years' => $instructor->experience_years,
-                    'profile_photo'    => $instructor->profile_photo ? asset('storage/' . $instructor->profile_photo) : null,
+                    'profile_photo'    => cdn_url($instructor->profile_photo),
                     'rating'           => $instructor->rating,
                     'total_courses'    => $instructor->total_courses,
                     'total_students'   => $instructor->total_students,
@@ -532,7 +532,7 @@ class ELearningInstructorApiController extends Controller
                 'grade'        => $s->grade,
                 'submitted_at' => $s->submitted_at->toDateString(),
                 'text_answer'  => $s->text_answer,
-                'file_path'    => $s->file_path ? asset('storage/' . $s->file_path) : null,
+                'file_path'    => cdn_url($s->file_path),
             ]),
             'meta' => ['current_page' => $submissions->currentPage(), 'last_page' => $submissions->lastPage()],
         ]);

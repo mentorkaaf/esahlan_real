@@ -16,10 +16,7 @@ class ELearningLesson extends Model
 
     public function getVideoUrlAttribute(): ?string
     {
-        $raw = $this->attributes['video_url'] ?? null;
-        if (!$raw) return null;
-        $url = str_starts_with($raw, 'http') ? $raw : asset('storage/' . $raw);
-        return str_replace('http://', 'https://', $url);
+        return cdn_url($this->attributes['video_url'] ?? null);
     }
 
     public function section()    { return $this->belongsTo(ELearningSection::class, 'section_id'); }

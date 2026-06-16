@@ -126,7 +126,7 @@ class ELearningPublicController extends Controller
                 'id'               => $i->id,
                 'name'             => $i->user->name,
                 'avatar'           => $i->user->avatar_url,
-                'profile_photo'    => $i->profile_photo ? asset('storage/' . $i->profile_photo) : null,
+                'profile_photo'    => cdn_url($i->profile_photo),
                 'expertise'        => $i->expertise,
                 'bio'              => $i->bio,
                 'rating'           => $i->rating,

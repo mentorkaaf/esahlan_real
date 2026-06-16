@@ -66,14 +66,12 @@ class Vendor extends Model
 
     public function getLogoUrlAttribute(): ?string
     {
-        if (!$this->logo) return null;
-        return str_starts_with($this->logo, 'http') ? $this->logo : asset('storage/' . $this->logo);
+        return cdn_url($this->logo);
     }
 
     public function getCoverImageUrlAttribute(): ?string
     {
-        if (!$this->cover_image) return null;
-        return str_starts_with($this->cover_image, 'http') ? $this->cover_image : asset('storage/' . $this->cover_image);
+        return cdn_url($this->cover_image);
     }
 
     public function isCurrentlyOpen(): bool

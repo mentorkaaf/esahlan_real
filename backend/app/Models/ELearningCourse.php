@@ -51,18 +51,11 @@ class ELearningCourse extends Model
 
     public function getThumbnailUrlAttribute(): ?string
     {
-        if (!$this->thumbnail) return null;
-        $url = str_starts_with($this->thumbnail, 'http')
-            ? $this->thumbnail
-            : asset('storage/' . $this->thumbnail);
-        return str_replace('http://', 'https://', $url);
+        return cdn_url($this->thumbnail);
     }
 
     public function getTrailerVideoUrlAttribute(): ?string
     {
-        $raw = $this->attributes['trailer_video'] ?? null;
-        if (!$raw) return null;
-        $url = str_starts_with($raw, 'http') ? $raw : asset('storage/' . $raw);
-        return str_replace('http://', 'https://', $url);
+        return cdn_url($this->attributes['trailer_video'] ?? null);
     }
 }

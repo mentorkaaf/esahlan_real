@@ -6,5 +6,5 @@ class Banner extends Model {
     protected $casts = ['is_active'=>'boolean','starts_at'=>'datetime','ends_at'=>'datetime'];
     public function module() { return $this->belongsTo(Module::class); }
     public function district() { return $this->belongsTo(District::class); }
-    public function getImageUrlAttribute(): ?string { return $this->image ? asset('storage/'.$this->image) : null; }
+    public function getImageUrlAttribute(): ?string { return cdn_url($this->image); }
 }

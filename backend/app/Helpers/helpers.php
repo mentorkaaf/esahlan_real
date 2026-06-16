@@ -70,6 +70,38 @@ if (!function_exists('asset_url')) {
     }
 }
 
+if (!function_exists('cdn_url')) {
+    /**
+     * Convert a stored image/video reference into a CORS-safe URL.
+     *
+     * Flutter Web (CanvasKit) requires CORS headers on images/videos, but static
+     * files under /storage/ are served directly and carry none. This routes our
+     * own storage files through the /api/v1/img/ proxy (which sends CORS headers),
+     * while leaving external URLs (YouTube, other CDNs) untouched.
+     *
+     * Accepts either a relative storage path ("banners/foo.jpg") or a full legacy
+     * URL ("https://esahlan.com/storage/banners/foo.jpg").
+     */
+    function cdn_url(?string $pathOrUrl): ?string
+    {
+        if (!$pathOrUrl) return null;
+
+        $val = trim($pathOrUrl);
+
+        if (str_starts_with($val, 'http://') || str_starts_with($val, 'https://')) {
+            // Full URL. If it points at our own /storage/ files, rewrite it through
+            // the proxy. Otherwise it's external (YouTube, etc.) — just force https.
+            if (preg_match('#/storage/(.+)$#', $val, $m)) {
+                return url('/api/v1/img/' . ltrim($m[1], '/'));
+            }
+            return str_replace('http://', 'https://', $val);
+        }
+
+        // Relative storage path.
+        return url('/api/v1/img/' . ltrim($val, '/'));
+    }
+}
+
 if (!function_exists('generate_otp')) {
     /**
      * Generate a random OTP code.

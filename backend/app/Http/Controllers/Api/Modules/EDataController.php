@@ -15,9 +15,7 @@ use Illuminate\Support\Str;
 class EDataController extends Controller
 {
     private function imgUrl(?string $v): ?string {
-        if (!$v) return null;
-        if (str_starts_with($v, 'http')) return $v;
-        return url('/api/v1/img/' . $v);
+        return cdn_url($v);
     }
 
     // GET /edata/providers

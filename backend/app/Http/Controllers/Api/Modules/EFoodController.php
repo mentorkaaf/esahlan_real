@@ -30,12 +30,7 @@ class EFoodController extends Controller
             ->orderBy('sort_order')
             ->get()
             ->map(function ($b) {
-                $imgUrl = null;
-                if ($b->image) {
-                    $imgUrl = str_starts_with($b->image, 'http')
-                        ? $b->image
-                        : url('/api/v1/img/' . $b->image);
-                }
+                $imgUrl = cdn_url($b->image);
                 return [
                     'id'          => $b->id,
                     'title'       => $b->title ?? '',
@@ -653,12 +648,10 @@ class EFoodController extends Controller
         return response()->json(['success' => true, 'data' => $categories]);
     }
 
-    // ── Convert relative image path to full URL ───────────────────────
+    // ── Convert relative image path / legacy URL to CORS-safe proxy URL ─
     private function resolveImageUrl(?string $path): ?string
     {
-        if (!$path) return null;
-        if (str_starts_with($path, 'http')) return $path;
-        return url('/api/v1/img/' . $path);
+        return cdn_url($path);
     }
 
     // ── Compute is_open from vendor_schedules rows ────────────────────
