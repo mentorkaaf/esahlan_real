@@ -144,18 +144,25 @@ class AdminOrderController extends Controller
         // ── Push notification ─────────────────────────────────────────────
         $order->load('user');
         $fcmToken = $order->user?->fcm_token;
+        \Log::info('[FCM] Order status change', [
+            'order_id'    => $order->id,
+            'status'      => $request->status,
+            'user_id'     => $order->user?->id,
+            'has_token'   => !empty($fcmToken),
+            'module_slug' => $order->module_slug,
+        ]);
         if ($fcmToken) {
             try {
-                FcmService::sendOrderUpdate(
+                $sent = FcmService::sendOrderUpdate(
                     $fcmToken,
                     $order->order_number,
                     $request->status,
                     $order->id,
                     $order->module_slug,
                 );
+                \Log::info('[FCM] sendOrderUpdate result: ' . ($sent ? 'OK' : 'FAILED'));
             } catch (\Throwable $e) {
-                // Never block the response on FCM failure
-                \Log::warning('[FCM] Notification failed: ' . $e->getMessage());
+                \Log::warning('[FCM] Notification exception: ' . $e->getMessage());
             }
         }
 
