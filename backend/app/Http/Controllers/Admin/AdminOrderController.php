@@ -184,6 +184,22 @@ class AdminOrderController extends Controller
             Deliveryman::where('id', $request->deliveryman_id)->update(['status' => 'busy']);
         });
 
+        // Notify the customer
+        $order->load('user');
+        $fcmToken = $order->user?->fcm_token;
+        if ($fcmToken) {
+            try {
+                FcmService::sendOrderUpdate(
+                    $fcmToken,
+                    $order->order_number,
+                    'out_for_delivery',
+                    $order->id,
+                );
+            } catch (\Throwable $e) {
+                \Log::warning('[FCM] Assign notification failed: ' . $e->getMessage());
+            }
+        }
+
         return back()->with('success', 'Deliveryman assigned successfully.');
     }
 

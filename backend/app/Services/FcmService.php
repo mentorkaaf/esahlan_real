@@ -102,13 +102,17 @@ class FcmService
         int    $orderId,
     ): bool {
         $messages = [
-            'pending'    => ['Order Received! 🎉',   "Your order #{$orderNumber} has been placed."],
-            'confirmed'  => ['Order Confirmed ✅',   "Vendor confirmed your order #{$orderNumber}."],
-            'preparing'  => ['Being Prepared 👨‍🍳',   "Your order #{$orderNumber} is being prepared."],
-            'ready'      => ['Order Ready 📦',       "Your order #{$orderNumber} is ready for pickup."],
-            'picked_up'  => ['On the Way! 🛵',       "Driver is heading to you with #{$orderNumber}."],
-            'delivered'  => ['Delivered! 🏠',        "Your order #{$orderNumber} has arrived. Enjoy!"],
-            'cancelled'  => ['Order Cancelled ❌',   "Your order #{$orderNumber} was cancelled."],
+            'pending'          => ['Order Received! 🎉',   "Your order #{$orderNumber} has been placed."],
+            'confirmed'        => ['Order Confirmed ✅',   "Vendor confirmed your order #{$orderNumber}."],
+            'preparing'        => ['Being Prepared 👨‍🍳',   "Your order #{$orderNumber} is being prepared."],
+            'ready'            => ['Order Ready 📦',       "Your order #{$orderNumber} is ready for pickup."],
+            'ready_for_pickup' => ['Order Ready 📦',       "Your order #{$orderNumber} is ready for pickup."],
+            'picked_up'        => ['On the Way! 🛵',       "Driver is heading to you with #{$orderNumber}."],
+            'out_for_delivery' => ['On the Way! 🛵',       "Driver is heading to you with #{$orderNumber}."],
+            'delivered'        => ['Delivered! 🏠',        "Your order #{$orderNumber} has arrived. Enjoy!"],
+            'cancelled'        => ['Order Cancelled ❌',   "Your order #{$orderNumber} was cancelled."],
+            'refunded'         => ['Order Refunded 💰',    "Your order #{$orderNumber} has been refunded."],
+            'failed'           => ['Order Failed ❌',      "Your order #{$orderNumber} could not be completed."],
         ];
 
         [$title, $body] = $messages[$status] ?? ["Order Update", "Order #{$orderNumber} status: {$status}"];
