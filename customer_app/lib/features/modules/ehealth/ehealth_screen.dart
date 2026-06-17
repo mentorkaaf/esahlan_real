@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_x.dart';
+import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/module_widgets.dart';
@@ -30,11 +32,11 @@ class _EHealthScreenState extends ConsumerState<EHealthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white, elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: AppColors.secondary), onPressed: () => context.pop()),
-        title: const Text('eHospital', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.secondary, fontFamily: 'Cairo')),
+        backgroundColor: context.colors.cardBg, elevation: 0,
+        leading: IconButton(icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.colors.navyText), onPressed: () => context.pop()),
+        title: Text('eHospital', style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText, fontFamily: 'Cairo')),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -52,18 +54,18 @@ class _EHealthScreenState extends ConsumerState<EHealthScreen> {
                 margin: EdgeInsets.only(right: e.key < 2 ? 10 : 0),
                 padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
                 decoration: BoxDecoration(
-                  color: sel ? color : Colors.white,
+                  color: sel ? color : context.colors.cardBg,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: sel ? color : AppColors.divider, width: sel ? 0 : 1),
+                  border: Border.all(color: sel ? color : context.colors.borderColor, width: sel ? 0 : 1),
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
                 ),
                 child: Column(children: [
                   Icon(cat['icon'] as IconData, color: sel ? Colors.white : color, size: 32),
                   const SizedBox(height: 8),
                   Text(cat['name'] as String, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13,
-                      color: sel ? Colors.white : AppColors.secondary)),
+                      color: sel ? Colors.white : context.colors.navyText)),
                   const SizedBox(height: 2),
-                  Text(cat['desc'] as String, style: TextStyle(fontSize: 9, color: sel ? Colors.white70 : AppColors.textGrey),
+                  Text(cat['desc'] as String, style: TextStyle(fontSize: 9, color: sel ? Colors.white70 : context.colors.mutedText),
                       textAlign: TextAlign.center),
                 ]),
               ),
@@ -115,7 +117,7 @@ class _AmbulanceSectionState extends State<_AmbulanceSection> {
         ]),
       ),
       const SizedBox(height: 16),
-      const Text('Urgency Level', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.secondary)),
+      Text('Urgency Level', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
       const SizedBox(height: 10),
       Row(children: ['high', 'medium', 'low'].map((u) {
         final sel = _urgency == u;
@@ -216,7 +218,7 @@ class _NurseSectionState extends State<_NurseSection> {
         _field(_addrCtrl, 'Home Address', Icons.location_on_outlined),
       ])),
       const SizedBox(height: 14),
-      const Text('Session Duration', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.secondary)),
+      Text('Session Duration', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
       const SizedBox(height: 10),
       Row(children: ['1h', '2h', '4h', '8h'].map((d) {
         final sel = _duration == d;
@@ -253,7 +255,7 @@ class _NurseSectionState extends State<_NurseSection> {
             const Icon(Icons.calendar_today_outlined, color: AppColors.primary, size: 18),
             const SizedBox(width: 10),
             Text(_date != null ? '${_date!.day}/${_date!.month}/${_date!.year}' : 'Select date',
-                style: TextStyle(color: _date != null ? AppColors.secondary : AppColors.textGrey,
+                style: TextStyle(color: _date != null ? context.colors.navyText : context.colors.mutedText,
                     fontWeight: _date != null ? FontWeight.w700 : FontWeight.w400)),
           ]),
         ),
@@ -368,7 +370,7 @@ class _DoctorSectionState extends ConsumerState<_DoctorSection> {
                 onTap: () { setState(() => _selectedDoctor = doc); _showBookSheet(context, doc); },
                 child: Container(
                   padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
+                  decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(14),
                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
                   child: Row(children: [
                     Container(
@@ -380,7 +382,7 @@ class _DoctorSectionState extends ConsumerState<_DoctorSection> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(doc['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.secondary)),
+                      Text(doc['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
                       Text(doc['specialization'] ?? '', style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600)),
                       if (doc['experience_years'] != null)
                         Text('${doc['experience_years']} yrs experience', style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
@@ -405,17 +407,17 @@ class _DoctorSectionState extends ConsumerState<_DoctorSection> {
       margin: const EdgeInsets.only(right: 8, bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: _spec == value ? AppColors.primary : Colors.white,
+        color: _spec == value ? AppColors.primary : context.colors.cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _spec == value ? AppColors.primary : AppColors.divider),
+        border: Border.all(color: _spec == value ? AppColors.primary : context.colors.borderColor),
       ),
       child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12,
-          color: _spec == value ? Colors.white : AppColors.secondary)),
+          color: _spec == value ? Colors.white : context.colors.navyText)),
     ),
   );
 
   void _showBookSheet(BuildContext context, dynamic doc) {
-    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.white,
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: context.colors.cardBg,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
         builder: (_) => _BookDoctorSheet(doctor: doc));
   }
@@ -448,12 +450,12 @@ class _BookDoctorSheetState extends State<_BookDoctorSheet> {
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Book Dr. ${widget.doctor['name']}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.secondary)),
+            Text('Book Dr. ${widget.doctor['name']}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
             IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
           ]),
           Text(widget.doctor['specialization'] ?? '', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
           const SizedBox(height: 16),
-          const Text('Select Date', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.secondary)),
+          Text('Select Date', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
           const SizedBox(height: 8),
           GestureDetector(
             onTap: () async {
@@ -469,13 +471,13 @@ class _BookDoctorSheetState extends State<_BookDoctorSheet> {
                 const Icon(Icons.calendar_today_outlined, color: AppColors.primary, size: 18),
                 const SizedBox(width: 10),
                 Text(_date != null ? '${_date!.day}/${_date!.month}/${_date!.year}' : 'Pick a date',
-                    style: TextStyle(color: _date != null ? AppColors.secondary : AppColors.textGrey,
+                    style: TextStyle(color: _date != null ? context.colors.navyText : context.colors.mutedText,
                         fontWeight: _date != null ? FontWeight.w700 : FontWeight.w400)),
               ]),
             ),
           ),
           const SizedBox(height: 14),
-          const Text('Time Slot', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.secondary)),
+          Text('Time Slot', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
           const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, children: _slots.map((s) => GestureDetector(
             onTap: () => setState(() => _slot = s),
@@ -483,12 +485,12 @@ class _BookDoctorSheetState extends State<_BookDoctorSheet> {
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: _slot == s ? AppColors.primary : AppColors.surface,
+                color: _slot == s ? AppColors.primary : context.colors.inputFill,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _slot == s ? AppColors.primary : AppColors.divider),
+                border: Border.all(color: _slot == s ? AppColors.primary : context.colors.borderColor),
               ),
               child: Text(s, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
-                  color: _slot == s ? Colors.white : AppColors.secondary)),
+                  color: _slot == s ? Colors.white : context.colors.navyText)),
             ),
           )).toList()),
           const SizedBox(height: 14),
@@ -552,7 +554,7 @@ class _HealthPayRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.secondary)),
+      Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
       const SizedBox(height: 8),
       Row(children: [
         Expanded(child: _HealthPayChip(label: 'Wallet',    icon: Icons.account_balance_wallet_rounded, selected: payMethod == 'wallet',    onTap: () => onChanged('wallet'))),

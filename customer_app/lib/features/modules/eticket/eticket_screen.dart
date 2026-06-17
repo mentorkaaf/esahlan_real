@@ -7,6 +7,8 @@ import '../../../core/widgets/network_image_widget.dart';
 import 'package:intl/intl.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_x.dart';
+import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
@@ -15,12 +17,13 @@ import '../../ads/services/ad_service.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 // Theme Constants
 // ─────────────────────────────────────────────────────────────────────────────
-const _kOrange = AppColors.primary;    // #FF8A00
-const _kNavy   = AppColors.secondary;  // #07003B
-const _kSky    = Color(0xFF1565C0);
-const _kBg     = Color(0xFFF5F7FA);
-const _kCard   = Colors.white;
-const _kMuted  = Color(0xFF8A8A9A);
+const _kOrange  = AppColors.primary;    // #FF8A00
+const _kNavy    = AppColors.secondary;  // #07003B — for gradients/overlays
+const _kSky     = Color(0xFF1565C0);
+// _kBg/_kCard are light-mode defaults; scaffolds use context.colors in build()
+const _kBg      = Color(0xFFF5F7FA);
+const _kCard    = Colors.white;
+const _kMuted   = Color(0xFF8A8A9A);
 const _kDivider = Color(0xFFF0F1F5);
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -106,7 +109,7 @@ class _ETicketScreenState extends ConsumerState<ETicketScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [
           SliverAppBar(
@@ -242,7 +245,7 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
         Container(
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: _kCard,
+            color: context.colors.cardBg,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [BoxShadow(
               color: Colors.black.withValues(alpha: 0.08),
@@ -444,7 +447,7 @@ class _CitySelector extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F5FA),
+          color: context.colors.inputFill,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
               color: city != null ? _kNavy.withValues(alpha: 0.3) : _kDivider),
@@ -627,7 +630,7 @@ class _DatePicker extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F5FA),
+          color: context.colors.inputFill,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
               color: date != null ? _kNavy.withValues(alpha: 0.3) : _kDivider),
@@ -702,7 +705,7 @@ class _PassengerSelector extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F5FA),
+          color: context.colors.inputFill,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: _kDivider),
         ),
@@ -838,7 +841,7 @@ class _ClassSelector extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F5FA),
+          color: context.colors.inputFill,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: _kDivider),
         ),
@@ -911,7 +914,7 @@ class _ClassOption extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: active ? color.withValues(alpha: 0.07) : _kBg,
+          color: active ? color.withValues(alpha: 0.07) : context.colors.inputFill,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
               color: active ? color : _kDivider,
@@ -1109,9 +1112,9 @@ class _FlightCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: _kCard,
+        color: context.colors.cardBg,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _kDivider),
+        border: Border.all(color: context.colors.borderColor),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 12, offset: const Offset(0, 3))],
       ),
@@ -1474,7 +1477,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
       child: Container(
         width: size.width,
         height: size.height,
-        color: _kBg,
+        color: Theme.of(context).scaffoldBackgroundColor,
         child: Column(children: [
           // ── Custom App Bar ────────────────────────────────────
           Container(
@@ -1853,7 +1856,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
         DateTime.parse(f['departure_at'].toString())); } catch (_) {}
 
     return Container(key: const ValueKey(2),
-      color: _kBg,
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),

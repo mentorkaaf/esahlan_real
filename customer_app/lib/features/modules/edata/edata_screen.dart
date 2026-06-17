@@ -6,6 +6,8 @@ import '../../../core/widgets/network_image_widget.dart';
 import 'package:intl/intl.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_x.dart';
+import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
@@ -17,12 +19,12 @@ double _toD(dynamic v) => double.tryParse(v?.toString() ?? '0') ?? 0;
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
-const _kOrange = AppColors.primary;   // #FF8A00
-const _kNavy   = AppColors.secondary; // #07003B
-const _kBg     = Color(0xFFF5F7FA);
-const _kCard   = Colors.white;
-const _kMuted  = Color(0xFF8A8A9A);
-const _kDivider= Color(0xFFF0F1F5);
+const _kOrange  = AppColors.primary;   // #FF8A00 — never changes
+const _kNavy    = AppColors.secondary; // #07003B — for gradients/overlays only
+const _kBg      = Color(0xFFF5F7FA);  // light default, kept for compile safety
+const _kCard    = Colors.white;        // light default, kept for compile safety
+const _kMuted   = Color(0xFF8A8A9A); // light default, kept for compile safety
+const _kDivider = Color(0xFFF0F1F5); // light default, kept for compile safety
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Providers
@@ -56,7 +58,7 @@ class _EDataScreenState extends ConsumerState<EDataScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [
           SliverAppBar(
@@ -109,7 +111,7 @@ class _BuyDataTab extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             sliver: SliverToBoxAdapter(
               child: Text('Choose Provider',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _kNavy)),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.colors.navyText)),
             ),
           ),
           SliverPadding(
@@ -241,7 +243,7 @@ class _ProviderCard extends StatelessWidget {
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: _kCard,
+          color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 16, offset: const Offset(0, 4))],
         ),
@@ -264,7 +266,7 @@ class _ProviderCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(name,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: _kNavy),
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText),
               textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 6),
           Container(
@@ -363,7 +365,7 @@ class _EDataFlowDialogState extends ConsumerState<_EDataFlowDialog> {
       color: Colors.transparent,
       child: Container(
         width: size.width, height: size.height,
-        color: _kBg,
+        color: Theme.of(context).scaffoldBackgroundColor,
         child: Column(children: [
           _buildAppBar(),
           Expanded(
@@ -536,7 +538,7 @@ class _PackageCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: _kCard,
+          color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 4))],
         ),
@@ -565,7 +567,7 @@ class _PackageCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Text(name,
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: _kNavy),
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: context.colors.navyText),
                     maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 4),
                 Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -660,7 +662,7 @@ class _BundleCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: _kCard,
+          color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 16, offset: const Offset(0, 4))],
           border: badge.isNotEmpty ? Border.all(color: color.withValues(alpha: 0.4), width: 1.5) : null,
@@ -675,7 +677,7 @@ class _BundleCard extends StatelessWidget {
                 Row(children: [
                   Expanded(
                     child: Text(name,
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: _kNavy),
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText),
                         maxLines: 2, overflow: TextOverflow.ellipsis),
                   ),
                   if (badge.isNotEmpty) ...[
@@ -695,7 +697,7 @@ class _BundleCard extends StatelessWidget {
                 // Description
                 if (desc.isNotEmpty) ...[
                   Text(desc,
-                      style: const TextStyle(fontSize: 12, color: _kMuted, height: 1.4),
+                      style: TextStyle(fontSize: 12, color: context.colors.mutedText, height: 1.4),
                       maxLines: 2, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 8),
                 ],
@@ -870,15 +872,15 @@ class _OrderSummaryStep extends StatelessWidget {
         // ── Phone Number ──
         Container(
           decoration: BoxDecoration(
-            color: _kCard, borderRadius: BorderRadius.circular(16),
+            color: context.colors.cardBg, borderRadius: BorderRadius.circular(16),
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
           ),
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Data Destination', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: _kNavy)),
+            Text('Data Destination', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
             const SizedBox(height: 4),
             Text('Phone number that will receive the data',
-                style: const TextStyle(fontSize: 12, color: _kMuted)),
+                style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
             const SizedBox(height: 12),
             TextField(
               controller: phoneCtrl,
@@ -887,7 +889,7 @@ class _OrderSummaryStep extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: '061XXXXXXX',
                 prefixIcon: const Icon(Icons.phone_rounded, color: _kOrange),
-                filled: true, fillColor: _kBg,
+                filled: true, fillColor: context.colors.inputFill,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 focusedBorder: OutlineInputBorder(
@@ -902,12 +904,12 @@ class _OrderSummaryStep extends StatelessWidget {
         // ── Payment Method ──
         Container(
           decoration: BoxDecoration(
-            color: _kCard, borderRadius: BorderRadius.circular(16),
+            color: context.colors.cardBg, borderRadius: BorderRadius.circular(16),
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
           ),
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: _kNavy)),
+            Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
             const SizedBox(height: 12),
             Row(children: [
               Expanded(child: _PayTile(
@@ -935,7 +937,7 @@ class _OrderSummaryStep extends StatelessWidget {
         // ── Price breakdown ──
         Container(
           decoration: BoxDecoration(
-            color: _kCard, borderRadius: BorderRadius.circular(16),
+            color: context.colors.cardBg, borderRadius: BorderRadius.circular(16),
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
           ),
           padding: const EdgeInsets.all(16),
@@ -943,9 +945,9 @@ class _OrderSummaryStep extends StatelessWidget {
             _SummaryRow(label: 'Bundle', value: bundle['name']?.toString() ?? ''),
             _SummaryRow(label: 'Provider', value: provider['name']?.toString() ?? ''),
             _SummaryRow(label: 'Package', value: package['name']?.toString() ?? ''),
-            Container(height: 1, color: _kDivider, margin: const EdgeInsets.symmetric(vertical: 8)),
+            Container(height: 1, color: context.colors.borderColor, margin: const EdgeInsets.symmetric(vertical: 8)),
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text('Total', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: _kNavy)),
+              Text('Total', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: context.colors.navyText)),
               Text('\$${price.toStringAsFixed(2)}',
                   style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: _kOrange)),
             ]),
@@ -1013,8 +1015,8 @@ class _SummaryRow extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 4),
     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      Text(label, style: const TextStyle(color: _kMuted, fontSize: 13)),
-      Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: _kNavy)),
+      Text(label, style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
+      Text(value, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: context.colors.navyText)),
     ]),
   );
 }
@@ -1035,20 +1037,20 @@ class _PayTile extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: selected ? color.withValues(alpha: 0.1) : _kBg,
+        color: selected ? color.withValues(alpha: 0.1) : context.colors.inputFill,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: selected ? color : Colors.grey.shade300,
+          color: selected ? color : context.colors.borderColor,
           width: selected ? 2 : 1.5,
         ),
       ),
       child: Row(children: [
-        Icon(icon, color: selected ? color : _kMuted, size: 22),
+        Icon(icon, color: selected ? color : context.colors.mutedText, size: 22),
         const SizedBox(width: 8),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13,
-              color: selected ? color : _kNavy)),
-          Text(subtitle, style: const TextStyle(fontSize: 10, color: _kMuted)),
+              color: selected ? color : context.colors.navyText)),
+          Text(subtitle, style: TextStyle(fontSize: 10, color: context.colors.mutedText)),
         ])),
         if (selected) Icon(Icons.check_circle_rounded, color: color, size: 18),
       ]),
@@ -1076,21 +1078,21 @@ class _SuccessStep extends StatelessWidget {
           child: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 60),
         ),
         const SizedBox(height: 24),
-        const Text('Data Sent Successfully! 🎉',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _kNavy),
+        Text('Data Sent Successfully! 🎉',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: context.colors.navyText),
             textAlign: TextAlign.center),
         const SizedBox(height: 10),
         Text('${bundle['name']} has been sent to $phone',
-            style: const TextStyle(color: _kMuted, fontSize: 14), textAlign: TextAlign.center),
+            style: TextStyle(color: context.colors.mutedText, fontSize: 14), textAlign: TextAlign.center),
         const SizedBox(height: 20),
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: const Color(0xFFF0F4FF), borderRadius: BorderRadius.circular(14)),
+          decoration: BoxDecoration(color: context.colors.inputFill, borderRadius: BorderRadius.circular(14)),
           child: Column(children: [
-            const Text('Order Reference', style: TextStyle(color: _kMuted, fontSize: 12)),
+            Text('Order Reference', style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
             const SizedBox(height: 4),
             Text(orderNumber,
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: _kNavy,
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: context.colors.navyText,
                     letterSpacing: 1)),
           ]),
         ),
@@ -1151,7 +1153,7 @@ class _HistoryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _kCard, borderRadius: BorderRadius.circular(16),
+        color: context.colors.cardBg, borderRadius: BorderRadius.circular(16),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
       ),
       child: Row(children: [
@@ -1163,9 +1165,9 @@ class _HistoryCard extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(note['item_name']?.toString() ?? 'Data Purchase',
-              style: const TextStyle(fontWeight: FontWeight.w700, color: _kNavy)),
-          Text(note['phone_number']?.toString() ?? '', style: const TextStyle(color: _kMuted, fontSize: 12)),
-          Text(_fmtDate(order['placed_at']?.toString()), style: const TextStyle(color: _kMuted, fontSize: 11)),
+              style: TextStyle(fontWeight: FontWeight.w700, color: context.colors.navyText)),
+          Text(note['phone_number']?.toString() ?? '', style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
+          Text(_fmtDate(order['placed_at']?.toString()), style: TextStyle(color: context.colors.mutedText, fontSize: 11)),
         ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text('\$${_toD(order['total_amount']).toStringAsFixed(2)}',
@@ -1216,9 +1218,9 @@ class _EmptyState extends StatelessWidget {
           decoration: BoxDecoration(color: _kOrange.withValues(alpha: 0.1), shape: BoxShape.circle),
           child: Icon(icon, size: 40, color: _kOrange)),
         const SizedBox(height: 16),
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _kNavy)),
+        Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.navyText)),
         const SizedBox(height: 8),
-        Text(subtitle, style: const TextStyle(color: _kMuted, fontSize: 14), textAlign: TextAlign.center),
+        Text(subtitle, style: TextStyle(color: context.colors.mutedText, fontSize: 14), textAlign: TextAlign.center),
       ]),
     ),
   );
@@ -1235,7 +1237,7 @@ class _ErrorState extends StatelessWidget {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         const Icon(Icons.error_outline_rounded, size: 56, color: Colors.red),
         const SizedBox(height: 12),
-        Text(message, style: const TextStyle(color: _kMuted), textAlign: TextAlign.center),
+        Text(message, style: TextStyle(color: context.colors.mutedText), textAlign: TextAlign.center),
         const SizedBox(height: 16),
         ElevatedButton.icon(onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded), label: const Text('Retry')),

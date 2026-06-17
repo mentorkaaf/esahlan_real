@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_x.dart';
+import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import 'eshop_providers.dart';
 import '../../ads/services/ad_service.dart';
@@ -100,7 +102,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> {
     final cartTotal = cartNotifier.subtotal;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         color: AppColors.primary,
         onRefresh: () async => _refresh(),
@@ -109,22 +111,22 @@ class _EShopScreenState extends ConsumerState<EShopScreen> {
           SliverAppBar(
             pinned: true,
             floating: true,
-            backgroundColor: Colors.white,
+            backgroundColor: context.colors.cardBg,
             elevation: 0,
             scrolledUnderElevation: 1,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: AppColors.secondary),
+              icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.colors.navyText),
               onPressed: () => context.pop(),
             ),
-            title: const Text('eShop', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.secondary, fontFamily: 'Cairo')),
+            title: Text('eShop', style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText, fontFamily: 'Cairo')),
             actions: [
               IconButton(
-                icon: const Icon(Icons.favorite_border_rounded, color: AppColors.secondary),
+                icon: Icon(Icons.favorite_border_rounded, color: context.colors.navyText),
                 onPressed: () {},
               ),
               Stack(children: [
                 IconButton(
-                  icon: const Icon(Icons.shopping_bag_outlined, color: AppColors.secondary),
+                  icon: Icon(Icons.shopping_bag_outlined, color: context.colors.navyText),
                   onPressed: () => context.push('/eshop/cart'),
                 ),
                 if (cartCount > 0) Positioned(right: 6, top: 6, child: Container(
@@ -137,7 +139,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> {
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(56),
               child: Container(
-                color: Colors.white,
+                color: context.colors.cardBg,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                 child: Row(children: [
                   Expanded(child: TextField(
@@ -146,12 +148,12 @@ class _EShopScreenState extends ConsumerState<EShopScreen> {
                     onSubmitted: (v) => context.push('/eshop/products?search=${Uri.encodeComponent(v)}'),
                     decoration: InputDecoration(
                       hintText: 'Search products...',
-                      hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
-                      prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textGrey, size: 20),
+                      hintStyle: TextStyle(color: context.colors.mutedText, fontSize: 13),
+                      prefixIcon: Icon(Icons.search_rounded, color: context.colors.mutedText, size: 20),
                       suffixIcon: _search.isNotEmpty
                           ? IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () { _searchCtrl.clear(); setState(() => _search = ''); })
                           : null,
-                      filled: true, fillColor: AppColors.surface,
+                      filled: true, fillColor: context.colors.inputFill,
                       contentPadding: const EdgeInsets.symmetric(vertical: 10),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -209,7 +211,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> {
           SliverToBoxAdapter(child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text('Categories', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.secondary)),
+              Text('Categories', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
               GestureDetector(
                 onTap: () => context.push('/eshop/products'),
                 child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
@@ -251,9 +253,9 @@ class _EShopScreenState extends ConsumerState<EShopScreen> {
               return SliverToBoxAdapter(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 20, 16, 12),
-                    child: Text('Campaigns', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.secondary)),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                    child: Text('Campaigns', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
                   ),
                   ...campaigns.map((c) {
                     final campaign = c as Map<String, dynamic>;
@@ -298,7 +300,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> {
           SliverToBoxAdapter(child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text('Featured Products', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.secondary)),
+              Text('Featured Products', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
               GestureDetector(
                 onTap: () => context.push('/eshop/products?featured=1'),
                 child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
@@ -341,7 +343,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> {
           SliverToBoxAdapter(child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text('All Products', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.secondary)),
+              Text('All Products', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
               GestureDetector(
                 onTap: () => context.push('/eshop/products'),
                 child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
@@ -471,7 +473,7 @@ class _CategoriesCarouselState extends State<_CategoriesCarousel> {
               Container(
                 width: 60, height: 60,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(18),
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0,3))],
                 ),
@@ -485,7 +487,7 @@ class _CategoriesCarouselState extends State<_CategoriesCarousel> {
               ),
               const SizedBox(height: 6),
               Text(cat['name'] ?? '', textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.colors.navyText)),
             ]),
           ),
         );
@@ -673,9 +675,9 @@ class _FlashDealSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.76,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: context.colors.cardBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(children: [
         // Handle bar
@@ -696,8 +698,8 @@ class _FlashDealSheet extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Flash Deals', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: AppColors.secondary)),
-              Text(deal['title'] ?? '', style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
+              Text('Flash Deals', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: context.colors.navyText)),
+              Text(deal['title'] ?? '', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
             ])),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -725,7 +727,7 @@ class _FlashDealSheet extends StatelessWidget {
               onTap: () => onTap(p['id'] as int),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: context.colors.cardBg,
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8)],
                 ),
@@ -744,7 +746,7 @@ class _FlashDealSheet extends StatelessWidget {
                     )),
                   ])),
                   Padding(padding: const EdgeInsets.fromLTRB(10, 8, 10, 10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.secondary),
+                    Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: context.colors.navyText),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 5),
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -984,12 +986,12 @@ class _DealsOfDaySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFF3F0FF),
+    return Builder(builder: (context) => Container(
+      color: context.colors.inputFill,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 20, 16, 12),
-          child: Text('Deals of the Day', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: AppColors.secondary)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+          child: Text('Deals of the Day', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: context.colors.navyText)),
         ),
         SizedBox(height: 220, child: ListView.builder(
           scrollDirection: Axis.horizontal,
@@ -1005,7 +1007,7 @@ class _DealsOfDaySection extends StatelessWidget {
                 width: 155,
                 margin: const EdgeInsets.only(right: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: context.colors.cardBg,
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8)],
                 ),
@@ -1016,7 +1018,7 @@ class _DealsOfDaySection extends StatelessWidget {
                       child: _netImg(p['thumbnail']),
                     )),
                     Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.secondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: context.colors.navyText), maxLines: 1, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
                       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                         Text(_fmt(p['sale_price'] ?? p['price']), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: AppColors.primary)),
@@ -1043,7 +1045,7 @@ class _DealsOfDaySection extends StatelessWidget {
         )),
         const SizedBox(height: 4),
       ]),
-    );
+    ));
   }
 }
 
@@ -1074,7 +1076,7 @@ class _ProductCard extends ConsumerWidget {
       width: horizontal ? 155 : null,
       margin: horizontal ? const EdgeInsets.only(right: 12) : EdgeInsets.zero,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.cardBg,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8)],
       ),
@@ -1098,15 +1100,15 @@ class _ProductCard extends ConsumerWidget {
             },
             child: Container(
               padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle,
+              decoration: BoxDecoration(color: context.colors.cardBg, shape: BoxShape.circle,
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)]),
               child: Icon(inWishlist ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                size: 15, color: inWishlist ? Colors.red : AppColors.textGrey),
+                size: 15, color: inWishlist ? Colors.red : context.colors.mutedText),
             ),
           )),
         ])),
         Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.secondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+          Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: context.colors.navyText), maxLines: 2, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 2),
           _starRow(p['rating'], p['total_reviews']),
           const SizedBox(height: 4),

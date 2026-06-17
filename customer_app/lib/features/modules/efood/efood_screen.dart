@@ -2,6 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/module_api_service.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_x.dart';
+import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../payment/waafi_pay_sheet.dart';
@@ -10,11 +13,12 @@ import '../../../features/wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 
 // ════════════════════════════════════════════════════════════════════
-// CONSTANTS
+// CONSTANTS (theme-agnostic only)
 // ════════════════════════════════════════════════════════════════════
 
-const _primary   = Color(0xFFFF8A00);
-const _secondary = Color(0xFF07003B);
+const _primary   = AppColors.primary;
+const _secondary = AppColors.secondary;
+// _bg and _card are light-mode defaults; scaffold/header backgrounds use context.colors in build()
 const _bg        = Color(0xFFF4F5FA);
 const _card      = Colors.white;
 
@@ -231,7 +235,7 @@ class EFoodScreen extends ConsumerWidget {
     final cart = ref.watch(_cartProvider);
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: IndexedStack(
         index: idx,
         children: const [
@@ -244,14 +248,14 @@ class EFoodScreen extends ConsumerWidget {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: _card,
+          color: Theme.of(context).colorScheme.surface,
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, -4))],
         ),
         child: BottomNavigationBar(
           currentIndex: idx,
           onTap: (i) => ref.read(_navIndexProvider.notifier).state = i,
           type: BottomNavigationBarType.fixed,
-          backgroundColor: _card,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           selectedItemColor: _primary,
           unselectedItemColor: Colors.grey[400],
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
@@ -344,13 +348,13 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
   SliverAppBar _buildHeader(BuildContext context) => SliverAppBar(
     floating: true,
     snap: true,
-    backgroundColor: _card,
+    backgroundColor: context.colors.cardBg,
     elevation: 0,
     automaticallyImplyLeading: false,
     expandedHeight: 80,
     flexibleSpace: FlexibleSpaceBar(
       background: Container(
-        color: _card,
+        color: context.colors.cardBg,
         padding: const EdgeInsets.fromLTRB(16, 44, 16, 8),
         child: Row(
           children: [
@@ -371,13 +375,13 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                   Row(children: [
                     Text('eSahlan', style: TextStyle(color: _primary, fontWeight: FontWeight.w800, fontSize: 15)),
                     const SizedBox(width: 4),
-                    Text('Sahlan', style: TextStyle(color: _secondary, fontWeight: FontWeight.w800, fontSize: 15)),
+                    Text('Sahlan', style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w800, fontSize: 15)),
                   ]),
                   Row(children: [
                     const Icon(Icons.location_on_rounded, color: _primary, size: 13),
                     const SizedBox(width: 2),
-                    const Text('Mogadishu', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black87)),
-                    const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.grey),
+                    Text('Mogadishu', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: context.colors.bodyText)),
+                    Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: context.colors.mutedText),
                   ]),
                 ],
               ),
@@ -389,10 +393,10 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                   width: 40, height: 40,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _bg,
-                    border: Border.all(color: Colors.grey.shade200),
+                    color: context.colors.inputFill,
+                    border: Border.all(color: context.colors.borderColor),
                   ),
-                  child: const Icon(Icons.notifications_none_rounded, color: _secondary),
+                  child: Icon(Icons.notifications_none_rounded, color: context.colors.navyText),
                 ),
                 Positioned(
                   right: 2, top: 2,
@@ -418,15 +422,15 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
           child: Container(
             height: 48,
             decoration: BoxDecoration(
-              color: _card,
+              color: context.colors.cardBg,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10)],
             ),
             child: Row(children: [
               const SizedBox(width: 14),
-              Icon(Icons.search_rounded, color: Colors.grey[400]),
+              Icon(Icons.search_rounded, color: context.colors.mutedText),
               const SizedBox(width: 8),
-              Text('Search for food or restaurants...', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+              Text('Search for food or restaurants...', style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
             ]),
           ),
         ),
@@ -447,7 +451,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Food Categories', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: _secondary)),
+          Text('Food Categories', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: context.colors.navyText)),
           TextButton(onPressed: () {}, child: const Text('View all', style: TextStyle(color: _primary, fontWeight: FontWeight.w600))),
         ]),
         const SizedBox(height: 12),
@@ -476,7 +480,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                     Container(
                       width: 52, height: 52,
                       decoration: BoxDecoration(
-                        color: sel ? _primary : _card,
+                        color: sel ? _primary : context.colors.cardBg,
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 8)],
                       ),
@@ -485,7 +489,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                           : const Center(child: Icon(Icons.fastfood_rounded, color: _primary, size: 24)),
                     ),
                     const SizedBox(height: 6),
-                    Text(name, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: sel ? _primary : Colors.black87), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(name, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: sel ? _primary : context.colors.bodyText), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                   ]),
                 );
               },
@@ -511,7 +515,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: _secondary)),
+            Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: context.colors.navyText)),
             TextButton(onPressed: () {}, child: const Text('View all', style: TextStyle(color: _primary, fontWeight: FontWeight.w600))),
           ]),
         ),
@@ -798,16 +802,16 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
 
     return SafeArea(child: Column(children: [
       Container(
-        color: _card, padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+        color: context.colors.cardBg, padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
         child: TextField(
           controller: _ctrl,
           onChanged: (v) => setState(() => _query = v),
           decoration: InputDecoration(
             hintText: 'Search restaurants, food...',
-            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+            hintStyle: TextStyle(color: context.colors.mutedText, fontSize: 14),
             prefixIcon: const Icon(Icons.search_rounded, color: _primary),
             suffixIcon: _query.isNotEmpty ? IconButton(icon: const Icon(Icons.clear), onPressed: () { _ctrl.clear(); setState(() => _query = ''); }) : null,
-            filled: true, fillColor: _bg,
+            filled: true, fillColor: context.colors.inputFill,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
             contentPadding: const EdgeInsets.symmetric(vertical: 14),
           ),
@@ -841,9 +845,9 @@ class _RestaurantListTile extends StatelessWidget {
     final r = restaurant;
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: Builder(builder: (context) => Container(
         margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10)]),
+        decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10)]),
         child: Row(children: [
           _NetImg(
             url: r['cover_image'],
@@ -854,7 +858,7 @@ class _RestaurantListTile extends StatelessWidget {
           Expanded(child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(r['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: _secondary)),
+              Text(r['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText)),
               const SizedBox(height: 3),
               Text(r['cuisine_type'] ?? 'Restaurant', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
               const SizedBox(height: 6),
@@ -870,7 +874,7 @@ class _RestaurantListTile extends StatelessWidget {
           )),
           const Padding(padding: EdgeInsets.only(right: 12), child: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey)),
         ]),
-      ),
+      )),
     );
   }
 }
@@ -933,20 +937,20 @@ class _RestaurantDetailPageState extends ConsumerState<_RestaurantDetailPage> wi
     final cart = ref.watch(_cartProvider);
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [
           SliverAppBar(
             expandedHeight: 240,
             pinned: true,
-            backgroundColor: _secondary,
+            backgroundColor: const Color(0xFF07003B),
             leading: GestureDetector(
               onTap: () => Navigator.pop(context),
-              child: Container(margin: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.9), shape: BoxShape.circle), child: const Icon(Icons.arrow_back_rounded, color: _secondary)),
+              child: Container(margin: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.9), shape: BoxShape.circle), child: const Icon(Icons.arrow_back_rounded, color: Color(0xFF07003B))),
             ),
             actions: [
               Container(margin: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.9), shape: BoxShape.circle),
-                child: IconButton(icon: const Icon(Icons.share_rounded, color: _secondary, size: 20), onPressed: () {})),
+                child: IconButton(icon: const Icon(Icons.share_rounded, color: Color(0xFF07003B), size: 20), onPressed: () {})),
             ],
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(fit: StackFit.expand, children: [
@@ -956,7 +960,7 @@ class _RestaurantDetailPageState extends ConsumerState<_RestaurantDetailPage> wi
             ),
           ),
           SliverToBoxAdapter(child: Container(
-            color: _card,
+            color: context.colors.cardBg,
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               // ── Restaurant name, logo, rating ─────────────────────
@@ -964,7 +968,7 @@ class _RestaurantDetailPageState extends ConsumerState<_RestaurantDetailPage> wi
                 _NetImg(url: r['logo'], width: 56, height: 56, radius: 12, fallback: const Icon(Icons.restaurant_rounded, color: _primary, size: 28)),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(r['name'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _secondary)),
+                  Text(r['name'] ?? '', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.navyText)),
                   Text(r['cuisine_type'] ?? r['description'] ?? 'Restaurant', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
                 ])),
                 if (r['rating'] != null)
@@ -1032,14 +1036,14 @@ class _RestaurantDetailPageState extends ConsumerState<_RestaurantDetailPage> wi
               // ── Search inside restaurant ───────────────────────────
               Container(
                 height: 42,
-                decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: context.colors.inputFill, borderRadius: BorderRadius.circular(12)),
                 child: TextField(
                   controller: _searchCtrl,
                   onChanged: (v) => setState(() => _search = v),
                   decoration: InputDecoration(
                     hintText: 'Search menu items...',
-                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
-                    prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[400], size: 20),
+                    hintStyle: TextStyle(color: context.colors.mutedText, fontSize: 13),
+                    prefixIcon: Icon(Icons.search_rounded, color: context.colors.mutedText, size: 20),
                     suffixIcon: const Icon(Icons.tune_rounded, color: _primary, size: 20),
                     border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(vertical: 11),
                   ),
@@ -1230,7 +1234,7 @@ class _CategoriesFilter extends ConsumerWidget {
 
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const SizedBox(height: 14),
-          const Text('Menu Categories', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _secondary)),
+          Text('Menu Categories', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText)),
           const SizedBox(height: 8),
           SizedBox(
             height: 36,
@@ -1247,14 +1251,14 @@ class _CategoriesFilter extends ConsumerWidget {
                       margin: const EdgeInsets.only(right: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
-                        color: sel ? _primary : _bg,
+                        color: sel ? _primary : context.colors.inputFill,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: sel ? _primary : Colors.grey.shade300),
+                        border: Border.all(color: sel ? _primary : context.colors.borderColor),
                       ),
                       alignment: Alignment.center,
                       child: Text('All', style: TextStyle(
                         fontSize: 12, fontWeight: FontWeight.w600,
-                        color: sel ? Colors.white : Colors.grey[600],
+                        color: sel ? Colors.white : context.colors.mutedText,
                       )),
                     ),
                   );
@@ -1268,14 +1272,14 @@ class _CategoriesFilter extends ConsumerWidget {
                     margin: const EdgeInsets.only(right: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     decoration: BoxDecoration(
-                      color: sel ? _primary : _bg,
+                      color: sel ? _primary : context.colors.inputFill,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: sel ? _primary : Colors.grey.shade300),
+                      border: Border.all(color: sel ? _primary : context.colors.borderColor),
                     ),
                     alignment: Alignment.center,
                     child: Text(cat['name'] ?? '', style: TextStyle(
                       fontSize: 12, fontWeight: FontWeight.w600,
-                      color: sel ? Colors.white : Colors.grey[600],
+                      color: sel ? Colors.white : context.colors.mutedText,
                     )),
                   ),
                 );
@@ -1312,7 +1316,7 @@ class _CouponsStrip extends ConsumerWidget {
           Row(children: [
             const Icon(Icons.local_offer_rounded, color: _primary, size: 16),
             const SizedBox(width: 6),
-            const Text('Offers & Coupons', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _secondary)),
+            Text('Offers & Coupons', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText)),
           ]),
           const SizedBox(height: 8),
           SizedBox(
@@ -1384,7 +1388,7 @@ class _CouponsStrip extends ConsumerWidget {
 
     showDialog(
       context: context,
-      builder: (_) => Dialog(
+      builder: (ctx2) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -1396,22 +1400,22 @@ class _CouponsStrip extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             Text(discount, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: _primary)),
-            Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _secondary)),
+            Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ctx2.colors.navyText)),
             if (desc.isNotEmpty) ...[
               const SizedBox(height: 6),
-              Text(desc, style: TextStyle(fontSize: 13, color: Colors.grey[500]), textAlign: TextAlign.center),
+              Text(desc, style: TextStyle(fontSize: 13, color: ctx2.colors.mutedText), textAlign: TextAlign.center),
             ],
             const SizedBox(height: 14),
             // Coupon code box
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: _bg,
+                color: ctx2.colors.inputFill,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: _primary.withValues(alpha: 0.3), style: BorderStyle.solid),
               ),
               child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text(code, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _secondary, letterSpacing: 2)),
+                Text(code, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: ctx2.colors.navyText, letterSpacing: 2)),
                 GestureDetector(
                   onTap: () {
                     Navigator.pop(context);
