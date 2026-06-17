@@ -1,8 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../models/ad_model.dart';
 import '../services/ad_service.dart';
 import '../../../core/widgets/network_image_widget.dart';
+
+/// Extracts YouTube video ID from a URL, or returns null if not a YT URL.
+String? _extractYoutubeId(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return null;
+  if (uri.host == 'youtu.be') return uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null;
+  if (uri.host.contains('youtube.com')) return uri.queryParameters['v'];
+  return null;
+}
+
+/// Returns true if the URL is a TikTok video link.
+bool _isTikTokUrl(String url) {
+  final host = Uri.tryParse(url)?.host ?? '';
+  return host.contains('tiktok.com');
+}
+
+/// Extracts TikTok video ID from a URL like:
+/// https://www.tiktok.com/@user/video/1234567890
+/// Returns null for short URLs (vm.tiktok.com) — those are handled differently.
+String? _extractTikTokVideoId(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return null;
+  final segments = uri.pathSegments;
+  // Path is typically /@username/video/ID
+  final videoIdx = segments.indexOf('video');
+  if (videoIdx != -1 && videoIdx + 1 < segments.length) {
+    return segments[videoIdx + 1];
+  }
+  return null;
+}
+
+/// Builds the TikTok embed HTML with autoplay JS trick.
+String _tikTokEmbedHtml(String videoId) {
+  return '''
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; width: 100vw; height: 100vh; overflow: hidden; }
+  blockquote { width: 100% !important; max-width: 100% !important; min-width: unset !important; }
+  iframe { width: 100% !important; max-width: 100% !important; height: 100vh !important; border: none; }
+  .tiktok-embed { width: 100% !important; max-width: 100% !important; }
+</style>
+</head>
+<body>
+<blockquote class="tiktok-embed" cite="https://www.tiktok.com/video/$videoId"
+  data-video-id="$videoId" data-embed-from="oembed" style="max-width:100%;min-width:100%;">
+</blockquote>
+<script async src="https://www.tiktok.com/embed.js"></script>
+</body>
+</html>
+''';
+}
 
 /// Show a popup ad. Returns true if the user clicked the CTA button.
 Future<bool> showPopupAd(
@@ -16,8 +73,6 @@ Future<bool> showPopupAd(
     return await _showModal(context, ad, adService) ?? false;
   }
 }
-
-// ── Modal (center dialog) ─────────────────────────────────────────────────────
 
 Future<bool?> _showModal(BuildContext context, AdModel ad, AdService adService) {
   return showGeneralDialog<bool>(
@@ -34,8 +89,6 @@ Future<bool?> _showModal(BuildContext context, AdModel ad, AdService adService) 
     pageBuilder: (ctx, _, __) => _PopupAdSheet(ad: ad, adService: adService, fullScreen: false),
   );
 }
-
-// ── Full-screen ───────────────────────────────────────────────────────────────
 
 Future<bool?> _showFullScreen(BuildContext context, AdModel ad, AdService adService) {
   return showGeneralDialog<bool>(
@@ -54,8 +107,6 @@ Future<bool?> _showFullScreen(BuildContext context, AdModel ad, AdService adServ
   );
 }
 
-// ─── Shared sheet widget ──────────────────────────────────────────────────────
-
 class _PopupAdSheet extends StatefulWidget {
   final AdModel ad;
   final AdService adService;
@@ -73,13 +124,58 @@ class _PopupAdSheet extends StatefulWidget {
 
 class _PopupAdSheetState extends State<_PopupAdSheet> {
   bool _dontShowToday = false;
+  YoutubePlayerController? _ytController;
+  WebViewController? _tikTokController;
 
   AdModel get ad => widget.ad;
 
-  void _close({bool clicked = false}) {
-    if (_dontShowToday) {
-      widget.adService.markDontShowToday(ad.id);
+  @override
+  void initState() {
+    super.initState();
+    _initVideo();
+  }
+
+  void _initVideo() {
+    final url = ad.videoUrl;
+    if (url == null || url.isEmpty) return;
+
+    if (_isTikTokUrl(url)) {
+      final videoId = _extractTikTokVideoId(url);
+      if (videoId != null && videoId.isNotEmpty) {
+        _tikTokController = WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setBackgroundColor(Colors.black)
+          ..loadHtmlString(_tikTokEmbedHtml(videoId));
+      }
+      return;
     }
+
+    final ytId = _extractYoutubeId(url);
+    if (ytId != null && ytId.isNotEmpty) {
+      _ytController = YoutubePlayerController.fromVideoId(
+        videoId: ytId,
+        autoPlay: true,
+        params: const YoutubePlayerParams(
+          mute: false,
+          enableCaption: false,
+          strictRelatedVideos: true,
+          showControls: true,
+          showFullscreenButton: true,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _ytController?.close();
+    super.dispose();
+  }
+
+  void _close({bool clicked = false}) {
+    if (_dontShowToday) widget.adService.markDontShowToday(ad.id);
+    _ytController?.pauseVideo();
+    _tikTokController?.loadHtmlString('<html><body style="background:#000"></body></html>');
     Navigator.of(context).pop(clicked);
   }
 
@@ -103,9 +199,6 @@ class _PopupAdSheetState extends State<_PopupAdSheet> {
         final id = int.tryParse(val);
         if (id != null) context.push('/eshop/products/$id');
         break;
-      case 'url':
-        // External URL — just close; could open with url_launcher if available
-        break;
       default:
         break;
     }
@@ -116,40 +209,37 @@ class _PopupAdSheetState extends State<_PopupAdSheet> {
     return widget.fullScreen ? _buildFullScreen() : _buildModal();
   }
 
-  // ── Full-screen layout ──────────────────────────────────────────────────────
+  bool get _hasVideo => _ytController != null || _tikTokController != null;
 
   Widget _buildFullScreen() {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(children: [
-        // Background image
-        if (ad.imageUrl != null)
+        if (_ytController != null)
+          Positioned.fill(child: YoutubePlayer(controller: _ytController!))
+        else if (_tikTokController != null)
+          Positioned.fill(child: WebViewWidget(controller: _tikTokController!))
+        else if (ad.imageUrl != null)
+          Positioned.fill(child: NetImage(url: ad.imageUrl!, fit: BoxFit.cover)),
+
+        if (!_hasVideo)
           Positioned.fill(
-            child: NetImage(
-              url: ad.imageUrl!,
-              fit: BoxFit.cover,
-            ),
-          ),
-        // Gradient overlay (bottom)
-        Positioned.fill(
-          child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: [0.4, 1.0],
-                colors: [Colors.transparent, Colors.black87],
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: [0.4, 1.0],
+                  colors: [Colors.transparent, Colors.black87],
+                ),
               ),
             ),
           ),
-        ),
-        // Close button (top-right)
         Positioned(
           top: MediaQuery.of(context).padding.top + 12,
           right: 16,
           child: _CloseButton(onTap: _close),
         ),
-        // Content (bottom)
         Positioned(
           left: 0, right: 0, bottom: 0,
           child: _buildBottomContent(dark: true),
@@ -157,8 +247,6 @@ class _PopupAdSheetState extends State<_PopupAdSheet> {
       ]),
     );
   }
-
-  // ── Modal layout ───────────────────────────────────────────────────────────
 
   Widget _buildModal() {
     final size = MediaQuery.of(context).size;
@@ -171,49 +259,45 @@ class _PopupAdSheetState extends State<_PopupAdSheet> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 40, offset: const Offset(0, 12))],
+            boxShadow: [BoxShadow(
+                color: Colors.black.withOpacity(0.25), blurRadius: 40, offset: const Offset(0, 12))],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Image
-                if (ad.imageUrl != null)
+                if (_ytController != null)
+                  Stack(children: [
+                    YoutubePlayer(controller: _ytController!),
+                    Positioned(top: 8, right: 8, child: _CloseButton(onTap: _close)),
+                  ])
+                else if (_tikTokController != null)
+                  Stack(children: [
+                    SizedBox(
+                      height: size.height * 0.55,
+                      child: WebViewWidget(controller: _tikTokController!),
+                    ),
+                    Positioned(top: 8, right: 8, child: _CloseButton(onTap: _close)),
+                  ])
+                else if (ad.imageUrl != null)
                   AspectRatio(
                     aspectRatio: 16 / 9,
                     child: Stack(children: [
                       NetImage(url: ad.imageUrl!, fit: BoxFit.cover,
                           width: double.infinity, height: double.infinity),
-                      Positioned(
-                        top: 10, right: 10,
-                        child: _CloseButton(onTap: _close),
-                      ),
+                      Positioned(top: 10, right: 10, child: _CloseButton(onTap: _close)),
                     ]),
                   )
                 else
-                  Container(
-                    height: 8,
-                    color: ad.buttonColor,
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: _CloseButton(onTap: _close, small: true),
-                      ),
-                    ),
-                  ),
-
-                if (ad.imageUrl == null)
                   Align(
                     alignment: Alignment.topRight,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(0, 8, 12, 0),
+                      padding: const EdgeInsets.fromLTRB(0, 10, 12, 0),
                       child: _CloseButton(onTap: _close),
                     ),
                   ),
 
-                // Content
                 Flexible(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
@@ -243,30 +327,16 @@ class _PopupAdSheetState extends State<_PopupAdSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Title
         Text(
           ad.title,
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
-            color: titleColor,
-            height: 1.2,
-            letterSpacing: -0.5,
-          ),
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900,
+              color: titleColor, height: 1.2, letterSpacing: -0.5),
         ),
-
-        // Description
         if (ad.description != null && ad.description!.isNotEmpty) ...[
           const SizedBox(height: 10),
-          Text(
-            ad.description!,
-            style: TextStyle(fontSize: 14, color: bodyColor, height: 1.55),
-          ),
+          Text(ad.description!, style: TextStyle(fontSize: 14, color: bodyColor, height: 1.55)),
         ],
-
         const SizedBox(height: 20),
-
-        // CTA button
         if (ad.actionType != 'none')
           SizedBox(
             width: double.infinity,
@@ -279,14 +349,10 @@ class _PopupAdSheetState extends State<_PopupAdSheet> {
                 elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
-              child: Text(
-                ad.buttonText,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-              ),
+              child: Text(ad.buttonText,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
             ),
           ),
-
-        // "Don't show today" toggle
         if (ad.allowDontShowToday) ...[
           const SizedBox(height: 14),
           GestureDetector(
@@ -298,7 +364,8 @@ class _PopupAdSheetState extends State<_PopupAdSheet> {
                 decoration: BoxDecoration(
                   color: _dontShowToday ? ad.buttonColor : Colors.transparent,
                   border: Border.all(
-                    color: _dontShowToday ? ad.buttonColor : (dark ? Colors.white38 : const Color(0xFFD1D5DB)),
+                    color: _dontShowToday ? ad.buttonColor
+                        : (dark ? Colors.white38 : const Color(0xFFD1D5DB)),
                     width: 1.5,
                   ),
                   borderRadius: BorderRadius.circular(5),
@@ -308,14 +375,9 @@ class _PopupAdSheetState extends State<_PopupAdSheet> {
                     : null,
               ),
               const SizedBox(width: 8),
-              Text(
-                "Don't show today",
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: dark ? Colors.white60 : const Color(0xFF9CA3AF),
-                ),
-              ),
+              Text("Don't show today",
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                    color: dark ? Colors.white60 : const Color(0xFF9CA3AF))),
             ]),
           ),
         ],
@@ -323,8 +385,6 @@ class _PopupAdSheetState extends State<_PopupAdSheet> {
     );
   }
 }
-
-// ── Close button ──────────────────────────────────────────────────────────────
 
 class _CloseButton extends StatelessWidget {
   final VoidCallback onTap;
@@ -339,10 +399,7 @@ class _CloseButton extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: size, height: size,
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.45),
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: Colors.black.withOpacity(0.45), shape: BoxShape.circle),
         child: Icon(Icons.close_rounded, color: Colors.white, size: size * 0.55),
       ),
     );

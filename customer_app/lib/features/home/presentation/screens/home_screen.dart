@@ -9,6 +9,7 @@ import '../providers/home_provider.dart';
 import '../../data/models/home_models.dart';
 import '../../../../features/ads/services/ad_service.dart';
 import '../../../../features/ads/widgets/banner_ad_strip.dart';
+import '../../../../features/ads/widgets/card_ad_strip.dart';
 
 // ── eSahlan Brand Gradient — Navy dominant, subtle orange touch at corner ──────
 // All service cards share ONE unified gradient: deep navy → very faint orange
@@ -181,7 +182,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const _ServicesSectionHeader(),
                 const SizedBox(height: 8),
                 const _ApiDrivenServicesGrid(),
-                const SizedBox(height: 16),
+                // ── Promotional card ads ────────────────────────────────────
+                const CardAdStrip(),
               ],
             ),
           ),
@@ -233,9 +235,10 @@ class _ApiDrivenServicesGrid extends ConsumerWidget {
         child: GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 4,
-            childAspectRatio: 0.85,
+            childAspectRatio: 0.95,
             crossAxisSpacing: 6,
             mainAxisSpacing: 6,
           ),
@@ -251,9 +254,10 @@ class _ApiDrivenServicesGrid extends ConsumerWidget {
           child: GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 4,
-              childAspectRatio: 0.85,
+              childAspectRatio: 0.95,
               crossAxisSpacing: 6,
               mainAxisSpacing: 6,
             ),

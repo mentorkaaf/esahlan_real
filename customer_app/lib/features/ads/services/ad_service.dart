@@ -105,14 +105,20 @@ class AdService {
 
     if (eligible.isEmpty) return;
 
-    // Show one popup at a time with delay
-    final ad = eligible.first;
-    final delay = ad.displayDelaySeconds.clamp(0, 30);
-
+    // Delay before showing first popup
+    final delay = eligible.first.displayDelaySeconds.clamp(0, 30);
     await Future.delayed(Duration(seconds: delay));
     if (!context.mounted) return;
 
-    await trackImpression(ad.id);
-    await showPopupAd(context, ad, adService: this);
+    // Show all eligible popups sequentially with 5s gap between each
+    for (int i = 0; i < eligible.length; i++) {
+      if (!context.mounted) return;
+      final ad = eligible[i];
+      await trackImpression(ad.id);
+      await showPopupAd(context, ad, adService: this);
+      if (i < eligible.length - 1) {
+        await Future.delayed(const Duration(seconds: 5));
+      }
+    }
   }
 }
