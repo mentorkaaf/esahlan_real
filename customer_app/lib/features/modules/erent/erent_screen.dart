@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:video_player/video_player.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
@@ -134,7 +135,7 @@ class _BrowseTabState extends ConsumerState<_BrowseTab> {
     final async = ref.watch(_districtsProvider);
     return async.when(
       loading: () => _buildShimmer(),
-      error: (e, _) => _ErrorState(message: e.toString(), onRetry: () => ref.invalidate(_districtsProvider)),
+      error: (e, _) => _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_districtsProvider)),
       data: (data) {
         final districts = List<Map>.from(data is Map ? (data['data'] ?? []) : []);
         if (districts.isEmpty) return const _EmptyState(
@@ -645,7 +646,7 @@ class _PropertyListScreenState extends ConsumerState<_PropertyListScreen> {
       ),
       body: async.when(
         loading: () => ListView(children: List.generate(3, (_) => _Skeleton(height: 280))),
-        error: (e, _) => _ErrorState(message: e.toString(), onRetry: () => ref.invalidate(_propertiesProvider(_paramsKey))),
+        error: (e, _) => _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_propertiesProvider(_paramsKey))),
         data: (data) {
           final props = List<Map>.from(data is Map ? (data['data'] ?? []) : []);
           if (props.isEmpty) return _EmptyState(
@@ -780,7 +781,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
     return async.when(
       loading: () => Scaffold(backgroundColor: _kBg, body: const Center(child: CircularProgressIndicator(color: _kOrange))),
       error: (e, _) => Scaffold(appBar: AppBar(backgroundColor: _kNavy, foregroundColor: Colors.white),
-          body: _ErrorState(message: e.toString(), onRetry: () => ref.invalidate(_propertyProvider(widget.propertyId)))),
+          body: _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_propertyProvider(widget.propertyId)))),
       data: (data) {
         final p = Map<String, dynamic>.from(data is Map ? (data['data'] ?? data) : {});
         final images = List<String>.from(p['images'] ?? []);
@@ -1192,7 +1193,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
+          SnackBar(content: Text(AppErrorHandler.message(e)), backgroundColor: Colors.red));
       }
     }
   }
@@ -1508,7 +1509,7 @@ class _MyBookingsTab extends ConsumerWidget {
     final async = ref.watch(_myBookingsProvider);
     return async.when(
       loading: () => ListView(children: List.generate(3, (_) => _Skeleton(height: 140))),
-      error: (e, _) => _ErrorState(message: e.toString(), onRetry: () => ref.invalidate(_myBookingsProvider)),
+      error: (e, _) => _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_myBookingsProvider)),
       data: (data) {
         final bookings = List<Map>.from(data is Map ? (data['data'] ?? []) : []);
         if (bookings.isEmpty) return const _EmptyState(
@@ -1689,7 +1690,7 @@ class _BookingCard extends StatelessWidget {
           backgroundColor: Colors.orange));
     } catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
+        SnackBar(content: Text(AppErrorHandler.message(e)), backgroundColor: Colors.red));
     }
   }
 }
@@ -1729,7 +1730,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
+            SnackBar(content: Text(AppErrorHandler.message(e)), backgroundColor: Colors.red));
       }
     }
   }

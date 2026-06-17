@@ -6,6 +6,7 @@ import '../../../core/widgets/network_image_widget.dart';
 import 'package:intl/intl.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
@@ -95,7 +96,7 @@ class _BuyDataTab extends ConsumerWidget {
     final async = ref.watch(_providersProvider);
     return async.when(
       loading: () => _buildShimmer(),
-      error: (e, _) => _ErrorState(message: e.toString(), onRetry: () => ref.invalidate(_providersProvider)),
+      error: (e, _) => _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_providersProvider)),
       data: (data) {
         final providers = List<Map>.from(data is Map ? (data['data'] ?? []) : data ?? []);
         if (providers.isEmpty) return const _EmptyState(
@@ -348,7 +349,7 @@ class _EDataFlowDialogState extends ConsumerState<_EDataFlowDialog> {
     } catch (e) {
       if (mounted) setState(() {
         _loading = false;
-        _error = e.toString().replaceAll('Exception: ', '');
+        _error = AppErrorHandler.message(e);
       });
     }
   }
@@ -482,7 +483,7 @@ class _PackagesStep extends ConsumerWidget {
     final async = ref.watch(_packagesProvider(providerId));
     return async.when(
       loading: () => _buildShimmer(),
-      error: (e, _) => _ErrorState(message: e.toString(), onRetry: () => ref.invalidate(_packagesProvider(providerId))),
+      error: (e, _) => _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_packagesProvider(providerId))),
       data: (data) {
         final packages = List<Map>.from(data is Map ? (data['data'] ?? []) : data ?? []);
         if (packages.isEmpty) return const _EmptyState(
@@ -613,7 +614,7 @@ class _BundlesStep extends ConsumerWidget {
     final async = ref.watch(_pkgBundlesProvider(packageId));
     return async.when(
       loading: () => ListView(children: List.generate(3, (_) => _BundleSkeleton())),
-      error: (e, _) => _ErrorState(message: e.toString(), onRetry: () => ref.invalidate(_pkgBundlesProvider(packageId))),
+      error: (e, _) => _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_pkgBundlesProvider(packageId))),
       data: (data) {
         final bundles = List<Map>.from(data is Map ? (data['data'] ?? []) : data ?? []);
         if (bundles.isEmpty) return const _EmptyState(

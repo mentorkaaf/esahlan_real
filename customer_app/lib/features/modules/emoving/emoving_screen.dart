@@ -4,6 +4,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:intl/intl.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
@@ -2451,7 +2452,7 @@ class _MyOrdersTab extends ConsumerWidget {
       loading: () => _OrdersSkeleton(),
       error: (e, _) => _ErrorWidget(
         onRetry: () => ref.invalidate(_myOrdersProvider),
-        message: e.toString(),
+        message: AppErrorHandler.message(e),
       ),
       data: (data) {
         final orders = List<Map<String, dynamic>>.from(data['data'] ?? data ?? []);

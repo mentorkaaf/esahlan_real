@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/api/module_api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/error_handler.dart';
 import '../../core/widgets/phone_input_field.dart';
 
 /// Result returned from showWaafiPaySheet
@@ -102,7 +103,7 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
         setState(() { _state = _PayState.failed; _message = res['message'] ?? 'Payment failed'; });
       }
     } catch (e) {
-      setState(() { _state = _PayState.failed; _message = e.toString(); });
+      setState(() { _state = _PayState.failed; _message = AppErrorHandler.message(e); });
     }
   }
 

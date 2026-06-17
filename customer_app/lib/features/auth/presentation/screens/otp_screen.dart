@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/error_handler.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../providers/auth_provider.dart';
 
@@ -70,9 +71,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     final state = ref.read(otpProvider);
     state.whenOrNull(
       data: (_) => context.go('/home'),
-      error: (e, _) => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
-      ),
+      error: (e, _) => AppErrorHandler.snack(context, e),
     );
   }
 

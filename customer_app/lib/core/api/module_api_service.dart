@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'api_client.dart';
+import 'api_client.dart'; // also exports ApiException
 
 /// Centralized service for all 12 module API calls
 class ModuleApiService {
@@ -14,13 +14,21 @@ class ModuleApiService {
   // ═══════════════════════════════════════════════════════════════════
 
   Future<dynamic> _get(String path, {Map<String, dynamic>? params}) async {
-    final r = await _dio.get(path, queryParameters: params);
-    return r.data;
+    try {
+      final r = await _dio.get(path, queryParameters: params);
+      return r.data;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
   }
 
   Future<dynamic> _post(String path, Map<String, dynamic> data) async {
-    final r = await _dio.post(path, data: data);
-    return r.data;
+    try {
+      final r = await _dio.post(path, data: data);
+      return r.data;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════

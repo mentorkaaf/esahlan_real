@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/error_handler.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../providers/order_provider.dart';
 import '../../data/models/order_model.dart';
@@ -26,7 +27,7 @@ class OrderDetailScreen extends ConsumerWidget {
         ),
         error: (e, _) => Scaffold(
           appBar: AppBar(leading: BackButton(onPressed: () => context.pop())),
-          body: Center(child: Text(e.toString())),
+          body: Center(child: Text(AppErrorHandler.message(e))),
         ),
         data: (order) => _OrderDetailBody(order: order, orderId: orderId, ref: ref),
       ),

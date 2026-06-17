@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/error_handler.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../providers/home_provider.dart';
 import '../../data/models/home_models.dart';
@@ -20,7 +21,7 @@ class VendorDetailScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       body: vendorAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (e, _) => Center(child: Text(e.toString())),
+        error: (e, _) => Center(child: Text(AppErrorHandler.message(e))),
         data: (vendor) => CustomScrollView(
           slivers: [
             // Cover + back button

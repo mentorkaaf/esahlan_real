@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/error_handler.dart';
 import '../../../../shared/widgets/app_button.dart';
 import 'package:dio/dio.dart';
 
@@ -68,7 +69,7 @@ class CartScreen extends ConsumerWidget {
       ),
       body: cartAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (e, _) => Center(child: Text(e.toString())),
+        error: (e, _) => Center(child: Text(AppErrorHandler.message(e))),
         data: (items) {
           if (items.isEmpty) {
             return Center(

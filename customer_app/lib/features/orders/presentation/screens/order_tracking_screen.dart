@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/error_handler.dart';
 import '../providers/order_provider.dart';
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
@@ -125,7 +126,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
-        error: (e, _) => Center(child: Text(e.toString())),
+        error: (e, _) => Center(child: Text(AppErrorHandler.message(e))),
         data: (order) {
           // Setup markers after first data load
           WidgetsBinding.instance.addPostFrameCallback((_) => _setupMarkers(order));

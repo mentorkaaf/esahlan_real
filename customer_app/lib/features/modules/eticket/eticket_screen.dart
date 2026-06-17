@@ -7,6 +7,7 @@ import '../../../core/widgets/network_image_widget.dart';
 import 'package:intl/intl.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 
@@ -1450,7 +1451,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
       if (mounted) {
         setState(() {
           _booking = false;
-          _error = e.toString().replaceAll('Exception: ', '');
+          _error = AppErrorHandler.message(e);
         });
       }
     }

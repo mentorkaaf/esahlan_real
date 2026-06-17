@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/error_handler.dart';
 import '../providers/order_provider.dart';
 import '../../data/models/order_model.dart';
 
@@ -82,7 +83,7 @@ class _OrdersList extends ConsumerWidget {
           children: [
             const Icon(Icons.receipt_long_outlined, size: 56, color: AppColors.textLight),
             const SizedBox(height: 12),
-            Text(e.toString(), style: const TextStyle(color: AppColors.textGrey)),
+            Text(AppErrorHandler.message(e), style: const TextStyle(color: AppColors.textGrey)),
           ],
         ),
       ),

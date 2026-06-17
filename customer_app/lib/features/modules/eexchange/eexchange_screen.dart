@@ -1,10 +1,10 @@
-﻿import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
@@ -15,27 +15,7 @@ final _exchangeRatesProvider = FutureProvider((_) => _svc.getExchangeRates());
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/// Extracts a human-readable error message from a DioException or any error.
-String _extractError(Object e) {
-  if (e is DioException) {
-    final data = e.response?.data;
-    if (data is Map) {
-      // Laravel validation errors
-      final errors = data['errors'];
-      if (errors is Map) {
-        final first = errors.values.first;
-        if (first is List && first.isNotEmpty) return first.first.toString();
-      }
-      if (data['message'] != null) return data['message'].toString();
-    }
-    if (e.response?.statusCode == 422) return 'Please check your input and try again.';
-    if (e.response?.statusCode == 500) return 'Server error. Please try again later.';
-    if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout) return 'Connection timed out. Check your internet.';
-    if (e.type == DioExceptionType.connectionError) return 'No internet connection.';
-  }
-  return e.toString().replaceAll('Exception: ', '');
-}
+String _extractError(Object e) => AppErrorHandler.message(e);
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 

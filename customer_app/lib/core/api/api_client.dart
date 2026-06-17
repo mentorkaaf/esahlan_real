@@ -63,25 +63,57 @@ class ApiException implements Exception {
   ApiException(this.message, {this.statusCode, this.errors});
 
   factory ApiException.fromDio(DioException e) {
-    final data = e.response?.data;
-    String msg = 'Something went wrong. Please try again.';
+    final data   = e.response?.data;
+    final status = e.response?.statusCode;
+    String msg   = 'Something went wrong. Please try again.';
 
+    // Extract backend message first (most specific)
     if (data is Map) {
-      msg = data['message'] ?? msg;
+      // Try common message keys
+      final backendMsg = data['message']?.toString()
+          ?? data['error']?.toString()
+          ?? data['msg']?.toString();
+
+      if (backendMsg != null && backendMsg.isNotEmpty) {
+        msg = backendMsg;
+      } else if (data['errors'] is Map) {
+        // Validation errors — take the first one
+        final errs = data['errors'] as Map;
+        final first = errs.values.firstOrNull;
+        if (first is List && first.isNotEmpty) {
+          msg = first.first.toString();
+        } else if (first is String) {
+          msg = first;
+        }
+      }
     }
 
+    // Override with friendly messages for specific conditions
     if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout) {
-      msg = 'Connection timed out. Please check your internet connection.';
-    } else if (e.type == DioExceptionType.connectionError) {
-      msg = 'Cannot connect to server. Please check your internet connection.';
-    } else if (e.type == DioExceptionType.unknown) {
-      msg = 'Network error. Please check your internet connection.';
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout) {
+      msg = 'Request timed out. Please check your connection and try again.';
+    } else if (e.type == DioExceptionType.connectionError ||
+               e.type == DioExceptionType.unknown) {
+      msg = 'No internet connection. Please check your network and try again.';
+    } else if (status == 401) {
+      msg = 'Your session has expired. Please sign in again.';
+    } else if (status == 403) {
+      msg = 'You don\'t have permission to perform this action.';
+    } else if (status == 404) {
+      msg = data is Map ? (data['message']?.toString() ?? 'The requested item was not found.') : 'Not found.';
+    } else if (status == 429) {
+      msg = 'Too many requests. Please wait a moment and try again.';
+    } else if (status != null && status >= 500) {
+      // Keep backend message if server provided one, else generic
+      if (data is! Map || (data['message'] == null && data['error'] == null)) {
+        msg = 'A server error occurred. Please try again later.';
+      }
     }
 
     return ApiException(
       msg,
-      statusCode: e.response?.statusCode,
+      statusCode: status,
       errors: data is Map ? data['errors'] as Map<String, dynamic>? : null,
     );
   }

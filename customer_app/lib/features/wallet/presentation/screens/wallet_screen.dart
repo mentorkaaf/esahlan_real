@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/api/module_api_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/error_handler.dart';
 import '../../../payment/waafi_pay_sheet.dart';
 import '../providers/wallet_provider.dart';
 import '../../../../shared/widgets/wallet_pin_dialog.dart';
@@ -52,16 +52,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
     _scrollCtrl.animateTo(360, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
   }
 
-  /// Extracts a readable message from DioException or any other error
-  String _errorMsg(dynamic e) {
-    if (e is DioException) {
-      final data = e.response?.data;
-      if (data is Map) {
-        return data['message']?.toString() ?? data['error']?.toString() ?? 'Request failed';
-      }
-    }
-    return e.toString();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +69,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             const Icon(Icons.account_balance_wallet_outlined, size: 56, color: AppColors.textLight),
             const SizedBox(height: 12),
-            Text(e.toString(), textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textGrey)),
+            Text(AppErrorHandler.message(e), textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textGrey)),
             const SizedBox(height: 16),
             ElevatedButton(onPressed: () => ref.refresh(walletProvider), child: const Text('Retry')),
           ]),
@@ -440,7 +430,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                       setModal(() { loading = false; error = res['message'] ?? 'Transfer failed'; });
                     }
                   } catch (e) {
-                    setModal(() { loading = false; error = _errorMsg(e); });
+                    setModal(() { loading = false; error = AppErrorHandler.message(e); });
                   }
                 },
                 icon: loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.send_rounded),
@@ -613,7 +603,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                         setModal(() { loading = false; error = res['message'] ?? 'Withdrawal failed'; });
                       }
                     } catch (e) {
-                      setModal(() { loading = false; error = _errorMsg(e); });
+                      setModal(() { loading = false; error = AppErrorHandler.message(e); });
                     }
                   },
                   icon: loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.arrow_circle_up_rounded),
