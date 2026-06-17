@@ -221,7 +221,7 @@
             <div class="modal-title"><i class="fas fa-plus-circle" style="color:#FF8A00;margin-right:8px;"></i>Create New Ad</div>
             <button class="modal-close" onclick="closeModal('createAdModal')"><i class="fas fa-times"></i></button>
         </div>
-        <form action="{{ route('admin.ads.store') }}" method="POST" enctype="multipart/form-data" style="overflow-y:auto;flex:1;">
+        <form id="createAdForm" action="{{ route('admin.ads.store') }}" method="POST" enctype="multipart/form-data" style="overflow-y:auto;flex:1;" onsubmit="convertDatesToUTC(this)">
             @csrf
             <div class="modal-body" id="createAdBody">
                 {{-- Populated by buildFormHTML(null) in the script below --}}
@@ -243,7 +243,7 @@
             <div class="modal-title"><i class="fas fa-edit" style="color:#3b82f6;margin-right:8px;"></i>Edit Ad</div>
             <button class="modal-close" onclick="closeModal('editAdModal')"><i class="fas fa-times"></i></button>
         </div>
-        <form id="editAdForm" method="POST" enctype="multipart/form-data" style="overflow-y:auto;flex:1;">
+        <form id="editAdForm" method="POST" enctype="multipart/form-data" style="overflow-y:auto;flex:1;" onsubmit="convertDatesToUTC(this)">
             @csrf @method('PUT')
             <div class="modal-body" id="editAdBody">
                 {{-- Populated by JS --}}
@@ -357,14 +357,16 @@ function buildFormHTML(ad) {
 
     <div class="form-row">
         <div class="form-group">
-            <label class="form-label">Start Date</label>
-            <input type="datetime-local" name="start_date" class="form-control"
-                   value="${v('start_date','')?.replace?.(' ','T')?.slice?.(0,16) ?? ''}">
+            <label class="form-label">Start Date <span style="color:#9ca3af;font-weight:400;font-size:11px;">(leave empty = show immediately)</span></label>
+            <input type="datetime-local" name="start_date" class="form-control" data-utc-field="1"
+                   value="${utcToLocal(v('start_date',''))}">
+            <div class="form-hint" style="color:#f59e0b;">⚠️ Your local time. Saved as UTC (server is UTC+0).</div>
         </div>
         <div class="form-group">
-            <label class="form-label">End Date</label>
-            <input type="datetime-local" name="end_date" class="form-control"
-                   value="${v('end_date','')?.replace?.(' ','T')?.slice?.(0,16) ?? ''}">
+            <label class="form-label">End Date <span style="color:#9ca3af;font-weight:400;font-size:11px;">(leave empty = no expiry)</span></label>
+            <input type="datetime-local" name="end_date" class="form-control" data-utc-field="1"
+                   value="${utcToLocal(v('end_date',''))}">
+            <div class="form-hint" style="color:#f59e0b;">⚠️ Your local time. Saved as UTC (server is UTC+0).</div>
         </div>
     </div>
 
@@ -436,6 +438,32 @@ function buildFormHTML(ad) {
 function escHtml(s) {
     if (s == null) return '';
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Convert UTC datetime string from server to local datetime-local input value
+function utcToLocal(utcStr) {
+    if (!utcStr) return '';
+    const d = new Date(utcStr.replace(' ', 'T') + (utcStr.includes('Z') ? '' : 'Z'));
+    if (isNaN(d)) return '';
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// Before form submit: convert datetime-local (local time) fields back to UTC ISO string
+function convertDatesToUTC(form) {
+    form.querySelectorAll('input[data-utc-field]').forEach(input => {
+        if (!input.value) return;
+        const local = new Date(input.value);
+        if (!isNaN(local)) {
+            // Create a hidden input with UTC value, disable the original
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = input.name;
+            hidden.value = local.toISOString().slice(0,19).replace('T',' ');
+            input.name = '_' + input.name; // disable original
+            form.appendChild(hidden);
+        }
+    });
 }
 
 // ── Populate edit modal ──────────────────────────────────────────────────────
