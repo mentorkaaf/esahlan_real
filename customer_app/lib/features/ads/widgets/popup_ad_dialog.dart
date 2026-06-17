@@ -206,8 +206,8 @@ class _PopupAdSheetState extends State<_PopupAdSheet> {
 
     final ctrl = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.black)
-      ..setMediaPlaybackRequiresUserGesture(false);
+      ..setBackgroundColor(Colors.black);
+
 
     if (videoId != null && videoId.isNotEmpty) {
       await ctrl.loadRequest(Uri.parse(
