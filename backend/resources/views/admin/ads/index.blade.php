@@ -463,4 +463,3 @@ document.getElementById('createAdModal').addEventListener('click', function(e) {
 </script>
 @endpush
 @endsection
-@endsection
