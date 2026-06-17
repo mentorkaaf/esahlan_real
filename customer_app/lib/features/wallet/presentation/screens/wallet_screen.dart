@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/api/module_api_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_x.dart';
 import '../../../../core/utils/error_handler.dart';
 import '../../../payment/waafi_pay_sheet.dart';
 import '../providers/wallet_provider.dart';
@@ -62,8 +63,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: walletAsync.when(
+            body: walletAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
         error: (e, _) => Center(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -180,8 +180,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(color: context.colors.cardBg,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
       ),
@@ -263,8 +262,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setModal) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: const BoxDecoration(color: context.colors.cardBg,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: EdgeInsets.only(
@@ -274,7 +272,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
             const SizedBox(height: 20),
-            const Text('Top Up Wallet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.secondary)),
+            const Text('Top Up Wallet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: context.colors.navyText)),
             const SizedBox(height: 4),
             const Text('Add money to your eSahlan wallet via Waafi Pay', style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
             const SizedBox(height: 20),
@@ -362,15 +360,14 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setModal) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: const BoxDecoration(color: context.colors.cardBg,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
             const SizedBox(height: 20),
-            const Text('Send Money', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.secondary)),
+            const Text('Send Money', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: context.colors.navyText)),
             const SizedBox(height: 4),
             Text('Balance: \$${currentBalance.toStringAsFixed(2)}', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
             const SizedBox(height: 20),
@@ -481,12 +478,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
 
         return SingleChildScrollView(
           child: Container(
-            decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+            decoration: const BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
             padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(ctx).viewInsets.bottom + 32),
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 20),
-              const Text('Withdraw', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.secondary)),
+              const Text('Withdraw', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: context.colors.navyText)),
               const SizedBox(height: 4),
               Text('Balance: \$${currentBalance.toStringAsFixed(2)}', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
               const SizedBox(height: 20),
@@ -736,8 +733,7 @@ class _TransactionTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(color: context.colors.cardBg,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
       ),

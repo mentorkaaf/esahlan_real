@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,6 +9,7 @@ import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
+import '../../../../core/theme/theme_x.dart';
 
 final _svc = ModuleApiService.create();
 final _parcelTypesProvider     = FutureProvider((_) => _svc.getParcelTypes());
@@ -95,7 +96,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
           SliverAppBar(
             expandedHeight: 160,
             pinned: true,
-            backgroundColor: _navy,
+            backgroundcolor: context.colors.navyText,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Colors.white),
               onPressed: () => context.pop(),
@@ -455,8 +456,7 @@ class _StepCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(color: context.colors.cardBg,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12, offset: const Offset(0, 3))],
       ),
@@ -468,7 +468,7 @@ class _StepCard extends StatelessWidget {
             Container(
               width: 28, height: 28,
               decoration: BoxDecoration(
-                color: _navy,
+                color: context.colors.navyText,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Center(
@@ -480,7 +480,7 @@ class _StepCard extends StatelessWidget {
             Icon(icon, size: 18, color: _amber),
             const SizedBox(width: 6),
             Text(title, style: const TextStyle(
-                fontSize: 14, fontWeight: FontWeight.w800, color: _navy)),
+                fontSize: 14, fontWeight: FontWeight.w800, color: context.colors.navyText)),
           ]),
         ),
         const SizedBox(height: 12),
@@ -512,7 +512,7 @@ class _InfoChip extends StatelessWidget {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textGrey, fontWeight: FontWeight.w500)),
           Text(value,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _navy),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText),
             overflow: TextOverflow.ellipsis),
         ])),
       ]),
@@ -690,8 +690,7 @@ class _DropdownSheetState extends State<_DropdownSheet> {
       maxChildSize: 0.92,
       minChildSize: 0.4,
       builder: (_, ctrl) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: const BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(children: [
@@ -704,7 +703,7 @@ class _DropdownSheetState extends State<_DropdownSheet> {
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Row(children: [
               Text(widget.hint,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _navy)),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.colors.navyText)),
             ]),
           ),
           // search
@@ -791,7 +790,7 @@ class _PriceCard extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(22),
-        boxShadow: [BoxShadow(color: _navy.withOpacity(0.35), blurRadius: 20, offset: const Offset(0, 8))],
+        boxShadow: [BoxShadow(color: context.colors.navyText.withOpacity(0.35), blurRadius: 20, offset: const Offset(0, 8))],
       ),
       child: Stack(
         children: [

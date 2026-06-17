@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:intl/intl.dart';
@@ -9,6 +9,7 @@ import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
+import '../../../../core/theme/theme_x.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DESIGN CONSTANTS
@@ -68,14 +69,13 @@ class _EMovingScreenState extends ConsumerState<EMovingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
-      body: Column(
+            body: Column(
         children: [
           // ── GRADIENT HEADER ────────────────────────────────────────────
           _buildHeader(context),
           // ── TAB BAR ───────────────────────────────────────────────────
           Container(
-            color: _kNavy,
+            color: context.colors.navyText,
             child: TabBar(
               controller: _tab,
               indicatorColor: _kOrange,
@@ -702,8 +702,7 @@ class _PackagesSection extends ConsumerWidget {
           if (packages.isEmpty) {
             return Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(color: context.colors.cardBg,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.divider),
               ),
@@ -749,8 +748,7 @@ class _RoomsSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(color: context.colors.cardBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.divider),
       ),
@@ -834,8 +832,7 @@ class _PackageCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? _kOrange : AppColors.divider,
@@ -929,8 +926,7 @@ class _RouteSection extends ConsumerWidget {
       child: districtsAsync.when(
         loading: () => Container(
           height: 110,
-          decoration: BoxDecoration(
-              color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16)),
           child: const Center(child: CircularProgressIndicator()),
         ),
         error: (_, __) => _ErrorWidget(
@@ -957,12 +953,12 @@ class _RouteSection extends ConsumerWidget {
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: _kNavy.withValues(alpha: 0.07),
+                      color: context.colors.navyText.withValues(alpha: 0.07),
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColors.divider),
                     ),
                     child: const Icon(Icons.swap_horiz_rounded,
-                        color: _kNavy, size: 18),
+                        color: context.colors.navyText, size: 18),
                   ),
                   Expanded(
                     child: _DistrictDropdown(
@@ -1070,8 +1066,7 @@ class _DistrictDropdown extends StatelessWidget {
       ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected != null ? iconColor.withValues(alpha: 0.5) : AppColors.divider,
@@ -1158,8 +1153,7 @@ class _ExtrasSectionState extends ConsumerState<_ExtrasSection> {
           final selectedCount = widget.selectedExtras.length;
 
           return Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(color: context.colors.cardBg,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: selectedCount > 0 ? _kOrange : AppColors.divider,
@@ -1319,8 +1313,7 @@ class _PriceSection extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: AppColors.divider),
           boxShadow: [
@@ -1373,7 +1366,7 @@ class _PriceSection extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: calculating ? null : onCalculate,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _kNavy,
+                  backgroundcolor: context.colors.navyText,
                   minimumSize: const Size(double.infinity, 48),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -1464,8 +1457,7 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
       maxChildSize: 0.92,
       expand: false,
       builder: (_, ctrl) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: const BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -1665,10 +1657,9 @@ class _BookingFlowScreenState extends ConsumerState<_BookingFlowScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
-      appBar: _step < 2
+            appBar: _step < 2
           ? AppBar(
-              backgroundColor: _kNavy,
+              backgroundcolor: context.colors.navyText,
               foregroundColor: Colors.white,
               title: Text(
                 _step == 0 ? 'Schedule Your Move' : 'Confirm Booking',
@@ -1749,7 +1740,7 @@ class _StepIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: _kNavy,
+      color: context.colors.navyText,
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
       child: Row(
         children: List.generate(total, (i) {
@@ -1861,8 +1852,7 @@ class _ScheduleStep extends StatelessWidget {
                   },
                   child: Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
+                    decoration: BoxDecoration(color: context.colors.cardBg,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: AppColors.divider),
                     ),
@@ -2176,8 +2166,7 @@ class _ConfirmCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(color: context.colors.cardBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.divider),
       ),
@@ -2251,8 +2240,7 @@ class _SuccessScreen extends StatelessWidget {
     final total   = order?['total'] ?? order?['total_amount'] ?? 0;
 
     return Scaffold(
-      backgroundColor: _kBg,
-      body: Center(
+            body: Center(
         child: Padding(
           padding: const EdgeInsets.all(28),
           child: Column(
@@ -2352,7 +2340,7 @@ class _SuccessScreen extends StatelessWidget {
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('View My Orders',
-                    style: TextStyle(color: _kNavy, fontWeight: FontWeight.w700)),
+                    style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w700)),
               ),
             ],
           ),
@@ -2383,8 +2371,7 @@ class _BottomCTA extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
-      decoration: BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(color: context.colors.cardBg,
         border: const Border(top: BorderSide(color: AppColors.divider)),
         boxShadow: [
           BoxShadow(
@@ -2509,8 +2496,7 @@ class _OrderCard extends StatelessWidget {
             : order['to_district']?.toString()) ?? '—';
 
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(color: context.colors.cardBg,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -2526,7 +2512,7 @@ class _OrderCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
             decoration: BoxDecoration(
-              color: _kNavy.withValues(alpha: 0.04),
+              color: context.colors.navyText.withValues(alpha: 0.04),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(20),
                 topRight: Radius.circular(20),
@@ -2537,11 +2523,11 @@ class _OrderCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: _kNavy.withValues(alpha: 0.1),
+                    color: context.colors.navyText.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.local_shipping_rounded,
-                      color: _kNavy, size: 20),
+                      color: context.colors.navyText, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -2704,8 +2690,7 @@ class _TypeGridSkeleton extends StatelessWidget {
           ),
           itemCount: 4,
           itemBuilder: (_, __) => Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(color: context.colors.cardBg,
               borderRadius: BorderRadius.circular(20),
             ),
           ),
@@ -2725,8 +2710,7 @@ class _PackagesSkeleton extends StatelessWidget {
         children: List.generate(2, (i) => Container(
           margin: const EdgeInsets.only(bottom: 10),
           height: 80,
-          decoration: BoxDecoration(
-            color: Colors.white,
+          decoration: BoxDecoration(color: context.colors.cardBg,
             borderRadius: BorderRadius.circular(14),
           ),
         )),
@@ -2747,8 +2731,7 @@ class _OrdersSkeleton extends StatelessWidget {
           children: List.generate(4, (i) => Container(
             margin: const EdgeInsets.only(bottom: 12),
             height: 130,
-            decoration: BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(color: context.colors.cardBg,
               borderRadius: BorderRadius.circular(20),
             ),
           )),

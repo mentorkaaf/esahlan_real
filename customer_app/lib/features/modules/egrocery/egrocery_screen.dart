@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../ads/services/ad_service.dart';
+import '../../../../core/theme/theme_x.dart';
 
 final _svc = ModuleApiService.create();
 final _groceryCategoriesProvider = FutureProvider((_) => _svc.getGroceryCategories());
@@ -55,14 +56,12 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
         ? {'category_id': _categoryId, 'search': _search.isEmpty ? null : _search} : null));
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white, elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: AppColors.secondary), onPressed: () => context.pop()),
-        title: const Text('Grocery', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.secondary, fontFamily: 'Cairo')),
+            appBar: AppBar(
+                leading: IconButton(icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.colors.navyText), onPressed: () => context.pop()),
+        title: Text('\', style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText, fontFamily: 'Cairo')),
         actions: [
           Stack(children: [
-            IconButton(icon: const Icon(Icons.shopping_cart_outlined, color: AppColors.secondary), onPressed: _cartCount > 0 ? () => _showCart(context) : null),
+            IconButton(icon: const Icon(Icons.shopping_cart_outlined, color: context.colors.navyText), onPressed: _cartCount > 0 ? () => _showCart(context) : null),
             if (_cartCount > 0) Positioned(right: 6, top: 6, child: Container(
               width: 16, height: 16, decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
               child: Center(child: Text('$_cartCount', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900))),
@@ -147,7 +146,7 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
                 final p   = _products[i];
                 final qty = _cart[p['id']] ?? 0;
                 return Container(
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
+                  decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(14),
                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Expanded(child: ClipRRect(borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
@@ -157,7 +156,7 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
                           : Container(color: AppColors.surface, child: const Icon(Icons.local_grocery_store_outlined, size: 40, color: AppColors.divider)),
                     )),
                     Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.secondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: \, color: context.colors.navyText), maxLines: 2, overflow: TextOverflow.ellipsis),
                       if (p['unit'] != null) Text(p['unit'], style: const TextStyle(fontSize: 10, color: AppColors.textGrey)),
                       const SizedBox(height: 6),
                       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -172,7 +171,7 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
                                     child: Container(width: 24, height: 24, decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
                                         child: const Icon(Icons.remove, color: AppColors.primary, size: 14))),
                                 Padding(padding: const EdgeInsets.symmetric(horizontal: 6),
-                                    child: Text('$qty', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: AppColors.secondary))),
+                                    child: Text('$qty', style: TextStyle(fontWeight: FontWeight.w900, fontSize: \, color: context.colors.navyText))),
                                 GestureDetector(onTap: () => setState(() => _cart[p['id']] = qty + 1),
                                     child: Container(width: 24, height: 24, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(6)),
                                         child: const Icon(Icons.add, color: Colors.white, size: 14))),
@@ -188,7 +187,7 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
       ]),
       bottomNavigationBar: _cartCount > 0 ? Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, -2))]),
+        decoration: BoxDecoration(color: context.colors.cardBg, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, -2))]),
         child: AppButton(label: 'Checkout ($_cartCount items) • \$${_cartTotal.toStringAsFixed(2)}', onPressed: () => _showCart(context)),
       ) : null,
     );
@@ -229,7 +228,7 @@ class _GroceryCartSheetState extends State<_GroceryCartSheet> {
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Padding(padding: const EdgeInsets.all(16), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Your Order', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: AppColors.secondary)),
+          \.navyText)),
           IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
         ])),
         Flexible(child: ListView(shrinkWrap: true, padding: const EdgeInsets.symmetric(horizontal: 16), children: [
@@ -241,7 +240,7 @@ class _GroceryCartSheetState extends State<_GroceryCartSheet> {
                   ? Image.network(p['image'], width: 48, height: 48, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(width: 48, height: 48, color: AppColors.surface))
                   : Container(width: 48, height: 48, color: AppColors.surface)),
               const SizedBox(width: 10),
-              Expanded(child: Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.secondary))),
+              Expanded(child: Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: \, color: context.colors.navyText))),
               Text('\$${((p['price'] as num).toDouble() * e.value).toStringAsFixed(2)}',
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.primary)),
               const SizedBox(width: 4),

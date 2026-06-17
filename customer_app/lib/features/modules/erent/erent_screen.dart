@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'web_video_helper.dart' as webvideo;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +16,7 @@ import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
+import '../../../../core/theme/theme_x.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -73,12 +74,11 @@ class _ERentScreenState extends ConsumerState<ERentScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
-      body: NestedScrollView(
+            body: NestedScrollView(
         headerSliverBuilder: (_, __) => [
           SliverAppBar(
             pinned: true, expandedHeight: 0,
-            backgroundColor: _kNavy, foregroundColor: Colors.white,
+            backgroundcolor: context.colors.navyText, foregroundColor: Colors.white,
             title: const Row(children: [
               Icon(Icons.home_rounded, size: 20, color: _kOrange),
               SizedBox(width: 8),
@@ -87,7 +87,7 @@ class _ERentScreenState extends ConsumerState<ERentScreen>
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(48),
               child: Container(
-                color: _kNavy,
+                color: context.colors.navyText,
                 child: TabBar(
                   controller: _tab,
                   indicatorColor: _kOrange, indicatorWeight: 3,
@@ -183,7 +183,7 @@ class _BrowseTabState extends ConsumerState<_BrowseTab> {
                   decoration: BoxDecoration(color: _kOrange, borderRadius: BorderRadius.circular(2))),
               const SizedBox(width: 8),
               const Text('Browse by District',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: _kNavy)),
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: context.colors.navyText)),
             ]),
           )),
           SliverPadding(
@@ -213,7 +213,7 @@ class _BrowseTabState extends ConsumerState<_BrowseTab> {
       itemCount: 8,
       itemBuilder: (_, __) => Shimmer.fromColors(
         baseColor: Colors.grey.shade200, highlightColor: Colors.grey.shade50,
-        child: Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14))),
+        child: Container(decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(14))),
       ),
     ),
   );
@@ -259,7 +259,7 @@ class _SearchSection extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _kCard,
+        color: context.colors.cardBg,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 4))],
       ),
@@ -268,7 +268,7 @@ class _SearchSection extends StatelessWidget {
           Container(width: 4, height: 16,
               decoration: BoxDecoration(color: _kOrange, borderRadius: BorderRadius.circular(2))),
           const SizedBox(width: 8),
-          const Text('Search Properties', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _kNavy)),
+          \.navyText)),
         ]),
         const SizedBox(height: 12),
         Row(children: [
@@ -424,7 +424,7 @@ class _BottomSheetPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+    decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(24)),
     child: Column(mainAxisSize: MainAxisSize.min, children: [
       const SizedBox(height: 12),
       Container(width: 40, height: 4,
@@ -434,7 +434,7 @@ class _BottomSheetPicker extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Align(
           alignment: Alignment.centerLeft,
-          child: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _kNavy)),
+          child: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.navyText)),
         ),
       ),
       const SizedBox(height: 8),
@@ -468,7 +468,7 @@ class _RentHeader extends StatelessWidget {
         begin: Alignment.topLeft, end: Alignment.bottomRight,
       ),
       borderRadius: BorderRadius.circular(20),
-      boxShadow: [BoxShadow(color: _kNavy.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 8))],
+      boxShadow: [BoxShadow(color: context.colors.navyText.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 8))],
     ),
     child: Row(children: [
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -518,8 +518,7 @@ class _DistrictCard extends StatelessWidget {
       onTap: () => Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
         builder: (_) => _PropertyListScreen(district: district))),
       child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
@@ -611,15 +610,14 @@ class _PropertyListScreenState extends ConsumerState<_PropertyListScreen> {
   Widget build(BuildContext context) {
     final async = ref.watch(_propertiesProvider(_paramsKey));
     return Scaffold(
-      backgroundColor: _kBg,
-      appBar: AppBar(
-        backgroundColor: _kNavy, foregroundColor: Colors.white,
+            appBar: AppBar(
+        backgroundcolor: context.colors.navyText, foregroundColor: Colors.white,
         title: Text(widget.district['name'] ?? '',
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(52),
           child: Container(
-            height: 52, color: _kNavy,
+            height: 52, color: context.colors.navyText,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -698,7 +696,7 @@ class _PropertyGridCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: _kCard,
+          color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0, 3))],
         ),
@@ -720,7 +718,7 @@ class _PropertyGridCard extends StatelessWidget {
             // Type badge
             Positioned(top: 6, left: 6, child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              decoration: BoxDecoration(color: _kNavy.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(6)),
+              decoration: BoxDecoration(color: context.colors.navyText.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(6)),
               child: Text(type.length > 3 ? type.substring(0, 3).toUpperCase() : type.toUpperCase(),
                   style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
             )),
@@ -740,7 +738,7 @@ class _PropertyGridCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                 Text(property['title'] ?? '',
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _kNavy),
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: \, color: context.colors.navyText),
                     maxLines: 1, overflow: TextOverflow.ellipsis),
                 Row(children: [
                   const Icon(Icons.bed_rounded, size: 12, color: _kMuted),
@@ -782,7 +780,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
     final async = ref.watch(_propertyProvider(widget.propertyId));
     return async.when(
       loading: () => Scaffold(backgroundColor: _kBg, body: const Center(child: CircularProgressIndicator(color: _kOrange))),
-      error: (e, _) => Scaffold(appBar: AppBar(backgroundColor: _kNavy, foregroundColor: Colors.white),
+      error: (e, _) => Scaffold(appBar: AppBar(backgroundcolor: context.colors.navyText, foregroundColor: Colors.white),
           body: _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_propertyProvider(widget.propertyId)))),
       data: (data) {
         final p = Map<String, dynamic>.from(data is Map ? (data['data'] ?? data) : {});
@@ -792,13 +790,12 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
         final isBooked = p['is_booked'] == true;
 
         return Scaffold(
-          backgroundColor: _kBg,
-          body: CustomScrollView(
+                    body: CustomScrollView(
             slivers: [
               // Back button appbar (thin, transparent)
               SliverAppBar(
                 pinned: true, expandedHeight: 0,
-                backgroundColor: _kNavy, foregroundColor: Colors.white,
+                backgroundcolor: context.colors.navyText, foregroundColor: Colors.white,
                 title: Text(p['title'] ?? '',
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15),
                     maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -874,7 +871,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                     // Title & status
                     Row(children: [
                       Expanded(child: Text(p['title'] ?? '',
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _kNavy))),
+                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: context.colors.navyText))),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
@@ -900,7 +897,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                     // Room grid
                     Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(16),
+                      decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16),
                           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)]),
                       child: Column(children: [
                         Row(children: [
@@ -913,7 +910,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                         Row(children: [
                           _RoomStat(icon: Icons.layers_rounded, value: '${p['floor'] ?? '-'}', label: 'Floor', color: _kMuted),
                           _RoomStat(icon: Icons.chair_rounded, value: (p['furnishing'] ?? 'Unfurnished').toString().substring(0, 5), label: 'Furnished', color: _kOrange),
-                          _RoomStat(icon: Icons.home_rounded, value: (p['type'] ?? '').toString().toUpperCase().substring(0, (p['type']?.toString() ?? '').length.clamp(0, 4)), label: 'Type', color: _kNavy),
+                          _RoomStat(icon: Icons.home_rounded, value: (p['type'] ?? '').toString().toUpperCase().substring(0, (p['type']?.toString() ?? '').length.clamp(0, 4)), label: 'Type', color: context.colors.navyText),
                           _RoomStat(icon: Icons.calendar_today_rounded, value: '${p['year_built'] ?? '-'}', label: 'Built', color: Colors.teal),
                         ]),
                       ]),
@@ -929,7 +926,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text('🎬 Reels',
-                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _kNavy)),
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: context.colors.navyText)),
                             GestureDetector(
                               onTap: () => Navigator.of(context, rootNavigator: true).push(
                                 MaterialPageRoute(builder: (_) => _ReelPlayerScreen(
@@ -965,7 +962,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
                           const Icon(Icons.check_circle_rounded, size: 14, color: _kOrange),
                           const SizedBox(width: 6),
-                          Text(a.toString(), style: const TextStyle(fontSize: 12, color: _kNavy, fontWeight: FontWeight.w600)),
+                          Text(a.toString(), style: const TextStyle(fontSize: 12, color: context.colors.navyText, fontWeight: FontWeight.w600)),
                         ]),
                       )).toList()),
                       const SizedBox(height: 20),
@@ -976,7 +973,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                     const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(color: _kCard, borderRadius: BorderRadius.circular(16),
+                      decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16),
                           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)]),
                       child: Column(children: [
                         _PriceRow(label: 'Monthly Rent', value: '\$${(p['monthly_rent'] as num?)?.toStringAsFixed(2) ?? '0'}'),
@@ -987,7 +984,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                         const Divider(height: 20),
                         _PriceRow(label: 'Full Rent Total',
                             value: '\$${(p['full_rent_total'] as num?)?.toStringAsFixed(2) ?? '0'}',
-                            bold: true, color: _kNavy),
+                            bold: true, color: context.colors.navyText),
                         _PriceRow(label: 'Carbuun (30% Deposit)',
                             value: '\$${(p['carbuun_total'] as num?)?.toStringAsFixed(2) ?? '0'}',
                             bold: true, color: _kOrange),
@@ -1026,12 +1023,12 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
           ),
           bottomNavigationBar: isBooked
               ? Container(
-                  padding: const EdgeInsets.all(16), color: _kCard,
+                  padding: const EdgeInsets.all(16), color: context.colors.cardBg,
                   child: const Text('⚠️ This property is currently reserved',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w700, fontSize: 15)))
               : Container(
-                  padding: const EdgeInsets.all(16), color: _kCard,
+                  padding: const EdgeInsets.all(16), color: context.colors.cardBg,
                   child: Row(children: [
                     Expanded(child: ElevatedButton(
                       onPressed: () => _showBookSheet(context, p, false),
@@ -1049,7 +1046,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                     Expanded(child: ElevatedButton(
                       onPressed: () => _showBookSheet(context, p, true),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _kNavy, minimumSize: const Size(0, 52),
+                        backgroundcolor: context.colors.navyText, minimumSize: const Size(0, 52),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1087,7 +1084,7 @@ class _RoomStat extends StatelessWidget {
         decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
         child: Icon(icon, color: color, size: 20)),
     const SizedBox(height: 6),
-    Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: _kNavy)),
+    Text(value, style: TextStyle(fontWeight: FontWeight.w800, fontSize: \, color: context.colors.navyText)),
     Text(label, style: const TextStyle(fontSize: 10, color: _kMuted)),
   ]));
 }
@@ -1100,7 +1097,7 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) => Row(children: [
     Container(width: 4, height: 18, decoration: BoxDecoration(color: _kOrange, borderRadius: BorderRadius.circular(2))),
     const SizedBox(width: 8),
-    Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: _kNavy)),
+    Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: \, color: context.colors.navyText)),
   ]);
 }
 
@@ -1203,8 +1200,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
-      appBar: AppBar(
+            appBar: AppBar(
         backgroundColor: _accentColor,
         foregroundColor: Colors.white,
         title: Text(
@@ -1230,7 +1226,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
         const SizedBox(height: 24),
         Text(
           _isCarbuun ? '🏠 Property Reserved!' : '✅ Booking Submitted!',
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _kNavy),
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: context.colors.navyText),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 12),
@@ -1275,7 +1271,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
       Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: _kCard, borderRadius: BorderRadius.circular(16),
+          color: context.colors.cardBg, borderRadius: BorderRadius.circular(16),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
         ),
         child: Row(children: [
@@ -1289,7 +1285,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(widget.property['title'] ?? '',
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: _kNavy),
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: \, color: context.colors.navyText),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 4),
             Text(widget.property['district_name'] ?? '',
@@ -1344,7 +1340,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: _kCard, borderRadius: BorderRadius.circular(14),
+            color: context.colors.cardBg, borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: _moveInDate != null ? _kOrange.withValues(alpha: 0.5) : Colors.grey.shade200,
               width: _moveInDate != null ? 1.5 : 1,
@@ -1383,7 +1379,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
         decoration: InputDecoration(
           hintText: 'Optional note for landlord...',
           prefixIcon: const Icon(Icons.note_alt_outlined, color: _kMuted),
-          filled: true, fillColor: _kCard,
+          filled: true, fillcolor: context.colors.cardBg,
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(color: Colors.grey.shade200)),
@@ -1416,7 +1412,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
       Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: _kCard, borderRadius: BorderRadius.circular(20),
+          color: context.colors.cardBg, borderRadius: BorderRadius.circular(20),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 16, offset: const Offset(0, -4))],
         ),
         child: Column(children: [
@@ -1543,7 +1539,7 @@ class _BookingCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: _kCard, borderRadius: BorderRadius.circular(20),
+        color: context.colors.cardBg, borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 16, offset: const Offset(0, 4))],
       ),
       child: Column(children: [
@@ -1565,7 +1561,7 @@ class _BookingCard extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(booking['property_title'] ?? '', style: const TextStyle(fontWeight: FontWeight.w800, color: _kNavy, fontSize: 15),
+              Text(booking['property_title'] ?? '', style: const TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText, fontSize: 15),
                   overflow: TextOverflow.ellipsis),
               Text(booking['district_name'] ?? '', style: const TextStyle(color: _kMuted, fontSize: 12)),
             ])),
@@ -1619,7 +1615,7 @@ class _BookingCard extends StatelessWidget {
                   icon: const Icon(Icons.payment_rounded, size: 16),
                   label: const Text('Pay Remaining'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _kNavy, foregroundColor: Colors.white,
+                    backgroundcolor: context.colors.navyText, foregroundColor: Colors.white,
                     minimumSize: const Size(0, 42),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                 )),
@@ -1651,7 +1647,7 @@ class _BookingCard extends StatelessWidget {
           final canSubmit = reasonCtrl.text.trim().length >= 5;
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: const Text('Request Refund', style: TextStyle(fontWeight: FontWeight.w800, color: _kNavy)),
+            title: \.navyText)),
             content: Column(mainAxisSize: MainAxisSize.min, children: [
               const Text('Please describe why you want to cancel and request a refund.',
                   style: TextStyle(color: _kMuted, fontSize: 13)),
@@ -1740,9 +1736,8 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
-      appBar: AppBar(
-        backgroundColor: _kNavy, foregroundColor: Colors.white,
+            appBar: AppBar(
+        backgroundcolor: context.colors.navyText, foregroundColor: Colors.white,
         title: const Text('Pay Remaining Balance',
             style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
       ),
@@ -1761,7 +1756,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
         ),
         const SizedBox(height: 24),
         const Text('🏠 Full Rental Confirmed!',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _kNavy),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: context.colors.navyText),
             textAlign: TextAlign.center),
         const SizedBox(height: 12),
         Text('Remaining \$${_remaining.toStringAsFixed(2)} paid.\nWelcome to your new home!',
@@ -1773,7 +1768,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
           child: ElevatedButton(
             onPressed: () => Navigator.of(context).pop(),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _kNavy, foregroundColor: Colors.white,
+              backgroundcolor: context.colors.navyText, foregroundColor: Colors.white,
               minimumSize: const Size(0, 52),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
@@ -1791,7 +1786,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
       Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: _kCard, borderRadius: BorderRadius.circular(16),
+          color: context.colors.cardBg, borderRadius: BorderRadius.circular(16),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1799,13 +1794,13 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: _kNavy.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
-              child: const Icon(Icons.home_rounded, color: _kNavy, size: 24),
+                color: context.colors.navyText.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.home_rounded, color: context.colors.navyText, size: 24),
             ),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(widget.booking['property_title'] ?? '',
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: _kNavy),
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: \, color: context.colors.navyText),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               Text(widget.booking['district_name'] ?? '',
                   style: const TextStyle(color: _kMuted, fontSize: 12)),
@@ -1821,7 +1816,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
           const SizedBox(height: 8),
           _BalanceRow(label: 'Remaining Balance (70%)',
               value: '\$${_remaining.toStringAsFixed(2)}',
-              color: _kNavy, bold: true, large: true),
+              color: context.colors.navyText, bold: true, large: true),
           const SizedBox(height: 8),
           _BalanceRow(label: 'Monthly Rent',
               value: '\$${_monthlyRent.toStringAsFixed(2)}/mo', color: _kMuted),
@@ -1833,7 +1828,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
       Row(children: [
         Expanded(child: _PayBtn(
             label: 'Wallet', icon: Icons.account_balance_wallet_outlined,
-            selected: _payMethod == 'wallet', color: _kNavy,
+            selected: _payMethod == 'wallet', color: context.colors.navyText,
             onTap: () => setState(() => _payMethod = 'wallet'))),
         const SizedBox(width: 12),
         Expanded(child: _PayBtn(
@@ -1846,14 +1841,14 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
       Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: _kCard, borderRadius: BorderRadius.circular(20),
+          color: context.colors.cardBg, borderRadius: BorderRadius.circular(20),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 16)],
         ),
         child: Column(children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             const Text('Amount Due', style: TextStyle(color: _kMuted, fontSize: 13)),
             Text('\$${_remaining.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: _kNavy)),
+                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: context.colors.navyText)),
           ]),
           const SizedBox(height: 14),
           SizedBox(
@@ -1861,7 +1856,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
             child: ElevatedButton(
               onPressed: _loading ? null : _pay,
               style: ElevatedButton.styleFrom(
-                backgroundColor: _kNavy, foregroundColor: Colors.white,
+                backgroundcolor: context.colors.navyText, foregroundColor: Colors.white,
                 minimumSize: const Size(0, 54),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 elevation: 0,
@@ -1902,7 +1897,7 @@ class _BookingDetail extends StatelessWidget {
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
     Text(label, style: const TextStyle(fontSize: 10, color: _kMuted, fontWeight: FontWeight.w600)),
     const SizedBox(height: 2),
-    Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _kNavy)),
+    Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText)),
   ]);
 }
 
@@ -1918,7 +1913,7 @@ class _Skeleton extends StatelessWidget {
     baseColor: Colors.grey.shade200, highlightColor: Colors.grey.shade50,
     child: Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), height: height,
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16)),
     ),
   );
 }
@@ -1937,7 +1932,7 @@ class _EmptyState extends StatelessWidget {
             decoration: BoxDecoration(color: _kOrange.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: Icon(icon, size: 40, color: _kOrange)),
         const SizedBox(height: 16),
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _kNavy)),
+        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.navyText)),
         const SizedBox(height: 8),
         Text(subtitle, style: const TextStyle(color: _kMuted, fontSize: 14), textAlign: TextAlign.center),
       ]),
@@ -2445,7 +2440,7 @@ class _ReelPlayerScreenState extends State<_ReelPlayerScreen> {
                       width: 60, height: 60, fit: BoxFit.cover,
                       errorWidget: Container(
                         width: 60, height: 60,
-                        color: _kNavy,
+                        color: context.colors.navyText,
                         child: const Icon(Icons.home_rounded, color: Colors.white38, size: 28),
                       ),
                     ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_x.dart';
 import '../../../../core/utils/error_handler.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../providers/order_provider.dart';
@@ -210,7 +211,7 @@ class _OrderDetailBody extends StatelessWidget {
                   const SizedBox(width: 12),
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(order.paymentMethod?.toUpperCase() ?? 'CASH',
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: _navy)),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.navyText)),
                     const SizedBox(height: 2),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -289,7 +290,7 @@ class _ParcelRouteCard extends StatelessWidget {
         gradient: const LinearGradient(colors: [_navy, _navyL],
           begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: _navy.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 6))],
+        boxShadow: [BoxShadow(color: context.colors.navyText.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 6))],
       ),
       child: Stack(children: [
         Positioned(right: -20, top: -20,
@@ -416,8 +417,7 @@ class _DetailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(
-      color: Colors.white,
+    decoration: BoxDecoration(color: context.colors.cardBg,
       borderRadius: BorderRadius.circular(18),
       boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3))],
     ),
@@ -431,7 +431,7 @@ class _DetailCard extends StatelessWidget {
             child: Icon(icon, size: 16, color: _amber),
           ),
           const SizedBox(width: 8),
-          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _navy)),
+          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: context.colors.navyText)),
         ]),
       ),
       Padding(padding: const EdgeInsets.all(16), child: child),

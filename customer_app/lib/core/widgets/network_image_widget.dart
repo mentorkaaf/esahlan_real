@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../core/theme/theme_x.dart';
 
 /// Normalises a stored image URL.
 /// The backend now serves everything through the extension-less /api/v1/media

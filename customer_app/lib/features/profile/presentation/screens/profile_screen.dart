@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_x.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 
 const _kNavy   = Color(0xFF07003B);
@@ -27,7 +28,7 @@ class ProfileScreen extends ConsumerWidget {
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
-            backgroundColor: _kNavy,
+            backgroundcolor: context.colors.navyText,
             foregroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
@@ -282,8 +283,7 @@ class ProfileScreen extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
+                    decoration: BoxDecoration(color: context.colors.cardBg,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.red.shade100),
                     ),
@@ -344,8 +344,7 @@ class ProfileScreen extends ConsumerWidget {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: const BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: const EdgeInsets.all(24),
@@ -451,8 +450,7 @@ class _Section extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(

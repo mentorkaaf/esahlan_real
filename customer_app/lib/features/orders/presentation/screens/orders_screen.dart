@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_x.dart';
 import '../../../../core/utils/error_handler.dart';
 import '../providers/order_provider.dart';
 import '../../data/models/order_model.dart';
@@ -31,8 +32,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
+            appBar: AppBar(
         title: const Text('My Orders', style: TextStyle(fontWeight: FontWeight.w800)),
         backgroundColor: Colors.white,
         foregroundColor: AppColors.textDark,
@@ -74,7 +74,7 @@ class _OrdersList extends ConsumerWidget {
         itemBuilder: (_, __) => Shimmer.fromColors(
           baseColor: Colors.grey.shade200,
           highlightColor: Colors.grey.shade100,
-          child: Container(height: 110, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14))),
+          child: Container(height: 110, decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(14))),
         ),
       ),
       error: (e, _) => Center(
@@ -127,8 +127,7 @@ class _OrderCard extends StatelessWidget {
       onTap: () => context.push('/orders/${order.id}'),
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
         ),

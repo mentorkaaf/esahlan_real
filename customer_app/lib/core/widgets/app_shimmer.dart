@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/theme_x.dart';
 import 'package:shimmer/shimmer.dart';
 
 class AppShimmer extends StatelessWidget {
@@ -28,8 +29,7 @@ class ShimmerBox extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: width,
         height: height,
-        decoration: BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(radius),
         ),
       );
@@ -43,7 +43,7 @@ class ShimmerCircle extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: size,
         height: size,
-        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+        decoration: const BoxDecoration(color: context.colors.cardBg, shape: BoxShape.circle),
       );
 }
 
@@ -58,8 +58,7 @@ class ShimmerCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(children: [
@@ -172,8 +171,7 @@ class ShimmerBanner extends StatelessWidget {
       child: Container(
         height: 160,
         margin: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(16),
         ),
       ),
