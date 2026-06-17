@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Api\Modules;
 
@@ -180,6 +180,18 @@ class EDataController extends Controller
             return $order;
         });
 
+        // ── Push notification: order placed ──────────────────────────────
+        try {
+            if (!empty($user->fcm_token)) {
+                \App\Services\FcmService::sendOrderUpdate(
+                    $user->fcm_token,
+                    $order->order_number,
+                    'pending',
+                    $order->id,
+                    'edata',
+                );
+            }
+        } catch (\Throwable) {}
         return response()->json([
             'success' => true,
             'message' => "Data {$type} sent to {$request->phone_number}! 📱",

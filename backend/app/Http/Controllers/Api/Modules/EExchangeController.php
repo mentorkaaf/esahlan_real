@@ -139,6 +139,19 @@ class EExchangeController extends Controller
             $w->debit($sentAmount, "eExchange {$fromVal}→{$toVal} ref:{$reference}", 'exchange_order', $exchangeId);
         }
 
+        // ── Push notification: order placed ──────────────────────────────
+        try {
+            if (!empty($user->fcm_token)) {
+                \App\Services\FcmService::sendOrderUpdate(
+                    $user->fcm_token,
+                    $reference,
+                    'pending',
+                    $exchangeId,
+                    'eexchange',
+                );
+            }
+        } catch (\Throwable) {}
+
         return response()->json([
             'success' => true,
             'message' => 'Exchange order created successfully.',

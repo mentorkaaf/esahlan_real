@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Api\Modules;
 
@@ -142,6 +142,18 @@ class ELaundryController extends Controller
             return $order;
         });
 
+        // ── Push notification: order placed ──────────────────────────────
+        try {
+            if (!empty($user->fcm_token)) {
+                \App\Services\FcmService::sendOrderUpdate(
+                    $user->fcm_token,
+                    $order->order_number,
+                    'pending',
+                    $order->id,
+                    'elaundry',
+                );
+            }
+        } catch (\Throwable) {}
         return response()->json([
             'success' => true,
             'message' => 'Laundry order placed!',

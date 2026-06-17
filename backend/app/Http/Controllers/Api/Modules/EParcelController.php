@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Api\Modules;
 
@@ -168,6 +168,18 @@ class EParcelController extends Controller
             return $order;
         });
 
+        // ── Push notification: order placed ──────────────────────────────
+        try {
+            if (!empty($user->fcm_token)) {
+                \App\Services\FcmService::sendOrderUpdate(
+                    $user->fcm_token,
+                    $order->order_number,
+                    'pending',
+                    $order->id,
+                    'eparcel',
+                );
+            }
+        } catch (\Throwable) {}
         return response()->json([
             'success' => true,
             'message' => 'Parcel order created',

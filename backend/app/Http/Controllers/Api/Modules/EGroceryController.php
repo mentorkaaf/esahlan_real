@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Api\Modules;
 
@@ -147,6 +147,18 @@ class EGroceryController extends Controller
             return $order;
         });
 
+        // ── Push notification: order placed ──────────────────────────────
+        try {
+            if (!empty($user->fcm_token)) {
+                \App\Services\FcmService::sendOrderUpdate(
+                    $user->fcm_token,
+                    $order->order_number,
+                    'pending',
+                    $order->id,
+                    'egrocery',
+                );
+            }
+        } catch (\Throwable) {}
         return response()->json([
             'success' => true, 'message' => 'Grocery order placed!',
             'data'    => ['order_number' => $order->order_number, 'total' => $grandTotal],

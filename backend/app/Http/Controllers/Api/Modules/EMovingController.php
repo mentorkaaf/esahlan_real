@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Api\Modules;
 
@@ -225,6 +225,18 @@ class EMovingController extends Controller
             return $order;
         });
 
+        // ── Push notification: order placed ──────────────────────────────
+        try {
+            if (!empty($user->fcm_token)) {
+                \App\Services\FcmService::sendOrderUpdate(
+                    $user->fcm_token,
+                    $order->order_number,
+                    'pending',
+                    $order->id,
+                    'emoving',
+                );
+            }
+        } catch (\Throwable) {}
         return response()->json([
             'success' => true,
             'message' => 'Moving service booked! 🚚',

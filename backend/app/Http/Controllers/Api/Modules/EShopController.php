@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Api\Modules;
 
@@ -326,6 +326,18 @@ class EShopController extends Controller
             return $order;
         });
 
+        // ── Push notification: order placed ──────────────────────────────
+        try {
+            if (!empty($user->fcm_token)) {
+                \App\Services\FcmService::sendOrderUpdate(
+                    $user->fcm_token,
+                    $order->order_number,
+                    'pending',
+                    $order->id,
+                    'eshop',
+                );
+            }
+        } catch (\Throwable) {}
         return response()->json([
             'success' => true, 'message' => 'Order placed successfully!',
             'data'    => ['order_number' => $order->order_number, 'total' => $total],

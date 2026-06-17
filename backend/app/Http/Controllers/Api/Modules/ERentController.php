@@ -258,6 +258,19 @@ class ERentController extends Controller
             return $order;
         });
 
+        // ── Push notification: order placed ──────────────────────────────
+        try {
+            if (!empty($user->fcm_token)) {
+                \App\Services\FcmService::sendOrderUpdate(
+                    $user->fcm_token,
+                    $order->order_number,
+                    'pending',
+                    $order->id,
+                    'erent',
+                );
+            }
+        } catch (\Throwable) {}
+
         $message = $request->booking_type === 'carbuun'
             ? 'Carbuun successful! Property reserved. Remaining: $' . number_format($remaining, 2)
             : 'Booking submitted! Agent will contact you shortly.';

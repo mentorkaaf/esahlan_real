@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Api\Modules;
 
@@ -117,6 +117,18 @@ class EHealthController extends Controller
             return $order;
         });
 
+        // ── Push notification: order placed ──────────────────────────────
+        try {
+            if (!empty($user->fcm_token)) {
+                \App\Services\FcmService::sendOrderUpdate(
+                    $user->fcm_token,
+                    $order->order_number,
+                    'pending',
+                    $order->id,
+                    'ehealth',
+                );
+            }
+        } catch (\Throwable) {}
         return response()->json([
             'success' => true,
             'message' => 'Ambulance request sent! Help is on the way.',
@@ -203,6 +215,18 @@ class EHealthController extends Controller
             return $order;
         });
 
+        // ── Push notification: order placed ──────────────────────────────
+        try {
+            if (!empty($user->fcm_token)) {
+                \App\Services\FcmService::sendOrderUpdate(
+                    $user->fcm_token,
+                    $order->order_number,
+                    'pending',
+                    $order->id,
+                    'ehealth',
+                );
+            }
+        } catch (\Throwable) {}
         return response()->json([
             'success' => true,
             'message' => 'Appointment booked successfully!',
