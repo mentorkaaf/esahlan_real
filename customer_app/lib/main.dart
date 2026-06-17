@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/constants/app_constants.dart';
+import 'core/providers/theme_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/services/firebase_service.dart';
 import 'core/theme/app_theme.dart';
@@ -123,11 +124,14 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeModeProvider);
     return ConnectivityWrapper(
       child: MaterialApp.router(
         title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: themeMode,
         routerConfig: ref.watch(routerProvider),
       ),
     );

@@ -24,6 +24,12 @@ class _EWholesaleScreenState extends ConsumerState<EWholesaleScreen> {
   final  _searchCtrl = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    AdService.instance.triggerModulePopups(context, 'ewholesale');
+  }
+
+  @override
   void dispose() { _searchCtrl.dispose(); super.dispose(); }
 
   @override
@@ -167,8 +173,7 @@ class _InquirySheetState extends State<_InquirySheet> {
   int get _minQty => (widget.product['min_qty'] as num?)?.toInt() ?? 1;
 
   @override
-  void initState() { super.initState();
-    AdService.instance.triggerModulePopups(context, 'ewholesale'); _qty = _minQty; }
+  void initState() { super.initState(); _qty = _minQty; }
 
   @override
   void dispose() { _nameCtrl.dispose(); _phoneCtrl.dispose(); _messageCtrl.dispose(); super.dispose(); }

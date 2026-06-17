@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/api/module_api_service.dart';
 import '../../../../core/widgets/network_image_widget.dart';
+import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/home_provider.dart';
 import '../../data/models/home_models.dart';
@@ -67,14 +68,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final appBarBg = Theme.of(context).appBarTheme.backgroundColor ?? Colors.white;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           // ── AppBar ────────────────────────────────────────────────────────
           SliverAppBar(
             pinned: true,
-            backgroundColor: Colors.white,
+            backgroundColor: appBarBg,
             elevation: 0,
             shadowColor: Colors.black12,
             surfaceTintColor: Colors.transparent,
@@ -84,8 +89,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Row(
                 children: [
                   RichText(
-                    text: const TextSpan(children: [
-                      TextSpan(
+                    text: TextSpan(children: [
+                      const TextSpan(
                         text: 'e-',
                         style: TextStyle(
                           color: AppColors.primary, fontSize: 22,
@@ -95,18 +100,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       TextSpan(
                         text: 'Sahlan',
                         style: TextStyle(
-                          color: AppColors.secondary, fontSize: 22,
+                          color: cs.onSurface, fontSize: 22,
                           fontWeight: FontWeight.w900, fontFamily: 'Cairo',
                         ),
                       ),
                     ]),
                   ),
                   const Spacer(),
+                  // ── Dark/light mode toggle ──────────────────────────────
+                  IconButton(
+                    icon: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder: (child, anim) =>
+                          RotationTransition(turns: anim, child: child),
+                      child: Icon(
+                        isDark ? Icons.wb_sunny_rounded : Icons.nightlight_round,
+                        key: ValueKey(isDark),
+                        color: isDark ? const Color(0xFFFFD54F) : cs.onSurface,
+                        size: 22,
+                      ),
+                    ),
+                    onPressed: () =>
+                        ref.read(themeModeProvider.notifier).toggle(),
+                    tooltip: isDark ? 'Light mode' : 'Dark mode',
+                  ),
                   Stack(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.notifications_outlined,
-                            color: AppColors.secondary, size: 26),
+                        icon: Icon(Icons.notifications_outlined,
+                            color: cs.onSurface, size: 26),
                         onPressed: () {},
                       ),
                       Positioned(
@@ -125,42 +147,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(96),
               child: Container(
-                color: Colors.white,
+                color: appBarBg,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                 child: Column(
                   children: [
-                    Row(children: const [
-                      Icon(Icons.location_on, color: AppColors.primary, size: 18),
-                      SizedBox(width: 4),
+                    Row(children: [
+                      const Icon(Icons.location_on, color: AppColors.primary, size: 18),
+                      const SizedBox(width: 4),
                       Text('Hodan, Mogadishu',
                           style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
-                              color: AppColors.secondary)),
-                      SizedBox(width: 2),
+                              color: cs.onSurface)),
+                      const SizedBox(width: 2),
                       Icon(Icons.keyboard_arrow_down_rounded,
-                          color: AppColors.secondary, size: 18),
+                          color: cs.onSurface, size: 18),
                     ]),
                     const SizedBox(height: 10),
                     Container(
                       height: 46,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF5F6FA),
+                        color: Theme.of(context).scaffoldBackgroundColor,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.divider),
+                        border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF2A2B48)
+                              : AppColors.divider,
+                        ),
                       ),
-                      child: Row(children: const [
-                        SizedBox(width: 14),
-                        Icon(Icons.search_rounded, color: AppColors.textGrey, size: 20),
-                        SizedBox(width: 8),
+                      child: Row(children: [
+                        const SizedBox(width: 14),
+                        const Icon(Icons.search_rounded, color: AppColors.textGrey, size: 20),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Search services, restaurants, houses...',
-                            style: TextStyle(color: AppColors.textLight, fontSize: 13),
+                            style: TextStyle(
+                              color: isDark
+                                  ? const Color(0xFF5A5A7A)
+                                  : AppColors.textLight,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
-                        Icon(Icons.mic_outlined, color: AppColors.textGrey, size: 20),
-                        SizedBox(width: 14),
+                        const Icon(Icons.mic_outlined, color: AppColors.textGrey, size: 20),
+                        const SizedBox(width: 14),
                       ]),
                     ),
                   ],
