@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/phone_input_field.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -14,6 +15,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _phoneCtrl = TextEditingController();
+  CountryCode _country = kDefaultCountry;
   final List<TextEditingController> _pinCtrls = List.generate(4, (_) => TextEditingController());
   final List<FocusNode> _pinFocus = List.generate(4, (_) => FocusNode());
   late AnimationController _animCtrl;
@@ -40,7 +42,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   String get _pin       => _pinCtrls.map((c) => c.text).join();
-  String get _fullPhone => '+252${_phoneCtrl.text.trim()}';
+  String get _fullPhone => '${_country.dialCode}${_phoneCtrl.text.trim()}';
 
   Future<void> _login() async {
     if (_phoneCtrl.text.trim().isEmpty) { _err('Enter your phone number'); return; }
@@ -118,7 +120,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             const _Label('Phone Number'),
                             const SizedBox(height: 8),
-                            _PhoneField(ctrl: _phoneCtrl),
+                            PhoneInputField(
+                              controller: _phoneCtrl,
+                              onCountryChanged: (c) => setState(() => _country = c),
+                            ),
                             const SizedBox(height: 28),
                             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                               const _Label('PIN Code'),
@@ -193,50 +198,6 @@ class _Label extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(text,
     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF374151)));
-}
-
-class _PhoneField extends StatelessWidget {
-  final TextEditingController ctrl;
-  const _PhoneField({required this.ctrl});
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FF),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE8EAF0), width: 1.5),
-      ),
-      child: Row(children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.08),
-            borderRadius: const BorderRadius.horizontal(left: Radius.circular(13)),
-          ),
-          child: Row(children: [
-            const Text('🇸🇴', style: TextStyle(fontSize: 18)),
-            const SizedBox(width: 6),
-            Text('+252', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.primary)),
-          ]),
-        ),
-        const VerticalDivider(width: 1, thickness: 1, color: Color(0xFFE8EAF0)),
-        Expanded(
-          child: TextField(
-            controller: ctrl,
-            keyboardType: TextInputType.phone,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(9)],
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 1),
-            decoration: const InputDecoration(
-              hintText: '61 xxx xxxx',
-              hintStyle: TextStyle(color: Color(0xFFB0B3C6), fontWeight: FontWeight.w500, fontSize: 15, letterSpacing: 0),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 14),
-            ),
-          ),
-        ),
-      ]),
-    );
-  }
 }
 
 class _PinBox extends StatelessWidget {

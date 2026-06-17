@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/api/module_api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/phone_input_field.dart';
 
 /// Result returned from showWaafiPaySheet
 class WaafiPayResult {
@@ -50,6 +51,7 @@ enum _PayState { input, loading, waiting, success, failed }
 
 class _WaafiPaySheetState extends State<_WaafiPaySheet> {
   final _phoneCtrl = TextEditingController();
+  CountryCode _country = kDefaultCountry;
   final _svc = ModuleApiService.create();
   _PayState _state = _PayState.input;
   String? _reference;
@@ -72,8 +74,8 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
   }
 
   Future<void> _initiate() async {
-    final phone = _phoneCtrl.text.trim();
-    if (phone.length < 9) {
+    final phone = '${_country.dialCode}${_phoneCtrl.text.trim()}';
+    if (_phoneCtrl.text.trim().length < 6) {
       setState(() => _message = 'Please enter a valid phone number');
       return;
     }
@@ -207,21 +209,15 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
 
   Widget _buildInput() {
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      TextField(
+      const Align(
+        alignment: Alignment.centerLeft,
+        child: Text('Phone Number (EVC/Waafi)',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF374151))),
+      ),
+      const SizedBox(height: 8),
+      PhoneInputField(
         controller: _phoneCtrl,
-        keyboardType: TextInputType.phone,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: 1),
-        decoration: InputDecoration(
-          hintText: '615 xxx xxx',
-          labelText: 'Phone Number (EVC)',
-          prefixIcon: const Icon(Icons.phone_rounded, color: AppColors.primary),
-          prefixText: '+252 ',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: AppColors.primary, width: 2),
-          ),
-        ),
+        onCountryChanged: (c) => setState(() => _country = c),
       ),
       if (_message.isNotEmpty) ...[
         const SizedBox(height: 8),
