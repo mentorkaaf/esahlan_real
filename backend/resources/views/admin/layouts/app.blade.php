@@ -518,6 +518,9 @@
         <a href="{{ route('admin.banners.index') }}" class="nav-link {{ request()->routeIs('admin.banners.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-image"></i></div> Banners
         </a>
+        <a href="{{ route('admin.ads.index') }}" class="nav-link {{ request()->routeIs('admin.ads.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-ad"></i></div> Ads Manager
+        </a>
         <a href="{{ route('admin.notifications.index') }}" class="nav-link {{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-bell"></i></div> Notifications
         </a>

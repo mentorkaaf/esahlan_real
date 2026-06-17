@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\AdminVendorController;
 use App\Http\Controllers\Admin\AdminOrderController;
 use App\Http\Controllers\Admin\AdminModuleController;
 use App\Http\Controllers\Admin\AdminBannerController;
+use App\Http\Controllers\Admin\AdminAdController;
 use App\Http\Controllers\Admin\AdminSettingController;
 use App\Http\Controllers\Admin\AdminFinanceController;
 use App\Http\Controllers\Admin\AdminDeliverymanController;
@@ -210,6 +211,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('/{banner}', [AdminBannerController::class, 'destroy'])->name('destroy');
             Route::post('/{banner}/toggle', [AdminBannerController::class, 'toggleStatus'])->name('toggle');
             Route::post('/reorder', [AdminBannerController::class, 'reorder'])->name('reorder');
+        });
+
+        // Ads Management
+        Route::prefix('ads')->name('ads.')->group(function () {
+            Route::get('/',            [AdminAdController::class, 'index'])->name('index');
+            Route::post('/',           [AdminAdController::class, 'store'])->name('store');
+            Route::put('/{ad}',        [AdminAdController::class, 'update'])->name('update');
+            Route::delete('/{ad}',     [AdminAdController::class, 'destroy'])->name('destroy');
+            Route::post('/{ad}/toggle',[AdminAdController::class, 'toggleStatus'])->name('toggle');
         });
 
         // Finance

@@ -7,6 +7,8 @@ import '../../../../core/widgets/network_image_widget.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/home_provider.dart';
 import '../../data/models/home_models.dart';
+import '../../../../features/ads/services/ad_service.dart';
+import '../../../../features/ads/widgets/banner_ad_strip.dart';
 
 // ── eSahlan Brand Gradient — Navy dominant, subtle orange touch at corner ──────
 // All service cards share ONE unified gradient: deep navy → very faint orange
@@ -45,11 +47,25 @@ const _kOrange = Color(0xFFFF8A00);
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Trigger popup ads after the home screen is fully rendered
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AdService.instance.triggerAppOpenPopups(context, ref);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       body: CustomScrollView(
@@ -156,14 +172,16 @@ class HomeScreen extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                SizedBox(height: 8),
-                _DynamicBannerSlider(),
-                SizedBox(height: 12),
-                _ServicesSectionHeader(),
-                SizedBox(height: 8),
-                _ApiDrivenServicesGrid(),
-                SizedBox(height: 16),
+              children: [
+                const SizedBox(height: 8),
+                const _DynamicBannerSlider(),
+                const SizedBox(height: 12),
+                // ── Promotional banner ads (global / home targeted) ─────────
+                const BannerAdStrip(),
+                const _ServicesSectionHeader(),
+                const SizedBox(height: 8),
+                const _ApiDrivenServicesGrid(),
+                const SizedBox(height: 16),
               ],
             ),
           ),

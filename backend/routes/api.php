@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\Customer\AddressController;
 use App\Http\Controllers\Api\Customer\NotificationController;
 use App\Http\Controllers\Api\Customer\WishlistController;
 use App\Http\Controllers\Api\Customer\ChatController;
+use App\Http\Controllers\Api\Customer\AdController;
 
 // ─── Delivery ────────────────────────────────────────────────────────────────
 use App\Http\Controllers\Api\Delivery\DeliveryController;
@@ -125,6 +126,8 @@ Route::prefix('v1')->group(function () {
     });
 
     // Public info
+    Route::get('ads',                   [AdController::class, 'index']);         // ?type=popup|banner|card &module=efood
+    Route::post('ads/{id}/track',       [AdController::class, 'track']);         // body: {action: impression|click}
     Route::get('modules',               [HomeController::class, 'modules']);
     Route::get('modules/{slug}',        [HomeController::class, 'moduleDetails']);
     Route::get('districts',             [HomeController::class, 'districts']);
