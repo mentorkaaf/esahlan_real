@@ -7,6 +7,7 @@ import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/module_widgets.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../ads/services/ad_service.dart';
 
 final _svc = ModuleApiService.create();
 final _doctorsProvider = FutureProvider.family<dynamic, String>((_, spec) => _svc.getDoctors(specialization: spec));

@@ -10,6 +10,7 @@ import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
+import '../../ads/services/ad_service.dart';
 
 double _toD(dynamic v) => double.tryParse(v?.toString() ?? '0') ?? 0;
 
@@ -46,7 +47,8 @@ class _EDataScreenState extends ConsumerState<EDataScreen>
   late TabController _tab;
 
   @override
-  void initState() { super.initState(); _tab = TabController(length: 2, vsync: this); }
+  void initState() { super.initState();
+    AdService.instance.triggerModulePopups(context, 'edata'); _tab = TabController(length: 2, vsync: this); }
 
   @override
   void dispose() { _tab.dispose(); super.dispose(); }

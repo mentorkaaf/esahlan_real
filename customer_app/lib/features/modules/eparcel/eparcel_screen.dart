@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
+import '../../ads/services/ad_service.dart';
 
 final _svc = ModuleApiService.create();
 final _parcelTypesProvider     = FutureProvider((_) => _svc.getParcelTypes());
@@ -53,6 +54,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
   @override
   void initState() {
     super.initState();
+    AdService.instance.triggerModulePopups(context, 'eparcel');
     _priceAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
     _priceFade = CurvedAnimation(parent: _priceAnim, curve: Curves.easeOut);
     _loadProfile();

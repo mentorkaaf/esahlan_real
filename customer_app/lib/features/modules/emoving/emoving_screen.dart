@@ -8,6 +8,7 @@ import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
+import '../../ads/services/ad_service.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DESIGN CONSTANTS
@@ -54,6 +55,7 @@ class _EMovingScreenState extends ConsumerState<EMovingScreen>
   @override
   void initState() {
     super.initState();
+    AdService.instance.triggerModulePopups(context, 'emoving');
     _tab = TabController(length: 2, vsync: this);
   }
 

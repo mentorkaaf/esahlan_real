@@ -5,6 +5,7 @@ import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../ads/services/ad_service.dart';
 
 final _svc = ModuleApiService.create();
 final _groceryCategoriesProvider = FutureProvider((_) => _svc.getGroceryCategories());

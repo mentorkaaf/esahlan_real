@@ -7,6 +7,7 @@ import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
+import '../../ads/services/ad_service.dart';
 
 final _svc = ModuleApiService.create();
 final _laundryItemsProvider = FutureProvider((_) => _svc.getLaundryItems());

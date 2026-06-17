@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
+import '../../ads/services/ad_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Theme Constants
@@ -95,6 +96,7 @@ class _ETicketScreenState extends ConsumerState<ETicketScreen>
   @override
   void initState() {
     super.initState();
+    AdService.instance.triggerModulePopups(context, 'eticket');
     _tab = TabController(length: 2, vsync: this);
   }
 

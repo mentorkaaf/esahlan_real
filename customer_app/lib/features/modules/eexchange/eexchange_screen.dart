@@ -9,6 +9,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
+import '../../ads/services/ad_service.dart';
 
 final _svc = ModuleApiService.create();
 final _exchangeRatesProvider = FutureProvider((_) => _svc.getExchangeRates());

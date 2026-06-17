@@ -90,7 +90,7 @@ class AdService {
     await prefs.setInt(_kOpenCount, count + 1);
   }
 
-  // ── App-open popup trigger ────────────────────────────────────────────────
+  // ── App-open popup trigger (home screen — global ads only) ───────────────
 
   Future<void> triggerAppOpenPopups(BuildContext context, WidgetRef ref) async {
     await incrementOpenCount();
@@ -100,17 +100,42 @@ class AdService {
 
     for (final ad in ads) {
       if (!ad.showOnAppOpen) continue;
+      // Home screen only shows "All Users" ads (no specific module target)
+      final m = ad.targetModule;
+      if (m != null && m.isNotEmpty && m != 'all') continue;
       if (await shouldShow(ad)) eligible.add(ad);
     }
 
+    await _showEligiblePopups(context, eligible);
+  }
+
+  // ── Module popup trigger (called when entering a module screen) ───────────
+
+  Future<void> triggerModulePopups(BuildContext context, String module) async {
+    final ads = await fetchAds(type: 'popup', module: module);
+    final eligible = <AdModel>[];
+
+    for (final ad in ads) {
+      if (!ad.showOnAppOpen) continue;
+      // Only show ads specifically targeting this module
+      final m = ad.targetModule;
+      if (m == null || m.isEmpty || m == 'all') continue;
+      if (await shouldShow(ad)) eligible.add(ad);
+    }
+
+    await _showEligiblePopups(context, eligible);
+  }
+
+  // ── Shared sequential popup display ──────────────────────────────────────
+
+  Future<void> _showEligiblePopups(
+      BuildContext context, List<AdModel> eligible) async {
     if (eligible.isEmpty) return;
 
-    // Delay before showing first popup
     final delay = eligible.first.displayDelaySeconds.clamp(0, 30);
     await Future.delayed(Duration(seconds: delay));
     if (!context.mounted) return;
 
-    // Show all eligible popups sequentially with 5s gap between each
     for (int i = 0; i < eligible.length; i++) {
       if (!context.mounted) return;
       final ad = eligible[i];

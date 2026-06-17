@@ -7,6 +7,7 @@ import '../../../core/widgets/network_image_widget.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../../features/wallet/presentation/providers/wallet_provider.dart';
+import '../../ads/services/ad_service.dart';
 
 // ════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -303,6 +304,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
   @override
   void initState() {
     super.initState();
+    AdService.instance.triggerModulePopups(context, 'efood');
     // Sync favorite restaurant IDs from server on startup
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {

@@ -5,6 +5,7 @@ import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../ads/services/ad_service.dart';
 
 final _svc = ModuleApiService.create();
 final _wholesaleCategoriesProvider = FutureProvider((_) => _svc.getWholesaleCategories());
@@ -166,7 +167,8 @@ class _InquirySheetState extends State<_InquirySheet> {
   int get _minQty => (widget.product['min_qty'] as num?)?.toInt() ?? 1;
 
   @override
-  void initState() { super.initState(); _qty = _minQty; }
+  void initState() { super.initState();
+    AdService.instance.triggerModulePopups(context, 'ewholesale'); _qty = _minQty; }
 
   @override
   void dispose() { _nameCtrl.dispose(); _phoneCtrl.dispose(); _messageCtrl.dispose(); super.dispose(); }

@@ -1,10 +1,11 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import 'eshop_providers.dart';
+import '../../ads/services/ad_service.dart';
 
 // ─────────────────────────────────────────────────────────────────
 // Helpers
@@ -58,6 +59,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> {
   @override
   void initState() {
     super.initState();
+    AdService.instance.triggerModulePopups(context, 'eshop');
     _bannerTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (_bannerCtrl.hasClients) {
         final next = (_bannerPage + 1);
