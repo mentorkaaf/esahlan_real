@@ -59,6 +59,16 @@ class Ad extends Model
         return $this->image_url ?: null;
     }
 
+    public function getEffectiveVideoUrl(): ?string
+    {
+        if (!$this->video_url) return null;
+        // Uploaded file path (not a full URL) — CDN-ify it
+        if (!str_starts_with($this->video_url, 'http')) {
+            return cdn_url($this->video_url);
+        }
+        return $this->video_url;
+    }
+
     public function isCurrentlyActive(): bool
     {
         if ($this->status !== 'active') return false;
@@ -77,7 +87,7 @@ class Ad extends Model
             'title'                  => $this->title,
             'description'            => $this->description,
             'image_url'              => $this->getEffectiveImageUrl(),
-            'video_url'              => $this->video_url,
+            'video_url'              => $this->getEffectiveVideoUrl(),
             'ad_type'                => $this->ad_type,
             'target_module'          => $this->target_module,
             'action_type'            => $this->action_type,

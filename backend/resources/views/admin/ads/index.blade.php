@@ -325,7 +325,9 @@ function buildFormHTML(ad) {
 
     <div class="form-group">
         <label class="form-label">Video URL (optional)</label>
-        <input type="text" name="video_url" class="form-control" value="${escHtml(v('video_url'))}" placeholder="https://...mp4 or YouTube link">
+        <input type="text" name="video_url" class="form-control" value="${escHtml(v('video_url'))}" placeholder="YouTube, TikTok, or direct .mp4 link">
+        <div class="form-hint">OR upload a video file below (replaces any URL above)</div>
+        <input type="file" name="video" class="form-control mt-1" accept="video/mp4,video/quicktime,video/webm">
     </div>
 
     <div class="form-row">

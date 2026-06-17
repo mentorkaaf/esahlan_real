@@ -26,6 +26,7 @@ class AdminAdController extends Controller
             'description'            => 'nullable|string|max:2000',
             'image'                  => 'nullable|image|max:4096',
             'image_url'              => 'nullable|string|max:500',
+            'video'                  => 'nullable|file|mimetypes:video/mp4,video/quicktime,video/webm,video/x-msvideo|max:102400',
             'video_url'              => 'nullable|string|max:500',
             'ad_type'                => 'required|in:popup_fullscreen,popup_modal,banner_slider,banner_inline,card',
             'target_module'          => 'nullable|string|max:50',
@@ -49,6 +50,10 @@ class AdminAdController extends Controller
             $data['image'] = $request->file('image')->store('ads', 'public');
         }
 
+        if ($request->hasFile('video')) {
+            $data['video_url'] = $request->file('video')->store('ads/videos', 'public');
+        }
+
         $data['button_text']  = $data['button_text']  ?: 'Learn More';
         $data['button_color'] = $data['button_color'] ?: '#FF8A00';
         $data['show_on_app_open']      = $request->boolean('show_on_app_open', true);
@@ -68,6 +73,7 @@ class AdminAdController extends Controller
             'description'            => 'nullable|string|max:2000',
             'image'                  => 'nullable|image|max:4096',
             'image_url'              => 'nullable|string|max:500',
+            'video'                  => 'nullable|file|mimetypes:video/mp4,video/quicktime,video/webm,video/x-msvideo|max:102400',
             'video_url'              => 'nullable|string|max:500',
             'ad_type'                => 'required|in:popup_fullscreen,popup_modal,banner_slider,banner_inline,card',
             'target_module'          => 'nullable|string|max:50',
@@ -89,6 +95,10 @@ class AdminAdController extends Controller
 
         if ($request->hasFile('image')) {
             $data['image'] = $request->file('image')->store('ads', 'public');
+        }
+
+        if ($request->hasFile('video')) {
+            $data['video_url'] = $request->file('video')->store('ads/videos', 'public');
         }
 
         $data['show_on_app_open']      = $request->boolean('show_on_app_open', true);
