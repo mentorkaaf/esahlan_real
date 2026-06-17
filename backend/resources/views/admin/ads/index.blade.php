@@ -223,8 +223,8 @@
         </div>
         <form action="{{ route('admin.ads.store') }}" method="POST" enctype="multipart/form-data" style="overflow-y:auto;flex:1;">
             @csrf
-            <div class="modal-body">
-                @include('admin.ads._form', ['ad' => null, 'modules' => $modules, 'districts' => $districts, 'prefix' => 'create'])
+            <div class="modal-body" id="createAdBody">
+                {{-- Populated by buildFormHTML(null) in the script below --}}
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('createAdModal')">Cancel</button>
@@ -457,7 +457,7 @@ document.getElementById('createAdModal').addEventListener('click', function(e) {
 
 // build create form immediately
 (function(){
-    const body = document.querySelector('#createAdModal .modal-body');
+    const body = document.getElementById('createAdBody');
     if (body) { body.innerHTML = buildFormHTML(null); body.dataset.built = '1'; }
 })();
 </script>
