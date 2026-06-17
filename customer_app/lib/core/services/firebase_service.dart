@@ -242,28 +242,20 @@ class FirebaseService {
   }
 
   // ── Permission ────────────────────────────────────────────────────────────
-  /// Call this from a post-frame callback (after UI is ready) to show system dialog.
+  /// Call from a post-frame callback (after UI is ready) to show system dialog.
+  /// On Android 13+  the system dialog is shown by requestNotificationsPermission().
+  /// On Android <13  there is no runtime permission — notifications are always allowed.
+  /// On iOS          Firebase shows its own dialog.
   Future<bool> requestPermissionIfNeeded() async {
-    // Check actual current permission status first
-    final settings = await _fcm.getNotificationSettings();
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      return true;
-    }
-
-    // If already denied (permanently), can't re-request
-    if (settings.authorizationStatus == AuthorizationStatus.denied) {
-      debugPrint('[FCM] Permission permanently denied');
-      return false;
-    }
-
-    // Request permission (works on iOS; on Android <13 always authorized)
-    final result = await _fcm.requestPermission(
+    // iOS / macOS — Firebase handles the dialog
+    await _fcm.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
 
-    // Android 13+: also request POST_NOTIFICATIONS via local_notifications
+    // Android 13+ (API 33+) — flutter_local_notifications shows the system dialog.
+    // Safe to call every launch: if permission is already granted the OS does nothing.
     try {
       await _localNotif
           .resolvePlatformSpecificImplementation<
@@ -273,8 +265,10 @@ class FirebaseService {
       debugPrint('[FCM] Android permission request error: $e');
     }
 
-    final granted = result.authorizationStatus == AuthorizationStatus.authorized;
-    debugPrint('[FCM] Permission: ${result.authorizationStatus}');
+    final settings = await _fcm.getNotificationSettings();
+    final granted = settings.authorizationStatus == AuthorizationStatus.authorized
+        || settings.authorizationStatus == AuthorizationStatus.provisional;
+    debugPrint('[FCM] Permission status: ${settings.authorizationStatus}');
     return granted;
   }
 
