@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -98,7 +98,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
             pinned: true,
             backgroundColor: context.colors.navyText,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Colors.white),
+              icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.colors.cardBg),
               onPressed: () => context.pop(),
             ),
             flexibleSpace: FlexibleSpaceBar(
@@ -537,7 +537,7 @@ class _PremiumField extends StatelessWidget {
     return TextField(
       controller: ctrl,
       keyboardType: inputType,
-      style: const TextStyle(fontSize: 14, color: AppColors.textDark, fontWeight: FontWeight.w600),
+      style: TextStyle(fontSize: 14, color: context.colors.navyText, fontWeight: FontWeight.w600),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
@@ -597,7 +597,7 @@ class _PremiumDropdown extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: value != null ? FontWeight.w700 : FontWeight.w400,
-                color: value != null ? _navy : AppColors.textGrey,
+                color: value != null ? context.colors.navyText : AppColors.textGrey,
               ),
             ),
           ),
@@ -638,7 +638,7 @@ class _PayTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? color.withOpacity(0.08) : AppColors.surface,
+          color: selected ? color.withOpacity(0.08) : context.colors.cardBg,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: selected ? color : AppColors.divider, width: selected ? 2 : 1),
         ),
@@ -757,7 +757,7 @@ class _DropdownSheetState extends State<_DropdownSheet> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                      color: isSelected ? _navy : AppColors.textDark,
+                      color: context.colors.navyText,
                     )),
                   subtitle: sub.isNotEmpty
                       ? Text(sub, style: const TextStyle(fontSize: 11, color: AppColors.textGrey))

@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
@@ -287,7 +287,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                                       child: Center(
                                         child: _trailerLoading
                                             ? const CircularProgressIndicator(
-                                                color: Colors.white)
+                                                color: context.colors.cardBg)
                                             : Container(
                                                 width: 64,
                                                 height: 64,
@@ -701,7 +701,7 @@ class _CurriculumTabState extends State<_CurriculumTab> {
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
-              color: Colors.white, borderRadius: BorderRadius.circular(12)),
+              color: context.colors.cardBg, borderRadius: BorderRadius.circular(12)),
           child: Column(
             children: [
               ListTile(
@@ -817,7 +817,7 @@ class _ReviewsTab extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-              color: Colors.white, borderRadius: BorderRadius.circular(12)),
+              color: context.colors.cardBg, borderRadius: BorderRadius.circular(12)),
           child: Row(
             children: [
               Column(children: [
@@ -847,7 +847,7 @@ class _ReviewsTab extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                  color: context.colors.cardBg, borderRadius: BorderRadius.circular(12)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
                   CircleAvatar(
@@ -935,8 +935,8 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
   Widget build(BuildContext context) {
     final hasEnough = widget.walletBalance >= widget.price;
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: context.colors.cardBg,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),

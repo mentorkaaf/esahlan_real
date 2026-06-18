@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart';
+﻿import 'package:dio/dio.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -360,7 +360,7 @@ class _BasicsPage extends ConsumerWidget {
           child: Container(
             height: 150,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.cardBg,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: thumbPath != null ? _orange : Colors.grey[300]!,
@@ -454,7 +454,7 @@ class _BasicsPage extends ConsumerWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.cardBg,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: trailerFileName != null ? _orange : Colors.grey[300]!,
@@ -642,7 +642,7 @@ class _PriceOption extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected ? _orange : Colors.grey[200]!,

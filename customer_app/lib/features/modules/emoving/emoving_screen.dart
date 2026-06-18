@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:intl/intl.dart';
@@ -165,7 +165,7 @@ class _EMovingScreenState extends ConsumerState<EMovingScreen>
                     const Text(
                       'eMoving',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: context.colors.cardBg,
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.5,
@@ -511,7 +511,7 @@ class _SectionHeader extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.textDark)),
+                      color: context.colors.navyText)),
               Text(subtitle,
                   style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
             ],
@@ -623,7 +623,7 @@ class _TypeGrid extends StatelessWidget {
                     ),
                     if (isSelected)
                       const Icon(Icons.check_circle_rounded,
-                          color: Colors.white, size: 18),
+                          color: context.colors.cardBg, size: 18),
                   ],
                 ),
               ),
@@ -757,7 +757,7 @@ class _RoomsSelector extends StatelessWidget {
         children: [
           const Text('Number of Rooms',
               style: TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+                  fontSize: 14, fontWeight: FontWeight.w700, color: context.colors.navyText)),
           const SizedBox(height: 12),
           Row(
             children: List.generate(6, (i) {
@@ -852,7 +852,7 @@ class _PackageCard extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.textDark)),
+                          color: context.colors.navyText)),
                 ),
                 Text(
                   '\$${NumberFormat('#,##0').format(double.tryParse(price.toString()) ?? 0.0)}',
@@ -995,7 +995,7 @@ class _RouteSection extends ConsumerWidget {
                             Text(
                               fromDistrict!['name']?.toString() ?? '',
                               style: const TextStyle(
-                                  color: Colors.white,
+                                  color: context.colors.cardBg,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700),
                               textAlign: TextAlign.center,
@@ -1014,7 +1014,7 @@ class _RouteSection extends ConsumerWidget {
                             Text(
                               toDistrict!['name']?.toString() ?? '',
                               style: const TextStyle(
-                                  color: Colors.white,
+                                  color: context.colors.cardBg,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700),
                               textAlign: TextAlign.center,
@@ -1344,7 +1344,7 @@ class _PriceSection extends StatelessWidget {
                             style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
-                                color: AppColors.textDark,
+                                color: context.colors.navyText,
                                 letterSpacing: 0.5)),
                         Text(
                           '\$${NumberFormat('#,##0.00').format(double.tryParse(breakdown!['total']?.toString() ?? '0') ?? 0)}',
@@ -1376,7 +1376,7 @@ class _PriceSection extends StatelessWidget {
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2),
+                            color: context.colors.cardBg, strokeWidth: 2),
                       )
                     : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -1416,7 +1416,7 @@ class _PriceLineItem extends StatelessWidget {
               style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textDark)),
+                  color: context.colors.navyText)),
         ],
       ),
     );
@@ -1480,7 +1480,7 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
                       style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.textDark)),
+                          color: context.colors.navyText)),
                   const SizedBox(height: 12),
                   TextField(
                     onChanged: (v) => setState(() => _q = v),
@@ -1664,7 +1664,7 @@ class _BookingFlowScreenState extends ConsumerState<_BookingFlowScreen> {
               title: Text(
                 _step == 0 ? 'Schedule Your Move' : 'Confirm Booking',
                 style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.w700),
+                    color: context.colors.cardBg, fontWeight: FontWeight.w700),
               ),
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(50),
@@ -1866,7 +1866,7 @@ class _ScheduleStep extends StatelessWidget {
                           style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textDark),
+                              color: context.colors.navyText),
                         ),
                         const Spacer(),
                         const Icon(Icons.keyboard_arrow_down_rounded,
@@ -1929,7 +1929,7 @@ class _FormLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(text,
         style: const TextStyle(
-            fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark));
+            fontSize: 14, fontWeight: FontWeight.w700, color: context.colors.navyText));
   }
 }
 
@@ -1948,7 +1948,7 @@ class _PaymentTile extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: selected ? _kOrange.withValues(alpha: 0.08) : Colors.white,
+          color: selected ? _kOrange.withValues(alpha: 0.08) : context.colors.cardBg,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selected ? _kOrange : AppColors.divider,
@@ -2028,7 +2028,7 @@ class _ConfirmStep extends ConsumerWidget {
                     style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.textDark)),
+                        color: context.colors.navyText)),
                 const SizedBox(height: 4),
                 const Text('Review your details before confirming',
                     style: TextStyle(fontSize: 13, color: AppColors.textGrey)),
@@ -2219,7 +2219,7 @@ class _ConfirmRow extends StatelessWidget {
               style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textDark),
+                  color: context.colors.navyText),
               textAlign: label.isEmpty ? TextAlign.left : TextAlign.right,
               overflow: TextOverflow.ellipsis),
         ),
@@ -2268,7 +2268,7 @@ class _SuccessScreen extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w900,
-                      color: AppColors.textDark)),
+                      color: context.colors.navyText)),
               const SizedBox(height: 8),
               const Text(
                 'Your moving request has been placed.\nOur team will contact you shortly.',
@@ -2296,7 +2296,7 @@ class _SuccessScreen extends StatelessWidget {
                             style: TextStyle(color: Colors.white60, fontSize: 13)),
                         Text('#$orderNo',
                             style: const TextStyle(
-                                color: Colors.white,
+                                color: context.colors.cardBg,
                                 fontSize: 17,
                                 fontWeight: FontWeight.w800)),
                       ],
@@ -2390,7 +2390,7 @@ class _BottomCTA extends StatelessWidget {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: _kBg,
+                  color: context.colors.surfaceBg,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: AppColors.divider),
                 ),
@@ -2413,7 +2413,7 @@ class _BottomCTA extends StatelessWidget {
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2),
+                          color: context.colors.cardBg, strokeWidth: 2),
                     )
                   : Text(label,
                       style: const TextStyle(
@@ -2538,7 +2538,7 @@ class _OrderCard extends StatelessWidget {
                           style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.textDark)),
+                              color: context.colors.navyText)),
                       Text(
                         moveType.toString().replaceAll('_', ' ').toUpperCase(),
                         style: const TextStyle(
@@ -2638,7 +2638,7 @@ class _RouteChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: _kBg,
+        color: context.colors.surfaceBg,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -2656,7 +2656,7 @@ class _RouteChip extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textDark),
+                        color: context.colors.navyText),
                     overflow: TextOverflow.ellipsis),
               ],
             ),
@@ -2768,7 +2768,7 @@ class _EmptyState extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textDark)),
+                    color: context.colors.navyText)),
             const SizedBox(height: 8),
             Text(subtitle,
                 style: const TextStyle(fontSize: 14, color: AppColors.textGrey),

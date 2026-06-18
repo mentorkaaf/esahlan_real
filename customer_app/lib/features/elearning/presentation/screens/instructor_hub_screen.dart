@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -450,7 +450,7 @@ class _ApprovedDashboardState extends ConsumerState<_ApprovedDashboard> {
                 padding: const EdgeInsets.all(16),
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                    color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                    color: context.colors.cardBg, borderRadius: BorderRadius.circular(14)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(children: [
                     const Icon(Icons.bar_chart_rounded,
@@ -619,7 +619,7 @@ class _ApprovedDashboardState extends ConsumerState<_ApprovedDashboard> {
               padding: const EdgeInsets.all(16),
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                  color: context.colors.cardBg, borderRadius: BorderRadius.circular(14)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
                   const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
@@ -665,7 +665,7 @@ class _ApprovedDashboardState extends ConsumerState<_ApprovedDashboard> {
               padding: const EdgeInsets.all(16),
               margin: const EdgeInsets.only(bottom: 40),
               decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                  color: context.colors.cardBg, borderRadius: BorderRadius.circular(14)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
                   Icon(Icons.account_balance_rounded,
@@ -762,7 +762,7 @@ class _InstructorCourseCard extends ConsumerWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(

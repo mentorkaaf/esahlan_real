@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'web_video_helper.dart' as webvideo;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -500,7 +500,7 @@ class _HeaderBadge extends StatelessWidget {
       color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20),
     ),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, size: 12, color: Colors.white),
+      Icon(icon, size: 12, color: context.colors.cardBg),
       const SizedBox(width: 4),
       Text(label, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
     ]),
@@ -779,7 +779,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
   Widget build(BuildContext context) {
     final async = ref.watch(_propertyProvider(widget.propertyId));
     return async.when(
-      loading: () => Scaffold(backgroundColor: _kBg, body: Center(child: CircularProgressIndicator(color: _kOrange))),
+      loading: () => Scaffold(backgroundColor: context.colors.scaffoldBg, body: Center(child: CircularProgressIndicator(color: _kOrange))),
       error: (e, _) => Scaffold(appBar: AppBar(backgroundColor: context.colors.navyText, foregroundColor: Colors.white),
           body: _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_propertyProvider(widget.propertyId)))),
       data: (data) {
@@ -1486,7 +1486,7 @@ class _PayBtn extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        color: selected ? color : _kBg, borderRadius: BorderRadius.circular(12),
+        color: selected ? color : context.colors.cardBg, borderRadius: BorderRadius.circular(12),
         border: selected ? null : Border.all(color: Colors.grey.shade300),
       ),
       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [

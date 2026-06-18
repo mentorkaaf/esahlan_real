@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -163,7 +163,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: context.colors.cardBg,
                           borderRadius: BorderRadius.circular(14),
                           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
                         ),
@@ -329,7 +329,7 @@ class _ResultView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.cardBg,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
@@ -347,7 +347,7 @@ class _ResultView extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.cardBg,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: isCorrect ? Colors.green[200]! : Colors.red[200]!),
               ),

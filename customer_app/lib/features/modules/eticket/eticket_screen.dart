@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
@@ -120,7 +120,7 @@ class _ETicketScreenState extends ConsumerState<ETicketScreen>
             elevation: 0,
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -526,8 +526,8 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
       maxChildSize: 0.95,
       minChildSize: 0.4,
       builder: (_, sc) => Container(
-        decoration: const BoxDecoration(
-          color: _kCard,
+        decoration: BoxDecoration(
+          color: context.colors.cardBg,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(children: [
@@ -549,7 +549,7 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
                 onPressed: () => Navigator.pop(context),
                 icon: Container(
                   width: 30, height: 30,
-                  decoration: BoxDecoration(color: _kBg,
+                  decoration: BoxDecoration(color: context.colors.surfaceBg,
                       borderRadius: BorderRadius.circular(8)),
                   child: const Icon(Icons.close, size: 16, color: _kMuted),
                 ),
@@ -564,7 +564,7 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
               decoration: InputDecoration(
                 hintText: 'Search city or IATA code…',
                 prefixIcon: const Icon(Icons.search_rounded, size: 20, color: _kMuted),
-                filled: true, fillColor: _kBg,
+                filled: true, fillColor: context.colors.inputFill,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none),
@@ -737,8 +737,8 @@ class _PassengerSelector extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (_) => StatefulBuilder(
         builder: (ctx, ss) => Container(
-          decoration: const BoxDecoration(
-            color: _kCard,
+          decoration: BoxDecoration(
+            color: context.colors.cardBg,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: const EdgeInsets.all(24),
@@ -869,8 +869,8 @@ class _ClassSelector extends StatelessWidget {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: _kCard,
+        decoration: BoxDecoration(
+          color: context.colors.cardBg,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: const EdgeInsets.all(24),
@@ -982,7 +982,7 @@ class _PopularRoutesHint extends StatelessWidget {
               width: 160,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: _kCard,
+                color: context.colors.cardBg,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: _kDivider),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04),
@@ -1307,14 +1307,14 @@ class _FlightCardSkeleton extends StatelessWidget {
     margin: const EdgeInsets.only(bottom: 12),
     height: 180,
     decoration: BoxDecoration(
-      color: _kCard,
+      color: context.colors.cardBg,
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: _kDivider),
     ),
     child: Shimmer.fromColors(
       baseColor: const Color(0xFFE8E8E8),
       highlightColor: const Color(0xFFF5F5F5),
-      child: Container(color: _kCard),
+      child: Container(color: context.colors.cardBg),
     ),
   );
 }
@@ -1324,7 +1324,7 @@ class _EmptyFlights extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(40),
     decoration: BoxDecoration(
-      color: _kCard, borderRadius: BorderRadius.circular(18),
+      color: context.colors.cardBg, borderRadius: BorderRadius.circular(18),
       border: Border.all(color: _kDivider),
     ),
     child: Column(children: [
@@ -1626,7 +1626,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
             child: Column(children: [
               Row(children: [
                 _AirlineLogo(logo: f['airline_logo']?.toString(),
-                    name: f['airline']?.toString() ?? '', color: Colors.white),
+                    name: f['airline']?.toString() ?? '', color: context.colors.cardBg),
                 const SizedBox(width: 10),
                 Expanded(child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1715,7 +1715,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
               return Container(
                 margin: EdgeInsets.only(bottom: e.key < _passengers.length - 1 ? 10 : 0),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(color: _kBg,
+                decoration: BoxDecoration(color: context.colors.surfaceBg,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: _kDivider)),
                 child: Row(children: [
@@ -1870,7 +1870,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
               builder: (_, v, child) => Transform.scale(scale: v, child: child),
               child: Container(
                 width: 100, height: 100,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [Color(0xFF10B981), Color(0xFF059669)]),
                   shape: BoxShape.circle,
@@ -1998,7 +1998,7 @@ class _PaxFormCardState extends State<_PaxFormCard> {
         borderSide: BorderSide(color: _kDivider)),
     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: _kNavy, width: 1.5)),
-    filled: true, fillColor: _kCard,
+    filled: true, fillColor: context.colors.inputFill,
   );
 
   Widget _label(String t) => Padding(
@@ -2011,7 +2011,7 @@ class _PaxFormCardState extends State<_PaxFormCard> {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(color: _kCard,
+      decoration: BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: _kDivider),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04),
@@ -2201,7 +2201,7 @@ class _BottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: _kCard,
+        color: context.colors.cardBg,
         border: Border(top: BorderSide(color: _kDivider)),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07),
             blurRadius: 12, offset: const Offset(0, -3))],
@@ -2230,9 +2230,9 @@ class _BottomBar extends StatelessWidget {
               elevation: 0,
             ),
             child: loading
-                ? const SizedBox(width: 20, height: 20,
+                ? SizedBox(width: 20, height: 20,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2.5, color: Colors.white))
+                        strokeWidth: 2.5, color: context.colors.cardBg))
                 : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Icon(buttonIcon, color: Colors.white, size: 15),
                     const SizedBox(width: 7),
@@ -2274,7 +2274,7 @@ class _PayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     decoration: BoxDecoration(
-      color: _kCard, borderRadius: BorderRadius.circular(16),
+      color: context.colors.cardBg, borderRadius: BorderRadius.circular(16),
       border: Border.all(color: _kDivider),
       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 6, offset: const Offset(0, 2))],
@@ -2315,7 +2315,7 @@ class _PayMethodTile extends StatelessWidget {
       duration: const Duration(milliseconds: 180),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: selected ? color.withValues(alpha: 0.06) : _kBg,
+        color: selected ? color.withValues(alpha: 0.06) : context.colors.cardBg,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
             color: selected ? color : _kDivider,
@@ -2398,7 +2398,7 @@ class _BookingCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: _kCard,
+        color: context.colors.cardBg,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: _kDivider),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04),
@@ -2482,7 +2482,7 @@ class _InfoChip extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     decoration: BoxDecoration(
-      color: _kBg, borderRadius: BorderRadius.circular(8),
+      color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(8),
       border: Border.all(color: _kDivider),
     ),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -2501,13 +2501,13 @@ class _BookingCardSkeleton extends StatelessWidget {
     margin: const EdgeInsets.only(bottom: 14),
     height: 160,
     decoration: BoxDecoration(
-      color: _kCard, borderRadius: BorderRadius.circular(18),
+      color: context.colors.cardBg, borderRadius: BorderRadius.circular(18),
       border: Border.all(color: _kDivider),
     ),
     child: Shimmer.fromColors(
       baseColor: const Color(0xFFE8E8E8),
       highlightColor: const Color(0xFFF5F5F5),
-      child: Container(color: _kCard),
+      child: Container(color: context.colors.cardBg),
     ),
   );
 }

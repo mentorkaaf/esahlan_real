@@ -39,7 +39,7 @@ class ModuleSearchBar extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       height: 46,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.inputFill,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.divider),
       ),
@@ -92,7 +92,7 @@ class ModuleFormCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.cardBg,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
       ),
@@ -144,7 +144,7 @@ class ModuleDropdownField extends StatelessWidget {
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primary)),
           ),
-          dropdownColor: Colors.white,
+          dropdownColor: context.colors.cardBg,
           icon: Icon(Icons.keyboard_arrow_down_rounded, color: context.colors.navyText),
         ),
       ],
@@ -162,7 +162,7 @@ class ModuleStepIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      color: context.colors.cardBg,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: List.generate(total, (i) {

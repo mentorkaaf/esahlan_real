@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/module_api_service.dart';
@@ -439,7 +439,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
       Container(
         width: 48, height: 48,
         decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(14)),
-        child: const Icon(Icons.tune_rounded, color: Colors.white),
+        child: Icon(Icons.tune_rounded, color: context.colors.cardBg),
       ),
     ]),
   );
@@ -2230,7 +2230,7 @@ class _CartItemTile extends ConsumerWidget {
           Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('${item.qty}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15))),
           GestureDetector(
             onTap: () => ref.read(_cartProvider.notifier).increment(item.key),
-            child: Container(width: 28, height: 28, decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.add_rounded, size: 16, color: Colors.white)),
+            child: Container(width: 28, height: 28, decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(8)), child: Icon(Icons.add_rounded, size: 16, color: context.colors.cardBg)),
           ),
         ]),
       ]),

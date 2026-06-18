@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import '../../../../core/theme/theme_x.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
@@ -276,7 +276,7 @@ class _HeaderCard extends StatelessWidget {
     };
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(16),
+        color: context.colors.cardBg, borderRadius: BorderRadius.circular(16),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8, offset: const Offset(0, 2))],
       ),
@@ -427,7 +427,7 @@ class _SectionCardState extends State<_SectionCard> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.cardBg,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 6, offset: const Offset(0, 2))],
@@ -443,7 +443,7 @@ class _SectionCardState extends State<_SectionCard> {
             child: Row(children: [
               Container(
                 width: 28, height: 28,
-                decoration: const BoxDecoration(color: _navy, shape: BoxShape.circle),
+                decoration: BoxDecoration(color: _navy, shape: BoxShape.circle),
                 child: Center(child: Text('${widget.index + 1}',
                     style: const TextStyle(color: Colors.white,
                         fontSize: 12, fontWeight: FontWeight.w800))),
@@ -682,8 +682,8 @@ class _AddSectionSheetState extends State<_AddSectionSheet> {
     padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom),
     child: Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: context.colors.cardBg,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -838,7 +838,7 @@ class _AddLessonSheetState extends ConsumerState<_AddLessonSheet> {
 
         // Header
         Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: _navy,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
@@ -1188,7 +1188,7 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(
             padding: const EdgeInsets.fromLTRB(20, 14, 12, 16),
-            decoration: const BoxDecoration(color: _navy,
+            decoration: BoxDecoration(color: _navy,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
             child: Row(children: [
               const Expanded(child: Text('Edit Course Details',

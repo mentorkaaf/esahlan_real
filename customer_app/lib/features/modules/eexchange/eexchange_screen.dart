@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -269,7 +269,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
         onTap: () { _amountCtrl.text = v.toString(); setState(() { _amount = v.toDouble(); _preview = null; }); },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(8),
+          decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(8),
               border: Border.all(color: AppColors.divider)),
           child: Text('\$$v',
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: context.colors.navyText)),
@@ -428,7 +428,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: sel ? AppColors.primary.withValues(alpha: 0.06) : AppColors.surface,
+          color: sel ? AppColors.primary.withValues(alpha: 0.06) : context.colors.cardBg,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: sel ? AppColors.primary : AppColors.divider, width: sel ? 2 : 1),
         ),

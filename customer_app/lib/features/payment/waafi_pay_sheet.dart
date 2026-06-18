@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import '../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import '../../core/api/module_api_service.dart';
@@ -147,9 +147,9 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: context.colors.cardBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
         left: 24, right: 24, top: 24,
@@ -214,7 +214,7 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
       const Align(
         alignment: Alignment.centerLeft,
         child: Text('Phone Number (EVC/Waafi)',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF374151))),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText)),
       ),
       const SizedBox(height: 8),
       PhoneInputField(
@@ -228,7 +228,7 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
       const SizedBox(height: 8),
       Container(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(10)),
         child: Row(children: const [
           Icon(Icons.info_outline_rounded, size: 16, color: AppColors.textGrey),
           SizedBox(width: 8),

@@ -1,4 +1,4 @@
-import 'package:chewie/chewie.dart';
+﻿import 'package:chewie/chewie.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -239,7 +239,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
     if (_loadingLesson) {
       return Scaffold(
         backgroundColor: context.colors.navyText,
-        body: const Center(child: CircularProgressIndicator(color: Colors.white)),
+        body: Center(child: CircularProgressIndicator(color: context.colors.cardBg)),
       );
     }
     if (_lessonError != null) {
@@ -423,7 +423,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
         child: Container(
           color: context.colors.navyText,
           child: const Center(
-              child: CircularProgressIndicator(color: Colors.white)),
+              child: CircularProgressIndicator(color: context.colors.cardBg)),
         ),
       );
     }
@@ -690,7 +690,7 @@ class _NotesTab extends StatelessWidget {
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: context.colors.cardBg,
                           borderRadius: BorderRadius.circular(10)),
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
