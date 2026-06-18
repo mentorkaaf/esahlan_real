@@ -84,7 +84,7 @@ class _WalletPinDialogState extends State<_WalletPinDialog> {
           child: const Icon(Icons.lock_rounded, color: AppColors.primary, size: 32),
         ),
         const SizedBox(height: 16),
-        const Text('Enter Wallet PIN', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: context.colors.navyText)),
+        Text('Enter Wallet PIN', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: context.colors.navyText)),
         const SizedBox(height: 6),
         const Text('Enter your 4-digit PIN to confirm payment', textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: AppColors.textGrey)),
         const SizedBox(height: 24),

@@ -479,7 +479,7 @@ class _StepCard extends StatelessWidget {
             const SizedBox(width: 10),
             Icon(icon, size: 18, color: _amber),
             const SizedBox(width: 6),
-            Text(title, style: const TextStyle(
+            Text(title, style: TextStyle(
                 fontSize: 14, fontWeight: FontWeight.w800, color: context.colors.navyText)),
           ]),
         ),
@@ -512,7 +512,7 @@ class _InfoChip extends StatelessWidget {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textGrey, fontWeight: FontWeight.w500)),
           Text(value,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText),
             overflow: TextOverflow.ellipsis),
         ])),
       ]),
@@ -690,7 +690,7 @@ class _DropdownSheetState extends State<_DropdownSheet> {
       maxChildSize: 0.92,
       minChildSize: 0.4,
       builder: (_, ctrl) => Container(
-        decoration: const BoxDecoration(color: context.colors.cardBg,
+        decoration: BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(children: [
@@ -703,7 +703,7 @@ class _DropdownSheetState extends State<_DropdownSheet> {
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Row(children: [
               Text(widget.hint,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.colors.navyText)),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.colors.navyText)),
             ]),
           ),
           // search

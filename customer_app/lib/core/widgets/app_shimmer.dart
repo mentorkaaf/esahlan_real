@@ -43,7 +43,7 @@ class ShimmerCircle extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: size,
         height: size,
-        decoration: const BoxDecoration(color: context.colors.cardBg, shape: BoxShape.circle),
+        decoration: BoxDecoration(color: context.colors.cardBg, shape: BoxShape.circle),
       );
 }
 

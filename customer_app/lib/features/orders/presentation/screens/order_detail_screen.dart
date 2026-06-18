@@ -211,7 +211,7 @@ class _OrderDetailBody extends StatelessWidget {
                   const SizedBox(width: 12),
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(order.paymentMethod?.toUpperCase() ?? 'CASH',
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.navyText)),
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.navyText)),
                     const SizedBox(height: 2),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -431,7 +431,7 @@ class _DetailCard extends StatelessWidget {
             child: Icon(icon, size: 16, color: _amber),
           ),
           const SizedBox(width: 8),
-          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: context.colors.navyText)),
+          Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: context.colors.navyText)),
         ]),
       ),
       Padding(padding: const EdgeInsets.all(16), child: child),

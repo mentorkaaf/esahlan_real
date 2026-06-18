@@ -114,7 +114,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
           const SizedBox(height: 20),
 
           // ── FROM wallet ───────────────────────────────────────────
-          const Align(alignment: Alignment.centerLeft,
+          Align(alignment: Alignment.centerLeft,
               child: Text('From Wallet', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText))),
           const SizedBox(height: 10),
           _buildWalletRow(_fromWallet,
@@ -138,7 +138,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
           const SizedBox(height: 16),
 
           // ── TO wallet ─────────────────────────────────────────────
-          const Align(alignment: Alignment.centerLeft,
+          Align(alignment: Alignment.centerLeft,
               child: Text('To Wallet', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText))),
           const SizedBox(height: 10),
           _buildWalletRow(_toWallet,
@@ -165,7 +165,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
                 decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppColors.divider)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  \.navyText)),
+                  Text('Live Rates', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
                   const SizedBox(height: 8),
                   ...rates.take(4).map((r) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
@@ -173,7 +173,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
                       Text('${r['from_wallet']?.toString().toUpperCase()} → ${r['to_wallet']?.toString().toUpperCase()}',
                           style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
                       Text('Rate: ${r['rate']}',
-                          style: TextStyle(fontSize: \, fontWeight: FontWeight.w700, color: context.colors.navyText)),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.colors.navyText)),
                     ]),
                   )),
                 ]),
@@ -255,7 +255,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
       TextField(
         controller: _amountCtrl,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        style: TextStyle(fontWeight: FontWeight.w900, fontSize: \, color: context.colors.navyText),
+        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 28, color: context.colors.navyText),
         onChanged: (v) => setState(() { _amount = double.tryParse(v) ?? 0; _preview = null; }),
         decoration: const InputDecoration(
           hintText: '0.00',
@@ -272,7 +272,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
           decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(8),
               border: Border.all(color: AppColors.divider)),
           child: Text('\$$v',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: \, color: context.colors.navyText)),
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: context.colors.navyText)),
         ),
       )).toList()),
     ]),
@@ -299,7 +299,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
           const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('$_toWalletName Phone Number',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: \, color: context.colors.navyText)),
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: context.colors.navyText)),
             const Text('Recipient who will receive the transfer',
                 style: TextStyle(fontSize: 11, color: AppColors.textGrey)),
           ])),
@@ -552,7 +552,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
               child: const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 36),
             ),
             const SizedBox(height: 16),
-            const Text('Something went wrong',
+            Text('Something went wrong',
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: context.colors.navyText),
                 textAlign: TextAlign.center),
             const SizedBox(height: 10),
@@ -638,7 +638,7 @@ class _ExchangeSuccessScreen extends StatelessWidget {
               child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 58),
             ),
             const SizedBox(height: 20),
-            const Text('Order Submitted!',
+            Text('Order Submitted!',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: context.colors.navyText)),
             const SizedBox(height: 8),
             const Text('Your exchange request has been received.\nWe\'ll process it shortly.',
@@ -694,7 +694,7 @@ class _ExchangeSuccessScreen extends StatelessWidget {
                 _detailRow('Service Fee',    '-\$$fee'),
                 const Divider(height: 20),
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  const Text('Recipient Receives',
+                  Text('Recipient Receives',
                       style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
                   Text('\$$received',
                       style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: AppColors.success)),
@@ -712,7 +712,7 @@ class _ExchangeSuccessScreen extends StatelessWidget {
                 border: Border.all(color: AppColors.divider),
               ),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Sending To',
+                Text('Sending To',
                     style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
                 const SizedBox(height: 12),
                 Row(children: [
@@ -725,7 +725,7 @@ class _ExchangeSuccessScreen extends StatelessWidget {
                   const SizedBox(width: 12),
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(phone.toString(),
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: \, color: context.colors.navyText)),
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: context.colors.navyText)),
                     Text('$to Wallet',
                         style: const TextStyle(color: AppColors.textGrey, fontSize: 12)),
                   ]),

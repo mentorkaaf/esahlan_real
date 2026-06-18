@@ -344,7 +344,7 @@ class ProfileScreen extends ConsumerWidget {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
-        decoration: const BoxDecoration(color: context.colors.cardBg,
+        decoration: BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: const EdgeInsets.all(24),

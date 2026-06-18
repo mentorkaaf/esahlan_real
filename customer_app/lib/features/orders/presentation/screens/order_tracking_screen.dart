@@ -230,7 +230,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
-                  decoration: const BoxDecoration(color: context.colors.cardBg,
+                  decoration: BoxDecoration(color: context.colors.cardBg,
                     borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                   ),
                   child: Column(

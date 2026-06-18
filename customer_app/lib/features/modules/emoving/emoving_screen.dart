@@ -957,7 +957,7 @@ class _RouteSection extends ConsumerWidget {
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColors.divider),
                     ),
-                    child: const Icon(Icons.swap_horiz_rounded,
+                    child: Icon(Icons.swap_horiz_rounded,
                         color: context.colors.navyText, size: 18),
                   ),
                   Expanded(
@@ -1457,7 +1457,7 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
       maxChildSize: 0.92,
       expand: false,
       builder: (_, ctrl) => Container(
-        decoration: const BoxDecoration(color: context.colors.cardBg,
+        decoration: BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -2339,7 +2339,7 @@ class _SuccessScreen extends StatelessWidget {
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('View My Orders',
+                child: Text('View My Orders',
                     style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w700)),
               ),
             ],
@@ -2526,7 +2526,7 @@ class _OrderCard extends StatelessWidget {
                     color: context.colors.navyText.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.local_shipping_rounded,
+                  child: Icon(Icons.local_shipping_rounded,
                       color: context.colors.navyText, size: 20),
                 ),
                 const SizedBox(width: 12),

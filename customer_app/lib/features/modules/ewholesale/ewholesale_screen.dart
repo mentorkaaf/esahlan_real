@@ -41,7 +41,7 @@ class _EWholesaleScreenState extends ConsumerState<EWholesaleScreen> {
     return Scaffold(
             appBar: AppBar(
                 leading: IconButton(icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.colors.navyText), onPressed: () => context.pop()),
-        title: Text('\', style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText, fontFamily: 'Cairo')),
+        title: Text('Wholesale', style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText, fontFamily: 'Cairo')),
         bottom: PreferredSize(preferredSize: const Size.fromHeight(60), child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
           child: TextField(
@@ -105,7 +105,7 @@ class _EWholesaleScreenState extends ConsumerState<EWholesaleScreen> {
                             : Container(width: 110, height: 110, color: AppColors.surface, child: const Icon(Icons.inventory_2_outlined, size: 40, color: AppColors.divider)),
                       ),
                       Expanded(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w800, fontSize: \, color: context.colors.navyText), maxLines: 2, overflow: TextOverflow.ellipsis),
+                        Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText), maxLines: 2, overflow: TextOverflow.ellipsis),
                         if (p['description'] != null)
                           Text(p['description'], style: const TextStyle(fontSize: 11, color: AppColors.textGrey), maxLines: 1, overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 6),
@@ -184,23 +184,23 @@ class _InquirySheetState extends State<_InquirySheet> {
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Expanded(child: Text(widget.product['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w800, fontSize: \, color: context.colors.navyText))),
+          Expanded(child: Text(widget.product['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText))),
           IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
         ]),
         Text('\$${price.toStringAsFixed(2)}/unit', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.primary)),
         const SizedBox(height: 16),
-        \.navyText)),
+        Text('Quantity', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
         const SizedBox(height: 8),
         Row(children: [
           GestureDetector(onTap: () { if (_qty > _minQty) setState(() => _qty--); },
               child: Container(width: 36, height: 36, decoration: BoxDecoration(color: _qty > _minQty ? AppColors.primary : AppColors.surface, borderRadius: BorderRadius.circular(8)),
                   child: Icon(Icons.remove, color: _qty > _minQty ? Colors.white : AppColors.textGrey, size: 18))),
-          SizedBox(width: 60, child: Text('$_qty', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w900, fontSize: \, color: context.colors.navyText))),
+          SizedBox(width: 60, child: Text('$_qty', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: context.colors.navyText))),
           GestureDetector(onTap: () => setState(() => _qty++),
               child: Container(width: 36, height: 36, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
                   child: const Icon(Icons.add, color: Colors.white, size: 18))),
           const SizedBox(width: 12),
-          Text('Est. Total: \$${(price * _qty).toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w700, color: context.colors.navyText)),
+          Text('Est. Total: \$${(price * _qty).toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.w700, color: context.colors.navyText)),
         ]),
         if (_minQty > 1)
           Padding(padding: const EdgeInsets.only(top: 4),
