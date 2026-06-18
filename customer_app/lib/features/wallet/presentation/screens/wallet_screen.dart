@@ -204,7 +204,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Row(
         children: [
-          Expanded(child: Text('Transactions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.colors.navyText))),
+          Expanded(child: Text('Transactions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.isDark ? AppColors.primary : context.colors.navyText))),
           _TabChip(label: 'All',    selected: _tab == 0, onTap: () => setState(() => _tab = 0)),
           const SizedBox(width: 6),
           _TabChip(label: 'In',     selected: _tab == 1, color: Colors.green, onTap: () => setState(() => _tab = 1)),
@@ -748,7 +748,7 @@ class _TransactionTile extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(
               tx['description'] ?? tx['note'] ?? (isCredit ? 'Credit' : 'Debit'),
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText),
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.isDark ? AppColors.primary : context.colors.navyText),
               maxLines: 1, overflow: TextOverflow.ellipsis,
             ),
             Row(children: [
