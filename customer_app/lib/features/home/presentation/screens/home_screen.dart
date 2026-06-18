@@ -422,18 +422,18 @@ class _PremiumServiceCardState extends ConsumerState<_PremiumServiceCard>
               curve: Curves.easeInOut,
               width: 62, height: 62,
               decoration: BoxDecoration(
-                color: _pressed ? _kOrange : (context.isDark ? _kOrange : _kNavy),
+                color: _pressed ? _kOrange : (context.isDark ? const Color(0xFF0b013d) : _kNavy),
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
-                    color: (_pressed ? _kOrange : (context.isDark ? _kOrange : _kNavy)).withValues(alpha: 0.35),
+                    color: (_pressed ? _kOrange : (context.isDark ? const Color(0xFF0b013d) : _kNavy)).withValues(alpha: 0.35),
                     blurRadius: _pressed ? 16 : 12,
                     offset: const Offset(0, 5),
                   ),
                 ],
               ),
               child: Center(
-                child: Icon(style.icon, color: context.isDark ? _kNavy : Colors.white, size: 28),
+                child: Icon(style.icon, color: Colors.white, size: 28),
               ),
             ),
             const SizedBox(height: 8),
@@ -445,7 +445,7 @@ class _PremiumServiceCardState extends ConsumerState<_PremiumServiceCard>
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: _pressed ? _kOrange : (context.isDark ? _kOrange : context.colors.navyText),
+                color: _pressed ? _kOrange : (context.isDark ? Colors.white : context.colors.navyText),
                 height: 1.25,
               ),
             ),
