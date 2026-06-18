@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -21,7 +21,7 @@ class OrderDetailScreen extends ConsumerWidget {
     final orderAsync = ref.watch(orderDetailProvider(orderId));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F3F8),
+      backgroundColor: context.colors.scaffoldBg,
       body: orderAsync.when(
         loading: () => const Scaffold(
           body: Center(child: CircularProgressIndicator(color: _amber)),
@@ -134,7 +134,7 @@ class _OrderDetailBody extends StatelessWidget {
                         Container(
                           width: 38, height: 38,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8F9FE),
+                            color: context.colors.surfaceBg,
                             borderRadius: BorderRadius.circular(10)),
                           child: item.imageUrl != null
                               ? ClipRRect(borderRadius: BorderRadius.circular(10),
@@ -145,7 +145,7 @@ class _OrderDetailBody extends StatelessWidget {
                         const SizedBox(width: 10),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text(item.productName,
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textDark)),
+                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
                           // Variant badge
                           if (item.variantDisplay != null)
                             Container(
@@ -200,7 +200,7 @@ class _OrderDetailBody extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8F9FE),
+                      color: context.colors.surfaceBg,
                       borderRadius: BorderRadius.circular(10)),
                     child: Icon(
                       order.paymentMethod?.toLowerCase() == 'wallet'
@@ -450,11 +450,11 @@ class _SumRow extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 4),
     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
       Text(label, style: TextStyle(
-        color: bold ? _navy : AppColors.textGrey,
+        color: bold ? context.colors.navyText : AppColors.textGrey,
         fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
         fontSize: bold ? 15 : 13)),
       Text(value, style: TextStyle(
-        color: color ?? (bold ? _navy : AppColors.textDark),
+        color: color ?? (bold ? context.colors.navyText : context.colors.navyText),
         fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
         fontSize: bold ? 15 : 13)),
     ]),
@@ -489,7 +489,7 @@ class _TimelineItem extends StatelessWidget {
         Text(status.replaceAll('_', ' ').toUpperCase(),
           style: TextStyle(
             fontSize: 12, fontWeight: FontWeight.w700,
-            color: isCurrent ? _amber : AppColors.textDark)),
+            color: isCurrent ? _amber : context.colors.navyText)),
         if (note != null && note.toString().isNotEmpty)
           Text('$note', style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
         if (time != null)
