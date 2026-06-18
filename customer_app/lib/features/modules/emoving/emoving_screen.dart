@@ -995,7 +995,7 @@ class _RouteSection extends ConsumerWidget {
                             Text(
                               fromDistrict!['name']?.toString() ?? '',
                               style: TextStyle(
-                                  color: context.colors.cardBg,
+                                  color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700),
                               textAlign: TextAlign.center,
@@ -1014,7 +1014,7 @@ class _RouteSection extends ConsumerWidget {
                             Text(
                               toDistrict!['name']?.toString() ?? '',
                               style: TextStyle(
-                                  color: context.colors.cardBg,
+                                  color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700),
                               textAlign: TextAlign.center,
@@ -1093,7 +1093,7 @@ class _DistrictDropdown extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: selected != null ? AppColors.textDark : _kMuted,
+                color: selected != null ? context.colors.navyText : _kMuted,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -1246,7 +1246,7 @@ class _ExtrasSectionState extends ConsumerState<_ExtrasSection> {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                        color: isSelected ? AppColors.textDark : AppColors.textDark,
+                                        color: context.colors.navyText,
                                       )),
                                 ),
                                 Text(
