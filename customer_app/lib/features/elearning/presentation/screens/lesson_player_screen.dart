@@ -237,9 +237,9 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
   @override
   Widget build(BuildContext context) {
     if (_loadingLesson) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: context.colors.navyText,
-        body: Center(child: CircularProgressIndicator(color: Colors.white)),
+        body: const Center(child: CircularProgressIndicator(color: Colors.white)),
       );
     }
     if (_lessonError != null) {

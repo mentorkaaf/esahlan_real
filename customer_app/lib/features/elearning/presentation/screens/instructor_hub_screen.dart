@@ -452,10 +452,10 @@ class _ApprovedDashboardState extends ConsumerState<_ApprovedDashboard> {
                 decoration: BoxDecoration(
                     color: Colors.white, borderRadius: BorderRadius.circular(14)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Row(children: [
-                    Icon(Icons.bar_chart_rounded,
+                  Row(children: [
+                    const Icon(Icons.bar_chart_rounded,
                         color: AppColors.primary, size: 20),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Text('Monthly Earnings',
                         style: TextStyle(
                             fontSize: 15,
@@ -621,9 +621,9 @@ class _ApprovedDashboardState extends ConsumerState<_ApprovedDashboard> {
               decoration: BoxDecoration(
                   color: Colors.white, borderRadius: BorderRadius.circular(14)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Row(children: [
-                  Icon(Icons.star_rounded, color: Colors.amber, size: 20),
-                  SizedBox(width: 8),
+                Row(children: [
+                  const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
+                  const SizedBox(width: 8),
                   Text('My Reviews',
                       style: TextStyle(
                           fontSize: 15,
@@ -777,8 +777,8 @@ class _InstructorCourseCard extends ConsumerWidget {
                     width: 64,
                     height: 64,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _thumb())
-                : _thumb(),
+                    errorBuilder: (_, __, ___) => _thumb(context))
+                : _thumb(context),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -823,7 +823,7 @@ class _InstructorCourseCard extends ConsumerWidget {
     );
   }
 
-  Widget _thumb() => Container(
+  Widget _thumb(BuildContext context) => Container(
         width: 64,
         height: 64,
         decoration: BoxDecoration(

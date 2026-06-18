@@ -99,7 +99,7 @@ class _BuyDataTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(_providersProvider);
     return async.when(
-      loading: () => _buildShimmer(),
+      loading: () => _buildShimmer(context),
       error: (e, _) => _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_providersProvider)),
       data: (data) {
         final providers = List<Map>.from(data is Map ? (data['data'] ?? []) : data ?? []);
@@ -132,7 +132,7 @@ class _BuyDataTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildShimmer() => CustomScrollView(slivers: [
+  Widget _buildShimmer(BuildContext context) => CustomScrollView(slivers: [
     SliverToBoxAdapter(child: _HeroBanner()),
     SliverPadding(
       padding: const EdgeInsets.all(16),
@@ -486,7 +486,7 @@ class _PackagesStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(_packagesProvider(providerId));
     return async.when(
-      loading: () => _buildShimmer(),
+      loading: () => _buildShimmer(context),
       error: (e, _) => _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_packagesProvider(providerId))),
       data: (data) {
         final packages = List<Map>.from(data is Map ? (data['data'] ?? []) : data ?? []);
@@ -511,7 +511,7 @@ class _PackagesStep extends ConsumerWidget {
     );
   }
 
-  Widget _buildShimmer() => GridView.builder(
+  Widget _buildShimmer(BuildContext context) => GridView.builder(
     padding: const EdgeInsets.all(16),
     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
       crossAxisCount: 2, childAspectRatio: 1.0, crossAxisSpacing: 14, mainAxisSpacing: 14),

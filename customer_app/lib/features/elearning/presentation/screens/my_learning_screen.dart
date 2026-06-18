@@ -85,9 +85,9 @@ class MyLearningScreen extends ConsumerWidget {
 
                 // ── In Progress ─────────────────────────────────────────────
                 if (inProgress.isNotEmpty) ...[
-                  const SliverToBoxAdapter(
+                  SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                       child: Text('In Progress', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.navyText)),
                     ),
                   ),
@@ -101,9 +101,9 @@ class MyLearningScreen extends ConsumerWidget {
 
                 // ── Completed ───────────────────────────────────────────────
                 if (completed.isNotEmpty) ...[
-                  const SliverToBoxAdapter(
+                  SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                       child: Text('Completed', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.navyText)),
                     ),
                   ),
@@ -205,8 +205,8 @@ class _EnrollmentCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               child: course.thumbnail != null
                   ? Image.network(course.thumbnail!, width: 72, height: 72, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _placeholder())
-                  : _placeholder(),
+                      errorBuilder: (_, __, ___) => _placeholder(context))
+                  : _placeholder(context),
             ),
             SizedBox(width: 14),
             Expanded(
@@ -248,7 +248,7 @@ class _EnrollmentCard extends StatelessWidget {
     );
   }
 
-  Widget _placeholder() => Container(
+  Widget _placeholder(BuildContext context) => Container(
     width: 72, height: 72,
     decoration: BoxDecoration(color: context.colors.navyText, borderRadius: BorderRadius.circular(10)),
     child: const Icon(Icons.school_rounded, color: Colors.white54, size: 28),

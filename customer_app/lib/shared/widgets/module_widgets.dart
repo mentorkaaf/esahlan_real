@@ -15,8 +15,8 @@ AppBar moduleAppBar(BuildContext context, String module) => AppBar(
     onPressed: () => context.pop(),
   ),
   title: Row(children: [
-    RichText(text: const TextSpan(children: [
-      TextSpan(text: 'e-', style: TextStyle(color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.w900, fontFamily: 'Cairo')),
+    RichText(text: TextSpan(children: [
+      const TextSpan(text: 'e-', style: TextStyle(color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.w900, fontFamily: 'Cairo')),
       TextSpan(text: 'Sahlan', style: TextStyle(color: context.colors.navyText, fontSize: 18, fontWeight: FontWeight.w900, fontFamily: 'Cairo')),
     ])),
     SizedBox(width: 8),
