@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
@@ -27,10 +28,10 @@ class VendorsScreen extends ConsumerWidget {
     final vendorsAsync = ref.watch(vendorsByModuleProvider(moduleSlug));
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      
       appBar: AppBar(
         title: Text(_moduleTitle),
-        backgroundColor: Colors.white,
+        
         foregroundColor: AppColors.textDark,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
@@ -227,7 +228,7 @@ class _ShimmerCard extends StatelessWidget {
       highlightColor: Colors.grey.shade100,
       child: Container(
         height: 230,
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+        decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16)),
       ),
     );
   }

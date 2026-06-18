@@ -71,7 +71,7 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
       ),
       body: Column(children: [
         // Search
-        Container(color: Colors.white, padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+        Container(color: context.colors.cardBg, padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
           child: TextField(
             controller: _searchCtrl,
             onChanged: (v) => setState(() => _search = v),
@@ -79,7 +79,7 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
               hintText: 'Search groceries...', hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
               prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textGrey, size: 20),
               suffixIcon: _search.isNotEmpty ? IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () { _searchCtrl.clear(); setState(() => _search = ''); }) : null,
-              filled: true, fillColor: AppColors.surface,
+              filled: true, fillColor: context.colors.cardBg,
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -194,7 +194,7 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
   }
 
   void _showCart(BuildContext context) {
-    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.white,
+    showModalBottomSheet(context: context, isScrollControlled: true, 
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
         builder: (_) => _GroceryCartSheet(cart: _cart, products: _products, onUpdate: () => setState(() {})));
   }
@@ -255,7 +255,7 @@ class _GroceryCartSheetState extends State<_GroceryCartSheet> {
           const SizedBox(height: 14),
           TextField(controller: _addrCtrl, onChanged: (_) => setState(() {}), decoration: InputDecoration(
               labelText: 'Delivery Address', prefixIcon: const Icon(Icons.location_on_outlined, color: AppColors.textGrey, size: 20),
-              filled: true, fillColor: AppColors.surface,
+              filled: true, fillColor: context.colors.cardBg,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),
               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)))),
           const SizedBox(height: 14),

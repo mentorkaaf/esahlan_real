@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../core/services/maps_service.dart';
@@ -79,11 +80,11 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      
       appBar: AppBar(
         title: const Text('Pick Delivery Location',
             style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
-        backgroundColor: Colors.white,
+        
         foregroundColor: AppColors.textDark,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
@@ -147,7 +148,7 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
                   right: 16, bottom: 200,
                   child: FloatingActionButton.small(
                     heroTag: 'my_location',
-                    backgroundColor: Colors.white,
+                    
                     foregroundColor: AppColors.primary,
                     elevation: 4,
                     onPressed: _goToCurrentLocation,

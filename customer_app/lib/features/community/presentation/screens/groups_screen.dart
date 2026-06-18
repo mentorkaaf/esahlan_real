@@ -1,4 +1,5 @@
-﻿import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,9 +36,9 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen>
     final groupsAsync = ref.watch(communityGroupsProvider);
 
     return Scaffold(
-      backgroundColor: kBg,
+      
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1A1B2E)),
@@ -81,7 +82,7 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _CreateGroupSheet(),
@@ -282,7 +283,7 @@ class GroupDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: kBg,
+      
       body: CustomScrollView(
         slivers: [
           SliverAppBar(

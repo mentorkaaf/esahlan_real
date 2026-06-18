@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/api/api_client.dart';
@@ -55,10 +56,10 @@ class CartScreen extends ConsumerWidget {
     final cartAsync = ref.watch(cartProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      
       appBar: AppBar(
         title: const Text('My Cart', style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: Colors.white,
+        
         foregroundColor: AppColors.textDark,
         elevation: 0,
         surfaceTintColor: Colors.transparent,

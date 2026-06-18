@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
@@ -41,9 +42,9 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
     final total = subtotal - discount + _deliveryFee;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20), onPressed: () => context.pop()),
         title: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -71,7 +72,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                 child: const Icon(Icons.shopping_bag_outlined, size: 60, color: AppColors.textGrey),
               ),
               const SizedBox(height: 20),
-              const Text('Your cart is empty', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: AppColors.secondary)),
+              Text('Your cart is empty', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: context.colors.navyText)),
               const SizedBox(height: 8),
               const Text('Add products to get started', style: TextStyle(color: AppColors.textGrey, fontSize: 14)),
               const SizedBox(height: 24),
@@ -111,7 +112,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.secondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+                        Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText), maxLines: 2, overflow: TextOverflow.ellipsis),
                         if (item.variant != null) Text(item.variant!['name'] ?? '', style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
                         const SizedBox(height: 8),
                         Row(children: [
@@ -140,7 +141,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
                 ),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Coupon Code', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.secondary)),
+                  Text('Coupon Code', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
                   const SizedBox(height: 12),
                   Row(children: [
                     Expanded(child: TextField(
@@ -148,7 +149,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                       textCapitalization: TextCapitalization.characters,
                       decoration: InputDecoration(
                         hintText: 'Enter coupon code',
-                        filled: true, fillColor: AppColors.surface,
+                        filled: true, fillColor: context.colors.cardBg,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
@@ -185,7 +186,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                 ),
                 child: Column(children: [
                   const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Text('Order Summary', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.secondary)),
+                    Text('Order Summary', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
                   ]),
                   const SizedBox(height: 16),
                   _summaryRow('Subtotal', '\$${subtotal.toStringAsFixed(2)}'),
@@ -193,7 +194,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                   _summaryRow('Delivery Fee', '\$${_deliveryFee.toStringAsFixed(2)}'),
                   const Divider(height: 20),
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    const Text('Total', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.secondary)),
+                    Text('Total', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: context.colors.navyText)),
                     Text('\$${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: AppColors.primary)),
                   ]),
                 ]),
@@ -234,7 +235,7 @@ class _QtyControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(children: [
     _btn(Icons.remove_rounded, onMinus, qty > 1),
-    SizedBox(width: 32, child: Text('$qty', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.secondary))),
+    SizedBox(width: 32, child: Text('$qty', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText))),
     _btn(Icons.add_rounded, onPlus, true),
   ]);
 

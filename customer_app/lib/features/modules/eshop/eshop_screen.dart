@@ -939,7 +939,7 @@ class _FlashDealSectionState extends State<_FlashDealSection> {
                   ])),
                   // Info
                   Padding(padding: const EdgeInsets.fromLTRB(10, 8, 10, 10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppColors.secondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: context.colors.navyText), maxLines: 1, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 5),
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

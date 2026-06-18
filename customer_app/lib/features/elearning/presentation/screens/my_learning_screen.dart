@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -14,13 +15,13 @@ class MyLearningScreen extends ConsumerWidget {
     final certsAsync = ref.watch(myCertificatesProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        
         elevation: 0,
-        title: const Text('My Learning', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800)),
+        title: Text('My Learning', style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w800)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.secondary),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.colors.navyText),
           onPressed: () => context.pop(),
         ),
         actions: [
@@ -87,7 +88,7 @@ class MyLearningScreen extends ConsumerWidget {
                   const SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
-                      child: Text('In Progress', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.secondary)),
+                      child: Text('In Progress', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.navyText)),
                     ),
                   ),
                   SliverList(
@@ -103,7 +104,7 @@ class MyLearningScreen extends ConsumerWidget {
                   const SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: Text('Completed', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.secondary)),
+                      child: Text('Completed', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.navyText)),
                     ),
                   ),
                   SliverList(
@@ -122,7 +123,7 @@ class MyLearningScreen extends ConsumerWidget {
                       delegate: SliverChildListDelegate([
                         const Padding(
                           padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          child: Text('Certificates', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.secondary)),
+                          child: Text('Certificates', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.navyText)),
                         ),
                         ...certs.map((c) => _CertificateCard(cert: c)),
                       ]),
@@ -213,7 +214,7 @@ class _EnrollmentCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(course.title, maxLines: 2, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.secondary)),
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText)),
                   if (course.instructor != null)
                     Text(course.instructor!.name, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                   const SizedBox(height: 8),
@@ -249,7 +250,7 @@ class _EnrollmentCard extends StatelessWidget {
 
   Widget _placeholder() => Container(
     width: 72, height: 72,
-    decoration: BoxDecoration(color: AppColors.secondary, borderRadius: BorderRadius.circular(10)),
+    decoration: BoxDecoration(color: context.colors.navyText, borderRadius: BorderRadius.circular(10)),
     child: const Icon(Icons.school_rounded, color: Colors.white54, size: 28),
   );
 }
@@ -281,7 +282,7 @@ class _CertificateCard extends StatelessWidget {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(cert.course.title, maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.secondary)),
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText)),
                 const SizedBox(height: 4),
                 Text(cert.certificateNumber, style: TextStyle(fontSize: 11, color: Colors.grey[600], fontFamily: 'monospace')),
                 Text('Issued: ${cert.issuedAt}', style: TextStyle(fontSize: 11, color: Colors.grey[500])),

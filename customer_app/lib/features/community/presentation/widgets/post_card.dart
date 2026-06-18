@@ -1,4 +1,5 @@
-﻿import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -249,13 +250,13 @@ class _PostCardState extends ConsumerState<PostCard>
                   Container(height: 44, decoration: BoxDecoration(
                     color: const Color(0xFFF0F2FF),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF140465).withOpacity(0.2)),
+                    border: Border.all(color: context.colors.navyText.withOpacity(0.2)),
                   )),
                   FractionallySizedBox(
                     widthFactor: pct,
                     child: Container(height: 44,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF140465).withOpacity(0.15),
+                          color: context.colors.navyText.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                         )),
                   ),

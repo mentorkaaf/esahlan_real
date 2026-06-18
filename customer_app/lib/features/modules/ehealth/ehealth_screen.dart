@@ -161,7 +161,7 @@ class _AmbulanceSectionState extends State<_AmbulanceSection> {
         decoration: InputDecoration(
           hintText: hint, hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
           prefixIcon: Icon(icon, color: AppColors.textGrey, size: 20),
-          filled: true, fillColor: AppColors.surface,
+          filled: true, fillColor: context.colors.cardBg,
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),
@@ -265,7 +265,7 @@ class _NurseSectionState extends State<_NurseSection> {
         controller: _notesCtrl, maxLines: 3,
         decoration: InputDecoration(hintText: 'Any specific requirements or medical conditions...',
             hintStyle: const TextStyle(fontSize: 12, color: AppColors.textGrey),
-            filled: true, fillColor: AppColors.surface,
+            filled: true, fillColor: context.colors.cardBg,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none)),
       )),
@@ -286,7 +286,7 @@ class _NurseSectionState extends State<_NurseSection> {
     decoration: InputDecoration(
       hintText: hint, hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
       prefixIcon: Icon(icon, color: AppColors.textGrey, size: 20),
-      filled: true, fillColor: AppColors.surface,
+      filled: true, fillColor: context.colors.cardBg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),
@@ -387,7 +387,7 @@ class _DoctorSectionState extends ConsumerState<_DoctorSection> {
                       if (doc['experience_years'] != null)
                         Text('${doc['experience_years']} yrs experience', style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
                       if (doc['consultation_fee'] != null)
-                        Text('\$${doc['consultation_fee']} per visit', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+                        Text('\$${doc['consultation_fee']} per visit', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.colors.navyText)),
                     ])),
                     const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textGrey),
                   ]),
@@ -499,7 +499,7 @@ class _BookDoctorSheetState extends State<_BookDoctorSheet> {
             decoration: InputDecoration(
               hintText: 'Describe your symptoms (optional)',
               hintStyle: const TextStyle(fontSize: 12, color: AppColors.textGrey),
-              filled: true, fillColor: AppColors.surface,
+              filled: true, fillColor: context.colors.cardBg,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
             ),

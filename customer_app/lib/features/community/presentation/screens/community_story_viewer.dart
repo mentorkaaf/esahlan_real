@@ -1,4 +1,5 @@
-﻿import 'dart:async';
+import 'dart:async';
+import '../../../../core/theme/theme_x.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
@@ -125,7 +126,7 @@ class _StoryViewerState extends State<StoryViewer> {
             child: Row(children: [
               CircleAvatar(
                 radius: 18,
-                backgroundColor: const Color(0xFFF0F2F5),
+                
                 backgroundImage: group.user.avatar != null ? CachedNetworkImageProvider(group.user.avatar!) : null,
                 child: group.user.avatar == null
                     ? Text(group.user.name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold))
@@ -355,14 +356,14 @@ class _ProgressBarState extends State<_ProgressBar> with SingleTickerProviderSta
         borderRadius: BorderRadius.circular(1),
       ),
       child: widget.done
-          ? Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(1)))
+          ? Container(decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(1)))
           : widget.active && _ctrl != null
               ? AnimatedBuilder(
                   animation: _ctrl!,
                   builder: (_, __) => FractionallySizedBox(
                     widthFactor: _ctrl!.value,
                     alignment: Alignment.centerLeft,
-                    child: Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(1))),
+                    child: Container(decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(1))),
                   ),
                 )
               : const SizedBox.shrink(),

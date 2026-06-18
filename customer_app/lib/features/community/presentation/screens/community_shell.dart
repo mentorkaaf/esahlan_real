@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/community_provider.dart';
 import 'community_feed_screen.dart';
@@ -24,7 +25,7 @@ class CommunityShell extends ConsumerWidget {
     final idx = ref.watch(communityNavIndexProvider);
 
     return Scaffold(
-      backgroundColor: kBg,
+      
       body: IndexedStack(
         index: idx,
         children: const [

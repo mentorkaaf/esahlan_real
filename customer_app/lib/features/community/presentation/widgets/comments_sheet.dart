@@ -1,4 +1,5 @@
-﻿import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -187,7 +188,7 @@ class _CommentTile extends StatelessWidget {
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         CircleAvatar(
           radius: 18,
-          backgroundColor: const Color(0xFFF0F2F5),
+          
           backgroundImage: comment.user.avatar != null ? CachedNetworkImageProvider(comment.user.avatar!) : null,
           child: comment.user.avatar == null
               ? Text(comment.user.name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))

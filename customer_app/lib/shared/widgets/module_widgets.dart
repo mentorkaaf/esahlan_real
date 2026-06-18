@@ -1,28 +1,29 @@
 // Shared widgets used across all module screens
 import 'package:flutter/material.dart';
+import '../../core/theme/theme_x.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 
 // ── App Bar ──────────────────────────────────────────────────────────────────
 
 AppBar moduleAppBar(BuildContext context, String module) => AppBar(
-  backgroundColor: Colors.white,
+  
   elevation: 0,
   surfaceTintColor: Colors.transparent,
   leading: IconButton(
-    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: AppColors.secondary),
+    icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.colors.navyText),
     onPressed: () => context.pop(),
   ),
   title: Row(children: [
     RichText(text: const TextSpan(children: [
       TextSpan(text: 'e-', style: TextStyle(color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.w900, fontFamily: 'Cairo')),
-      TextSpan(text: 'Sahlan', style: TextStyle(color: AppColors.secondary, fontSize: 18, fontWeight: FontWeight.w900, fontFamily: 'Cairo')),
+      TextSpan(text: 'Sahlan', style: TextStyle(color: context.colors.navyText, fontSize: 18, fontWeight: FontWeight.w900, fontFamily: 'Cairo')),
     ])),
     const SizedBox(width: 8),
     Text('| $module', style: const TextStyle(color: AppColors.textGrey, fontSize: 15, fontWeight: FontWeight.w500)),
   ]),
   actions: [
-    IconButton(icon: const Icon(Icons.notifications_outlined, color: AppColors.secondary), onPressed: () {}),
+    IconButton(icon: Icon(Icons.notifications_outlined, color: context.colors.navyText), onPressed: () {}),
   ],
 );
 
@@ -67,7 +68,7 @@ class ModuleSectionHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.secondary)),
+          Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.colors.navyText)),
           if (actionLabel != null)
             GestureDetector(
               onTap: onTap,
@@ -98,7 +99,7 @@ class ModuleFormCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.secondary)),
+          Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: context.colors.navyText)),
           const SizedBox(height: 14),
           child,
         ],
@@ -128,23 +129,23 @@ class ModuleDropdownField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
+        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.colors.navyText)),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
           value: value,
           onChanged: onChanged,
           items: items.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-          style: const TextStyle(fontSize: 14, color: AppColors.secondary, fontFamily: 'Cairo'),
+          style: TextStyle(fontSize: 14, color: context.colors.navyText, fontFamily: 'Cairo'),
           decoration: InputDecoration(
             filled: true,
-            fillColor: AppColors.surface,
+            fillColor: context.colors.cardBg,
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primary)),
           ),
           dropdownColor: Colors.white,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.secondary),
+          icon: Icon(Icons.keyboard_arrow_down_rounded, color: context.colors.navyText),
         ),
       ],
     );

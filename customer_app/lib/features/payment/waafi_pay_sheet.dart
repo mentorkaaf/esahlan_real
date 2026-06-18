@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import '../../core/api/module_api_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -181,7 +182,7 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
         const SizedBox(width: 14),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Waafi Pay', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: AppColors.secondary)),
+            Text('Waafi Pay', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: context.colors.navyText)),
             Text('\$${widget.amount.toStringAsFixed(2)}', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 15)),
           ]),
         ),
@@ -280,7 +281,7 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
           child: const Icon(Icons.phone_in_talk_rounded, size: 40, color: Color(0xFFF57F17)),
         ),
         const SizedBox(height: 16),
-        const Text('Check Your Phone', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: AppColors.secondary)),
+        Text('Check Your Phone', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: context.colors.navyText)),
         const SizedBox(height: 8),
         Text(_message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textGrey, fontSize: 14)),
         const SizedBox(height: 4),
@@ -306,7 +307,7 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
           child: Icon(Icons.check_circle_rounded, size: 56, color: Colors.green.shade600),
         ),
         const SizedBox(height: 16),
-        const Text('Payment Successful!', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: AppColors.secondary)),
+        Text('Payment Successful!', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: context.colors.navyText)),
         const SizedBox(height: 8),
         Text('\$${widget.amount.toStringAsFixed(2)} paid via Waafi Pay',
             style: const TextStyle(color: AppColors.textGrey, fontSize: 14)),
@@ -336,7 +337,7 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
           child: Icon(Icons.cancel_rounded, size: 56, color: Colors.red.shade600),
         ),
         const SizedBox(height: 16),
-        const Text('Payment Failed', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: AppColors.secondary)),
+        Text('Payment Failed', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: context.colors.navyText)),
         const SizedBox(height: 8),
         Text(_message, textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade700, fontSize: 13)),
         const SizedBox(height: 24),

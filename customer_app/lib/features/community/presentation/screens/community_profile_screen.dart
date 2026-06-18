@@ -1,4 +1,5 @@
-﻿import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -123,13 +124,13 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     );
 
     return Scaffold(
-      backgroundColor: kBg,
+      
       body: NestedScrollView(
         headerSliverBuilder: (context, _) => [
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
-            backgroundColor: Colors.white,
+            
             leading: Navigator.canPop(context)
                 ? IconButton(
                     icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),

@@ -51,7 +51,7 @@ class _EWholesaleScreenState extends ConsumerState<EWholesaleScreen> {
               hintText: 'Search bulk products...', hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
               prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textGrey, size: 20),
               suffixIcon: _search.isNotEmpty ? IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () { _searchCtrl.clear(); setState(() => _search = ''); }) : null,
-              filled: true, fillColor: AppColors.surface,
+              filled: true, fillColor: context.colors.cardBg,
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -150,7 +150,7 @@ class _EWholesaleScreenState extends ConsumerState<EWholesaleScreen> {
   );
 
   void _showInquiry(BuildContext context, dynamic p) {
-    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.white,
+    showModalBottomSheet(context: context, isScrollControlled: true, 
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
         builder: (_) => _InquirySheet(product: p));
   }
@@ -212,7 +212,7 @@ class _InquirySheetState extends State<_InquirySheet> {
         const SizedBox(height: 10),
         TextField(controller: _messageCtrl, maxLines: 3, decoration: InputDecoration(
             hintText: 'Additional requirements or notes...', hintStyle: const TextStyle(fontSize: 12, color: AppColors.textGrey),
-            filled: true, fillColor: AppColors.surface,
+            filled: true, fillColor: context.colors.cardBg,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none))),
         const SizedBox(height: 16),
@@ -228,7 +228,7 @@ class _InquirySheetState extends State<_InquirySheet> {
     onChanged: (_) => setState(() {}),
     decoration: InputDecoration(hintText: hint, hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
         prefixIcon: Icon(icon, color: AppColors.textGrey, size: 20),
-        filled: true, fillColor: AppColors.surface,
+        filled: true, fillColor: context.colors.cardBg,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider))),
   );

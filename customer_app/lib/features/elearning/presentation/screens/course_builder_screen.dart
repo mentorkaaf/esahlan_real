@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../../../../core/theme/theme_x.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -165,7 +166,7 @@ class _CourseBuilderScreenState extends ConsumerState<CourseBuilderScreen> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _navy),
@@ -831,7 +832,7 @@ class _AddLessonSheetState extends ConsumerState<_AddLessonSheet> {
   Widget build(BuildContext context) => DraggableScrollableSheet(
     initialChildSize: 0.82, minChildSize: 0.5, maxChildSize: 0.95,
     builder: (_, ctrl) => Container(
-      decoration: const BoxDecoration(color: Colors.white,
+      decoration: BoxDecoration(color: context.colors.cardBg,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       child: Column(children: [
 
@@ -1026,7 +1027,7 @@ class _ConfirmSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    decoration: const BoxDecoration(color: Colors.white,
+    decoration: BoxDecoration(color: context.colors.cardBg,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
     padding: const EdgeInsets.all(24),
     child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1182,7 +1183,7 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        decoration: const BoxDecoration(color: Colors.white,
+        decoration: BoxDecoration(color: context.colors.cardBg,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(

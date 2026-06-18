@@ -1,4 +1,5 @@
-﻿import '../../../../core/widgets/network_image_widget.dart';
+import '../../../../core/widgets/network_image_widget.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -51,7 +52,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     final unread = ref.watch(communityUnreadCountProvider);
 
     return Scaffold(
-      backgroundColor: kBg,
+      
       body: NestedScrollView(
         controller: _scrollCtrl,
         headerSliverBuilder: (context, _) => [
@@ -59,7 +60,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
             pinned: true,
             floating: true,
             elevation: 0,
-            backgroundColor: Colors.white,
+            
             title: RichText(
               text: const TextSpan(
                 children: [

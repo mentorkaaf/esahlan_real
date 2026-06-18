@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -243,7 +244,7 @@ class _ServicesSectionHeader extends StatelessWidget {
         const Text(
           'Our Services',
           style: TextStyle(
-              fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.secondary),
+              fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.navyText),
         ),
       ],
     ),

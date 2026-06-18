@@ -1,4 +1,5 @@
-﻿import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -57,7 +58,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
             floating: true,
             snap: true,
             elevation: 0,
-            backgroundColor: Colors.white,
+            
             title: Row(
               children: [
                 RichText(
@@ -104,7 +105,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
             ],
             bottom: TabBar(
               controller: _tabCtrl,
-              labelColor: const Color(0xFF140465),
+              labelcolor: context.colors.navyText,
               unselectedLabelColor: Colors.grey,
               indicatorColor: const Color(0xFFFF6B35),
               indicatorWeight: 3,
@@ -156,7 +157,7 @@ class _FeedTab extends ConsumerWidget {
     final storiesState = ref.watch(communityStoriesProvider);
 
     return RefreshIndicator(
-      color: const Color(0xFF140465),
+      color: context.colors.navyText,
       onRefresh: () => ref.read(communityFeedProvider.notifier).refresh(),
       child: CustomScrollView(
         controller: scrollCtrl,
@@ -209,7 +210,7 @@ class _ExploreTab extends ConsumerWidget {
     final suggestions = ref.watch(communitySuggestionsProvider);
 
     return RefreshIndicator(
-      color: const Color(0xFF140465),
+      color: context.colors.navyText,
       onRefresh: () => ref.read(communityExploreProvider.notifier).refresh(),
       child: CustomScrollView(
         slivers: [
@@ -342,7 +343,7 @@ class _AddStoryButton extends StatelessWidget {
                 bottom: 0, right: 0,
                 child: Container(
                   padding: const EdgeInsets.all(2),
-                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: context.colors.cardBg, shape: BoxShape.circle),
                   child: Container(
                     padding: const EdgeInsets.all(2),
                     decoration: const BoxDecoration(color: Color(0xFFFF6B35), shape: BoxShape.circle),
@@ -514,7 +515,7 @@ class _EmptyFeed extends StatelessWidget {
           const Text('Follow people to see their posts here', style: TextStyle(color: Colors.grey)),
           const SizedBox(height: 20),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF140465), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundcolor: context.colors.navyText, foregroundColor: Colors.white),
             onPressed: () {},
             child: const Text('Discover People'),
           ),

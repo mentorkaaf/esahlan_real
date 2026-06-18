@@ -83,7 +83,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
           onPressed: () => context.pop(),
         ),
         title: const Text('eExchange',
-            style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.secondary, fontFamily: 'Cairo')),
+            style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText, fontFamily: 'Cairo')),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -313,7 +313,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
             // Keep +252 prefix, allow digits and spaces after
             _PhonePrefixFormatter('+252 '),
           ],
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 22, color: AppColors.secondary,
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22, color: context.colors.navyText,
               letterSpacing: 1),
           onChanged: (_) => setState(() => _preview = null),
           onTap: () {

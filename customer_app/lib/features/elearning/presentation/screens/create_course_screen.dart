@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -166,7 +167,7 @@ class _CreateCourseScreenState extends ConsumerState<CreateCourseScreen> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _navy),
@@ -725,7 +726,7 @@ class _InputField extends StatelessWidget {
     decoration: InputDecoration(
       hintText: hint,
       hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
-      filled: true, fillColor: Colors.white,
+      filled: true, fillColor: context.colors.cardBg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey[200]!)),
@@ -747,7 +748,7 @@ class _DropField<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(color: Colors.white,
+    decoration: BoxDecoration(color: context.colors.cardBg,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[200]!)),
     padding: const EdgeInsets.symmetric(horizontal: 14),

@@ -1,4 +1,5 @@
 import 'package:chewie/chewie.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -131,7 +132,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
         allowMuting:     true,
         showOptions:     false,
         deviceOrientationsAfterFullScreen: [DeviceOrientation.portraitUp],
-        placeholder: Container(color: AppColors.secondary),
+        placeholder: Container(color: context.colors.navyText),
         errorBuilder: (_, msg) => _ErrBox(msg),
       );
       setState(() { _vpc = vpc; _chewie = chewie; });
@@ -193,7 +194,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
           const SizedBox(height: 12),
           const Text('Course Completed!',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800,
-                  color: AppColors.secondary)),
+                  color: context.colors.navyText)),
           const SizedBox(height: 8),
           const Text('Congratulations! You have finished this course.',
               textAlign: TextAlign.center,
@@ -237,20 +238,20 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
   Widget build(BuildContext context) {
     if (_loadingLesson) {
       return const Scaffold(
-        backgroundColor: AppColors.secondary,
+        backgroundcolor: context.colors.navyText,
         body: Center(child: CircularProgressIndicator(color: Colors.white)),
       );
     }
     if (_lessonError != null) {
       return Scaffold(
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          
           leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                  color: AppColors.secondary),
+                  color: context.colors.navyText),
               onPressed: () => context.pop()),
           title: const Text('Lesson Player',
-              style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w700)),
+              style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w700)),
         ),
         body: Center(
             child: Padding(
@@ -282,23 +283,23 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
     required String? sectionTitle,
   }) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        
         elevation: 0.5,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.secondary, size: 20),
+              color: context.colors.navyText, size: 20),
           onPressed: () => context.pop(),
         ),
         title: const Text(
           'Lesson Player',
           style: TextStyle(
-              color: AppColors.secondary, fontWeight: FontWeight.w700, fontSize: 16),
+              color: context.colors.navyText, fontWeight: FontWeight.w700, fontSize: 16),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_vert_rounded, color: AppColors.secondary),
+            icon: Icon(Icons.more_vert_rounded, color: context.colors.navyText),
             onPressed: () {},
           ),
         ],
@@ -322,7 +323,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
                 style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.secondary),
+                    color: context.colors.navyText),
               ),
             if (sectionTitle != null) ...[
               const SizedBox(height: 2),
@@ -420,7 +421,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
       return AspectRatio(
         aspectRatio: 16 / 9,
         child: Container(
-          color: AppColors.secondary,
+          color: context.colors.navyText,
           child: const Center(
               child: CircularProgressIndicator(color: Colors.white)),
         ),
@@ -435,7 +436,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
       return Container(
         width: double.infinity,
         constraints: const BoxConstraints(maxHeight: 200),
-        color: AppColors.secondary,
+        color: context.colors.navyText,
         padding: const EdgeInsets.all(16),
         child: SingleChildScrollView(
           child: Text(content,
@@ -448,7 +449,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
     return AspectRatio(
       aspectRatio: 16 / 9,
       child: Container(
-        color: AppColors.secondary,
+        color: context.colors.navyText,
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(_typeIcon(type), size: 48, color: Colors.white38),
           const SizedBox(height: 8),
@@ -528,7 +529,7 @@ class _LessonsTab extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.secondary,
+                  color: context.colors.navyText,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -553,7 +554,7 @@ class _LessonsTab extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.secondary),
+                          color: context.colors.navyText),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis),
                   if (dur > 0) ...[
@@ -573,7 +574,7 @@ class _LessonsTab extends StatelessWidget {
             style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
-                color: AppColors.secondary)),
+                color: context.colors.navyText)),
         const SizedBox(height: 10),
         if (course != null) _infoRow('Course', course),
         if (section != null) _infoRow('Section', section),
@@ -610,7 +611,7 @@ class _LessonsTab extends StatelessWidget {
                   style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
-                      color: AppColors.secondary))),
+                      color: context.colors.navyText))),
         ]),
       );
 
@@ -645,7 +646,7 @@ class _NotesTab extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: 'Add a note…',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: context.colors.cardBg,
                 contentPadding: const EdgeInsets.all(10),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),

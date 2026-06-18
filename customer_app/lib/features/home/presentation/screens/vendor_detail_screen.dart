@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
@@ -18,7 +19,7 @@ class VendorDetailScreen extends ConsumerWidget {
     final productsAsync = ref.watch(vendorProductsProvider(vendorId));
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      
       body: vendorAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
         error: (e, _) => Center(child: Text(AppErrorHandler.message(e))),
@@ -28,7 +29,7 @@ class VendorDetailScreen extends ConsumerWidget {
             SliverAppBar(
               expandedHeight: 220,
               pinned: true,
-              backgroundColor: AppColors.secondary,
+              backgroundcolor: context.colors.navyText,
               leading: GestureDetector(
                 onTap: () => context.pop(),
                 child: Container(
@@ -149,7 +150,7 @@ class VendorDetailScreen extends ConsumerWidget {
                       child: Column(
                         children: List.generate(4, (_) => Container(
                           height: 90, margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                          decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(12)),
                         )),
                       ),
                     ),

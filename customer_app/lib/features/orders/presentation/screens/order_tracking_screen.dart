@@ -107,7 +107,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             appBar: AppBar(
         title: const Text('Track Order',
             style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: Colors.white,
+        
         foregroundColor: AppColors.textDark,
         elevation: 0,
         surfaceTintColor: Colors.transparent,

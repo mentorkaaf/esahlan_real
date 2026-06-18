@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -69,7 +70,7 @@ class _InstructorApplyScreenState extends ConsumerState<InstructorApplyScreen> {
               const Icon(Icons.check_circle_rounded, color: Colors.green, size: 64),
               const SizedBox(height: 16),
               const Text('Application Submitted!',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.secondary)),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.navyText)),
               const SizedBox(height: 8),
               Text('Admin will review your application within 24 hours.',
                   textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600])),
@@ -100,14 +101,14 @@ class _InstructorApplyScreenState extends ConsumerState<InstructorApplyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        
         elevation: 0,
         title: const Text('Become an Instructor',
-            style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800)),
+            style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w800)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.secondary),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.colors.navyText),
           onPressed: () => context.pop(),
         ),
       ),
@@ -209,7 +210,7 @@ class _InstructorApplyScreenState extends ConsumerState<InstructorApplyScreen> {
 
   Widget _label(String t) => Padding(
         padding: const EdgeInsets.only(bottom: 6, left: 2),
-        child: Text(t, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.secondary, fontSize: 13)),
+        child: Text(t, style: TextStyle(fontWeight: FontWeight.w700, color: context.colors.navyText, fontSize: 13)),
       );
 
   Widget _field(TextEditingController c, String hint,
@@ -223,7 +224,7 @@ class _InstructorApplyScreenState extends ConsumerState<InstructorApplyScreen> {
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: context.colors.cardBg,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[200]!)),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[200]!)),

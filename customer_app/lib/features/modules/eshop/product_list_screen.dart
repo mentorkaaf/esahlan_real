@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
@@ -131,9 +132,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     final cartNotifier = ref.read(eshopCartProvider.notifier);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -166,7 +167,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 suffixIcon: _search.isNotEmpty
                     ? IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () { _searchCtrl.clear(); setState(() { _search = ''; _resetAndReload(); }); })
                     : null,
-                filled: true, fillColor: AppColors.surface,
+                filled: true, fillColor: context.colors.cardBg,
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -217,7 +218,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                   child: const Icon(Icons.search_off_rounded, size: 50, color: AppColors.textGrey),
                 ),
                 const SizedBox(height: 16),
-                const Text('No products found', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.secondary)),
+                Text('No products found', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: context.colors.navyText)),
                 const SizedBox(height: 8),
                 const Text('Try a different category or search term', style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
               ]));
@@ -344,7 +345,7 @@ class _ProductGridCard extends ConsumerWidget {
               },
               child: Container(
                 padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle,
+                decoration: BoxDecoration(color: context.colors.cardBg, shape: BoxShape.circle,
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)]),
                 child: Icon(inWishlist ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                   size: 15, color: inWishlist ? Colors.red : AppColors.textGrey),
@@ -352,7 +353,7 @@ class _ProductGridCard extends ConsumerWidget {
             )),
           ])),
           Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.secondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+            Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: context.colors.navyText), maxLines: 2, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 2),
             _starRow(p['rating']),
             const SizedBox(height: 4),
@@ -404,11 +405,11 @@ class _SortSheet extends StatelessWidget {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
         const SizedBox(height: 20),
-        const Text('Sort By', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: AppColors.secondary)),
+        Text('Sort By', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: context.colors.navyText)),
         const SizedBox(height: 16),
         ...options.map((o) => ListTile(
           leading: Icon(o.$3, color: current == o.$1 ? AppColors.primary : AppColors.textGrey),
-          title: Text(o.$2, style: TextStyle(fontWeight: current == o.$1 ? FontWeight.w700 : FontWeight.w500, color: AppColors.secondary)),
+          title: Text(o.$2, style: TextStyle(fontWeight: current == o.$1 ? FontWeight.w700 : FontWeight.w500, color: context.colors.navyText)),
           trailing: current == o.$1 ? const Icon(Icons.check_circle_rounded, color: AppColors.primary) : null,
           onTap: () { Navigator.pop(context); onSelect(o.$1); },
         )),

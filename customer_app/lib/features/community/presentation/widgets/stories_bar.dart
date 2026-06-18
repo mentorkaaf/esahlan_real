@@ -1,4 +1,5 @@
-﻿import 'dart:typed_data';
+import 'dart:typed_data';
+import '../../../../core/theme/theme_x.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:dio/dio.dart';
@@ -94,7 +95,7 @@ class _AddStoryCard extends ConsumerWidget {
           Stack(children: [
             CircleAvatar(
               radius: 30,
-              backgroundColor: const Color(0xFFF0F2F5),
+              
               backgroundImage: avatar != null ? CachedNetworkImageProvider(avatar!) : null,
               child: avatar == null
                   ? Text(name[0].toUpperCase(),
@@ -351,10 +352,10 @@ class _StoryCard extends StatelessWidget {
             ),
             child: Container(
               padding: const EdgeInsets.all(2),
-              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+              decoration: BoxDecoration(color: context.colors.cardBg, shape: BoxShape.circle),
               child: CircleAvatar(
                 radius: 26,
-                backgroundColor: const Color(0xFFF0F2F5),
+                
                 backgroundImage: avatar != null ? CachedNetworkImageProvider(avatar) : null,
                 child: avatar == null
                     ? Text(group.user.name[0].toUpperCase(),

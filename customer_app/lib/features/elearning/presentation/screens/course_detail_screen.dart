@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -192,7 +193,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
     final detailAsync = ref.watch(courseDetailProvider(widget.slug));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      
       body: detailAsync.when(
         loading: () =>
             const Center(child: CircularProgressIndicator(color: AppColors.primary)),
@@ -228,23 +229,23 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
               // ── AppBar: white bg, back arrow, title, share + heart ────────
               SliverAppBar(
                 pinned: true,
-                backgroundColor: Colors.white,
+                
                 elevation: 0.5,
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                      color: AppColors.secondary, size: 20),
+                      color: context.colors.navyText, size: 20),
                   onPressed: () => context.pop(),
                 ),
                 title: const Text(
                   'Course Details',
                   style: TextStyle(
-                      color: AppColors.secondary,
+                      color: context.colors.navyText,
                       fontWeight: FontWeight.w700,
                       fontSize: 16),
                 ),
                 actions: [
                   IconButton(
-                    icon: const Icon(Icons.share_outlined, color: AppColors.secondary),
+                    icon: Icon(Icons.share_outlined, color: context.colors.navyText),
                     onPressed: () {},
                   ),
                   IconButton(
@@ -295,7 +296,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                                                   shape: BoxShape.circle,
                                                 ),
                                                 child: const Icon(Icons.play_arrow_rounded,
-                                                    color: AppColors.secondary, size: 36),
+                                                    color: context.colors.navyText, size: 36),
                                               ),
                                       ),
                                     ),
@@ -339,7 +340,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                         style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.secondary),
+                            color: context.colors.navyText),
                       ),
                       const SizedBox(height: 14),
 
@@ -351,7 +352,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                             backgroundImage: course.instructor!.avatar != null
                                 ? NetworkImage(course.instructor!.avatar!)
                                 : null,
-                            backgroundColor: AppColors.secondary,
+                            backgroundcolor: context.colors.navyText,
                             child: course.instructor!.avatar == null
                                 ? Text(course.instructor!.name[0],
                                     style:
@@ -366,7 +367,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                                   style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
-                                      color: AppColors.secondary)),
+                                      color: context.colors.navyText)),
                               Text('Instructor',
                                   style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                             ],
@@ -383,7 +384,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                               style: const TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.secondary)),
+                                  color: context.colors.navyText)),
                           const SizedBox(width: 4),
                           Text('(${course.totalReviews} Reviews)',
                               style: TextStyle(fontSize: 13, color: Colors.grey[500])),
@@ -458,7 +459,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                               style: const TextStyle(
                                   fontSize: 26,
                                   fontWeight: FontWeight.w900,
-                                  color: AppColors.secondary),
+                                  color: context.colors.navyText),
                             ),
                             if (course.discountPrice != null) ...[
                               const SizedBox(width: 10),
@@ -576,7 +577,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
   }
 
   Widget _thumbnailPlaceholder() => Container(
-        color: AppColors.secondary,
+        color: context.colors.navyText,
         child: const Icon(Icons.school_rounded, size: 60, color: Colors.white30),
       );
 }
@@ -605,7 +606,7 @@ class _StatBox extends StatelessWidget {
               style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.secondary)),
+                  color: context.colors.navyText)),
           const SizedBox(height: 2),
           Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
         ],
@@ -631,7 +632,7 @@ class _OverviewTab extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.secondary)),
+                    color: context.colors.navyText)),
             const SizedBox(height: 8),
             Text(course.description!,
                 style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.6)),
@@ -642,7 +643,7 @@ class _OverviewTab extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.secondary)),
+                    color: context.colors.navyText)),
             const SizedBox(height: 10),
             ...course.learningOutcomes.map((o) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -659,7 +660,7 @@ class _OverviewTab extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.secondary)),
+                    color: context.colors.navyText)),
             const SizedBox(height: 10),
             ...course.requirements.map((r) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -718,7 +719,7 @@ class _CurriculumTabState extends State<_CurriculumTab> {
                     style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
-                        color: AppColors.secondary)),
+                        color: context.colors.navyText)),
                 subtitle: Text('${section.lessons.length} lessons',
                     style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                 trailing: Icon(isOpen
@@ -824,7 +825,7 @@ class _ReviewsTab extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 48,
                         fontWeight: FontWeight.w900,
-                        color: AppColors.secondary)),
+                        color: context.colors.navyText)),
                 Row(
                     children: List.generate(
                         5,
@@ -851,7 +852,7 @@ class _ReviewsTab extends StatelessWidget {
                 Row(children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: AppColors.secondary,
+                    backgroundcolor: context.colors.navyText,
                     child: Text((r.user['name'] as String? ?? '?')[0],
                         style: const TextStyle(color: Colors.white, fontSize: 12)),
                   ),
@@ -955,7 +956,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
                 style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.secondary)),
+                    color: context.colors.navyText)),
             const SizedBox(height: 4),
             Text('Dooro hab lacag bixinta',
                 style: TextStyle(color: Colors.grey[500], fontSize: 13)),
@@ -1040,7 +1041,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
                     hintText: 'e.g. 252615xxxxxx',
                     prefixIcon: const Icon(Icons.phone_rounded, size: 18),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: context.colors.cardBg,
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide(color: Colors.grey[300]!)),

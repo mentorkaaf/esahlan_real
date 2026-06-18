@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -72,13 +73,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     final quizAsync = ref.watch(quizProvider(widget.quizId));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        
         elevation: 0,
-        title: const Text('Quiz', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800)),
+        title: Text('Quiz', style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w800)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.secondary),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.colors.navyText),
           onPressed: () => context.pop(),
         ),
       ),
@@ -113,7 +114,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 child: Column(
                   children: [
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text(quiz.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.secondary)),
+                      Text(quiz.title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: context.colors.navyText)),
                       if (quiz.timeLimitMinutes != null)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -166,7 +167,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                           borderRadius: BorderRadius.circular(14),
                           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
                         ),
-                        child: Text(question.question, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.secondary, height: 1.5)),
+                        child: Text(question.question, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.colors.navyText, height: 1.5)),
                       ),
                       const SizedBox(height: 20),
 
@@ -189,7 +190,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                         })
                       else ...[
                         Container(
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                          decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(12)),
                           child: TextField(
                             maxLines: 4,
                             onChanged: (v) => _answers[question.id] = v,
@@ -217,7 +218,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                         child: OutlinedButton(
                           onPressed: () => setState(() => _currentIndex--),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.secondary,
+                            foregroundcolor: context.colors.navyText,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -334,7 +335,7 @@ class _ResultView extends StatelessWidget {
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
               _ResultStat(label: 'Score', value: '${result.score.toStringAsFixed(1)}%', color: result.passed ? Colors.green : Colors.red),
               _ResultStat(label: 'Pass Mark', value: '${result.passScore}%', color: AppColors.primary),
-              _ResultStat(label: 'Attempts', value: '${result.attemptsUsed}/${result.attemptsMax}', color: AppColors.secondary),
+              _ResultStat(label: 'Attempts', value: '${result.attemptsUsed}/${result.attemptsMax}', color: context.colors.navyText),
             ]),
           ),
           const SizedBox(height: 24),
@@ -376,7 +377,7 @@ class _ResultView extends StatelessWidget {
               Expanded(
                 child: OutlinedButton(
                   onPressed: onRetry,
-                  style: OutlinedButton.styleFrom(foregroundColor: AppColors.secondary, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  style: OutlinedButton.styleFrom(foregroundcolor: context.colors.navyText, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                   child: const Text('Retry Quiz'),
                 ),
               ),

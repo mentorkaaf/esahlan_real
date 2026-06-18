@@ -34,7 +34,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
     return Scaffold(
             appBar: AppBar(
         title: const Text('My Orders', style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: Colors.white,
+        
         foregroundColor: AppColors.textDark,
         elevation: 0,
         surfaceTintColor: Colors.transparent,

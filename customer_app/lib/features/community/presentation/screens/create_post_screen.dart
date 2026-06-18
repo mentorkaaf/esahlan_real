@@ -1,4 +1,5 @@
-﻿import 'dart:typed_data';
+import 'dart:typed_data';
+import '../../../../core/theme/theme_x.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:dio/dio.dart';
@@ -92,9 +93,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     final name = myProfile.valueOrNull?.name ?? 'You';
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close_rounded, color: Color(0xFF1A1B2E)),
@@ -132,7 +133,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               Row(children: [
                 CircleAvatar(
                   radius: 22,
-                  backgroundColor: const Color(0xFFF0F2F5),
+                  
                   backgroundImage: avatar != null ? CachedNetworkImageProvider(avatar) : null,
                   child: avatar == null ? Text(name[0].toUpperCase(),
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)) : null,

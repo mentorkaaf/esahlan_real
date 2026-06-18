@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -14,13 +15,13 @@ class ELearningCertificateScreen extends ConsumerWidget {
     final certsAsync = ref.watch(myCertificatesProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        
         elevation: 0,
-        title: const Text('Certificate', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800)),
+        title: Text('Certificate', style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w800)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.secondary),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.colors.navyText),
           onPressed: () => context.pop(),
         ),
       ),
@@ -69,7 +70,7 @@ class _CertificateView extends StatelessWidget {
                 ),
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
-                  BoxShadow(color: AppColors.secondary.withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 8)),
+                  BoxShadow(color: context.colors.navyText.withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 8)),
                 ],
               ),
               child: Stack(
@@ -170,7 +171,7 @@ class _CertificateView extends StatelessWidget {
                     icon: const Icon(Icons.share_rounded),
                     label: const Text('Share'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.secondary,
+                      foregroundcolor: context.colors.navyText,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),

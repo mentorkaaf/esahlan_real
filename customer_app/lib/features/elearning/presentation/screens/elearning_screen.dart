@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -55,23 +56,23 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      
       body: CustomScrollView(
         slivers: [
           // ── App Bar ────────────────────────────────────────────────────────
           SliverAppBar(
             pinned: true,
-            backgroundColor: Colors.white,
+            
             elevation: 0,
             title: const Text(
               'eLearning',
-              style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 20),
+              style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w800, fontSize: 20),
             ),
             actions: [
               _AppBarAction(
                 icon: Icons.cast_for_education_rounded,
                 label: 'Teach',
-                color: AppColors.secondary,
+                color: context.colors.navyText,
                 onTap: () => context.push('/elearning/instructor'),
               ),
               _AppBarAction(
@@ -110,7 +111,7 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
                               )
                             : null,
                         filled: true,
-                        fillColor: const Color(0xFFF5F6FA),
+                        fillColor: context.colors.cardBg,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
@@ -265,7 +266,7 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
                 children: [
                   const Text(
                     'Popular Courses',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.secondary),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.navyText),
                   ),
                   const Spacer(),
                   TextButton(
@@ -456,7 +457,7 @@ class _CourseCard extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.secondary,
+                        color: context.colors.navyText,
                         height: 1.3),
                   ),
                   const SizedBox(height: 6),
@@ -469,7 +470,7 @@ class _CourseCard extends StatelessWidget {
                           backgroundImage: course.instructor!.avatar != null
                               ? NetworkImage(course.instructor!.avatar!)
                               : null,
-                          backgroundColor: AppColors.secondary,
+                          backgroundcolor: context.colors.navyText,
                           child: course.instructor!.avatar == null
                               ? Text(course.instructor!.name[0],
                                   style: const TextStyle(color: Colors.white, fontSize: 8))

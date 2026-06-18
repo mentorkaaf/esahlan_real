@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -123,7 +124,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
             child: const Icon(Icons.check_circle_rounded, size: 50, color: AppColors.success),
           ),
           const SizedBox(height: 20),
-          const Text('Order Placed!', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: AppColors.secondary)),
+          Text('Order Placed!', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: context.colors.navyText)),
           const SizedBox(height: 8),
           const Text('Your order has been placed successfully. You will receive a confirmation shortly.',
             textAlign: TextAlign.center, style: TextStyle(color: AppColors.textGrey, fontSize: 13, height: 1.5)),
@@ -151,9 +152,9 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
     final total = subtotal - discount + _deliveryFee;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20), onPressed: () => context.pop()),
         title: const Text('Checkout', style: TextStyle(fontWeight: FontWeight.w800, fontFamily: 'Cairo')),
@@ -186,7 +187,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
               ),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(item.product['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.secondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(item.product['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText), maxLines: 1, overflow: TextOverflow.ellipsis),
                 if (item.variant != null) Container(
                   margin: const EdgeInsets.only(top: 3),
                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -212,7 +213,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
           _row('Delivery Fee', '\$${_deliveryFee.toStringAsFixed(2)}'),
           const Divider(height: 16),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('Total', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.secondary)),
+            Text('Total', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: context.colors.navyText)),
             Text('\$${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: AppColors.primary)),
           ]),
         ]),
@@ -252,7 +253,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
       Row(children: [
         Icon(icon, size: 18, color: AppColors.primary),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.secondary)),
+        Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
       ]),
       const SizedBox(height: 16),
       ...children,
@@ -266,7 +267,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
     decoration: InputDecoration(
       hintText: hint,
       prefixIcon: Icon(icon, size: 18, color: AppColors.textGrey),
-      filled: true, fillColor: AppColors.surface,
+      filled: true, fillColor: context.colors.cardBg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -81,9 +82,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     final isLoading = otpState.isLoading;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      
       appBar: AppBar(
-        backgroundColor: Colors.white, elevation: 0,
+         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textDark, size: 20),
           onPressed: () => context.pop(),
@@ -197,7 +198,7 @@ class _OtpBox extends StatelessWidget {
         decoration: InputDecoration(
           counterText: '',
           filled: true,
-          fillColor: AppColors.surface,
+          fillColor: context.colors.cardBg,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.divider)),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.divider)),
           focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),

@@ -140,7 +140,7 @@ class _BuyDataTab extends ConsumerWidget {
         delegate: SliverChildBuilderDelegate(
           (_, __) => Shimmer.fromColors(
             baseColor: Colors.grey.shade200, highlightColor: Colors.grey.shade50,
-            child: Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20))),
+            child: Container(decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(20))),
           ),
           childCount: 4,
         ),
@@ -518,7 +518,7 @@ class _PackagesStep extends ConsumerWidget {
     itemCount: 4,
     itemBuilder: (_, __) => Shimmer.fromColors(
       baseColor: Colors.grey.shade200, highlightColor: Colors.grey.shade50,
-      child: Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20))),
+      child: Container(decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(20))),
     ),
   );
 }
@@ -771,7 +771,7 @@ class _BundleSkeleton extends StatelessWidget {
     child: Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       height: 140,
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+      decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(18)),
     ),
   );
 }
@@ -1196,7 +1196,7 @@ class _HistorySkeleton extends StatelessWidget {
     child: Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       height: 80,
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16)),
     ),
   );
 }
