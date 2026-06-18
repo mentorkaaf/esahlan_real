@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -123,7 +123,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
             decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: const Icon(Icons.check_circle_rounded, size: 50, color: AppColors.success),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           Text('Order Placed!', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: context.colors.navyText)),
           const SizedBox(height: 8),
           const Text('Your order has been placed successfully. You will receive a confirmation shortly.',
@@ -185,7 +185,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
                         errorBuilder: (_, __, ___) => Container(width: 50, height: 50, color: AppColors.surface))
                     : Container(width: 50, height: 50, color: AppColors.surface),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(item.product['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText), maxLines: 1, overflow: TextOverflow.ellipsis),
                 if (item.variant != null) Container(
@@ -252,7 +252,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         Icon(icon, size: 18, color: AppColors.primary),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
       ]),
       const SizedBox(height: 16),

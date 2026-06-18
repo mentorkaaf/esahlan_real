@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -64,7 +64,7 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
             pinned: true,
             
             elevation: 0,
-            title: const Text(
+            title: Text(
               'eLearning',
               style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w800, fontSize: 20),
             ),
@@ -264,7 +264,7 @@ class _ELearningScreenState extends ConsumerState<ELearningScreen> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Row(
                 children: [
-                  const Text(
+                  Text(
                     'Popular Courses',
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.navyText),
                   ),
@@ -454,7 +454,7 @@ class _CourseCard extends StatelessWidget {
                     course.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
                         color: context.colors.navyText,
@@ -470,7 +470,7 @@ class _CourseCard extends StatelessWidget {
                           backgroundImage: course.instructor!.avatar != null
                               ? NetworkImage(course.instructor!.avatar!)
                               : null,
-                          backgroundcolor: context.colors.navyText,
+                          backgroundColor: context.colors.navyText,
                           child: course.instructor!.avatar == null
                               ? Text(course.instructor!.name[0],
                                   style: const TextStyle(color: Colors.white, fontSize: 8))

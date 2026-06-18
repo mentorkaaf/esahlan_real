@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -76,9 +76,9 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
             controller: _searchCtrl,
             onChanged: (v) => setState(() => _search = v),
             decoration: InputDecoration(
-              hintText: 'Search groceries...', hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
-              prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textGrey, size: 20),
-              suffixIcon: _search.isNotEmpty ? IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () { _searchCtrl.clear(); setState(() => _search = ''); }) : null,
+              hintText: 'Search groceries...', hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 13),
+              prefixIcon: Icon(Icons.search_rounded, color: AppColors.textGrey, size: 20),
+              suffixIcon: _search.isNotEmpty ? IconButton(icon: Icon(Icons.close, size: 16), onPressed: () { _searchCtrl.clear(); setState(() => _search = ''); }) : null,
               filled: true, fillColor: context.colors.cardBg,
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -152,8 +152,8 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
                     Expanded(child: ClipRRect(borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                       child: p['image'] != null
                           ? Image.network(fixImgUrl(p['image']), fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-                              errorBuilder: (_, __, ___) => Container(color: AppColors.surface, child: const Icon(Icons.local_grocery_store_outlined, size: 40, color: AppColors.divider)))
-                          : Container(color: AppColors.surface, child: const Icon(Icons.local_grocery_store_outlined, size: 40, color: AppColors.divider)),
+                              errorBuilder: (_, __, ___) => Container(color: AppColors.surface, child: Icon(Icons.local_grocery_store_outlined, size: 40, color: AppColors.divider)))
+                          : Container(color: AppColors.surface, child: Icon(Icons.local_grocery_store_outlined, size: 40, color: AppColors.divider)),
                     )),
                     Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: context.colors.navyText), maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -165,11 +165,11 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
                         qty == 0
                             ? GestureDetector(onTap: () => setState(() => _cart[p['id']] = 1),
                                 child: Container(width: 28, height: 28, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
-                                    child: const Icon(Icons.add, color: Colors.white, size: 16)))
+                                    child: Icon(Icons.add, color: Colors.white, size: 16)))
                             : Row(mainAxisSize: MainAxisSize.min, children: [
                                 GestureDetector(onTap: () => setState(() { if (qty > 1) _cart[p['id']] = qty - 1; else _cart.remove(p['id']); }),
                                     child: Container(width: 24, height: 24, decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                                        child: const Icon(Icons.remove, color: AppColors.primary, size: 14))),
+                                        child: Icon(Icons.remove, color: AppColors.primary, size: 14))),
                                 Padding(padding: const EdgeInsets.symmetric(horizontal: 6),
                                     child: Text('$qty', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: context.colors.navyText))),
                                 GestureDetector(onTap: () => setState(() => _cart[p['id']] = qty + 1),
@@ -239,7 +239,7 @@ class _GroceryCartSheetState extends State<_GroceryCartSheet> {
               ClipRRect(borderRadius: BorderRadius.circular(8), child: p['image'] != null
                   ? Image.network(p['image'], width: 48, height: 48, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(width: 48, height: 48, color: AppColors.surface))
                   : Container(width: 48, height: 48, color: AppColors.surface)),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               Expanded(child: Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText))),
               Text('\$${((p['price'] as num).toDouble() * e.value).toStringAsFixed(2)}',
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.primary)),
@@ -252,9 +252,9 @@ class _GroceryCartSheetState extends State<_GroceryCartSheet> {
           _row('Delivery Fee', '\$${deliveryFee.toStringAsFixed(2)}'),
           const SizedBox(height: 4),
           _row('Total', '\$${total.toStringAsFixed(2)}', bold: true),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           TextField(controller: _addrCtrl, onChanged: (_) => setState(() {}), decoration: InputDecoration(
-              labelText: 'Delivery Address', prefixIcon: const Icon(Icons.location_on_outlined, color: AppColors.textGrey, size: 20),
+              labelText: 'Delivery Address', prefixIcon: Icon(Icons.location_on_outlined, color: AppColors.textGrey, size: 20),
               filled: true, fillColor: context.colors.cardBg,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),
               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)))),

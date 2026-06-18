@@ -181,7 +181,7 @@ class _BrowseTabState extends ConsumerState<_BrowseTab> {
             child: Row(children: [
               Container(width: 4, height: 18,
                   decoration: BoxDecoration(color: _kOrange, borderRadius: BorderRadius.circular(2))),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Text('Browse by District',
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: context.colors.navyText)),
             ]),
@@ -267,7 +267,7 @@ class _SearchSection extends StatelessWidget {
         Row(children: [
           Container(width: 4, height: 16,
               decoration: BoxDecoration(color: _kOrange, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Text('Search Properties', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.colors.navyText)),
         ]),
         const SizedBox(height: 12),
@@ -429,7 +429,7 @@ class _BottomSheetPicker extends StatelessWidget {
       const SizedBox(height: 12),
       Container(width: 40, height: 4,
           decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
-      const SizedBox(height: 16),
+      SizedBox(height: 16),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Align(
@@ -613,7 +613,7 @@ class _PropertyListScreenState extends ConsumerState<_PropertyListScreen> {
             appBar: AppBar(
         backgroundColor: context.colors.navyText, foregroundColor: Colors.white,
         title: Text(widget.district['name'] ?? '',
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(52),
           child: Container(
@@ -712,7 +712,7 @@ class _PropertyGridCard extends StatelessWidget {
                         errorWidget: Container(color: Colors.grey.shade100,
                             child: const Icon(Icons.home_outlined, color: Colors.grey)))
                     : Container(color: Colors.grey.shade100,
-                        child: const Icon(Icons.home_outlined, color: Colors.grey)),
+                        child: Icon(Icons.home_outlined, color: Colors.grey)),
               ),
             ),
             // Type badge
@@ -779,7 +779,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
   Widget build(BuildContext context) {
     final async = ref.watch(_propertyProvider(widget.propertyId));
     return async.when(
-      loading: () => Scaffold(backgroundColor: _kBg, body: const Center(child: CircularProgressIndicator(color: _kOrange))),
+      loading: () => Scaffold(backgroundColor: _kBg, body: Center(child: CircularProgressIndicator(color: _kOrange))),
       error: (e, _) => Scaffold(appBar: AppBar(backgroundColor: context.colors.navyText, foregroundColor: Colors.white),
           body: _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_propertyProvider(widget.propertyId)))),
       data: (data) {
@@ -892,7 +892,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                           style: const TextStyle(color: _kMuted, fontSize: 13)),
                     ]),
 
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
 
                     // Room grid
                     Container(
@@ -961,7 +961,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                         ),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
                           const Icon(Icons.check_circle_rounded, size: 14, color: _kOrange),
-                          const SizedBox(width: 6),
+                          SizedBox(width: 6),
                           Text(a.toString(), style: TextStyle(fontSize: 12, color: context.colors.navyText, fontWeight: FontWeight.w600)),
                         ]),
                       )).toList()),
@@ -970,7 +970,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
 
                     // Pricing
                     const _SectionTitle(title: 'Pricing'),
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16),
@@ -1024,7 +1024,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
           bottomNavigationBar: isBooked
               ? Container(
                   padding: const EdgeInsets.all(16), color: context.colors.cardBg,
-                  child: const Text('⚠️ This property is currently reserved',
+                  child: Text('⚠️ This property is currently reserved',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w700, fontSize: 15)))
               : Container(
@@ -1042,7 +1042,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                             style: const TextStyle(fontSize: 11)),
                       ]),
                     )),
-                    const SizedBox(width: 10),
+                    SizedBox(width: 10),
                     Expanded(child: ElevatedButton(
                       onPressed: () => _showBookSheet(context, p, true),
                       style: ElevatedButton.styleFrom(
@@ -1083,7 +1083,7 @@ class _RoomStat extends StatelessWidget {
     Container(width: 40, height: 40,
         decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
         child: Icon(icon, color: color, size: 20)),
-    const SizedBox(height: 6),
+    SizedBox(height: 6),
     Text(value, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
     Text(label, style: const TextStyle(fontSize: 10, color: _kMuted)),
   ]));
@@ -1096,7 +1096,7 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(children: [
     Container(width: 4, height: 18, decoration: BoxDecoration(color: _kOrange, borderRadius: BorderRadius.circular(2))),
-    const SizedBox(width: 8),
+    SizedBox(width: 8),
     Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: context.colors.navyText)),
   ]);
 }
@@ -1223,7 +1223,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
           decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
           child: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 54),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         Text(
           _isCarbuun ? '🏠 Property Reserved!' : '✅ Booking Submitted!',
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: context.colors.navyText),
@@ -1282,7 +1282,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
             child: Icon(_isCarbuun ? Icons.lock_clock_rounded : Icons.home_rounded,
                 color: _accentColor, size: 26),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(widget.property['title'] ?? '',
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText),
@@ -1378,7 +1378,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
         maxLines: 2,
         decoration: InputDecoration(
           hintText: 'Optional note for landlord...',
-          prefixIcon: const Icon(Icons.note_alt_outlined, color: _kMuted),
+          prefixIcon: Icon(Icons.note_alt_outlined, color: _kMuted),
           filled: true, fillColor: context.colors.cardBg,
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
@@ -1406,7 +1406,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
             selected: _payMethod == 'waafi_pay', color: const Color(0xFFFF8A00),
             onTap: () => setState(() => _payMethod = 'waafi_pay'))),
       ]),
-      const SizedBox(height: 24),
+      SizedBox(height: 24),
 
       // Confirm button
       Container(
@@ -1559,7 +1559,7 @@ class _BookingCard extends StatelessWidget {
               child: Icon(isCarbuun ? Icons.lock_clock_rounded : Icons.home_rounded,
                   color: isCarbuun ? _kOrange : _kNavy, size: 22),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(booking['property_title'] ?? '', style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText, fontSize: 15),
                   overflow: TextOverflow.ellipsis),
@@ -1612,8 +1612,8 @@ class _BookingCard extends StatelessWidget {
                 Expanded(child: ElevatedButton.icon(
                   onPressed: () => Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
                     builder: (_) => _PayRemainingScreen(booking: booking))),
-                  icon: const Icon(Icons.payment_rounded, size: 16),
-                  label: const Text('Pay Remaining'),
+                  icon: Icon(Icons.payment_rounded, size: 16),
+                  label: Text('Pay Remaining'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: context.colors.navyText, foregroundColor: Colors.white,
                     minimumSize: const Size(0, 42),
@@ -1754,7 +1754,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
           decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
           child: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 54),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         Text('🏠 Full Rental Confirmed!',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: context.colors.navyText),
             textAlign: TextAlign.center),
@@ -1762,7 +1762,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
         Text('Remaining \$${_remaining.toStringAsFixed(2)} paid.\nWelcome to your new home!',
             style: const TextStyle(color: _kMuted, fontSize: 14, height: 1.6),
             textAlign: TextAlign.center),
-        const SizedBox(height: 32),
+        SizedBox(height: 32),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
@@ -1797,7 +1797,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
                 color: context.colors.navyText.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
               child: Icon(Icons.home_rounded, color: context.colors.navyText, size: 24),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(widget.booking['property_title'] ?? '',
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText),
@@ -1813,7 +1813,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
           _BalanceRow(label: 'Already Paid (30%)',
               value: '\$${(widget.booking['amount_paid'] as num?)?.toStringAsFixed(2) ?? '0'}',
               color: Colors.green),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           _BalanceRow(label: 'Remaining Balance (70%)',
               value: '\$${_remaining.toStringAsFixed(2)}',
               color: context.colors.navyText, bold: true, large: true),
@@ -1824,7 +1824,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
       ),
       const SizedBox(height: 20),
       const _SectionTitle(title: 'Payment Method'),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       Row(children: [
         Expanded(child: _PayBtn(
             label: 'Wallet', icon: Icons.account_balance_wallet_outlined,
@@ -1836,7 +1836,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
             selected: _payMethod == 'waafi_pay', color: const Color(0xFFFF8A00),
             onTap: () => setState(() => _payMethod = 'waafi_pay'))),
       ]),
-      const SizedBox(height: 24),
+      SizedBox(height: 24),
       // Confirm
       Container(
         padding: const EdgeInsets.all(20),
@@ -1846,11 +1846,11 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
         ),
         child: Column(children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('Amount Due', style: TextStyle(color: _kMuted, fontSize: 13)),
+            Text('Amount Due', style: TextStyle(color: _kMuted, fontSize: 13)),
             Text('\$${_remaining.toStringAsFixed(2)}',
                 style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: context.colors.navyText)),
           ]),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -1896,7 +1896,7 @@ class _BookingDetail extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
     Text(label, style: const TextStyle(fontSize: 10, color: _kMuted, fontWeight: FontWeight.w600)),
-    const SizedBox(height: 2),
+    SizedBox(height: 2),
     Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText)),
   ]);
 }
@@ -1931,7 +1931,7 @@ class _EmptyState extends StatelessWidget {
         Container(width: 80, height: 80,
             decoration: BoxDecoration(color: _kOrange.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: Icon(icon, size: 40, color: _kOrange)),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.navyText)),
         const SizedBox(height: 8),
         Text(subtitle, style: const TextStyle(color: _kMuted, fontSize: 14), textAlign: TextAlign.center),

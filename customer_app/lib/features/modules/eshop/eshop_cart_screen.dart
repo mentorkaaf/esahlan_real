@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -71,7 +71,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                 decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(60)),
                 child: const Icon(Icons.shopping_bag_outlined, size: 60, color: AppColors.textGrey),
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
               Text('Your cart is empty', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: context.colors.navyText)),
               const SizedBox(height: 8),
               const Text('Add products to get started', style: TextStyle(color: AppColors.textGrey, fontSize: 14)),
@@ -110,7 +110,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                                 errorBuilder: (_, __, ___) => Container(width: 72, height: 72, color: AppColors.surface, child: const Icon(Icons.image_outlined, color: AppColors.divider)))
                             : Container(width: 72, height: 72, color: AppColors.surface, child: const Icon(Icons.image_outlined, color: AppColors.divider)),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText), maxLines: 2, overflow: TextOverflow.ellipsis),
                         if (item.variant != null) Text(item.variant!['name'] ?? '', style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
@@ -185,7 +185,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
                 ),
                 child: Column(children: [
-                  const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                     Text('Order Summary', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
                   ]),
                   const SizedBox(height: 16),

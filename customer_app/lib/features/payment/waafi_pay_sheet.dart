@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import '../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import '../../core/api/module_api_service.dart';
@@ -179,7 +179,7 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
           ),
           child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 24),
         ),
-        const SizedBox(width: 14),
+        SizedBox(width: 14),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Waafi Pay', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: context.colors.navyText)),
@@ -280,7 +280,7 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
           ),
           child: const Icon(Icons.phone_in_talk_rounded, size: 40, color: Color(0xFFF57F17)),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Text('Check Your Phone', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: context.colors.navyText)),
         const SizedBox(height: 8),
         Text(_message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textGrey, fontSize: 14)),
@@ -306,7 +306,7 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
           decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
           child: Icon(Icons.check_circle_rounded, size: 56, color: Colors.green.shade600),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Text('Payment Successful!', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: context.colors.navyText)),
         const SizedBox(height: 8),
         Text('\$${widget.amount.toStringAsFixed(2)} paid via Waafi Pay',
@@ -336,7 +336,7 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
           decoration: BoxDecoration(color: Colors.red.shade50, shape: BoxShape.circle),
           child: Icon(Icons.cancel_rounded, size: 56, color: Colors.red.shade600),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Text('Payment Failed', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: context.colors.navyText)),
         const SizedBox(height: 8),
         Text(_message, textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade700, fontSize: 13)),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -208,7 +208,7 @@ class _OrderDetailBody extends StatelessWidget {
                           : Icons.payments_outlined,
                       color: _amber, size: 22),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(order.paymentMethod?.toUpperCase() ?? 'CASH',
                       style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.navyText)),
@@ -430,7 +430,7 @@ class _DetailCard extends StatelessWidget {
             decoration: BoxDecoration(color: _amber.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
             child: Icon(icon, size: 16, color: _amber),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: context.colors.navyText)),
         ]),
       ),

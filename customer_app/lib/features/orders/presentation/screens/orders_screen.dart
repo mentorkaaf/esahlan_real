@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
@@ -70,7 +70,7 @@ class _OrdersList extends ConsumerWidget {
       loading: () => ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: 4,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (_, __) => SizedBox(height: 12),
         itemBuilder: (_, __) => Shimmer.fromColors(
           baseColor: Colors.grey.shade200,
           highlightColor: Colors.grey.shade100,

@@ -2336,7 +2336,7 @@ class _SuccessScreen extends StatelessWidget {
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: Text('View My Orders',

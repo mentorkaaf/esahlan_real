@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/module_api_service.dart';
@@ -374,12 +374,12 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                 children: [
                   Row(children: [
                     Text('eSahlan', style: TextStyle(color: _primary, fontWeight: FontWeight.w800, fontSize: 15)),
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     Text('Sahlan', style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w800, fontSize: 15)),
                   ]),
                   Row(children: [
                     const Icon(Icons.location_on_rounded, color: _primary, size: 13),
-                    const SizedBox(width: 2),
+                    SizedBox(width: 2),
                     Text('Mogadishu', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: context.colors.bodyText)),
                     Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: context.colors.mutedText),
                   ]),
@@ -427,9 +427,9 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
               boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10)],
             ),
             child: Row(children: [
-              const SizedBox(width: 14),
+              SizedBox(width: 14),
               Icon(Icons.search_rounded, color: context.colors.mutedText),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Text('Search for food or restaurants...', style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
             ]),
           ),
@@ -488,7 +488,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                           ? ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.network(fixImgUrl(c['image']), fit: BoxFit.cover))
                           : const Center(child: Icon(Icons.fastfood_rounded, color: _primary, size: 24)),
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6),
                     Text(name, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: sel ? _primary : context.colors.bodyText), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                   ]),
                 );
@@ -809,8 +809,8 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
           decoration: InputDecoration(
             hintText: 'Search restaurants, food...',
             hintStyle: TextStyle(color: context.colors.mutedText, fontSize: 14),
-            prefixIcon: const Icon(Icons.search_rounded, color: _primary),
-            suffixIcon: _query.isNotEmpty ? IconButton(icon: const Icon(Icons.clear), onPressed: () { _ctrl.clear(); setState(() => _query = ''); }) : null,
+            prefixIcon: Icon(Icons.search_rounded, color: _primary),
+            suffixIcon: _query.isNotEmpty ? IconButton(icon: Icon(Icons.clear), onPressed: () { _ctrl.clear(); setState(() => _query = ''); }) : null,
             filled: true, fillColor: context.colors.inputFill,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
             contentPadding: const EdgeInsets.symmetric(vertical: 14),
@@ -854,7 +854,7 @@ class _RestaurantListTile extends StatelessWidget {
             width: 90, height: 80, radius: 16,
             fallback: Container(width: 90, height: 80, color: _primary.withValues(alpha: 0.1), child: const Center(child: Icon(Icons.restaurant_rounded, color: _primary, size: 30))),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -966,7 +966,7 @@ class _RestaurantDetailPageState extends ConsumerState<_RestaurantDetailPage> wi
               // ── Restaurant name, logo, rating ─────────────────────
               Row(children: [
                 _NetImg(url: r['logo'], width: 56, height: 56, radius: 12, fallback: const Icon(Icons.restaurant_rounded, color: _primary, size: 28)),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(r['name'] ?? '', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.navyText)),
                   Text(r['cuisine_type'] ?? r['description'] ?? 'Restaurant', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
@@ -1032,7 +1032,7 @@ class _RestaurantDetailPageState extends ConsumerState<_RestaurantDetailPage> wi
                 onSelect: (catId) => setState(() => _selectedCatId = catId),
               ),
 
-              const SizedBox(height: 14),
+              SizedBox(height: 14),
               // ── Search inside restaurant ───────────────────────────
               Container(
                 height: 42,
@@ -1233,7 +1233,7 @@ class _CategoriesFilter extends ConsumerWidget {
         if (list.isEmpty) return const SizedBox.shrink();
 
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           Text('Menu Categories', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText)),
           const SizedBox(height: 8),
           SizedBox(
@@ -1315,7 +1315,7 @@ class _CouponsStrip extends ConsumerWidget {
           const SizedBox(height: 14),
           Row(children: [
             const Icon(Icons.local_offer_rounded, color: _primary, size: 16),
-            const SizedBox(width: 6),
+            SizedBox(width: 6),
             Text('Offers & Coupons', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText)),
           ]),
           const SizedBox(height: 8),

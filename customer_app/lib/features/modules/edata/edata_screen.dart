@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -264,7 +264,7 @@ class _ProviderCard extends StatelessWidget {
                   : Icon(Icons.sim_card_rounded, color: _color, size: 32),
             ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Text(name,
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText),
               textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -693,7 +693,7 @@ class _BundleCard extends StatelessWidget {
                 // Price
                 Text('\$${price.toStringAsFixed(2)}',
                     style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _kOrange)),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 // Description
                 if (desc.isNotEmpty) ...[
                   Text(desc,
@@ -867,7 +867,7 @@ class _OrderSummaryStep extends StatelessWidget {
           ]),
         ),
 
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
 
         // ── Phone Number ──
         Container(
@@ -878,17 +878,17 @@ class _OrderSummaryStep extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Data Destination', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text('Phone number that will receive the data',
                 style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
             const SizedBox(height: 12),
             TextField(
               controller: phoneCtrl,
               keyboardType: TextInputType.phone,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
               decoration: InputDecoration(
                 hintText: '061XXXXXXX',
-                prefixIcon: const Icon(Icons.phone_rounded, color: _kOrange),
+                prefixIcon: Icon(Icons.phone_rounded, color: _kOrange),
                 filled: true, fillColor: context.colors.inputFill,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -899,7 +899,7 @@ class _OrderSummaryStep extends StatelessWidget {
           ]),
         ),
 
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
 
         // ── Payment Method ──
         Container(
@@ -932,7 +932,7 @@ class _OrderSummaryStep extends StatelessWidget {
           ]),
         ),
 
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
 
         // ── Price breakdown ──
         Container(
@@ -1046,7 +1046,7 @@ class _PayTile extends StatelessWidget {
       ),
       child: Row(children: [
         Icon(icon, color: selected ? color : context.colors.mutedText, size: 22),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13,
               color: selected ? color : context.colors.navyText)),
@@ -1077,20 +1077,20 @@ class _SuccessStep extends StatelessWidget {
           decoration: const BoxDecoration(color: Color(0xFFE8F5E9), shape: BoxShape.circle),
           child: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 60),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         Text('Data Sent Successfully! 🎉',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: context.colors.navyText),
             textAlign: TextAlign.center),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         Text('${bundle['name']} has been sent to $phone',
             style: TextStyle(color: context.colors.mutedText, fontSize: 14), textAlign: TextAlign.center),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(color: context.colors.inputFill, borderRadius: BorderRadius.circular(14)),
           child: Column(children: [
             Text('Order Reference', style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(orderNumber,
                 style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: context.colors.navyText,
                     letterSpacing: 1)),
@@ -1162,7 +1162,7 @@ class _HistoryCard extends StatelessWidget {
           decoration: BoxDecoration(color: _kOrange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
           child: const Icon(Icons.data_usage_rounded, color: _kOrange, size: 24),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(note['item_name']?.toString() ?? 'Data Purchase',
               style: TextStyle(fontWeight: FontWeight.w700, color: context.colors.navyText)),
@@ -1217,9 +1217,9 @@ class _EmptyState extends StatelessWidget {
           width: 80, height: 80,
           decoration: BoxDecoration(color: _kOrange.withValues(alpha: 0.1), shape: BoxShape.circle),
           child: Icon(icon, size: 40, color: _kOrange)),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.navyText)),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text(subtitle, style: TextStyle(color: context.colors.mutedText, fontSize: 14), textAlign: TextAlign.center),
       ]),
     ),
@@ -1236,7 +1236,7 @@ class _ErrorState extends StatelessWidget {
       padding: const EdgeInsets.all(32),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         const Icon(Icons.error_outline_rounded, size: 56, color: Colors.red),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Text(message, style: TextStyle(color: context.colors.mutedText), textAlign: TextAlign.center),
         const SizedBox(height: 16),
         ElevatedButton.icon(onPressed: onRetry,

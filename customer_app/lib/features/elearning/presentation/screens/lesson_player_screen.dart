@@ -1,4 +1,4 @@
-import 'package:chewie/chewie.dart';
+﻿import 'package:chewie/chewie.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -191,8 +191,8 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.workspace_premium_rounded, size: 72, color: Colors.amber),
-          const SizedBox(height: 12),
-          const Text('Course Completed!',
+          SizedBox(height: 12),
+          Text('Course Completed!',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800,
                   color: context.colors.navyText)),
           const SizedBox(height: 8),
@@ -238,7 +238,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
   Widget build(BuildContext context) {
     if (_loadingLesson) {
       return const Scaffold(
-        backgroundcolor: context.colors.navyText,
+        backgroundColor: context.colors.navyText,
         body: Center(child: CircularProgressIndicator(color: Colors.white)),
       );
     }
@@ -247,10 +247,10 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
         appBar: AppBar(
           
           leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              icon: Icon(Icons.arrow_back_ios_new_rounded,
                   color: context.colors.navyText),
               onPressed: () => context.pop()),
-          title: const Text('Lesson Player',
+          title: Text('Lesson Player',
               style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w700)),
         ),
         body: Center(
@@ -288,11 +288,11 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
         
         elevation: 0.5,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
               color: context.colors.navyText, size: 20),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
+        title: Text(
           'Lesson Player',
           style: TextStyle(
               color: context.colors.navyText, fontWeight: FontWeight.w700, fontSize: 16),
@@ -320,7 +320,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
                 courseTitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: context.colors.navyText),
@@ -549,9 +549,9 @@ class _LessonsTab extends StatelessWidget {
                           color: Colors.blue,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.3)),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2),
                   Text(title,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: context.colors.navyText),
@@ -570,7 +570,7 @@ class _LessonsTab extends StatelessWidget {
         const SizedBox(height: 16),
 
         // Lesson info rows
-        const Text('Lesson Details',
+        Text('Lesson Details',
             style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
@@ -608,7 +608,7 @@ class _LessonsTab extends StatelessWidget {
                   style: TextStyle(color: Colors.grey[500], fontSize: 13))),
           Expanded(
               child: Text(value,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
                       color: context.colors.navyText))),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -121,7 +121,7 @@ class MyLearningScreen extends ConsumerWidget {
                     if (certs.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
                     return SliverList(
                       delegate: SliverChildListDelegate([
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
                           child: Text('Certificates', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.navyText)),
                         ),
@@ -208,7 +208,7 @@ class _EnrollmentCard extends StatelessWidget {
                       errorBuilder: (_, __, ___) => _placeholder())
                   : _placeholder(),
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -278,7 +278,7 @@ class _CertificateCard extends StatelessWidget {
         child: Row(
           children: [
             const Icon(Icons.workspace_premium_rounded, size: 40, color: Colors.amber),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(cert.course.title, maxLines: 2, overflow: TextOverflow.ellipsis,

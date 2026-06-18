@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
@@ -232,11 +232,11 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                 
                 elevation: 0.5,
                 leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                  icon: Icon(Icons.arrow_back_ios_new_rounded,
                       color: context.colors.navyText, size: 20),
                   onPressed: () => context.pop(),
                 ),
-                title: const Text(
+                title: Text(
                   'Course Details',
                   style: TextStyle(
                       color: context.colors.navyText,
@@ -295,7 +295,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                                                   color: Colors.white.withValues(alpha: 0.9),
                                                   shape: BoxShape.circle,
                                                 ),
-                                                child: const Icon(Icons.play_arrow_rounded,
+                                                child: Icon(Icons.play_arrow_rounded,
                                                     color: context.colors.navyText, size: 36),
                                               ),
                                       ),
@@ -337,7 +337,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                       // Course title
                       Text(
                         course.title,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
                             color: context.colors.navyText),
@@ -352,7 +352,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                             backgroundImage: course.instructor!.avatar != null
                                 ? NetworkImage(course.instructor!.avatar!)
                                 : null,
-                            backgroundcolor: context.colors.navyText,
+                            backgroundColor: context.colors.navyText,
                             child: course.instructor!.avatar == null
                                 ? Text(course.instructor!.name[0],
                                     style:
@@ -364,7 +364,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(course.instructor!.name,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
                                       color: context.colors.navyText)),
@@ -379,9 +379,9 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                       Row(
                         children: [
                           const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
-                          const SizedBox(width: 3),
+                          SizedBox(width: 3),
                           Text(course.rating.toStringAsFixed(1),
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   color: context.colors.navyText)),
@@ -456,7 +456,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                           children: [
                             Text(
                               '\$${course.effectivePrice.toStringAsFixed(2)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 26,
                                   fontWeight: FontWeight.w900,
                                   color: context.colors.navyText),
@@ -601,9 +601,9 @@ class _StatBox extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: AppColors.primary, size: 20),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text(value,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                   color: context.colors.navyText)),
@@ -628,7 +628,7 @@ class _OverviewTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (course.description != null) ...[
-            const Text('About this course',
+            Text('About this course',
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -639,7 +639,7 @@ class _OverviewTab extends StatelessWidget {
             const SizedBox(height: 20),
           ],
           if (course.learningOutcomes.isNotEmpty) ...[
-            const Text("What you'll learn",
+            Text("What you'll learn",
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -656,7 +656,7 @@ class _OverviewTab extends StatelessWidget {
             const SizedBox(height: 20),
           ],
           if (course.requirements.isNotEmpty) ...[
-            const Text('Requirements',
+            Text('Requirements',
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -716,7 +716,7 @@ class _CurriculumTabState extends State<_CurriculumTab> {
                     isOpen ? Icons.folder_open_rounded : Icons.folder_rounded,
                     color: AppColors.primary),
                 title: Text(section.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
                         color: context.colors.navyText)),
@@ -822,7 +822,7 @@ class _ReviewsTab extends StatelessWidget {
             children: [
               Column(children: [
                 Text(rating.toStringAsFixed(1),
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 48,
                         fontWeight: FontWeight.w900,
                         color: context.colors.navyText)),
@@ -852,7 +852,7 @@ class _ReviewsTab extends StatelessWidget {
                 Row(children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundcolor: context.colors.navyText,
+                    backgroundColor: context.colors.navyText,
                     child: Text((r.user['name'] as String? ?? '?')[0],
                         style: const TextStyle(color: Colors.white, fontSize: 12)),
                   ),
@@ -951,9 +951,9 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
                     decoration: BoxDecoration(
                         color: Colors.grey[300],
                         borderRadius: BorderRadius.circular(2)))),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text('Buy Course — \$${widget.price.toStringAsFixed(2)}',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: context.colors.navyText)),
@@ -1039,7 +1039,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
                     hintText: 'e.g. 252615xxxxxx',
-                    prefixIcon: const Icon(Icons.phone_rounded, size: 18),
+                    prefixIcon: Icon(Icons.phone_rounded, size: 18),
                     filled: true,
                     fillColor: context.colors.cardBg,
                     border: OutlineInputBorder(

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -277,7 +277,7 @@ class ProfileScreen extends ConsumerWidget {
                   ],
                 ),
 
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
 
                 // ── Sign out button ────────────────────────────────────────
                 Padding(

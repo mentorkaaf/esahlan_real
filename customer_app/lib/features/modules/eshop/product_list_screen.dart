@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -162,10 +162,10 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
               onChanged: (v) { setState(() => _search = v); _resetAndReload(); },
               decoration: InputDecoration(
                 hintText: 'Search products...',
-                hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
-                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textGrey, size: 20),
+                hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 13),
+                prefixIcon: Icon(Icons.search_rounded, color: AppColors.textGrey, size: 20),
                 suffixIcon: _search.isNotEmpty
-                    ? IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () { _searchCtrl.clear(); setState(() { _search = ''; _resetAndReload(); }); })
+                    ? IconButton(icon: Icon(Icons.close, size: 16), onPressed: () { _searchCtrl.clear(); setState(() { _search = ''; _resetAndReload(); }); })
                     : null,
                 filled: true, fillColor: context.colors.cardBg,
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
@@ -217,7 +217,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                   decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(50)),
                   child: const Icon(Icons.search_off_rounded, size: 50, color: AppColors.textGrey),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text('No products found', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: context.colors.navyText)),
                 const SizedBox(height: 8),
                 const Text('Try a different category or search term', style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
@@ -404,9 +404,9 @@ class _SortSheet extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         Text('Sort By', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: context.colors.navyText)),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         ...options.map((o) => ListTile(
           leading: Icon(o.$3, color: current == o.$1 ? AppColors.primary : AppColors.textGrey),
           title: Text(o.$2, style: TextStyle(fontWeight: current == o.$1 ? FontWeight.w700 : FontWeight.w500, color: context.colors.navyText)),

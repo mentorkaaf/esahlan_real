@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -194,7 +194,7 @@ class _OtpBox extends StatelessWidget {
         maxLength: 1,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         onChanged: onChanged,
-        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.textDark),
+        style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.textDark),
         decoration: InputDecoration(
           counterText: '',
           filled: true,

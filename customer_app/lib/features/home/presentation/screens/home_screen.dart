@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -240,8 +240,8 @@ class _ServicesSectionHeader extends StatelessWidget {
           decoration: BoxDecoration(
               color: AppColors.primary, borderRadius: BorderRadius.circular(2)),
         ),
-        const SizedBox(width: 10),
-        const Text(
+        SizedBox(width: 10),
+        Text(
           'Our Services',
           style: TextStyle(
               fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.navyText),

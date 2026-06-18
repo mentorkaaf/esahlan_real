@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -168,10 +168,10 @@ class _CertificateView extends StatelessWidget {
                         const SnackBar(content: Text('Share functionality coming soon')),
                       );
                     },
-                    icon: const Icon(Icons.share_rounded),
-                    label: const Text('Share'),
+                    icon: Icon(Icons.share_rounded),
+                    label: Text('Share'),
                     style: OutlinedButton.styleFrom(
-                      foregroundcolor: context.colors.navyText,
+                      foregroundColor: context.colors.navyText,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),

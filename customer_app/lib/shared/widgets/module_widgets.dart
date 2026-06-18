@@ -1,4 +1,4 @@
-// Shared widgets used across all module screens
+﻿// Shared widgets used across all module screens
 import 'package:flutter/material.dart';
 import '../../core/theme/theme_x.dart';
 import 'package:go_router/go_router.dart';
@@ -19,8 +19,8 @@ AppBar moduleAppBar(BuildContext context, String module) => AppBar(
       TextSpan(text: 'e-', style: TextStyle(color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.w900, fontFamily: 'Cairo')),
       TextSpan(text: 'Sahlan', style: TextStyle(color: context.colors.navyText, fontSize: 18, fontWeight: FontWeight.w900, fontFamily: 'Cairo')),
     ])),
-    const SizedBox(width: 8),
-    Text('| $module', style: const TextStyle(color: AppColors.textGrey, fontSize: 15, fontWeight: FontWeight.w500)),
+    SizedBox(width: 8),
+    Text('| $module', style: TextStyle(color: AppColors.textGrey, fontSize: 15, fontWeight: FontWeight.w500)),
   ]),
   actions: [
     IconButton(icon: Icon(Icons.notifications_outlined, color: context.colors.navyText), onPressed: () {}),
@@ -130,7 +130,7 @@ class ModuleDropdownField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.colors.navyText)),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         DropdownButtonFormField<String>(
           value: value,
           onChanged: onChanged,

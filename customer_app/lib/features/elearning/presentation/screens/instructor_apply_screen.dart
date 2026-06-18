@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart';
+﻿import 'package:dio/dio.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,8 +68,8 @@ class _InstructorApplyScreenState extends ConsumerState<InstructorApplyScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.check_circle_rounded, color: Colors.green, size: 64),
-              const SizedBox(height: 16),
-              const Text('Application Submitted!',
+              SizedBox(height: 16),
+              Text('Application Submitted!',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.navyText)),
               const SizedBox(height: 8),
               Text('Admin will review your application within 24 hours.',
@@ -105,7 +105,7 @@ class _InstructorApplyScreenState extends ConsumerState<InstructorApplyScreen> {
       appBar: AppBar(
         
         elevation: 0,
-        title: const Text('Become an Instructor',
+        title: Text('Become an Instructor',
             style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w800)),
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.colors.navyText),

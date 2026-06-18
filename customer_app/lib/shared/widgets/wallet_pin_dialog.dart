@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../core/theme/theme_x.dart';
 import 'package:flutter/services.dart';
 import '../../core/api/module_api_service.dart';
@@ -83,7 +83,7 @@ class _WalletPinDialogState extends State<_WalletPinDialog> {
           ),
           child: const Icon(Icons.lock_rounded, color: AppColors.primary, size: 32),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Text('Enter Wallet PIN', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: context.colors.navyText)),
         const SizedBox(height: 6),
         const Text('Enter your 4-digit PIN to confirm payment', textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: AppColors.textGrey)),

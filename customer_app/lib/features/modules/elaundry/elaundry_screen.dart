@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -423,7 +423,7 @@ class _SuccessView extends StatelessWidget {
         Container(width: 90, height: 90,
           decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
           child: const Icon(Icons.check_rounded, color: Colors.white, size: 52)),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         Text('Order Placed!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: context.colors.navyText)),
         const SizedBox(height: 10),
         const Text('Your laundry order has been placed.\nWe\'ll notify you when it\'s picked up.',

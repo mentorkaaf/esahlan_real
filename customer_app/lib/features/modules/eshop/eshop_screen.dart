@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -151,7 +151,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> {
                       hintStyle: TextStyle(color: context.colors.mutedText, fontSize: 13),
                       prefixIcon: Icon(Icons.search_rounded, color: context.colors.mutedText, size: 20),
                       suffixIcon: _search.isNotEmpty
-                          ? IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () { _searchCtrl.clear(); setState(() => _search = ''); })
+                          ? IconButton(icon: Icon(Icons.close, size: 16), onPressed: () { _searchCtrl.clear(); setState(() => _search = ''); })
                           : null,
                       filled: true, fillColor: context.colors.inputFill,
                       contentPadding: const EdgeInsets.symmetric(vertical: 10),
@@ -485,7 +485,7 @@ class _CategoriesCarouselState extends State<_CategoriesCarousel> {
                   )),
                 ),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: 6),
               Text(cat['name'] ?? '', textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.colors.navyText)),
             ]),
@@ -696,7 +696,7 @@ class _FlashDealSheet extends StatelessWidget {
               ),
               child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Flash Deals', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: context.colors.navyText)),
               Text(deal['title'] ?? '', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
@@ -742,7 +742,7 @@ class _FlashDealSheet extends StatelessWidget {
                       decoration: BoxDecoration(color: const Color(0xFFFF4500), borderRadius: BorderRadius.circular(6)),
                       child: Text(
                         '-${((_toD(p['price']) - _toD(p['sale_price'])) / _toD(p['price']) * 100).round()}%',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 9)),
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 9)),
                     )),
                   ])),
                   Padding(padding: const EdgeInsets.fromLTRB(10, 8, 10, 10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -934,7 +934,7 @@ class _FlashDealSectionState extends State<_FlashDealSection> {
                       decoration: BoxDecoration(color: const Color(0xFFFF4500), borderRadius: BorderRadius.circular(8)),
                       child: Text(
                         '-${((_toD(p['price']) - _toD(p['sale_price'])) / _toD(p['price']) * 100).round()}%',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10)),
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10)),
                     )),
                   ])),
                   // Info

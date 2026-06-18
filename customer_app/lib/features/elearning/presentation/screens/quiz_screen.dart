@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -218,7 +218,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                         child: OutlinedButton(
                           onPressed: () => setState(() => _currentIndex--),
                           style: OutlinedButton.styleFrom(
-                            foregroundcolor: context.colors.navyText,
+                            foregroundColor: context.colors.navyText,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -371,13 +371,13 @@ class _ResultView extends StatelessWidget {
             );
           }),
 
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           Row(children: [
             if (!result.passed && result.attemptsUsed < result.attemptsMax)
               Expanded(
                 child: OutlinedButton(
                   onPressed: onRetry,
-                  style: OutlinedButton.styleFrom(foregroundcolor: context.colors.navyText, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  style: OutlinedButton.styleFrom(foregroundColor: context.colors.navyText, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                   child: const Text('Retry Quiz'),
                 ),
               ),

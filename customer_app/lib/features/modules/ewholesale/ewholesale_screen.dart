@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -48,9 +48,9 @@ class _EWholesaleScreenState extends ConsumerState<EWholesaleScreen> {
             controller: _searchCtrl,
             onChanged: (v) => setState(() => _search = v),
             decoration: InputDecoration(
-              hintText: 'Search bulk products...', hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
-              prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textGrey, size: 20),
-              suffixIcon: _search.isNotEmpty ? IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () { _searchCtrl.clear(); setState(() => _search = ''); }) : null,
+              hintText: 'Search bulk products...', hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 13),
+              prefixIcon: Icon(Icons.search_rounded, color: AppColors.textGrey, size: 20),
+              suffixIcon: _search.isNotEmpty ? IconButton(icon: Icon(Icons.close, size: 16), onPressed: () { _searchCtrl.clear(); setState(() => _search = ''); }) : null,
               filled: true, fillColor: context.colors.cardBg,
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -101,8 +101,8 @@ class _EWholesaleScreenState extends ConsumerState<EWholesaleScreen> {
                       ClipRRect(borderRadius: const BorderRadius.horizontal(left: Radius.circular(14)),
                         child: p['image'] != null
                             ? Image.network(fixImgUrl(p['image']), width: 110, height: 110, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(width: 110, height: 110, color: AppColors.surface, child: const Icon(Icons.inventory_2_outlined, size: 40, color: AppColors.divider)))
-                            : Container(width: 110, height: 110, color: AppColors.surface, child: const Icon(Icons.inventory_2_outlined, size: 40, color: AppColors.divider)),
+                                errorBuilder: (_, __, ___) => Container(width: 110, height: 110, color: AppColors.surface, child: Icon(Icons.inventory_2_outlined, size: 40, color: AppColors.divider)))
+                            : Container(width: 110, height: 110, color: AppColors.surface, child: Icon(Icons.inventory_2_outlined, size: 40, color: AppColors.divider)),
                       ),
                       Expanded(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText), maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -188,9 +188,9 @@ class _InquirySheetState extends State<_InquirySheet> {
           IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
         ]),
         Text('\$${price.toStringAsFixed(2)}/unit', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.primary)),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Text('Quantity', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Row(children: [
           GestureDetector(onTap: () { if (_qty > _minQty) setState(() => _qty--); },
               child: Container(width: 36, height: 36, decoration: BoxDecoration(color: _qty > _minQty ? AppColors.primary : AppColors.surface, borderRadius: BorderRadius.circular(8)),
@@ -199,7 +199,7 @@ class _InquirySheetState extends State<_InquirySheet> {
           GestureDetector(onTap: () => setState(() => _qty++),
               child: Container(width: 36, height: 36, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
                   child: const Icon(Icons.add, color: Colors.white, size: 18))),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Text('Est. Total: \$${(price * _qty).toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.w700, color: context.colors.navyText)),
         ]),
         if (_minQty > 1)
@@ -209,9 +209,9 @@ class _InquirySheetState extends State<_InquirySheet> {
         _field(_nameCtrl, 'Your Name', Icons.person_outlined),
         const SizedBox(height: 10),
         _field(_phoneCtrl, 'Phone / WhatsApp', Icons.phone_outlined, isPhone: true),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         TextField(controller: _messageCtrl, maxLines: 3, decoration: InputDecoration(
-            hintText: 'Additional requirements or notes...', hintStyle: const TextStyle(fontSize: 12, color: AppColors.textGrey),
+            hintText: 'Additional requirements or notes...', hintStyle: TextStyle(fontSize: 12, color: AppColors.textGrey),
             filled: true, fillColor: context.colors.cardBg,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none))),
@@ -226,7 +226,7 @@ class _InquirySheetState extends State<_InquirySheet> {
   Widget _field(TextEditingController ctrl, String hint, IconData icon, {bool isPhone = false}) => TextField(
     controller: ctrl, keyboardType: isPhone ? TextInputType.phone : TextInputType.text,
     onChanged: (_) => setState(() {}),
-    decoration: InputDecoration(hintText: hint, hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
+    decoration: InputDecoration(hintText: hint, hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 13),
         prefixIcon: Icon(icon, color: AppColors.textGrey, size: 20),
         filled: true, fillColor: context.colors.cardBg,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.divider)),

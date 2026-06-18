@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import '../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -212,7 +212,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       ),
                     ],
                   ]),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
 
                   // Name
                   Text(product['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: context.colors.navyText, height: 1.2)),
@@ -226,7 +226,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       if (i < r && r - i >= 0.5) return const Icon(Icons.star_half, color: Color(0xFFFFC107), size: 16);
                       return const Icon(Icons.star_border, color: Color(0xFFFFC107), size: 16);
                     }),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Text('${product['rating'] ?? 0}', style: TextStyle(fontWeight: FontWeight.w700, color: context.colors.navyText, fontSize: 14)),
                     Text(' (${product['total_reviews'] ?? 0} reviews)', style: const TextStyle(color: AppColors.textGrey, fontSize: 13)),
                   ]),
@@ -277,7 +277,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
                   const SizedBox(height: 20),
                   const Divider(height: 1),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
                 ])),
 
                 // Variants
@@ -317,7 +317,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 // Quantity selector
                 Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('Quantity', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                   Row(children: [
                     _qtyBtn(Icons.remove_rounded, () { if (_qty > 1) setState(() => _qty--); }, _qty > 1),
                     SizedBox(width: 60, child: Text('$_qty', textAlign: TextAlign.center,

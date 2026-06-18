@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
@@ -99,13 +99,13 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
                 );
               }),
               IconButton(
-                icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF140465)),
+                icon: Icon(Icons.chat_bubble_outline, color: Color(0xFF140465)),
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityChatListScreen())),
               ),
             ],
             bottom: TabBar(
               controller: _tabCtrl,
-              labelcolor: context.colors.navyText,
+              labelColor: context.colors.navyText,
               unselectedLabelColor: Colors.grey,
               indicatorColor: const Color(0xFFFF6B35),
               indicatorWeight: 3,
@@ -337,7 +337,7 @@ class _AddStoryButton extends StatelessWidget {
               CircleAvatar(
                 radius: 32,
                 backgroundColor: const Color(0xFFEEF0FF),
-                child: const Icon(Icons.person, color: Color(0xFF140465), size: 28),
+                child: Icon(Icons.person, color: Color(0xFF140465), size: 28),
               ),
               Positioned(
                 bottom: 0, right: 0,
@@ -513,9 +513,9 @@ class _EmptyFeed extends StatelessWidget {
           const Text('Your feed is empty', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF140465))),
           const SizedBox(height: 8),
           const Text('Follow people to see their posts here', style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundcolor: context.colors.navyText, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: context.colors.navyText, foregroundColor: Colors.white),
             onPressed: () {},
             child: const Text('Discover People'),
           ),

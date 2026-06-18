@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -39,7 +39,7 @@ class _InstructorHubScreenState extends ConsumerState<InstructorHubScreen> {
       appBar: AppBar(
         
         elevation: 0,
-        title: const Text('Instructor',
+        title: Text('Instructor',
             style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w800)),
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.colors.navyText),
@@ -98,8 +98,8 @@ class _NotAppliedState extends StatelessWidget {
                 size: 64, color: AppColors.primary),
           ),
         ),
-        const SizedBox(height: 24),
-        const Text('Become an Instructor',
+        SizedBox(height: 24),
+        Text('Become an Instructor',
             textAlign: TextAlign.center,
             style: TextStyle(
                 fontSize: 22, fontWeight: FontWeight.w900, color: context.colors.navyText)),
@@ -163,11 +163,11 @@ class _Benefit extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: AppColors.primary, size: 22),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontWeight: FontWeight.w700, color: context.colors.navyText)),
               const SizedBox(height: 2),
               Text(sub, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
@@ -201,8 +201,8 @@ class _PendingState extends StatelessWidget {
                   const Icon(Icons.hourglass_top_rounded, size: 60, color: Colors.orange),
             ),
           ),
-          const SizedBox(height: 24),
-          const Text('Application Under Review',
+          SizedBox(height: 24),
+          Text('Application Under Review',
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 20, fontWeight: FontWeight.w800, color: context.colors.navyText)),
@@ -249,8 +249,8 @@ class _RejectedState extends StatelessWidget {
                 color: Colors.red.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: const Icon(Icons.cancel_rounded, size: 60, color: Colors.red),
           ),
-          const SizedBox(height: 24),
-          const Text('Application Not Approved',
+          SizedBox(height: 24),
+          Text('Application Not Approved',
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 20, fontWeight: FontWeight.w800, color: context.colors.navyText)),
@@ -291,7 +291,7 @@ class _ApprovedDashboardState extends ConsumerState<_ApprovedDashboard> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Request Withdrawal',
+          title: Text('Request Withdrawal',
               style: TextStyle(
                   fontWeight: FontWeight.w800, color: context.colors.navyText)),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -303,9 +303,9 @@ class _ApprovedDashboardState extends ConsumerState<_ApprovedDashboard> {
               child: Row(children: [
                 const Icon(Icons.account_balance_wallet_rounded,
                     color: AppColors.primary, size: 20),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Text('Available: \$${availableBalance.toStringAsFixed(2)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontWeight: FontWeight.w700, color: context.colors.navyText)),
               ]),
             ),
@@ -507,8 +507,8 @@ class _ApprovedDashboardState extends ConsumerState<_ApprovedDashboard> {
                     ),
                   ]),
                   if (recentEnrollments.isNotEmpty) ...[
-                    const SizedBox(height: 14),
-                    const Text('Recent Enrollments',
+                    SizedBox(height: 14),
+                    Text('Recent Enrollments',
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -526,7 +526,7 @@ class _ApprovedDashboardState extends ConsumerState<_ApprovedDashboard> {
                         child: Row(children: [
                           CircleAvatar(
                             radius: 16,
-                            backgroundcolor: context.colors.navyText,
+                            backgroundColor: context.colors.navyText,
                             child: Text(studentName[0],
                                 style: const TextStyle(
                                     color: Colors.white, fontSize: 12)),
@@ -537,7 +537,7 @@ class _ApprovedDashboardState extends ConsumerState<_ApprovedDashboard> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                 Text(studentName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
                                         color: context.colors.navyText)),
@@ -577,10 +577,10 @@ class _ApprovedDashboardState extends ConsumerState<_ApprovedDashboard> {
             label: const Text('Create New Course',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
 
           // ── My Courses ───────────────────────────────────────────────────
-          const Text('My Courses',
+          Text('My Courses',
               style: TextStyle(
                   fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.navyText)),
           const SizedBox(height: 12),
@@ -630,10 +630,10 @@ class _ApprovedDashboardState extends ConsumerState<_ApprovedDashboard> {
                           fontWeight: FontWeight.w800,
                           color: context.colors.navyText)),
                 ]),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                   Text(d.rating.toStringAsFixed(1),
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 40,
                           fontWeight: FontWeight.w900,
                           color: context.colors.navyText)),
@@ -667,7 +667,7 @@ class _ApprovedDashboardState extends ConsumerState<_ApprovedDashboard> {
               decoration: BoxDecoration(
                   color: Colors.white, borderRadius: BorderRadius.circular(14)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Row(children: [
+                Row(children: [
                   Icon(Icons.account_balance_rounded,
                       color: context.colors.navyText, size: 20),
                   SizedBox(width: 8),
@@ -694,7 +694,7 @@ class _ApprovedDashboardState extends ConsumerState<_ApprovedDashboard> {
                   ),
                   FilledButton.icon(
                     style: FilledButton.styleFrom(
-                      backgroundcolor: context.colors.navyText,
+                      backgroundColor: context.colors.navyText,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(
@@ -786,7 +786,7 @@ class _InstructorCourseCard extends ConsumerWidget {
               Text(course.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
                       color: context.colors.navyText)),

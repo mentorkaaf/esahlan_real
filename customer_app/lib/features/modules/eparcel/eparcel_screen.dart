@@ -478,7 +478,7 @@ class _StepCard extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Icon(icon, size: 18, color: _amber),
-            const SizedBox(width: 6),
+            SizedBox(width: 6),
             Text(title, style: TextStyle(
                 fontSize: 14, fontWeight: FontWeight.w800, color: context.colors.navyText)),
           ]),
@@ -508,9 +508,9 @@ class _InfoChip extends StatelessWidget {
       ),
       child: Row(children: [
         Icon(icon, size: 16, color: _amber),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textGrey, fontWeight: FontWeight.w500)),
+          Text(label, style: TextStyle(fontSize: 10, color: AppColors.textGrey, fontWeight: FontWeight.w500)),
           Text(value,
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText),
             overflow: TextOverflow.ellipsis),

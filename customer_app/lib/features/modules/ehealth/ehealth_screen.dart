@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -61,10 +61,10 @@ class _EHealthScreenState extends ConsumerState<EHealthScreen> {
                 ),
                 child: Column(children: [
                   Icon(cat['icon'] as IconData, color: sel ? Colors.white : color, size: 32),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Text(cat['name'] as String, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13,
                       color: sel ? Colors.white : context.colors.navyText)),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2),
                   Text(cat['desc'] as String, style: TextStyle(fontSize: 9, color: sel ? Colors.white70 : context.colors.mutedText),
                       textAlign: TextAlign.center),
                 ]),
@@ -116,7 +116,7 @@ class _AmbulanceSectionState extends State<_AmbulanceSection> {
           ])),
         ]),
       ),
-      const SizedBox(height: 16),
+      SizedBox(height: 16),
       Text('Urgency Level', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
       const SizedBox(height: 10),
       Row(children: ['high', 'medium', 'low'].map((u) {
@@ -159,7 +159,7 @@ class _AmbulanceSectionState extends State<_AmbulanceSection> {
         keyboardType: isPhone ? TextInputType.phone : TextInputType.text,
         onChanged: (_) => setState(() {}),
         decoration: InputDecoration(
-          hintText: hint, hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
+          hintText: hint, hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 13),
           prefixIcon: Icon(icon, color: AppColors.textGrey, size: 20),
           filled: true, fillColor: context.colors.cardBg,
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
@@ -217,7 +217,7 @@ class _NurseSectionState extends State<_NurseSection> {
         const SizedBox(height: 12),
         _field(_addrCtrl, 'Home Address', Icons.location_on_outlined),
       ])),
-      const SizedBox(height: 14),
+      SizedBox(height: 14),
       Text('Session Duration', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
       const SizedBox(height: 10),
       Row(children: ['1h', '2h', '4h', '8h'].map((d) {
@@ -253,18 +253,18 @@ class _NurseSectionState extends State<_NurseSection> {
           decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.divider)),
           child: Row(children: [
             const Icon(Icons.calendar_today_outlined, color: AppColors.primary, size: 18),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Text(_date != null ? '${_date!.day}/${_date!.month}/${_date!.year}' : 'Select date',
                 style: TextStyle(color: _date != null ? context.colors.navyText : context.colors.mutedText,
                     fontWeight: _date != null ? FontWeight.w700 : FontWeight.w400)),
           ]),
         ),
       )),
-      const SizedBox(height: 14),
+      SizedBox(height: 14),
       ModuleFormCard(title: 'Special Notes (Optional)', child: TextField(
         controller: _notesCtrl, maxLines: 3,
         decoration: InputDecoration(hintText: 'Any specific requirements or medical conditions...',
-            hintStyle: const TextStyle(fontSize: 12, color: AppColors.textGrey),
+            hintStyle: TextStyle(fontSize: 12, color: AppColors.textGrey),
             filled: true, fillColor: context.colors.cardBg,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none)),
@@ -284,7 +284,7 @@ class _NurseSectionState extends State<_NurseSection> {
     controller: ctrl,
     onChanged: (_) => setState(() {}),
     decoration: InputDecoration(
-      hintText: hint, hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
+      hintText: hint, hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 13),
       prefixIcon: Icon(icon, color: AppColors.textGrey, size: 20),
       filled: true, fillColor: context.colors.cardBg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
@@ -380,12 +380,12 @@ class _DoctorSectionState extends ConsumerState<_DoctorSection> {
                           ? ClipOval(child: Image.network(fixImgUrl(doc['avatar']), fit: BoxFit.cover))
                           : const Icon(Icons.person_rounded, color: AppColors.primary, size: 30),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(doc['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
-                      Text(doc['specialization'] ?? '', style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600)),
+                      Text(doc['specialization'] ?? '', style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600)),
                       if (doc['experience_years'] != null)
-                        Text('${doc['experience_years']} yrs experience', style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
+                        Text('${doc['experience_years']} yrs experience', style: TextStyle(fontSize: 11, color: AppColors.textGrey)),
                       if (doc['consultation_fee'] != null)
                         Text('\$${doc['consultation_fee']} per visit', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.colors.navyText)),
                     ])),
@@ -454,7 +454,7 @@ class _BookDoctorSheetState extends State<_BookDoctorSheet> {
             IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
           ]),
           Text(widget.doctor['specialization'] ?? '', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Text('Select Date', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
           const SizedBox(height: 8),
           GestureDetector(
@@ -469,14 +469,14 @@ class _BookDoctorSheetState extends State<_BookDoctorSheet> {
               decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.divider)),
               child: Row(children: [
                 const Icon(Icons.calendar_today_outlined, color: AppColors.primary, size: 18),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Text(_date != null ? '${_date!.day}/${_date!.month}/${_date!.year}' : 'Pick a date',
                     style: TextStyle(color: _date != null ? context.colors.navyText : context.colors.mutedText,
                         fontWeight: _date != null ? FontWeight.w700 : FontWeight.w400)),
               ]),
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           Text('Time Slot', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
           const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, children: _slots.map((s) => GestureDetector(
@@ -493,12 +493,12 @@ class _BookDoctorSheetState extends State<_BookDoctorSheet> {
                   color: _slot == s ? Colors.white : context.colors.navyText)),
             ),
           )).toList()),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           TextField(
             controller: _notesCtrl, maxLines: 2,
             decoration: InputDecoration(
               hintText: 'Describe your symptoms (optional)',
-              hintStyle: const TextStyle(fontSize: 12, color: AppColors.textGrey),
+              hintStyle: TextStyle(fontSize: 12, color: AppColors.textGrey),
               filled: true, fillColor: context.colors.cardBg,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),

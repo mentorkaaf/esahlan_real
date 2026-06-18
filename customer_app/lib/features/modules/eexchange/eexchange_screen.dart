@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -82,7 +82,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
           icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.colors.navyText),
           onPressed: () => context.pop(),
         ),
-        title: const Text('eExchange',
+        title: Text('eExchange',
             style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText, fontFamily: 'Cairo')),
       ),
       body: SingleChildScrollView(
@@ -111,7 +111,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
               ),
             ]),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
 
           // ── FROM wallet ───────────────────────────────────────────
           Align(alignment: Alignment.centerLeft,
@@ -135,7 +135,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
               child: const Icon(Icons.swap_vert_rounded, color: Colors.white, size: 24),
             ),
           )),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
 
           // ── TO wallet ─────────────────────────────────────────────
           Align(alignment: Alignment.centerLeft,
@@ -171,7 +171,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 3),
                     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                       Text('${r['from_wallet']?.toString().toUpperCase()} → ${r['to_wallet']?.toString().toUpperCase()}',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
+                          style: TextStyle(fontSize: 12, color: AppColors.textGrey)),
                       Text('Rate: ${r['rate']}',
                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.colors.navyText)),
                     ]),
@@ -251,7 +251,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('Amount to Send',
           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textGrey)),
-      const SizedBox(height: 8),
+      SizedBox(height: 8),
       TextField(
         controller: _amountCtrl,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -259,7 +259,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
         onChanged: (v) => setState(() { _amount = double.tryParse(v) ?? 0; _preview = null; }),
         decoration: InputDecoration(
           hintText: '0.00',
-          hintStyle: const TextStyle(fontWeight: FontWeight.w300, fontSize: 28, color: AppColors.divider),
+          hintStyle: TextStyle(fontWeight: FontWeight.w300, fontSize: 28, color: AppColors.divider),
           border: InputBorder.none,
           prefixText: '\$  ',
           prefixStyle: TextStyle(fontWeight: FontWeight.w900, fontSize: 28, color: context.colors.navyText),
@@ -296,7 +296,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
                 borderRadius: BorderRadius.circular(8)),
             child: Icon(Icons.phone_rounded, color: _toWalletColor, size: 18),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('$_toWalletName Phone Number',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: context.colors.navyText)),
@@ -410,7 +410,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         const Icon(Icons.payment_rounded, size: 18, color: AppColors.primary),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
       ]),
       const SizedBox(height: 12),
@@ -551,7 +551,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
                   color: AppColors.error.withValues(alpha: 0.1), shape: BoxShape.circle),
               child: const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 36),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text('Something went wrong',
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: context.colors.navyText),
                 textAlign: TextAlign.center),
@@ -637,7 +637,7 @@ class _ExchangeSuccessScreen extends StatelessWidget {
               ),
               child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 58),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             Text('Order Submitted!',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: context.colors.navyText)),
             const SizedBox(height: 8),
@@ -674,7 +674,7 @@ class _ExchangeSuccessScreen extends StatelessWidget {
                 ),
               ]),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
 
             // ── Exchange Details ───────────────────────────────────
             Container(
@@ -701,7 +701,7 @@ class _ExchangeSuccessScreen extends StatelessWidget {
                 ]),
               ]),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
 
             // ── Recipient ──────────────────────────────────────────
             Container(
@@ -722,7 +722,7 @@ class _ExchangeSuccessScreen extends StatelessWidget {
                         color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                     child: const Center(child: Text('📱', style: TextStyle(fontSize: 24))),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(phone.toString(),
                         style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: context.colors.navyText)),

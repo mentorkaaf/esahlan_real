@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -29,7 +29,7 @@ class VendorDetailScreen extends ConsumerWidget {
             SliverAppBar(
               expandedHeight: 220,
               pinned: true,
-              backgroundcolor: context.colors.navyText,
+              backgroundColor: context.colors.navyText,
               leading: GestureDetector(
                 onTap: () => context.pop(),
                 child: Container(
