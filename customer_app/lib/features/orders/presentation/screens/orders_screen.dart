@@ -89,7 +89,7 @@ class _OrdersList extends ConsumerWidget {
       ),
       data: (orders) {
         if (orders.isEmpty) {
-          return const Center(
+          return Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
