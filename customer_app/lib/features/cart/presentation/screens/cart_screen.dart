@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -56,11 +56,11 @@ class CartScreen extends ConsumerWidget {
     final cartAsync = ref.watch(cartProvider);
 
     return Scaffold(
-      
+      backgroundColor: context.colors.scaffoldBg,
       appBar: AppBar(
         title: const Text('My Cart', style: TextStyle(fontWeight: FontWeight.w800)),
         
-        foregroundColor: AppColors.textDark,
+        foregroundColor: context.colors.navyText,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
@@ -79,7 +79,7 @@ class CartScreen extends ConsumerWidget {
                 children: [
                   const Text('🛒', style: TextStyle(fontSize: 64)),
                   const SizedBox(height: 16),
-                  const Text('Your cart is empty', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textDark)),
+                  Text('Your cart is empty', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.navyText)),
                   const SizedBox(height: 8),
                   const Text('Add items from a vendor', style: TextStyle(color: AppColors.textGrey)),
                   const SizedBox(height: 24),
@@ -107,7 +107,7 @@ class CartScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: context.colors.cardBg,
                   boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, -4))],
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                 ),
@@ -141,14 +141,14 @@ class _CartItemCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(14),
+        color: context.colors.cardBg, borderRadius: BorderRadius.circular(14),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
       ),
       child: Row(
         children: [
           Container(
             width: 60, height: 60,
-            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.fastfood_outlined, color: AppColors.textLight, size: 28),
           ),
           const SizedBox(width: 12),
@@ -157,7 +157,7 @@ class _CartItemCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(item.productName,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textDark)),
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText)),
                 const SizedBox(height: 4),
                 Text('\$${item.price.toStringAsFixed(2)} each',
                   style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
@@ -177,7 +177,7 @@ class _CartItemCard extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: Text('${item.quantity}',
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textDark)),
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.navyText)),
                   ),
                   _QtyBtn(icon: Icons.add_rounded, onTap: () {}),
                 ],
@@ -223,12 +223,12 @@ class _SummaryRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: TextStyle(
-          color: bold ? AppColors.textDark : AppColors.textGrey,
+          color: bold ? context.colors.navyText : AppColors.textGrey,
           fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
           fontSize: bold ? 16 : 14,
         )),
         Text(value, style: TextStyle(
-          color: AppColors.textDark,
+          color: context.colors.navyText,
           fontWeight: bold ? FontWeight.w900 : FontWeight.w600,
           fontSize: bold ? 18 : 14,
         )),
