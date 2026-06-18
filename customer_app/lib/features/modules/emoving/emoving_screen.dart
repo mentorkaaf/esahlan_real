@@ -1372,7 +1372,7 @@ class _PriceSection extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12)),
                 ),
                 child: calculating
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
@@ -2409,7 +2409,7 @@ class _BottomCTA extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14)),
               ),
               child: loading
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
