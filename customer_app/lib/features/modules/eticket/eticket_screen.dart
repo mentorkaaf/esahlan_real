@@ -170,7 +170,7 @@ class _ETicketScreenState extends ConsumerState<ETicketScreen>
               indicatorWeight: 3,
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white60,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+              labelStyle: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
               tabs: const [Tab(text: 'Book Flight'), Tab(text: 'My Tickets')],
             ),
           ),
@@ -279,7 +279,7 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
                     margin: const EdgeInsets.symmetric(horizontal: 8),
                     width: 36, height: 36,
                     decoration: BoxDecoration(
-                      color: _kNavy,
+                      color: context.colors.navyText,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(Icons.swap_horiz_rounded,
@@ -365,7 +365,7 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
                     const SizedBox(width: 8),
                     Text(
                       _searchParams != null ? 'Update Search' : 'Search Flights',
-                      style: const TextStyle(color: Colors.white,
+                      style: TextStyle(color: Colors.white,
                           fontWeight: FontWeight.w800, fontSize: 16),
                     ),
                   ]),
@@ -453,23 +453,23 @@ class _CitySelector extends ConsumerWidget {
               color: city != null ? _kNavy.withValues(alpha: 0.3) : _kDivider),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: const TextStyle(
+          Text(label, style: TextStyle(
               fontSize: 11, fontWeight: FontWeight.w600, color: _kMuted)),
           const SizedBox(height: 4),
           city != null
               ? Row(children: [
                   Text(city!['code'] ?? '',
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900,
-                          color: _kNavy)),
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900,
+                          color: context.colors.navyText)),
                   const SizedBox(width: 6),
                   Expanded(child: Text(city!['city'] ?? '',
-                      style: const TextStyle(fontSize: 12, color: _kMuted),
+                      style: TextStyle(fontSize: 12, color: _kMuted),
                       overflow: TextOverflow.ellipsis)),
                 ])
               : Row(children: [
                   const Icon(Icons.location_on_outlined, size: 14, color: _kMuted),
                   const SizedBox(width: 4),
-                  Text(hint, style: const TextStyle(fontSize: 13, color: _kMuted)),
+                  Text(hint, style: TextStyle(fontSize: 13, color: _kMuted)),
                 ]),
         ]),
       ),
@@ -539,11 +539,11 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(children: [
-              const Icon(Icons.flight_rounded, color: _kNavy, size: 22),
+              Icon(Icons.flight_rounded, color: context.colors.navyText, size: 22),
               const SizedBox(width: 10),
               const Text('Select City',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800,
-                      color: _kNavy)),
+                      color: context.colors.navyText)),
               const Spacer(),
               IconButton(
                 onPressed: () => Navigator.pop(context),
@@ -587,12 +587,12 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Center(child: Text(c['code'] ?? '',
-                        style: const TextStyle(fontSize: 12,
-                            fontWeight: FontWeight.w800, color: _kNavy))),
+                        style: TextStyle(fontSize: 12,
+                            fontWeight: FontWeight.w800, color: context.colors.navyText))),
                   ),
                   title: Text(c['city'] ?? '',
-                      style: const TextStyle(fontWeight: FontWeight.w600,
-                          fontSize: 14, color: _kNavy)),
+                      style: TextStyle(fontWeight: FontWeight.w600,
+                          fontSize: 14, color: context.colors.navyText)),
                   onTap: () { Navigator.pop(context); widget.onSelect(c); },
                 );
               },
@@ -636,7 +636,7 @@ class _DatePicker extends ConsumerWidget {
               color: date != null ? _kNavy.withValues(alpha: 0.3) : _kDivider),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: const TextStyle(
+          Text(label, style: TextStyle(
               fontSize: 11, fontWeight: FontWeight.w600, color: _kMuted)),
           const SizedBox(height: 4),
           Row(children: [
@@ -646,10 +646,10 @@ class _DatePicker extends ConsumerWidget {
             date != null
                 ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(DateFormat('EEE, d MMM').format(date!),
-                        style: const TextStyle(fontSize: 13,
-                            fontWeight: FontWeight.w700, color: _kNavy)),
+                        style: TextStyle(fontSize: 13,
+                            fontWeight: FontWeight.w700, color: context.colors.navyText)),
                     Text(DateFormat('yyyy').format(date!),
-                        style: const TextStyle(fontSize: 11, color: _kMuted)),
+                        style: TextStyle(fontSize: 11, color: _kMuted)),
                   ])
                 : const Text('Select date',
                     style: TextStyle(fontSize: 13, color: _kMuted)),
@@ -714,16 +714,16 @@ class _PassengerSelector extends StatelessWidget {
               fontSize: 11, fontWeight: FontWeight.w600, color: _kMuted)),
           const SizedBox(height: 4),
           Row(children: [
-            const Icon(Icons.person_outline_rounded, size: 14, color: _kNavy),
+            Icon(Icons.person_outline_rounded, size: 14, color: context.colors.navyText),
             const SizedBox(width: 4),
             Text('$_total Passenger${_total != 1 ? 's' : ''}',
-                style: const TextStyle(fontSize: 13,
-                    fontWeight: FontWeight.w700, color: _kNavy)),
+                style: TextStyle(fontSize: 13,
+                    fontWeight: FontWeight.w700, color: context.colors.navyText)),
           ]),
           Text('$adults Adult${adults != 1 ? 's' : ''}'
               '${children > 0 ? ' · $children Child' : ''}'
               '${infants > 0 ? ' · $infants Infant' : ''}',
-              style: const TextStyle(fontSize: 11, color: _kMuted)),
+              style: TextStyle(fontSize: 11, color: _kMuted)),
         ]),
       ),
     );
@@ -749,7 +749,7 @@ class _PassengerSelector extends StatelessWidget {
             const SizedBox(height: 20),
             const Text('Passengers',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
-                    color: _kNavy)),
+                    color: context.colors.navyText)),
             const SizedBox(height: 20),
             _PaxRow(label: 'Adults', sub: '12+ years', value: _a, min: 1,
                 onChanged: (v) => ss(() => _a = v)),
@@ -793,15 +793,15 @@ class _PaxRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(children: [
     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(fontWeight: FontWeight.w700,
-          fontSize: 15, color: _kNavy)),
-      Text(sub, style: const TextStyle(fontSize: 12, color: _kMuted)),
+      Text(label, style: TextStyle(fontWeight: FontWeight.w700,
+          fontSize: 15, color: context.colors.navyText)),
+      Text(sub, style: TextStyle(fontSize: 12, color: _kMuted)),
     ])),
     _CountBtn(icon: Icons.remove, onTap: value > min
         ? () => onChanged(value - 1) : null),
     SizedBox(width: 36, child: Center(child: Text('$value',
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
-            color: _kNavy)))),
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
+            color: context.colors.navyText)))),
     _CountBtn(icon: Icons.add, onTap: () => onChanged(value + 1)),
   ]);
 }
@@ -851,14 +851,14 @@ class _ClassSelector extends StatelessWidget {
           const SizedBox(height: 4),
           Row(children: [
             Icon(selected == 'business' ? Icons.star_rounded : Icons.airline_seat_recline_normal_rounded,
-                size: 14, color: _kNavy),
+                size: 14, color: context.colors.navyText),
             const SizedBox(width: 4),
             Text(selected == 'business' ? 'Business' : 'Economy',
-                style: const TextStyle(fontSize: 13,
-                    fontWeight: FontWeight.w700, color: _kNavy)),
+                style: TextStyle(fontSize: 13,
+                    fontWeight: FontWeight.w700, color: context.colors.navyText)),
           ]),
           Text(selected == 'business' ? 'Premium seats' : 'Standard seats',
-              style: const TextStyle(fontSize: 11, color: _kMuted)),
+              style: TextStyle(fontSize: 11, color: _kMuted)),
         ]),
       ),
     );
@@ -880,7 +880,7 @@ class _ClassSelector extends StatelessWidget {
                   borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 20),
           const Text('Select Class',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _kNavy)),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.navyText)),
           const SizedBox(height: 16),
           _ClassOption(label: 'Economy', sub: 'Standard seats · best value',
               icon: Icons.airline_seat_recline_normal_rounded,
@@ -889,7 +889,7 @@ class _ClassSelector extends StatelessWidget {
           const SizedBox(height: 12),
           _ClassOption(label: 'Business', sub: 'Premium seats · more space',
               icon: Icons.star_rounded,
-              value: 'business', selected: selected, color: _kNavy,
+              value: 'business', selected: selected, color: context.colors.navyText,
               onTap: () { Navigator.pop(context); onChanged('business'); }),
           const SizedBox(height: 24),
         ]),
@@ -933,7 +933,7 @@ class _ClassOption extends StatelessWidget {
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(label, style: TextStyle(
                 fontSize: 15, fontWeight: FontWeight.w700, color: color)),
-            Text(sub, style: const TextStyle(fontSize: 12, color: _kMuted)),
+            Text(sub, style: TextStyle(fontSize: 12, color: _kMuted)),
           ]),
           const Spacer(),
           if (active) Icon(Icons.check_circle_rounded, color: color, size: 22),
@@ -966,7 +966,7 @@ class _PopularRoutesHint extends StatelessWidget {
           const SizedBox(width: 8),
           const Text('Popular Routes',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800,
-                  color: _kNavy)),
+                  color: context.colors.navyText)),
         ]),
       ),
       SizedBox(
@@ -994,20 +994,20 @@ class _PopularRoutesHint extends StatelessWidget {
                 children: [
                   Row(children: [
                     Text(r['fcode']!,
-                        style: const TextStyle(fontSize: 16,
-                            fontWeight: FontWeight.w900, color: _kNavy)),
+                        style: TextStyle(fontSize: 16,
+                            fontWeight: FontWeight.w900, color: context.colors.navyText)),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 6),
                       child: Icon(Icons.arrow_forward_rounded,
                           size: 12, color: _kMuted),
                     ),
                     Text(r['tcode']!,
-                        style: const TextStyle(fontSize: 16,
-                            fontWeight: FontWeight.w900, color: _kNavy)),
+                        style: TextStyle(fontSize: 16,
+                            fontWeight: FontWeight.w900, color: context.colors.navyText)),
                   ]),
                   const SizedBox(height: 4),
                   Text('${r['from']} → ${r['to']}',
-                      style: const TextStyle(fontSize: 10, color: _kMuted),
+                      style: TextStyle(fontSize: 10, color: _kMuted),
                       overflow: TextOverflow.ellipsis),
                 ],
               ),
@@ -1041,12 +1041,12 @@ class _SearchResults extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(2))),
           const SizedBox(width: 8),
           Text('Available Flights',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800,
-                  color: _kNavy)),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800,
+                  color: context.colors.navyText)),
           const Spacer(),
           flightsAsync.when(
             data: (flights) => Text('${flights.length} found',
-                style: const TextStyle(fontSize: 12, color: _kMuted,
+                style: TextStyle(fontSize: 12, color: _kMuted,
                     fontWeight: FontWeight.w600)),
             loading: () => const SizedBox.shrink(),
             error: (_, __) => const SizedBox.shrink(),
@@ -1129,9 +1129,9 @@ class _FlightCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(flight['airline']?.toString() ?? '',
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: _kNavy)),
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText)),
                 Text(flight['flight_number']?.toString() ?? '',
-                    style: const TextStyle(fontSize: 11, color: _kMuted)),
+                    style: TextStyle(fontSize: 11, color: _kMuted)),
               ])),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1157,7 +1157,7 @@ class _FlightCard extends StatelessWidget {
               _TimeBlock(code: flight['from_code']?.toString() ?? '', city: flight['from_city']?.toString() ?? '', time: dep),
               Expanded(child: Column(children: [
                 if (dur != null) Text(dur,
-                    style: const TextStyle(fontSize: 11, color: _kMuted)),
+                    style: TextStyle(fontSize: 11, color: _kMuted)),
                 const SizedBox(height: 4),
                 Row(children: [
                   Expanded(child: Divider(color: _kDivider, thickness: 1)),
@@ -1183,17 +1183,17 @@ class _FlightCard extends StatelessWidget {
             // Price breakdown chips
             Expanded(child: Wrap(spacing: 6, runSpacing: 4, children: [
               if (eco > 0) _PriceChip(label: 'ECO', price: eco, color: const Color(0xFF10B981)),
-              if (biz > 0) _PriceChip(label: 'BIZ', price: biz, color: _kNavy),
+              if (biz > 0) _PriceChip(label: 'BIZ', price: biz, color: context.colors.navyText),
               if (chd > 0) _PriceChip(label: 'CHD', price: chd, color: const Color(0xFFF59E0B)),
               if (inf > 0) _PriceChip(label: 'INF', price: inf, color: const Color(0xFFEF4444)),
             ])),
             const SizedBox(width: 12),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text('\$${total.toStringAsFixed(0)}',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900,
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900,
                       color: _kOrange)),
               Text('total · ${adults + children + infants} pax',
-                  style: const TextStyle(fontSize: 10, color: _kMuted)),
+                  style: TextStyle(fontSize: 10, color: _kMuted)),
             ]),
             const SizedBox(width: 12),
             ElevatedButton(
@@ -1272,11 +1272,11 @@ class _TimeBlock extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: right ? CrossAxisAlignment.end : CrossAxisAlignment.start,
     children: [
-      Text(time, style: const TextStyle(fontSize: 22,
-          fontWeight: FontWeight.w900, color: _kNavy)),
-      Text(code, style: const TextStyle(fontSize: 14,
+      Text(time, style: TextStyle(fontSize: 22,
+          fontWeight: FontWeight.w900, color: context.colors.navyText)),
+      Text(code, style: TextStyle(fontSize: 14,
           fontWeight: FontWeight.w800, color: _kSky)),
-      Text(city, style: const TextStyle(fontSize: 10, color: _kMuted),
+      Text(city, style: TextStyle(fontSize: 10, color: _kMuted),
           overflow: TextOverflow.ellipsis),
     ],
   );
@@ -1331,7 +1331,7 @@ class _EmptyFlights extends StatelessWidget {
       const Icon(Icons.flight_land_rounded, size: 52, color: _kDivider),
       const SizedBox(height: 16),
       const Text('No flights found',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _kNavy)),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
       const SizedBox(height: 6),
       const Text('Try a different date or route',
           style: TextStyle(fontSize: 13, color: _kMuted)),
@@ -1353,7 +1353,7 @@ class _ErrorCard extends StatelessWidget {
       const Icon(Icons.info_outline_rounded, color: Color(0xFF856404)),
       const SizedBox(width: 10),
       Expanded(child: Text(message,
-          style: const TextStyle(color: Color(0xFF856404), fontSize: 13))),
+          style: TextStyle(color: Color(0xFF856404), fontSize: 13))),
     ]),
   );
 }
@@ -1481,7 +1481,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
         child: Column(children: [
           // ── Custom App Bar ────────────────────────────────────
           Container(
-            color: _kNavy,
+            color: context.colors.navyText,
             padding: EdgeInsets.only(
               top: MediaQuery.of(context).padding.top + 8,
               bottom: 12, left: 4, right: 16,
@@ -1499,7 +1499,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
               else
                 const SizedBox(width: 48),
               Expanded(child: Text(_stepTitle,
-                  style: const TextStyle(color: Colors.white,
+                  style: TextStyle(color: Colors.white,
                       fontWeight: FontWeight.w800, fontSize: 17))),
               // Step indicator
               if (_step < 2)
@@ -1556,7 +1556,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
                 const SizedBox(width: 10),
                 Expanded(child: Text(
                   '${f['from_city'] ?? ''} → ${f['to_city'] ?? ''}',
-                  style: const TextStyle(color: Colors.white,
+                  style: TextStyle(color: Colors.white,
                       fontWeight: FontWeight.w700, fontSize: 14),
                 )),
                 Container(
@@ -1565,7 +1565,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
                       borderRadius: BorderRadius.circular(20)),
                   child: Text(
                     widget.seatClass == 'business' ? 'Business' : 'Economy',
-                    style: const TextStyle(color: Colors.white,
+                    style: TextStyle(color: Colors.white,
                         fontSize: 11, fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -1631,7 +1631,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
                 Expanded(child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(f['airline']?.toString() ?? '',
-                      style: const TextStyle(color: Colors.white,
+                      style: TextStyle(color: Colors.white,
                           fontWeight: FontWeight.w800, fontSize: 14)),
                   Text(f['flight_number']?.toString() ?? '',
                       style: TextStyle(color: Colors.white.withValues(alpha: 0.65),
@@ -1642,7 +1642,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
                   decoration: BoxDecoration(color: _kOrange,
                       borderRadius: BorderRadius.circular(20)),
                   child: Text(widget.seatClass == 'business' ? 'Business' : 'Economy',
-                      style: const TextStyle(color: Colors.white,
+                      style: TextStyle(color: Colors.white,
                           fontSize: 11, fontWeight: FontWeight.w700)),
                 ),
               ]),
@@ -1651,13 +1651,13 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
                 Expanded(child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(f['from_code']?.toString() ?? '',
-                      style: const TextStyle(color: Colors.white,
+                      style: TextStyle(color: Colors.white,
                           fontSize: 30, fontWeight: FontWeight.w900, height: 1)),
                   Text(f['from_city']?.toString() ?? '',
                       style: TextStyle(color: Colors.white.withValues(alpha: 0.65),
                           fontSize: 11)),
                   const SizedBox(height: 3),
-                  Text(depTime, style: const TextStyle(color: Colors.white,
+                  Text(depTime, style: TextStyle(color: Colors.white,
                       fontSize: 16, fontWeight: FontWeight.w700)),
                 ])),
                 Padding(
@@ -1675,13 +1675,13 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
                 Expanded(child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end, children: [
                   Text(f['to_code']?.toString() ?? '',
-                      style: const TextStyle(color: Colors.white,
+                      style: TextStyle(color: Colors.white,
                           fontSize: 30, fontWeight: FontWeight.w900, height: 1)),
                   Text(f['to_city']?.toString() ?? '',
                       style: TextStyle(color: Colors.white.withValues(alpha: 0.65),
                           fontSize: 11)),
                   const SizedBox(height: 3),
-                  Text(arrTime, style: const TextStyle(color: Colors.white,
+                  Text(arrTime, style: TextStyle(color: Colors.white,
                       fontSize: 16, fontWeight: FontWeight.w700)),
                 ])),
               ]),
@@ -1735,8 +1735,8 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
                   Expanded(child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text('${p.title ?? ''} ${p.fullName ?? 'Passenger ${e.key + 1}'}'.trim(),
-                        style: const TextStyle(fontSize: 13,
-                            fontWeight: FontWeight.w700, color: _kNavy)),
+                        style: TextStyle(fontSize: 13,
+                            fontWeight: FontWeight.w700, color: context.colors.navyText)),
                     Row(children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
@@ -1749,14 +1749,14 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
                       ),
                       if (p.nationality?.isNotEmpty == true) ...[
                         const SizedBox(width: 6),
-                        Text(p.nationality!, style: const TextStyle(
+                        Text(p.nationality!, style: TextStyle(
                             fontSize: 11, color: _kMuted)),
                       ],
                     ]),
                   ])),
                   Text('\$${_priceFor(p).toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 13,
-                          fontWeight: FontWeight.w800, color: _kNavy)),
+                      style: TextStyle(fontSize: 13,
+                          fontWeight: FontWeight.w800, color: context.colors.navyText)),
                 ]),
               );
             }).toList()),
@@ -1770,22 +1770,22 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
                 child: Row(children: [
                   Expanded(child: Text(
                     '${e.value.title ?? ''} ${e.value.fullName ?? 'Pax ${e.key + 1}'} (${e.value.type})'.trim(),
-                    style: const TextStyle(fontSize: 12, color: _kMuted),
+                    style: TextStyle(fontSize: 12, color: _kMuted),
                     overflow: TextOverflow.ellipsis,
                   )),
                   Text('\$${_priceFor(e.value).toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 12,
-                          fontWeight: FontWeight.w600, color: _kNavy)),
+                      style: TextStyle(fontSize: 12,
+                          fontWeight: FontWeight.w600, color: context.colors.navyText)),
                 ]),
               )),
               Divider(color: _kDivider, height: 20),
               Row(children: [
                 const Text('Total Amount',
                     style: TextStyle(fontSize: 15,
-                        fontWeight: FontWeight.w800, color: _kNavy)),
+                        fontWeight: FontWeight.w800, color: context.colors.navyText)),
                 const Spacer(),
                 Text('\$${_total.toStringAsFixed(2)}',
-                    style: const TextStyle(fontSize: 22,
+                    style: TextStyle(fontSize: 22,
                         fontWeight: FontWeight.w900, color: _kOrange)),
               ]),
             ]),
@@ -1798,7 +1798,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
                 label: 'Wallet Balance',
                 sub: 'Deducted from your eSahlan wallet',
                 icon: Icons.account_balance_wallet_rounded,
-                color: _kNavy, selected: _payMethod == 'wallet',
+                color: context.colors.navyText, selected: _payMethod == 'wallet',
                 onTap: () => setState(() => _payMethod = 'wallet'),
               ),
               const SizedBox(height: 10),
@@ -1825,7 +1825,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
                     color: Color(0xFFEF4444), size: 18),
                 const SizedBox(width: 10),
                 Expanded(child: Text(_error!,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: Color(0xFFEF4444), fontSize: 13))),
               ]),
             ),
@@ -1882,10 +1882,10 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
             const Text('Booking Confirmed! ✈️',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 22,
-                    fontWeight: FontWeight.w900, color: _kNavy)),
+                    fontWeight: FontWeight.w900, color: context.colors.navyText)),
             const SizedBox(height: 8),
             Text('Order #$_orderNumber',
-                style: const TextStyle(fontSize: 14, color: _kMuted)),
+                style: TextStyle(fontSize: 14, color: _kMuted)),
             const SizedBox(height: 28),
             // Ticket card
             Container(
@@ -1900,18 +1900,18 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(f['from_code']?.toString() ?? '',
-                        style: const TextStyle(color: Colors.white,
+                        style: TextStyle(color: Colors.white,
                             fontSize: 32, fontWeight: FontWeight.w900)),
                     Text(f['from_city']?.toString() ?? '',
-                        style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                        style: TextStyle(color: Colors.white70, fontSize: 11)),
                   ]),
                   const Icon(Icons.flight_rounded, color: Colors.white38, size: 30),
                   Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                     Text(f['to_code']?.toString() ?? '',
-                        style: const TextStyle(color: Colors.white,
+                        style: TextStyle(color: Colors.white,
                             fontSize: 32, fontWeight: FontWeight.w900)),
                     Text(f['to_city']?.toString() ?? '',
-                        style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                        style: TextStyle(color: Colors.white70, fontSize: 11)),
                   ]),
                 ]),
                 Divider(color: Colors.white.withValues(alpha: 0.2), height: 22),
@@ -1990,21 +1990,21 @@ class _PaxFormCardState extends State<_PaxFormCard> {
 
   InputDecoration _dec(String hint) => InputDecoration(
     hintText: hint,
-    hintStyle: const TextStyle(color: _kMuted, fontSize: 13),
+    hintStyle: TextStyle(color: _kMuted, fontSize: 13),
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: _kDivider)),
     enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: _kDivider)),
     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: _kNavy, width: 1.5)),
+        borderSide: BorderSide(color: context.colors.navyText, width: 1.5)),
     filled: true, fillColor: context.colors.inputFill,
   );
 
   Widget _label(String t) => Padding(
     padding: const EdgeInsets.only(bottom: 6),
-    child: Text(t, style: const TextStyle(fontSize: 12,
-        fontWeight: FontWeight.w600, color: _kNavy)),
+    child: Text(t, style: TextStyle(fontSize: 12,
+        fontWeight: FontWeight.w600, color: context.colors.navyText)),
   );
 
   @override
@@ -2033,8 +2033,8 @@ class _PaxFormCardState extends State<_PaxFormCard> {
               Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Passenger ${widget.index + 1}',
-                    style: const TextStyle(fontWeight: FontWeight.w700,
-                        fontSize: 14, color: _kNavy)),
+                    style: TextStyle(fontWeight: FontWeight.w700,
+                        fontSize: 14, color: context.colors.navyText)),
                 Text(_typeLabel, style: TextStyle(fontSize: 12,
                     color: _typeColor, fontWeight: FontWeight.w600)),
               ])),
@@ -2067,7 +2067,7 @@ class _PaxFormCardState extends State<_PaxFormCard> {
                           value: f.value, isDense: true, isExpanded: true,
                           onChanged: (v) { f.didChange(v); widget.pax.title = v; },
                           items: _kTitles.map((t) => DropdownMenuItem(
-                              value: t, child: Text(t, style: const TextStyle(
+                              value: t, child: Text(t, style: TextStyle(
                                   fontSize: 13)))).toList(),
                         )),
                       ),
@@ -2123,7 +2123,7 @@ class _PaxFormCardState extends State<_PaxFormCard> {
                         setState(() {});
                       },
                       items: _kCountries.map((c) => DropdownMenuItem(
-                          value: c, child: Text(c, style: const TextStyle(
+                          value: c, child: Text(c, style: TextStyle(
                               fontSize: 13)))).toList(),
                     )),
                   ),
@@ -2210,13 +2210,13 @@ class _BottomBar extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
         child: Row(children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(leftLabel, style: const TextStyle(
+            Text(leftLabel, style: TextStyle(
                 fontSize: 10, color: _kMuted, fontWeight: FontWeight.w600)),
             Text(leftValue, style: TextStyle(fontSize: 20,
                 fontWeight: FontWeight.w900,
                 color: leftValueColor ?? _kNavy)),
             if (subLabel != null)
-              Text(subLabel!, style: const TextStyle(
+              Text(subLabel!, style: TextStyle(
                   fontSize: 10, color: _kMuted)),
           ]),
           const SizedBox(width: 14),
@@ -2236,7 +2236,7 @@ class _BottomBar extends StatelessWidget {
                 : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Icon(buttonIcon, color: Colors.white, size: 15),
                     const SizedBox(width: 7),
-                    Text(buttonLabel, style: const TextStyle(
+                    Text(buttonLabel, style: TextStyle(
                         color: Colors.white, fontWeight: FontWeight.w800,
                         fontSize: 14)),
                   ]),
@@ -2255,9 +2255,9 @@ class _InfoBadge extends StatelessWidget {
   const _InfoBadge(this.label, this.value);
   @override
   Widget build(BuildContext context) => Column(children: [
-    Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10)),
+    Text(label, style: TextStyle(color: Colors.white54, fontSize: 10)),
     const SizedBox(height: 3),
-    Text(value, style: const TextStyle(color: Colors.white,
+    Text(value, style: TextStyle(color: Colors.white,
         fontWeight: FontWeight.w700, fontSize: 12)),
   ]);
 }
@@ -2283,10 +2283,10 @@ class _PayCard extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
         child: Row(children: [
-          Icon(icon, size: 15, color: _kNavy),
+          Icon(icon, size: 15, color: context.colors.navyText),
           const SizedBox(width: 8),
-          Text(title, style: const TextStyle(fontSize: 13,
-              fontWeight: FontWeight.w700, color: _kNavy)),
+          Text(title, style: TextStyle(fontSize: 13,
+              fontWeight: FontWeight.w700, color: context.colors.navyText)),
         ]),
       ),
       Divider(height: 1, color: _kDivider),
@@ -2333,7 +2333,7 @@ class _PayMethodTile extends StatelessWidget {
             children: [
           Text(label, style: TextStyle(fontWeight: FontWeight.w700,
               fontSize: 14, color: selected ? color : _kNavy)),
-          Text(sub, style: const TextStyle(fontSize: 12, color: _kMuted)),
+          Text(sub, style: TextStyle(fontSize: 12, color: _kMuted)),
         ])),
         if (selected) Icon(Icons.check_circle_rounded, color: color, size: 22),
       ]),
@@ -2363,7 +2363,7 @@ class _MyTicketsTab extends ConsumerWidget {
             const Icon(Icons.airplane_ticket_outlined, size: 64, color: _kDivider),
             const SizedBox(height: 16),
             const Text('No tickets yet',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: _kNavy)),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.navyText)),
             const SizedBox(height: 8),
             const Text('Book your first flight!',
                 style: TextStyle(color: _kMuted)),
@@ -2413,11 +2413,11 @@ class _BookingCard extends StatelessWidget {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
           ),
           child: Row(children: [
-            const Icon(Icons.airplane_ticket_rounded, color: _kNavy, size: 18),
+            Icon(Icons.airplane_ticket_rounded, color: context.colors.navyText, size: 18),
             const SizedBox(width: 8),
             Text('#${booking['order_number'] ?? '—'}',
-                style: const TextStyle(fontWeight: FontWeight.w800,
-                    fontSize: 14, color: _kNavy)),
+                style: TextStyle(fontWeight: FontWeight.w800,
+                    fontSize: 14, color: context.colors.navyText)),
             const Spacer(),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -2438,23 +2438,23 @@ class _BookingCard extends StatelessWidget {
             Row(children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(booking['from_code']?.toString() ?? '—',
-                    style: const TextStyle(fontSize: 26,
-                        fontWeight: FontWeight.w900, color: _kNavy)),
+                    style: TextStyle(fontSize: 26,
+                        fontWeight: FontWeight.w900, color: context.colors.navyText)),
                 Text(booking['from']?.toString() ?? '',
-                    style: const TextStyle(fontSize: 11, color: _kMuted)),
+                    style: TextStyle(fontSize: 11, color: _kMuted)),
               ])),
               Column(children: [
                 const Icon(Icons.flight_rounded, color: _kMuted, size: 20),
                 if (booking['airline'] != null)
                   Text(booking['airline']!,
-                      style: const TextStyle(fontSize: 10, color: _kMuted)),
+                      style: TextStyle(fontSize: 10, color: _kMuted)),
               ]),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Text(booking['to_code']?.toString() ?? '—',
-                    style: const TextStyle(fontSize: 26,
-                        fontWeight: FontWeight.w900, color: _kNavy)),
+                    style: TextStyle(fontSize: 26,
+                        fontWeight: FontWeight.w900, color: context.colors.navyText)),
                 Text(booking['to']?.toString() ?? '',
-                    style: const TextStyle(fontSize: 11, color: _kMuted)),
+                    style: TextStyle(fontSize: 11, color: _kMuted)),
               ])),
             ]),
             const SizedBox(height: 12),
@@ -2464,7 +2464,7 @@ class _BookingCard extends StatelessWidget {
               _InfoChip(Icons.people_rounded, '${(booking['passengers'] as List?)?.length ?? 1} pax'),
               const Spacer(),
               Text('\$${(booking['total_amount'] as num?)?.toStringAsFixed(2) ?? '0'}',
-                  style: const TextStyle(fontSize: 18,
+                  style: TextStyle(fontSize: 18,
                       fontWeight: FontWeight.w900, color: _kOrange)),
             ]),
           ]),
@@ -2488,7 +2488,7 @@ class _InfoChip extends StatelessWidget {
     child: Row(mainAxisSize: MainAxisSize.min, children: [
       Icon(icon, size: 12, color: _kMuted),
       const SizedBox(width: 4),
-      Text(label, style: const TextStyle(fontSize: 11, color: _kMuted,
+      Text(label, style: TextStyle(fontSize: 11, color: _kMuted,
           fontWeight: FontWeight.w600)),
     ]),
   );

@@ -772,7 +772,7 @@ class _RoomsSelector extends StatelessWidget {
                     margin: EdgeInsets.only(right: i < 5 ? 6 : 0),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: active ? _kOrange : _kBg,
+                      color: active ? _kOrange : context.colors.surfaceBg,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: active ? _kOrange : AppColors.divider,
@@ -882,7 +882,7 @@ class _PackageCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: selected
                                 ? _kOrange.withValues(alpha: 0.1)
-                                : _kBg,
+                                : context.colors.surfaceBg,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(f,

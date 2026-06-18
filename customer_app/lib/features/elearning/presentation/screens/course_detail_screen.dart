@@ -311,7 +311,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
               // ── Course header card ────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Container(
-                  color: Colors.white,
+                  color: context.colors.cardBg,
                   margin: const EdgeInsets.only(top: 12),
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                   child: Column(
@@ -536,7 +536,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
               // ── Tabs ───────────────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Container(
-                  color: Colors.white,
+                  color: context.colors.cardBg,
                   margin: const EdgeInsets.only(top: 12),
                   child: TabBar(
                     controller: _tabCtrl,

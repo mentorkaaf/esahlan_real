@@ -1897,7 +1897,7 @@ class _FoodItemDetailPageState extends ConsumerState<_FoodItemDetailPage> {
     final variants = (p['variants'] as List?)?.cast<dynamic>() ?? <dynamic>[];
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: context.colors.scaffoldBg,
       body: CustomScrollView(slivers: [
         SliverAppBar(
           expandedHeight: 280,
@@ -1925,7 +1925,7 @@ class _FoodItemDetailPageState extends ConsumerState<_FoodItemDetailPage> {
           ),
         ),
         SliverToBoxAdapter(child: Container(
-          decoration: const BoxDecoration(color: _bg, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+          decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
           padding: const EdgeInsets.all(20),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -2021,7 +2021,7 @@ class _FoodItemDetailPageState extends ConsumerState<_FoodItemDetailPage> {
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
         child: Row(children: [
           Container(
-            decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+            decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
             child: Row(children: [
               IconButton(icon: const Icon(Icons.remove_rounded, size: 20), onPressed: () { if (_qty > 1) setState(() => _qty--); }),
               Text('$_qty', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
@@ -2098,7 +2098,7 @@ class _CartPageState extends ConsumerState<_CartPage> {
     final total = subtotal + deliveryFee + tax - _discount;
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: context.colors.scaffoldBg,
       appBar: AppBar(
         backgroundColor: context.colors.cardBg,
         elevation: 0,
@@ -2225,7 +2225,7 @@ class _CartItemTile extends ConsumerWidget {
         Row(children: [
           GestureDetector(
             onTap: () => ref.read(_cartProvider.notifier).decrement(item.key),
-            child: Container(width: 28, height: 28, decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)), child: const Icon(Icons.remove_rounded, size: 16)),
+            child: Container(width: 28, height: 28, decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)), child: const Icon(Icons.remove_rounded, size: 16)),
           ),
           Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('${item.qty}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15))),
           GestureDetector(
@@ -2273,7 +2273,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: context.colors.scaffoldBg,
       appBar: AppBar(
         backgroundColor: context.colors.cardBg,
         elevation: 0,
@@ -2513,7 +2513,7 @@ class _TrackOrderPage extends ConsumerWidget {
     final track = ref.watch(_trackProvider(orderId));
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: context.colors.scaffoldBg,
       appBar: AppBar(
         backgroundColor: context.colors.cardBg,
         elevation: 0,
