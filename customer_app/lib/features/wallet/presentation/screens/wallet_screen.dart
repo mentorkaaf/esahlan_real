@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -152,7 +152,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
 
   Widget _buildActions(BuildContext context, WalletData wallet) {
     return Container(
-      color: Colors.white,
+      color: context.colors.cardBg,
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
       child: Row(
         children: [
@@ -203,7 +203,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Row(
         children: [
-          const Expanded(child: Text('Transactions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textDark))),
+          Expanded(child: Text('Transactions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.colors.navyText))),
           _TabChip(label: 'All',    selected: _tab == 0, onTap: () => setState(() => _tab = 0)),
           const SizedBox(width: 6),
           _TabChip(label: 'In',     selected: _tab == 1, color: Colors.green, onTap: () => setState(() => _tab = 1)),
@@ -230,7 +230,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.receipt_long_rounded, size: 56, color: Colors.grey.shade300),
             const SizedBox(height: 12),
-            const Text('No transactions yet', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textDark)),
+            Text('No transactions yet', style: TextStyle(fontWeight: FontWeight.w700, color: context.colors.navyText)),
             const SizedBox(height: 4),
             const Text('Top up your wallet to get started', style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
           ]),
@@ -487,7 +487,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
               const SizedBox(height: 4),
               Text('Balance: \$${currentBalance.toStringAsFixed(2)}', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
               const SizedBox(height: 20),
-              const Text('Payment Method', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+              Text('Payment Method', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.colors.navyText)),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -748,7 +748,7 @@ class _TransactionTile extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(
               tx['description'] ?? tx['note'] ?? (isCredit ? 'Credit' : 'Debit'),
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textDark),
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText),
               maxLines: 1, overflow: TextOverflow.ellipsis,
             ),
             Row(children: [

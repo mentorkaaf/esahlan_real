@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -517,10 +517,10 @@ class _Item extends StatelessWidget {
       ),
       title: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: AppColors.textDark,
+          color: context.colors.navyText,
         ),
       ),
       trailing: trailing != null
@@ -560,7 +560,7 @@ class _LangTile extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? _kOrange.withValues(alpha: 0.08) : const Color(0xFFF5F6FA),
+          color: selected ? _kOrange.withValues(alpha: 0.08) : context.colors.surfaceBg,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selected ? _kOrange : Colors.transparent,
@@ -575,7 +575,7 @@ class _LangTile extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: selected ? _kOrange : AppColors.textDark,
+                  color: selected ? _kOrange : context.colors.navyText,
                 )),
             const Spacer(),
             if (selected)

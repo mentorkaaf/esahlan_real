@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
@@ -35,7 +35,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
             appBar: AppBar(
         title: const Text('My Orders', style: TextStyle(fontWeight: FontWeight.w800)),
         
-        foregroundColor: AppColors.textDark,
+        foregroundColor: context.colors.navyText,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         bottom: TabBar(
@@ -95,7 +95,7 @@ class _OrdersList extends ConsumerWidget {
               children: [
                 Text('📦', style: TextStyle(fontSize: 56)),
                 SizedBox(height: 16),
-                Text('No orders yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+                Text('No orders yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
                 SizedBox(height: 6),
                 Text('Your orders will appear here', style: TextStyle(color: AppColors.textGrey)),
               ],
@@ -152,7 +152,7 @@ class _OrderCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(order.orderNumber,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textDark)),
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.navyText)),
                       Text(order.vendorName ?? 'Order',
                         style: const TextStyle(fontSize: 13, color: AppColors.textGrey)),
                     ],
@@ -172,7 +172,7 @@ class _OrderCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text('\$${order.totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.textDark)),
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
                   ],
                 ),
               ],
