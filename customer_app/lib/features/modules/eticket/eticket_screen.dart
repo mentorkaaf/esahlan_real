@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
@@ -7,7 +7,7 @@ import '../../../core/widgets/network_image_widget.dart';
 import 'package:intl/intl.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/theme_x.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../payment/waafi_pay_sheet.dart';

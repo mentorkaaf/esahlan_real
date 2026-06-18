@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'web_video_helper.dart' as webvideo;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -78,7 +78,7 @@ class _ERentScreenState extends ConsumerState<ERentScreen>
         headerSliverBuilder: (_, __) => [
           SliverAppBar(
             pinned: true, expandedHeight: 0,
-            backgroundcolor: context.colors.navyText, foregroundColor: Colors.white,
+            backgroundColor: context.colors.navyText, foregroundColor: Colors.white,
             title: const Row(children: [
               Icon(Icons.home_rounded, size: 20, color: _kOrange),
               SizedBox(width: 8),
@@ -611,7 +611,7 @@ class _PropertyListScreenState extends ConsumerState<_PropertyListScreen> {
     final async = ref.watch(_propertiesProvider(_paramsKey));
     return Scaffold(
             appBar: AppBar(
-        backgroundcolor: context.colors.navyText, foregroundColor: Colors.white,
+        backgroundColor: context.colors.navyText, foregroundColor: Colors.white,
         title: Text(widget.district['name'] ?? '',
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
         bottom: PreferredSize(
@@ -780,7 +780,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
     final async = ref.watch(_propertyProvider(widget.propertyId));
     return async.when(
       loading: () => Scaffold(backgroundColor: _kBg, body: const Center(child: CircularProgressIndicator(color: _kOrange))),
-      error: (e, _) => Scaffold(appBar: AppBar(backgroundcolor: context.colors.navyText, foregroundColor: Colors.white),
+      error: (e, _) => Scaffold(appBar: AppBar(backgroundColor: context.colors.navyText, foregroundColor: Colors.white),
           body: _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_propertyProvider(widget.propertyId)))),
       data: (data) {
         final p = Map<String, dynamic>.from(data is Map ? (data['data'] ?? data) : {});
@@ -795,7 +795,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
               // Back button appbar (thin, transparent)
               SliverAppBar(
                 pinned: true, expandedHeight: 0,
-                backgroundcolor: context.colors.navyText, foregroundColor: Colors.white,
+                backgroundColor: context.colors.navyText, foregroundColor: Colors.white,
                 title: Text(p['title'] ?? '',
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15),
                     maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -1046,7 +1046,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                     Expanded(child: ElevatedButton(
                       onPressed: () => _showBookSheet(context, p, true),
                       style: ElevatedButton.styleFrom(
-                        backgroundcolor: context.colors.navyText, minimumSize: const Size(0, 52),
+                        backgroundColor: context.colors.navyText, minimumSize: const Size(0, 52),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1379,7 +1379,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
         decoration: InputDecoration(
           hintText: 'Optional note for landlord...',
           prefixIcon: const Icon(Icons.note_alt_outlined, color: _kMuted),
-          filled: true, fillcolor: context.colors.cardBg,
+          filled: true, fillColor: context.colors.cardBg,
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(color: Colors.grey.shade200)),
@@ -1615,7 +1615,7 @@ class _BookingCard extends StatelessWidget {
                   icon: const Icon(Icons.payment_rounded, size: 16),
                   label: const Text('Pay Remaining'),
                   style: ElevatedButton.styleFrom(
-                    backgroundcolor: context.colors.navyText, foregroundColor: Colors.white,
+                    backgroundColor: context.colors.navyText, foregroundColor: Colors.white,
                     minimumSize: const Size(0, 42),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                 )),
@@ -1737,7 +1737,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
             appBar: AppBar(
-        backgroundcolor: context.colors.navyText, foregroundColor: Colors.white,
+        backgroundColor: context.colors.navyText, foregroundColor: Colors.white,
         title: const Text('Pay Remaining Balance',
             style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
       ),
@@ -1768,7 +1768,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
           child: ElevatedButton(
             onPressed: () => Navigator.of(context).pop(),
             style: ElevatedButton.styleFrom(
-              backgroundcolor: context.colors.navyText, foregroundColor: Colors.white,
+              backgroundColor: context.colors.navyText, foregroundColor: Colors.white,
               minimumSize: const Size(0, 52),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
@@ -1856,7 +1856,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
             child: ElevatedButton(
               onPressed: _loading ? null : _pay,
               style: ElevatedButton.styleFrom(
-                backgroundcolor: context.colors.navyText, foregroundColor: Colors.white,
+                backgroundColor: context.colors.navyText, foregroundColor: Colors.white,
                 minimumSize: const Size(0, 54),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 elevation: 0,

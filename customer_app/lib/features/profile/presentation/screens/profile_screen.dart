@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../core/theme/theme_x.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 
 const _kNavy   = Color(0xFF07003B);
@@ -28,7 +28,7 @@ class ProfileScreen extends ConsumerWidget {
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
-            backgroundcolor: context.colors.navyText,
+            backgroundColor: context.colors.navyText,
             foregroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
             elevation: 0,

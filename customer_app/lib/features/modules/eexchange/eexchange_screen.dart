@@ -257,9 +257,9 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         style: TextStyle(fontWeight: FontWeight.w900, fontSize: 28, color: context.colors.navyText),
         onChanged: (v) => setState(() { _amount = double.tryParse(v) ?? 0; _preview = null; }),
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           hintText: '0.00',
-          hintStyle: TextStyle(fontWeight: FontWeight.w300, fontSize: 28, color: AppColors.divider),
+          hintStyle: const TextStyle(fontWeight: FontWeight.w300, fontSize: 28, color: AppColors.divider),
           border: InputBorder.none,
           prefixText: '\$  ',
           prefixStyle: TextStyle(fontWeight: FontWeight.w900, fontSize: 28, color: context.colors.navyText),
@@ -408,9 +408,9 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
       border: Border.all(color: AppColors.divider),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Row(children: [
-        Icon(Icons.payment_rounded, size: 18, color: AppColors.primary),
-        SizedBox(width: 8),
+      Row(children: [
+        const Icon(Icons.payment_rounded, size: 18, color: AppColors.primary),
+        const SizedBox(width: 8),
         Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
       ]),
       const SizedBox(height: 12),
@@ -684,7 +684,7 @@ class _ExchangeSuccessScreen extends StatelessWidget {
                 border: Border.all(color: AppColors.divider),
               ),
               child: Column(children: [
-                const Align(alignment: Alignment.centerLeft,
+                Align(alignment: Alignment.centerLeft,
                     child: Text('Exchange Details',
                         style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText))),
                 const SizedBox(height: 14),

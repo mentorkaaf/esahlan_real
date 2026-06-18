@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -96,7 +96,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
           SliverAppBar(
             expandedHeight: 160,
             pinned: true,
-            backgroundcolor: context.colors.navyText,
+            backgroundColor: context.colors.navyText,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Colors.white),
               onPressed: () => context.pop(),

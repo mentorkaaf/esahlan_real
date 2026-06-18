@@ -8,7 +8,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../ads/services/ad_service.dart';
-import '../../../core/theme/theme_x.dart';
+import '../../../../core/theme/theme_x.dart';
 
 final _svc = ModuleApiService.create();
 final _laundryItemsProvider = FutureProvider((_) => _svc.getLaundryItems());
@@ -424,7 +424,7 @@ class _SuccessView extends StatelessWidget {
           decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
           child: const Icon(Icons.check_rounded, color: Colors.white, size: 52)),
         const SizedBox(height: 24),
-        const Text('Order Placed!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: c.navyText)),
+        Text('Order Placed!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: c.navyText)),
         const SizedBox(height: 10),
         const Text('Your laundry order has been placed.\nWe\'ll notify you when it\'s picked up.',
             textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: AppColors.textGrey, height: 1.5)),

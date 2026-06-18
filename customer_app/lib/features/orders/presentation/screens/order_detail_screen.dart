@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../core/theme/theme_x.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../../core/utils/error_handler.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../providers/order_provider.dart';

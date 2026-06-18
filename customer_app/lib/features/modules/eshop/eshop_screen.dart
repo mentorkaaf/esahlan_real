@@ -1,9 +1,9 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/theme_x.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import 'eshop_providers.dart';

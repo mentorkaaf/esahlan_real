@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/api/module_api_service.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../core/theme/theme_x.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../../core/utils/error_handler.dart';
 import '../../../payment/waafi_pay_sheet.dart';
 import '../providers/wallet_provider.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:intl/intl.dart';
@@ -452,7 +452,7 @@ class _BookTabState extends ConsumerState<_BookTab> {
               onPressed: (_canCalculate) ? _openBookingSheet : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: _kOrange,
-                disabledBackgroundColor: _kMuted,
+                disabledbackgroundColor: _kMuted,
                 minimumSize: const Size(double.infinity, 56),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),
@@ -1366,7 +1366,7 @@ class _PriceSection extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: calculating ? null : onCalculate,
                 style: ElevatedButton.styleFrom(
-                  backgroundcolor: context.colors.navyText,
+                  backgroundColor: context.colors.navyText,
                   minimumSize: const Size(double.infinity, 48),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -1659,7 +1659,7 @@ class _BookingFlowScreenState extends ConsumerState<_BookingFlowScreen> {
     return Scaffold(
             appBar: _step < 2
           ? AppBar(
-              backgroundcolor: context.colors.navyText,
+              backgroundColor: context.colors.navyText,
               foregroundColor: Colors.white,
               title: Text(
                 _step == 0 ? 'Schedule Your Move' : 'Confirm Booking',
