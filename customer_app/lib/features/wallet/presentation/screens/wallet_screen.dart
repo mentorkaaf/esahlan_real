@@ -644,7 +644,7 @@ class _ActionBtn extends StatelessWidget {
             child: Icon(icon, color: Colors.white, size: 24),
           ),
           const SizedBox(height: 6),
-          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.isDark ? AppColors.primary : color)),
         ]),
       ),
     );
