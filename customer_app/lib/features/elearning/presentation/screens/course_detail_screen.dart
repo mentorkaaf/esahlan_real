@@ -286,7 +286,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                                       color: Colors.black26,
                                       child: Center(
                                         child: _trailerLoading
-                                            ? const CircularProgressIndicator(
+                                            ? CircularProgressIndicator(
                                                 color: context.colors.cardBg)
                                             : Container(
                                                 width: 64,
@@ -328,7 +328,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(course.category!.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   color: AppColors.primary,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600)),
@@ -356,7 +356,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                             child: course.instructor!.avatar == null
                                 ? Text(course.instructor!.name[0],
                                     style:
-                                        const TextStyle(color: Colors.white, fontSize: 12))
+                                        TextStyle(color: Colors.white, fontSize: 12))
                                 : null,
                           ),
                           const SizedBox(width: 10),
@@ -465,7 +465,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                               const SizedBox(width: 10),
                               Text(
                                 '\$${course.price.toStringAsFixed(2)}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 15,
                                     color: Colors.grey,
                                     decoration: TextDecoration.lineThrough),
@@ -481,7 +481,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                                   ),
                                   child: Text(
                                     '$discountPercent% OFF',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         color: Colors.green,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700),
@@ -523,7 +523,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                                   course.isEnrolled
                                       ? 'Continue Learning'
                                       : (course.isFree ? 'Enroll Free' : 'Enroll Now'),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontWeight: FontWeight.w700, fontSize: 16),
                                 ),
                         ),
@@ -544,7 +544,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                     unselectedLabelColor: Colors.grey,
                     indicatorColor: AppColors.primary,
                     labelStyle:
-                        const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                     tabs: const [
                       Tab(text: 'Overview'),
                       Tab(text: 'Curriculum'),
@@ -650,7 +650,7 @@ class _OverviewTab extends StatelessWidget {
                   child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     const Icon(Icons.check_circle_rounded, color: Colors.green, size: 18),
                     const SizedBox(width: 8),
-                    Expanded(child: Text(o, style: const TextStyle(fontSize: 13))),
+                    Expanded(child: Text(o, style: TextStyle(fontSize: 13))),
                   ]),
                 )),
             const SizedBox(height: 20),
@@ -667,7 +667,7 @@ class _OverviewTab extends StatelessWidget {
                   child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     const Icon(Icons.circle, color: AppColors.primary, size: 8),
                     const SizedBox(width: 10),
-                    Expanded(child: Text(r, style: const TextStyle(fontSize: 13))),
+                    Expanded(child: Text(r, style: TextStyle(fontSize: 13))),
                   ]),
                 )),
           ],
@@ -854,13 +854,13 @@ class _ReviewsTab extends StatelessWidget {
                     radius: 16,
                     backgroundColor: context.colors.navyText,
                     child: Text((r.user['name'] as String? ?? '?')[0],
-                        style: const TextStyle(color: Colors.white, fontSize: 12)),
+                        style: TextStyle(color: Colors.white, fontSize: 12)),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(r.user['name'] as String? ?? 'Student',
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                     Text(r.createdAt,
                         style: TextStyle(fontSize: 11, color: Colors.grey[500])),
                   ])),

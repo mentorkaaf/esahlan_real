@@ -206,7 +206,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
               decoration: BoxDecoration(
                   color: Colors.amber[50], borderRadius: BorderRadius.circular(10)),
               child: Text('Certificate: $cert',
-                  style: const TextStyle(fontWeight: FontWeight.w700,
+                  style: TextStyle(fontWeight: FontWeight.w700,
                       fontFamily: 'monospace', fontSize: 12)),
             ),
           ],
@@ -256,7 +256,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
         body: Center(
             child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(_lessonError!, style: const TextStyle(color: Colors.red)),
+          child: Text(_lessonError!, style: TextStyle(color: Colors.red)),
         )),
       );
     }
@@ -363,7 +363,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
                       : Icons.check_circle_outline_rounded),
               label: Text(
                   _completed ? 'Completed' : 'Mark as Complete',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
+                  style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ),
         ),
@@ -377,7 +377,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
             unselectedLabelColor: Colors.grey,
             indicatorColor: AppColors.primary,
             indicatorWeight: 2.5,
-            labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
             tabs: const [
               Tab(text: 'Lessons'),
               Tab(text: 'Notes'),
@@ -422,8 +422,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
         aspectRatio: 16 / 9,
         child: Container(
           color: context.colors.navyText,
-          child: const Center(
-              child: CircularProgressIndicator(color: context.colors.cardBg)),
+          child: Center(child: CircularProgressIndicator(color: context.colors.cardBg)),
         ),
       );
     }
@@ -440,7 +439,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
         padding: const EdgeInsets.all(16),
         child: SingleChildScrollView(
           child: Text(content,
-              style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.6)),
+              style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.6)),
         ),
       );
     }
@@ -454,7 +453,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen>
           Icon(_typeIcon(type), size: 48, color: Colors.white38),
           const SizedBox(height: 8),
           Text(type.toUpperCase(),
-              style: const TextStyle(
+              style: TextStyle(
                   color: Colors.white38, fontSize: 12, letterSpacing: 1)),
         ]),
       ),
@@ -489,7 +488,7 @@ class _ErrBox extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white60, fontSize: 12)),
+                style: TextStyle(color: Colors.white60, fontSize: 12)),
           ),
         ]),
       ),
@@ -695,7 +694,7 @@ class _NotesTab extends StatelessWidget {
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(n.note, style: const TextStyle(fontSize: 13)),
+                            Text(n.note, style: TextStyle(fontSize: 13)),
                             const SizedBox(height: 4),
                             Text(n.createdAt,
                                 style: TextStyle(

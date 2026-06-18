@@ -82,7 +82,7 @@ class _EMovingScreenState extends ConsumerState<EMovingScreen>
               indicatorWeight: 3,
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white60,
-              labelStyle: const TextStyle(
+              labelStyle: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
               ),
@@ -162,7 +162,7 @@ class _EMovingScreenState extends ConsumerState<EMovingScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
+                    Text(
                       'eMoving',
                       style: TextStyle(
                         color: context.colors.cardBg,
@@ -172,7 +172,7 @@ class _EMovingScreenState extends ConsumerState<EMovingScreen>
                       ),
                     ),
                     const SizedBox(height: 3),
-                    const Text(
+                    Text(
                       'Professional Moving Services',
                       style: TextStyle(
                         color: Colors.white70,
@@ -215,7 +215,7 @@ class _HeroBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           color: Colors.white,
           fontSize: 10,
           fontWeight: FontWeight.w600,
@@ -508,12 +508,12 @@ class _SectionHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                       color: context.colors.navyText)),
               Text(subtitle,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
+                  style: TextStyle(fontSize: 12, color: AppColors.textGrey)),
             ],
           ),
         ],
@@ -622,7 +622,7 @@ class _TypeGrid extends StatelessWidget {
                       ),
                     ),
                     if (isSelected)
-                      const Icon(Icons.check_circle_rounded,
+                      Icon(Icons.check_circle_rounded,
                           color: context.colors.cardBg, size: 18),
                   ],
                 ),
@@ -755,7 +755,7 @@ class _RoomsSelector extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Number of Rooms',
+          Text('Number of Rooms',
               style: TextStyle(
                   fontSize: 14, fontWeight: FontWeight.w700, color: context.colors.navyText)),
           const SizedBox(height: 12),
@@ -849,14 +849,14 @@ class _PackageCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(name,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
                           color: context.colors.navyText)),
                 ),
                 Text(
                   '\$${NumberFormat('#,##0').format(double.tryParse(price.toString()) ?? 0.0)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                       color: _kOrange),
@@ -866,7 +866,7 @@ class _PackageCard extends StatelessWidget {
             if (desc.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(desc,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textGrey),
+                  style: TextStyle(fontSize: 12, color: AppColors.textGrey),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis),
             ],
@@ -994,7 +994,7 @@ class _RouteSection extends ConsumerWidget {
                             const SizedBox(height: 4),
                             Text(
                               fromDistrict!['name']?.toString() ?? '',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   color: context.colors.cardBg,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700),
@@ -1013,7 +1013,7 @@ class _RouteSection extends ConsumerWidget {
                             const SizedBox(height: 4),
                             Text(
                               toDistrict!['name']?.toString() ?? '',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   color: context.colors.cardBg,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700),
@@ -1081,7 +1081,7 @@ class _DistrictDropdown extends StatelessWidget {
                 Icon(icon, size: 14, color: iconColor),
                 const SizedBox(width: 5),
                 Text(label,
-                    style: const TextStyle(fontSize: 10, color: AppColors.textGrey, fontWeight: FontWeight.w600)),
+                    style: TextStyle(fontSize: 10, color: AppColors.textGrey, fontWeight: FontWeight.w600)),
                 const Spacer(),
                 const Icon(Icons.keyboard_arrow_down_rounded,
                     size: 16, color: AppColors.textGrey),
@@ -1203,7 +1203,7 @@ class _ExtrasSectionState extends ConsumerState<_ExtrasSection> {
                                   .where((e) => widget.selectedExtras.contains(int.tryParse(e['id']?.toString() ?? '0') ?? 0))
                                   .fold<double>(0, (s, e) => s + (double.tryParse(e['price']?.toString() ?? '0') ?? 0))
                                   .toInt())}',
-                              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
                             ),
                           ),
                         const SizedBox(width: 6),
@@ -1340,7 +1340,7 @@ class _PriceSection extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('TOTAL',
+                        Text('TOTAL',
                             style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
@@ -1348,7 +1348,7 @@ class _PriceSection extends StatelessWidget {
                                 letterSpacing: 0.5)),
                         Text(
                           '\$${NumberFormat('#,##0.00').format(double.tryParse(breakdown!['total']?.toString() ?? '0') ?? 0)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w900,
                               color: _kOrange),
@@ -1411,9 +1411,9 @@ class _PriceLineItem extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textGrey)),
+          Text(label, style: TextStyle(fontSize: 13, color: AppColors.textGrey)),
           Text('\$${NumberFormat('#,##0.00').format(n)}',
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: context.colors.navyText)),
@@ -1477,7 +1477,7 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(widget.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                           color: context.colors.navyText)),
@@ -1514,7 +1514,7 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
                           color: _kOrange, size: 20),
                     ),
                     title: Text(d['name']?.toString() ?? '',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontWeight: FontWeight.w600, fontSize: 14)),
                     onTap: () {
                       Navigator.pop(context);
@@ -1663,7 +1663,7 @@ class _BookingFlowScreenState extends ConsumerState<_BookingFlowScreen> {
               foregroundColor: Colors.white,
               title: Text(
                 _step == 0 ? 'Schedule Your Move' : 'Confirm Booking',
-                style: const TextStyle(
+                style: TextStyle(
                     color: context.colors.cardBg, fontWeight: FontWeight.w700),
               ),
               bottom: PreferredSize(
@@ -1863,7 +1863,7 @@ class _ScheduleStep extends StatelessWidget {
                         const SizedBox(width: 12),
                         Text(
                           DateFormat('EEEE, MMMM d, yyyy').format(moveDate),
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: context.colors.navyText),
@@ -1928,7 +1928,7 @@ class _FormLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(text,
-        style: const TextStyle(
+        style: TextStyle(
             fontSize: 14, fontWeight: FontWeight.w700, color: context.colors.navyText));
   }
 }
@@ -2024,13 +2024,13 @@ class _ConfirmStep extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Confirm Booking',
+                Text('Confirm Booking',
                     style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         color: context.colors.navyText)),
                 const SizedBox(height: 4),
-                const Text('Review your details before confirming',
+                Text('Review your details before confirming',
                     style: TextStyle(fontSize: 13, color: AppColors.textGrey)),
                 const SizedBox(height: 20),
                 // Service
@@ -2124,7 +2124,7 @@ class _ConfirmStep extends ConsumerWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('TOTAL AMOUNT',
+                        Text('TOTAL AMOUNT',
                             style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 12,
@@ -2132,7 +2132,7 @@ class _ConfirmStep extends ConsumerWidget {
                                 letterSpacing: 0.5)),
                         Text(
                           '\$${NumberFormat('#,##0.00').format(double.tryParse(priceBreakdown!['total']?.toString() ?? '0') ?? 0)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: _kOrange,
                               fontSize: 24,
                               fontWeight: FontWeight.w900),
@@ -2174,7 +2174,7 @@ class _ConfirmCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textGrey,
@@ -2210,13 +2210,13 @@ class _ConfirmRow extends StatelessWidget {
         const SizedBox(width: 8),
         if (label.isNotEmpty) ...[
           Text(label,
-              style: const TextStyle(fontSize: 13, color: AppColors.textGrey)),
+              style: TextStyle(fontSize: 13, color: AppColors.textGrey)),
           const Spacer(),
         ] else
           const SizedBox(width: 4),
         Flexible(
           child: Text(value,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: context.colors.navyText),
@@ -2264,13 +2264,13 @@ class _SuccessScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 28),
-              const Text('Booking Confirmed!',
+              Text('Booking Confirmed!',
                   style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w900,
                       color: context.colors.navyText)),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Your moving request has been placed.\nOur team will contact you shortly.',
                 style: TextStyle(
                     fontSize: 14, color: AppColors.textGrey, height: 1.5),
@@ -2292,10 +2292,10 @@ class _SuccessScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Order Number',
+                        Text('Order Number',
                             style: TextStyle(color: Colors.white60, fontSize: 13)),
                         Text('#$orderNo',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: context.colors.cardBg,
                                 fontSize: 17,
                                 fontWeight: FontWeight.w800)),
@@ -2306,11 +2306,11 @@ class _SuccessScreen extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Total Amount',
+                          Text('Total Amount',
                               style: TextStyle(color: Colors.white60, fontSize: 13)),
                           Text(
                             '\$${NumberFormat('#,##0.00').format(double.tryParse(total.toString()) ?? 0)}',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: _kOrange,
                                 fontSize: 22,
                                 fontWeight: FontWeight.w900),
@@ -2332,7 +2332,7 @@ class _SuccessScreen extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: const Text('Back to Home',
+                  child: Text('Back to Home',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
               ),
@@ -2416,7 +2416,7 @@ class _BottomCTA extends StatelessWidget {
                           color: context.colors.cardBg, strokeWidth: 2),
                     )
                   : Text(label,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w800)),
             ),
           ),
@@ -2535,13 +2535,13 @@ class _OrderCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('#$orderNo',
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: context.colors.navyText)),
                       Text(
                         moveType.toString().replaceAll('_', ' ').toUpperCase(),
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 11,
                             color: AppColors.textGrey,
                             letterSpacing: 0.3),
@@ -2604,13 +2604,13 @@ class _OrderCard extends StatelessWidget {
                           size: 13, color: AppColors.textGrey),
                       const SizedBox(width: 4),
                       Text(moveDate.toString(),
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 12, color: AppColors.textGrey)),
                       const Spacer(),
                     ],
                     Text(
                       '\$${NumberFormat('#,##0.00').format(double.tryParse(total.toString()) ?? 0.0)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
                           color: _kOrange),
@@ -2651,9 +2651,9 @@ class _RouteChip extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label,
-                    style: const TextStyle(fontSize: 9, color: AppColors.textGrey)),
+                    style: TextStyle(fontSize: 9, color: AppColors.textGrey)),
                 Text(value,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: context.colors.navyText),
@@ -2765,13 +2765,13 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(title,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: context.colors.navyText)),
             const SizedBox(height: 8),
             Text(subtitle,
-                style: const TextStyle(fontSize: 14, color: AppColors.textGrey),
+                style: TextStyle(fontSize: 14, color: AppColors.textGrey),
                 textAlign: TextAlign.center),
           ],
         ),
@@ -2797,7 +2797,7 @@ class _ErrorWidget extends StatelessWidget {
                 size: 48, color: AppColors.error.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
             Text(message,
-                style: const TextStyle(fontSize: 13, color: AppColors.textGrey),
+                style: TextStyle(fontSize: 13, color: AppColors.textGrey),
                 textAlign: TextAlign.center,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis),
