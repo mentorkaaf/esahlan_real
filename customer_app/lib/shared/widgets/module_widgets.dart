@@ -1,4 +1,4 @@
-﻿// Shared widgets used across all module screens
+// Shared widgets used across all module screens
 import 'package:flutter/material.dart';
 import '../../core/theme/theme_x.dart';
 import 'package:go_router/go_router.dart';

@@ -1,4 +1,4 @@
-﻿import 'package:chewie/chewie.dart';
+import 'package:chewie/chewie.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

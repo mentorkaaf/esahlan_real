@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/module_api_service.dart';
 
 double _toD(dynamic v) => double.tryParse(v?.toString() ?? '0') ?? 0;
