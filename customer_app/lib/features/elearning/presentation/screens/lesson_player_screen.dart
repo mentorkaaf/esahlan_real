@@ -576,10 +576,10 @@ class _LessonsTab extends StatelessWidget {
                 fontSize: 15,
                 color: context.colors.navyText)),
         const SizedBox(height: 10),
-        if (course != null) _infoRow('Course', course),
-        if (section != null) _infoRow('Section', section),
-        _infoRow('Type', type.toUpperCase()),
-        if (dur > 0) _infoRow('Duration', _fmt(dur)),
+        if (course != null) _infoRow(context, 'Course', course),
+        if (section != null) _infoRow(context, 'Section', section),
+        _infoRow(context, 'Type', type.toUpperCase()),
+        if (dur > 0) _infoRow(context, 'Duration', _fmt(dur)),
         const SizedBox(height: 24),
 
         // CTA to full curriculum
@@ -599,7 +599,7 @@ class _LessonsTab extends StatelessWidget {
     );
   }
 
-  Widget _infoRow(String label, String value) => Padding(
+  Widget _infoRow(BuildContext context, String label, String value) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           SizedBox(
