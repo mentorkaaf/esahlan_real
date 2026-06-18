@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -42,7 +42,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
     final total = subtotal - discount + _deliveryFee;
 
     return Scaffold(
-      
+      backgroundColor: context.colors.scaffoldBg,
       appBar: AppBar(
         
         elevation: 0,
@@ -68,7 +68,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
       body: cart.isEmpty
           ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               Container(width: 120, height: 120,
-                decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(60)),
+                decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(60)),
                 child: const Icon(Icons.shopping_bag_outlined, size: 60, color: AppColors.textGrey),
               ),
               SizedBox(height: 20),
@@ -98,7 +98,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.colors.cardBg,
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
                     ),
@@ -107,8 +107,8 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                         borderRadius: BorderRadius.circular(10),
                         child: p['thumbnail'] != null
                             ? Image.network(fixImgUrl(p['thumbnail']), width: 72, height: 72, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(width: 72, height: 72, color: AppColors.surface, child: const Icon(Icons.image_outlined, color: AppColors.divider)))
-                            : Container(width: 72, height: 72, color: AppColors.surface, child: const Icon(Icons.image_outlined, color: AppColors.divider)),
+                                errorBuilder: (_, __, ___) => Container(width: 72, height: 72, color: context.colors.surfaceBg, child: const Icon(Icons.image_outlined, color: AppColors.divider)))
+                            : Container(width: 72, height: 72, color: context.colors.surfaceBg, child: const Icon(Icons.image_outlined, color: AppColors.divider)),
                       ),
                       SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -136,7 +136,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: context.colors.cardBg,
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
                 ),
@@ -180,7 +180,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: context.colors.cardBg,
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
                 ),
@@ -203,7 +203,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
       bottomNavigationBar: cart.isNotEmpty ? Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.cardBg,
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, -2))],
         ),
         child: AppButton(
@@ -218,7 +218,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
     padding: const EdgeInsets.only(bottom: 10),
     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
       Text(label, style: const TextStyle(color: AppColors.textGrey, fontSize: 14)),
-      Text(value, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: valueColor ?? AppColors.secondary)),
+      Text(value, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: valueColor ?? context.colors.navyText)),
     ]),
   );
 }

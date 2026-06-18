@@ -40,11 +40,11 @@ class AppButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 8)],
-              Text(label, style: TextStyle(
+              Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
                 color: outlined ? bg : Colors.white,
-              )),
+              ))),
             ],
           );
 
