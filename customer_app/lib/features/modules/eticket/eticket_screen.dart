@@ -149,7 +149,7 @@ class _ETicketScreenState extends ConsumerState<ETicketScreen>
                             const Icon(Icons.flight_takeoff_rounded,
                                 color: _kOrange, size: 28),
                             const SizedBox(width: 10),
-                            const Text('eTicket',
+                            Text('eTicket',
                                 style: TextStyle(color: Colors.white,
                                     fontSize: 24, fontWeight: FontWeight.w900)),
                           ]),
@@ -541,7 +541,7 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
             child: Row(children: [
               Icon(Icons.flight_rounded, color: context.colors.navyText, size: 22),
               const SizedBox(width: 10),
-              const Text('Select City',
+              Text('Select City',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800,
                       color: context.colors.navyText)),
               const Spacer(),
@@ -651,7 +651,7 @@ class _DatePicker extends ConsumerWidget {
                     Text(DateFormat('yyyy').format(date!),
                         style: TextStyle(fontSize: 11, color: _kMuted)),
                   ])
-                : const Text('Select date',
+                : Text('Select date',
                     style: TextStyle(fontSize: 13, color: _kMuted)),
           ]),
         ]),
@@ -710,7 +710,7 @@ class _PassengerSelector extends StatelessWidget {
           border: Border.all(color: _kDivider),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Passengers', style: TextStyle(
+          Text('Passengers', style: TextStyle(
               fontSize: 11, fontWeight: FontWeight.w600, color: _kMuted)),
           const SizedBox(height: 4),
           Row(children: [
@@ -747,7 +747,7 @@ class _PassengerSelector extends StatelessWidget {
                 decoration: BoxDecoration(color: _kDivider,
                     borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 20),
-            const Text('Passengers',
+            Text('Passengers',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
                     color: context.colors.navyText)),
             const SizedBox(height: 20),
@@ -770,7 +770,7 @@ class _PassengerSelector extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14)),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                child: const Text('Confirm',
+                child: Text('Confirm',
                     style: TextStyle(color: Colors.white,
                         fontWeight: FontWeight.w700, fontSize: 15)),
               ),
@@ -846,7 +846,7 @@ class _ClassSelector extends StatelessWidget {
           border: Border.all(color: _kDivider),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Class', style: TextStyle(
+          Text('Class', style: TextStyle(
               fontSize: 11, fontWeight: FontWeight.w600, color: _kMuted)),
           const SizedBox(height: 4),
           Row(children: [
@@ -879,7 +879,7 @@ class _ClassSelector extends StatelessWidget {
               decoration: BoxDecoration(color: _kDivider,
                   borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 20),
-          const Text('Select Class',
+          Text('Select Class',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.navyText)),
           const SizedBox(height: 16),
           _ClassOption(label: 'Economy', sub: 'Standard seats · best value',
@@ -964,7 +964,7 @@ class _PopularRoutesHint extends StatelessWidget {
               decoration: BoxDecoration(color: _kOrange,
                   borderRadius: BorderRadius.circular(2))),
           const SizedBox(width: 8),
-          const Text('Popular Routes',
+          Text('Popular Routes',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800,
                   color: context.colors.navyText)),
         ]),
@@ -1165,7 +1165,7 @@ class _FlightCard extends StatelessWidget {
                       child: Icon(Icons.flight_rounded, size: 14, color: _kMuted)),
                   Expanded(child: Divider(color: _kDivider, thickness: 1)),
                 ]),
-                const Text('Non-stop', style: TextStyle(fontSize: 10, color: _kMuted)),
+                Text('Non-stop', style: TextStyle(fontSize: 10, color: _kMuted)),
               ])),
               _TimeBlock(code: flight['to_code']?.toString() ?? '', city: flight['to_city']?.toString() ?? '', time: arr, right: true),
             ]),
@@ -1224,7 +1224,7 @@ class _FlightCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 minimumSize: const Size(80, 40),
               ),
-              child: const Text('Select',
+              child: Text('Select',
                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700,
                       fontSize: 13)),
             ),
@@ -1330,10 +1330,10 @@ class _EmptyFlights extends StatelessWidget {
     child: Column(children: [
       const Icon(Icons.flight_land_rounded, size: 52, color: _kDivider),
       const SizedBox(height: 16),
-      const Text('No flights found',
+      Text('No flights found',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
       const SizedBox(height: 6),
-      const Text('Try a different date or route',
+      Text('Try a different date or route',
           style: TextStyle(fontSize: 13, color: _kMuted)),
     ]),
   );
@@ -1780,7 +1780,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
               )),
               Divider(color: _kDivider, height: 20),
               Row(children: [
-                const Text('Total Amount',
+                Text('Total Amount',
                     style: TextStyle(fontSize: 15,
                         fontWeight: FontWeight.w800, color: context.colors.navyText)),
                 const Spacer(),
@@ -1879,7 +1879,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
               ),
             ),
             const SizedBox(height: 24),
-            const Text('Booking Confirmed! ✈️',
+            Text('Booking Confirmed! ✈️',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 22,
                     fontWeight: FontWeight.w900, color: context.colors.navyText)),
@@ -1935,7 +1935,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
                       borderRadius: BorderRadius.circular(14)),
                   elevation: 0,
                 ),
-                child: const Text('Back to Flights',
+                child: Text('Back to Flights',
                     style: TextStyle(color: Colors.white,
                         fontWeight: FontWeight.w800, fontSize: 15)),
               ),
@@ -2116,7 +2116,7 @@ class _PaxFormCardState extends State<_PaxFormCard> {
                         errorText: f.errorText),
                     child: DropdownButtonHideUnderline(child: DropdownButton<String>(
                       value: f.value, isDense: true, isExpanded: true,
-                      hint: const Text('Select nationality',
+                      hint: Text('Select nationality',
                           style: TextStyle(color: _kMuted, fontSize: 13)),
                       onChanged: (v) {
                         f.didChange(v); widget.pax.nationality = v;
@@ -2362,10 +2362,10 @@ class _MyTicketsTab extends ConsumerWidget {
           return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             const Icon(Icons.airplane_ticket_outlined, size: 64, color: _kDivider),
             const SizedBox(height: 16),
-            const Text('No tickets yet',
+            Text('No tickets yet',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.navyText)),
             const SizedBox(height: 8),
-            const Text('Book your first flight!',
+            Text('Book your first flight!',
                 style: TextStyle(color: _kMuted)),
           ]));
         }
