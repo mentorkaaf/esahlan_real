@@ -740,8 +740,8 @@ class _TransactionTile extends StatelessWidget {
       child: Row(children: [
         Container(
           width: 44, height: 44,
-          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-          child: Icon(icon, color: color, size: 20),
+          decoration: BoxDecoration(color: color.withOpacity(context.isDark ? 0.3 : 0.1), borderRadius: BorderRadius.circular(12)),
+          child: Icon(icon, color: context.isDark ? Colors.white : color, size: 20),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -759,7 +759,7 @@ class _TransactionTile extends StatelessWidget {
                   decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
                   child: Text(
                     (tx['category'] as String).replaceAll('_', ' ').toUpperCase(),
-                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: color),
+                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: context.isDark ? Colors.white : color),
                   ),
                 ),
               ],
@@ -773,12 +773,12 @@ class _TransactionTile extends StatelessWidget {
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text(
             '${isCredit ? '+' : '-'}\$${amount.toStringAsFixed(2)}',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: color),
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: context.isDark ? Colors.white : color),
           ),
           if (tx['balance_after'] != null)
             Text(
               'bal: \$${(tx['balance_after'] as num).toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 10, color: AppColors.textGrey),
+              style: TextStyle(fontSize: 10, color: context.isDark ? Colors.white70 : AppColors.textGrey),
             ),
         ]),
       ]),
