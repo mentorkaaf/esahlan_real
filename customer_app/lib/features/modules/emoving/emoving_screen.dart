@@ -452,7 +452,7 @@ class _BookTabState extends ConsumerState<_BookTab> {
               onPressed: (_canCalculate) ? _openBookingSheet : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: _kOrange,
-                disabledbackgroundColor: _kMuted,
+                disabledBackgroundColor: _kMuted,
                 minimumSize: const Size(double.infinity, 56),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),

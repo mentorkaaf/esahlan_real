@@ -424,7 +424,7 @@ class _SuccessView extends StatelessWidget {
           decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
           child: const Icon(Icons.check_rounded, color: Colors.white, size: 52)),
         const SizedBox(height: 24),
-        Text('Order Placed!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: c.navyText)),
+        Text('Order Placed!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: context.colors.navyText)),
         const SizedBox(height: 10),
         const Text('Your laundry order has been placed.\nWe\'ll notify you when it\'s picked up.',
             textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: AppColors.textGrey, height: 1.5)),
