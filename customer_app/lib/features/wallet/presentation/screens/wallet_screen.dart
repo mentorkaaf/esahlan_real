@@ -63,6 +63,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
     }
 
     return Scaffold(
+      backgroundColor: context.colors.scaffoldBg,
             body: walletAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
         error: (e, _) => Center(
