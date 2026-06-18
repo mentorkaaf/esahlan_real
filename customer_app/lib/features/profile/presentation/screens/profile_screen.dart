@@ -21,7 +21,7 @@ class ProfileScreen extends ConsumerWidget {
     final bottomPad = MediaQuery.of(context).padding.bottom + 86;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: context.colors.scaffoldBg,
       body: CustomScrollView(
         slivers: [
           // ── Gradient header ──────────────────────────────────────────────
