@@ -153,7 +153,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                             _startAutoSlide();
                           },
                           itemBuilder: (_, i) => Container(
-                            color: Colors.white,
+                            color: context.colors.cardBg,
                             child: Image.network(fixImgUrl(allImages[i]), fit: BoxFit.contain,
                               loadingBuilder: (_, child, progress) => progress == null ? child
                                   : Center(child: CircularProgressIndicator(
@@ -193,7 +193,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             ),
 
             SliverToBoxAdapter(child: Container(
-              color: Colors.white,
+              color: context.colors.cardBg,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Padding(padding: const EdgeInsets.fromLTRB(16, 20, 16, 0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   // Category + Brand row
@@ -292,13 +292,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
-                          color: selected ? AppColors.primary : Colors.white,
+                          color: selected ? AppColors.primary : context.colors.cardBg,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: selected ? AppColors.primary : AppColors.divider, width: selected ? 2 : 1),
                           boxShadow: selected ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 8)] : [],
                         ),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                          Text(v['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: selected ? Colors.white : AppColors.secondary)),
+                          Text(v['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: selected ? Colors.white : context.colors.navyText)),
                           if (v['price'] != null) Text('\$${_toD(v['price']).toStringAsFixed(2)}',
                             style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: selected ? Colors.white.withValues(alpha: 0.8) : AppColors.primary)),
                           if (v['attributes'] != null && (v['attributes'] as Map).isNotEmpty)
@@ -362,7 +362,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       bottomNavigationBar: async.hasValue && async.value!.isNotEmpty ? Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.cardBg,
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, -2))],
         ),
         child: Row(children: [

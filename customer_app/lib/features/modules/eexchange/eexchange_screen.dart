@@ -228,7 +228,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
           margin: const EdgeInsets.only(right: 8),
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: sel ? color.withValues(alpha: 0.12) : Colors.white,
+            color: sel ? color.withValues(alpha: 0.12) : context.colors.cardBg,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: sel ? color : AppColors.divider, width: sel ? 2 : 1),
           ),
@@ -436,14 +436,14 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
           Container(
             width: 40, height: 40,
             decoration: BoxDecoration(
-                color: sel ? AppColors.primary : Colors.white,
+                color: sel ? AppColors.primary : context.colors.cardBg,
                 borderRadius: BorderRadius.circular(10)),
             child: Icon(icon, size: 20, color: sel ? Colors.white : AppColors.textGrey),
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13,
-                color: sel ? AppColors.primary : AppColors.secondary)),
+                color: sel ? AppColors.primary : context.colors.navyText)),
             Text(sub, style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
           ])),
           if (sel) const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
@@ -456,7 +456,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
     padding: const EdgeInsets.symmetric(vertical: 4),
     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
       Text(label, style: TextStyle(color: white ? Colors.white70 : AppColors.textGrey, fontSize: 13)),
-      Text(value,  style: TextStyle(color: white ? Colors.white : AppColors.secondary,
+      Text(value,  style: TextStyle(color: white ? Colors.white : context.colors.navyText,
           fontWeight: FontWeight.w700, fontSize: 13)),
     ]),
   );

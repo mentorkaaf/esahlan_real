@@ -89,7 +89,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
     final districts   = ref.watch(_parcelDistrictsProvider).valueOrNull?['data'] as List? ?? [];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F3F8),
+      backgroundColor: context.colors.scaffoldBg,
       body: CustomScrollView(
         slivers: [
           // ── Hero AppBar ──────────────────────────────────────────────────
@@ -297,7 +297,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
                       hintText: 'What is inside the package? (Optional)',
                       hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
                       filled: true,
-                      fillColor: const Color(0xFFF8F9FE),
+                      fillColor: context.colors.inputFill,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -502,7 +502,7 @@ class _InfoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FE),
+        color: context.colors.inputFill,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.divider),
       ),
@@ -545,7 +545,7 @@ class _PremiumField extends StatelessWidget {
         hintStyle: const TextStyle(fontSize: 13, color: AppColors.textLight),
         prefixIcon: Icon(icon, size: 18, color: AppColors.textGrey),
         filled: true,
-        fillColor: const Color(0xFFF8F9FE),
+        fillColor: context.colors.inputFill,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
         enabledBorder: OutlineInputBorder(
@@ -581,7 +581,7 @@ class _PremiumDropdown extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8F9FE),
+          color: context.colors.inputFill,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: value != null ? _amber.withOpacity(0.5) : AppColors.divider,
@@ -717,7 +717,7 @@ class _DropdownSheetState extends State<_DropdownSheet> {
                 hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
                 prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.textGrey),
                 filled: true,
-                fillColor: const Color(0xFFF8F9FE),
+                fillColor: context.colors.inputFill,
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -746,7 +746,7 @@ class _DropdownSheetState extends State<_DropdownSheet> {
                   leading: Container(
                     width: 36, height: 36,
                     decoration: BoxDecoration(
-                      color: isSelected ? _amber.withOpacity(0.15) : const Color(0xFFF8F9FE),
+                      color: isSelected ? _amber.withOpacity(0.15) : context.colors.inputFill,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(

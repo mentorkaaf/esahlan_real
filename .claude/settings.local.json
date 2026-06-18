@@ -262,7 +262,8 @@
       "Bash(grep -n \"fontSize: \\\\\\\\\\\\\\\\\" lib/features/modules/erent/erent_screen.dart)",
       "Bash(grep -v \"//\\\\|foreground\\\\|text\\\\|icon\\\\|label\")",
       "Bash(grep -n --case-sensitive \"backgroundcolor:\\\\|labelcolor:\\\\|foregroundcolor:\" features/home/presentation/screens/vendor_detail_screen.dart features/community/presentation/screens/community_screen.dart)",
-      "Bash(awk 'NR<=5 || /context\\\\./')"
+      "Bash(awk 'NR<=5 || /context\\\\./')",
+      "Bash(powershell -Command \"\\(Get-Content efood_screen.dart -Raw | Select-String 'color: _card' -AllMatches\\).Matches.Count; \\(Get-Content efood_screen.dart -Raw | Select-String 'color: _secondary' -AllMatches\\).Matches.Count\")"
     ]
   }
 }

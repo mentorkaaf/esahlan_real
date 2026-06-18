@@ -143,9 +143,9 @@ class _EWholesaleScreenState extends ConsumerState<EWholesaleScreen> {
     child: AnimatedContainer(duration: const Duration(milliseconds: 200),
       margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: BoxDecoration(color: sel ? AppColors.primary : Colors.white, borderRadius: BorderRadius.circular(20),
+      decoration: BoxDecoration(color: sel ? AppColors.primary : context.colors.cardBg, borderRadius: BorderRadius.circular(20),
           border: Border.all(color: sel ? AppColors.primary : AppColors.divider)),
-      child: Text(name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: sel ? Colors.white : AppColors.secondary)),
+      child: Text(name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: sel ? Colors.white : context.colors.navyText)),
     ),
   );
 

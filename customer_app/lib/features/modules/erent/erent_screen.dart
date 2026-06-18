@@ -448,7 +448,7 @@ class _BottomSheetPicker extends StatelessWidget {
           title: Text(item['label'] as String,
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                color: isSelected ? _kOrange : _kNavy,
+                color: isSelected ? _kOrange : context.colors.navyText,
               )),
         );
       }),
@@ -543,8 +543,8 @@ class _DistrictCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
                 name,
-                style: const TextStyle(
-                  color: Color(0xFF1A2340),
+                style: TextStyle(
+                  color: context.colors.navyText,
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
                 ),
@@ -834,7 +834,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                   if (images.length > 1)
                     Container(
                       height: 72,
-                      color: Colors.white,
+                      color: context.colors.cardBg,
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
@@ -1111,8 +1111,8 @@ class _PriceRow extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 5),
     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      Text(label, style: TextStyle(color: bold ? _kNavy : _kMuted, fontWeight: bold ? FontWeight.w600 : FontWeight.w400)),
-      Text(value, style: TextStyle(fontWeight: bold ? FontWeight.w900 : FontWeight.w600, color: color ?? _kNavy)),
+      Text(label, style: TextStyle(color: bold ? context.colors.navyText : _kMuted, fontWeight: bold ? FontWeight.w600 : FontWeight.w400)),
+      Text(value, style: TextStyle(fontWeight: bold ? FontWeight.w900 : FontWeight.w600, color: color ?? context.colors.navyText)),
     ]),
   );
 }
@@ -1364,7 +1364,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
                 _moveInDate != null ? DateFormat('EEE, d MMM yyyy').format(_moveInDate!) : 'Tap to select date',
                 style: TextStyle(
                   fontWeight: FontWeight.w600, fontSize: 14,
-                  color: _moveInDate != null ? _kNavy : Colors.grey.shade400),
+                  color: _moveInDate != null ? context.colors.navyText : Colors.grey.shade400),
               ),
             ]),
           ]),

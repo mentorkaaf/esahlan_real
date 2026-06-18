@@ -102,12 +102,12 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
                   return GestureDetector(onTap: () => setState(() => _categoryId = null), child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200), margin: const EdgeInsets.only(right: 10),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(color: sel ? AppColors.primary : Colors.white, borderRadius: BorderRadius.circular(12),
+                    decoration: BoxDecoration(color: sel ? AppColors.primary : context.colors.cardBg, borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: sel ? AppColors.primary : AppColors.divider)),
                     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                       Icon(Icons.grid_view_rounded, color: sel ? Colors.white : AppColors.textGrey, size: 22),
                       const SizedBox(height: 4),
-                      Text('All', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: sel ? Colors.white : AppColors.secondary)),
+                      Text('All', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: sel ? Colors.white : context.colors.navyText)),
                     ]),
                   ));
                 }
@@ -117,12 +117,12 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
                 return GestureDetector(onTap: () => setState(() => _categoryId = cat['id']), child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200), margin: const EdgeInsets.only(right: 10),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(color: sel ? AppColors.primary : Colors.white, borderRadius: BorderRadius.circular(12),
+                  decoration: BoxDecoration(color: sel ? AppColors.primary : context.colors.cardBg, borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: sel ? AppColors.primary : AppColors.divider)),
                   child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Icon(icon, color: sel ? Colors.white : AppColors.primary, size: 22),
                     const SizedBox(height: 4),
-                    Text(cat['name'] ?? '', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: sel ? Colors.white : AppColors.secondary)),
+                    Text(cat['name'] ?? '', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: sel ? Colors.white : context.colors.navyText)),
                   ]),
                 ));
               },
@@ -271,7 +271,7 @@ class _GroceryCartSheetState extends State<_GroceryCartSheet> {
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Text(label, style: TextStyle(color: AppColors.textGrey, fontSize: 13, fontWeight: bold ? FontWeight.w800 : FontWeight.w400)),
         Text(value, style: TextStyle(fontWeight: FontWeight.w800, fontSize: bold ? 16 : 13,
-            color: bold ? AppColors.primary : AppColors.secondary)),
+            color: bold ? AppColors.primary : context.colors.navyText)),
       ]));
 
   Future<void> _order() async {

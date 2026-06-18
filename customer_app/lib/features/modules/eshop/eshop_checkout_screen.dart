@@ -230,7 +230,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
       bottomNavigationBar: Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.cardBg,
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, -2))],
         ),
         child: AppButton(
@@ -245,7 +245,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
   Widget _section(String title, IconData icon, {required List<Widget> children}) => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: context.colors.cardBg,
       borderRadius: BorderRadius.circular(14),
       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
     ),
@@ -291,14 +291,14 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
           Container(
             width: 44, height: 44,
             decoration: BoxDecoration(
-              color: selected ? AppColors.primary : Colors.white,
+              color: selected ? AppColors.primary : context.colors.cardBg,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, size: 22, color: selected ? Colors.white : AppColors.textGrey),
           ),
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: selected ? AppColors.primary : AppColors.secondary)),
+            Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: selected ? AppColors.primary : context.colors.navyText)),
             Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
           ])),
           if (selected) const Icon(Icons.check_circle_rounded, color: AppColors.primary),
@@ -311,7 +311,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
     padding: const EdgeInsets.only(bottom: 8),
     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
       Text(label, style: const TextStyle(color: AppColors.textGrey, fontSize: 13)),
-      Text(value, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: valueColor ?? AppColors.secondary)),
+      Text(value, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: valueColor ?? context.colors.navyText)),
     ]),
   );
 }

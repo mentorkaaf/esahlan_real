@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -129,7 +129,7 @@ class _AmbulanceSectionState extends State<_AmbulanceSection> {
             margin: EdgeInsets.only(right: u != 'low' ? 8 : 0),
             padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              color: sel ? color.withValues(alpha: 0.15) : AppColors.surface,
+              color: sel ? color.withValues(alpha: 0.15) : context.colors.chipBg,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: sel ? color : AppColors.divider),
             ),
@@ -229,7 +229,7 @@ class _NurseSectionState extends State<_NurseSection> {
             margin: EdgeInsets.only(right: d != '8h' ? 8 : 0),
             padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              color: sel ? AppColors.primary : AppColors.surface,
+              color: sel ? AppColors.primary : context.colors.chipBg,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: sel ? AppColors.primary : AppColors.divider),
             ),
@@ -250,7 +250,7 @@ class _NurseSectionState extends State<_NurseSection> {
         },
         child: Container(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.divider)),
+          decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.divider)),
           child: Row(children: [
             const Icon(Icons.calendar_today_outlined, color: AppColors.primary, size: 18),
             SizedBox(width: 10),
@@ -466,7 +466,7 @@ class _BookDoctorSheetState extends State<_BookDoctorSheet> {
             },
             child: Container(
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.divider)),
+              decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.divider)),
               child: Row(children: [
                 const Icon(Icons.calendar_today_outlined, color: AppColors.primary, size: 18),
                 SizedBox(width: 10),
@@ -579,7 +579,7 @@ class _HealthPayChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 11),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary.withOpacity(0.08) : AppColors.surface,
+          color: selected ? AppColors.primary.withValues(alpha: 0.08) : context.colors.chipBg,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: selected ? AppColors.primary : AppColors.divider, width: selected ? 2 : 1),
         ),

@@ -694,7 +694,7 @@ class _RestaurantCard extends ConsumerWidget {
         width: 190,
         margin: const EdgeInsets.only(right: 14),
         decoration: BoxDecoration(
-          color: _card,
+          color: context.colors.cardBg,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 12, offset: const Offset(0, 4))],
         ),
@@ -715,7 +715,7 @@ class _RestaurantCard extends ConsumerWidget {
                 onTap: () => ref.read(_favProvider.notifier).toggle(rid),
                 child: Container(
                   width: 32, height: 32,
-                  decoration: BoxDecoration(color: _card, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 6)]),
+                  decoration: BoxDecoration(color: context.colors.cardBg, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 6)]),
                   child: Icon(isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: isFav ? Colors.red : Colors.grey[400], size: 18),
                 ),
               ),
@@ -726,7 +726,7 @@ class _RestaurantCard extends ConsumerWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Expanded(
-                  child: Text(r['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _secondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  child: Text(r['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
                 // Campaign badge — top-right of info section
                 if (badgeLabel != null) ...[
@@ -1601,7 +1601,7 @@ class _MenuItemCard extends ConsumerWidget {
         onTap: canOrder ? onTap : null,
         child: Container(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10)]),
+          decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10)]),
           child: Row(children: [
             Stack(
               children: [
@@ -1631,7 +1631,7 @@ class _MenuItemCard extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  Expanded(child: Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: _secondary), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  Expanded(child: Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   if (campaign != null && canOrder) _CampaignBadge(campaign: campaign),
                 ]),
                 const SizedBox(height: 4),
@@ -1674,7 +1674,7 @@ class _MenuItemCard extends ConsumerWidget {
                       Text('\$${origPrice.toStringAsFixed(2)}', style: TextStyle(fontSize: 12, color: Colors.grey[400], decoration: TextDecoration.lineThrough)),
                     ]);
                   }
-                  return Text('\$${origPrice.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: _secondary));
+                  return Text('\$${origPrice.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText));
                 }),
               ]),
             )),
@@ -1800,13 +1800,13 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.only(bottom: 10),
     padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(14)),
+    decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(14)),
     child: Row(children: [
       Container(width: 38, height: 38, decoration: BoxDecoration(color: _primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: _primary, size: 20)),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _secondary)),
+        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.colors.navyText)),
       ])),
     ]),
   );
@@ -1930,7 +1930,7 @@ class _FoodItemDetailPageState extends ConsumerState<_FoodItemDetailPage> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(p['name'] ?? '', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _secondary)),
+                Text(p['name'] ?? '', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: context.colors.navyText)),
                 const SizedBox(height: 6),
                 Text(p['description'] ?? '', style: TextStyle(fontSize: 14, color: Colors.grey[500], height: 1.4)),
               ])),
@@ -1955,7 +1955,7 @@ class _FoodItemDetailPageState extends ConsumerState<_FoodItemDetailPage> {
             // ── Variants / Sizes (only if product has real variants) ──────
             if (variants.isNotEmpty) ...[
               const SizedBox(height: 24),
-              const Text('Size', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _secondary)),
+              Text('Size', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
               const SizedBox(height: 12),
               Wrap(spacing: 10, children: variants.map<Widget>((v) {
                 final name = '${v['name'] ?? v['value'] ?? ''}';
@@ -1965,7 +1965,7 @@ class _FoodItemDetailPageState extends ConsumerState<_FoodItemDetailPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     decoration: BoxDecoration(
-                      color: sel ? _primary : _card,
+                      color: sel ? _primary : context.colors.cardBg,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: sel ? _primary : Colors.grey.shade200),
                       boxShadow: sel ? [BoxShadow(color: _primary.withValues(alpha: 0.3), blurRadius: 8)] : [],
@@ -1979,12 +1979,12 @@ class _FoodItemDetailPageState extends ConsumerState<_FoodItemDetailPage> {
             // ── Addons (only if product has real addons) ──────────────────
             if (addons.isNotEmpty) ...[
               const SizedBox(height: 24),
-              const Text('Addons', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _secondary)),
+              Text('Addons', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
               const SizedBox(height: 8),
             ],
             ...addons.map((a) => Container(
               margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
+              decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
               child: CheckboxListTile(
                 value: _selectedAddons.contains(a),
                 onChanged: (v) => setState(() { v! ? _selectedAddons.add(a) : _selectedAddons.remove(a); }),
@@ -1997,10 +1997,10 @@ class _FoodItemDetailPageState extends ConsumerState<_FoodItemDetailPage> {
             )),
 
             const SizedBox(height: 24),
-            const Text('Special Instructions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _secondary)),
+            Text('Special Instructions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
             const SizedBox(height: 10),
             Container(
-              decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
+              decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
               child: TextField(
                 controller: _instructCtrl,
                 maxLines: 3,
@@ -2017,7 +2017,7 @@ class _FoodItemDetailPageState extends ConsumerState<_FoodItemDetailPage> {
         )),
       ]),
       bottomNavigationBar: Container(
-        color: _card,
+        color: context.colors.cardBg,
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
         child: Row(children: [
           Container(
@@ -2100,10 +2100,10 @@ class _CartPageState extends ConsumerState<_CartPage> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: _card,
+        backgroundColor: context.colors.cardBg,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: _secondary), onPressed: () => Navigator.pop(context)),
-        title: const Text('Your Cart', style: TextStyle(color: _secondary, fontWeight: FontWeight.w700, fontSize: 18)),
+        leading: IconButton(icon: Icon(Icons.arrow_back_rounded, color: context.colors.navyText), onPressed: () => Navigator.pop(context)),
+        title: Text('Your Cart', style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w700, fontSize: 18)),
         actions: [
           if (cart.isNotEmpty)
             TextButton(onPressed: () => ref.read(_cartProvider.notifier).clear(), child: const Text('Clear', style: TextStyle(color: Colors.red))),
@@ -2113,7 +2113,7 @@ class _CartPageState extends ConsumerState<_CartPage> {
           ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               const Text('🛒', style: TextStyle(fontSize: 60)),
               const SizedBox(height: 16),
-              const Text('Your cart is empty', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: _secondary)),
+              Text('Your cart is empty', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: context.colors.navyText)),
               const SizedBox(height: 8),
               Text('Add items to get started', style: TextStyle(color: Colors.grey[500])),
             ]))
@@ -2124,7 +2124,7 @@ class _CartPageState extends ConsumerState<_CartPage> {
                 const SizedBox(height: 16),
                 // Promo code
                 Container(
-                  decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
+                  decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
                   child: Row(children: [
                     Expanded(child: TextField(
                       controller: _promoCtrl,
@@ -2151,7 +2151,7 @@ class _CartPageState extends ConsumerState<_CartPage> {
                 // Price breakdown
                 Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
+                  decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
                   child: Column(children: [
                     _PriceRow('Subtotal', '\$${subtotal.toStringAsFixed(2)}'),
                     _PriceRow('Delivery Fee', '\$${deliveryFee.toStringAsFixed(2)}'),
@@ -2159,7 +2159,7 @@ class _CartPageState extends ConsumerState<_CartPage> {
                     if (_discount > 0) _PriceRow('Discount', '-\$${_discount.toStringAsFixed(2)}', color: Colors.green),
                     const Divider(height: 20),
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      const Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _secondary)),
+                      Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.colors.navyText)),
                       Text('\$${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _primary)),
                     ]),
                   ]),
@@ -2168,7 +2168,7 @@ class _CartPageState extends ConsumerState<_CartPage> {
               ],
             ),
       bottomNavigationBar: cart.isEmpty ? null : Container(
-        color: _card,
+        color: context.colors.cardBg,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         child: GestureDetector(
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _CheckoutPage(
@@ -2199,7 +2199,7 @@ class _CartItemTile extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
+      decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
       child: Row(children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(10),
@@ -2209,7 +2209,7 @@ class _CartItemTile extends ConsumerWidget {
         ),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: _secondary)),
+          Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText)),
           if (item.size != null) Text(item.size!, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
           const SizedBox(height: 4),
           Row(children: [
@@ -2247,7 +2247,7 @@ class _PriceRow extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 5),
     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
       Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[500])),
-      Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color ?? _secondary)),
+      Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color ?? context.colors.navyText)),
     ]),
   );
 }
@@ -2275,25 +2275,25 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: _card,
+        backgroundColor: context.colors.cardBg,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: _secondary), onPressed: () => Navigator.pop(context)),
-        title: const Text('Checkout', style: TextStyle(color: _secondary, fontWeight: FontWeight.w700, fontSize: 18)),
+        leading: IconButton(icon: Icon(Icons.arrow_back_rounded, color: context.colors.navyText), onPressed: () => Navigator.pop(context)),
+        title: Text('Checkout', style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w700, fontSize: 18)),
         centerTitle: true,
       ),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         // Delivery Address
-        const Text('Delivery Address', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _secondary)),
+        Text('Delivery Address', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
+          decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
           child: Row(children: [
             Container(width: 40, height: 40, decoration: BoxDecoration(color: _primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.home_rounded, color: _primary)),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                const Text('Home', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: _secondary)),
+                Text('Home', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText)),
                 const SizedBox(width: 8),
                 Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(6)), child: const Text('Default', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600))),
               ]),
@@ -2305,7 +2305,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         ),
 
         const SizedBox(height: 24),
-        const Text('Payment Method', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _secondary)),
+        Text('Payment Method', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
         const SizedBox(height: 12),
         ...[
           ('waafi',  '📱', 'Waafi Pay',  'EVC / eDahab / Jeep / Premier'),
@@ -2317,11 +2317,11 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         )),
 
         const SizedBox(height: 24),
-        const Text('Order Summary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _secondary)),
+        Text('Order Summary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
+          decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
           child: Column(children: [
             _PriceRow('${ref.read(_cartProvider.notifier).totalItems} Items', '\$${widget.subtotal.toStringAsFixed(2)}'),
             _PriceRow('Delivery Fee', '\$${widget.deliveryFee.toStringAsFixed(2)}'),
@@ -2329,7 +2329,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
             if (widget.discount > 0) _PriceRow('Discount', '-\$${widget.discount.toStringAsFixed(2)}', color: Colors.green),
             const Divider(height: 20),
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _secondary)),
+              Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.colors.navyText)),
               Text('\$${_total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _primary)),
             ]),
           ]),
@@ -2337,7 +2337,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         const SizedBox(height: 100),
       ]),
       bottomNavigationBar: Container(
-        color: _card,
+        color: context.colors.cardBg,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         child: GestureDetector(
           onTap: _placing ? null : _placeOrder,
@@ -2433,8 +2433,8 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
               child: const Icon(Icons.error_outline_rounded, color: Colors.red, size: 36),
             ),
             const SizedBox(height: 16),
-            const Text('Order Failed',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: _secondary),
+            Text('Order Failed',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: context.colors.navyText),
                 textAlign: TextAlign.center),
             const SizedBox(height: 10),
             Text(message,
@@ -2474,7 +2474,7 @@ class _PaymentOption extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: _card,
+        color: context.colors.cardBg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: selected ? _primary : Colors.grey.shade200, width: selected ? 2 : 1),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)],
@@ -2492,7 +2492,7 @@ class _PaymentOption extends StatelessWidget {
         Text(icon, style: const TextStyle(fontSize: 22)),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: _secondary)),
+          Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText)),
           if (subtitle.isNotEmpty) Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
         ])),
       ]),
@@ -2515,10 +2515,10 @@ class _TrackOrderPage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: _card,
+        backgroundColor: context.colors.cardBg,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: _secondary), onPressed: () => Navigator.pop(context)),
-        title: const Text('Track Order', style: TextStyle(color: _secondary, fontWeight: FontWeight.w700, fontSize: 18)),
+        leading: IconButton(icon: Icon(Icons.arrow_back_rounded, color: context.colors.navyText), onPressed: () => Navigator.pop(context)),
+        title: Text('Track Order', style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w700, fontSize: 18)),
         centerTitle: true,
       ),
       body: track.when(
@@ -2629,7 +2629,7 @@ class _TrackOrderPage extends ConsumerWidget {
       // Rider card
       Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(18), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12)]),
+        decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(18), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12)]),
         child: Row(children: [
           CircleAvatar(
             radius: 28,
@@ -2638,7 +2638,7 @@ class _TrackOrderPage extends ConsumerWidget {
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(rider?['name'] ?? 'Abdi Hassan', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: _secondary)),
+            Text(rider?['name'] ?? 'Abdi Hassan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.navyText)),
             const Text('Your Rider', style: TextStyle(fontSize: 12, color: Colors.grey)),
             Row(children: [const Icon(Icons.star_rounded, color: Colors.amber, size: 14), Text(' ${rider?['rating'] ?? '4.8'}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))]),
           ])),
@@ -2655,7 +2655,7 @@ class _TrackOrderPage extends ConsumerWidget {
       // Arriving + Live Location
       Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(18)),
+        decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(18)),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('Arriving in', style: TextStyle(color: Colors.grey, fontSize: 13)),
@@ -2738,9 +2738,9 @@ class _OrdersTabState extends ConsumerState<_OrdersTab> with SingleTickerProvide
 
     return SafeArea(child: Column(children: [
       Container(
-        color: _card,
+        color: context.colors.cardBg,
         child: Column(children: [
-          const Padding(padding: EdgeInsets.fromLTRB(16, 16, 16, 12), child: Align(alignment: Alignment.centerLeft, child: Text('My Orders', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _secondary)))),
+          Padding(padding: const EdgeInsets.fromLTRB(16, 16, 16, 12), child: Align(alignment: Alignment.centerLeft, child: Text('My Orders', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: context.colors.navyText)))),
           TabBar(
             controller: _tabs,
             labelColor: _primary,
@@ -2773,7 +2773,7 @@ class _OrdersTabState extends ConsumerState<_OrdersTab> with SingleTickerProvide
         error: (e, __) => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           const Text('📦', style: TextStyle(fontSize: 60)),
           const SizedBox(height: 16),
-          const Text('Could not load orders', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: _secondary)),
+          Text('Could not load orders', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.colors.navyText)),
           const SizedBox(height: 8),
           TextButton(onPressed: () => ref.invalidate(_ordersProvider), child: const Text('Retry', style: TextStyle(color: _primary))),
         ])),
@@ -2824,10 +2824,10 @@ class _OrderCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
+        decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Order #${o['order_number'] ?? o['id']}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: _secondary)),
+            Text('Order #${o['order_number'] ?? o['id']}', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText)),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(color: _statusColor(status).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
@@ -2837,7 +2837,7 @@ class _OrderCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(o['restaurant']?['name'] ?? o['restaurant_name'] ?? 'Restaurant', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
           const SizedBox(height: 4),
-          Text('${o['items_count'] ?? (o['items'] as List?)?.length ?? 0} items • \$${o['total'] ?? o['total_amount'] ?? '0.00'}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _secondary)),
+          Text('${o['items_count'] ?? (o['items'] as List?)?.length ?? 0} items • \$${o['total'] ?? o['total_amount'] ?? '0.00'}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.colors.navyText)),
           const SizedBox(height: 8),
           if (status != 'delivered' && status != 'cancelled')
             Align(alignment: Alignment.centerRight, child: TextButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _TrackOrderPage(orderId: o['id']))), child: const Text('Track Order →', style: TextStyle(color: _primary, fontWeight: FontWeight.w700, fontSize: 13)))),
@@ -2862,7 +2862,7 @@ class _FavoritesTab extends ConsumerWidget {
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Favorites', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _secondary)),
+          Text('Favorites', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: context.colors.navyText)),
           IconButton(icon: const Icon(Icons.refresh_rounded, color: _primary), onPressed: () => ref.invalidate(_favoritesProvider)),
         ]),
       ),
@@ -2873,7 +2873,7 @@ class _FavoritesTab extends ConsumerWidget {
           if (list.isEmpty) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             const Text('❤️', style: TextStyle(fontSize: 60)),
             const SizedBox(height: 16),
-            const Text('No favorites yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: _secondary)),
+            Text('No favorites yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.colors.navyText)),
             const SizedBox(height: 8),
             Text('Tap ♡ on any restaurant to save it', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
           ]));
@@ -2894,7 +2894,7 @@ class _FavoritesTab extends ConsumerWidget {
         error: (e, __) => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           const Text('❤️', style: TextStyle(fontSize: 60)),
           const SizedBox(height: 16),
-          const Text('No favorites yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: _secondary)),
+          Text('No favorites yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.colors.navyText)),
           const SizedBox(height: 8),
           TextButton(onPressed: () => ref.invalidate(_favoritesProvider), child: const Text('Retry', style: TextStyle(color: _primary))),
         ])),
@@ -2917,7 +2917,7 @@ class _FavRestaurantTile extends ConsumerWidget {
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _RestaurantDetailPage(restaurant: r))),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(16),
+        decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16),
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 3))]),
         child: Row(children: [
           ClipRRect(
@@ -2928,7 +2928,7 @@ class _FavRestaurantTile extends ConsumerWidget {
           Expanded(child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(r['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: _secondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(r['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText), maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 3),
               Text(r['vendor_type'] ?? 'Restaurant', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
               const SizedBox(height: 6),
@@ -2982,7 +2982,7 @@ class _ProfileTab extends StatelessWidget {
           child: const Icon(Icons.person_rounded, color: _primary, size: 44),
         ),
         const SizedBox(height: 12),
-        const Text('Rafi Ahmed', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: _secondary)),
+        Text('Rafi Ahmed', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: context.colors.navyText)),
         Text('+252 61 XXXXXXX', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
       ])),
       const SizedBox(height: 28),
@@ -2997,10 +2997,10 @@ class _ProfileTab extends StatelessWidget {
         (Icons.logout_rounded,         'Logout'),
       ].map((item) => Container(
         margin: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
+        decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
         child: ListTile(
           leading: Container(width: 38, height: 38, decoration: BoxDecoration(color: _primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: Icon(item.$1, color: item.$2 == 'Logout' ? Colors.red : _primary, size: 20)),
-          title: Text(item.$2, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: item.$2 == 'Logout' ? Colors.red : _secondary)),
+          title: Text(item.$2, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: item.$2 == 'Logout' ? Colors.red : context.colors.navyText)),
           trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
           onTap: () {},
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

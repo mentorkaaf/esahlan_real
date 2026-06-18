@@ -582,7 +582,7 @@ class _TypeGrid extends StatelessWidget {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               decoration: BoxDecoration(
-                color: isSelected ? color : Colors.white,
+                color: isSelected ? color : context.colors.cardBg,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: isSelected ? color : AppColors.divider,
@@ -613,7 +613,7 @@ class _TypeGrid extends StatelessWidget {
                       child: Text(
                         name,
                         style: TextStyle(
-                          color: isSelected ? Colors.white : AppColors.textDark,
+                          color: isSelected ? Colors.white : context.colors.navyText,
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
                         ),
@@ -783,7 +783,7 @@ class _RoomsSelector extends StatelessWidget {
                         Text(
                           label,
                           style: TextStyle(
-                            color: active ? Colors.white : AppColors.textDark,
+                            color: active ? Colors.white : context.colors.navyText,
                             fontWeight: FontWeight.w800,
                             fontSize: 16,
                           ),

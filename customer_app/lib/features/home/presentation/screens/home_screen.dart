@@ -445,7 +445,7 @@ class _PremiumServiceCardState extends ConsumerState<_PremiumServiceCard>
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: _pressed ? _kOrange : const Color(0xFF1A1A2E),
+                color: _pressed ? _kOrange : (context.isDark ? Colors.white : context.colors.navyText),
                 height: 1.25,
               ),
             ),
