@@ -46,7 +46,7 @@ class EShopScreen extends ConsumerStatefulWidget {
   ConsumerState<EShopScreen> createState() => _EShopScreenState();
 }
 
-class _EShopScreenState extends ConsumerState<EShopScreen> {
+class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingObserver {
   final _searchCtrl = TextEditingController();
   String _search = '';
   final _bannerCtrl = PageController();
@@ -56,6 +56,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     AdService.instance.triggerModulePopups(context, 'eshop');
     _bannerTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (_bannerCtrl.hasClients) {
@@ -67,10 +68,22 @@ class _EShopScreenState extends ConsumerState<EShopScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchCtrl.dispose();
     _bannerTimer?.cancel();
     _bannerCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(eshopHomeProvider);
+      ref.invalidate(eshopCategoriesProvider);
+      ref.invalidate(eshopFlashDealsProvider);
+      ref.invalidate(eshopDealsOfDayProvider);
+      ref.invalidate(eshopCampaignsProvider);
+    }
   }
 
   void _refresh() {

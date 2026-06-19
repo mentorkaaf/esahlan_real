@@ -1,5 +1,14 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/module_api_service.dart';
+
+extension _CacheFor on Ref {
+  void cacheFor(Duration d) {
+    final link = keepAlive();
+    final t = Timer(d, link.close);
+    onDispose(t.cancel);
+  }
+}
 
 double _toD(dynamic v) => double.tryParse(v?.toString() ?? '0') ?? 0;
 
@@ -101,7 +110,8 @@ final _svc = ModuleApiService.create();
 // ─────────────────────────────────────────────────────────────────
 // Home data
 // ─────────────────────────────────────────────────────────────────
-final eshopHomeProvider = FutureProvider<Map<String, dynamic>>((_) async {
+final eshopHomeProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  ref.cacheFor(const Duration(seconds: 30));
   final res = await _svc.getShopHome();
   return (res['data'] as Map<String, dynamic>?) ?? {};
 });
@@ -109,7 +119,8 @@ final eshopHomeProvider = FutureProvider<Map<String, dynamic>>((_) async {
 // ─────────────────────────────────────────────────────────────────
 // Categories
 // ─────────────────────────────────────────────────────────────────
-final eshopCategoriesProvider = FutureProvider<List<dynamic>>((_) async {
+final eshopCategoriesProvider = FutureProvider<List<dynamic>>((ref) async {
+  ref.cacheFor(const Duration(seconds: 30));
   final res = await _svc.getShopCategories();
   return (res['data'] as List?) ?? [];
 });
@@ -153,7 +164,8 @@ final eshopProductsProvider = FutureProvider.family<Map<String, dynamic>, Produc
 // ─────────────────────────────────────────────────────────────────
 // Flash deals
 // ─────────────────────────────────────────────────────────────────
-final eshopFlashDealsProvider = FutureProvider<List<dynamic>>((_) async {
+final eshopFlashDealsProvider = FutureProvider<List<dynamic>>((ref) async {
+  ref.cacheFor(const Duration(seconds: 30));
   final res = await _svc.getShopFlashDeals();
   return (res['data'] as List?) ?? [];
 });
@@ -161,7 +173,8 @@ final eshopFlashDealsProvider = FutureProvider<List<dynamic>>((_) async {
 // ─────────────────────────────────────────────────────────────────
 // Deals of day
 // ─────────────────────────────────────────────────────────────────
-final eshopDealsOfDayProvider = FutureProvider<List<dynamic>>((_) async {
+final eshopDealsOfDayProvider = FutureProvider<List<dynamic>>((ref) async {
+  ref.cacheFor(const Duration(seconds: 30));
   final res = await _svc.getShopDealsOfDay();
   return (res['data'] as List?) ?? [];
 });
@@ -169,7 +182,8 @@ final eshopDealsOfDayProvider = FutureProvider<List<dynamic>>((_) async {
 // ─────────────────────────────────────────────────────────────────
 // Campaigns
 // ─────────────────────────────────────────────────────────────────
-final eshopCampaignsProvider = FutureProvider<List<dynamic>>((_) async {
+final eshopCampaignsProvider = FutureProvider<List<dynamic>>((ref) async {
+  ref.cacheFor(const Duration(seconds: 30));
   final res = await _svc.getShopCampaigns();
   return (res['data'] as List?) ?? [];
 });
