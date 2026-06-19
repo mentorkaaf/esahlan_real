@@ -18,14 +18,18 @@ class User extends Authenticatable
         'referral_code','referred_by','status','fcm_token',
         'preferred_language','dark_mode','role_id','district_id',
         'phone_verified_at','email_verified_at',
+        'latitude','longitude','location_updated_at',
     ];
 
     protected $hidden = ['password','remember_token'];
 
     protected $casts = [
-        'phone_verified_at' => 'datetime',
-        'email_verified_at' => 'datetime',
-        'dark_mode' => 'boolean',
+        'phone_verified_at'   => 'datetime',
+        'email_verified_at'   => 'datetime',
+        'location_updated_at' => 'datetime',
+        'dark_mode'           => 'boolean',
+        'latitude'            => 'float',
+        'longitude'           => 'float',
     ];
 
     protected static function boot(): void

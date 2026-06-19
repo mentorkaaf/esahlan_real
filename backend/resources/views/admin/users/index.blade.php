@@ -1,6 +1,25 @@
 @extends('admin.layouts.app')
 @section('title', 'Users')
+
+@push('styles')
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+#users-map { height: 420px; border-radius: 16px; overflow: hidden; }
+.leaflet-popup-content-wrapper { border-radius: 12px; padding: 0; box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+.leaflet-popup-content { margin: 0; }
+.map-popup { padding: 12px 16px; font-family: inherit; }
+.map-popup .name { font-weight: 800; font-size: 14px; color: #07003B; }
+.map-popup .phone { font-size: 12px; color: #888; margin-top: 2px; }
+.map-popup .role  { display:inline-block; margin-top:6px; background:#EEF2FF; color:#3949AB; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; }
+.map-popup a { display:block; margin-top:8px; text-align:center; background:#07003B; color:#fff; text-decoration:none; padding:5px 10px; border-radius:8px; font-size:12px; font-weight:700; }
+</style>
+@endpush
+
 @section('content')
+
+@php
+$mappableUsers = $users->getCollection()->filter(fn($u) => $u->latitude && $u->longitude);
+@endphp
 
 <div class="page-header">
     <div>
@@ -9,6 +28,22 @@
             <li><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
             <li>Users</li>
         </ul>
+    </div>
+</div>
+
+{{-- ── Live User Map ─────────────────────────────────────────── --}}
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+        <div class="card-header-title">
+            <div class="card-header-icon" style="background:rgba(255,138,0,0.1);color:#FF8A00;">
+                <i class="fas fa-map-marked-alt"></i>
+            </div>
+            Live User Locations
+            <span class="badge badge-warning" style="margin-left:4px;">{{ $mappableUsers->count() }} on map</span>
+        </div>
+    </div>
+    <div style="padding:16px;">
+        <div id="users-map"></div>
     </div>
 </div>
 
@@ -199,4 +234,56 @@
     </div>
     @endif
 </div>
+@push('scripts')
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+    const users = @json($mappableUsers->map(fn($u) => [
+        'id'    => $u->id,
+        'name'  => $u->name,
+        'phone' => $u->phone ?? '',
+        'role'  => ucwords(str_replace('_', ' ', $u->role?->name ?? 'User')),
+        'lat'   => (float) $u->latitude,
+        'lng'   => (float) $u->longitude,
+        'url'   => route('admin.users.show', $u->id),
+        'updated' => optional($u->location_updated_at)->diffForHumans() ?? 'Unknown',
+    ])->values());
+
+    const map = L.map('users-map').setView([2.0469, 45.3182], 12); // Mogadishu default
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 19,
+    }).addTo(map);
+
+    const icon = L.divIcon({
+        className: '',
+        html: `<div style="width:34px;height:34px;border-radius:50%;background:#07003B;border:3px solid #FF8A00;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:13px;box-shadow:0 3px 10px rgba(0,0,0,.3);">
+            <i class="fas fa-user" style="font-size:12px;"></i></div>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
+    });
+
+    if (users.length) {
+        const bounds = [];
+        users.forEach(u => {
+            const marker = L.marker([u.lat, u.lng], { icon }).addTo(map);
+            marker.bindPopup(`<div class="map-popup">
+                <div class="name">${u.name}</div>
+                <div class="phone"><i class="fas fa-phone" style="font-size:10px;margin-right:4px;"></i>${u.phone}</div>
+                <span class="role">${u.role}</span>
+                <div style="font-size:10px;color:#bbb;margin-top:4px;"><i class="fas fa-clock" style="margin-right:3px;"></i>${u.updated}</div>
+                <a href="${u.url}"><i class="fas fa-eye" style="margin-right:4px;"></i>View Profile</a>
+            </div>`);
+            bounds.push([u.lat, u.lng]);
+        });
+        if (bounds.length === 1) {
+            map.setView(bounds[0], 15);
+        } else if (bounds.length > 1) {
+            map.fitBounds(bounds, { padding: [40, 40] });
+        }
+    }
+})();
+</script>
+@endpush
+
 @endsection

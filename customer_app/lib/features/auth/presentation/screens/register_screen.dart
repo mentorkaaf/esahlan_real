@@ -84,6 +84,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
       final pos = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium));
       await LocalStorage.saveDouble('saved_lat', pos.latitude);
       await LocalStorage.saveDouble('saved_lng', pos.longitude);
+      // Post to backend (fire-and-forget — token may not exist yet during registration)
+      ref.read(authRepositoryProvider).updateLocation(pos.latitude, pos.longitude);
     } catch (_) {}
   }
 

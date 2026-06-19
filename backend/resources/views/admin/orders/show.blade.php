@@ -801,8 +801,21 @@ $tz = \App\Helpers\AppSettings::timezone();
                 @if($order->user?->email)
                 <div style="color:#aaa;font-size:12px;margin-top:2px;"><i class="fas fa-envelope" style="font-size:10px;margin-right:5px;"></i>{{ $order->user->email }}</div>
                 @endif
+                @if($order->user)
+                <a href="{{ route('admin.users.show', $order->user->id) }}" style="display:inline-block;margin-top:8px;font-size:12px;color:#3949AB;font-weight:700;"><i class="fas fa-eye" style="margin-right:4px;"></i>View Profile</a>
+                @endif
             </div>
         </div>
+        @if($order->user?->latitude && $order->user?->longitude)
+        <div style="margin-top:14px;border-top:1px solid #F0F1F5;padding-top:12px;">
+            <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;"><i class="fas fa-map-marker-alt" style="color:#FF8A00;margin-right:4px;"></i>Customer Location</div>
+            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+            <div id="order-cust-map" style="height:200px;border-radius:12px;overflow:hidden;"></div>
+            @if($order->user->location_updated_at)
+            <div style="font-size:11px;color:#bbb;text-align:center;margin-top:6px;"><i class="fas fa-clock" style="margin-right:3px;"></i>{{ $order->user->location_updated_at->diffForHumans() }}</div>
+            @endif
+        </div>
+        @endif
     </div>
 </div>
 
@@ -883,5 +896,27 @@ $tz = \App\Helpers\AppSettings::timezone();
 
 </div>{{-- /right --}}
 </div>{{-- /od-wrap --}}
+
+@push('scripts')
+@if($order->user?->latitude && $order->user?->longitude)
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+    const lat = {{ $order->user->latitude }}, lng = {{ $order->user->longitude }};
+    const map = L.map('order-cust-map').setView([lat, lng], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap', maxZoom:19 }).addTo(map);
+    const icon = L.divIcon({
+        className:'',
+        html:`<div style="width:36px;height:36px;border-radius:50%;background:#3949AB;border:3px solid #fff;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.3);">
+            <i class="fas fa-user" style="color:#fff;font-size:13px;"></i></div>`,
+        iconSize:[36,36], iconAnchor:[18,18],
+    });
+    L.marker([lat, lng], {icon}).addTo(map)
+        .bindPopup('<strong>{{ addslashes($order->user->name) }}</strong>')
+        .openPopup();
+})();
+</script>
+@endif
+@endpush
 
 @endsection

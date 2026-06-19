@@ -313,6 +313,7 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/update-profile',  [AuthController::class, 'updateProfile']);
         Route::delete('auth/delete-account',[AuthController::class, 'deleteAccount']);
         Route::post('auth/fcm-token',       [AuthController::class, 'updateFcmToken']);
+        Route::post('auth/location',        [AuthController::class, 'updateLocation']);
 
         // ─── CUSTOMER ─────────────────────────────────────────────
         Route::middleware('role:customer')->group(function () {

@@ -112,8 +112,13 @@ class AuthRepository {
     await LocalStorage.clear();
   }
 
+  Future<void> updateLocation(double lat, double lng) async {
+    try {
+      await _dio.post('/auth/location', data: {'latitude': lat, 'longitude': lng});
+    } catch (_) {}
+  }
+
   UserModel? getCachedUser() {
-    // Synchronous — read from a pre-loaded cache if needed
     return null;
   }
 }

@@ -1,5 +1,13 @@
 @extends('admin.layouts.app')
 @section('title', 'User Details')
+
+@push('styles')
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+#user-loc-map { height:260px; border-radius:14px; overflow:hidden; }
+</style>
+@endpush
+
 @section('content')
 <div class="page-header">
     <div>
@@ -87,6 +95,25 @@
     </div>
 
     <div>
+        {{-- ── Location Map ── --}}
+        @if($user->latitude && $user->longitude)
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-header">
+                <span><i class="fas fa-map-marker-alt" style="color:#FF8A00;margin-right:8px;"></i>Last Known Location</span>
+                @if($user->location_updated_at)
+                <span style="font-size:12px;color:#999;margin-left:8px;">{{ $user->location_updated_at->diffForHumans() }}</span>
+                @endif
+            </div>
+            <div style="padding:12px;">
+                <div id="user-loc-map"></div>
+                <div style="margin-top:8px;font-size:12px;color:#888;text-align:center;">
+                    <i class="fas fa-crosshairs" style="margin-right:4px;color:#FF8A00;"></i>
+                    {{ number_format($user->latitude, 6) }}, {{ number_format($user->longitude, 6) }}
+                </div>
+            </div>
+        </div>
+        @endif
+
         <div class="card">
             <div class="card-header"><span><i class="fas fa-shopping-bag" style="color:var(--primary);margin-right:8px;"></i>Recent Orders</span></div>
             <div class="table-responsive">
@@ -113,4 +140,26 @@
         </div>
     </div>
 </div>
+@push('scripts')
+@if($user->latitude && $user->longitude)
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+    const lat = {{ $user->latitude }}, lng = {{ $user->longitude }};
+    const map = L.map('user-loc-map').setView([lat, lng], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap', maxZoom:19 }).addTo(map);
+    const icon = L.divIcon({
+        className:'',
+        html:`<div style="width:38px;height:38px;border-radius:50%;background:#07003B;border:3px solid #FF8A00;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(0,0,0,.3);">
+            <i class="fas fa-user" style="color:#fff;font-size:14px;"></i></div>`,
+        iconSize:[38,38], iconAnchor:[19,19],
+    });
+    L.marker([lat, lng], {icon}).addTo(map)
+        .bindPopup('<strong>{{ addslashes($user->name) }}</strong><br><span style="font-size:12px;color:#888;">{{ addslashes($user->phone ?? '') }}</span>')
+        .openPopup();
+})();
+</script>
+@endif
+@endpush
+
 @endsection

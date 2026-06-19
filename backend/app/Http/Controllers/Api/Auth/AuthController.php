@@ -272,4 +272,18 @@ class AuthController extends Controller
         $request->user()->update(['fcm_token' => $request->fcm_token]);
         return response()->json(['success' => true, 'message' => 'FCM token updated']);
     }
+
+    public function updateLocation(Request $request)
+    {
+        $request->validate([
+            'latitude'  => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+        ]);
+        $request->user()->update([
+            'latitude'            => $request->latitude,
+            'longitude'           => $request->longitude,
+            'location_updated_at' => now(),
+        ]);
+        return response()->json(['success' => true]);
+    }
 }
