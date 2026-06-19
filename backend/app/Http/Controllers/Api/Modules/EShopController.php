@@ -111,6 +111,7 @@ class EShopController extends Controller
         $cats = DB::table('categories')
             ->where('module_id', $module?->id)
             ->whereNull('vendor_id')
+            ->whereNull('deleted_at')
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->get(['id', 'name', 'image', 'slug'])
@@ -369,6 +370,7 @@ class EShopController extends Controller
         // Categories
         $categories = DB::table('categories')
             ->where('module_id', $mid)->whereNull('vendor_id')
+            ->whereNull('deleted_at')
             ->where('is_active', true)->orderBy('sort_order')
             ->get(['id','name','image','slug'])
             ->map(fn($c) => array_merge((array)$c, ['image' => $this->resolveImg($c->image)]));

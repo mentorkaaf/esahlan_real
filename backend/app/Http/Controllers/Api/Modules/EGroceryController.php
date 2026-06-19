@@ -24,6 +24,7 @@ class EGroceryController extends Controller
         $cats = DB::table('categories')
             ->where('module_id', $module?->id)
             ->whereNull('vendor_id')
+            ->whereNull('deleted_at')
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->get(['id', 'name', 'name_so', 'image', 'slug'])
