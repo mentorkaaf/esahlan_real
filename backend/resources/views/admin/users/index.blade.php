@@ -234,22 +234,23 @@ $mappableUsers = $users->getCollection()->filter(fn($u) => $u->latitude && $u->l
     </div>
     @endif
 </div>
-@push('scripts')
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (function(){
-    const users = @json($mappableUsers->map(fn($u) => [
-        'id'    => $u->id,
-        'name'  => $u->name,
-        'phone' => $u->phone ?? '',
-        'role'  => ucwords(str_replace('_', ' ', $u->role?->name ?? 'User')),
-        'lat'   => (float) $u->latitude,
-        'lng'   => (float) $u->longitude,
-        'url'   => route('admin.users.show', $u->id),
-        'updated' => optional($u->location_updated_at)->diffForHumans() ?? 'Unknown',
-    ])->values());
+    const users = {{ Illuminate\Support\Js::from($mappableUsers->map(function($u) {
+        return [
+            'id'      => $u->id,
+            'name'    => $u->name,
+            'phone'   => $u->phone ?? '',
+            'role'    => ucwords(str_replace('_', ' ', $u->role?->name ?? 'User')),
+            'lat'     => (float) $u->latitude,
+            'lng'     => (float) $u->longitude,
+            'url'     => route('admin.users.show', $u->id),
+            'updated' => optional($u->location_updated_at)->diffForHumans() ?? 'Unknown',
+        ];
+    })->values()) }};
 
-    const map = L.map('users-map').setView([2.0469, 45.3182], 12); // Mogadishu default
+    const map = L.map('users-map').setView([2.0469, 45.3182], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap',
         maxZoom: 19,
@@ -257,23 +258,24 @@ $mappableUsers = $users->getCollection()->filter(fn($u) => $u->latitude && $u->l
 
     const icon = L.divIcon({
         className: '',
-        html: `<div style="width:34px;height:34px;border-radius:50%;background:#07003B;border:3px solid #FF8A00;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:13px;box-shadow:0 3px 10px rgba(0,0,0,.3);">
-            <i class="fas fa-user" style="font-size:12px;"></i></div>`,
+        html: '<div style="width:34px;height:34px;border-radius:50%;background:#07003B;border:3px solid #FF8A00;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;box-shadow:0 3px 10px rgba(0,0,0,.3);"><i class="fas fa-user"></i></div>',
         iconSize: [34, 34],
         iconAnchor: [17, 17],
     });
 
     if (users.length) {
         const bounds = [];
-        users.forEach(u => {
-            const marker = L.marker([u.lat, u.lng], { icon }).addTo(map);
-            marker.bindPopup(`<div class="map-popup">
-                <div class="name">${u.name}</div>
-                <div class="phone"><i class="fas fa-phone" style="font-size:10px;margin-right:4px;"></i>${u.phone}</div>
-                <span class="role">${u.role}</span>
-                <div style="font-size:10px;color:#bbb;margin-top:4px;"><i class="fas fa-clock" style="margin-right:3px;"></i>${u.updated}</div>
-                <a href="${u.url}"><i class="fas fa-eye" style="margin-right:4px;"></i>View Profile</a>
-            </div>`);
+        users.forEach(function(u) {
+            const marker = L.marker([u.lat, u.lng], { icon: icon }).addTo(map);
+            marker.bindPopup(
+                '<div class="map-popup">' +
+                '<div class="name">' + u.name + '</div>' +
+                '<div class="phone">' + u.phone + '</div>' +
+                '<span class="role">' + u.role + '</span>' +
+                '<div style="font-size:10px;color:#bbb;margin-top:4px;">' + u.updated + '</div>' +
+                '<a href="' + u.url + '">View Profile</a>' +
+                '</div>'
+            );
             bounds.push([u.lat, u.lng]);
         });
         if (bounds.length === 1) {
@@ -284,6 +286,5 @@ $mappableUsers = $users->getCollection()->filter(fn($u) => $u->latitude && $u->l
     }
 })();
 </script>
-@endpush
 
 @endsection
