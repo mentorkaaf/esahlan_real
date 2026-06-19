@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,7 +9,14 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
+import '../../auth/data/models/district_model.dart';
+import '../../auth/data/repositories/district_repository.dart';
+import '../../auth/presentation/providers/auth_provider.dart';
 import 'eshop_providers.dart';
+
+final _eshopDistrictsProvider = FutureProvider<List<DistrictModel>>(
+  (_) => DistrictRepository().getDistricts(),
+);
 
 class EShopCheckoutScreen extends ConsumerStatefulWidget {
   const EShopCheckoutScreen({super.key});
@@ -18,41 +25,79 @@ class EShopCheckoutScreen extends ConsumerStatefulWidget {
 }
 
 class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
-  final _nameCtrl = TextEditingController();
+  final _nameCtrl  = TextEditingController();
   final _phoneCtrl = TextEditingController();
-  final _streetCtrl = TextEditingController();
-  final _cityCtrl = TextEditingController();
+  int?    _districtId;
+  String? _districtName;
   String _paymentMethod = 'wallet';
   String? _waafiReference;
   bool _placing = false;
+  bool _districtInitialized = false;
 
   static const double _deliveryFee = 2.00;
   final _svc = ModuleApiService.create();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initDistrict());
+  }
+
+  void _initDistrict() {
+    if (_districtInitialized) return;
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user != null && user.districtId != null) {
+      setState(() {
+        _districtId   = user.districtId;
+        _districtName = user.districtName;
+        _districtInitialized = true;
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
-    _streetCtrl.dispose();
-    _cityCtrl.dispose();
     super.dispose();
   }
 
-  bool get _addressFilled => _nameCtrl.text.trim().isNotEmpty && _streetCtrl.text.trim().isNotEmpty && _cityCtrl.text.trim().isNotEmpty;
+  bool get _addressFilled => _districtId != null;
+
+  Future<void> _pickDistrict() async {
+    final districts = await ref.read(_eshopDistrictsProvider.future);
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _DistrictPickerSheet(
+        districts: districts,
+        selectedId: _districtId,
+        onSelected: (d) {
+          setState(() { _districtId = d.id; _districtName = d.name; });
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
 
   Future<void> _placeOrder() async {
     if (!_addressFilled) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please complete delivery address'), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Please select a delivery district'),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+      ));
       return;
     }
 
-    // For Waafi Pay, show payment sheet first
     if (_paymentMethod == 'waafi_pay') {
-      final cart   = ref.read(eshopCartProvider);
-      final coupon = ref.read(eshopCouponProvider);
+      final cart     = ref.read(eshopCartProvider);
+      final coupon   = ref.read(eshopCouponProvider);
       final subtotal = cart.fold(0.0, (s, c) => s + c.lineTotal);
       final discount = coupon.calculateDiscount(subtotal);
-      final total = subtotal - discount + _deliveryFee;
+      final total    = subtotal - discount + _deliveryFee;
 
       final result = await showWaafiPaySheet(
         context,
@@ -72,21 +117,22 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
 
     setState(() => _placing = true);
     try {
-      final cart = ref.read(eshopCartProvider);
+      final cart   = ref.read(eshopCartProvider);
       final coupon = ref.read(eshopCouponProvider);
-      final items = cart.map((c) => {
+      final items  = cart.map((c) => {
         'product_id': c.productId,
-        'quantity': c.qty,
+        'quantity':   c.qty,
         if (c.variantId != null) 'variant_id': c.variantId,
       }).toList();
 
       final body = <String, dynamic>{
-        'items': items,
+        'items':      items,
+        'district_id': _districtId,
         'delivery_address': {
-          'name': _nameCtrl.text.trim(),
-          'phone': _phoneCtrl.text.trim(),
-          'street': _streetCtrl.text.trim(),
-          'city': _cityCtrl.text.trim(),
+          'district':    _districtName ?? '',
+          'city':        _districtName ?? '',
+          if (_nameCtrl.text.trim().isNotEmpty)  'name':  _nameCtrl.text.trim(),
+          if (_phoneCtrl.text.trim().isNotEmpty) 'phone': _phoneCtrl.text.trim(),
         },
         'payment_method': _paymentMethod,
         if (coupon.isValid && coupon.code != null) 'coupon_code': coupon.code,
@@ -99,12 +145,14 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
       ref.read(eshopCouponProvider.notifier).clear();
       if (_paymentMethod == 'wallet') ref.invalidate(walletProvider);
 
-      if (mounted) {
-        _showSuccessDialog();
-      }
+      if (mounted) _showSuccessDialog();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to place order: $e'), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to place order: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ));
       }
     } finally {
       if (mounted) setState(() => _placing = false);
@@ -123,7 +171,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
             decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: const Icon(Icons.check_circle_rounded, size: 50, color: AppColors.success),
           ),
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
           Text('Order Placed!', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: context.colors.navyText)),
           const SizedBox(height: 8),
           const Text('Your order has been placed successfully. You will receive a confirmation shortly.',
@@ -145,30 +193,34 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cart = ref.watch(eshopCartProvider);
-    final coupon = ref.watch(eshopCouponProvider);
+    // Try to auto-fill district on first build if authState resolves
+    ref.listen(authStateProvider, (_, next) {
+      if (!_districtInitialized) _initDistrict();
+    });
+
+    final cart     = ref.watch(eshopCartProvider);
+    final coupon   = ref.watch(eshopCouponProvider);
     final subtotal = cart.fold(0.0, (s, c) => s + c.lineTotal);
     final discount = coupon.calculateDiscount(subtotal);
-    final total = subtotal - discount + _deliveryFee;
+    final total    = subtotal - discount + _deliveryFee;
 
     return Scaffold(
-      
       appBar: AppBar(
-        
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20), onPressed: () => context.pop()),
         title: const Text('Checkout', style: TextStyle(fontWeight: FontWeight.w800, fontFamily: 'Cairo')),
       ),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 100), children: [
-        // ── Delivery Address ──────────────────────────────────────
+        // ── Delivery District ─────────────────────────────────────
         _section('Delivery Address', Icons.location_on_outlined, children: [
-          _field(_nameCtrl, 'Full Name', Icons.person_outline_rounded),
+          _DistrictCard(
+            districtName: _districtName,
+            onChangeTap: _pickDistrict,
+          ),
           const SizedBox(height: 12),
-          _field(_phoneCtrl, 'Phone Number', Icons.phone_outlined, keyboardType: TextInputType.phone),
+          _field(_nameCtrl, 'Full Name (optional)', Icons.person_outline_rounded),
           const SizedBox(height: 12),
-          _field(_streetCtrl, 'Street Address', Icons.home_outlined),
-          const SizedBox(height: 12),
-          _field(_cityCtrl, 'City', Icons.location_city_outlined),
+          _field(_phoneCtrl, 'Phone Number (optional)', Icons.phone_outlined, keyboardType: TextInputType.phone),
         ]),
 
         const SizedBox(height: 16),
@@ -185,7 +237,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
                         errorWidget: Container(width: 50, height: 50, color: AppColors.surface))
                     : Container(width: 50, height: 50, color: AppColors.surface),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(item.product['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText), maxLines: 1, overflow: TextOverflow.ellipsis),
                 if (item.variant != null) Container(
@@ -207,9 +259,8 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
           const Divider(height: 8),
           const SizedBox(height: 8),
           _row('Subtotal', '\$${subtotal.toStringAsFixed(2)}'),
-          if (coupon.isValid && discount > 0) ...[
+          if (coupon.isValid && discount > 0)
             _row('Coupon (${coupon.code})', '-\$${discount.toStringAsFixed(2)}', valueColor: AppColors.success),
-          ],
           _row('Delivery Fee', '\$${_deliveryFee.toStringAsFixed(2)}'),
           const Divider(height: 16),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -222,9 +273,9 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
 
         // ── Payment Method ────────────────────────────────────────
         _section('Payment Method', Icons.payment_outlined, children: [
-          _paymentOption('wallet',    'Wallet',           Icons.account_balance_wallet_outlined,   'Pay from your wallet balance'),
+          _paymentOption('wallet',    'Wallet',    Icons.account_balance_wallet_outlined, 'Pay from your wallet balance'),
           const SizedBox(height: 10),
-          _paymentOption('waafi_pay', 'Waafi Pay',        Icons.phone_android_rounded,             'EVC / eDahab / Jeep / Premier'),
+          _paymentOption('waafi_pay', 'Waafi Pay', Icons.phone_android_rounded,           'EVC / eDahab / Jeep / Premier'),
         ]),
       ]),
       bottomNavigationBar: Container(
@@ -252,7 +303,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         Icon(icon, size: 18, color: AppColors.primary),
-        SizedBox(width: 8),
+        const SizedBox(width: 8),
         Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
       ]),
       const SizedBox(height: 16),
@@ -267,7 +318,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
     decoration: InputDecoration(
       hintText: hint,
       prefixIcon: Icon(icon, size: 18, color: AppColors.textGrey),
-      filled: true, fillColor: context.colors.cardBg,
+      filled: true, fillColor: context.colors.scaffoldBg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
@@ -314,4 +365,133 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
       Text(value, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: valueColor ?? context.colors.navyText)),
     ]),
   );
+}
+
+// ── Shared widgets ──────────────────────────────────────────────────────────
+
+class _DistrictCard extends StatelessWidget {
+  final String? districtName;
+  final VoidCallback onChangeTap;
+  const _DistrictCard({required this.districtName, required this.onChangeTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasDistrict = districtName != null;
+    return GestureDetector(
+      onTap: onChangeTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: hasDistrict ? AppColors.primary.withValues(alpha: 0.05) : AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: hasDistrict ? AppColors.primary.withValues(alpha: 0.4) : AppColors.divider,
+            width: hasDistrict ? 1.5 : 1,
+          ),
+        ),
+        child: Row(children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: hasDistrict ? AppColors.primary : AppColors.textGrey.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.location_on_rounded, size: 20, color: hasDistrict ? Colors.white : AppColors.textGrey),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+              hasDistrict ? districtName! : 'Select delivery district',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                color: hasDistrict ? context.colors.navyText : AppColors.textGrey,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              hasDistrict ? 'Tap to change district' : 'Choose where to deliver',
+              style: const TextStyle(fontSize: 11, color: AppColors.textGrey),
+            ),
+          ])),
+          Icon(Icons.chevron_right_rounded, color: AppColors.textGrey.withValues(alpha: 0.6)),
+        ]),
+      ),
+    );
+  }
+}
+
+class _DistrictPickerSheet extends StatefulWidget {
+  final List<DistrictModel> districts;
+  final int? selectedId;
+  final void Function(DistrictModel) onSelected;
+  const _DistrictPickerSheet({required this.districts, required this.selectedId, required this.onSelected});
+
+  @override
+  State<_DistrictPickerSheet> createState() => _DistrictPickerSheetState();
+}
+
+class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
+  String _search = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = widget.districts.where((d) => d.name.toLowerCase().contains(_search.toLowerCase())).toList();
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.65,
+      decoration: BoxDecoration(
+        color: context.colors.cardBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(children: [
+        const SizedBox(height: 8),
+        Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(children: [
+            Expanded(child: Text('Select District', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: context.colors.navyText))),
+            IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(context)),
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: TextField(
+            autofocus: true,
+            onChanged: (v) => setState(() => _search = v),
+            decoration: InputDecoration(
+              hintText: 'Search district...',
+              prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textGrey),
+              filled: true, fillColor: AppColors.surface,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+            ),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: filtered.length,
+            itemBuilder: (_, i) {
+              final d = filtered[i];
+              final selected = d.id == widget.selectedId;
+              return ListTile(
+                leading: Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: selected ? AppColors.primary : AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.location_on_rounded, size: 18, color: selected ? Colors.white : AppColors.textGrey),
+                ),
+                title: Text(d.name, style: TextStyle(fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: selected ? AppColors.primary : context.colors.navyText)),
+                trailing: selected ? const Icon(Icons.check_circle_rounded, color: AppColors.primary) : null,
+                onTap: () => widget.onSelected(d),
+              );
+            },
+          ),
+        ),
+      ]),
+    );
+  }
 }

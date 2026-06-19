@@ -11,6 +11,13 @@ import '../../payment/waafi_pay_sheet.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../../features/wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
+import '../../auth/data/models/district_model.dart';
+import '../../auth/data/repositories/district_repository.dart';
+import '../../auth/presentation/providers/auth_provider.dart';
+
+final _efoodDistrictsProvider = FutureProvider<List<DistrictModel>>(
+  (_) => DistrictRepository().getDistricts(),
+);
 
 // ════════════════════════════════════════════════════════════════════
 // CONSTANTS (theme-agnostic only)
@@ -2268,10 +2275,49 @@ class _CheckoutPage extends ConsumerStatefulWidget {
 }
 
 class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
-  String _payment = 'waafi';
-  bool _placing = false;
+  String  _payment  = 'waafi';
+  bool    _placing  = false;
+  int?    _districtId;
+  String? _districtName;
+  bool    _districtInitialized = false;
 
   double get _total => widget.subtotal + widget.deliveryFee + widget.tax - widget.discount;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initDistrict());
+  }
+
+  void _initDistrict() {
+    if (_districtInitialized) return;
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user != null && user.districtId != null) {
+      setState(() {
+        _districtId   = user.districtId;
+        _districtName = user.districtName;
+        _districtInitialized = true;
+      });
+    }
+  }
+
+  Future<void> _pickDistrict() async {
+    final districts = await ref.read(_efoodDistrictsProvider.future);
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EfoodDistrictSheet(
+        districts: districts,
+        selectedId: _districtId,
+        onSelected: (d) {
+          setState(() { _districtId = d.id; _districtName = d.name; });
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2288,23 +2334,34 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         // Delivery Address
         Text('Delivery Address', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
         const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
-          child: Row(children: [
-            Container(width: 40, height: 40, decoration: BoxDecoration(color: _primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.home_rounded, color: _primary)),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Text('Home', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText)),
-                const SizedBox(width: 8),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(6)), child: const Text('Default', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600))),
-              ]),
-              const SizedBox(height: 3),
-              Text('Mogadishu, Somalia', style: TextStyle(fontSize: 12, color: Colors.grey[500], height: 1.5)),
-            ])),
-            TextButton(onPressed: () {}, child: const Text('Change', style: TextStyle(color: _primary, fontWeight: FontWeight.w600))),
-          ]),
+        GestureDetector(
+          onTap: _pickDistrict,
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _districtId != null ? _primary.withValues(alpha: 0.05) : context.colors.cardBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _districtId != null ? _primary.withValues(alpha: 0.4) : Colors.grey.withValues(alpha: 0.2), width: 1.5),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+            ),
+            child: Row(children: [
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(color: _districtId != null ? _primary : Colors.grey.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+                child: Icon(Icons.location_on_rounded, color: _districtId != null ? Colors.white : Colors.grey, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  _districtName ?? 'Select delivery district',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: _districtId != null ? context.colors.navyText : Colors.grey),
+                ),
+                const SizedBox(height: 2),
+                Text(_districtId != null ? 'Tap to change' : 'Choose where to deliver', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+              ])),
+              const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+            ]),
+          ),
         ),
 
         const SizedBox(height: 24),
@@ -2365,6 +2422,15 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
   String get _apiPayment => _payment == 'wallet' ? 'wallet' : 'waafi_pay';
 
   Future<void> _placeOrder() async {
+    if (_districtId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Please select a delivery district'),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+
     if (_payment == 'waafi') {
       final result = await showWaafiPaySheet(
         context,
@@ -2399,9 +2465,10 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         'items':          items,
         'payment_method': _apiPayment,
         if (_waafiReference != null) 'payment_reference': _waafiReference,
+        'district_id': _districtId,
         'delivery_address': {
-          'city':    'Mogadishu',
-          'country': 'Somalia',
+          'district': _districtName ?? '',
+          'city':     _districtName ?? '',
         },
       });
 
@@ -3010,5 +3077,83 @@ class _ProfileTab extends StatelessWidget {
         ),
       )),
     ]));
+  }
+}
+
+// ── District picker bottom sheet for efood checkout ─────────────────────────
+
+class _EfoodDistrictSheet extends StatefulWidget {
+  final List<DistrictModel> districts;
+  final int? selectedId;
+  final void Function(DistrictModel) onSelected;
+  const _EfoodDistrictSheet({required this.districts, required this.selectedId, required this.onSelected});
+
+  @override
+  State<_EfoodDistrictSheet> createState() => _EfoodDistrictSheetState();
+}
+
+class _EfoodDistrictSheetState extends State<_EfoodDistrictSheet> {
+  String _search = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = widget.districts.where((d) => d.name.toLowerCase().contains(_search.toLowerCase())).toList();
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.65,
+      decoration: BoxDecoration(
+        color: context.colors.cardBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(children: [
+        const SizedBox(height: 8),
+        Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(children: [
+            Expanded(child: Text('Select District', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: context.colors.navyText))),
+            IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(context)),
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: TextField(
+            autofocus: true,
+            onChanged: (v) => setState(() => _search = v),
+            decoration: InputDecoration(
+              hintText: 'Search district...',
+              prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Colors.grey),
+              filled: true,
+              fillColor: context.colors.scaffoldBg,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+            ),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: filtered.length,
+            itemBuilder: (_, i) {
+              final d = filtered[i];
+              final selected = d.id == widget.selectedId;
+              return ListTile(
+                leading: Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: selected ? _primary : Colors.grey.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.location_on_rounded, size: 18, color: selected ? Colors.white : Colors.grey),
+                ),
+                title: Text(d.name, style: TextStyle(fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: selected ? _primary : context.colors.navyText)),
+                trailing: selected ? const Icon(Icons.check_circle_rounded, color: _primary) : null,
+                onTap: () => widget.onSelected(d),
+              );
+            },
+          ),
+        ),
+      ]),
+    );
   }
 }
