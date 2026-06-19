@@ -46,12 +46,15 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
   void _initDistrict() {
     if (_districtInitialized) return;
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user != null && user.districtId != null) {
-      setState(() {
+    if (user != null) {
+      if (_nameCtrl.text.isEmpty)  _nameCtrl.text  = user.name;
+      if (_phoneCtrl.text.isEmpty) _phoneCtrl.text = user.phone;
+      if (user.districtId != null) {
         _districtId   = user.districtId;
         _districtName = user.districtName;
-        _districtInitialized = true;
-      });
+      }
+      _districtInitialized = true;
+      setState(() {});
     }
   }
 
@@ -218,9 +221,9 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
             onChangeTap: _pickDistrict,
           ),
           const SizedBox(height: 12),
-          _field(_nameCtrl, 'Full Name (optional)', Icons.person_outline_rounded),
+          _field(_nameCtrl, 'Full Name', Icons.person_outline_rounded),
           const SizedBox(height: 12),
-          _field(_phoneCtrl, 'Phone Number (optional)', Icons.phone_outlined, keyboardType: TextInputType.phone),
+          _field(_phoneCtrl, 'Phone Number', Icons.phone_outlined, keyboardType: TextInputType.phone),
         ]),
 
         const SizedBox(height: 16),

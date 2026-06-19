@@ -2280,6 +2280,8 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
   int?    _districtId;
   String? _districtName;
   bool    _districtInitialized = false;
+  final _nameCtrl  = TextEditingController();
+  final _phoneCtrl = TextEditingController();
 
   double get _total => widget.subtotal + widget.deliveryFee + widget.tax - widget.discount;
 
@@ -2289,15 +2291,25 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _initDistrict());
   }
 
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
+
   void _initDistrict() {
     if (_districtInitialized) return;
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user != null && user.districtId != null) {
-      setState(() {
+    if (user != null) {
+      if (_nameCtrl.text.isEmpty)  _nameCtrl.text  = user.name;
+      if (_phoneCtrl.text.isEmpty) _phoneCtrl.text = user.phone;
+      if (user.districtId != null) {
         _districtId   = user.districtId;
         _districtName = user.districtName;
-        _districtInitialized = true;
-      });
+      }
+      _districtInitialized = true;
+      setState(() {});
     }
   }
 
@@ -2363,6 +2375,10 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
             ]),
           ),
         ),
+        const SizedBox(height: 12),
+        _buildTextField(_nameCtrl,  'Full Name',    Icons.person_outline_rounded),
+        const SizedBox(height: 10),
+        _buildTextField(_phoneCtrl, 'Phone Number', Icons.phone_outlined, keyboardType: TextInputType.phone),
 
         const SizedBox(height: 24),
         Text('Payment Method', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
@@ -2417,6 +2433,21 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
     );
   }
 
+  Widget _buildTextField(TextEditingController ctrl, String hint, IconData icon, {TextInputType? keyboardType}) => TextField(
+    controller: ctrl,
+    keyboardType: keyboardType,
+    decoration: InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon, size: 18, color: Colors.grey),
+      filled: true,
+      fillColor: context.colors.cardBg,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _primary, width: 2)),
+    ),
+  );
+
   String? _waafiReference;
 
   String get _apiPayment => _payment == 'wallet' ? 'wallet' : 'waafi_pay';
@@ -2469,6 +2500,8 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         'delivery_address': {
           'district': _districtName ?? '',
           'city':     _districtName ?? '',
+          if (_nameCtrl.text.trim().isNotEmpty)  'name':  _nameCtrl.text.trim(),
+          if (_phoneCtrl.text.trim().isNotEmpty) 'phone': _phoneCtrl.text.trim(),
         },
       });
 
