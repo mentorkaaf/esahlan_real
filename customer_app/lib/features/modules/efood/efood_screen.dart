@@ -18,6 +18,11 @@ import '../../ads/services/ad_service.dart';
 
 const _primary   = AppColors.primary;
 const _secondary = AppColors.secondary;
+
+Widget _shimmer({double? w, double? h, double r = 10}) => Container(
+  width: w, height: h,
+  decoration: BoxDecoration(color: AppColors.shimmer, borderRadius: BorderRadius.circular(r)),
+);
 // _bg and _card are light-mode defaults; scaffold/header backgrounds use context.colors in build()
 const _bg        = Color(0xFFF4F5FA);
 const _card      = Colors.white;
@@ -495,7 +500,10 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
               },
             );
           },
-          loading: () => const SizedBox(height: 100, child: Center(child: CircularProgressIndicator(color: _primary))),
+          loading: () => Row(children: List.generate(5, (_) => Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Column(children: [_shimmer(w: 52, h: 52, r: 14), const SizedBox(height: 6), _shimmer(w: 40, h: 10)]),
+          ))),
           error: (_, __) => const SizedBox.shrink(),
         ),
       ]),
@@ -534,7 +542,15 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
               ),
             );
           },
-          loading: () => const SizedBox(height: 220, child: Center(child: CircularProgressIndicator(color: _primary))),
+          loading: () => SizedBox(height: 220, child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: 4,
+            itemBuilder: (_, __) => Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: _shimmer(w: 160, h: 220, r: 16),
+            ),
+          )),
           error: (e, __) => SizedBox(
             height: 60,
             child: Center(child: Text('⚠️ $e', style: const TextStyle(fontSize: 12, color: Colors.red))),
@@ -828,7 +844,7 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
             itemBuilder: (_, i) => _RestaurantListTile(restaurant: list[i], onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _RestaurantDetailPage(restaurant: list[i])))),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator(color: _primary)),
+        loading: () => ListView.builder(padding: const EdgeInsets.all(16), itemCount: 5, itemBuilder: (_, __) => Padding(padding: const EdgeInsets.only(bottom: 12), child: _shimmer(h: 70, r: 14))),
         error: (_, __) => const SizedBox.shrink(),
       )),
     ]));
@@ -1557,7 +1573,7 @@ class _MenuTab extends ConsumerWidget {
           ],
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator(color: _primary)),
+      loading: () => ListView.builder(padding: const EdgeInsets.all(16), itemCount: 6, itemBuilder: (_, __) => Padding(padding: const EdgeInsets.only(bottom: 12), child: _shimmer(h: 80, r: 14))),
       error: (e, _) => Center(child: Text('Error loading menu', style: TextStyle(color: Colors.grey[500]))),
     );
   }
