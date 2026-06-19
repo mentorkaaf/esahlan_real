@@ -1,5 +1,10 @@
 ﻿import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/theme_x.dart';
+import '../../data/models/community_models.dart';
+import '../../data/repositories/community_repository.dart';
+import '../../../../core/api/module_api_service.dart';
+
 extension _CacheFor on Ref {
   void cacheFor(Duration d) {
     final link = keepAlive();
@@ -7,11 +12,6 @@ extension _CacheFor on Ref {
     onDispose(t.cancel);
   }
 }
-
-import '../../../../core/theme/theme_x.dart';
-import '../../data/models/community_models.dart';
-import '../../data/repositories/community_repository.dart';
-import '../../../../core/api/module_api_service.dart';
 
 final _repo = CommunityRepository();
 
