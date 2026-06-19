@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
@@ -260,17 +259,13 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-// ── Address card — district name + district map ───────────────────────────────
+// ── My Info card — name, phone, district ─────────────────────────────────────
 class _AddressCard extends StatelessWidget {
   final UserModel? user;
   const _AddressCard({required this.user});
 
   @override
   Widget build(BuildContext context) {
-    final districtLoc = (user?.districtLat != null && user?.districtLng != null)
-        ? LatLng(user!.districtLat!, user!.districtLng!)
-        : null;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
@@ -282,53 +277,37 @@ class _AddressCard extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-            child: const Text('MY ADDRESS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textGrey, letterSpacing: 0.8)),
+            child: const Text('MY INFO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textGrey, letterSpacing: 0.8)),
           ),
-
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-            leading: Container(
-              width: 38, height: 38,
-              decoration: BoxDecoration(color: _kOrange.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.location_city_outlined, color: _kOrange, size: 20),
-            ),
-            title: Text('District', style: TextStyle(fontSize: 13, color: AppColors.textGrey)),
-            subtitle: Text(
-              user?.districtName ?? 'Not set',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: context.colors.navyText),
-            ),
-          ),
-
-          // Google Map showing the district center
-          if (districtLoc != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: SizedBox(
-                  height: 180,
-                  child: GoogleMap(
-                    initialCameraPosition: CameraPosition(target: districtLoc, zoom: 14),
-                    markers: {
-                      Marker(
-                        markerId: const MarkerId('district'),
-                        position: districtLoc,
-                        infoWindow: InfoWindow(title: user?.districtName ?? 'My District'),
-                      ),
-                    },
-                    myLocationButtonEnabled: false,
-                    zoomControlsEnabled: false,
-                    scrollGesturesEnabled: true,
-                    rotateGesturesEnabled: false,
-                    tiltGesturesEnabled: false,
-                  ),
-                ),
-              ),
-            ),
-
+          _InfoRow(icon: Icons.person_outline_rounded, label: 'Full Name', value: user?.name ?? '—'),
+          const Divider(height: 1, indent: 56, color: Color(0xFFF0F0F5)),
+          _InfoRow(icon: Icons.phone_outlined, label: 'Phone', value: user?.phone ?? '—'),
+          const Divider(height: 1, indent: 56, color: Color(0xFFF0F0F5)),
+          _InfoRow(icon: Icons.location_city_outlined, label: 'District', value: user?.districtName ?? 'Not set'),
           const SizedBox(height: 4),
         ]),
       ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _InfoRow({required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      leading: Container(
+        width: 38, height: 38,
+        decoration: BoxDecoration(color: _kOrange.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(10)),
+        child: Icon(icon, color: _kOrange, size: 20),
+      ),
+      title: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
+      subtitle: Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: context.colors.navyText)),
     );
   }
 }
