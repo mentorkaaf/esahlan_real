@@ -26,6 +26,31 @@ class AdminUserController extends Controller
         return view('admin.users.index', compact('users'));
     }
 
+    public function liveLocations()
+    {
+        $users = User::with('district')
+            ->whereNull('deleted_at')
+            ->get(['id', 'name', 'phone', 'latitude', 'longitude', 'location_updated_at', 'district_id']);
+
+        $data = $users->filter(function ($u) {
+            return ($u->latitude && $u->longitude) || ($u->district && $u->district->latitude && $u->district->longitude);
+        })->map(function ($u) {
+            $hasGps = $u->latitude && $u->longitude;
+            return [
+                'id'      => $u->id,
+                'name'    => $u->name,
+                'phone'   => $u->phone ?? '',
+                'lat'     => (float) ($hasGps ? $u->latitude  : $u->district?->latitude),
+                'lng'     => (float) ($hasGps ? $u->longitude : $u->district?->longitude),
+                'url'     => route('admin.users.show', $u->id),
+                'updated' => $hasGps ? (optional($u->location_updated_at)->diffForHumans() ?? 'Unknown') : ('District: ' . ($u->district?->name ?? '—')),
+                'hasGps'  => $hasGps,
+            ];
+        })->values();
+
+        return response()->json($data);
+    }
+
     public function show(User $user)
     {
         $user->load(['role', 'wallet', 'district', 'orders' => fn($q) => $q->latest()->limit(10)]);

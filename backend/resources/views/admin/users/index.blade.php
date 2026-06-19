@@ -251,64 +251,80 @@ var __usersMapData = {{ Illuminate\Support\Js::from($mappableUsers->map(function
     ];
 })->values()) }};
 
+var __usersMap, __usersMarkers = {}, __usersInfoWindow;
+
+function addOrUpdateMarker(u) {
+    var pos = { lat: u.lat, lng: u.lng };
+    var icon = {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 10,
+        fillColor: u.hasGps ? '#FF8A00' : '#3949AB',
+        fillOpacity: 1,
+        strokeColor: '#07003B',
+        strokeWeight: 3,
+    };
+    if (__usersMarkers[u.id]) {
+        __usersMarkers[u.id].setPosition(pos);
+        __usersMarkers[u.id].setIcon(icon);
+        __usersMarkers[u.id].__data = u;
+    } else {
+        var marker = new google.maps.Marker({ position: pos, map: __usersMap, title: u.name, icon: icon });
+        marker.__data = u;
+        marker.addListener('click', function() {
+            var d = this.__data;
+            __usersInfoWindow.setContent(
+                '<div class="gm-popup">' +
+                '<div class="name">' + d.name + '</div>' +
+                '<div class="phone">' + d.phone + '</div>' +
+                '<div class="ts">' + d.updated + '</div>' +
+                '<a href="' + d.url + '">View Profile</a>' +
+                '</div>'
+            );
+            __usersInfoWindow.open(__usersMap, this);
+        });
+        __usersMarkers[u.id] = marker;
+    }
+}
+
 function initUsersMap() {
     var defaultCenter = { lat: 2.0469, lng: 45.3182 };
-    var map = new google.maps.Map(document.getElementById('users-map'), {
+    __usersMap = new google.maps.Map(document.getElementById('users-map'), {
         zoom: 12,
         center: defaultCenter,
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: true,
-        styles: [
-            { featureType: 'poi', stylers: [{ visibility: 'off' }] }
-        ]
+        styles: [{ featureType: 'poi', stylers: [{ visibility: 'off' }] }]
     });
 
-    var infoWindow = new google.maps.InfoWindow();
-    var bounds    = new google.maps.LatLngBounds();
+    __usersInfoWindow = new google.maps.InfoWindow();
+    var bounds = new google.maps.LatLngBounds();
     var hasPoints = false;
 
     __usersMapData.forEach(function(u) {
-        var pos = { lat: u.lat, lng: u.lng };
-        var marker = new google.maps.Marker({
-            position: pos,
-            map: map,
-            title: u.name,
-            icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 10,
-                fillColor: u.hasGps ? '#FF8A00' : '#3949AB',
-                fillOpacity: 1,
-                strokeColor: '#07003B',
-                strokeWeight: 3,
-            }
-        });
-
-        marker.addListener('click', function() {
-            infoWindow.setContent(
-                '<div class="gm-popup">' +
-                '<div class="name">' + u.name + '</div>' +
-                '<div class="phone">' + u.phone + '</div>' +
-                '<span class="role">' + u.role + '</span>' +
-                '<div class="ts">' + u.updated + '</div>' +
-                '<a href="' + u.url + '">View Profile</a>' +
-                '</div>'
-            );
-            infoWindow.open(map, marker);
-        });
-
-        bounds.extend(pos);
+        addOrUpdateMarker(u);
+        bounds.extend({ lat: u.lat, lng: u.lng });
         hasPoints = true;
     });
 
     if (hasPoints) {
         if (__usersMapData.length === 1) {
-            map.setCenter({ lat: __usersMapData[0].lat, lng: __usersMapData[0].lng });
-            map.setZoom(15);
+            __usersMap.setCenter({ lat: __usersMapData[0].lat, lng: __usersMapData[0].lng });
+            __usersMap.setZoom(15);
         } else {
-            map.fitBounds(bounds);
+            __usersMap.fitBounds(bounds);
         }
     }
+
+    // Refresh marker positions every 30 seconds
+    setInterval(function() {
+        fetch('{{ route("admin.users.live-locations") }}')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                data.forEach(function(u) { addOrUpdateMarker(u); });
+            })
+            .catch(function() {});
+    }, 30000);
 }
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A&callback=initUsersMap" async defer></script>
