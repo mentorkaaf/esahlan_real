@@ -69,9 +69,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
       districtId: _districtId,
     );
     if (!mounted) return;
-    ref.read(registerProvider).whenOrNull(
+    final state = ref.read(registerProvider);
+    state.whenOrNull(
       error: (e, _) => _err(e.toString()),
+      data: (_) => _postSavedLocationToBackend(),
     );
+  }
+
+  // Called after successful registration — token now exists, so the API call works
+  Future<void> _postSavedLocationToBackend() async {
+    try {
+      final lat = await LocalStorage.getDouble('saved_lat');
+      final lng = await LocalStorage.getDouble('saved_lng');
+      if (lat != null && lng != null) {
+        await ref.read(authRepositoryProvider).updateLocation(lat, lng);
+      }
+    } catch (_) {}
   }
 
   Future<void> _saveLocationSilently() async {
@@ -84,8 +97,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
       final pos = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium));
       await LocalStorage.saveDouble('saved_lat', pos.latitude);
       await LocalStorage.saveDouble('saved_lng', pos.longitude);
-      // Post to backend (fire-and-forget — token may not exist yet during registration)
-      ref.read(authRepositoryProvider).updateLocation(pos.latitude, pos.longitude);
+      // Backend POST happens after registration completes (token required)
     } catch (_) {}
   }
 
