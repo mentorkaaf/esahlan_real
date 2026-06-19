@@ -95,20 +95,32 @@
 
     <div>
         {{-- ── Location Map ── --}}
-        @if($user->latitude && $user->longitude)
+        @php
+            $mapLat = $user->latitude  ?? $user->district?->latitude;
+            $mapLng = $user->longitude ?? $user->district?->longitude;
+            $hasGps = (bool)$user->latitude;
+        @endphp
+        @if($mapLat && $mapLng)
         <div class="card" style="margin-bottom:20px;">
             <div class="card-header">
-                <span><i class="fas fa-map-marker-alt" style="color:#FF8A00;margin-right:8px;"></i>Last Known Location</span>
-                @if($user->location_updated_at)
-                <span style="font-size:12px;color:#999;margin-left:8px;">{{ $user->location_updated_at->diffForHumans() }}</span>
+                @if($hasGps)
+                    <span><i class="fas fa-map-marker-alt" style="color:#FF8A00;margin-right:8px;"></i>Live Location</span>
+                    @if($user->location_updated_at)
+                    <span style="font-size:12px;color:#999;margin-left:8px;">{{ $user->location_updated_at->diffForHumans() }}</span>
+                    @endif
+                @else
+                    <span><i class="fas fa-map-marker-alt" style="color:#3949AB;margin-right:8px;"></i>District Location — {{ $user->district?->name ?? '—' }}</span>
+                    <span style="font-size:11px;color:#bbb;margin-left:8px;">No GPS yet</span>
                 @endif
             </div>
             <div style="padding:12px;">
                 <div id="user-loc-map"></div>
+                @if($hasGps)
                 <div style="margin-top:8px;font-size:12px;color:#888;text-align:center;">
                     <i class="fas fa-crosshairs" style="margin-right:4px;color:#FF8A00;"></i>
                     {{ number_format($user->latitude, 6) }}, {{ number_format($user->longitude, 6) }}
                 </div>
+                @endif
             </div>
         </div>
         @endif
@@ -139,12 +151,13 @@
         </div>
     </div>
 </div>
-@if($user->latitude && $user->longitude)
+@if(isset($mapLat) && $mapLat)
 <script>
 function initUserLocMap() {
-    var pos = { lat: {{ $user->latitude }}, lng: {{ $user->longitude }} };
+    var hasGps  = {{ $hasGps ? 'true' : 'false' }};
+    var pos     = { lat: {{ $mapLat }}, lng: {{ $mapLng }} };
     var map = new google.maps.Map(document.getElementById('user-loc-map'), {
-        zoom: 15,
+        zoom: hasGps ? 15 : 13,
         center: pos,
         mapTypeControl: false,
         streetViewControl: false,
@@ -157,15 +170,16 @@ function initUserLocMap() {
         icon: {
             path: google.maps.SymbolPath.CIRCLE,
             scale: 11,
-            fillColor: '#FF8A00',
+            fillColor: hasGps ? '#FF8A00' : '#3949AB',
             fillOpacity: 1,
             strokeColor: '#07003B',
             strokeWeight: 3,
         }
     });
-    var iw = new google.maps.InfoWindow({
-        content: '<div style="padding:6px 4px;"><strong>{{ addslashes($user->name) }}</strong><br><span style="font-size:12px;color:#888;">{{ addslashes($user->phone ?? '') }}</span></div>'
-    });
+    var label = hasGps
+        ? '<strong>{{ addslashes($user->name) }}</strong><br><span style="font-size:12px;color:#888;">{{ addslashes($user->phone ?? '') }}</span>'
+        : '<strong>{{ addslashes($user->name) }}</strong><br><span style="font-size:12px;color:#3949AB;">District: {{ addslashes($user->district?->name ?? '') }}</span>';
+    var iw = new google.maps.InfoWindow({ content: '<div style="padding:6px 4px;">' + label + '</div>' });
     iw.open(map, marker);
 }
 </script>

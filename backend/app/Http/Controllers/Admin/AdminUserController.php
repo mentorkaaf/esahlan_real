@@ -11,7 +11,7 @@ class AdminUserController extends Controller
 {
     public function index(Request $request)
     {
-        $query = User::with(['role'])
+        $query = User::with(['role', 'district'])
             ->when($request->role, fn($q) => $q->whereHas('role', fn($r) => $r->where('slug', $request->role)))
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->search, fn($q) => $q->where(fn($s) =>
@@ -28,7 +28,7 @@ class AdminUserController extends Controller
 
     public function show(User $user)
     {
-        $user->load(['role', 'wallet', 'orders' => fn($q) => $q->latest()->limit(10)]);
+        $user->load(['role', 'wallet', 'district', 'orders' => fn($q) => $q->latest()->limit(10)]);
         return view('admin.users.show', compact('user'));
     }
 

@@ -806,11 +806,21 @@ $tz = \App\Helpers\AppSettings::timezone();
                 @endif
             </div>
         </div>
-        @if($order->user?->latitude && $order->user?->longitude)
+        @php
+            $custLat   = $order->user?->latitude  ?? $order->user?->district?->latitude;
+            $custLng   = $order->user?->longitude ?? $order->user?->district?->longitude;
+            $custGps   = (bool)$order->user?->latitude;
+        @endphp
+        @if($custLat && $custLng)
         <div style="margin-top:14px;border-top:1px solid #F0F1F5;padding-top:12px;">
-            <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;"><i class="fas fa-map-marker-alt" style="color:#FF8A00;margin-right:4px;"></i>Customer Location</div>
+            <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">
+                <i class="fas fa-map-marker-alt" style="color:{{ $custGps ? '#FF8A00' : '#3949AB' }};margin-right:4px;"></i>
+                @if($custGps) Customer Location
+                @else District: {{ $order->user?->district?->name ?? '—' }}
+                @endif
+            </div>
             <div id="order-cust-map" style="height:200px;border-radius:12px;overflow:hidden;"></div>
-            @if($order->user->location_updated_at)
+            @if($custGps && $order->user->location_updated_at)
             <div style="font-size:11px;color:#bbb;text-align:center;margin-top:6px;"><i class="fas fa-clock" style="margin-right:3px;"></i>{{ $order->user->location_updated_at->diffForHumans() }}</div>
             @endif
         </div>
@@ -896,12 +906,13 @@ $tz = \App\Helpers\AppSettings::timezone();
 </div>{{-- /right --}}
 </div>{{-- /od-wrap --}}
 
-@if($order->user?->latitude && $order->user?->longitude)
+@if(isset($custLat) && $custLat)
 <script>
 function initOrderCustMap() {
-    var pos = { lat: {{ $order->user->latitude }}, lng: {{ $order->user->longitude }} };
+    var hasGps = {{ $custGps ? 'true' : 'false' }};
+    var pos    = { lat: {{ $custLat }}, lng: {{ $custLng }} };
     var map = new google.maps.Map(document.getElementById('order-cust-map'), {
-        zoom: 15,
+        zoom: hasGps ? 15 : 13,
         center: pos,
         mapTypeControl: false,
         streetViewControl: false,
@@ -911,19 +922,20 @@ function initOrderCustMap() {
     var marker = new google.maps.Marker({
         position: pos,
         map: map,
-        title: '{{ addslashes($order->user->name) }}',
+        title: '{{ addslashes($order->user?->name ?? '') }}',
         icon: {
             path: google.maps.SymbolPath.CIRCLE,
             scale: 10,
-            fillColor: '#3949AB',
+            fillColor: hasGps ? '#FF8A00' : '#3949AB',
             fillOpacity: 1,
-            strokeColor: '#ffffff',
+            strokeColor: '#07003B',
             strokeWeight: 3,
         }
     });
-    var iw = new google.maps.InfoWindow({
-        content: '<div style="padding:4px 2px;"><strong>{{ addslashes($order->user->name) }}</strong></div>'
-    });
+    var label = hasGps
+        ? '<strong>{{ addslashes($order->user?->name ?? '') }}</strong><br><span style="font-size:12px;color:#888;">{{ addslashes($order->user?->phone ?? '') }}</span>'
+        : '<strong>{{ addslashes($order->user?->name ?? '') }}</strong><br><span style="font-size:12px;color:#3949AB;">District: {{ addslashes($order->user?->district?->name ?? '') }}</span>';
+    var iw = new google.maps.InfoWindow({ content: '<div style="padding:4px 2px;">' + label + '</div>' });
     iw.open(map, marker);
 }
 </script>

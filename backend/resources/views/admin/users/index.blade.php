@@ -16,7 +16,10 @@
 @section('content')
 
 @php
-$mappableUsers = $users->getCollection()->filter(fn($u) => $u->latitude && $u->longitude);
+// Use GPS location if available, otherwise fall back to district center
+$mappableUsers = $users->getCollection()->filter(function($u) {
+    return ($u->latitude && $u->longitude) || ($u->district?->latitude && $u->district?->longitude);
+});
 @endphp
 
 <div class="page-header">
@@ -234,15 +237,17 @@ $mappableUsers = $users->getCollection()->filter(fn($u) => $u->latitude && $u->l
 </div>
 <script>
 var __usersMapData = {{ Illuminate\Support\Js::from($mappableUsers->map(function($u) {
+    $hasGps = $u->latitude && $u->longitude;
     return [
         'id'      => $u->id,
         'name'    => $u->name,
         'phone'   => $u->phone ?? '',
         'role'    => ucwords(str_replace('_', ' ', $u->role?->name ?? 'User')),
-        'lat'     => (float) $u->latitude,
-        'lng'     => (float) $u->longitude,
+        'lat'     => (float) ($hasGps ? $u->latitude  : $u->district?->latitude),
+        'lng'     => (float) ($hasGps ? $u->longitude : $u->district?->longitude),
         'url'     => route('admin.users.show', $u->id),
-        'updated' => optional($u->location_updated_at)->diffForHumans() ?? 'Unknown',
+        'updated' => $hasGps ? (optional($u->location_updated_at)->diffForHumans() ?? 'Unknown') : ('District: ' . ($u->district?->name ?? '—')),
+        'hasGps'  => $hasGps,
     ];
 })->values()) }};
 
@@ -272,7 +277,7 @@ function initUsersMap() {
             icon: {
                 path: google.maps.SymbolPath.CIRCLE,
                 scale: 10,
-                fillColor: '#FF8A00',
+                fillColor: u.hasGps ? '#FF8A00' : '#3949AB',
                 fillOpacity: 1,
                 strokeColor: '#07003B',
                 strokeWeight: 3,

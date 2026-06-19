@@ -109,9 +109,9 @@ class AdminOrderController extends Controller
     {
         $this->authorizeOrderAccess($order);
         try {
-            $order->load(['user', 'vendor', 'deliveryman', 'items.product', 'statusHistory']);
+            $order->load(['user.district', 'vendor', 'deliveryman', 'items.product', 'statusHistory']);
         } catch (\Throwable $e) {
-            $order->load(['user', 'vendor', 'deliveryman', 'items.product']);
+            $order->load(['user.district', 'vendor', 'deliveryman', 'items.product']);
         }
         $deliverymen = Deliveryman::where('is_approved', true)->where('status', 'available')->with('user')->get();
         return view('admin.orders.show', compact('order', 'deliverymen'));
