@@ -485,7 +485,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 8)],
                       ),
                       child: c['image'] != null
-                          ? ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.network(fixImgUrl(c['image']), fit: BoxFit.cover))
+                          ? ClipRRect(borderRadius: BorderRadius.circular(14), child: NetImage(url: c['image'], fit: BoxFit.cover))
                           : const Center(child: Icon(Icons.fastfood_rounded, color: _primary, size: 24)),
                     ),
                     SizedBox(height: 6),
@@ -920,14 +920,7 @@ class _RestaurantDetailPageState extends ConsumerState<_RestaurantDetailPage> wi
         child: const Center(child: Text('🍽️', style: TextStyle(fontSize: 80))),
       );
     }
-    return Image.network(
-      fixImgUrl(u),
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => Container(
-        color: _primary.withValues(alpha: 0.2),
-        child: const Center(child: Text('🍽️', style: TextStyle(fontSize: 80))),
-      ),
-    );
+    return NetImage(url: u, fit: BoxFit.cover);
   }
 
   @override
@@ -1472,16 +1465,10 @@ class _NetImg extends StatelessWidget {
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      child: Image.network(
-        fixImgUrl(u),
+      child: NetImage(url: u,
         width: width == double.infinity ? null : width,
         height: height,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => SizedBox(width: width == double.infinity ? null : width, height: height, child: fallback),
-        loadingBuilder: (_, child, progress) => progress == null
-            ? child
-            : SizedBox(width: width == double.infinity ? null : width, height: height,
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _primary.withValues(alpha: 0.4)))),
       ),
     );
   }
@@ -1916,8 +1903,8 @@ class _FoodItemDetailPageState extends ConsumerState<_FoodItemDetailPage> {
               final url = (p['thumbnail'] ?? p['image'])?.toString().trim() ?? '';
               final valid = url.isNotEmpty && (url.startsWith('http://') || url.startsWith('https://'));
               return valid
-                  ? Image.network(fixImgUrl(url), fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(color: _primary.withValues(alpha: 0.2),
+                  ? NetImage(url: url, fit: BoxFit.cover,
+                      errorWidget: Container(color: _primary.withValues(alpha: 0.2),
                           child: const Center(child: Text('🍕', style: TextStyle(fontSize: 100)))))
                   : Container(color: _primary.withValues(alpha: 0.2),
                       child: const Center(child: Text('🍕', style: TextStyle(fontSize: 100))));
@@ -2204,7 +2191,7 @@ class _CartItemTile extends ConsumerWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(10),
           child: p['image'] != null
-              ? Image.network(fixImgUrl(p['image']), width: 70, height: 70, fit: BoxFit.cover)
+              ? NetImage(url: p['image'], width: 70, height: 70, fit: BoxFit.cover)
               : Container(width: 70, height: 70, color: _primary.withValues(alpha: 0.1), child: const Center(child: Text('🍕', style: TextStyle(fontSize: 30)))),
         ),
         const SizedBox(width: 12),

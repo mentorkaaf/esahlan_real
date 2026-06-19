@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../constants/app_constants.dart';
 import '../storage/local_storage.dart';
 
@@ -24,12 +25,14 @@ class ApiClient {
     );
 
     dio.interceptors.add(_AuthInterceptor());
-    dio.interceptors.add(LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      error: true,
-      logPrint: (o) => print('🌐 $o'),
-    ));
+    if (kDebugMode) {
+      dio.interceptors.add(LogInterceptor(
+        requestBody: false,
+        responseBody: false,
+        error: true,
+        logPrint: (o) => debugPrint('🌐 $o'),
+      ));
+    }
 
     return dio;
   }

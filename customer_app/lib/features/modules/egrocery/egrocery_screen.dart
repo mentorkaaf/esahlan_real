@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -151,8 +151,8 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Expanded(child: ClipRRect(borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                       child: p['image'] != null
-                          ? Image.network(fixImgUrl(p['image']), fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-                              errorBuilder: (_, __, ___) => Container(color: AppColors.surface, child: Icon(Icons.local_grocery_store_outlined, size: 40, color: AppColors.divider)))
+                          ? NetImage(url: p['image'], fit: BoxFit.cover,
+                              errorWidget: Container(color: AppColors.surface, child: Icon(Icons.local_grocery_store_outlined, size: 40, color: AppColors.divider)))
                           : Container(color: AppColors.surface, child: Icon(Icons.local_grocery_store_outlined, size: 40, color: AppColors.divider)),
                     )),
                     Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -237,7 +237,7 @@ class _GroceryCartSheetState extends State<_GroceryCartSheet> {
             if (p == null) return const SizedBox();
             return Padding(padding: const EdgeInsets.only(bottom: 10), child: Row(children: [
               ClipRRect(borderRadius: BorderRadius.circular(8), child: p['image'] != null
-                  ? Image.network(p['image'], width: 48, height: 48, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(width: 48, height: 48, color: AppColors.surface))
+                  ? NetImage(url: p['image'], width: 48, height: 48, fit: BoxFit.cover)
                   : Container(width: 48, height: 48, color: AppColors.surface)),
               SizedBox(width: 10),
               Expanded(child: Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText))),

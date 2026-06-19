@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,13 +15,8 @@ import '../../ads/services/ad_service.dart';
 double _toD(dynamic v) => double.tryParse(v?.toString() ?? '0') ?? 0;
 String _fmt(dynamic v) => '\$${_toD(v).toStringAsFixed(2)}';
 
-Widget _netImg(String? url, {BoxFit fit = BoxFit.cover, Widget? placeholder}) {
-  if (url == null || url.isEmpty) {
-    return placeholder ?? Container(color: AppColors.surface, child: const Icon(Icons.image_outlined, color: AppColors.divider, size: 40));
-  }
-  return Image.network(fixImgUrl(url), fit: fit,
-      errorBuilder: (_, __, ___) => placeholder ?? Container(color: AppColors.surface, child: const Icon(Icons.image_outlined, color: AppColors.divider, size: 40)));
-}
+Widget _netImg(String? url, {BoxFit fit = BoxFit.cover, Widget? placeholder}) =>
+    NetImage(url: url, fit: fit);
 
 Widget _shimmer({double? w, double? h, double r = 10}) => Container(
   width: w, height: h,

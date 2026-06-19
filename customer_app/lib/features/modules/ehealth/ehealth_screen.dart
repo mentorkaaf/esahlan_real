@@ -377,7 +377,7 @@ class _DoctorSectionState extends ConsumerState<_DoctorSection> {
                       width: 60, height: 60,
                       decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
                       child: doc['avatar'] != null
-                          ? ClipOval(child: Image.network(fixImgUrl(doc['avatar']), fit: BoxFit.cover))
+                          ? ClipOval(child: NetImage(url: doc['avatar'], fit: BoxFit.cover))
                           : const Icon(Icons.person_rounded, color: AppColors.primary, size: 30),
                     ),
                     SizedBox(width: 12),

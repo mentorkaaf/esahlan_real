@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -181,8 +181,8 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: item.product['thumbnail'] != null
-                    ? Image.network(fixImgUrl(item.product['thumbnail']), width: 50, height: 50, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(width: 50, height: 50, color: AppColors.surface))
+                    ? NetImage(url: item.product['thumbnail'], width: 50, height: 50, fit: BoxFit.cover,
+                        errorWidget: Container(width: 50, height: 50, color: AppColors.surface))
                     : Container(width: 50, height: 50, color: AppColors.surface),
               ),
               SizedBox(width: 12),

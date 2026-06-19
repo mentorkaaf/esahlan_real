@@ -773,11 +773,11 @@ class _InstructorCourseCard extends ConsumerWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: course.thumbnail != null
-                ? Image.network(course.thumbnail!,
+                ? NetImage(url: course.thumbnail,
                     width: 64,
                     height: 64,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _thumb(context))
+                    errorWidget: _thumb(context))
                 : _thumb(context),
           ),
           const SizedBox(width: 12),

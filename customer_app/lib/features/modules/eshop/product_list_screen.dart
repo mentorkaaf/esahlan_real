@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,13 +12,7 @@ import 'eshop_providers.dart';
 double _toD(dynamic v) => double.tryParse(v?.toString() ?? '0') ?? 0;
 String _fmt(dynamic v) => '\$${_toD(v).toStringAsFixed(2)}';
 
-Widget _netImg(String? url, {BoxFit fit = BoxFit.cover}) {
-  if (url == null || url.isEmpty) {
-    return Container(color: AppColors.surface, child: const Icon(Icons.image_outlined, color: AppColors.divider, size: 40));
-  }
-  return Image.network(fixImgUrl(url), fit: fit,
-    errorBuilder: (_, __, ___) => Container(color: AppColors.surface, child: const Icon(Icons.image_outlined, color: AppColors.divider, size: 40)));
-}
+Widget _netImg(String? url, {BoxFit fit = BoxFit.cover}) => NetImage(url: url, fit: fit);
 
 Widget _shimmer({double? w, double? h, double r = 10}) => Container(
   width: w, height: h,
@@ -253,7 +247,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 }
                 if (i >= displayList.length) return _shimmer(r: 14);
                 final p = displayList[i];
-                return _ProductGridCard(product: p, cartNotifier: cartNotifier, cart: cart);
+                return RepaintBoundary(child: _ProductGridCard(product: p, cartNotifier: cartNotifier, cart: cart));
               },
             );
           },
@@ -315,7 +309,7 @@ class _ProductGridCard extends ConsumerWidget {
     final p = product;
     final qty = cartNotifier.qtyFor(p['id'] as int);
     final hasDiscount = p['sale_price'] != null && _toD(p['sale_price']) < _toD(p['price']);
-    final inWishlist = ref.watch(eshopWishlistProvider).contains(p['id']);
+    final inWishlist = ref.watch(eshopWishlistProvider.select((s) => s.contains(p['id'])));
 
     return GestureDetector(
       onTap: () => context.push('/eshop/products/${p['id']}'),

@@ -204,8 +204,8 @@ class _EnrollmentCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: course.thumbnail != null
-                  ? Image.network(course.thumbnail!, width: 72, height: 72, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _placeholder(context))
+                  ? NetImage(url: course.thumbnail, width: 72, height: 72, fit: BoxFit.cover,
+                      errorWidget: _placeholder(context))
                   : _placeholder(context),
             ),
             SizedBox(width: 14),

@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import '../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -154,14 +154,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                           },
                           itemBuilder: (_, i) => Container(
                             color: context.colors.cardBg,
-                            child: Image.network(fixImgUrl(allImages[i]), fit: BoxFit.contain,
-                              loadingBuilder: (_, child, progress) => progress == null ? child
-                                  : Center(child: CircularProgressIndicator(
-                                      value: progress.expectedTotalBytes != null
-                                          ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
-                                          : null,
-                                      color: AppColors.primary, strokeWidth: 2)),
-                              errorBuilder: (_, __, ___) => Container(color: AppColors.surface,
+                            child: NetImage(url: allImages[i], fit: BoxFit.contain,
+                              errorWidget: Container(color: AppColors.surface,
                                 child: const Icon(Icons.image_outlined, size: 80, color: AppColors.divider))),
                           ),
                         )

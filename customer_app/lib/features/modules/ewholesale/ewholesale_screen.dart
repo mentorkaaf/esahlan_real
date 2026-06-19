@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -100,8 +100,8 @@ class _EWholesaleScreenState extends ConsumerState<EWholesaleScreen> {
                       // Image
                       ClipRRect(borderRadius: const BorderRadius.horizontal(left: Radius.circular(14)),
                         child: p['image'] != null
-                            ? Image.network(fixImgUrl(p['image']), width: 110, height: 110, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(width: 110, height: 110, color: AppColors.surface, child: Icon(Icons.inventory_2_outlined, size: 40, color: AppColors.divider)))
+                            ? NetImage(url: p['image'], width: 110, height: 110, fit: BoxFit.cover,
+                                errorWidget: Container(width: 110, height: 110, color: AppColors.surface, child: Icon(Icons.inventory_2_outlined, size: 40, color: AppColors.divider)))
                             : Container(width: 110, height: 110, color: AppColors.surface, child: Icon(Icons.inventory_2_outlined, size: 40, color: AppColors.divider)),
                       ),
                       Expanded(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

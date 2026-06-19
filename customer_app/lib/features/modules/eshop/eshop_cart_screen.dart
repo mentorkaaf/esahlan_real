@@ -106,8 +106,8 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: p['thumbnail'] != null
-                            ? Image.network(fixImgUrl(p['thumbnail']), width: 72, height: 72, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(width: 72, height: 72, color: context.colors.surfaceBg, child: const Icon(Icons.image_outlined, color: AppColors.divider)))
+                            ? NetImage(url: p['thumbnail'], width: 72, height: 72, fit: BoxFit.cover,
+                                errorWidget: Container(width: 72, height: 72, color: context.colors.surfaceBg, child: const Icon(Icons.image_outlined, color: AppColors.divider)))
                             : Container(width: 72, height: 72, color: context.colors.surfaceBg, child: const Icon(Icons.image_outlined, color: AppColors.divider)),
                       ),
                       SizedBox(width: 12),

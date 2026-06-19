@@ -138,8 +138,8 @@ class _OrderDetailBody extends StatelessWidget {
                             borderRadius: BorderRadius.circular(10)),
                           child: item.imageUrl != null
                               ? ClipRRect(borderRadius: BorderRadius.circular(10),
-                                  child: Image.network(fixImgUrl(item.imageUrl!), fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const Icon(Icons.shopping_bag_outlined, size: 18, color: AppColors.textGrey)))
+                                  child: NetImage(url: item.imageUrl, fit: BoxFit.cover,
+                                    errorWidget: const Icon(Icons.shopping_bag_outlined, size: 18, color: AppColors.textGrey)))
                               : const Icon(Icons.shopping_bag_outlined, size: 18, color: AppColors.textGrey),
                         ),
                         const SizedBox(width: 10),
