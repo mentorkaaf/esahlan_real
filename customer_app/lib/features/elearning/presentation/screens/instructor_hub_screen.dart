@@ -3,6 +3,7 @@ import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import '../../data/models/elearning_models.dart';
 import '../../data/services/elearning_api_service.dart';
 import '../providers/elearning_provider.dart';
