@@ -1,16 +1,29 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/home_models.dart';
 import '../../data/repositories/home_repository.dart';
 
+// Cache TTL: providers auto-expire after this duration so stale/deleted
+// backend data is never shown for longer than _kCacheTtl.
+const _kCacheTtl = Duration(seconds: 30);
+
+extension _CacheFor on Ref {
+  void cacheFor(Duration duration) {
+    final link = keepAlive();
+    final timer = Timer(duration, link.close);
+    onDispose(timer.cancel);
+  }
+}
+
 final homeRepositoryProvider = Provider<HomeRepository>((ref) => HomeRepository());
 
 final modulesProvider = FutureProvider<List<ModuleModel>>((ref) {
-  ref.keepAlive();
+  ref.cacheFor(_kCacheTtl);
   return ref.read(homeRepositoryProvider).getModules();
 });
 
 final homeDataProvider = FutureProvider<Map<String, dynamic>>((ref) {
-  ref.keepAlive();
+  ref.cacheFor(_kCacheTtl);
   return ref.read(homeRepositoryProvider).getHomeData();
 });
 
@@ -21,7 +34,7 @@ final bannersProvider = FutureProvider<List<BannerModel>>((ref) async {
 });
 
 final homeBannersProvider = FutureProvider<List<BannerModel>>((ref) {
-  ref.keepAlive();
+  ref.cacheFor(_kCacheTtl);
   return ref.read(homeRepositoryProvider).getHomeBanners();
 });
 
@@ -38,16 +51,16 @@ final popularProductsProvider = FutureProvider<List<ProductModel>>((ref) async {
 });
 
 final vendorsByModuleProvider = FutureProvider.family<List<VendorModel>, String>((ref, slug) {
-  ref.keepAlive();
+  ref.cacheFor(_kCacheTtl);
   return ref.read(homeRepositoryProvider).getVendorsByModule(slug);
 });
 
 final vendorProvider = FutureProvider.family<VendorModel, int>((ref, id) {
-  ref.keepAlive();
+  ref.cacheFor(_kCacheTtl);
   return ref.read(homeRepositoryProvider).getVendor(id);
 });
 
 final vendorProductsProvider = FutureProvider.family<List<ProductModel>, int>((ref, vendorId) {
-  ref.keepAlive();
+  ref.cacheFor(_kCacheTtl);
   return ref.read(homeRepositoryProvider).getVendorProducts(vendorId);
 });

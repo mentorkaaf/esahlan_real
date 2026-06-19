@@ -1,4 +1,13 @@
+﻿import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+extension _CacheFor on Ref {
+  void cacheFor(Duration d) {
+    final link = keepAlive();
+    final t = Timer(d, link.close);
+    onDispose(t.cancel);
+  }
+}
+
 import '../../../../core/theme/theme_x.dart';
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
@@ -228,18 +237,18 @@ class NotifNotifier
 
 // ── Profile provider ───────────────────────────────────────────────────────
 final communityProfileProvider = FutureProvider.family<CommunityUser, int>(
-    (ref, userId) { ref.keepAlive(); return _repo.getProfile(userId); });
+    (ref, userId) { ref.cacheFor(const Duration(seconds: 30)); return _repo.getProfile(userId); });
 
 final communityMyProfileProvider =
-    FutureProvider<CommunityUser>((ref) { ref.keepAlive(); return _repo.getMyProfile(); });
+    FutureProvider<CommunityUser>((ref) { ref.cacheFor(const Duration(seconds: 30)); return _repo.getMyProfile(); });
 
 final communityProfilePostsProvider =
     FutureProvider.family<List<CommunityPost>, int>(
-        (ref, userId) { ref.keepAlive(); return _repo.getProfilePosts(userId); });
+        (ref, userId) { ref.cacheFor(const Duration(seconds: 30)); return _repo.getProfilePosts(userId); });
 
 final communityGroupPostsProvider =
     FutureProvider.family<List<CommunityPost>, int>(
-        (ref, groupId) { ref.keepAlive(); return _repo.getGroupPosts(groupId); });
+        (ref, groupId) { ref.cacheFor(const Duration(seconds: 30)); return _repo.getGroupPosts(groupId); });
 
 // ── Repo accessor ──────────────────────────────────────────────────────────
 final communityRepoProvider = Provider<CommunityRepository>((ref) => _repo);
