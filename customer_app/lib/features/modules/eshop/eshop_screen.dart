@@ -52,12 +52,20 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
   final _bannerCtrl = PageController();
   int _bannerPage = 0;
   Timer? _bannerTimer;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     AdService.instance.triggerModulePopups(context, 'eshop');
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      ref.invalidate(eshopHomeProvider);
+      ref.invalidate(eshopCategoriesProvider);
+      ref.invalidate(eshopFlashDealsProvider);
+      ref.invalidate(eshopDealsOfDayProvider);
+      ref.invalidate(eshopCampaignsProvider);
+    });
     _bannerTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (_bannerCtrl.hasClients) {
         final next = (_bannerPage + 1);
@@ -69,6 +77,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _refreshTimer?.cancel();
     _searchCtrl.dispose();
     _bannerTimer?.cancel();
     _bannerCtrl.dispose();
