@@ -2,16 +2,14 @@
 @section('title', 'Users')
 
 @push('styles')
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
 #users-map { height: 420px; border-radius: 16px; overflow: hidden; }
-.leaflet-popup-content-wrapper { border-radius: 12px; padding: 0; box-shadow: 0 8px 24px rgba(0,0,0,.15); }
-.leaflet-popup-content { margin: 0; }
-.map-popup { padding: 12px 16px; font-family: inherit; }
-.map-popup .name { font-weight: 800; font-size: 14px; color: #07003B; }
-.map-popup .phone { font-size: 12px; color: #888; margin-top: 2px; }
-.map-popup .role  { display:inline-block; margin-top:6px; background:#EEF2FF; color:#3949AB; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; }
-.map-popup a { display:block; margin-top:8px; text-align:center; background:#07003B; color:#fff; text-decoration:none; padding:5px 10px; border-radius:8px; font-size:12px; font-weight:700; }
+.gm-popup { padding: 12px 16px; font-family: inherit; min-width: 180px; }
+.gm-popup .name  { font-weight: 800; font-size: 14px; color: #07003B; }
+.gm-popup .phone { font-size: 12px; color: #888; margin-top: 2px; }
+.gm-popup .role  { display:inline-block; margin-top:6px; background:#EEF2FF; color:#3949AB; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; }
+.gm-popup a      { display:block; margin-top:8px; text-align:center; background:#07003B; color:#fff; text-decoration:none; padding:5px 10px; border-radius:8px; font-size:12px; font-weight:700; }
+.gm-popup .ts    { font-size:10px; color:#bbb; margin-top:4px; }
 </style>
 @endpush
 
@@ -234,57 +232,80 @@ $mappableUsers = $users->getCollection()->filter(fn($u) => $u->latitude && $u->l
     </div>
     @endif
 </div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-(function(){
-    const users = {{ Illuminate\Support\Js::from($mappableUsers->map(function($u) {
-        return [
-            'id'      => $u->id,
-            'name'    => $u->name,
-            'phone'   => $u->phone ?? '',
-            'role'    => ucwords(str_replace('_', ' ', $u->role?->name ?? 'User')),
-            'lat'     => (float) $u->latitude,
-            'lng'     => (float) $u->longitude,
-            'url'     => route('admin.users.show', $u->id),
-            'updated' => optional($u->location_updated_at)->diffForHumans() ?? 'Unknown',
-        ];
-    })->values()) }};
+var __usersMapData = {{ Illuminate\Support\Js::from($mappableUsers->map(function($u) {
+    return [
+        'id'      => $u->id,
+        'name'    => $u->name,
+        'phone'   => $u->phone ?? '',
+        'role'    => ucwords(str_replace('_', ' ', $u->role?->name ?? 'User')),
+        'lat'     => (float) $u->latitude,
+        'lng'     => (float) $u->longitude,
+        'url'     => route('admin.users.show', $u->id),
+        'updated' => optional($u->location_updated_at)->diffForHumans() ?? 'Unknown',
+    ];
+})->values()) }};
 
-    const map = L.map('users-map').setView([2.0469, 45.3182], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap',
-        maxZoom: 19,
-    }).addTo(map);
-
-    const icon = L.divIcon({
-        className: '',
-        html: '<div style="width:34px;height:34px;border-radius:50%;background:#07003B;border:3px solid #FF8A00;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;box-shadow:0 3px 10px rgba(0,0,0,.3);"><i class="fas fa-user"></i></div>',
-        iconSize: [34, 34],
-        iconAnchor: [17, 17],
+function initUsersMap() {
+    var defaultCenter = { lat: 2.0469, lng: 45.3182 };
+    var map = new google.maps.Map(document.getElementById('users-map'), {
+        zoom: 12,
+        center: defaultCenter,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
+        styles: [
+            { featureType: 'poi', stylers: [{ visibility: 'off' }] }
+        ]
     });
 
-    if (users.length) {
-        const bounds = [];
-        users.forEach(function(u) {
-            const marker = L.marker([u.lat, u.lng], { icon: icon }).addTo(map);
-            marker.bindPopup(
-                '<div class="map-popup">' +
+    var infoWindow = new google.maps.InfoWindow();
+    var bounds    = new google.maps.LatLngBounds();
+    var hasPoints = false;
+
+    __usersMapData.forEach(function(u) {
+        var pos = { lat: u.lat, lng: u.lng };
+        var marker = new google.maps.Marker({
+            position: pos,
+            map: map,
+            title: u.name,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 10,
+                fillColor: '#FF8A00',
+                fillOpacity: 1,
+                strokeColor: '#07003B',
+                strokeWeight: 3,
+            }
+        });
+
+        marker.addListener('click', function() {
+            infoWindow.setContent(
+                '<div class="gm-popup">' +
                 '<div class="name">' + u.name + '</div>' +
                 '<div class="phone">' + u.phone + '</div>' +
                 '<span class="role">' + u.role + '</span>' +
-                '<div style="font-size:10px;color:#bbb;margin-top:4px;">' + u.updated + '</div>' +
+                '<div class="ts">' + u.updated + '</div>' +
                 '<a href="' + u.url + '">View Profile</a>' +
                 '</div>'
             );
-            bounds.push([u.lat, u.lng]);
+            infoWindow.open(map, marker);
         });
-        if (bounds.length === 1) {
-            map.setView(bounds[0], 15);
-        } else if (bounds.length > 1) {
-            map.fitBounds(bounds, { padding: [40, 40] });
+
+        bounds.extend(pos);
+        hasPoints = true;
+    });
+
+    if (hasPoints) {
+        if (__usersMapData.length === 1) {
+            map.setCenter({ lat: __usersMapData[0].lat, lng: __usersMapData[0].lng });
+            map.setZoom(15);
+        } else {
+            map.fitBounds(bounds);
         }
     }
-})();
+}
 </script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A&callback=initUsersMap" async defer></script>
 
 @endsection

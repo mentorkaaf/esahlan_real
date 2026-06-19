@@ -2,7 +2,6 @@
 @section('title', 'User Details')
 
 @push('styles')
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
 #user-loc-map { height:260px; border-radius:14px; overflow:hidden; }
 </style>
@@ -140,26 +139,37 @@
         </div>
     </div>
 </div>
-@push('scripts')
 @if($user->latitude && $user->longitude)
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-(function(){
-    const lat = {{ $user->latitude }}, lng = {{ $user->longitude }};
-    const map = L.map('user-loc-map').setView([lat, lng], 15);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap', maxZoom:19 }).addTo(map);
-    const icon = L.divIcon({
-        className:'',
-        html:`<div style="width:38px;height:38px;border-radius:50%;background:#07003B;border:3px solid #FF8A00;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(0,0,0,.3);">
-            <i class="fas fa-user" style="color:#fff;font-size:14px;"></i></div>`,
-        iconSize:[38,38], iconAnchor:[19,19],
+function initUserLocMap() {
+    var pos = { lat: {{ $user->latitude }}, lng: {{ $user->longitude }} };
+    var map = new google.maps.Map(document.getElementById('user-loc-map'), {
+        zoom: 15,
+        center: pos,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
     });
-    L.marker([lat, lng], {icon}).addTo(map)
-        .bindPopup('<strong>{{ addslashes($user->name) }}</strong><br><span style="font-size:12px;color:#888;">{{ addslashes($user->phone ?? '') }}</span>')
-        .openPopup();
-})();
+    var marker = new google.maps.Marker({
+        position: pos,
+        map: map,
+        title: '{{ addslashes($user->name) }}',
+        icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 11,
+            fillColor: '#FF8A00',
+            fillOpacity: 1,
+            strokeColor: '#07003B',
+            strokeWeight: 3,
+        }
+    });
+    var iw = new google.maps.InfoWindow({
+        content: '<div style="padding:6px 4px;"><strong>{{ addslashes($user->name) }}</strong><br><span style="font-size:12px;color:#888;">{{ addslashes($user->phone ?? '') }}</span></div>'
+    });
+    iw.open(map, marker);
+}
 </script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A&callback=initUserLocMap" async defer></script>
 @endif
-@endpush
 
 @endsection
