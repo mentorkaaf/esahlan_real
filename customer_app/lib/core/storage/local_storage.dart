@@ -29,6 +29,12 @@ class LocalStorage {
   static Future<bool> getBool(String key, {bool def = false}) async =>
       (await _prefs).getBool(key) ?? def;
 
+  static Future<void> saveDouble(String key, double value) async =>
+      (await _prefs).setDouble(key, value);
+
+  static Future<double?> getDouble(String key) async =>
+      (await _prefs).getDouble(key);
+
   static Future<void> remove(String key) async =>
       (await _prefs).remove(key);
 

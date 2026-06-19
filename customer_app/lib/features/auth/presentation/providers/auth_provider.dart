@@ -88,6 +88,14 @@ final otpProvider = StateNotifierProvider<OtpNotifier, AsyncValue<void>>(
   (ref) => OtpNotifier(ref.read(authRepositoryProvider)),
 );
 
+// Update profile
+final updateProfileProvider = Provider<Future<void> Function(Map<String, dynamic>)>((ref) {
+  return (data) async {
+    await ref.read(authRepositoryProvider).updateProfile(data);
+    ref.invalidate(authStateProvider);
+  };
+});
+
 // Logout
 final logoutProvider = Provider<Future<void> Function()>((ref) {
   return () async {

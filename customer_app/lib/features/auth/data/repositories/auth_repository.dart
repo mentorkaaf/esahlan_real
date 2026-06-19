@@ -17,10 +17,9 @@ class AuthRepository {
         'password': password,
       });
       final data  = res.data['data'];
-      final user  = UserModel.fromJson(data['user']);
       final token = data['token'] as String;
       await LocalStorage.saveToken(token);
-      await LocalStorage.saveString('user_data', user.toJsonString());
+      final user = await getMe();
       FirebaseService().registerTokenAfterLogin();
       return (user: user, token: token);
     } on DioException catch (e) {
@@ -45,10 +44,9 @@ class AuthRepository {
         if (referralCode != null) 'referral_code': referralCode,
       });
       final data  = res.data['data'];
-      final user  = UserModel.fromJson(data['user']);
       final token = data['token'] as String;
       await LocalStorage.saveToken(token);
-      await LocalStorage.saveString('user_data', user.toJsonString());
+      final user = await getMe();
       FirebaseService().registerTokenAfterLogin();
       return (user: user, token: token);
     } on DioException catch (e) {
@@ -91,6 +89,16 @@ class AuthRepository {
       final user = UserModel.fromJson(res.data['data']);
       await LocalStorage.saveString('user_data', user.toJsonString());
       return user;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<void> updateProfile(Map<String, dynamic> data) async {
+    try {
+      await _dio.post('/auth/update-profile', data: data);
+      final user = await getMe();
+      await LocalStorage.saveString('user_data', user.toJsonString());
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }

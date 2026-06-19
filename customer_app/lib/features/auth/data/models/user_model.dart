@@ -13,6 +13,10 @@ class UserModel {
   final String? referralCode;
   final int loyaltyPoints;
   final String preferredLanguage;
+  final int? districtId;
+  final String? districtName;
+  final double? districtLat;
+  final double? districtLng;
 
   const UserModel({
     required this.id,
@@ -27,10 +31,15 @@ class UserModel {
     this.referralCode,
     this.loyaltyPoints = 0,
     this.preferredLanguage = 'so',
+    this.districtId,
+    this.districtName,
+    this.districtLat,
+    this.districtLng,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     final role = json['role'] as Map<String, dynamic>?;
+    final district = json['district'] as Map<String, dynamic>?;
     return UserModel(
       id:                json['id'] as int,
       uuid:              json['uuid'] as String? ?? '',
@@ -44,6 +53,10 @@ class UserModel {
       referralCode:      json['referral_code'] as String?,
       loyaltyPoints:     json['loyalty_points'] as int? ?? 0,
       preferredLanguage: json['preferred_language'] as String? ?? 'so',
+      districtId:        json['district_id'] as int?,
+      districtName:      district?['name'] as String?,
+      districtLat:       (district?['latitude'] as num?)?.toDouble(),
+      districtLng:       (district?['longitude'] as num?)?.toDouble(),
     );
   }
 
@@ -52,7 +65,9 @@ class UserModel {
     'phone': phone, 'avatar': avatar, 'status': status,
     'referral_code': referralCode, 'loyalty_points': loyaltyPoints,
     'preferred_language': preferredLanguage,
+    'district_id': districtId,
     'role': roleSlug != null ? {'slug': roleSlug, 'name': roleName} : null,
+    if (districtName != null) 'district': {'name': districtName, 'latitude': districtLat, 'longitude': districtLng},
   };
 
   String toJsonString() => jsonEncode(toJson());
@@ -73,5 +88,7 @@ class UserModel {
         roleSlug: roleSlug, roleName: roleName,
         referralCode: referralCode, loyaltyPoints: loyaltyPoints,
         preferredLanguage: preferredLanguage ?? this.preferredLanguage,
+        districtId: districtId, districtName: districtName,
+        districtLat: districtLat, districtLng: districtLng,
       );
 }
