@@ -15,16 +15,20 @@
     </button>
 </div>
 
+@if(session('success'))
+    <div class="alert alert-success mb-3">{{ session('success') }}</div>
+@endif
+
 <div class="card">
     <div class="card-header">
         <span>Laundry Items ({{ $items->count() }})</span>
-        <small class="text-muted">Normal = $1/item default · Express = $2/item default (admin sets actual prices)</small>
     </div>
     <div class="table-responsive">
         <table>
             <thead>
                 <tr>
                     <th>#</th>
+                    <th>Image</th>
                     <th>Item Name</th>
                     <th>Normal Price</th>
                     <th>Normal (days)</th>
@@ -39,6 +43,15 @@
                 @forelse($items as $item)
                 <tr>
                     <td>{{ $item->id }}</td>
+                    <td>
+                        @if($item->image)
+                            <img src="{{ $item->image }}" alt="{{ $item->name }}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;">
+                        @else
+                            <div style="width:44px;height:44px;background:#f0f0f5;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                                <i class="fas fa-tshirt" style="color:#aaa;font-size:18px;"></i>
+                            </div>
+                        @endif
+                    </td>
                     <td><strong>{{ $item->name }}</strong></td>
                     <td><strong class="text-success">${{ number_format($item->normal_price, 2) }}</strong></td>
                     <td>{{ $item->normal_days }} day{{ $item->normal_days > 1 ? 's' : '' }}</td>
@@ -51,7 +64,17 @@
                         </span>
                     </td>
                     <td class="d-flex gap-2">
-                        <button class="btn btn-sm btn-secondary" onclick="openEdit({{ $item->id }}, '{{ addslashes($item->name) }}', {{ $item->normal_price }}, {{ $item->express_price }}, {{ $item->normal_days }}, {{ $item->express_hours }}, {{ $item->sort_order ?? 0 }}, {{ $item->is_active ? 1 : 0 }})">
+                        <button class="btn btn-sm btn-secondary" onclick="openEdit(
+                            {{ $item->id }},
+                            '{{ addslashes($item->name) }}',
+                            {{ $item->normal_price }},
+                            {{ $item->express_price }},
+                            {{ $item->normal_days }},
+                            {{ $item->express_hours }},
+                            {{ $item->sort_order ?? 0 }},
+                            {{ $item->is_active ? 1 : 0 }},
+                            '{{ $item->image ?? '' }}'
+                        )">
                             <i class="fas fa-edit"></i>
                         </button>
                         <form action="{{ route('admin.module-data.laundry.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Delete this item?')">
@@ -61,7 +84,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="9" style="text-align:center;padding:30px;color:#888;">No items yet. Add your first laundry item.</td></tr>
+                <tr><td colspan="10" style="text-align:center;padding:30px;color:#888;">No items yet. Add your first laundry item.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -75,8 +98,21 @@
             <h3 class="modal-title">Add Laundry Item</h3>
             <button class="modal-close" onclick="closeModal('addModal')">✕</button>
         </div>
-        <form action="{{ route('admin.module-data.laundry.store') }}" method="POST">
+        <form action="{{ route('admin.module-data.laundry.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
+            {{-- Image upload --}}
+            <div class="form-group">
+                <label class="form-label">Item Image</label>
+                <div id="addPreviewWrap" style="display:none;margin-bottom:8px;">
+                    <img id="addPreview" src="" style="width:80px;height:80px;object-fit:cover;border-radius:10px;border:2px solid #e0e0e0;">
+                </div>
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;border:1.5px dashed #ccc;border-radius:10px;background:#fafafa;">
+                    <i class="fas fa-camera" style="color:#999;font-size:18px;"></i>
+                    <span id="addFileName" style="color:#888;font-size:13px;">Choose image (JPG/PNG, max 5MB)</span>
+                    <input type="file" name="image_file" accept="image/*" style="display:none;" onchange="previewImg(this,'addPreview','addPreviewWrap','addFileName')">
+                </label>
+            </div>
+
             <div class="grid-2">
                 <div class="form-group">
                     <label class="form-label">Item Name *</label>
@@ -86,23 +122,36 @@
                     <label class="form-label">Sort Order</label>
                     <input type="number" name="sort_order" class="form-control" value="0">
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Normal Price ($) *</label>
-                    <input type="number" name="normal_price" class="form-control" step="0.01" required placeholder="1.00">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Normal Duration (days) *</label>
-                    <input type="number" name="normal_days" class="form-control" required value="2">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Express Price ($) *</label>
-                    <input type="number" name="express_price" class="form-control" step="0.01" required placeholder="2.00">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Express Duration (hours) *</label>
-                    <input type="number" name="express_hours" class="form-control" required value="24">
+            </div>
+
+            <div style="background:#e8f5e9;border-radius:10px;padding:14px;margin-bottom:14px;">
+                <div style="font-weight:700;font-size:13px;color:#2e7d32;margin-bottom:10px;"><i class="fas fa-leaf"></i> Normal Wash</div>
+                <div class="grid-2">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Price ($) *</label>
+                        <input type="number" name="normal_price" class="form-control" step="0.01" required placeholder="1.00">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Duration (days) *</label>
+                        <input type="number" name="normal_days" class="form-control" required value="2" min="1">
+                    </div>
                 </div>
             </div>
+
+            <div style="background:#fce4ec;border-radius:10px;padding:14px;margin-bottom:14px;">
+                <div style="font-weight:700;font-size:13px;color:#c62828;margin-bottom:10px;"><i class="fas fa-bolt"></i> Express Wash</div>
+                <div class="grid-2">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Price ($) *</label>
+                        <input type="number" name="express_price" class="form-control" step="0.01" required placeholder="2.00">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Duration (hours) *</label>
+                        <input type="number" name="express_hours" class="form-control" required value="24" min="1">
+                    </div>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label style="display:flex;align-items:center;gap:8px;">
                     <input type="checkbox" name="is_active" value="1" checked> Active
@@ -120,8 +169,22 @@
             <h3 class="modal-title">Edit Laundry Item</h3>
             <button class="modal-close" onclick="closeModal('editModal')">✕</button>
         </div>
-        <form id="editForm" method="POST">
+        <form id="editForm" method="POST" enctype="multipart/form-data">
             @csrf @method('PATCH')
+
+            {{-- Image upload --}}
+            <div class="form-group">
+                <label class="form-label">Item Image</label>
+                <div id="editPreviewWrap" style="margin-bottom:8px;">
+                    <img id="editPreview" src="" style="width:80px;height:80px;object-fit:cover;border-radius:10px;border:2px solid #e0e0e0;">
+                </div>
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;border:1.5px dashed #ccc;border-radius:10px;background:#fafafa;">
+                    <i class="fas fa-camera" style="color:#999;font-size:18px;"></i>
+                    <span id="editFileName" style="color:#888;font-size:13px;">Change image (optional)</span>
+                    <input type="file" name="image_file" id="editImageFile" accept="image/*" style="display:none;" onchange="previewImg(this,'editPreview','editPreviewWrap','editFileName')">
+                </label>
+            </div>
+
             <div class="grid-2">
                 <div class="form-group">
                     <label class="form-label">Item Name *</label>
@@ -131,23 +194,36 @@
                     <label class="form-label">Sort Order</label>
                     <input type="number" name="sort_order" id="editSort" class="form-control">
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Normal Price ($) *</label>
-                    <input type="number" name="normal_price" id="editNormal" class="form-control" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Normal Duration (days) *</label>
-                    <input type="number" name="normal_days" id="editNormalDays" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Express Price ($) *</label>
-                    <input type="number" name="express_price" id="editExpress" class="form-control" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Express Duration (hours) *</label>
-                    <input type="number" name="express_hours" id="editExpressHours" class="form-control" required>
+            </div>
+
+            <div style="background:#e8f5e9;border-radius:10px;padding:14px;margin-bottom:14px;">
+                <div style="font-weight:700;font-size:13px;color:#2e7d32;margin-bottom:10px;"><i class="fas fa-leaf"></i> Normal Wash</div>
+                <div class="grid-2">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Price ($) *</label>
+                        <input type="number" name="normal_price" id="editNormal" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Duration (days) *</label>
+                        <input type="number" name="normal_days" id="editNormalDays" class="form-control" required min="1">
+                    </div>
                 </div>
             </div>
+
+            <div style="background:#fce4ec;border-radius:10px;padding:14px;margin-bottom:14px;">
+                <div style="font-weight:700;font-size:13px;color:#c62828;margin-bottom:10px;"><i class="fas fa-bolt"></i> Express Wash</div>
+                <div class="grid-2">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Price ($) *</label>
+                        <input type="number" name="express_price" id="editExpress" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Duration (hours) *</label>
+                        <input type="number" name="express_hours" id="editExpressHours" class="form-control" required min="1">
+                    </div>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label style="display:flex;align-items:center;gap:8px;">
                     <input type="checkbox" name="is_active" id="editActive" value="1"> Active
@@ -158,19 +234,43 @@
     </div>
 </div>
 
-@push('scripts')
 <script>
-function openEdit(id, name, normalPrice, expressPrice, normalDays, expressHours, sort, isActive) {
+function previewImg(input, previewId, wrapId, nameId) {
+    if (input.files && input.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById(previewId).src = e.target.result;
+            document.getElementById(wrapId).style.display = 'block';
+            document.getElementById(nameId).textContent = input.files[0].name;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function openEdit(id, name, normalPrice, expressPrice, normalDays, expressHours, sort, isActive, imageUrl) {
     document.getElementById('editForm').action = `/admin/module-data/laundry/items/${id}`;
-    document.getElementById('editName').value = name;
-    document.getElementById('editNormal').value = normalPrice;
-    document.getElementById('editExpress').value = expressPrice;
-    document.getElementById('editNormalDays').value = normalDays;
+    document.getElementById('editName').value         = name;
+    document.getElementById('editNormal').value       = normalPrice;
+    document.getElementById('editExpress').value      = expressPrice;
+    document.getElementById('editNormalDays').value   = normalDays;
     document.getElementById('editExpressHours').value = expressHours;
-    document.getElementById('editSort').value = sort;
-    document.getElementById('editActive').checked = isActive == 1;
+    document.getElementById('editSort').value         = sort;
+    document.getElementById('editActive').checked     = isActive == 1;
+
+    var preview = document.getElementById('editPreview');
+    var wrap    = document.getElementById('editPreviewWrap');
+    if (imageUrl) {
+        preview.src = imageUrl;
+        wrap.style.display = 'block';
+    } else {
+        preview.src = '';
+        wrap.style.display = 'none';
+    }
+    // Reset file input
+    document.getElementById('editImageFile').value = '';
+    document.getElementById('editFileName').textContent = 'Change image (optional)';
+
     openModal('editModal');
 }
 </script>
-@endpush
 @endsection

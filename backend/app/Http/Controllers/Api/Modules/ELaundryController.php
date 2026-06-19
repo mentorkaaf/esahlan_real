@@ -56,11 +56,17 @@ class ELaundryController extends Controller
             ];
         }
 
+        // Derive ETA from the first item's days/hours setting
+        $firstItem    = $dbItems->first();
+        $etaLabel     = $isExpress
+            ? ($firstItem ? $firstItem->express_hours . ' hours' : '24 hours')
+            : ($firstItem ? $firstItem->normal_days   . ' days'  : '1-2 days');
+
         return response()->json([
             'success' => true,
             'data'    => [
                 'service_type'  => $request->service_type,
-                'delivery_days' => $isExpress ? '24 hours' : '1-2 days',
+                'delivery_days' => $etaLabel,
                 'lines'         => $lines,
                 'total'         => round($total, 2),
             ],
@@ -124,7 +130,9 @@ class ELaundryController extends Controller
                     'items'          => $orderLines,
                     'pickup_address' => $request->pickup_address,
                     'district'       => $district?->name,
-                    'eta'            => $isExpress ? '24 hours' : '1-2 days',
+                    'eta'            => $isExpress
+                        ? ($dbItems->first() ? $dbItems->first()->express_hours . ' hours' : '24 hours')
+                        : ($dbItems->first() ? $dbItems->first()->normal_days   . ' days'  : '1-2 days'),
                 ]),
                 'placed_at' => now(),
             ]);

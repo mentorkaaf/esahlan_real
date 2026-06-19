@@ -279,7 +279,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             // eLaundry
             Route::get('/laundry',                   [$ctrl, 'laundryIndex'])->name('laundry');
             Route::post('/laundry/items',             [$ctrl, 'laundryStore'])->name('laundry.store');
-            Route::patch('/laundry/items/{item}',     [$ctrl, 'laundryUpdate'])->name('laundry.update');
+            Route::match(['PATCH','POST'], '/laundry/items/{item}', [$ctrl, 'laundryUpdate'])->name('laundry.update');
             Route::delete('/laundry/items/{item}',    [$ctrl, 'laundryDestroy'])->name('laundry.destroy');
 
             // eMoving

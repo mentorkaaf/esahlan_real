@@ -59,6 +59,13 @@ class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
           final items = res['data'] as List? ?? [];
           final total = _calcTotal(items);
 
+          // Derive package info from items for the service type cards
+          final firstItem = items.isNotEmpty ? items.first : null;
+          final minNormal  = items.isEmpty ? 0.0 : items.map((e) => _toD(e['normal_price'])).reduce((a, b) => a < b ? a : b);
+          final minExpress = items.isEmpty ? 0.0 : items.map((e) => _toD(e['express_price'])).reduce((a, b) => a < b ? a : b);
+          final normalDays  = firstItem != null ? '${firstItem['normal_days']} Day${(firstItem['normal_days'] as num? ?? 1) > 1 ? 's' : ''}' : '1-2 Days';
+          final expressHrs  = firstItem != null ? '${firstItem['express_hours']} Hours' : '24 Hours';
+
           return Column(children: [
             // Service type selector
             Container(
@@ -70,8 +77,8 @@ class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
                 Row(children: [
                   Expanded(child: _ServiceTypeCard(
                     label: 'Normal Wash',
-                    price: '\$1.00 / item',
-                    eta: '1-2 Days',
+                    price: 'From \$${minNormal.toStringAsFixed(2)}/item',
+                    eta: normalDays,
                     icon: Icons.local_laundry_service_outlined,
                     color: const Color(0xFF2980B9),
                     selected: _serviceType == 'normal',
@@ -80,8 +87,8 @@ class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
                   const SizedBox(width: 12),
                   Expanded(child: _ServiceTypeCard(
                     label: 'Express',
-                    price: '\$2.00 / item',
-                    eta: '24 Hours',
+                    price: 'From \$${minExpress.toStringAsFixed(2)}/item',
+                    eta: expressHrs,
                     icon: Icons.flash_on_rounded,
                     color: const Color(0xFFE74C3C),
                     selected: _serviceType == 'express',
@@ -191,7 +198,7 @@ class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
                 ),
                 child: Column(children: [
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Text('$_totalQty item${_totalQty > 1 ? 's' : ''} • ${_serviceType == 'express' ? '24h express' : '1-2 days'}',
+                    Text('$_totalQty item${_totalQty > 1 ? 's' : ''} • ${_serviceType == 'express' ? expressHrs : normalDays}',
                         style: const TextStyle(color: AppColors.textGrey, fontSize: 13)),
                     Text('\$${total.toStringAsFixed(2)}',
                         style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: AppColors.primary)),

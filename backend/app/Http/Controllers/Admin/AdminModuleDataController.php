@@ -46,7 +46,12 @@ class AdminModuleDataController extends Controller
             'express_hours' => 'required|integer|min:1',
             'sort_order'    => 'nullable|integer',
             'is_active'     => 'nullable|boolean',
+            'image_file'    => 'nullable|image|max:5120',
         ]);
+        if ($request->hasFile('image_file')) {
+            $data['image'] = $this->storeUpload($request->file('image_file'), 'laundry');
+        }
+        unset($data['image_file']);
         LaundryItem::create($data + ['is_active' => $request->boolean('is_active', true)]);
         return back()->with('success', 'Item added.');
     }
@@ -61,7 +66,12 @@ class AdminModuleDataController extends Controller
             'express_hours' => 'required|integer|min:1',
             'sort_order'    => 'nullable|integer',
             'is_active'     => 'nullable|boolean',
+            'image_file'    => 'nullable|image|max:5120',
         ]);
+        if ($request->hasFile('image_file')) {
+            $data['image'] = $this->storeUpload($request->file('image_file'), 'laundry');
+        }
+        unset($data['image_file']);
         $item->update($data + ['is_active' => $request->boolean('is_active', true)]);
         return back()->with('success', 'Item updated.');
     }
