@@ -1,88 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../features/auth/data/models/user_model.dart';
-import '../../../../core/storage/local_storage.dart';
 
 const _kNavy   = Color(0xFF07003B);
 const _kOrange = Color(0xFFFF8A00);
 
-// ── Saved GPS location provider ──────────────────────────────────────────────
-final _savedLocationProvider = StateProvider<LatLng?>((ref) => null);
-
-class ProfileScreen extends ConsumerStatefulWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
-  @override
-  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  bool _loadingLocation = false;
 
   @override
-  void initState() {
-    super.initState();
-    _loadSavedLocation();
-  }
-
-  Future<void> _loadSavedLocation() async {
-    final lat = await LocalStorage.getDouble('saved_lat');
-    final lng = await LocalStorage.getDouble('saved_lng');
-    if (lat != null && lng != null && mounted) {
-      ref.read(_savedLocationProvider.notifier).state = LatLng(lat, lng);
-    }
-  }
-
-  Future<void> _requestAndSaveLocation() async {
-    setState(() => _loadingLocation = true);
-    try {
-      LocationPermission perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
-      if (perm == LocationPermission.deniedForever) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Location permission permanently denied. Enable it in Settings.')),
-          );
-        }
-        return;
-      }
-      if (perm == LocationPermission.denied) return;
-
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-      );
-      final ll = LatLng(pos.latitude, pos.longitude);
-      await LocalStorage.saveDouble('saved_lat', pos.latitude);
-      await LocalStorage.saveDouble('saved_lng', pos.longitude);
-      if (mounted) {
-        ref.read(_savedLocationProvider.notifier).state = ll;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location saved to My Address')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not get location: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loadingLocation = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final userAsync = ref.watch(authStateProvider);
-    final user      = userAsync.valueOrNull;
-    final savedLoc  = ref.watch(_savedLocationProvider);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user      = ref.watch(authStateProvider).valueOrNull;
     final bottomPad = MediaQuery.of(context).padding.bottom + 86;
 
     return Scaffold(
@@ -185,7 +118,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         const Text('Your Referral Code', style: TextStyle(color: Colors.white70, fontSize: 12)),
                         const SizedBox(height: 2),
-                        Text(user!.referralCode!, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                        Text(user!.referralCode!,
+                            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 2)),
                       ])),
                       GestureDetector(
                         onTap: () {
@@ -207,27 +141,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 16),
 
               // ── My Address ────────────────────────────────────────────
-              _AddressCard(
-                user: user,
-                savedLoc: savedLoc,
-                loadingLocation: _loadingLocation,
-                onGetLocation: _requestAndSaveLocation,
-              ),
+              _AddressCard(user: user),
 
               const SizedBox(height: 10),
 
               // ── Support section ────────────────────────────────────────
               _Section(title: 'Support', items: [
-                _Item(
-                  icon: Icons.privacy_tip_outlined,
-                  label: 'Privacy Policy',
-                  onTap: () {},
-                ),
-                _Item(
-                  icon: Icons.description_outlined,
-                  label: 'Terms of Service',
-                  onTap: () {},
-                ),
+                _Item(icon: Icons.privacy_tip_outlined, label: 'Privacy Policy', onTap: () {}),
+                _Item(icon: Icons.description_outlined, label: 'Terms of Service', onTap: () {}),
               ]),
 
               const SizedBox(height: 10),
@@ -266,7 +187,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  void _showEditDialog(BuildContext context, WidgetRef ref, UserModel? user) {
+  static void _showEditDialog(BuildContext context, WidgetRef ref, UserModel? user) {
     final nameCtrl  = TextEditingController(text: user?.name ?? '');
     final emailCtrl = TextEditingController(text: user?.email ?? '');
     showDialog(
@@ -298,7 +219,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  void _confirmLogout(BuildContext context, WidgetRef ref) {
+  static void _confirmLogout(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
@@ -339,16 +260,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 }
 
-// ── Address card ──────────────────────────────────────────────────────────────
+// ── Address card — district name + district map ───────────────────────────────
 class _AddressCard extends StatelessWidget {
   final UserModel? user;
-  final LatLng? savedLoc;
-  final bool loadingLocation;
-  final VoidCallback onGetLocation;
-  const _AddressCard({required this.user, required this.savedLoc, required this.loadingLocation, required this.onGetLocation});
+  const _AddressCard({required this.user});
 
   @override
   Widget build(BuildContext context) {
+    final districtLoc = (user?.districtLat != null && user?.districtLng != null)
+        ? LatLng(user!.districtLat!, user!.districtLng!)
+        : null;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
@@ -360,10 +282,9 @@ class _AddressCard extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-            child: Text('MY ADDRESS', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textGrey, letterSpacing: 0.8)),
+            child: const Text('MY ADDRESS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textGrey, letterSpacing: 0.8)),
           ),
 
-          // District row
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
             leading: Container(
@@ -374,37 +295,12 @@ class _AddressCard extends StatelessWidget {
             title: Text('District', style: TextStyle(fontSize: 13, color: AppColors.textGrey)),
             subtitle: Text(
               user?.districtName ?? 'Not set',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: context.colors.navyText),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: context.colors.navyText),
             ),
           ),
 
-          const Divider(height: 1, indent: 56, color: Color(0xFFF0F0F5)),
-
-          // GPS location row
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-            leading: Container(
-              width: 38, height: 38,
-              decoration: BoxDecoration(color: _kOrange.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.my_location_rounded, color: _kOrange, size: 20),
-            ),
-            title: Text('My Location', style: TextStyle(fontSize: 13, color: AppColors.textGrey)),
-            subtitle: savedLoc != null
-                ? Text(
-                    '${savedLoc!.latitude.toStringAsFixed(5)}, ${savedLoc!.longitude.toStringAsFixed(5)}',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.colors.navyText),
-                  )
-                : Text('Tap to save your GPS location', style: TextStyle(fontSize: 13, color: AppColors.textLight)),
-            trailing: loadingLocation
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _kOrange))
-                : IconButton(
-                    icon: const Icon(Icons.gps_fixed_rounded, color: _kOrange),
-                    onPressed: onGetLocation,
-                  ),
-          ),
-
-          // Google Map mini-view (only when location saved)
-          if (savedLoc != null)
+          // Google Map showing the district center
+          if (districtLoc != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
               child: ClipRRect(
@@ -412,20 +308,19 @@ class _AddressCard extends StatelessWidget {
                 child: SizedBox(
                   height: 180,
                   child: GoogleMap(
-                    initialCameraPosition: CameraPosition(target: savedLoc!, zoom: 15),
+                    initialCameraPosition: CameraPosition(target: districtLoc, zoom: 14),
                     markers: {
                       Marker(
-                        markerId: const MarkerId('home'),
-                        position: savedLoc!,
-                        infoWindow: const InfoWindow(title: 'My Location'),
+                        markerId: const MarkerId('district'),
+                        position: districtLoc,
+                        infoWindow: InfoWindow(title: user?.districtName ?? 'My District'),
                       ),
                     },
                     myLocationButtonEnabled: false,
                     zoomControlsEnabled: false,
-                    scrollGesturesEnabled: false,
+                    scrollGesturesEnabled: true,
                     rotateGesturesEnabled: false,
                     tiltGesturesEnabled: false,
-                    zoomGesturesEnabled: false,
                   ),
                 ),
               ),

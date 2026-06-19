@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/storage/local_storage.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/phone_input_field.dart';
 import '../providers/auth_provider.dart';
@@ -70,6 +72,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
     ref.read(registerProvider).whenOrNull(
       error: (e, _) => _err(e.toString()),
     );
+  }
+
+  Future<void> _saveLocationSilently() async {
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) return;
+      final pos = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium));
+      await LocalStorage.saveDouble('saved_lat', pos.latitude);
+      await LocalStorage.saveDouble('saved_lng', pos.longitude);
+    } catch (_) {}
   }
 
   void _err(String msg) {
@@ -206,7 +221,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                                     borderRadius: BorderRadius.circular(14),
                                     items: list.map((d) => DropdownMenuItem(
                                         value: d.id, child: Text(d.name))).toList(),
-                                    onChanged: (v) { if (v != null) setState(() => _districtId = v); },
+                                    onChanged: (v) {
+                                      if (v != null) {
+                                        setState(() => _districtId = v);
+                                        _saveLocationSilently();
+                                      }
+                                    },
                                   ),
                                 ),
                               ),

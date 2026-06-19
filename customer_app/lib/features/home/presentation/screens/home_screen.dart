@@ -10,6 +10,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../providers/home_provider.dart';
 import '../../data/models/home_models.dart';
 import '../../../../features/ads/services/ad_service.dart';
+import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../features/ads/widgets/banner_ad_strip.dart';
 import '../../../../features/ads/widgets/card_ad_strip.dart';
 
@@ -89,6 +90,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     final cs = Theme.of(context).colorScheme;
     final appBarBg = Theme.of(context).appBarTheme.backgroundColor ?? Colors.white;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final user = ref.watch(authStateProvider).valueOrNull;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -172,7 +174,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     Row(children: [
                       const Icon(Icons.location_on, color: AppColors.primary, size: 18),
                       const SizedBox(width: 4),
-                      Text('Hodan, Mogadishu',
+                      Text(
+                          user?.districtName ?? 'Mogadishu',
                           style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
