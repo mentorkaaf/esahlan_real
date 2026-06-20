@@ -53,21 +53,31 @@
     const POLL_URL  = '{{ route("admin.orders.poll") }}';
     const POLL_MS   = 8000;   // check every 8 s
     const TS_KEY    = 'on_last_ts';
+    const SEEN_KEY  = 'on_seen_ids';
 
     // ── Init timestamp ─────────────────────────────────────────────────
-    // On first load (or after a long gap) start from 5 min ago so very
-    // recent orders placed just before the page opened are still caught.
     const nowTs = Math.floor(Date.now() / 1000);
     const stored = parseInt(localStorage.getItem(TS_KEY) || '0', 10);
     if (!stored || nowTs - stored > 3600) {
-        // No stored value, or stored value is stale (> 1 h old) — reset to 5 min ago
         localStorage.setItem(TS_KEY, nowTs - 300);
+    }
+
+    // ── Seen/dismissed orders persist across page navigations ─────────
+    function getSeenIds() {
+        try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); } catch(e) { return new Set(); }
+    }
+    function addSeenId(id) {
+        var seen = getSeenIds();
+        seen.add(id);
+        // Keep only last 200 to avoid growing forever
+        var arr = [...seen].slice(-200);
+        localStorage.setItem(SEEN_KEY, JSON.stringify(arr));
     }
 
     // ── Audio: generate alarm beep via Web Audio API ───────────────────
     let audioCtx = null;
     let alarmIntervalId = null;
-    const mutedOrders = new Set(); // order ids the user muted
+    const mutedOrders = getSeenIds();
 
     function getAudioCtx() {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -182,17 +192,17 @@
 
     window.onMute = function(orderId) {
         mutedOrders.add(orderId);
-        // Stop alarm if all remaining cards are muted
-        const remaining = [...document.querySelectorAll('.on-card[data-order]')]
-            .filter(c => !mutedOrders.has(Number(c.dataset.order)));
-        if (remaining.length === 0) stopAlarm();
-        // Don't remove the card — just silence it
+        addSeenId(orderId);
+        const card = document.querySelector(`.on-card[data-order="${orderId}"]`);
+        if (card) card.remove();
+        if (!document.querySelector('.on-card[data-order]')) stopAlarm();
     };
 
     window.onDismiss = function(orderId) {
         const card = document.querySelector(`.on-card[data-order="${orderId}"]`);
         if (card) card.remove();
         mutedOrders.add(orderId);
+        addSeenId(orderId);
         if (!document.querySelector('.on-card[data-order]')) stopAlarm();
     };
 
