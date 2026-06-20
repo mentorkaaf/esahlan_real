@@ -663,10 +663,11 @@ class EFoodController extends Controller
         $hasActiveDays = collect($scheduleMap)->contains(fn($s) => (bool)$s->is_open);
         if (!$hasActiveDays) return true;
 
-        $todaySchedule = $scheduleMap[now()->dayOfWeek] ?? null;
+        $localNow = \App\Helpers\AppSettings::now();
+        $todaySchedule = $scheduleMap[$localNow->dayOfWeek] ?? null;
         if (!$todaySchedule || !(bool)$todaySchedule->is_open) return false;
 
-        $now = now()->format('H:i:s');
+        $now = $localNow->format('H:i:s');
         return $now >= $todaySchedule->open_time && $now <= $todaySchedule->close_time;
     }
 
