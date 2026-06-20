@@ -94,7 +94,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
         permission = await Geolocator.requestPermission();
       }
       if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) return;
-      final pos = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium));
+      final pos = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
       await LocalStorage.saveDouble('saved_lat', pos.latitude);
       await LocalStorage.saveDouble('saved_lng', pos.longitude);
       // Backend POST happens after registration completes (token required)

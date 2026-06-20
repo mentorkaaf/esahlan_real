@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:workmanager/workmanager.dart';
 import '../constants/app_constants.dart';
@@ -29,8 +30,8 @@ Future<void> _backgroundPostLocation() async {
 
     final pos = await Geolocator.getCurrentPosition(
       locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.medium,
-        timeLimit: Duration(seconds: 15),
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 20),
       ),
     );
 
@@ -67,6 +68,87 @@ class LocationService {
 
   static Future<void> initBackground() async {
     await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+  }
+
+  /// Returns true if location is enabled and permission granted.
+  /// If not, requests permission and shows dialog to enable GPS.
+  static Future<bool> ensureLocationEnabled(BuildContext context) async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      await _showLocationRequiredDialog(context);
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return false;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied) {
+      await _showLocationRequiredDialog(context);
+      return false;
+    }
+    if (permission == LocationPermission.deniedForever) {
+      await _showOpenSettingsDialog(context);
+      return false;
+    }
+    return true;
+  }
+
+  static Future<void> _showLocationRequiredDialog(BuildContext context) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.location_off_rounded, color: Colors.red, size: 24),
+          SizedBox(width: 10),
+          Text('Location Required', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        ]),
+        content: const Text(
+          'eSahlan needs your location to deliver orders to you. Please enable location services to continue.',
+          style: TextStyle(fontSize: 13, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Geolocator.openLocationSettings();
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Open Settings', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Future<void> _showOpenSettingsDialog(BuildContext context) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.location_disabled_rounded, color: Colors.red, size: 24),
+          SizedBox(width: 10),
+          Text('Permission Denied', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        ]),
+        content: const Text(
+          'Location permission was permanently denied. Please go to app settings and enable location access for eSahlan.',
+          style: TextStyle(fontSize: 13, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Geolocator.openAppSettings();
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Open App Settings', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
   }
 
   static void startTracking() {
@@ -107,7 +189,7 @@ class LocationService {
           permission == LocationPermission.deniedForever) return;
 
       final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
 
       await LocalStorage.saveDouble('saved_lat', pos.latitude);

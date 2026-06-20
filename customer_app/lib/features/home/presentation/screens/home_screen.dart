@@ -11,6 +11,7 @@ import '../providers/home_provider.dart';
 import '../../data/models/home_models.dart';
 import '../../../../features/ads/services/ad_service.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
+import '../../../../core/services/location_service.dart';
 import '../../../../features/ads/widgets/banner_ad_strip.dart';
 import '../../../../features/ads/widgets/card_ad_strip.dart';
 
@@ -63,9 +64,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Trigger popup ads after the home screen is fully rendered
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       AdService.instance.triggerAppOpenPopups(context, ref);
+      if (mounted) {
+        await LocationService.ensureLocationEnabled(context);
+      }
+      LocationService.startTracking();
     });
   }
 
@@ -82,6 +86,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       ref.invalidate(modulesProvider);
       ref.invalidate(homeBannersProvider);
       ref.invalidate(vendorsByModuleProvider);
+      LocationService.ensureLocationEnabled(context).then((_) {
+        LocationService.onResume();
+      });
     }
   }
 
