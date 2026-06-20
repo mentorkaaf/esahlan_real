@@ -43,9 +43,11 @@ class VendorProductWebController extends Controller
             'sale_price'     => 'nullable|numeric|min:0',
             'category_id'    => 'nullable|exists:categories,id',
             'sku'            => 'nullable|string|max:100',
-            'stock_quantity' => 'nullable|integer|min:0',
-            'thumbnail'      => 'nullable|image|max:2048',
-            'is_available'   => 'boolean',
+            'stock_quantity'  => 'nullable|integer|min:0',
+            'thumbnail'       => 'nullable|image|max:2048',
+            'is_available'    => 'boolean',
+            'available_from'  => 'nullable|date_format:H:i',
+            'available_until' => 'nullable|date_format:H:i',
         ]);
 
         $data['vendor_id']      = $vendor->id;
@@ -81,9 +83,11 @@ class VendorProductWebController extends Controller
             'price'          => 'required|numeric|min:0',
             'sale_price'     => 'nullable|numeric|min:0',
             'category_id'    => 'nullable|exists:categories,id',
-            'stock_quantity' => 'nullable|integer|min:0',
-            'thumbnail'      => 'nullable|image|max:2048',
-            'is_available'   => 'boolean',
+            'stock_quantity'  => 'nullable|integer|min:0',
+            'thumbnail'       => 'nullable|image|max:2048',
+            'is_available'    => 'boolean',
+            'available_from'  => 'nullable|date_format:H:i',
+            'available_until' => 'nullable|date_format:H:i',
         ]);
 
         $data['is_available']   = $request->boolean('is_available');

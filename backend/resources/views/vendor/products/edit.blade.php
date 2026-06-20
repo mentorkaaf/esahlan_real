@@ -53,6 +53,26 @@
                     </div>
                 </div>
             </div>
+
+            {{-- Time Availability Window --}}
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-header-title"><div class="card-header-icon" style="background:rgba(59,130,246,0.1);color:var(--info);"><i class="fa-solid fa-clock"></i></div> Time Availability</div>
+                </div>
+                <div class="card-body">
+                    <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px">Set a time window if this item is only available during specific hours. Leave empty for all-day.</p>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Available From</label>
+                            <input type="time" name="available_from" class="form-control" value="{{ old('available_from', $product->available_from ? substr($product->available_from, 0, 5) : '') }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Available Until</label>
+                            <input type="time" name="available_until" class="form-control" value="{{ old('available_until', $product->available_until ? substr($product->available_until, 0, 5) : '') }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div>
