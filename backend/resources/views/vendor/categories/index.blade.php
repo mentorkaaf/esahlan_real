@@ -80,26 +80,31 @@
         </div>
         <form action="{{ route('vendor.categories.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
-            <div class="form-group">
-                <label class="form-label">Category Image</label>
-                <input type="file" name="image_file" accept="image/*" class="form-control">
-            </div>
-            <div class="grid-2">
+            <div class="modal-body">
                 <div class="form-group">
-                    <label class="form-label">Category Name *</label>
-                    <input type="text" name="name" class="form-control" required placeholder="e.g. Main Course">
+                    <label class="form-label">Category Image</label>
+                    <input type="file" name="image_file" accept="image/*" class="form-control">
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Category Name *</label>
+                        <input type="text" name="name" class="form-control" required placeholder="e.g. Main Course">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Sort Order</label>
+                        <input type="number" name="sort_order" class="form-control" value="0">
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Sort Order</label>
-                    <input type="number" name="sort_order" class="form-control" value="0">
+                    <label style="display:flex;align-items:center;gap:8px">
+                        <input type="checkbox" name="is_active" value="1" checked> Active
+                    </label>
                 </div>
             </div>
-            <div class="form-group">
-                <label style="display:flex;align-items:center;gap:8px">
-                    <input type="checkbox" name="is_active" value="1" checked> Active
-                </label>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('addModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Category</button>
             </div>
-            <button type="submit" class="btn btn-primary" style="width:100%">Add Category</button>
         </form>
     </div>
 </div>
@@ -113,29 +118,34 @@
         </div>
         <form id="editForm" method="POST" enctype="multipart/form-data">
             @csrf @method('PATCH')
-            <div class="form-group">
-                <label class="form-label">Category Image</label>
-                <div id="editPreviewWrap" style="margin-bottom:8px;display:none">
-                    <img id="editPreview" src="" style="width:60px;height:60px;object-fit:cover;border-radius:10px">
-                </div>
-                <input type="file" name="image_file" accept="image/*" class="form-control">
-            </div>
-            <div class="grid-2">
+            <div class="modal-body">
                 <div class="form-group">
-                    <label class="form-label">Category Name *</label>
-                    <input type="text" name="name" id="editName" class="form-control" required>
+                    <label class="form-label">Category Image</label>
+                    <div id="editPreviewWrap" style="margin-bottom:8px;display:none">
+                        <img id="editPreview" src="" style="width:60px;height:60px;object-fit:cover;border-radius:10px">
+                    </div>
+                    <input type="file" name="image_file" accept="image/*" class="form-control">
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Category Name *</label>
+                        <input type="text" name="name" id="editName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Sort Order</label>
+                        <input type="number" name="sort_order" id="editSort" class="form-control">
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Sort Order</label>
-                    <input type="number" name="sort_order" id="editSort" class="form-control">
+                    <label style="display:flex;align-items:center;gap:8px">
+                        <input type="checkbox" name="is_active" id="editActive" value="1"> Active
+                    </label>
                 </div>
             </div>
-            <div class="form-group">
-                <label style="display:flex;align-items:center;gap:8px">
-                    <input type="checkbox" name="is_active" id="editActive" value="1"> Active
-                </label>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('editModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
             </div>
-            <button type="submit" class="btn btn-primary" style="width:100%">Save Changes</button>
         </form>
     </div>
 </div>

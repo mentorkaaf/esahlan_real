@@ -107,29 +107,36 @@
         </div>
         <form action="{{ route('vendor.wallet.withdraw') }}" method="POST">
             @csrf
-            <div class="form-group">
-                <label class="form-label">Amount ($) *</label>
-                <input type="number" name="amount" class="form-control" step="0.01" min="1" max="{{ $wallet->balance ?? 0 }}" required placeholder="0.00">
-                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Available: ${{ number_format($wallet->balance ?? 0, 2) }}</div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Amount ($) *</label>
+                    <input type="number" name="amount" class="form-control" step="0.01" min="1" max="{{ $wallet->balance ?? 0 }}" required placeholder="0.00">
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Available: ${{ number_format($wallet->balance ?? 0, 2) }}</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Payment Method *</label>
+                    <select name="payment_method" class="form-control" required>
+                        <option value="">— Select —</option>
+                        <option value="evc">EVC Plus</option>
+                        <option value="waafi">Waafi</option>
+                        <option value="others">Bank Transfer</option>
+                    </select>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Account Name *</label>
+                        <input type="text" name="account_name" class="form-control" required placeholder="Full name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Account / Phone *</label>
+                        <input type="text" name="account_number" class="form-control" required placeholder="Phone or account">
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Payment Method *</label>
-                <select name="payment_method" class="form-control" required>
-                    <option value="">— Select —</option>
-                    <option value="evc">EVC Plus</option>
-                    <option value="waafi">Waafi</option>
-                    <option value="others">Bank Transfer</option>
-                </select>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('withdraw-modal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Submit Request</button>
             </div>
-            <div class="form-group">
-                <label class="form-label">Account Name *</label>
-                <input type="text" name="account_name" class="form-control" required placeholder="Full name">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Account Number / Phone *</label>
-                <input type="text" name="account_number" class="form-control" required placeholder="Phone or account number">
-            </div>
-            <button type="submit" class="btn btn-primary" style="width:100%;">Submit Withdrawal Request</button>
         </form>
     </div>
 </div>

@@ -194,6 +194,15 @@
         .form-control { width: 100%; padding: 9px 13px; border-radius: 9px; border: 1.5px solid #e8edf5; font-size: 13.5px; color: #111827; background: #fff; outline: none; transition: border-color .2s; }
         .form-control:focus { border-color: #FF8A00; box-shadow: 0 0 0 3px rgba(255,138,0,0.08); }
         textarea.form-control { resize: vertical; min-height: 90px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+        .badge-success { background: rgba(16,185,129,0.1); color: #059669; }
+        .badge-danger  { background: rgba(239,68,68,0.1);  color: #dc2626; }
+        .badge-warning { background: rgba(245,158,11,0.1); color: #d97706; }
+        .badge-info    { background: rgba(59,130,246,0.1);  color: #2563eb; }
+        .badge-neutral { background: #f1f5f9; color: #64748b; }
+        .badge-purple  { background: rgba(139,92,246,0.1); color: #7c3aed; }
+        .badge-orange  { background: rgba(255,138,0,0.1);  color: #FF8A00; }
         .form-hint { font-size: 11.5px; color: #9ca3af; margin-top: 4px; }
         .form-row { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 16px; }
 
@@ -215,13 +224,16 @@
         /* ── Modal ── */
         .modal-overlay { display: none; position: fixed; inset: 0; z-index: 500; background: rgba(7,0,59,.5); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 20px; }
         .modal-overlay.open { display: flex; }
-        .modal { background: #fff; border-radius: 18px; width: 100%; max-width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.18); animation: modalIn .2s ease; overflow: hidden; }
+        .modal, .modal-box { background: #fff; border-radius: 18px; width: 100%; max-width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.18); animation: modalIn .2s ease; overflow: hidden; max-height: 90vh; overflow-y: auto; }
         @keyframes modalIn { from { transform: scale(.96) translateY(8px); opacity: 0; } }
         .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
         .modal-title { font-size: 16px; font-weight: 800; color: #111827; }
         .modal-close { background: #f1f5f9; border: none; cursor: pointer; color: #9ca3af; font-size: 16px; padding: 6px; border-radius: 7px; transition: all .15s; }
         .modal-close:hover { background: #fee2e2; color: #ef4444; }
         .modal-body { padding: 20px 24px; }
+        .modal-box > form, .modal-box > div:not(.modal-header) { padding: 0 24px; }
+        .modal-box > form > .form-group:first-child { padding-top: 20px; }
+        .modal-box > form > button[type="submit"] { margin: 16px 0 24px; }
         .modal-footer { padding: 16px 24px; border-top: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: flex-end; gap: 10px; background: #fafbff; }
 
         /* ── Store status ── */
