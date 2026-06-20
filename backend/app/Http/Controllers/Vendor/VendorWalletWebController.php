@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Vendor;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,15 +14,12 @@ class VendorWalletWebController extends Controller
     public function index()
     {
         $vendor = $this->activeVendor();
-        $wallet = Wallet::where('owner_type', 'App\\Models\\Vendor')->where('owner_id', $vendor->id)->first();
+        $wallet = Wallet::getOrCreateFor('App\\Models\\Vendor', $vendor->id);
 
-        $transactions = [];
-        $total        = 0;
-        if ($wallet) {
-            $txns         = DB::table('transactions')->where('wallet_id', $wallet->id)->orderByDesc('created_at')->paginate(30);
-            $transactions = $txns;
-            $total        = $txns->total();
-        }
+        $transactions = DB::table('transactions')
+            ->where('wallet_id', $wallet->id)
+            ->orderByDesc('created_at')
+            ->paginate(30);
 
         $withdrawals = DB::table('withdrawal_requests')
             ->where('owner_type', 'App\\Models\\Vendor')
@@ -30,13 +28,32 @@ class VendorWalletWebController extends Controller
             ->limit(20)
             ->get();
 
-        return view('vendor.wallet.index', compact('vendor', 'wallet', 'transactions', 'withdrawals'));
+        // Earnings summary from orders
+        $totalEarning = (float) Order::where('vendor_id', $vendor->id)
+            ->where('status', '!=', 'cancelled')
+            ->selectRaw('COALESCE(SUM(subtotal - COALESCE(commission, 0)), 0) as total')
+            ->value('total');
+
+        $totalCommission = (float) Order::where('vendor_id', $vendor->id)
+            ->where('status', '!=', 'cancelled')
+            ->sum(DB::raw('COALESCE(commission, 0)'));
+
+        $pendingWithdrawal = (float) DB::table('withdrawal_requests')
+            ->where('owner_type', 'App\\Models\\Vendor')
+            ->where('owner_id', $vendor->id)
+            ->where('status', 'pending')
+            ->sum('amount');
+
+        return view('vendor.wallet.index', compact(
+            'vendor', 'wallet', 'transactions', 'withdrawals',
+            'totalEarning', 'totalCommission', 'pendingWithdrawal'
+        ));
     }
 
     public function requestWithdrawal(Request $request)
     {
         $vendor = $this->activeVendor();
-        $wallet = Wallet::where('owner_type', 'App\\Models\\Vendor')->where('owner_id', $vendor->id)->firstOrFail();
+        $wallet = Wallet::getOrCreateFor('App\\Models\\Vendor', $vendor->id);
 
         $request->validate([
             'amount'         => 'required|numeric|min:1',
@@ -67,6 +84,6 @@ class VendorWalletWebController extends Controller
             ]);
         });
 
-        return back()->with('success', 'Withdrawal request submitted. Admin will process within 24 hours.');
+        return back()->with('success', 'Withdrawal request submitted.');
     }
 }

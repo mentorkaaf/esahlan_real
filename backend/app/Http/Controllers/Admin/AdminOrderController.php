@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Deliveryman;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
+use App\Models\Wallet;
 use App\Services\FcmService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -139,6 +140,15 @@ class AdminOrderController extends Controller
                 'note'       => $request->note ?? 'Status updated by admin',
                 'changed_by' => auth()->id(),
             ]);
+
+            // Credit vendor wallet on delivery
+            if ($request->status === 'delivered' && $order->vendor_id) {
+                $vendorEarning = (float) $order->subtotal - (float) ($order->commission ?? 0);
+                if ($vendorEarning > 0) {
+                    $vendorWallet = Wallet::getOrCreateFor('App\\Models\\Vendor', $order->vendor_id);
+                    $vendorWallet->credit($vendorEarning, "Order #{$order->order_number} earning", 'App\\Models\\Order', $order->id);
+                }
+            }
         });
 
         // ── Push notification ─────────────────────────────────────────────
