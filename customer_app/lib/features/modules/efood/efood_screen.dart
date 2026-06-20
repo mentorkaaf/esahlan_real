@@ -1,7 +1,9 @@
 ﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../core/api/module_api_service.dart';
+import '../../../core/storage/local_storage.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../core/theme/app_color_tokens.dart';
@@ -1026,14 +1028,8 @@ class _RestaurantDetailPageState extends ConsumerState<_RestaurantDetailPage> wi
                         ),
                 );
               }),
-              // ── Delivery info chips ────────────────────────────────
-              Row(children: [
-                if (r['delivery_time'] != null) _InfoChip(icon: Icons.access_time_rounded, text: '${r['delivery_time']} min'),
-                if (r['delivery_time'] != null) const SizedBox(width: 12),
-                _InfoChip(icon: Icons.delivery_dining_rounded, text: () { final f = double.tryParse('${r['delivery_fee'] ?? 0}'); return (f == null || f == 0) ? 'Free delivery' : '\$${f.toStringAsFixed(2)} delivery'; }()),
-                const SizedBox(width: 12),
-                _InfoChip(icon: Icons.shopping_bag_outlined, text: '\$${double.tryParse('${r['minimum_order'] ?? r['min_order'] ?? 0}')?.toStringAsFixed(2) ?? '0.00'} Min. order'),
-              ]),
+              // ── Delivery info cards ────────────────────────────────
+              _DeliveryInfoRow(restaurant: r),
 
               // ── Active Discount Campaigns ──────────────────────────
               _CampaignsBanner(restaurantId: id),
@@ -1495,6 +1491,92 @@ class _NetImg extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DeliveryInfoRow extends ConsumerWidget {
+  final dynamic restaurant;
+  const _DeliveryInfoRow({required this.restaurant});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final r = restaurant;
+    final vendorLat = double.tryParse('${r['latitude'] ?? ''}');
+    final vendorLng = double.tryParse('${r['longitude'] ?? ''}');
+    final deliveryTime = r['delivery_time'] ?? r['estimated_delivery_time'];
+
+    return FutureBuilder<double?>(
+      future: _calcDistance(vendorLat, vendorLng),
+      builder: (context, snap) {
+        final distKm = snap.data;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(children: [
+            // Distance
+            Expanded(child: _DeliveryInfoCard(
+              icon: Icons.near_me_rounded,
+              label: distKm != null ? '${distKm.toStringAsFixed(1)} km' : '—',
+              subtitle: 'Distance',
+              color: const Color(0xFF3B82F6),
+            )),
+            const SizedBox(width: 10),
+            // Delivery time
+            Expanded(child: _DeliveryInfoCard(
+              icon: Icons.access_time_rounded,
+              label: deliveryTime != null ? '$deliveryTime min' : '30-45 min',
+              subtitle: 'Delivery Time',
+              color: const Color(0xFFFF8A00),
+            )),
+            const SizedBox(width: 10),
+            // Delivery by
+            Expanded(child: _DeliveryInfoCard(
+              icon: Icons.delivery_dining_rounded,
+              label: 'eSahlan',
+              subtitle: 'Delivery by',
+              color: const Color(0xFF10B981),
+            )),
+          ]),
+        );
+      },
+    );
+  }
+
+  static Future<double?> _calcDistance(double? vendorLat, double? vendorLng) async {
+    if (vendorLat == null || vendorLng == null) return null;
+    try {
+      final userLat = await LocalStorage.getDouble('saved_lat');
+      final userLng = await LocalStorage.getDouble('saved_lng');
+      if (userLat == null || userLng == null) return null;
+      final meters = Geolocator.distanceBetween(userLat, userLng, vendorLat, vendorLng);
+      return meters / 1000;
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+class _DeliveryInfoCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final Color color;
+  const _DeliveryInfoCard({required this.icon, required this.label, required this.subtitle, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: color.withValues(alpha: 0.15)),
+    ),
+    child: Column(children: [
+      Icon(icon, color: color, size: 20),
+      const SizedBox(height: 6),
+      Text(label, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: context.colors.navyText), textAlign: TextAlign.center),
+      const SizedBox(height: 2),
+      Text(subtitle, style: TextStyle(fontSize: 10, color: Colors.grey[500]), textAlign: TextAlign.center),
+    ]),
+  );
 }
 
 class _InfoChip extends StatelessWidget {
