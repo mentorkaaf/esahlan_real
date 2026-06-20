@@ -77,12 +77,12 @@ class Vendor extends Model
     public function isCurrentlyOpen(): bool
     {
         if ($this->temporarily_closed || !$this->is_open) return false;
-        // If no schedules configured at all, or no active days, vendor is open 24/7
         $hasActiveSchedule = $this->schedules()->where('is_open', true)->exists();
         if (!$hasActiveSchedule) return true;
-        $schedule = $this->schedules()->where('day', now()->dayOfWeek)->first();
+        $localNow = \App\Helpers\AppSettings::now();
+        $schedule = $this->schedules()->where('day', $localNow->dayOfWeek)->first();
         if (!$schedule || !$schedule->is_open) return false;
-        $now = now()->format('H:i:s');
+        $now = $localNow->format('H:i:s');
         return $now >= $schedule->open_time && $now <= $schedule->close_time;
     }
 }
