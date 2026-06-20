@@ -1880,7 +1880,8 @@
                 <input type="text" name="address" class="form-control" placeholder="Branch address">
             </div>
             <div class="form-group">
-                <label class="form-label">Location <small style="color:#888">(click map to set)</small></label>
+                <label class="form-label">Location <small style="color:#888">(search or click map)</small></label>
+                <input type="text" id="branchSearchBox" class="form-control" placeholder="Search location..." style="margin-bottom:8px;">
                 <div id="branchMap" style="height:220px;border-radius:12px;border:1.5px solid #e2e8f0;margin-bottom:8px;"></div>
                 <input type="hidden" name="latitude" id="branch_lat">
                 <input type="hidden" name="longitude" id="branch_lng">
@@ -1955,28 +1956,44 @@ function openBranchModal(parentId, parentName) {
     openModal('branchModal');
     setTimeout(function() {
         var center = { lat: 2.0469, lng: 45.3182 };
+        function setBranchLatLng(lat, lng) {
+            document.getElementById('branch_lat').value = lat.toFixed(8);
+            document.getElementById('branch_lng').value = lng.toFixed(8);
+            document.getElementById('branchLatLng').textContent = lat.toFixed(6) + ', ' + lng.toFixed(6);
+        }
+        function placeBranchMarker(pos) {
+            if (branchMarker) branchMarker.setPosition(pos);
+            else {
+                branchMarker = new google.maps.Marker({ position: pos, map: branchMap, draggable: true });
+                branchMarker.addListener('dragend', function(ev) { setBranchLatLng(ev.latLng.lat(), ev.latLng.lng()); });
+            }
+            setBranchLatLng(pos.lat(), pos.lng());
+        }
         if (!branchMap) {
             branchMap = new google.maps.Map(document.getElementById('branchMap'), {
                 zoom: 13, center: center, mapTypeControl: false, streetViewControl: false,
             });
-            branchMap.addListener('click', function(e) {
-                var lat = e.latLng.lat(), lng = e.latLng.lng();
-                if (branchMarker) branchMarker.setPosition(e.latLng);
-                else branchMarker = new google.maps.Marker({ position: e.latLng, map: branchMap, draggable: true });
-                document.getElementById('branch_lat').value = lat.toFixed(8);
-                document.getElementById('branch_lng').value = lng.toFixed(8);
-                document.getElementById('branchLatLng').textContent = lat.toFixed(6) + ', ' + lng.toFixed(6);
-                branchMarker.addListener('dragend', function(ev) {
-                    document.getElementById('branch_lat').value = ev.latLng.lat().toFixed(8);
-                    document.getElementById('branch_lng').value = ev.latLng.lng().toFixed(8);
-                    document.getElementById('branchLatLng').textContent = ev.latLng.lat().toFixed(6) + ', ' + ev.latLng.lng().toFixed(6);
-                });
+            branchMap.addListener('click', function(e) { placeBranchMarker(e.latLng); });
+            // Search box
+            var input = document.getElementById('branchSearchBox');
+            var searchBox = new google.maps.places.SearchBox(input);
+            branchMap.addListener('bounds_changed', function() { searchBox.setBounds(branchMap.getBounds()); });
+            searchBox.addListener('places_changed', function() {
+                var places = searchBox.getPlaces();
+                if (!places || !places.length) return;
+                var place = places[0];
+                if (!place.geometry || !place.geometry.location) return;
+                branchMap.setCenter(place.geometry.location);
+                branchMap.setZoom(16);
+                placeBranchMarker(place.geometry.location);
+                if (place.formatted_address) document.querySelector('[name="address"]').value = place.formatted_address;
             });
         } else {
             google.maps.event.trigger(branchMap, 'resize');
             branchMap.setCenter(center);
             if (branchMarker) { branchMarker.setMap(null); branchMarker = null; }
         }
+        document.getElementById('branchSearchBox').value = '';
     }, 300);
 }
 
