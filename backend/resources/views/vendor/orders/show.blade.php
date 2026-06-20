@@ -118,15 +118,21 @@
                     <div style="font-size:13px;">{{ $order->created_at->format('d M Y, H:i') }}</div>
                 </div>
                 @if($order->delivery_address)
+                @php
+                    $addr = $order->delivery_address;
+                    if (is_string($addr)) { $addr = json_decode($addr, true) ?? ['address' => $addr]; }
+                    $addrStr = is_array($addr) ? implode(', ', array_filter([$addr['district'] ?? $addr['city'] ?? null, $addr['address'] ?? null, $addr['name'] ?? null])) : (string) $addr;
+                @endphp
                 <div>
                     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:4px;">Delivery Address</div>
-                    <div style="font-size:13px;">{{ $order->delivery_address }}</div>
+                    <div style="font-size:13px;">{{ $addrStr ?: '—' }}</div>
                 </div>
                 @endif
-                @if($order->note)
+                @if($order->note || $order->notes)
+                @php $noteStr = $order->notes ?? $order->note; if (is_array($noteStr)) $noteStr = json_encode($noteStr); @endphp
                 <div>
                     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:4px;">Note</div>
-                    <div style="font-size:13px;color:var(--text-muted);">{{ $order->note }}</div>
+                    <div style="font-size:13px;color:var(--text-muted);">{{ is_string($noteStr) ? $noteStr : '—' }}</div>
                 </div>
                 @endif
             </div>
