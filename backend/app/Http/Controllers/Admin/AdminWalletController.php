@@ -144,9 +144,8 @@ class AdminWalletController extends Controller
     {
         $request->validate(['pin' => 'required|digits:4']);
         $user = User::findOrFail($userId);
-        $user->update(['password' => Hash::make($request->pin)]);
-        $user->tokens()->delete();
-        return back()->with('success', "PIN reset for {$user->name}. User must log in again.");
+        $user->update(['wallet_pin' => Hash::make($request->pin)]);
+        return back()->with('success', "Wallet PIN reset for {$user->name}.");
     }
 
     // Settings page for Waafi Pay credentials

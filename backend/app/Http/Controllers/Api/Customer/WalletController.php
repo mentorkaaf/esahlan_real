@@ -330,10 +330,23 @@ class WalletController extends Controller
         }
 
         $user = $request->user();
-        if (!Hash::check($request->pin, $user->password)) {
+        $pinHash = $user->wallet_pin ?? $user->password;
+        if (!Hash::check($request->pin, $pinHash)) {
             return response()->json(['success' => false, 'message' => 'Incorrect PIN. Please try again.'], 422);
         }
 
         return response()->json(['success' => true, 'message' => 'PIN verified']);
+    }
+
+    // POST /wallet/set-pin
+    public function setPin(Request $request)
+    {
+        $v = Validator::make($request->all(), ['pin' => 'required|string|size:4']);
+        if ($v->fails()) {
+            return response()->json(['success' => false, 'message' => 'PIN must be 4 digits'], 422);
+        }
+
+        $request->user()->update(['wallet_pin' => Hash::make($request->pin)]);
+        return response()->json(['success' => true, 'message' => 'Wallet PIN set successfully']);
     }
 }

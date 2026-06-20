@@ -14,14 +14,14 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
-        'uuid','name','email','phone','password','avatar',
+        'uuid','name','email','phone','password','wallet_pin','avatar',
         'referral_code','referred_by','status','fcm_token',
         'preferred_language','dark_mode','role_id','district_id',
         'phone_verified_at','email_verified_at',
         'latitude','longitude','location_updated_at',
     ];
 
-    protected $hidden = ['password','remember_token'];
+    protected $hidden = ['password','wallet_pin','remember_token'];
 
     protected $casts = [
         'phone_verified_at'   => 'datetime',

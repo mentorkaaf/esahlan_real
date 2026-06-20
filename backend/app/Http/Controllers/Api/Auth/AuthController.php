@@ -39,6 +39,7 @@ class AuthController extends Controller
                 'phone'           => $request->phone,
                 'email'           => $request->email,
                 'password'        => Hash::make($request->password),
+                'wallet_pin'      => Hash::make($request->password),
                 'role_id'         => $customerRole?->id,
                 'status'          => 'active',
                 'referral_code'   => strtoupper(Str::random(8)),
@@ -253,7 +254,10 @@ class AuthController extends Controller
             return response()->json(['success' => false, 'message' => 'Invalid or expired OTP. Please verify OTP first.'], 422);
         }
 
-        User::where('phone', $request->phone)->update(['password' => Hash::make($request->password)]);
+        User::where('phone', $request->phone)->update([
+            'password'   => Hash::make($request->password),
+            'wallet_pin' => Hash::make($request->password),
+        ]);
         $otp->delete();
 
         return response()->json(['success' => true, 'message' => 'Password reset successfully']);

@@ -94,7 +94,10 @@ class AdminUserController extends Controller
     {
         $request->validate(['pin' => 'required|digits:4']);
 
-        $user->update(['password' => Hash::make($request->pin)]);
+        $user->update([
+            'password'   => Hash::make($request->pin),
+            'wallet_pin' => Hash::make($request->pin),
+        ]);
         $user->tokens()->delete();
 
         return back()->with('success', 'PIN reset successfully. User will need to log in again.');

@@ -346,6 +346,7 @@ Route::prefix('v1')->group(function () {
             Route::post('wallet/send',              [WalletController::class, 'send']);
             Route::post('wallet/withdraw',          [WalletController::class, 'requestWithdrawal']);
             Route::post('wallet/verify-pin',        [WalletController::class, 'verifyPin']);
+            Route::post('wallet/set-pin',           [WalletController::class, 'setPin']);
             Route::get('wallet/loyalty-points',     [WalletController::class, 'loyaltyPoints']);
             Route::get('wallet/referral',           [WalletController::class, 'referral']);
             // Centralized payment (Waafi Pay)
