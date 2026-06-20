@@ -103,6 +103,67 @@
     </div>
 </div>
 
+{{-- Earnings Breakdown --}}
+<div class="card">
+    <div class="card-header">
+        <div class="card-header-title">
+            <div class="card-header-icon" style="background:rgba(16,185,129,0.1);color:#10b981;"><i class="fa-solid fa-coins"></i></div>
+            Earnings Breakdown
+        </div>
+    </div>
+    @if($earnings->isEmpty())
+    <div class="empty-state"><i class="fa-solid fa-coins"></i><p>No earnings yet</p></div>
+    @else
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Order #</th>
+                    <th style="text-align:right">Order Total</th>
+                    <th style="text-align:right">Subtotal</th>
+                    <th style="text-align:right">Commission</th>
+                    <th style="text-align:right">Your Earning</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($earnings as $e)
+                @php
+                    $comm = (float)($e->commission ?? 0);
+                    $earn = (float)$e->subtotal - $comm;
+                    $cls = match($e->status) { 'pending'=>'warning','confirmed'=>'info','delivered'=>'success','cancelled'=>'danger',default=>'neutral' };
+                @endphp
+                <tr>
+                    <td><a href="{{ route('vendor.orders.show', $e->id) }}" style="font-weight:700;color:var(--brand);">#{{ $e->order_number }}</a></td>
+                    <td style="text-align:right;color:var(--text-muted);">${{ number_format($e->total_amount, 2) }}</td>
+                    <td style="text-align:right;">${{ number_format($e->subtotal, 2) }}</td>
+                    <td style="text-align:right;color:#ef4444;font-weight:600;">-${{ number_format($comm, 2) }}</td>
+                    <td style="text-align:right;color:#10b981;font-weight:700;">${{ number_format($earn, 2) }}</td>
+                    <td><span class="badge badge-{{ $cls }}">{{ ucfirst(str_replace('_',' ',$e->status)) }}</span></td>
+                    <td style="color:var(--text-muted);font-size:12px;">{{ $e->created_at->format('d M H:i') }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+            <tfoot>
+                @php
+                    $totalSub = $earnings->sum('subtotal');
+                    $totalComm = $earnings->sum('commission');
+                    $totalEarn = $totalSub - $totalComm;
+                @endphp
+                <tr style="background:var(--bg-muted);font-weight:800;">
+                    <td colspan="2" style="text-align:right;">Totals</td>
+                    <td style="text-align:right;">${{ number_format($totalSub, 2) }}</td>
+                    <td style="text-align:right;color:#ef4444;">-${{ number_format($totalComm, 2) }}</td>
+                    <td style="text-align:right;color:#10b981;">${{ number_format($totalEarn, 2) }}</td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    @endif
+</div>
+
 {{-- Recent orders --}}
 <div class="card">
     <div class="card-header">

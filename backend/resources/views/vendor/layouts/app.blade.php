@@ -289,6 +289,10 @@
             <span class="nav-badge">{{ $pending }}</span>
             @endif
         </a>
+        <a href="{{ route('vendor.earnings') }}" class="nav-link {{ request()->routeIs('vendor.earnings') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-coins"></i></span>
+            <span class="nav-text">Earnings</span>
+        </a>
 
         <div class="nav-section-label">Catalog</div>
         <a href="{{ route('vendor.categories.index') }}" class="nav-link {{ request()->routeIs('vendor.categories.*') ? 'active' : '' }}">

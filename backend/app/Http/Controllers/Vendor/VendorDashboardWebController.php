@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Vendor;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class VendorDashboardWebController extends Controller
@@ -53,7 +54,37 @@ class VendorDashboardWebController extends Controller
             ->orderBy('date')
             ->get();
 
-        return view('vendor.dashboard', compact('vendor', 'stats', 'recentOrders', 'chartData'));
+        // Earnings breakdown
+        $earnings = Order::where('vendor_id', $vendor->id)
+            ->where('status', '!=', 'cancelled')
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get(['id', 'order_number', 'subtotal', 'delivery_fee', 'commission', 'total_amount', 'status', 'created_at']);
+
+        return view('vendor.dashboard', compact('vendor', 'stats', 'recentOrders', 'chartData', 'earnings'));
+    }
+
+    public function earnings(Request $request)
+    {
+        $vendor = $this->activeVendor();
+
+        $query = Order::where('vendor_id', $vendor->id)
+            ->where('status', '!=', 'cancelled');
+
+        if ($request->filled('from')) $query->whereDate('created_at', '>=', $request->from);
+        if ($request->filled('to'))   $query->whereDate('created_at', '<=', $request->to);
+
+        $orders = $query->orderByDesc('created_at')->paginate(30)->withQueryString();
+
+        $summary = [
+            'total_subtotal'   => (float) (clone $query)->sum('subtotal'),
+            'total_commission' => (float) (clone $query)->sum(DB::raw('COALESCE(commission, 0)')),
+            'total_delivery'   => (float) (clone $query)->sum('delivery_fee'),
+            'order_count'      => (clone $query)->count(),
+        ];
+        $summary['total_earning'] = $summary['total_subtotal'] - $summary['total_commission'];
+
+        return view('vendor.earnings', compact('vendor', 'orders', 'summary'));
     }
 
     public function toggleStore()

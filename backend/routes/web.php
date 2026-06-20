@@ -59,6 +59,9 @@ Route::prefix('vendor')->name('vendor.')->group(function () {
             Route::post('/{order}/ready', [VendorOrderWebController::class, 'markReady'])->name('ready');
         });
 
+        // Earnings
+        Route::get('/earnings', [VendorDashboardWebController::class, 'earnings'])->name('earnings');
+
         // Branch Switcher
         Route::post('/switch-branch', function (\Illuminate\Http\Request $request) {
             $vendorId = $request->input('vendor_id');
