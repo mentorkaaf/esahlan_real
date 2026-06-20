@@ -272,6 +272,10 @@
         </a>
 
         <div class="nav-section-label">Catalog</div>
+        <a href="{{ route('vendor.categories.index') }}" class="nav-link {{ request()->routeIs('vendor.categories.*') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-layer-group"></i></span>
+            <span class="nav-text">Categories</span>
+        </a>
         <a href="{{ route('vendor.products.index') }}" class="nav-link {{ request()->routeIs('vendor.products.*') ? 'active' : '' }}">
             <span class="nav-icon"><i class="fa-solid fa-box"></i></span>
             <span class="nav-text">Products</span>

@@ -1152,8 +1152,16 @@
                 <label class="form-label">Category</label>
                 <select name="category_id" class="form-control">
                     <option value="">No category</option>
-                    @foreach($categories as $c)
-                        <option value="{{ $c->id }}">{{ $c->name }}</option>
+                    @php $globalCats = $categories->whereNull('vendor_id'); $vendorCats = $categories->whereNotNull('vendor_id')->groupBy('vendor_id'); @endphp
+                    @if($globalCats->isNotEmpty())
+                    <optgroup label="— Global Categories —">
+                        @foreach($globalCats as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach
+                    </optgroup>
+                    @endif
+                    @foreach($vendorCats as $vid => $cats)
+                    <optgroup label="{{ $cats->first()->vendor?->name ?? 'Restaurant #'.$vid }}">
+                        @foreach($cats as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach
+                    </optgroup>
                     @endforeach
                 </select>
             </div>
@@ -1238,8 +1246,15 @@
                 <label class="form-label">Category</label>
                 <select name="category_id" id="ei_cat" class="form-control">
                     <option value="">No category</option>
-                    @foreach($categories as $c)
-                        <option value="{{ $c->id }}">{{ $c->name }}</option>
+                    @if($globalCats->isNotEmpty())
+                    <optgroup label="— Global Categories —">
+                        @foreach($globalCats as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach
+                    </optgroup>
+                    @endif
+                    @foreach($vendorCats as $vid => $cats)
+                    <optgroup label="{{ $cats->first()->vendor?->name ?? 'Restaurant #'.$vid }}">
+                        @foreach($cats as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach
+                    </optgroup>
                     @endforeach
                 </select>
             </div>

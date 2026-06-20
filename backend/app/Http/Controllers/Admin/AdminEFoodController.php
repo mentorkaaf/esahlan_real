@@ -41,9 +41,9 @@ class AdminEFoodController extends Controller
             ->orderByDesc('vendors.created_at')
             ->paginate(20);
 
-        $categories = Category::where(function ($q) use ($moduleId) {
-                $q->where('module_id', $moduleId)->whereNull('vendor_id');
-            })
+        $categories = Category::where('module_id', $moduleId)
+            ->with('vendor:id,name')
+            ->orderByRaw('vendor_id IS NOT NULL, vendor_id')
             ->orderBy('sort_order')
             ->get();
 

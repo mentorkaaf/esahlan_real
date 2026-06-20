@@ -7,6 +7,7 @@ use App\Http\Controllers\Vendor\VendorOrderWebController;
 use App\Http\Controllers\Vendor\VendorProductWebController;
 use App\Http\Controllers\Vendor\VendorStoreWebController;
 use App\Http\Controllers\Vendor\VendorWalletWebController;
+use App\Http\Controllers\Vendor\VendorCategoryController;
 use App\Http\Controllers\Admin\Auth\AdminAuthController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\AdminUserController;
@@ -55,6 +56,14 @@ Route::prefix('vendor')->name('vendor.')->group(function () {
             Route::post('/{order}/accept', [VendorOrderWebController::class, 'accept'])->name('accept');
             Route::post('/{order}/reject', [VendorOrderWebController::class, 'reject'])->name('reject');
             Route::post('/{order}/ready', [VendorOrderWebController::class, 'markReady'])->name('ready');
+        });
+
+        // Menu Categories
+        Route::prefix('categories')->name('categories.')->group(function () {
+            Route::get('/', [VendorCategoryController::class, 'index'])->name('index');
+            Route::post('/', [VendorCategoryController::class, 'store'])->name('store');
+            Route::match(['PATCH','POST'], '/{category}', [VendorCategoryController::class, 'update'])->name('update');
+            Route::delete('/{category}', [VendorCategoryController::class, 'destroy'])->name('destroy');
         });
 
         // Products
