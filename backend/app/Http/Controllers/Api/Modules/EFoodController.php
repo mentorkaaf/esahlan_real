@@ -62,6 +62,7 @@ class EFoodController extends Controller
                 'vendors.is_open', 'vendors.working_hours', 'vendors.delivery_time',
                 'vendors.delivery_fee', 'vendors.minimum_order',
                 'vendors.temporarily_closed', 'vendors.is_featured',
+                'vendors.latitude', 'vendors.longitude',
                 'vendors.address', 'vendors.district_id',
                 'districts.name as district_name',
             ])

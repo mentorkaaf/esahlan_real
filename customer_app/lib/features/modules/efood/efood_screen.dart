@@ -1500,9 +1500,14 @@ class _DeliveryInfoRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final r = restaurant;
-    final vendorLat = double.tryParse('${r['latitude'] ?? ''}');
-    final vendorLng = double.tryParse('${r['longitude'] ?? ''}');
-    final deliveryTime = r['delivery_time'] ?? r['estimated_delivery_time'];
+    final id = (r['id'] as num).toInt();
+    final detail = ref.watch(_restaurantProvider(id));
+    final full = detail.asData?.value;
+    final data = (full is Map && full['data'] is Map) ? full['data'] : r;
+
+    final vendorLat = double.tryParse('${data['latitude'] ?? ''}');
+    final vendorLng = double.tryParse('${data['longitude'] ?? ''}');
+    final deliveryTime = data['delivery_time'] ?? data['estimated_delivery_time'] ?? r['delivery_time'];
 
     return FutureBuilder<double?>(
       future: _calcDistance(vendorLat, vendorLng),
@@ -1511,15 +1516,13 @@ class _DeliveryInfoRow extends ConsumerWidget {
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Row(children: [
-            // Distance
             Expanded(child: _DeliveryInfoCard(
               icon: Icons.near_me_rounded,
-              label: distKm != null ? '${distKm.toStringAsFixed(1)} km' : '—',
+              label: distKm != null ? '${distKm.toStringAsFixed(1)} km' : '...',
               subtitle: 'Distance',
               color: const Color(0xFF3B82F6),
             )),
             const SizedBox(width: 10),
-            // Delivery time
             Expanded(child: _DeliveryInfoCard(
               icon: Icons.access_time_rounded,
               label: deliveryTime != null ? '$deliveryTime min' : '30-45 min',
@@ -1527,7 +1530,6 @@ class _DeliveryInfoRow extends ConsumerWidget {
               color: const Color(0xFFFF8A00),
             )),
             const SizedBox(width: 10),
-            // Delivery by
             Expanded(child: _DeliveryInfoCard(
               icon: Icons.delivery_dining_rounded,
               label: 'eSahlan',
@@ -1545,19 +1547,15 @@ class _DeliveryInfoRow extends ConsumerWidget {
     try {
       double? userLat, userLng;
 
-      // Try real-time GPS first
       final perm = await Geolocator.checkPermission();
       if (perm != LocationPermission.denied && perm != LocationPermission.deniedForever) {
-        try {
-          final pos = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
-          ).timeout(const Duration(seconds: 5));
-          userLat = pos.latitude;
-          userLng = pos.longitude;
-        } catch (_) {}
+        final last = await Geolocator.getLastKnownPosition();
+        if (last != null) {
+          userLat = last.latitude;
+          userLng = last.longitude;
+        }
       }
 
-      // Fall back to saved location
       userLat ??= await LocalStorage.getDouble('saved_lat');
       userLng ??= await LocalStorage.getDouble('saved_lng');
       if (userLat == null || userLng == null) return null;
