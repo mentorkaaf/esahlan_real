@@ -81,7 +81,19 @@ class EFoodController extends Controller
         }
 
         if ($request->filled('category')) {
-            $query->where('vendors.vendor_type', $request->category);
+            $catName = $request->category;
+            $query->where(function ($q) use ($catName) {
+                $q->where('vendors.vendor_type', $catName)
+                  ->orWhereExists(function ($sub) use ($catName) {
+                      $sub->select(DB::raw(1))
+                          ->from('products')
+                          ->join('categories', 'categories.id', '=', 'products.category_id')
+                          ->whereColumn('products.vendor_id', 'vendors.id')
+                          ->where('categories.name', $catName)
+                          ->whereNull('products.deleted_at')
+                          ->where('products.is_available', true);
+                  });
+            });
         }
 
         if ($request->boolean('featured')) {
