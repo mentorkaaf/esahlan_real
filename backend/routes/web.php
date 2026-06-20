@@ -8,6 +8,7 @@ use App\Http\Controllers\Vendor\VendorProductWebController;
 use App\Http\Controllers\Vendor\VendorStoreWebController;
 use App\Http\Controllers\Vendor\VendorWalletWebController;
 use App\Http\Controllers\Vendor\VendorCategoryController;
+use App\Http\Controllers\Vendor\VendorAddonController;
 use App\Http\Controllers\Admin\Auth\AdminAuthController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\AdminUserController;
@@ -64,6 +65,14 @@ Route::prefix('vendor')->name('vendor.')->group(function () {
             Route::post('/', [VendorCategoryController::class, 'store'])->name('store');
             Route::match(['PATCH','POST'], '/{category}', [VendorCategoryController::class, 'update'])->name('update');
             Route::delete('/{category}', [VendorCategoryController::class, 'destroy'])->name('destroy');
+        });
+
+        // Addons
+        Route::prefix('addons')->name('addons.')->group(function () {
+            Route::get('/', [VendorAddonController::class, 'index'])->name('index');
+            Route::post('/', [VendorAddonController::class, 'store'])->name('store');
+            Route::match(['PATCH','POST'], '/{addon}', [VendorAddonController::class, 'update'])->name('update');
+            Route::delete('/{addon}', [VendorAddonController::class, 'destroy'])->name('destroy');
         });
 
         // Products

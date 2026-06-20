@@ -299,7 +299,7 @@ class EFoodController extends Controller
             $vendorAddons = DB::table('addons')
                 ->where('vendor_id', $restaurantId)
                 ->where('is_active', true)
-                ->get(['id', 'name', 'price', 'is_required', 'max_select']);
+                ->get(['id', 'name', 'image', 'price', 'is_required', 'max_select']);
         } catch (\Throwable) {
             $vendorAddons = collect();
         }

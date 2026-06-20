@@ -1992,19 +1992,44 @@ class _FoodItemDetailPageState extends ConsumerState<_FoodItemDetailPage> {
               Text('Addons', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
               const SizedBox(height: 8),
             ],
-            ...addons.map((a) => Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
-              child: CheckboxListTile(
-                value: _selectedAddons.contains(a),
-                onChanged: (v) => setState(() { v! ? _selectedAddons.add(a) : _selectedAddons.remove(a); }),
-                activeColor: _primary,
-                title: Text(a['name'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                secondary: Text('+\$${a['price'] ?? '0.00'}', style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                controlAffinity: ListTileControlAffinity.leading,
-              ),
-            )),
+            ...addons.map((a) {
+              final addonImg = a['image'] as String?;
+              return GestureDetector(
+                onTap: () => setState(() { _selectedAddons.contains(a) ? _selectedAddons.remove(a) : _selectedAddons.add(a); }),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: context.colors.cardBg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _selectedAddons.contains(a) ? _primary : Colors.transparent, width: 1.5),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)],
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 22, height: 22,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _selectedAddons.contains(a) ? _primary : Colors.grey.shade400, width: 2),
+                        color: _selectedAddons.contains(a) ? _primary : Colors.transparent,
+                      ),
+                      child: _selectedAddons.contains(a) ? const Icon(Icons.check, size: 14, color: Colors.white) : null,
+                    ),
+                    const SizedBox(width: 10),
+                    if (addonImg != null && addonImg.isNotEmpty) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: _NetImg(url: addonImg, width: 40, height: 40, radius: 8,
+                            fallback: const SizedBox(width: 40, height: 40)),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    Expanded(child: Text(a['name'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500))),
+                    Text('+\$${a['price'] ?? '0.00'}', style: TextStyle(color: _primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                  ]),
+                ),
+              );
+            }),
 
             const SizedBox(height: 24),
             Text('Special Instructions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),

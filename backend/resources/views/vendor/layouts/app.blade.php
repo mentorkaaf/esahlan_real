@@ -280,6 +280,10 @@
             <span class="nav-icon"><i class="fa-solid fa-box"></i></span>
             <span class="nav-text">Products</span>
         </a>
+        <a href="{{ route('vendor.addons.index') }}" class="nav-link {{ request()->routeIs('vendor.addons.*') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-puzzle-piece"></i></span>
+            <span class="nav-text">Addons</span>
+        </a>
 
         <div class="nav-section-label">Business</div>
         <a href="{{ route('vendor.store.index') }}" class="nav-link {{ request()->routeIs('vendor.store.*') ? 'active' : '' }}">

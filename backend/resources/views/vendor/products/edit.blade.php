@@ -123,6 +123,27 @@
                 </div>
             </div>
 
+            @if($addons->isNotEmpty())
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-header-title"><div class="card-header-icon" style="background:rgba(236,72,153,0.1);color:#ec4899;"><i class="fa-solid fa-puzzle-piece"></i></div> Addons</div>
+                </div>
+                <div class="card-body" style="display:flex;flex-direction:column;gap:8px;">
+                    @php $selectedAddonIds = $product->addons->pluck('id')->toArray(); @endphp
+                    @foreach($addons as $a)
+                    <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer">
+                        <input type="checkbox" name="addon_ids[]" value="{{ $a->id }}" {{ in_array($a->id, $selectedAddonIds) ? 'checked' : '' }}>
+                        @if($a->image)
+                        <img src="{{ $a->image }}" style="width:32px;height:32px;object-fit:cover;border-radius:6px">
+                        @endif
+                        <span style="flex:1;font-weight:600;font-size:13px">{{ $a->name }}</span>
+                        <span style="color:var(--success);font-weight:700;font-size:12px">+${{ number_format($a->price, 2) }}</span>
+                    </label>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
             <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;font-size:15px;">
                 <i class="fa-solid fa-floppy-disk"></i> Save Changes
             </button>

@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Vendor;
 
 use App\Http\Controllers\Controller;
+use App\Models\Addon;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\Request;
@@ -29,7 +30,8 @@ class VendorProductWebController extends Controller
     {
         $vendor     = auth()->user()->vendor;
         $categories = Category::where('vendor_id', $vendor->id)->orWhere('module_id', $vendor->module_id)->get();
-        return view('vendor.products.create', compact('categories'));
+        $addons     = Addon::where('vendor_id', $vendor->id)->where('is_active', true)->orderBy('name')->get();
+        return view('vendor.products.create', compact('categories', 'addons'));
     }
 
     public function store(Request $request)
@@ -60,7 +62,10 @@ class VendorProductWebController extends Controller
             $data['thumbnail'] = $request->file('thumbnail')->store('products', 'public');
         }
 
-        Product::create($data);
+        $product = Product::create($data);
+        if ($request->has('addon_ids')) {
+            $product->addons()->sync($request->addon_ids);
+        }
         return redirect()->route('vendor.products.index')->with('success', 'Product created successfully.');
     }
 
@@ -69,7 +74,9 @@ class VendorProductWebController extends Controller
         $vendor = auth()->user()->vendor;
         abort_if($product->vendor_id !== $vendor->id, 404);
         $categories = Category::where('vendor_id', $vendor->id)->orWhere('module_id', $vendor->module_id)->get();
-        return view('vendor.products.edit', compact('product', 'categories'));
+        $addons     = Addon::where('vendor_id', $vendor->id)->where('is_active', true)->orderBy('name')->get();
+        $product->load('addons');
+        return view('vendor.products.edit', compact('product', 'categories', 'addons'));
     }
 
     public function update(Request $request, Product $product)
@@ -98,6 +105,7 @@ class VendorProductWebController extends Controller
         }
 
         $product->update($data);
+        $product->addons()->sync($request->addon_ids ?? []);
         return redirect()->route('vendor.products.index')->with('success', 'Product updated.');
     }
 
