@@ -450,14 +450,25 @@ $tz = \App\Helpers\AppSettings::timezone();
         </div>
     </div>
     <div style="background:#fff;padding:14px 20px;">
+        @php
+            $commission = (float)($order->commission ?? 0);
+            $vendorEarn = (float)$order->subtotal - $commission;
+        @endphp
         <div style="display:flex;justify-content:space-between;font-size:13px;color:#666;margin-bottom:4px;"><span>Subtotal</span><span>${{ number_format($order->subtotal,2) }}</span></div>
         @if($order->delivery_fee > 0)
-        <div style="display:flex;justify-content:space-between;font-size:13px;color:#666;margin-bottom:4px;"><span>Delivery</span><span>+${{ number_format($order->delivery_fee,2) }}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:#666;margin-bottom:4px;"><span>Delivery Fee</span><span>+${{ number_format($order->delivery_fee,2) }}</span></div>
         @endif
         @if(($order->discount_amount ?? 0) > 0)
         <div style="display:flex;justify-content:space-between;font-size:13px;color:#c62828;margin-bottom:4px;"><span>Discount</span><span>-${{ number_format($order->discount_amount,2) }}</span></div>
         @endif
-        <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:900;color:#FF8A00;padding-top:10px;border-top:2px solid #F0F1F5;"><span>Total</span><span>${{ number_format($order->total_amount,2) }}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;color:#FF8A00;padding-top:10px;border-top:2px solid #F0F1F5;margin-bottom:10px;"><span>Total (Customer Paid)</span><span>${{ number_format($order->total_amount,2) }}</span></div>
+
+        <div style="background:#f8f9fa;border-radius:10px;padding:12px;margin-top:4px;">
+            <div style="font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;margin-bottom:8px;">Revenue Breakdown</div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:#1565C0;margin-bottom:4px;font-weight:600;"><span>Admin Commission</span><span>${{ number_format($commission, 2) }}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:#2e7d32;margin-bottom:4px;font-weight:600;"><span>Vendor Earning</span><span>${{ number_format($vendorEarn, 2) }}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:#666;"><span>Delivery Revenue</span><span>${{ number_format($order->delivery_fee, 2) }}</span></div>
+        </div>
     </div>
 </div>
 

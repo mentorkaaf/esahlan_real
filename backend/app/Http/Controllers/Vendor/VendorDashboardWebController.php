@@ -14,17 +14,29 @@ class VendorDashboardWebController extends Controller
         $vendor = $this->activeVendor();
         $today  = now()->toDateString();
 
+        $baseQuery = fn() => Order::where('vendor_id', $vendor->id)->where('status', '!=', 'cancelled');
+
+        $todayEarning = (clone $baseQuery())->whereDate('created_at', $today)
+            ->selectRaw('COALESCE(SUM(subtotal - COALESCE(commission, 0)), 0) as earning')
+            ->value('earning');
+
+        $monthEarning = (clone $baseQuery())->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)
+            ->selectRaw('COALESCE(SUM(subtotal - COALESCE(commission, 0)), 0) as earning')
+            ->value('earning');
+
+        $totalCommission = (clone $baseQuery())
+            ->selectRaw('COALESCE(SUM(COALESCE(commission, 0)), 0) as total')
+            ->value('total');
+
         $stats = [
-            'today_orders'   => Order::where('vendor_id', $vendor->id)->whereDate('created_at', $today)->count(),
-            'today_revenue'  => Order::where('vendor_id', $vendor->id)->whereDate('created_at', $today)
-                ->where('status', '!=', 'cancelled')->sum('total_amount'),
-            'pending_orders' => Order::where('vendor_id', $vendor->id)->where('status', 'pending')->count(),
-            'total_orders'   => Order::where('vendor_id', $vendor->id)->count(),
-            'this_month'     => Order::where('vendor_id', $vendor->id)
-                ->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)
-                ->where('status', '!=', 'cancelled')->sum('total_amount'),
-            'rating'         => round($vendor->rating ?? 0, 1),
-            'total_reviews'  => $vendor->review_count ?? 0,
+            'today_orders'    => Order::where('vendor_id', $vendor->id)->whereDate('created_at', $today)->count(),
+            'today_earning'   => (float) $todayEarning,
+            'pending_orders'  => Order::where('vendor_id', $vendor->id)->where('status', 'pending')->count(),
+            'total_orders'    => Order::where('vendor_id', $vendor->id)->count(),
+            'this_month'      => (float) $monthEarning,
+            'total_commission'=> (float) $totalCommission,
+            'rating'          => round($vendor->rating ?? 0, 1),
+            'total_reviews'   => $vendor->review_count ?? 0,
         ];
 
         $recentOrders = Order::with(['user', 'items'])
@@ -36,7 +48,7 @@ class VendorDashboardWebController extends Controller
         $chartData = Order::where('vendor_id', $vendor->id)
             ->where('status', '!=', 'cancelled')
             ->whereDate('created_at', '>=', now()->subDays(7))
-            ->selectRaw('DATE(created_at) as date, COUNT(*) as orders, SUM(total_amount) as revenue')
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as orders, COALESCE(SUM(subtotal - COALESCE(commission, 0)), 0) as revenue')
             ->groupBy(DB::raw('DATE(created_at)'))
             ->orderBy('date')
             ->get();
@@ -48,7 +60,7 @@ class VendorDashboardWebController extends Controller
     {
         $vendor = $this->activeVendor();
         $vendor->update(['temporarily_closed' => !$vendor->temporarily_closed]);
-        $msg = $vendor->temporarily_closed ? 'Mağaza geçici olarak kapatıldı.' : 'Mağaza açıldı.';
+        $msg = $vendor->temporarily_closed ? 'Store temporarily closed.' : 'Store is now open.';
         return back()->with('success', $msg);
     }
 }

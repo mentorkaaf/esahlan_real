@@ -477,9 +477,19 @@ class EFoodController extends Controller
             ];
         }
 
-        $deliveryFee   = 1.00;
+        $vendor = DB::table('vendors')->find($vendorId);
+        $deliveryFee   = (float) ($vendor->delivery_fee ?? 0);
         $discountTotal = round($discountTotal, 2);
-        $total         = round($subtotal + $deliveryFee, 2);
+        $total         = round(max(0, $subtotal - $discountTotal) + $deliveryFee, 2);
+
+        // Commission calculation
+        $commissionRate = (float) ($vendor->commission_value ?? 0);
+        if ($commissionRate <= 0) {
+            $module = DB::table('modules')->find($moduleId);
+            $commissionRate = (float) ($module->commission_value ?? 10);
+        }
+        $commissionAmount = round($subtotal * $commissionRate / 100, 2);
+        $vendorEarning    = round($subtotal - $commissionAmount, 2);
 
         // ── Wallet balance check ───────────────────────────────────────
         if ($pm === 'wallet' && $userId) {
@@ -501,7 +511,8 @@ class EFoodController extends Controller
 
         $order = DB::transaction(function () use (
             $userId, $vendorId, $moduleId, $pm, $total, $subtotal,
-            $deliveryFee, $discountTotal, $activeCampaign,
+            $deliveryFee, $discountTotal, $commissionAmount, $commissionRate,
+            $vendorEarning, $activeCampaign,
             $deliveryAddr, $orderItems, $request
         ) {
             $orderData = [
@@ -515,15 +526,13 @@ class EFoodController extends Controller
                 'delivery_address'=> $deliveryAddr,
                 'subtotal'        => $subtotal,
                 'delivery_fee'    => $deliveryFee,
+                'discount_amount' => $discountTotal,
+                'commission'      => $commissionAmount,
                 'total_amount'    => $total,
                 'notes'           => $request->input('note'),
                 'placed_at'       => now(),
             ];
-            // Store discount info if columns exist
             try {
-                if ($discountTotal > 0) {
-                    $orderData['discount_amount'] = $discountTotal;
-                }
                 if ($activeCampaign) {
                     $orderData['campaign_id'] = $activeCampaign->id;
                 }

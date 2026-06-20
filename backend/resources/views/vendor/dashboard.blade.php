@@ -31,8 +31,8 @@
     <div class="stat-card green">
         <div class="stat-icon-wrap green"><i class="fa-solid fa-dollar-sign"></i></div>
         <div>
-            <div class="stat-value">${{ number_format($stats['today_revenue'], 2) }}</div>
-            <div class="stat-label">Today's Revenue</div>
+            <div class="stat-value">${{ number_format($stats['today_earning'], 2) }}</div>
+            <div class="stat-label">Today's Earning</div>
         </div>
     </div>
     <div class="stat-card red">
@@ -53,7 +53,7 @@
         <div class="stat-icon-wrap purple"><i class="fa-solid fa-calendar"></i></div>
         <div>
             <div class="stat-value">${{ number_format($stats['this_month'], 2) }}</div>
-            <div class="stat-label">This Month</div>
+            <div class="stat-label">This Month Earning</div>
         </div>
     </div>
     <div class="stat-card teal">
