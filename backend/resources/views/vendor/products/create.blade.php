@@ -139,6 +139,26 @@
             </div>
             @endif
 
+            @if(isset($branches) && $branches->isNotEmpty())
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-header-title"><div class="card-header-icon" style="background:rgba(99,102,241,0.1);color:#6366f1;"><i class="fa-solid fa-code-branch"></i></div> Apply to Branches</div>
+                </div>
+                <div class="card-body" style="display:flex;flex-direction:column;gap:8px;">
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:4px;cursor:pointer" onclick="document.querySelectorAll('.branch-cb').forEach(c=>c.checked=this.querySelector('input').checked)">
+                        <input type="checkbox" style="accent-color:#6366f1;"> <strong style="font-size:12px;">Select All</strong>
+                    </label>
+                    @foreach($branches as $b)
+                    <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer">
+                        <input type="checkbox" name="branch_ids[]" value="{{ $b->id }}" class="branch-cb" style="accent-color:#6366f1;">
+                        <span style="font-weight:600;font-size:13px">{{ $b->name }}</span>
+                        @if($b->parent_id) <span style="font-size:10px;color:#888;">(Branch)</span> @endif
+                    </label>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
             <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;font-size:15px;">
                 <i class="fa-solid fa-floppy-disk"></i> Save Product
             </button>

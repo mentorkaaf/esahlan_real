@@ -1879,9 +1879,16 @@
                 <label class="form-label">Address</label>
                 <input type="text" name="address" class="form-control" placeholder="Branch address">
             </div>
+            <div class="form-group">
+                <label class="form-label">Location <small style="color:#888">(click map to set)</small></label>
+                <div id="branchMap" style="height:220px;border-radius:12px;border:1.5px solid #e2e8f0;margin-bottom:8px;"></div>
+                <input type="hidden" name="latitude" id="branch_lat">
+                <input type="hidden" name="longitude" id="branch_lng">
+                <div id="branchLatLng" style="font-size:11px;color:#888;"></div>
+            </div>
             <div style="background:#e8f5e9;border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:#2e7d32;">
                 <i class="fas fa-info-circle" style="margin-right:6px;"></i>
-                Menu, categories, addons, schedule, and branding will be copied from the main restaurant. The branch will share the same owner login.
+                Menu, categories, addons, schedule, and branding will be copied. Same owner login.
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%;">Create Branch</button>
         </form>
@@ -1938,10 +1945,39 @@ function showTab(tab) {
 })();
 
 // ─── Create Branch ───────────────────────────────────────────────
+var branchMap, branchMarker;
 function openBranchModal(parentId, parentName) {
     document.getElementById('branchForm').action = '/admin/module-data/efood/restaurants/' + parentId + '/branch';
     document.getElementById('branchLabel').textContent = 'Create a new branch for "' + parentName + '". Menu and settings will be copied.';
+    document.getElementById('branch_lat').value = '';
+    document.getElementById('branch_lng').value = '';
+    document.getElementById('branchLatLng').textContent = '';
     openModal('branchModal');
+    setTimeout(function() {
+        var center = { lat: 2.0469, lng: 45.3182 };
+        if (!branchMap) {
+            branchMap = new google.maps.Map(document.getElementById('branchMap'), {
+                zoom: 13, center: center, mapTypeControl: false, streetViewControl: false,
+            });
+            branchMap.addListener('click', function(e) {
+                var lat = e.latLng.lat(), lng = e.latLng.lng();
+                if (branchMarker) branchMarker.setPosition(e.latLng);
+                else branchMarker = new google.maps.Marker({ position: e.latLng, map: branchMap, draggable: true });
+                document.getElementById('branch_lat').value = lat.toFixed(8);
+                document.getElementById('branch_lng').value = lng.toFixed(8);
+                document.getElementById('branchLatLng').textContent = lat.toFixed(6) + ', ' + lng.toFixed(6);
+                branchMarker.addListener('dragend', function(ev) {
+                    document.getElementById('branch_lat').value = ev.latLng.lat().toFixed(8);
+                    document.getElementById('branch_lng').value = ev.latLng.lng().toFixed(8);
+                    document.getElementById('branchLatLng').textContent = ev.latLng.lat().toFixed(6) + ', ' + ev.latLng.lng().toFixed(6);
+                });
+            });
+        } else {
+            google.maps.event.trigger(branchMap, 'resize');
+            branchMap.setCenter(center);
+            if (branchMarker) { branchMarker.setMap(null); branchMarker = null; }
+        }
+    }, 300);
 }
 
 // ─── Assign Category ─────────────────────────────────────────────

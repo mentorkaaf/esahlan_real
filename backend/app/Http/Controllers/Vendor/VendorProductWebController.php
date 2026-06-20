@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Addon;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -30,10 +31,11 @@ class VendorProductWebController extends Controller
 
     public function create()
     {
-        $vendor     = auth()->user()->vendor;
+        $vendor     = $this->activeVendor();
         $categories = Category::where('vendor_id', $vendor->id)->orWhere('module_id', $vendor->module_id)->get();
         $addons     = Addon::where('vendor_id', $vendor->id)->where('is_active', true)->orderBy('name')->get();
-        return view('vendor.products.create', compact('categories', 'addons'));
+        $branches   = $this->getSiblingBranches($vendor);
+        return view('vendor.products.create', compact('categories', 'addons', 'branches'));
     }
 
     public function store(Request $request)
@@ -68,6 +70,12 @@ class VendorProductWebController extends Controller
         if ($request->has('addon_ids')) {
             $product->addons()->sync($request->addon_ids);
         }
+
+        // Copy to selected branches
+        if ($request->has('branch_ids')) {
+            $this->copyProductToBranches($product, $request->branch_ids, $request->addon_ids ?? []);
+        }
+
         return redirect()->route('vendor.products.index')->with('success', 'Product created successfully.');
     }
 
@@ -125,5 +133,49 @@ class VendorProductWebController extends Controller
         abort_if($product->vendor_id !== $vendor->id, 404);
         $product->update(['is_available' => !$product->is_available]);
         return back()->with('success', $product->is_available ? 'Product is now available.' : 'Product is now unavailable.');
+    }
+
+    private function getSiblingBranches(Vendor $vendor): \Illuminate\Support\Collection
+    {
+        $userId = auth()->id();
+        return Vendor::where('user_id', $userId)
+            ->where('id', '!=', $vendor->id)
+            ->orderBy('name')
+            ->get(['id', 'name', 'parent_id']);
+    }
+
+    private function copyProductToBranches(Product $product, array $branchIds, array $addonIds): void
+    {
+        $userId = auth()->id();
+        $branches = Vendor::where('user_id', $userId)->whereIn('id', $branchIds)->get();
+
+        foreach ($branches as $branch) {
+            $copy = $product->replicate();
+            $copy->vendor_id = $branch->id;
+            $copy->uuid = (string) Str::uuid();
+            $copy->slug = Str::slug($product->name) . '-' . Str::random(5);
+
+            // Map category by name to branch's own category
+            if ($product->category_id) {
+                $branchCat = Category::where('vendor_id', $branch->id)
+                    ->where('name', $product->category?->name)
+                    ->first();
+                $copy->category_id = $branchCat?->id ?? $product->category_id;
+            }
+            $copy->save();
+
+            // Copy addons
+            if (!empty($addonIds)) {
+                foreach (Addon::whereIn('id', $addonIds)->get() as $addon) {
+                    $branchAddon = Addon::firstOrCreate(
+                        ['vendor_id' => $branch->id, 'name' => $addon->name],
+                        ['price' => $addon->price, 'image' => $addon->image, 'is_active' => true]
+                    );
+                    \DB::table('product_addons')->insertOrIgnore([
+                        'product_id' => $copy->id, 'addon_id' => $branchAddon->id,
+                    ]);
+                }
+            }
+        }
     }
 }
