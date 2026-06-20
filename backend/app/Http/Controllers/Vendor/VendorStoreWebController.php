@@ -7,16 +7,18 @@ use Illuminate\Http\Request;
 
 class VendorStoreWebController extends Controller
 {
+    use HasActiveVendor;
+
     public function index()
     {
-        $vendor    = auth()->user()->vendor->load('schedules', 'documents');
+        $vendor    = $this->activeVendor()->load('schedules', 'documents');
         $schedules = $vendor->schedules()->orderBy('day')->get()->keyBy('day');
         return view('vendor.store.index', compact('vendor', 'schedules'));
     }
 
     public function update(Request $request)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
 
         $data = $request->validate([
             'name'          => 'required|string|max:200',
@@ -44,7 +46,7 @@ class VendorStoreWebController extends Controller
 
     public function updateSchedule(Request $request)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
 
         $request->validate([
             'schedule'   => 'required|array',
@@ -70,7 +72,7 @@ class VendorStoreWebController extends Controller
 
     public function toggleOpen()
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         $vendor->update(['temporarily_closed' => !$vendor->temporarily_closed]);
         $msg = $vendor->temporarily_closed ? 'Store temporarily closed.' : 'Store is now open.';
         return back()->with('success', $msg);

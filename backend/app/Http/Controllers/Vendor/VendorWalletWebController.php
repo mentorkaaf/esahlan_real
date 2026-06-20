@@ -8,9 +8,11 @@ use Illuminate\Support\Facades\DB;
 
 class VendorWalletWebController extends Controller
 {
+    use HasActiveVendor;
+
     public function index()
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         $wallet = Wallet::where('owner_type', 'App\\Models\\Vendor')->where('owner_id', $vendor->id)->first();
 
         $transactions = [];
@@ -33,7 +35,7 @@ class VendorWalletWebController extends Controller
 
     public function requestWithdrawal(Request $request)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         $wallet = Wallet::where('owner_type', 'App\\Models\\Vendor')->where('owner_id', $vendor->id)->firstOrFail();
 
         $request->validate([

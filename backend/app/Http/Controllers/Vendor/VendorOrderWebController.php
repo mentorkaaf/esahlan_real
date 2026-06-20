@@ -8,11 +8,11 @@ use Illuminate\Http\Request;
 
 class VendorOrderWebController extends Controller
 {
-    public function __construct(private NotificationService $notif) {}
+    use HasActiveVendor;
 
     public function index(Request $request)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
 
         $orders = Order::with(['user', 'items'])
             ->where('vendor_id', $vendor->id)
@@ -27,7 +27,7 @@ class VendorOrderWebController extends Controller
 
     public function show(Order $order)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         abort_if($order->vendor_id !== $vendor->id, 404);
         $order->load(['user', 'items', 'statusHistory']);
         return view('vendor.orders.show', compact('order'));
@@ -35,7 +35,7 @@ class VendorOrderWebController extends Controller
 
     public function accept(Order $order)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         abort_if($order->vendor_id !== $vendor->id || $order->status !== 'pending', 422);
 
         $order->update(['status' => 'confirmed', 'confirmed_at' => now()]);
@@ -54,7 +54,7 @@ class VendorOrderWebController extends Controller
 
     public function reject(Request $request, Order $order)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         abort_if($order->vendor_id !== $vendor->id, 404);
         abort_if(!in_array($order->status, ['pending', 'confirmed']), 422);
 
@@ -75,7 +75,7 @@ class VendorOrderWebController extends Controller
 
     public function markReady(Order $order)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         abort_if($order->vendor_id !== $vendor->id, 404);
 
         $order->update(['status' => 'ready_for_pickup', 'ready_at' => now()]);

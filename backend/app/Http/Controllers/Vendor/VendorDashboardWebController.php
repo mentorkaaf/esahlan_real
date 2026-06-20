@@ -7,9 +7,11 @@ use Illuminate\Support\Facades\DB;
 
 class VendorDashboardWebController extends Controller
 {
+    use HasActiveVendor;
+
     public function index()
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         $today  = now()->toDateString();
 
         $stats = [
@@ -44,7 +46,7 @@ class VendorDashboardWebController extends Controller
 
     public function toggleStore()
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         $vendor->update(['temporarily_closed' => !$vendor->temporarily_closed]);
         $msg = $vendor->temporarily_closed ? 'Mağaza geçici olarak kapatıldı.' : 'Mağaza açıldı.';
         return back()->with('success', $msg);

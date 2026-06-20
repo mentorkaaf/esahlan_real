@@ -9,9 +9,11 @@ use Illuminate\Support\Str;
 
 class VendorCategoryController extends Controller
 {
+    use HasActiveVendor;
+
     public function index()
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         $categories = Category::where('vendor_id', $vendor->id)
             ->orderBy('sort_order')
             ->get();
@@ -21,7 +23,7 @@ class VendorCategoryController extends Controller
 
     public function store(Request $request)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
 
         $data = $request->validate([
             'name'       => 'required|string|max:100',
@@ -49,7 +51,7 @@ class VendorCategoryController extends Controller
 
     public function update(Request $request, Category $category)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         abort_if($category->vendor_id !== $vendor->id, 404);
 
         $data = $request->validate([
@@ -76,7 +78,7 @@ class VendorCategoryController extends Controller
 
     public function destroy(Category $category)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         abort_if($category->vendor_id !== $vendor->id, 404);
         $category->delete();
         return back()->with('success', 'Category deleted.');

@@ -39,7 +39,7 @@ class AdminEFoodController extends Controller
         $moduleId  = $module?->id;
 
         $restaurants = Vendor::when($moduleId, fn($q) => $q->where('vendors.module_id', $moduleId))
-            ->with(['district', 'user:id,phone,email'])
+            ->with(['district', 'user:id,phone,email', 'parent:id,name'])
             ->orderByDesc('vendors.created_at')
             ->paginate(20);
 
@@ -252,6 +252,89 @@ class AdminEFoodController extends Controller
         }
 
         return json_encode($schedule);
+    }
+
+    public function createBranch(Request $request, $id)
+    {
+        $parent = Vendor::with(['categories', 'products.addons', 'schedules'])->findOrFail($id);
+
+        $request->validate([
+            'branch_name'  => 'required|string|max:200',
+            'district_id'  => 'nullable|exists:districts,id',
+            'address'      => 'nullable|string|max:500',
+            'latitude'     => 'nullable|numeric',
+            'longitude'    => 'nullable|numeric',
+        ]);
+
+        $branch = Vendor::create([
+            'user_id'     => $parent->user_id,
+            'parent_id'   => $parent->id,
+            'module_id'   => $parent->module_id,
+            'module_slug'  => $parent->module_slug,
+            'name'         => $request->branch_name,
+            'slug'         => Str::slug($request->branch_name) . '-' . Str::random(6),
+            'description'  => $parent->description,
+            'logo'         => $parent->logo,
+            'cover_image'  => $parent->cover_image,
+            'phone'        => $parent->phone,
+            'email'        => $parent->email,
+            'vendor_type'  => $parent->vendor_type,
+            'district_id'  => $request->district_id,
+            'address'      => $request->address,
+            'latitude'     => $request->latitude,
+            'longitude'    => $request->longitude,
+            'delivery_time'  => $parent->delivery_time,
+            'delivery_fee'   => $parent->delivery_fee,
+            'minimum_order'  => $parent->minimum_order,
+            'status'       => 'active',
+            'is_active'    => true,
+            'is_approved'  => true,
+            'is_open'      => true,
+        ]);
+
+        // Copy schedules
+        foreach ($parent->schedules as $s) {
+            $branch->schedules()->create([
+                'day' => $s->day, 'is_open' => $s->is_open,
+                'open_time' => $s->open_time, 'close_time' => $s->close_time,
+            ]);
+        }
+
+        // Copy categories
+        $catMap = [];
+        foreach ($parent->categories as $c) {
+            $newCat = Category::create([
+                'vendor_id' => $branch->id, 'module_id' => $c->module_id,
+                'name' => $c->name, 'slug' => Str::slug($c->name) . '-' . Str::random(4),
+                'image' => $c->image, 'sort_order' => $c->sort_order, 'is_active' => $c->is_active,
+            ]);
+            $catMap[$c->id] = $newCat->id;
+        }
+
+        // Copy products with addons
+        foreach ($parent->products as $p) {
+            $newProduct = $p->replicate();
+            $newProduct->vendor_id = $branch->id;
+            $newProduct->uuid = (string) Str::uuid();
+            $newProduct->slug = Str::slug($p->name) . '-' . Str::random(5);
+            $newProduct->category_id = $catMap[$p->category_id] ?? $p->category_id;
+            $newProduct->save();
+
+            // Copy addon links
+            if ($p->addons->isNotEmpty()) {
+                foreach ($p->addons as $addon) {
+                    $newAddon = Addon::firstOrCreate(
+                        ['vendor_id' => $branch->id, 'name' => $addon->name],
+                        ['price' => $addon->price, 'image' => $addon->image, 'is_active' => $addon->is_active]
+                    );
+                    DB::table('product_addons')->insertOrIgnore([
+                        'product_id' => $newProduct->id, 'addon_id' => $newAddon->id,
+                    ]);
+                }
+            }
+        }
+
+        return back()->with('success', "Branch \"{$branch->name}\" created with menu copied from {$parent->name}.");
     }
 
     public function restaurantDestroy($id)

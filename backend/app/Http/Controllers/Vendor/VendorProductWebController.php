@@ -10,9 +10,11 @@ use Illuminate\Support\Str;
 
 class VendorProductWebController extends Controller
 {
+    use HasActiveVendor;
+
     public function index(Request $request)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
 
         $products = Product::with('category')
             ->where('vendor_id', $vendor->id)
@@ -36,7 +38,7 @@ class VendorProductWebController extends Controller
 
     public function store(Request $request)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
 
         $data = $request->validate([
             'name'           => 'required|string|max:200',
@@ -71,7 +73,7 @@ class VendorProductWebController extends Controller
 
     public function edit(Product $product)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         abort_if($product->vendor_id !== $vendor->id, 404);
         $categories = Category::where('vendor_id', $vendor->id)->orWhere('module_id', $vendor->module_id)->get();
         $addons     = Addon::where('vendor_id', $vendor->id)->where('is_active', true)->orderBy('name')->get();
@@ -81,7 +83,7 @@ class VendorProductWebController extends Controller
 
     public function update(Request $request, Product $product)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         abort_if($product->vendor_id !== $vendor->id, 404);
 
         $data = $request->validate([
@@ -111,7 +113,7 @@ class VendorProductWebController extends Controller
 
     public function destroy(Product $product)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         abort_if($product->vendor_id !== $vendor->id, 404);
         $product->delete();
         return back()->with('success', 'Product deleted.');
@@ -119,7 +121,7 @@ class VendorProductWebController extends Controller
 
     public function toggle(Product $product)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         abort_if($product->vendor_id !== $vendor->id, 404);
         $product->update(['is_available' => !$product->is_available]);
         return back()->with('success', $product->is_available ? 'Product is now available.' : 'Product is now unavailable.');

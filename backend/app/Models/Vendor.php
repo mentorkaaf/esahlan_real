@@ -12,7 +12,7 @@ class Vendor extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'uuid','user_id','module_id','module_slug','district_id','business_license','name','slug',
+        'uuid','user_id','parent_id','module_id','module_slug','district_id','business_license','name','slug',
         'description','logo','cover_image','phone','email','address',
         'latitude','longitude','vendor_type','status','is_open','is_active','is_approved',
         'is_featured','is_verified','temporarily_closed','minimum_order','delivery_fee',
@@ -43,6 +43,8 @@ class Vendor extends Model
     public function scopeOpen($q) { return $q->where('is_open', true)->where('temporarily_closed', false); }
 
     public function user() { return $this->belongsTo(User::class); }
+    public function parent() { return $this->belongsTo(Vendor::class, 'parent_id'); }
+    public function branches() { return $this->hasMany(Vendor::class, 'parent_id'); }
     public function module() { return $this->belongsTo(Module::class); }
     public function district() { return $this->belongsTo(District::class); }
     public function schedules() { return $this->hasMany(VendorSchedule::class); }

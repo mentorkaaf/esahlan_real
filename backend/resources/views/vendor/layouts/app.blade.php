@@ -247,7 +247,26 @@
     </a>
 
     <div class="sidebar-scroll">
-        @php $vendor = auth()->user()->vendor; @endphp
+        @php
+            $user = auth()->user();
+            $allVendors = \App\Models\Vendor::where('user_id', $user->id)->orderBy('name')->get();
+            $activeVendorId = session('active_vendor_id', $user->vendor?->id);
+            $vendor = $allVendors->firstWhere('id', $activeVendorId) ?? $user->vendor;
+        @endphp
+        @if($allVendors->count() > 1)
+        <div style="padding:8px 12px 0;">
+            <form action="{{ route('vendor.switch-branch') }}" method="POST" style="margin:0;">
+                @csrf
+                <select name="vendor_id" onchange="this.form.submit()" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#fff;font-size:12px;font-weight:600;">
+                    @foreach($allVendors as $v)
+                    <option value="{{ $v->id }}" {{ $v->id == $vendor?->id ? 'selected' : '' }} style="color:#000;">
+                        {{ $v->name }}{{ $v->parent_id ? ' (Branch)' : '' }}
+                    </option>
+                    @endforeach
+                </select>
+            </form>
+        </div>
+        @endif
         @if($vendor)
         <div style="padding: 10px 16px 4px;">
             <div class="{{ $vendor->temporarily_closed ? 'store-status closed' : 'store-status open' }}">

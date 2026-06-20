@@ -59,6 +59,14 @@ Route::prefix('vendor')->name('vendor.')->group(function () {
             Route::post('/{order}/ready', [VendorOrderWebController::class, 'markReady'])->name('ready');
         });
 
+        // Branch Switcher
+        Route::post('/switch-branch', function (\Illuminate\Http\Request $request) {
+            $vendorId = $request->input('vendor_id');
+            $owns = \App\Models\Vendor::where('id', $vendorId)->where('user_id', auth()->id())->exists();
+            if ($owns) session(['active_vendor_id' => (int) $vendorId]);
+            return back();
+        })->name('switch-branch');
+
         // Menu Categories
         Route::prefix('categories')->name('categories.')->group(function () {
             Route::get('/', [VendorCategoryController::class, 'index'])->name('index');
@@ -366,6 +374,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::patch('/restaurants/{id}',          [$ef, 'restaurantUpdate'])->name('restaurant.update');
                 Route::delete('/restaurants/{id}',         [$ef, 'restaurantDestroy'])->name('restaurant.destroy');
                 Route::post('/restaurants/{id}/toggle',    [$ef, 'restaurantToggle'])->name('restaurant.toggle');
+                Route::post('/restaurants/{id}/branch',   [$ef, 'createBranch'])->name('restaurant.branch');
                 // Categories
                 Route::post('/categories',                 [$ef, 'categoryStore'])->name('category.store');
                 Route::patch('/categories/{id}',           [$ef, 'categoryUpdate'])->name('category.update');

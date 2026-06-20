@@ -8,16 +8,18 @@ use Illuminate\Http\Request;
 
 class VendorAddonController extends Controller
 {
+    use HasActiveVendor;
+
     public function index()
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         $addons = Addon::where('vendor_id', $vendor->id)->orderBy('name')->get();
         return view('vendor.addons.index', compact('addons'));
     }
 
     public function store(Request $request)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         $data = $request->validate([
             'name'       => 'required|string|max:100',
             'price'      => 'required|numeric|min:0',
@@ -43,7 +45,7 @@ class VendorAddonController extends Controller
 
     public function update(Request $request, Addon $addon)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         abort_if($addon->vendor_id !== $vendor->id, 404);
 
         $data = $request->validate([
@@ -70,7 +72,7 @@ class VendorAddonController extends Controller
 
     public function destroy(Addon $addon)
     {
-        $vendor = auth()->user()->vendor;
+        $vendor = $this->activeVendor();
         abort_if($addon->vendor_id !== $vendor->id, 404);
         $addon->delete();
         return back()->with('success', 'Addon deleted.');

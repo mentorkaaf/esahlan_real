@@ -103,7 +103,11 @@
                                 @endif
                                 <div>
                                     <strong style="display:block;">{{ $r->name }}</strong>
-                                    <small class="text-muted">{{ $r->email ?? $r->phone ?? '—' }}</small>
+                                    @if($r->parent_id)
+                                        <span class="badge" style="background:#e0e7ff;color:#4338ca;font-size:10px;">Branch of {{ $r->parent?->name ?? '#'.$r->parent_id }}</span>
+                                    @else
+                                        <small class="text-muted">{{ $r->email ?? $r->phone ?? '—' }}</small>
+                                    @endif
                                 </div>
                             </div>
                         </td>
@@ -144,6 +148,11 @@
                                 onclick="openEditRestaurant({{ json_encode($r) }})">
                                 <i class="fas fa-edit"></i>
                             </button>
+                            @if(!$r->parent_id)
+                            <button class="btn btn-sm btn-primary" onclick="openBranchModal({{ $r->id }}, '{{ addslashes($r->name) }}')" title="Create Branch">
+                                <i class="fas fa-code-branch"></i>
+                            </button>
+                            @endif
                             <form action="{{ route('admin.module-data.efood.restaurant.destroy', $r->id) }}" method="POST" onsubmit="return confirm('Delete {{ addslashes($r->name) }}?')">
                                 @csrf @method('DELETE')
                                 <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
@@ -1843,6 +1852,42 @@
      JAVASCRIPT
      ══════════════════════════════════════════════════════════════════ --}}
 
+{{-- ─── CREATE BRANCH ───────────────────────────────────────────────── --}}
+<div class="modal-overlay" id="branchModal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 class="modal-title">Create Branch</h3>
+            <button class="modal-close" onclick="closeModal('branchModal')">✕</button>
+        </div>
+        <p id="branchLabel" style="font-size:13px;color:#666;margin-bottom:14px;"></p>
+        <form id="branchForm" method="POST">
+            @csrf
+            <div class="form-group">
+                <label class="form-label">Branch Name *</label>
+                <input type="text" name="branch_name" class="form-control" required placeholder="e.g. Qoobeey - Hodan Branch">
+            </div>
+            <div class="form-group">
+                <label class="form-label">District</label>
+                <select name="district_id" class="form-control">
+                    <option value="">Select district</option>
+                    @foreach($districts as $d)
+                        <option value="{{ $d->id }}">{{ $d->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Address</label>
+                <input type="text" name="address" class="form-control" placeholder="Branch address">
+            </div>
+            <div style="background:#e8f5e9;border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:#2e7d32;">
+                <i class="fas fa-info-circle" style="margin-right:6px;"></i>
+                Menu, categories, addons, schedule, and branding will be copied from the main restaurant. The branch will share the same owner login.
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Create Branch</button>
+        </form>
+    </div>
+</div>
+
 {{-- ─── ASSIGN CATEGORY TO RESTAURANTS ──────────────────────────────── --}}
 <div class="modal-overlay" id="assignCategoryModal">
     <div class="modal-box">
@@ -1891,6 +1936,13 @@ function showTab(tab) {
     const p = new URLSearchParams(window.location.search).get('tab');
     if (p && TABS.includes(p)) showTab(p);
 })();
+
+// ─── Create Branch ───────────────────────────────────────────────
+function openBranchModal(parentId, parentName) {
+    document.getElementById('branchForm').action = '/admin/module-data/efood/restaurants/' + parentId + '/branch';
+    document.getElementById('branchLabel').textContent = 'Create a new branch for "' + parentName + '". Menu and settings will be copied.';
+    openModal('branchModal');
+}
 
 // ─── Assign Category ─────────────────────────────────────────────
 function openAssignCategory(catId, catName) {
