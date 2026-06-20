@@ -291,7 +291,12 @@ function initUsersMap() {
     __usersMap = new google.maps.Map(document.getElementById('users-map'), {
         zoom: 12,
         center: defaultCenter,
-        mapTypeControl: false,
+        mapTypeControl: true,
+        mapTypeControlOptions: {
+            style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+            position: google.maps.ControlPosition.TOP_RIGHT,
+            mapTypeIds: ['roadmap', 'satellite', 'hybrid'],
+        },
         streetViewControl: false,
         fullscreenControl: true,
         styles: [{ featureType: 'poi', stylers: [{ visibility: 'off' }] }]
