@@ -140,10 +140,40 @@
                         <input type="checkbox" name="schedule[{{ $dayNum }}][is_open]" value="1" {{ $sch?->is_open ? 'checked' : '' }}>
                         <span class="toggle-slider"></span>
                     </label>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <input type="time" name="schedule[{{ $dayNum }}][open_time]" class="filter-input" value="{{ $sch ? substr($sch->open_time, 0, 5) : '08:00' }}" style="width:130px;">
-                        <span style="color:var(--text-muted);">–</span>
-                        <input type="time" name="schedule[{{ $dayNum }}][close_time]" class="filter-input" value="{{ $sch ? substr($sch->close_time, 0, 5) : '22:00' }}" style="width:130px;">
+                    @php
+                        $openRaw  = $sch ? substr($sch->open_time, 0, 5) : '08:00';
+                        $closeRaw = $sch ? substr($sch->close_time, 0, 5) : '22:00';
+                        [$oH,$oM] = explode(':', $openRaw);  $oH=(int)$oH; $oM=(int)$oM;
+                        [$cH,$cM] = explode(':', $closeRaw); $cH=(int)$cH; $cM=(int)$cM;
+                        $oAmpm = $oH >= 12 ? 'PM' : 'AM'; $o12 = $oH % 12 ?: 12;
+                        $cAmpm = $cH >= 12 ? 'PM' : 'AM'; $c12 = $cH % 12 ?: 12;
+                    @endphp
+                    <input type="hidden" name="schedule[{{ $dayNum }}][open_time]" id="open24_{{ $dayNum }}" value="{{ $openRaw }}">
+                    <input type="hidden" name="schedule[{{ $dayNum }}][close_time]" id="close24_{{ $dayNum }}" value="{{ $closeRaw }}">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <select class="filter-input t12-h" data-target="open" data-day="{{ $dayNum }}" style="width:62px;padding:6px">
+                            @for($h=1;$h<=12;$h++)<option value="{{ $h }}" {{ $o12==$h?'selected':'' }}>{{ $h }}</option>@endfor
+                        </select>
+                        <span style="font-weight:700">:</span>
+                        <select class="filter-input t12-m" data-target="open" data-day="{{ $dayNum }}" style="width:62px;padding:6px">
+                            @foreach([0,15,30,45] as $m)<option value="{{ $m }}" {{ $oM==$m?'selected':'' }}>{{ str_pad($m,2,'0',STR_PAD_LEFT) }}</option>@endforeach
+                        </select>
+                        <select class="filter-input t12-p" data-target="open" data-day="{{ $dayNum }}" style="width:62px;padding:6px">
+                            <option value="AM" {{ $oAmpm=='AM'?'selected':'' }}>AM</option>
+                            <option value="PM" {{ $oAmpm=='PM'?'selected':'' }}>PM</option>
+                        </select>
+                        <span style="color:var(--text-muted);margin:0 4px;">–</span>
+                        <select class="filter-input t12-h" data-target="close" data-day="{{ $dayNum }}" style="width:62px;padding:6px">
+                            @for($h=1;$h<=12;$h++)<option value="{{ $h }}" {{ $c12==$h?'selected':'' }}>{{ $h }}</option>@endfor
+                        </select>
+                        <span style="font-weight:700">:</span>
+                        <select class="filter-input t12-m" data-target="close" data-day="{{ $dayNum }}" style="width:62px;padding:6px">
+                            @foreach([0,15,30,45] as $m)<option value="{{ $m }}" {{ $cM==$m?'selected':'' }}>{{ str_pad($m,2,'0',STR_PAD_LEFT) }}</option>@endforeach
+                        </select>
+                        <select class="filter-input t12-p" data-target="close" data-day="{{ $dayNum }}" style="width:62px;padding:6px">
+                            <option value="AM" {{ $cAmpm=='AM'?'selected':'' }}>AM</option>
+                            <option value="PM" {{ $cAmpm=='PM'?'selected':'' }}>PM</option>
+                        </select>
                     </div>
                 </div>
                 @endforeach
@@ -154,4 +184,21 @@
         </div>
     </form>
 </div>
+<script>
+function sync12to24(target, day) {
+    var row = document.querySelectorAll('[data-target="'+target+'"][data-day="'+day+'"]');
+    var h = parseInt(row[0].value); // hour select
+    var m = parseInt(row[1].value); // minute select
+    var p = row[2].value;           // AM/PM select
+    if (p === 'AM' && h === 12) h = 0;
+    else if (p === 'PM' && h !== 12) h += 12;
+    var val = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+    document.getElementById(target + '24_' + day).value = val;
+}
+document.querySelectorAll('.t12-h,.t12-m,.t12-p').forEach(function(el) {
+    el.addEventListener('change', function() {
+        sync12to24(this.dataset.target, this.dataset.day);
+    });
+});
+</script>
 @endsection
