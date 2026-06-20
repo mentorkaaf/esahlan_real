@@ -7,14 +7,16 @@
         <h1 class="page-title">Wallet Management</h1>
         <ul class="breadcrumb"><li><span>Finance</span></li><li><span>Wallets</span></li></ul>
     </div>
-    <div style="display:flex;gap:10px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
         <a href="{{ route('admin.wallet.transactions') }}" class="btn btn-outline-primary"><i class="fas fa-list"></i> All Transactions</a>
         <a href="{{ route('admin.wallet.withdrawals') }}" class="btn btn-outline-warning"><i class="fas fa-money-bill-wave"></i> Withdrawals</a>
+        <button class="btn btn-danger" onclick="document.getElementById('bulkResetModal').style.display='flex'"><i class="fas fa-undo"></i> Reset All Wallets</button>
         <a href="{{ route('admin.wallet.settings') }}" class="btn btn-outline-secondary"><i class="fas fa-cog"></i> Payment Settings</a>
     </div>
 </div>
 
 @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+@if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
 
 {{-- Stats --}}
 <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
@@ -90,14 +92,24 @@
                 <td style="padding:12px 16px;text-align:right;color:#1565C0">${{ number_format($u->total_earned ?? 0, 2) }}</td>
                 <td style="padding:12px 16px;text-align:right;color:#E74C3C">${{ number_format($u->total_withdrawn ?? 0, 2) }}</td>
                 <td style="padding:12px 16px;text-align:center">
-                    @if($u->wallet_id)
-                    <a href="{{ route('admin.wallet.transactions', ['user_id' => $u->id]) }}"
-                       style="padding:5px 12px;border:1.5px solid #1565C0;border-radius:7px;font-size:12px;font-weight:700;color:#1565C0;text-decoration:none;white-space:nowrap">
-                        <i class="fas fa-list" style="margin-right:4px"></i>Transactions
-                    </a>
-                    @else
-                    <span style="font-size:11px;color:#ccc">No wallet</span>
-                    @endif
+                    <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
+                        @if($u->wallet_id)
+                        <a href="{{ route('admin.wallet.transactions', ['user_id' => $u->id]) }}"
+                           class="btn btn-sm btn-outline-primary" style="font-size:11px;padding:4px 10px" title="View Transactions">
+                            <i class="fas fa-list"></i>
+                        </a>
+                        @if($u->balance > 0)
+                        <button class="btn btn-sm btn-outline-danger" style="font-size:11px;padding:4px 10px" title="Reset Wallet to $0"
+                                onclick="openResetWallet({{ $u->id }}, '{{ addslashes($u->name) }}', {{ number_format($u->balance, 2, '.', '') }})">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                        @endif
+                        @endif
+                        <button class="btn btn-sm btn-outline-warning" style="font-size:11px;padding:4px 10px" title="Reset PIN"
+                                onclick="openResetPin({{ $u->id }}, '{{ addslashes($u->name) }}')">
+                            <i class="fas fa-key"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
             @endforeach
@@ -105,4 +117,95 @@
     </table>
     <div style="padding:16px">{{ $users->links() }}</div>
 </div>
+
+{{-- Bulk Reset All Wallets Modal --}}
+<div id="bulkResetModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:28px;max-width:440px;width:90%;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+            <div style="width:44px;height:44px;background:#fce4ec;border-radius:12px;display:flex;align-items:center;justify-content:center">
+                <i class="fas fa-exclamation-triangle" style="color:#E74C3C;font-size:20px"></i>
+            </div>
+            <div>
+                <div style="font-weight:800;font-size:16px;color:#07003B">Reset All Wallets</div>
+                <div style="font-size:12px;color:#8A8A9A">This will set ALL user balances to $0.00</div>
+            </div>
+        </div>
+        <div style="background:#fce4ec;border-radius:10px;padding:14px;margin-bottom:18px;font-size:13px;color:#c62828;">
+            <i class="fas fa-warning" style="margin-right:6px"></i>
+            <strong>Warning:</strong> This action cannot be undone. All user wallet balances will be debited to zero. Transaction records will be kept.
+        </div>
+        <form action="{{ route('admin.wallet.bulk-reset') }}" method="POST">
+            @csrf
+            <div style="display:flex;gap:10px;">
+                <button type="button" onclick="document.getElementById('bulkResetModal').style.display='none'"
+                        style="flex:1;padding:12px;border:1.5px solid #e0e0e0;border-radius:10px;background:#fff;font-weight:700;cursor:pointer">Cancel</button>
+                <button type="submit"
+                        style="flex:1;padding:12px;border:none;border-radius:10px;background:#E74C3C;color:#fff;font-weight:700;cursor:pointer">Reset All Wallets</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- Single Wallet Reset Modal --}}
+<div id="resetWalletModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:90%;">
+        <div style="font-weight:800;font-size:16px;color:#07003B;margin-bottom:6px">Reset Wallet</div>
+        <div id="resetWalletMsg" style="font-size:13px;color:#8A8A9A;margin-bottom:18px"></div>
+        <form id="resetWalletForm" method="POST">
+            @csrf
+            <div style="display:flex;gap:10px;">
+                <button type="button" onclick="document.getElementById('resetWalletModal').style.display='none'"
+                        style="flex:1;padding:12px;border:1.5px solid #e0e0e0;border-radius:10px;background:#fff;font-weight:700;cursor:pointer">Cancel</button>
+                <button type="submit"
+                        style="flex:1;padding:12px;border:none;border-radius:10px;background:#E74C3C;color:#fff;font-weight:700;cursor:pointer">Reset to $0.00</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- Reset PIN Modal --}}
+<div id="resetPinModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:90%;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+            <div style="width:44px;height:44px;background:#fff3e0;border-radius:12px;display:flex;align-items:center;justify-content:center">
+                <i class="fas fa-key" style="color:#FF8A00;font-size:18px"></i>
+            </div>
+            <div>
+                <div style="font-weight:800;font-size:16px;color:#07003B">Reset User PIN</div>
+                <div id="resetPinUser" style="font-size:12px;color:#8A8A9A"></div>
+            </div>
+        </div>
+        <form id="resetPinForm" method="POST">
+            @csrf
+            <div style="margin-bottom:16px">
+                <label style="font-size:12px;font-weight:600;color:#8A8A9A;display:block;margin-bottom:6px">New 4-digit PIN</label>
+                <input type="text" name="pin" required pattern="\d{4}" maxlength="4" placeholder="e.g. 1234"
+                       style="width:100%;padding:12px;border:1.5px solid #f0f1f5;border-radius:10px;font-size:18px;font-weight:800;letter-spacing:8px;text-align:center;">
+            </div>
+            <div style="background:#fff3e0;border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;color:#e65100;">
+                <i class="fas fa-info-circle" style="margin-right:6px"></i>
+                User will be logged out of all devices and must log in with the new PIN.
+            </div>
+            <div style="display:flex;gap:10px;">
+                <button type="button" onclick="document.getElementById('resetPinModal').style.display='none'"
+                        style="flex:1;padding:12px;border:1.5px solid #e0e0e0;border-radius:10px;background:#fff;font-weight:700;cursor:pointer">Cancel</button>
+                <button type="submit"
+                        style="flex:1;padding:12px;border:none;border-radius:10px;background:#FF8A00;color:#fff;font-weight:700;cursor:pointer">Set New PIN</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openResetWallet(userId, name, balance) {
+    document.getElementById('resetWalletForm').action = '/admin/wallet/reset/' + userId;
+    document.getElementById('resetWalletMsg').textContent = 'Reset ' + name + '\'s wallet ($' + balance + ') to $0.00?';
+    document.getElementById('resetWalletModal').style.display = 'flex';
+}
+function openResetPin(userId, name) {
+    document.getElementById('resetPinForm').action = '/admin/wallet/reset-pin/' + userId;
+    document.getElementById('resetPinUser').textContent = name;
+    document.getElementById('resetPinModal').style.display = 'flex';
+}
+</script>
 @endsection

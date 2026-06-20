@@ -472,6 +472,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/withdrawals',           [$wc, 'withdrawals'])->name('withdrawals');
             Route::post('/withdrawals/{id}/approve', [$wc, 'approveWithdrawal'])->name('withdrawal.approve');
             Route::post('/withdrawals/{id}/reject',  [$wc, 'rejectWithdrawal'])->name('withdrawal.reject');
+            Route::post('/reset/{userId}',        [$wc, 'resetWallet'])->name('reset');
+            Route::post('/bulk-reset',           [$wc, 'bulkResetWallets'])->name('bulk-reset');
+            Route::post('/reset-pin/{userId}',   [$wc, 'resetUserPin'])->name('reset-pin');
             Route::get('/settings',              [$wc, 'settings'])->name('settings');
             Route::post('/settings',             [$wc, 'saveSettings'])->name('settings.save');
         });

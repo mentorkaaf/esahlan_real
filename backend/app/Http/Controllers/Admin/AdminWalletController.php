@@ -9,6 +9,7 @@ use App\Services\FcmService;
 use App\Helpers\AppSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class AdminWalletController extends Controller
 {
@@ -116,6 +117,36 @@ class AdminWalletController extends Controller
 
         try{$u3=User::find($wr->owner_id);if($u3?->fcm_token)FcmService::sendWithdrawalRejected($u3->fcm_token,(float)$wr->amount);}catch(\Throwable $er){}
         return back()->with('success', 'Withdrawal rejected and amount refunded.');
+    }
+
+    public function resetWallet(Request $request, $userId)
+    {
+        $wallet = Wallet::where('owner_type', 'App\\Models\\User')->where('owner_id', $userId)->first();
+        if (!$wallet || $wallet->balance <= 0) {
+            return back()->with('error', 'Wallet not found or already zero.');
+        }
+        $wallet->debit((float) $wallet->balance, 'Admin wallet reset', null, null, 'admin_reset');
+        return back()->with('success', 'Wallet reset to $0.00.');
+    }
+
+    public function bulkResetWallets(Request $request)
+    {
+        $wallets = Wallet::where('owner_type', 'App\\Models\\User')->where('balance', '>', 0)->get();
+        $count = 0;
+        foreach ($wallets as $wallet) {
+            $wallet->debit((float) $wallet->balance, 'Admin bulk wallet reset', null, null, 'admin_reset');
+            $count++;
+        }
+        return back()->with('success', "$count wallet(s) reset to \$0.00.");
+    }
+
+    public function resetUserPin(Request $request, $userId)
+    {
+        $request->validate(['pin' => 'required|digits:4']);
+        $user = User::findOrFail($userId);
+        $user->update(['password' => Hash::make($request->pin)]);
+        $user->tokens()->delete();
+        return back()->with('success', "PIN reset for {$user->name}. User must log in again.");
     }
 
     // Settings page for Waafi Pay credentials
