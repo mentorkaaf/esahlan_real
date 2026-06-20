@@ -20,6 +20,7 @@ class AdminWalletController extends Controller
                 $j->on('wallets.owner_id', '=', 'users.id')
                   ->where('wallets.owner_type', 'App\\Models\\User');
             })
+            ->whereNull('users.deleted_at')
             ->select('users.id', 'users.name', 'users.email', 'users.phone',
                      'wallets.id as wallet_id', 'wallets.balance', 'wallets.total_earned', 'wallets.total_withdrawn')
             ->orderByDesc('wallets.balance')

@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class AdminUserController extends Controller
@@ -69,9 +70,8 @@ class AdminUserController extends Controller
         if ($user->role?->slug === 'super_admin') {
             return back()->with('error', 'Cannot delete super admin.');
         }
-        $user->tokens()->delete();
-        $user->delete();
-        return redirect()->route('admin.users.index')->with('success', 'User deleted.');
+        self::purgeUser($user->id);
+        return redirect()->route('admin.users.index')->with('success', 'User permanently deleted.');
     }
 
     public function bulkDestroy(Request $request)
@@ -83,11 +83,44 @@ class AdminUserController extends Controller
             ->get();
 
         foreach ($users as $user) {
-            $user->tokens()->delete();
-            $user->delete();
+            self::purgeUser($user->id);
         }
 
-        return back()->with('success', count($users) . ' user(s) deleted successfully.');
+        return back()->with('success', count($users) . ' user(s) permanently deleted.');
+    }
+
+    private static function purgeUser(int $userId): void
+    {
+        $walletIds = DB::table('wallets')
+            ->where('owner_type', 'App\\Models\\User')
+            ->where('owner_id', $userId)
+            ->pluck('id');
+
+        DB::table('transactions')->whereIn('wallet_id', $walletIds)->delete();
+        DB::table('withdrawal_requests')->where('owner_type', 'App\\Models\\User')->where('owner_id', $userId)->delete();
+        DB::table('wallets')->whereIn('id', $walletIds)->delete();
+        DB::table('personal_access_tokens')->where('tokenable_type', 'App\\Models\\User')->where('tokenable_id', $userId)->delete();
+
+        $orderIds = DB::table('orders')->where('user_id', $userId)->pluck('id');
+        if ($orderIds->isNotEmpty()) {
+            DB::table('order_status_history')->whereIn('order_id', $orderIds)->delete();
+            DB::table('order_items')->whereIn('order_id', $orderIds)->delete();
+            DB::table('orders')->whereIn('id', $orderIds)->delete();
+        }
+
+        if (DB::getSchemaBuilder()->hasTable('payment_transactions')) {
+            DB::table('payment_transactions')->where('user_id', $userId)->delete();
+        }
+        if (DB::getSchemaBuilder()->hasTable('notifications')) {
+            DB::table('notifications')->where('notifiable_type', 'App\\Models\\User')->where('notifiable_id', $userId)->delete();
+        }
+        foreach (['community_comments', 'community_likes', 'community_posts'] as $tbl) {
+            if (DB::getSchemaBuilder()->hasTable($tbl)) {
+                DB::table($tbl)->where('user_id', $userId)->delete();
+            }
+        }
+
+        DB::table('users')->where('id', $userId)->delete();
     }
 
     public function resetPin(Request $request, User $user)
