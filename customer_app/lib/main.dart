@@ -8,6 +8,7 @@ import 'core/constants/app_constants.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/services/firebase_service.dart';
+import 'core/services/location_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/connectivity_wrapper.dart';
 import 'firebase_options.dart';
@@ -37,6 +38,8 @@ void main() async {
   } catch (e) {
     debugPrint('[Firebase] Pre-runApp error: $e');
   }
+
+  await LocationService.initBackground();
 
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
