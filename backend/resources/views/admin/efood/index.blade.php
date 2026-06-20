@@ -181,7 +181,7 @@
         <div class="table-responsive">
             <table>
                 <thead>
-                    <tr><th>Icon/Image</th><th>Category Name</th><th>Sort</th><th>Status</th><th>Actions</th></tr>
+                    <tr><th>Icon/Image</th><th>Category Name</th><th>Sort</th><th>Status</th><th>Scope</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                     @forelse($categories as $c)
@@ -196,8 +196,18 @@
                         <td><strong>{{ $c->name }}</strong></td>
                         <td>{{ $c->sort_order ?? 0 }}</td>
                         <td><span class="badge {{ $c->is_active ? 'badge-success' : 'badge-danger' }}">{{ $c->is_active ? 'Active' : 'Off' }}</span></td>
+                        <td>
+                            @if($c->vendor_id)
+                                <span class="badge badge-info">{{ $c->vendor?->name ?? 'Vendor #'.$c->vendor_id }}</span>
+                            @else
+                                <span class="badge badge-secondary">Global</span>
+                            @endif
+                        </td>
                         <td class="d-flex gap-2">
                             <button class="btn btn-sm btn-secondary" onclick="openEditCategory({{ json_encode($c) }})"><i class="fas fa-edit"></i></button>
+                            @if(!$c->vendor_id)
+                            <button class="btn btn-sm btn-primary" onclick="openAssignCategory({{ $c->id }}, '{{ addslashes($c->name) }}')" title="Assign to restaurants"><i class="fas fa-share-alt"></i></button>
+                            @endif
                             <form action="{{ route('admin.module-data.efood.category.destroy', $c->id) }}" method="POST" onsubmit="return confirm('Delete?')">
                                 @csrf @method('DELETE')
                                 <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
@@ -205,7 +215,7 @@
                         </td>
                     </tr>
                     @empty
-                    <tr><td colspan="5" style="text-align:center;padding:30px;color:#888;">No categories yet.</td></tr>
+                    <tr><td colspan="6" style="text-align:center;padding:30px;color:#888;">No categories yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -934,6 +944,29 @@
                 <div class="form-group" style="margin-top:14px;margin-bottom:0;">
                     <label class="form-label">Description</label>
                     <textarea name="description" id="er_desc" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+
+            {{-- Owner Credentials --}}
+            <div style="margin-top:18px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                    <span style="width:4px;height:18px;background:#E74C3C;border-radius:2px;display:block;"></span>
+                    <span style="font-size:12px;font-weight:800;color:#07003B;text-transform:uppercase;letter-spacing:.6px;">Owner Account</span>
+                    <span style="font-size:11px;color:#94a3b8;">(login credentials)</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Owner Phone</label>
+                        <input type="text" name="owner_phone" id="er_owner_phone" class="form-control" placeholder="Login phone">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Owner Email</label>
+                        <input type="email" name="owner_email" id="er_owner_email" class="form-control" placeholder="Login email">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">New Password</label>
+                        <input type="text" name="owner_password" id="er_owner_pass" class="form-control" placeholder="Leave empty to keep">
+                    </div>
                 </div>
             </div>
 
@@ -1809,6 +1842,30 @@
 {{-- ══════════════════════════════════════════════════════════════════
      JAVASCRIPT
      ══════════════════════════════════════════════════════════════════ --}}
+
+{{-- ─── ASSIGN CATEGORY TO RESTAURANTS ──────────────────────────────── --}}
+<div class="modal-overlay" id="assignCategoryModal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 class="modal-title">Assign Category to Restaurants</h3>
+            <button class="modal-close" onclick="closeModal('assignCategoryModal')">✕</button>
+        </div>
+        <p id="assignCatLabel" style="font-size:13px;color:#666;margin-bottom:14px;"></p>
+        <form id="assignCatForm" method="POST">
+            @csrf
+            <div style="max-height:300px;overflow-y:auto;border:1.5px solid #e2e8f0;border-radius:10px;margin-bottom:16px;">
+                @foreach($allRestaurants as $ar)
+                <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #f0f2f6;cursor:pointer;">
+                    <input type="checkbox" name="vendor_ids[]" value="{{ $ar->id }}" style="width:16px;height:16px;accent-color:#FF8A00;">
+                    <span style="font-weight:600;font-size:13px;">{{ $ar->name }}</span>
+                </label>
+                @endforeach
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Assign Category</button>
+        </form>
+    </div>
+</div>
+
 @push('scripts')
 <script>
 // ─── Tab Switcher ─────────────────────────────────────────────────
@@ -1834,6 +1891,13 @@ function showTab(tab) {
     const p = new URLSearchParams(window.location.search).get('tab');
     if (p && TABS.includes(p)) showTab(p);
 })();
+
+// ─── Assign Category ─────────────────────────────────────────────
+function openAssignCategory(catId, catName) {
+    document.getElementById('assignCatForm').action = '/admin/module-data/efood/categories/' + catId + '/assign';
+    document.getElementById('assignCatLabel').textContent = 'Assign "' + catName + '" to selected restaurants. A copy of this category will be created for each restaurant.';
+    openModal('assignCategoryModal');
+}
 
 // ─── Toggle Open/Closed ───────────────────────────────────────────
 async function toggleOpen(id, btn) {
@@ -1889,6 +1953,10 @@ function openEditRestaurant(r) {
     const lng = parseFloat(r.longitude);
     document.getElementById('er_lat').value = r.latitude || '';
     document.getElementById('er_lng').value = r.longitude || '';
+    // Owner credentials
+    document.getElementById('er_owner_phone').value = r.user?.phone || '';
+    document.getElementById('er_owner_email').value = r.user?.email || '';
+    document.getElementById('er_owner_pass').value  = '';
     openModal('editRestaurantModal');
 
     // Init or recenter edit map after modal is visible

@@ -15,7 +15,9 @@ use App\Services\FcmService;
 use App\Models\District;
 use App\Models\Module;
 use Illuminate\Http\Request;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -37,7 +39,7 @@ class AdminEFoodController extends Controller
         $moduleId  = $module?->id;
 
         $restaurants = Vendor::when($moduleId, fn($q) => $q->where('vendors.module_id', $moduleId))
-            ->with('district')
+            ->with(['district', 'user:id,phone,email'])
             ->orderByDesc('vendors.created_at')
             ->paginate(20);
 
@@ -189,10 +191,13 @@ class AdminEFoodController extends Controller
             'is_featured'   => 'nullable|boolean',
             'is_open'       => 'nullable|boolean',
             'status'        => 'nullable|in:active,inactive,pending',
+            'owner_phone'   => 'nullable|string|max:20',
+            'owner_email'   => 'nullable|email|max:200',
+            'owner_password'=> 'nullable|string|min:4',
         ]);
         if ($request->hasFile('logo_file'))  $data['logo']        = $this->storeUpload($request->file('logo_file'));
         if ($request->hasFile('cover_file')) $data['cover_image'] = $this->storeUpload($request->file('cover_file'));
-        unset($data['logo_file'], $data['cover_file']);
+        unset($data['logo_file'], $data['cover_file'], $data['owner_phone'], $data['owner_email'], $data['owner_password']);
 
         $workingHours = $this->buildWorkingHours($request);
 
@@ -201,6 +206,17 @@ class AdminEFoodController extends Controller
             'is_open'      => $request->boolean('is_open', true),
             'working_hours'=> $workingHours,
         ]));
+
+        // Update vendor owner (user) credentials
+        if ($vendor->user_id) {
+            $ownerUpdate = [];
+            if ($request->filled('owner_phone'))    $ownerUpdate['phone']    = $request->owner_phone;
+            if ($request->filled('owner_email'))    $ownerUpdate['email']    = $request->owner_email;
+            if ($request->filled('owner_password')) $ownerUpdate['password'] = Hash::make($request->owner_password);
+            if (!empty($ownerUpdate)) {
+                User::where('id', $vendor->user_id)->update($ownerUpdate);
+            }
+        }
 
         return back()->with('success', 'Restaurant updated!');
     }
@@ -306,6 +322,22 @@ class AdminEFoodController extends Controller
     {
         Category::findOrFail($id)->delete();
         return back()->with('success', 'Category deleted.');
+    }
+
+    public function categoryAssign(Request $request, $id)
+    {
+        $request->validate(['vendor_ids' => 'required|array', 'vendor_ids.*' => 'integer|exists:vendors,id']);
+        $category = Category::findOrFail($id);
+        $module = $this->efoodModule();
+
+        foreach ($request->vendor_ids as $vendorId) {
+            Category::firstOrCreate(
+                ['vendor_id' => $vendorId, 'name' => $category->name, 'module_id' => $module?->id],
+                ['slug' => Str::slug($category->name) . '-' . Str::random(4), 'image' => $category->image, 'sort_order' => $category->sort_order, 'is_active' => true]
+            );
+        }
+
+        return back()->with('success', 'Category assigned to ' . count($request->vendor_ids) . ' restaurant(s).');
     }
 
     // ════════════════════════════════════════════════════════════════
