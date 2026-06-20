@@ -462,7 +462,7 @@
             <div class="dash-hero-metric-label">Orders</div>
         </div>
         <div class="dash-hero-metric">
-            <div class="dash-hero-metric-val">${{ number_format($totalRevenue,0) }}</div>
+            <div class="dash-hero-metric-val">${{ number_format($totalRevenue,2) }}</div>
             <div class="dash-hero-metric-label">Revenue</div>
         </div>
         <div class="dash-hero-metric">
@@ -510,7 +510,7 @@
     <div class="kpi-card blue">
         <div class="kpi-icon blue"><i class="fas fa-dollar-sign"></i></div>
         <div class="kpi-body">
-            <div class="kpi-val">${{ number_format($totalRevenue,0) }}</div>
+            <div class="kpi-val">${{ number_format($totalRevenue,2) }}</div>
             <div class="kpi-label">Total Revenue</div>
             <div class="kpi-sub muted"><i class="fas fa-calendar-day"></i> ${{ number_format($todayRevenue,2) }} today</div>
         </div>
@@ -520,9 +520,9 @@
     <div class="kpi-card red">
         <div class="kpi-icon red"><i class="fas fa-hand-holding-usd"></i></div>
         <div class="kpi-body">
-            <div class="kpi-val">${{ number_format($totalCommission,0) }}</div>
+            <div class="kpi-val">${{ number_format($totalCommission,2) }}</div>
             <div class="kpi-label">Commission</div>
-            <div class="kpi-sub muted"><i class="fas fa-calendar-week"></i> ${{ number_format($monthlyCommission,0) }} this month</div>
+            <div class="kpi-sub muted"><i class="fas fa-calendar-week"></i> ${{ number_format($monthlyCommission,2) }} this month</div>
         </div>
     </div>
 
@@ -582,7 +582,7 @@ $rentRev = $mRevMap->get('erent') ?? (object)['revenue'=>0,'count'=>0];
         <div class="module-card-orders">{{ number_format($foodRev->count ?? 0) }} orders</div>
         <div class="module-card-icon"><i class="fas fa-utensils"></i></div>
         <div class="module-card-title">eFood</div>
-        <div class="module-card-val">${{ number_format($foodRev->revenue ?? 0, 0) }}</div>
+        <div class="module-card-val">${{ number_format($foodRev->revenue ?? 0, 2) }}</div>
         <div class="module-card-sub">Revenue from food delivery</div>
     </div>
 
@@ -591,7 +591,7 @@ $rentRev = $mRevMap->get('erent') ?? (object)['revenue'=>0,'count'=>0];
         <div class="module-card-orders">{{ number_format($shopRev->count ?? 0) }} orders</div>
         <div class="module-card-icon"><i class="fas fa-shopping-cart"></i></div>
         <div class="module-card-title">eShop</div>
-        <div class="module-card-val">${{ number_format($shopRev->revenue ?? 0, 0) }}</div>
+        <div class="module-card-val">${{ number_format($shopRev->revenue ?? 0, 2) }}</div>
         <div class="module-card-sub">Revenue from online store</div>
     </div>
 
@@ -600,7 +600,7 @@ $rentRev = $mRevMap->get('erent') ?? (object)['revenue'=>0,'count'=>0];
         <div class="module-card-orders">{{ $communityMembers }} members</div>
         <div class="module-card-icon"><i class="fas fa-home"></i></div>
         <div class="module-card-title">eRent</div>
-        <div class="module-card-val">${{ number_format($rentRev->revenue ?? 0, 0) }}</div>
+        <div class="module-card-val">${{ number_format($rentRev->revenue ?? 0, 2) }}</div>
         <div class="module-card-sub">Revenue from rentals</div>
     </div>
 
@@ -963,7 +963,7 @@ $rentRev = $mRevMap->get('erent') ?? (object)['revenue'=>0,'count'=>0];
                     <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600;"><i class="fas fa-user-plus" style="margin-right:3px;"></i>New Users</div>
                 </div>
                 <div style="text-align:center;padding:16px 12px;background:rgba(16,185,129,0.05);border-radius:12px;border:1.5px solid rgba(16,185,129,0.15);">
-                    <div style="font-size:26px;font-weight:800;color:#10b981;">${{ number_format($monthlyRevenue,0) }}</div>
+                    <div style="font-size:26px;font-weight:800;color:#10b981;">${{ number_format($monthlyRevenue,2) }}</div>
                     <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600;"><i class="fas fa-chart-line" style="margin-right:3px;"></i>Revenue</div>
                 </div>
                 <div style="text-align:center;padding:16px 12px;background:rgba(59,130,246,0.05);border-radius:12px;border:1.5px solid rgba(59,130,246,0.15);">
@@ -971,7 +971,7 @@ $rentRev = $mRevMap->get('erent') ?? (object)['revenue'=>0,'count'=>0];
                     <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600;"><i class="fas fa-shopping-bag" style="margin-right:3px;"></i>Today Orders</div>
                 </div>
                 <div style="text-align:center;padding:16px 12px;background:rgba(139,92,246,0.05);border-radius:12px;border:1.5px solid rgba(139,92,246,0.15);">
-                    <div style="font-size:26px;font-weight:800;color:#8b5cf6;">${{ number_format($monthlyCommission,0) }}</div>
+                    <div style="font-size:26px;font-weight:800;color:#8b5cf6;">${{ number_format($monthlyCommission,2) }}</div>
                     <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600;"><i class="fas fa-hand-holding-usd" style="margin-right:3px;"></i>Commission</div>
                 </div>
                 <div style="text-align:center;padding:16px 12px;background:rgba(20,184,166,0.05);border-radius:12px;border:1.5px solid rgba(20,184,166,0.15);">

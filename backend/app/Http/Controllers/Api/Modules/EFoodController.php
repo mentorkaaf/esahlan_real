@@ -482,11 +482,16 @@ class EFoodController extends Controller
         $discountTotal = round($discountTotal, 2);
         $total         = round(max(0, $subtotal - $discountTotal) + $deliveryFee, 2);
 
-        // Commission calculation
-        $commissionRate = (float) ($vendor->commission_value ?? 0);
+        // Commission calculation (vendor override → module rate → 10% default)
+        $commissionRate = 0;
+        if ($vendor && $vendor->commission_value > 0) {
+            $commissionRate = (float) $vendor->commission_value;
+        }
         if ($commissionRate <= 0) {
-            $module = DB::table('modules')->find($moduleId);
-            $commissionRate = (float) ($module->commission_value ?? 10);
+            $efoodModule = DB::table('modules')->where('slug', 'efood')->first();
+            $commissionRate = ($efoodModule && $efoodModule->commission_value > 0)
+                ? (float) $efoodModule->commission_value
+                : 10;
         }
         $commissionAmount = round($subtotal * $commissionRate / 100, 2);
         $vendorEarning    = round($subtotal - $commissionAmount, 2);
