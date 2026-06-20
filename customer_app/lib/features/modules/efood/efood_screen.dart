@@ -1543,9 +1543,25 @@ class _DeliveryInfoRow extends ConsumerWidget {
   static Future<double?> _calcDistance(double? vendorLat, double? vendorLng) async {
     if (vendorLat == null || vendorLng == null) return null;
     try {
-      final userLat = await LocalStorage.getDouble('saved_lat');
-      final userLng = await LocalStorage.getDouble('saved_lng');
+      double? userLat, userLng;
+
+      // Try real-time GPS first
+      final perm = await Geolocator.checkPermission();
+      if (perm != LocationPermission.denied && perm != LocationPermission.deniedForever) {
+        try {
+          final pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+          ).timeout(const Duration(seconds: 5));
+          userLat = pos.latitude;
+          userLng = pos.longitude;
+        } catch (_) {}
+      }
+
+      // Fall back to saved location
+      userLat ??= await LocalStorage.getDouble('saved_lat');
+      userLng ??= await LocalStorage.getDouble('saved_lng');
       if (userLat == null || userLng == null) return null;
+
       final meters = Geolocator.distanceBetween(userLat, userLng, vendorLat, vendorLng);
       return meters / 1000;
     } catch (_) {
