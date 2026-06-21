@@ -115,7 +115,7 @@ class ELaundryController extends Controller
         $deliveryFee = \App\Helpers\DeliveryPricing::forShopOrLaundry($request->pickup_district_id ? (int)$request->pickup_district_id : null, 0);
         $totalWithDelivery = $total + $deliveryFee;
 
-        $order = DB::transaction(function () use ($request, $user, $total, $totalWithDelivery, $deliveryFee, $orderLines, $district, $isExpress) {
+        $order = DB::transaction(function () use ($request, $user, $total, $totalWithDelivery, $deliveryFee, $orderLines, $district, $isExpress, $dbItems) {
             $order = Order::create([
                 'order_number'    => 'LDR-' . strtoupper(Str::random(8)),
                 'user_id'         => $user->id,
