@@ -85,16 +85,18 @@ function initDriversMap() {
         motorcycle: '🏍️', bajaj: '🛺', car: '🚗', van: '🚐', truck: '🚛', bicycle: '🚲', pickup: '🚛'
     };
 
-    var drivers = @json($availableDrivers->map(fn($d) => [
-        'id' => $d->id,
-        'name' => $d->user?->name ?? 'Driver',
-        'phone' => $d->user?->phone ?? '',
-        'vehicle' => $d->vehicle_type,
-        'status' => $d->status,
-        'lat' => (float) $d->latitude,
-        'lng' => (float) $d->longitude,
-        'rating' => $d->rating,
-    ])->values());
+    var drivers = {{ Illuminate\Support\Js::from($availableDrivers->map(function($d) {
+        return [
+            'id' => $d->id,
+            'name' => $d->user ? $d->user->name : 'Driver',
+            'phone' => $d->user ? $d->user->phone : '',
+            'vehicle' => $d->vehicle_type,
+            'status' => $d->status,
+            'lat' => (float) $d->latitude,
+            'lng' => (float) $d->longitude,
+            'rating' => $d->rating,
+        ];
+    })->values()) }};
 
     var iw = new google.maps.InfoWindow();
     var bounds = new google.maps.LatLngBounds();
