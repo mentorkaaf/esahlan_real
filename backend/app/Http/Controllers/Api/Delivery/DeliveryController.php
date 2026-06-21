@@ -187,7 +187,7 @@ class DeliveryController extends Controller
         $allowedModules = $dm->driver_type === 'truck' ? self::TRUCK_MODULES : self::NORMAL_MODULES;
 
         $orders = Order::whereNull('deliveryman_id')
-            ->where('status', 'ready_for_pickup')
+            ->whereIn('status', ['confirmed', 'preparing', 'ready_for_pickup'])
             ->whereIn('module_slug', $allowedModules)
             ->with(['vendor:id,name,address,latitude,longitude,phone,logo', 'user:id,name,phone'])
             ->latest()

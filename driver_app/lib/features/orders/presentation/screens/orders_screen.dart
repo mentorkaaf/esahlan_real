@@ -5,9 +5,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:dio/dio.dart';
 import 'dart:io';
+import 'dart:async';
 import '../../../../core/theme/driver_colors.dart';
 import '../../../../core/api/api_client.dart';
-import '../../../../core/storage/local_storage.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 final _availableProvider = FutureProvider.autoDispose<List<dynamic>>((ref) => ref.read(authRepoProvider).availableOrders());
@@ -21,10 +21,20 @@ class OrdersScreen extends ConsumerStatefulWidget {
 
 class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerProviderStateMixin {
   late TabController _tabs;
+  Timer? _pollTimer;
+
   @override
-  void initState() { super.initState(); _tabs = TabController(length: 2, vsync: this); }
+  void initState() {
+    super.initState();
+    _tabs = TabController(length: 2, vsync: this);
+    _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      ref.invalidate(_availableProvider);
+      ref.invalidate(_activeProvider);
+    });
+  }
+
   @override
-  void dispose() { _tabs.dispose(); super.dispose(); }
+  void dispose() { _tabs.dispose(); _pollTimer?.cancel(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -37,16 +47,16 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
           tabs: const [Tab(text: 'Available'), Tab(text: 'My Deliveries')]),
       ),
       body: TabBarView(controller: _tabs, children: [
-        _AvailableTab(onAccepted: () => _tabs.animateTo(1)),
+        _AvailableTab(onAccepted: () { _tabs.animateTo(1); ref.invalidate(_activeProvider); }),
         const _ActiveTab(),
       ]),
     );
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// AVAILABLE ORDERS TAB
-// ══════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// AVAILABLE TAB
+// ══════════════════════════════════════════════════════════════════
 
 class _AvailableTab extends ConsumerWidget {
   final VoidCallback onAccepted;
@@ -65,20 +75,25 @@ class _AvailableTab extends ConsumerWidget {
         ElevatedButton(onPressed: () => ref.invalidate(_availableProvider), child: const Text('Retry')),
       ])),
       data: (list) => list.isEmpty
-          ? _emptyState('No available orders', 'Pull down to refresh', Icons.inbox_rounded)
+          ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.inbox_rounded, size: 60, color: DC.textMuted.withValues(alpha: 0.3)),
+              const SizedBox(height: 14),
+              const Text('No available orders', style: TextStyle(color: DC.textMuted, fontSize: 16, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              const Text('New orders will appear here automatically', style: TextStyle(color: DC.textMuted, fontSize: 12)),
+            ]))
           : RefreshIndicator(
               color: DC.orange,
               onRefresh: () async => ref.invalidate(_availableProvider),
               child: ListView.builder(
                 padding: const EdgeInsets.all(14),
                 itemCount: list.length,
-                itemBuilder: (_, i) => _AvailableOrderCard(
+                itemBuilder: (_, i) => _NewOrderCard(
                   order: list[i],
                   onAccept: () async {
                     try {
                       await ref.read(authRepoProvider).acceptOrder((list[i]['id'] as num).toInt());
                       ref.invalidate(_availableProvider);
-                      ref.invalidate(_activeProvider);
                       onAccepted();
                       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order accepted!'), backgroundColor: DC.success));
                     } catch (e) {
@@ -92,9 +107,129 @@ class _AvailableTab extends ConsumerWidget {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// ACTIVE ORDERS TAB
-// ══════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// NEW ORDER REQUEST CARD (matches UI reference exactly)
+// ══════════════════════════════════════════════════════════════════
+
+class _NewOrderCard extends StatelessWidget {
+  final Map<String, dynamic> order;
+  final VoidCallback onAccept;
+  const _NewOrderCard({required this.order, required this.onAccept});
+
+  static const _moduleLabels = {'efood': 'eFood Delivery', 'eshop': 'eShop Delivery', 'eparcel': 'eParcel Delivery', 'egrocery': 'eGrocery Delivery', 'elaundry': 'eLaundry Pickup', 'emoving': 'eMoving Service'};
+
+  @override
+  Widget build(BuildContext context) {
+    final vendor = order['vendor'] as Map<String, dynamic>?;
+    final customer = order['customer'] as Map<String, dynamic>?;
+    final module = (order['module_slug'] ?? 'order').toString();
+    final fee = double.tryParse('${order['delivery_fee'] ?? 0}') ?? 0;
+    final distance = order['distance_km'];
+    final addr = order['delivery_address'];
+    final district = addr is Map ? (addr['district'] ?? addr['city'] ?? '') : '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: DC.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: DC.border.withValues(alpha: 0.5)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
+      ),
+      child: Column(children: [
+        // Header — module label
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          decoration: BoxDecoration(
+            color: DC.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Row(children: [
+            Container(width: 36, height: 36,
+              decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.delivery_dining_rounded, color: DC.orange, size: 20)),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(_moduleLabels[module] ?? 'Delivery', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
+              Text('Order #${order['order_number'] ?? ''}', style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+            ])),
+            const Icon(Icons.chevron_right_rounded, color: DC.textMuted, size: 20),
+          ]),
+        ),
+
+        // Pickup → Dropoff
+        Padding(padding: const EdgeInsets.fromLTRB(18, 16, 18, 0), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Column(children: [
+            Container(width: 12, height: 12, decoration: BoxDecoration(color: DC.orange, shape: BoxShape.circle, border: Border.all(color: DC.card, width: 2))),
+            Container(width: 2, height: 30, decoration: BoxDecoration(color: DC.border, borderRadius: BorderRadius.circular(1))),
+            Container(width: 12, height: 12, decoration: BoxDecoration(color: DC.success, shape: BoxShape.circle, border: Border.all(color: DC.card, width: 2))),
+          ]),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Pickup Location', style: TextStyle(color: DC.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+            const SizedBox(height: 2),
+            Text(vendor?['name'] ?? 'Vendor', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w800, fontSize: 15)),
+            if (vendor?['address'] != null) Text(vendor!['address'], style: const TextStyle(color: DC.textMuted, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 14),
+            const Text('Drop Location', style: TextStyle(color: DC.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+            const SizedBox(height: 2),
+            Text(customer?['name'] ?? 'Customer', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
+            if (district.toString().isNotEmpty) Text(district.toString(), style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+          ])),
+        ])),
+
+        // Stats row
+        Container(
+          margin: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(border: Border(top: BorderSide(color: DC.border.withValues(alpha: 0.5)))),
+          child: Row(children: [
+            _Stat('Distance', distance != null ? '${distance} km' : '—'),
+            _Stat('Time', distance != null ? '${(distance * 3).toInt()} min' : '—'),
+            _Stat('Earnings', '\$${fee.toStringAsFixed(2)}'),
+          ]),
+        ),
+
+        // Decline / Accept buttons
+        Padding(padding: const EdgeInsets.all(14), child: Row(children: [
+          Expanded(child: SizedBox(height: 48, child: OutlinedButton(
+            onPressed: () {},
+            style: OutlinedButton.styleFrom(
+              foregroundColor: DC.textSec,
+              side: BorderSide(color: DC.border),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            child: const Text('Decline', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          ))),
+          const SizedBox(width: 12),
+          Expanded(child: SizedBox(height: 48, child: ElevatedButton(
+            onPressed: onAccept,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: DC.orange,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            child: const Text('Accept', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+          ))),
+        ])),
+      ]),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  final String label, value;
+  const _Stat(this.label, this.value);
+  @override
+  Widget build(BuildContext context) => Expanded(child: Column(children: [
+    Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
+    const SizedBox(height: 4),
+    Text(value, style: const TextStyle(color: DC.text, fontSize: 15, fontWeight: FontWeight.w900)),
+  ]));
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ACTIVE TAB
+// ══════════════════════════════════════════════════════════════════
 
 class _ActiveTab extends ConsumerWidget {
   const _ActiveTab();
@@ -106,394 +241,284 @@ class _ActiveTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator(color: DC.orange)),
       error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: DC.error))),
       data: (list) => list.isEmpty
-          ? _emptyState('No active deliveries', 'Accept orders to start delivering', Icons.check_circle_outline_rounded)
+          ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.check_circle_outline_rounded, size: 60, color: DC.textMuted.withValues(alpha: 0.3)),
+              const SizedBox(height: 14),
+              const Text('No active deliveries', style: TextStyle(color: DC.textMuted, fontSize: 16, fontWeight: FontWeight.w700)),
+            ]))
           : RefreshIndicator(
               color: DC.orange,
               onRefresh: () async => ref.invalidate(_activeProvider),
               child: ListView.builder(
                 padding: const EdgeInsets.all(14),
                 itemCount: list.length,
-                itemBuilder: (_, i) => _ActiveOrderCard(order: list[i]),
+                itemBuilder: (_, i) => GestureDetector(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _ActiveDeliveryPage(order: list[i]))),
+                  child: _ActiveCard(order: list[i]),
+                ),
               ),
             ),
     );
   }
 }
 
-Widget _emptyState(String title, String sub, IconData icon) => Center(
-  child: Column(mainAxisSize: MainAxisSize.min, children: [
-    Icon(icon, size: 60, color: DC.textMuted.withValues(alpha: 0.3)),
-    const SizedBox(height: 14),
-    Text(title, style: const TextStyle(color: DC.textMuted, fontSize: 16, fontWeight: FontWeight.w700)),
-    const SizedBox(height: 4),
-    Text(sub, style: const TextStyle(color: DC.textMuted, fontSize: 12)),
-  ]),
-);
-
-// ══════════════════════════════════════════════════════════════════════════════
-// AVAILABLE ORDER CARD
-// ══════════════════════════════════════════════════════════════════════════════
-
-class _AvailableOrderCard extends StatelessWidget {
+class _ActiveCard extends StatelessWidget {
   final Map<String, dynamic> order;
-  final VoidCallback onAccept;
-  const _AvailableOrderCard({required this.order, required this.onAccept});
-
-  static const _moduleColors = {
-    'efood': Color(0xFFFF8A00), 'eshop': Color(0xFF3B82F6), 'eparcel': Color(0xFF8B5CF6),
-    'egrocery': Color(0xFF10B981), 'elaundry': Color(0xFF06B6D4), 'emoving': Color(0xFFEF4444),
-  };
+  const _ActiveCard({required this.order});
 
   @override
   Widget build(BuildContext context) {
     final vendor = order['vendor'] as Map<String, dynamic>?;
     final customer = order['customer'] as Map<String, dynamic>?;
-    final module = (order['module_slug'] ?? 'order').toString();
+    final module = (order['module_slug'] ?? '').toString();
     final fee = double.tryParse('${order['delivery_fee'] ?? 0}') ?? 0;
-    final total = double.tryParse('${order['total_amount'] ?? 0}') ?? 0;
-    final distance = order['distance_km'];
-    final color = _moduleColors[module] ?? DC.orange;
+    final status = order['status']?.toString() ?? '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: DC.card, borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: DC.border.withValues(alpha: 0.5)),
+        border: Border.all(color: DC.orange.withValues(alpha: 0.3), width: 1.5),
+        boxShadow: [BoxShadow(color: DC.orange.withValues(alpha: 0.06), blurRadius: 12)],
       ),
-      child: Column(children: [
-        // Header
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.06),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-          ),
-          child: Row(children: [
-            Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-              child: Text(module.toUpperCase(), style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5))),
-            const Spacer(),
-            Text('#${order['order_number'] ?? ''}', style: const TextStyle(color: DC.textSec, fontSize: 12, fontWeight: FontWeight.w600)),
-          ]),
-        ),
-
-        Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Pickup
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Column(children: [
-              Container(width: 10, height: 10, decoration: BoxDecoration(color: DC.orange, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2))),
-              Container(width: 2, height: 24, color: DC.border),
-              Container(width: 10, height: 10, decoration: BoxDecoration(color: DC.success, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2))),
-            ]),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('PICKUP', style: TextStyle(color: DC.textMuted, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-              Text(vendor?['name'] ?? 'Vendor', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
-              if (vendor?['address'] != null) Text(vendor!['address'], style: const TextStyle(color: DC.textMuted, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 8),
-              Text('DELIVERY', style: TextStyle(color: DC.textMuted, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-              Text(customer?['name'] ?? 'Customer', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w600, fontSize: 13)),
-              if (order['delivery_address'] is Map) Text((order['delivery_address'] as Map)['district'] ?? '', style: const TextStyle(color: DC.textMuted, fontSize: 11)),
-            ])),
-          ]),
-          const SizedBox(height: 14),
-
-          // Info row
-          Row(children: [
-            if (distance != null) _InfoPill(Icons.route_rounded, '${distance} km'),
-            _InfoPill(Icons.attach_money_rounded, '\$${total.toStringAsFixed(2)}'),
-            _InfoPill(Icons.delivery_dining_rounded, '\$${fee.toStringAsFixed(2)} fee'),
-          ]),
-          const SizedBox(height: 14),
-
-          // Accept button
-          SizedBox(width: double.infinity, height: 48, child: ElevatedButton(
-            onPressed: onAccept,
-            style: ElevatedButton.styleFrom(backgroundColor: DC.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-            child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.check_circle_rounded, size: 20),
-              SizedBox(width: 8),
-              Text('Accept Order', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-            ]),
-          )),
-        ])),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(width: 8, height: 8, decoration: BoxDecoration(color: DC.orange, shape: BoxShape.circle,
+            boxShadow: [BoxShadow(color: DC.orange.withValues(alpha: 0.5), blurRadius: 6)])),
+          const SizedBox(width: 8),
+          Text(module.toUpperCase(), style: const TextStyle(color: DC.orange, fontSize: 11, fontWeight: FontWeight.w800)),
+          const Spacer(),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(color: DC.success.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
+            child: Text(status.replaceAll('_', ' '), style: const TextStyle(color: DC.success, fontSize: 10, fontWeight: FontWeight.w700))),
+        ]),
+        const SizedBox(height: 12),
+        Text(vendor?['name'] ?? '', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 15)),
+        const SizedBox(height: 4),
+        Row(children: [
+          const Icon(Icons.person_rounded, color: DC.textMuted, size: 14),
+          const SizedBox(width: 4),
+          Text(customer?['name'] ?? '', style: const TextStyle(color: DC.textSec, fontSize: 13)),
+          const Spacer(),
+          Text('\$${fee.toStringAsFixed(2)}', style: const TextStyle(color: DC.success, fontWeight: FontWeight.w800, fontSize: 14)),
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
+          Text('#${order['order_number'] ?? ''}', style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+          const Spacer(),
+          const Text('Tap for details →', style: TextStyle(color: DC.orange, fontSize: 11, fontWeight: FontWeight.w600)),
+        ]),
       ]),
     );
   }
 }
 
-class _InfoPill extends StatelessWidget {
-  final IconData icon; final String text;
-  const _InfoPill(this.icon, this.text);
+// ══════════════════════════════════════════════════════════════════
+// ACTIVE DELIVERY PAGE (matches reference — map + details + actions)
+// ══════════════════════════════════════════════════════════════════
+
+class _ActiveDeliveryPage extends ConsumerStatefulWidget {
+  final Map<String, dynamic> order;
+  const _ActiveDeliveryPage({required this.order});
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(right: 8),
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(color: DC.surface, borderRadius: BorderRadius.circular(8)),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, color: DC.textMuted, size: 14),
-      const SizedBox(width: 4),
-      Text(text, style: const TextStyle(color: DC.textSec, fontSize: 12, fontWeight: FontWeight.w600)),
-    ]),
-  );
+  ConsumerState<_ActiveDeliveryPage> createState() => _ActiveDeliveryState();
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// ACTIVE ORDER CARD — tap to open detail
-// ══════════════════════════════════════════════════════════════════════════════
-
-class _ActiveOrderCard extends ConsumerWidget {
-  final Map<String, dynamic> order;
-  const _ActiveOrderCard({required this.order});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final vendor = order['vendor'] as Map<String, dynamic>?;
-    final customer = order['customer'] as Map<String, dynamic>?;
-    final module = (order['module_slug'] ?? 'order').toString();
-    final fee = double.tryParse('${order['delivery_fee'] ?? 0}') ?? 0;
-    final status = order['status']?.toString() ?? '';
-    final nextStatus = status == 'out_for_delivery' ? 'delivered' : 'out_for_delivery';
-    final btnLabel = status == 'out_for_delivery' ? '✓ Mark Delivered' : 'Picked Up — Start Delivery';
-    final btnColor = status == 'out_for_delivery' ? DC.success : DC.orange;
-
-    return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _OrderDetailPage(order: order))),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: DC.card, borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: DC.orange.withValues(alpha: 0.3), width: 1.5),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(width: 10, height: 10, decoration: BoxDecoration(color: DC.orange, shape: BoxShape.circle, boxShadow: [BoxShadow(color: DC.orange.withValues(alpha: 0.5), blurRadius: 6)])),
-            const SizedBox(width: 8),
-            Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(6)),
-              child: Text(module.toUpperCase(), style: const TextStyle(color: DC.orange, fontSize: 10, fontWeight: FontWeight.w800))),
-            const Spacer(),
-            Text('#${order['order_number'] ?? ''}', style: const TextStyle(color: DC.textSec, fontSize: 12, fontWeight: FontWeight.w600)),
-          ]),
-          const SizedBox(height: 12),
-
-          // Vendor
-          Row(children: [
-            const Icon(Icons.store_rounded, color: DC.orange, size: 16),
-            const SizedBox(width: 6),
-            Expanded(child: Text(vendor?['name'] ?? '', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14))),
-          ]),
-          const SizedBox(height: 4),
-          // Customer
-          Row(children: [
-            const Icon(Icons.person_rounded, color: DC.textMuted, size: 16),
-            const SizedBox(width: 6),
-            Text(customer?['name'] ?? '', style: const TextStyle(color: DC.textSec, fontSize: 13)),
-            const Spacer(),
-            if (customer?['phone'] != null)
-              GestureDetector(
-                onTap: () => launchUrl(Uri.parse('tel:${customer!['phone']}')),
-                child: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: DC.success.withValues(alpha: 0.15), shape: BoxShape.circle),
-                  child: const Icon(Icons.phone, color: DC.success, size: 16)),
-              ),
-          ]),
-          const SizedBox(height: 12),
-
-          // Fee + Navigate
-          Row(children: [
-            Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(color: DC.success.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-              child: Text('\$${fee.toStringAsFixed(2)} fee', style: const TextStyle(color: DC.success, fontWeight: FontWeight.w800, fontSize: 13))),
-            const SizedBox(width: 8),
-            if (vendor?['lat'] != null) GestureDetector(
-              onTap: () => launchUrl(Uri.parse('https://www.google.com/maps/dir/?api=1&destination=${vendor!['lat']},${vendor!['lng']}&travelmode=driving')),
-              child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: const Color(0xFF3B82F6).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-                child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.navigation_rounded, color: Color(0xFF3B82F6), size: 14),
-                  SizedBox(width: 4),
-                  Text('Navigate', style: TextStyle(color: Color(0xFF3B82F6), fontWeight: FontWeight.w700, fontSize: 12)),
-                ])),
-            ),
-            const Spacer(),
-            const Icon(Icons.chevron_right_rounded, color: DC.textMuted, size: 20),
-          ]),
-          const SizedBox(height: 12),
-
-          // Status action button
-          SizedBox(width: double.infinity, height: 46, child: ElevatedButton(
-            onPressed: () async {
-              // For delivered, require photo
-              if (nextStatus == 'delivered') {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => _DeliverConfirmPage(order: order)));
-                return;
-              }
-              try {
-                await ref.read(authRepoProvider).updateOrderStatus((order['id'] as num).toInt(), nextStatus);
-                ref.invalidate(_activeProvider);
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(btnLabel), backgroundColor: DC.success));
-              } catch (e) {
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: DC.error));
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: btnColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: Text(btnLabel, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
-          )),
-        ]),
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// ORDER DETAIL PAGE — full screen with map
-// ══════════════════════════════════════════════════════════════════════════════
-
-class _OrderDetailPage extends StatelessWidget {
-  final Map<String, dynamic> order;
-  const _OrderDetailPage({required this.order});
+class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
+  bool _loading = false;
 
   @override
   Widget build(BuildContext context) {
-    final vendor = order['vendor'] as Map<String, dynamic>?;
-    final customer = order['customer'] as Map<String, dynamic>?;
-    final module = (order['module_slug'] ?? 'order').toString();
-    final fee = double.tryParse('${order['delivery_fee'] ?? 0}') ?? 0;
-    final total = double.tryParse('${order['total_amount'] ?? 0}') ?? 0;
-    final vLat = double.tryParse('${vendor?['lat'] ?? ''}');
-    final vLng = double.tryParse('${vendor?['lng'] ?? ''}');
-    final addr = order['delivery_address'];
+    final o = widget.order;
+    final vendor = o['vendor'] as Map<String, dynamic>?;
+    final customer = o['customer'] as Map<String, dynamic>?;
+    final module = (o['module_slug'] ?? '').toString();
+    final fee = double.tryParse('${o['delivery_fee'] ?? 0}') ?? 0;
+    final distance = o['distance_km'];
+    final status = o['status']?.toString() ?? '';
+    final vLat = double.tryParse('${vendor?['lat'] ?? 0}') ?? 0;
+    final vLng = double.tryParse('${vendor?['lng'] ?? 0}') ?? 0;
+    final addr = o['delivery_address'];
     final district = addr is Map ? (addr['district'] ?? addr['city'] ?? '') : '';
+    final hasLoc = vLat != 0 && vLng != 0;
 
-    final hasVendorLoc = vLat != null && vLng != null && vLat != 0;
+    final isPickup = status != 'out_for_delivery';
+    final actionLabel = isPickup ? 'Arrived at Pickup' : '✓ Complete Delivery';
+    final nextStatus = isPickup ? 'out_for_delivery' : 'delivered';
 
     return Scaffold(
       backgroundColor: DC.navy,
-      appBar: AppBar(backgroundColor: DC.navyLight, title: Text('#${order['order_number'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800))),
-      body: ListView(children: [
+      appBar: AppBar(
+        backgroundColor: DC.navyLight,
+        title: const Text('Active Delivery', style: TextStyle(fontWeight: FontWeight.w800)),
+        actions: [
+          if (customer?['phone'] != null) IconButton(
+            icon: const Icon(Icons.phone_rounded, color: DC.success),
+            onPressed: () => launchUrl(Uri.parse('tel:${customer!['phone']}')),
+          ),
+          if (vendor?['phone'] != null) IconButton(
+            icon: const Icon(Icons.store_rounded, color: DC.orange),
+            onPressed: () => launchUrl(Uri.parse('tel:${vendor!['phone']}')),
+          ),
+        ],
+      ),
+      body: Column(children: [
         // Map
-        if (hasVendorLoc) SizedBox(height: 220, child: GoogleMap(
-          initialCameraPosition: CameraPosition(target: LatLng(vLat!, vLng!), zoom: 14),
+        if (hasLoc) SizedBox(height: 240, child: GoogleMap(
+          initialCameraPosition: CameraPosition(target: LatLng(vLat, vLng), zoom: 14),
           markers: {
-            Marker(markerId: const MarkerId('vendor'), position: LatLng(vLat, vLng!),
-              infoWindow: InfoWindow(title: vendor?['name'] ?? 'Pickup')),
+            Marker(markerId: const MarkerId('pickup'), position: LatLng(vLat, vLng),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+              infoWindow: InfoWindow(title: 'Pickup', snippet: vendor?['name'])),
           },
-          myLocationEnabled: true, myLocationButtonEnabled: false,
+          myLocationEnabled: true, myLocationButtonEnabled: true,
           zoomControlsEnabled: false, mapToolbarEnabled: false,
         )),
 
-        Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Module + Status
-          Row(children: [
-            Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(8)),
-              child: Text(module.toUpperCase(), style: const TextStyle(color: DC.orange, fontSize: 11, fontWeight: FontWeight.w800))),
-            const SizedBox(width: 8),
-            Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: DC.success.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-              child: Text(order['status']?.toString().replaceAll('_', ' ').toUpperCase() ?? '', style: const TextStyle(color: DC.success, fontSize: 10, fontWeight: FontWeight.w700))),
-          ]),
-          const SizedBox(height: 20),
-
-          // Pickup section
-          _DetailSection(icon: Icons.store_rounded, color: DC.orange, title: 'Pickup Location', children: [
-            _DetailRow('Restaurant', vendor?['name'] ?? '—'),
-            _DetailRow('Address', vendor?['address'] ?? '—'),
-            if (vendor?['phone'] != null) _DetailRow('Phone', vendor!['phone']),
-          ]),
-          const SizedBox(height: 14),
-
-          // Delivery section
-          _DetailSection(icon: Icons.location_on_rounded, color: DC.success, title: 'Delivery Location', children: [
-            _DetailRow('Customer', customer?['name'] ?? '—'),
-            if (customer?['phone'] != null) _DetailRow('Phone', customer!['phone']),
-            _DetailRow('District', district.toString()),
-          ]),
-          const SizedBox(height: 14),
-
-          // Pricing section
-          _DetailSection(icon: Icons.receipt_rounded, color: const Color(0xFF3B82F6), title: 'Order Details', children: [
-            _DetailRow('Order Total', '\$${total.toStringAsFixed(2)}'),
-            _DetailRow('Delivery Fee', '\$${fee.toStringAsFixed(2)}', valueColor: DC.success),
-            if (order['items_count'] != null) _DetailRow('Items', '${order['items_count']}'),
-            _DetailRow('Placed', order['placed_at'] ?? order['created_at'] ?? '—'),
-          ]),
-          const SizedBox(height: 20),
-
-          // Navigate button
-          if (hasVendorLoc) SizedBox(width: double.infinity, height: 52, child: ElevatedButton.icon(
-            onPressed: () => launchUrl(Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$vLat,$vLng&travelmode=driving')),
-            icon: const Icon(Icons.navigation_rounded),
-            label: const Text('Navigate to Pickup', style: TextStyle(fontWeight: FontWeight.w800)),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3B82F6), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-          )),
-
-          // Call buttons
+        // Details
+        Expanded(child: SingleChildScrollView(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Pickup card
+          _LocationCard(
+            icon: Icons.store_rounded, color: DC.orange, label: 'Pickup',
+            title: vendor?['name'] ?? '—', subtitle: vendor?['address'] ?? '',
+            trailing: isPickup ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: DC.orange.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
+              child: const Text('Arrived', style: TextStyle(color: DC.orange, fontSize: 10, fontWeight: FontWeight.w700)),
+            ) : null,
+          ),
           const SizedBox(height: 12),
-          Row(children: [
-            if (vendor?['phone'] != null) Expanded(child: OutlinedButton.icon(
-              onPressed: () => launchUrl(Uri.parse('tel:${vendor!['phone']}')),
-              icon: const Icon(Icons.store_rounded, size: 18),
-              label: const Text('Call Vendor'),
-              style: OutlinedButton.styleFrom(foregroundColor: DC.orange, side: const BorderSide(color: DC.orange), padding: const EdgeInsets.symmetric(vertical: 12)),
+
+          // Dropoff card
+          _LocationCard(
+            icon: Icons.location_on_rounded, color: DC.success, label: 'Drop Off',
+            title: customer?['name'] ?? '—', subtitle: district.toString(),
+            trailing: distance != null ? Text('${distance} km away', style: const TextStyle(color: DC.textMuted, fontSize: 11)) : null,
+          ),
+          const SizedBox(height: 16),
+
+          // Order info
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: DC.border.withValues(alpha: 0.3))),
+            child: Row(children: [
+              Text('Order #${o['order_number'] ?? ''}', style: const TextStyle(color: DC.textSec, fontSize: 13, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(6)),
+                child: Text(module, style: const TextStyle(color: DC.orange, fontSize: 11, fontWeight: FontWeight.w700))),
+            ]),
+          ),
+          const SizedBox(height: 12),
+
+          // Stats
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+            decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: DC.border.withValues(alpha: 0.3))),
+            child: Row(children: [
+              _MiniInfo(Icons.timer_rounded, distance != null ? '${(distance * 3).toInt()} min' : '—', 'ETA'),
+              _MiniInfo(Icons.route_rounded, distance != null ? '$distance km' : '—', 'Distance'),
+              _MiniInfo(Icons.access_time_rounded, '--:--', 'Arrival'),
+            ]),
+          ),
+        ]))),
+
+        // Bottom action
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+          decoration: BoxDecoration(color: DC.navyLight, border: Border(top: BorderSide(color: DC.border))),
+          child: Column(children: [
+            // Main action button
+            SizedBox(width: double.infinity, height: 52, child: ElevatedButton(
+              onPressed: _loading ? null : () => _handleAction(nextStatus),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isPickup ? DC.orange : DC.success,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              child: _loading
+                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                  : Text(actionLabel, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
             )),
-            if (vendor?['phone'] != null && customer?['phone'] != null) const SizedBox(width: 10),
-            if (customer?['phone'] != null) Expanded(child: OutlinedButton.icon(
-              onPressed: () => launchUrl(Uri.parse('tel:${customer!['phone']}')),
-              icon: const Icon(Icons.person_rounded, size: 18),
-              label: const Text('Call Customer'),
-              style: OutlinedButton.styleFrom(foregroundColor: DC.success, side: const BorderSide(color: DC.success), padding: const EdgeInsets.symmetric(vertical: 12)),
-            )),
+            if (!isPickup) ...[
+              const SizedBox(height: 8),
+              // Navigate button
+              SizedBox(width: double.infinity, height: 44, child: OutlinedButton.icon(
+                onPressed: hasLoc ? () => launchUrl(Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$vLat,$vLng&travelmode=driving')) : null,
+                icon: const Icon(Icons.navigation_rounded, size: 18),
+                label: const Text('Start Navigation'),
+                style: OutlinedButton.styleFrom(foregroundColor: DC.orange, side: const BorderSide(color: DC.orange)),
+              )),
+            ],
           ]),
-        ])),
+        ),
       ]),
     );
   }
+
+  Future<void> _handleAction(String nextStatus) async {
+    if (nextStatus == 'delivered') {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => _PhotoConfirmPage(order: widget.order)));
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      await ref.read(authRepoProvider).updateOrderStatus((widget.order['id'] as num).toInt(), nextStatus);
+      ref.invalidate(_activeProvider);
+      if (mounted) { Navigator.pop(context); }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: DC.error));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 }
 
-class _DetailSection extends StatelessWidget {
-  final IconData icon; final Color color; final String title; final List<Widget> children;
-  const _DetailSection({required this.icon, required this.color, required this.title, required this.children});
+class _LocationCard extends StatelessWidget {
+  final IconData icon; final Color color; final String label, title, subtitle; final Widget? trailing;
+  const _LocationCard({required this.icon, required this.color, required this.label, required this.title, required this.subtitle, this.trailing});
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: DC.border.withValues(alpha: 0.3))),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Icon(icon, color: color, size: 18), const SizedBox(width: 8),
-        Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 14)),
-      ]),
-      const SizedBox(height: 12),
-      ...children,
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: DC.border.withValues(alpha: 0.3))),
+    child: Row(children: [
+      Container(width: 40, height: 40, decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+        child: Icon(icon, color: color, size: 20)),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+        Text(title, style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
+        if (subtitle.isNotEmpty) Text(subtitle, style: const TextStyle(color: DC.textMuted, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+      ])),
+      if (trailing != null) trailing!,
     ]),
   );
 }
 
-class _DetailRow extends StatelessWidget {
-  final String label, value; final Color? valueColor;
-  const _DetailRow(this.label, this.value, {this.valueColor});
+class _MiniInfo extends StatelessWidget {
+  final IconData icon; final String value, label;
+  const _MiniInfo(this.icon, this.value, this.label);
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 13)),
-      Flexible(child: Text(value, style: TextStyle(color: valueColor ?? DC.text, fontWeight: FontWeight.w600, fontSize: 13), textAlign: TextAlign.end)),
-    ]),
-  );
+  Widget build(BuildContext context) => Expanded(child: Column(children: [
+    Icon(icon, color: DC.textMuted, size: 16),
+    const SizedBox(height: 4),
+    Text(value, style: const TextStyle(color: DC.text, fontWeight: FontWeight.w800, fontSize: 14)),
+    Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 10)),
+  ]));
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// DELIVERY CONFIRMATION PAGE — photo required
-// ══════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// PHOTO CONFIRMATION PAGE
+// ══════════════════════════════════════════════════════════════════
 
-class _DeliverConfirmPage extends ConsumerStatefulWidget {
+class _PhotoConfirmPage extends ConsumerStatefulWidget {
   final Map<String, dynamic> order;
-  const _DeliverConfirmPage({required this.order});
+  const _PhotoConfirmPage({required this.order});
   @override
-  ConsumerState<_DeliverConfirmPage> createState() => _DeliverConfirmState();
+  ConsumerState<_PhotoConfirmPage> createState() => _PhotoConfirmState();
 }
 
-class _DeliverConfirmState extends ConsumerState<_DeliverConfirmPage> {
+class _PhotoConfirmState extends ConsumerState<_PhotoConfirmPage> {
   File? _photo;
   bool _loading = false;
 
@@ -515,12 +540,12 @@ class _DeliverConfirmState extends ConsumerState<_DeliverConfirmPage> {
       ref.invalidate(_activeProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Delivery completed! 🎉'), backgroundColor: DC.success));
-        Navigator.pop(context);
+        Navigator.popUntil(context, (route) => route.isFirst);
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: DC.error));
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -530,34 +555,31 @@ class _DeliverConfirmState extends ConsumerState<_DeliverConfirmPage> {
       backgroundColor: DC.navy,
       appBar: AppBar(backgroundColor: DC.navyLight, title: const Text('Confirm Delivery', style: TextStyle(fontWeight: FontWeight.w800))),
       body: Padding(padding: const EdgeInsets.all(24), child: Column(children: [
-        const Icon(Icons.camera_alt_rounded, color: DC.orange, size: 48),
-        const SizedBox(height: 16),
-        const Text('Take a delivery photo', style: TextStyle(color: DC.text, fontSize: 20, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 20),
+        Container(width: 80, height: 80, decoration: BoxDecoration(color: DC.orangeDim, shape: BoxShape.circle),
+          child: const Icon(Icons.camera_alt_rounded, color: DC.orange, size: 36)),
+        const SizedBox(height: 20),
+        const Text('Take a delivery photo', style: TextStyle(color: DC.text, fontSize: 22, fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
-        const Text('Photo confirms successful delivery to admin', style: TextStyle(color: DC.textSec, fontSize: 13)),
-        const SizedBox(height: 24),
-
-        // Photo preview
+        const Text('Photo confirms successful delivery', style: TextStyle(color: DC.textSec, fontSize: 13)),
+        const SizedBox(height: 28),
         GestureDetector(
           onTap: _pickPhoto,
           child: Container(
             width: double.infinity, height: 200,
             decoration: BoxDecoration(
               color: DC.surface, borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: _photo != null ? DC.success : DC.border, width: 2),
-            ),
+              border: Border.all(color: _photo != null ? DC.success : DC.border, width: 2)),
             child: _photo != null
                 ? ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.file(_photo!, fit: BoxFit.cover))
                 : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(Icons.add_a_photo_rounded, color: DC.textMuted, size: 40),
+                    Icon(Icons.add_a_photo_rounded, color: DC.textMuted.withValues(alpha: 0.5), size: 44),
                     const SizedBox(height: 8),
-                    const Text('Tap to take photo', style: TextStyle(color: DC.textMuted)),
+                    const Text('Tap to take photo', style: TextStyle(color: DC.textMuted, fontSize: 13)),
                   ]),
           ),
         ),
         const Spacer(),
-
-        // Confirm button
         SizedBox(width: double.infinity, height: 56, child: ElevatedButton(
           onPressed: _loading ? null : _confirm,
           style: ElevatedButton.styleFrom(backgroundColor: DC.success, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
@@ -565,11 +587,8 @@ class _DeliverConfirmState extends ConsumerState<_DeliverConfirmPage> {
               ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
               : const Text('Complete Delivery', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
         )),
-        const SizedBox(height: 12),
-        TextButton(
-          onPressed: _loading ? null : _confirm,
-          child: const Text('Skip photo', style: TextStyle(color: DC.textMuted)),
-        ),
+        const SizedBox(height: 10),
+        TextButton(onPressed: _loading ? null : _confirm, child: const Text('Skip photo', style: TextStyle(color: DC.textMuted))),
       ])),
     );
   }
