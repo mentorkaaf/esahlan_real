@@ -92,9 +92,16 @@ class AdminOrderController extends Controller
 
         $moduleMeta = self::MODULE_META;
 
+        // Available drivers for map
+        $availableDrivers = Deliveryman::with('user:id,name,phone')
+            ->where('is_approved', true)
+            ->whereIn('status', ['available', 'busy'])
+            ->whereNotNull('latitude')
+            ->get(['id', 'user_id', 'vehicle_type', 'status', 'latitude', 'longitude', 'rating']);
+
         return view('admin.orders.index', compact(
             'orders', 'moduleGroups', 'statusCounts', 'moduleCounts',
-            'exchangeOrders', 'moduleMeta'
+            'exchangeOrders', 'moduleMeta', 'availableDrivers'
         ));
     }
 

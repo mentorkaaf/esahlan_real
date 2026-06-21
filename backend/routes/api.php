@@ -150,6 +150,7 @@ Route::prefix('v1')->group(function () {
     Route::get('efood/restaurants/{id}/products',        [EFoodController::class, 'products']);
     Route::get('efood/restaurants/{restaurantId}/menu',  [EFoodController::class, 'products']);   // alias Flutter uses
     Route::get('efood/items/{id}',                       [EFoodController::class, 'getItem']);
+    Route::get('efood/delivery-fee',                     [EFoodController::class, 'calculateDeliveryFee']);
     Route::get('efood/restaurants/{id}/coupons',           [EFoodController::class, 'restaurantCoupons']);
     Route::get('efood/restaurants/{id}/campaigns',         [EFoodController::class, 'restaurantCampaigns']);
     // Order placement — kept public so guest browsing works; wallet auth enforced in controller

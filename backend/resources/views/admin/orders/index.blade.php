@@ -51,6 +51,94 @@ tbody tr.selected td{background:rgba(255,138,0,.04);}
     </div>
 </div>
 
+{{-- Live Drivers Map --}}
+<div style="margin-bottom:16px;">
+    <div onclick="document.getElementById('driversMapWrap').style.display = document.getElementById('driversMapWrap').style.display === 'none' ? 'block' : 'none'"
+         style="background:#fff;border-radius:14px;padding:14px 20px;cursor:pointer;border:1.5px solid #f0f1f5;display:flex;align-items:center;gap:10px;">
+        <i class="fas fa-map-marked-alt" style="color:#FF8A00;font-size:18px;"></i>
+        <span style="font-weight:700;font-size:14px;color:#07003B;">Live Drivers Map</span>
+        <span style="font-size:12px;color:#8A8A9A;margin-left:4px;">{{ $availableDrivers->count() }} drivers</span>
+        <i class="fas fa-chevron-down" style="margin-left:auto;color:#8A8A9A;font-size:12px;"></i>
+    </div>
+    <div id="driversMapWrap" style="display:none;margin-top:8px;">
+        <div id="driversMap" style="height:350px;border-radius:14px;border:1.5px solid #f0f1f5;overflow:hidden;"></div>
+    </div>
+</div>
+
+@push('scripts')
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A&callback=initDriversMap" async defer></script>
+<script>
+var __driversMapInit = false;
+function initDriversMap() {
+    if (__driversMapInit) return;
+    __driversMapInit = true;
+
+    var center = {lat: 2.0469, lng: 45.3182};
+    var map = new google.maps.Map(document.getElementById('driversMap'), {
+        zoom: 13, center: center,
+        mapTypeControl: true,
+        mapTypeControlOptions: { style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR, position: google.maps.ControlPosition.TOP_RIGHT, mapTypeIds: ['roadmap','satellite','hybrid'] },
+        streetViewControl: false,
+    });
+
+    var vehicleIcons = {
+        motorcycle: '🏍️', bajaj: '🛺', car: '🚗', van: '🚐', truck: '🚛', bicycle: '🚲', pickup: '🚛'
+    };
+
+    var drivers = @json($availableDrivers->map(fn($d) => [
+        'id' => $d->id,
+        'name' => $d->user?->name ?? 'Driver',
+        'phone' => $d->user?->phone ?? '',
+        'vehicle' => $d->vehicle_type,
+        'status' => $d->status,
+        'lat' => (float) $d->latitude,
+        'lng' => (float) $d->longitude,
+        'rating' => $d->rating,
+    ])->values());
+
+    var iw = new google.maps.InfoWindow();
+    var bounds = new google.maps.LatLngBounds();
+
+    drivers.forEach(function(d) {
+        if (!d.lat || !d.lng) return;
+        var emoji = vehicleIcons[d.vehicle] || '🚗';
+        var statusColor = d.status === 'available' ? '#10B981' : '#F59E0B';
+        var marker = new google.maps.Marker({
+            position: {lat: d.lat, lng: d.lng},
+            map: map,
+            label: {text: emoji, fontSize: '22px'},
+            title: d.name + ' (' + d.vehicle + ')',
+        });
+        marker.addListener('click', function() {
+            iw.setContent(
+                '<div style="padding:4px;min-width:150px;">' +
+                '<div style="font-weight:800;font-size:14px;">' + d.name + '</div>' +
+                '<div style="font-size:12px;color:#666;">' + d.phone + '</div>' +
+                '<div style="margin-top:4px;">' +
+                '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:' + statusColor + '20;color:' + statusColor + ';">' + d.status + '</span>' +
+                ' <span style="color:#f59e0b;">★ ' + (d.rating||5) + '</span>' +
+                '</div>' +
+                '<div style="font-size:11px;color:#888;margin-top:2px;">' + emoji + ' ' + d.vehicle + '</div>' +
+                '</div>'
+            );
+            iw.open(map, marker);
+        });
+        bounds.extend({lat: d.lat, lng: d.lng});
+    });
+
+    if (drivers.length > 0) {
+        if (drivers.length === 1) { map.setCenter({lat: drivers[0].lat, lng: drivers[0].lng}); map.setZoom(15); }
+        else map.fitBounds(bounds);
+    }
+}
+
+// Re-init map when expanded
+document.getElementById('driversMapWrap')?.addEventListener('transitionend', function() {
+    if (this.style.display !== 'none') google.maps.event.trigger(document.getElementById('driversMap'), 'resize');
+});
+</script>
+@endpush
+
 {{-- Bulk Bar --}}
 <div class="bulk-bar" id="bulkBar">
     <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap;">

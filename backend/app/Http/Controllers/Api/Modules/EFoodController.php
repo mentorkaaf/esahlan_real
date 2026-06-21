@@ -478,7 +478,28 @@ class EFoodController extends Controller
         }
 
         $vendor = DB::table('vendors')->find($vendorId);
-        $deliveryFee   = (float) ($vendor->delivery_fee ?? 0);
+
+        // Delivery fee: zone pricing (vendor district → customer district) → vendor static fee → 0
+        $deliveryFee = 0;
+        $vendorDistrictId = $vendor->district_id ?? null;
+        $customerDistrictId = $request->input('district_id');
+        if ($vendorDistrictId && $customerDistrictId) {
+            $zone = DB::table('delivery_zone_pricing')
+                ->where('from_district_id', $vendorDistrictId)
+                ->where('to_district_id', $customerDistrictId)
+                ->where('is_active', true)
+                ->where(function ($q) {
+                    $q->where('module_id', 'eparcel')->orWhere('module_id', 'efood');
+                })
+                ->first();
+            if ($zone) {
+                $deliveryFee = (float) $zone->base_price;
+            }
+        }
+        if ($deliveryFee <= 0) {
+            $deliveryFee = (float) ($vendor->delivery_fee ?? 0);
+        }
+
         $discountTotal = round($discountTotal, 2);
         $total         = round(max(0, $subtotal - $discountTotal) + $deliveryFee, 2);
 
@@ -928,6 +949,56 @@ class EFoodController extends Controller
         $item = \DB::table('products')->where('id', $id)->first();
         if (!$item) return response()->json(['success' => false, 'message' => 'Item not found'], 404);
         return response()->json(['success' => true, 'data' => $item]);
+    }
+
+    public function calculateDeliveryFee(Request $request)
+    {
+        $vendorId   = $request->input('vendor_id');
+        $districtId = $request->input('district_id');
+
+        if (!$vendorId || !$districtId) {
+            return response()->json(['success' => false, 'message' => 'vendor_id and district_id required'], 422);
+        }
+
+        $vendor = DB::table('vendors')->find($vendorId);
+        if (!$vendor) return response()->json(['success' => false, 'message' => 'Vendor not found'], 404);
+
+        $fee = 0;
+        $source = 'free';
+        $vendorDistrictId = $vendor->district_id;
+
+        if ($vendorDistrictId && $districtId) {
+            $zone = DB::table('delivery_zone_pricing')
+                ->where('from_district_id', $vendorDistrictId)
+                ->where('to_district_id', $districtId)
+                ->where('is_active', true)
+                ->where(function ($q) {
+                    $q->where('module_id', 'eparcel')->orWhere('module_id', 'efood');
+                })
+                ->first();
+            if ($zone) {
+                $fee = (float) $zone->base_price;
+                $source = 'zone_pricing';
+            }
+        }
+
+        if ($fee <= 0 && $vendor->delivery_fee > 0) {
+            $fee = (float) $vendor->delivery_fee;
+            $source = 'vendor';
+        }
+
+        $fromDistrict = DB::table('districts')->find($vendorDistrictId);
+        $toDistrict   = DB::table('districts')->find($districtId);
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'delivery_fee' => round($fee, 2),
+                'source'       => $source,
+                'from'         => $fromDistrict?->name,
+                'to'           => $toDistrict?->name,
+            ],
+        ]);
     }
 
 }
