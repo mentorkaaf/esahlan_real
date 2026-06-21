@@ -235,14 +235,13 @@ class DeliveryController extends Controller
             return response()->json(['success' => false, 'message' => 'Order already assigned'], 422);
         }
 
-        // Max 5 active orders for normal drivers
-        if ($dm->driver_type !== 'truck') {
-            $activeCount = Order::where('deliveryman_id', $dm->id)
-                ->whereIn('status', ['confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery'])
-                ->count();
-            if ($activeCount >= 5) {
-                return response()->json(['success' => false, 'message' => 'Maximum 5 active orders. Complete existing deliveries first.'], 422);
-            }
+        // Max orders limit (admin configurable)
+        $maxOrders = (int) \App\Helpers\AppSettings::get('max_orders_per_driver', 5);
+        $activeCount = Order::where('deliveryman_id', $dm->id)
+            ->whereIn('status', ['confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery'])
+            ->count();
+        if ($activeCount >= $maxOrders) {
+            return response()->json(['success' => false, 'message' => "Maximum {$maxOrders} active orders. Complete existing deliveries first."], 422);
         }
 
         DB::transaction(function () use ($order, $dm, $request) {

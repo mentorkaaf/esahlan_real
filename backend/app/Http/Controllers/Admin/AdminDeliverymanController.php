@@ -127,6 +127,17 @@ class AdminDeliverymanController extends Controller
         return back()->with('success', 'Driver permanently deleted.');
     }
 
+    public function saveSettings(Request $request)
+    {
+        $max = $request->filled('max_orders_custom') && $request->max_orders_custom > 0
+            ? (int) $request->max_orders_custom
+            : (int) ($request->max_orders_per_driver ?? 5);
+
+        \App\Helpers\AppSettings::set('max_orders_per_driver', $max);
+
+        return back()->with('success', "Max orders per driver set to {$max}.");
+    }
+
     public function approveDocument(DeliverymanDocument $document)
     {
         $document->update(['status' => 'approved', 'reviewed_by' => auth()->id(), 'reviewed_at' => now()]);

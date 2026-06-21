@@ -228,6 +228,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/{deliveryman}/reject', [AdminDeliverymanController::class, 'reject'])->name('reject');
             Route::post('/{deliveryman}/toggle-block', [AdminDeliverymanController::class, 'toggleBlock'])->name('toggle-block');
             Route::delete('/{deliveryman}', [AdminDeliverymanController::class, 'destroy'])->name('destroy');
+            Route::post('/settings', [AdminDeliverymanController::class, 'saveSettings'])->name('settings');
             Route::post('/documents/{document}/approve', [AdminDeliverymanController::class, 'approveDocument'])->name('document.approve');
             Route::post('/documents/{document}/reject', [AdminDeliverymanController::class, 'rejectDocument'])->name('document.reject');
         });

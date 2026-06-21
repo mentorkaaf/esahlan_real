@@ -7,7 +7,10 @@
         <h1 class="page-title">Deliverymen</h1>
         <ul class="breadcrumb"><li><a href="{{ route('admin.dashboard') }}">Dashboard</a></li><li>Deliverymen</li></ul>
     </div>
-    <button class="btn btn-primary" onclick="openModal('createModal')"><i class="fas fa-plus"></i> Add Driver</button>
+    <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline" onclick="openModal('settingsModal')"><i class="fas fa-cog"></i> Settings</button>
+        <button class="btn btn-primary" onclick="openModal('createModal')"><i class="fas fa-plus"></i> Add Driver</button>
+    </div>
 </div>
 
 @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
@@ -208,6 +211,43 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline" onclick="closeModal('createModal')">Cancel</button>
                 <button type="submit" class="btn btn-primary">Create Driver</button>
+            </div>
+        </form>
+    </div>
+</div>
+{{-- Settings Modal --}}
+<div class="modal-overlay" id="settingsModal">
+    <div class="modal-box" style="max-width:440px;">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fas fa-cog" style="color:#FF8A00;margin-right:8px;"></i> Delivery Settings</h3>
+            <button class="modal-close" onclick="closeModal('settingsModal')">✕</button>
+        </div>
+        <form action="{{ route('admin.deliverymen.settings') }}" method="POST">
+            @csrf
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Max Orders Per Driver</label>
+                    <p style="font-size:11px;color:#8A8A9A;margin:0 0 8px;">Maximum number of active orders a single driver can accept at once.</p>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        @php $currentMax = (int) \App\Helpers\AppSettings::get('max_orders_per_driver', 5); @endphp
+                        @foreach([1, 3, 5, 10, 15, 20] as $v)
+                        <label style="display:flex;align-items:center;gap:4px;padding:8px 14px;border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;
+                            {{ $currentMax == $v ? 'background:#FF8A00;color:#fff;' : 'background:#f0f1f5;color:#07003B;' }}">
+                            <input type="radio" name="max_orders_per_driver" value="{{ $v }}" {{ $currentMax == $v ? 'checked' : '' }} style="display:none;">
+                            {{ $v }}
+                        </label>
+                        @endforeach
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top:16px;">
+                    <label class="form-label">Or enter custom value</label>
+                    <input type="number" name="max_orders_custom" class="form-control" min="1" max="50" placeholder="e.g. 7" style="width:120px;">
+                    <p style="font-size:11px;color:#8A8A9A;margin:4px 0 0;">Leave empty to use the selected value above.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('settingsModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Settings</button>
             </div>
         </form>
     </div>
