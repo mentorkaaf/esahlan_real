@@ -185,6 +185,21 @@ class AdminDeliverymanController extends Controller
         return view('admin.deliverymen.earnings', compact('earnings', 'summary', 'drivers', 'perDriver'));
     }
 
+    public function resetEarning(Request $request, Deliveryman $deliveryman)
+    {
+        DB::table('deliveryman_earnings')->where('deliveryman_id', $deliveryman->id)->delete();
+        $deliveryman->update(['total_deliveries' => 0]);
+        return back()->with('success', "Earnings reset for {$deliveryman->user?->name}.");
+    }
+
+    public function bulkResetEarnings()
+    {
+        $count = DB::table('deliveryman_earnings')->count();
+        DB::table('deliveryman_earnings')->delete();
+        Deliveryman::query()->update(['total_deliveries' => 0]);
+        return back()->with('success', "{$count} earning records deleted. All driver stats reset.");
+    }
+
     public function saveSettings(Request $request)
     {
         $max = $request->filled('max_orders_custom') && $request->max_orders_custom > 0

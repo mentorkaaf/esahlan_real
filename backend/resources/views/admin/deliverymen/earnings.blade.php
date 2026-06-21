@@ -10,7 +10,13 @@
             <li>Earnings</li>
         </ul>
     </div>
-    <a href="{{ route('admin.deliverymen.index') }}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back</a>
+    <div style="display:flex;gap:8px;">
+        <form action="{{ route('admin.deliverymen.earnings.bulk-reset') }}" method="POST" onsubmit="return confirm('Reset ALL driver earnings? This cannot be undone.')">
+            @csrf
+            <button class="btn btn-danger btn-sm"><i class="fas fa-undo"></i> Reset All</button>
+        </form>
+        <a href="{{ route('admin.deliverymen.index') }}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back</a>
+    </div>
 </div>
 
 {{-- Summary Cards --}}
@@ -135,6 +141,10 @@
                 </div>
                 <div style="text-align:right;">
                     <div style="font-weight:800;color:#10B981;font-size:14px;">${{ number_format($pd->total_earned, 2) }}</div>
+                    <form action="{{ route('admin.deliverymen.reset-earning', $pd->deliveryman_id) }}" method="POST" style="margin:2px 0 0;" onsubmit="return confirm('Reset earnings for {{ $pd->name }}?')">
+                        @csrf
+                        <button style="background:none;border:none;color:#EF4444;font-size:10px;cursor:pointer;font-weight:600;padding:0;"><i class="fas fa-undo" style="font-size:9px;"></i> Reset</button>
+                    </form>
                 </div>
             </div>
             @empty

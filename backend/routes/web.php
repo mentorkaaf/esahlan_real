@@ -223,6 +223,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('deliverymen')->name('deliverymen.')->group(function () {
             Route::get('/', [AdminDeliverymanController::class, 'index'])->name('index');
             Route::get('/earnings', [AdminDeliverymanController::class, 'earnings'])->name('earnings');
+            Route::post('/earnings/bulk-reset', [AdminDeliverymanController::class, 'bulkResetEarnings'])->name('earnings.bulk-reset');
+            Route::post('/{deliveryman}/reset-earning', [AdminDeliverymanController::class, 'resetEarning'])->name('reset-earning');
             Route::post('/', [AdminDeliverymanController::class, 'store'])->name('store');
             Route::get('/{deliveryman}', [AdminDeliverymanController::class, 'show'])->name('show');
             Route::post('/{deliveryman}/approve', [AdminDeliverymanController::class, 'approve'])->name('approve');
