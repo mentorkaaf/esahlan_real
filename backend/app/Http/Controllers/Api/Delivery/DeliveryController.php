@@ -251,7 +251,7 @@ class DeliveryController extends Controller
         }
 
         $v = Validator::make($request->all(), [
-            'status' => 'required|in:picked_up,out_for_delivery,delivered',
+            'status' => 'required|in:out_for_delivery,delivered',
             'note'   => 'nullable|string',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
@@ -259,7 +259,7 @@ class DeliveryController extends Controller
         DB::transaction(function () use ($order, $request, $dm) {
             $data = ['status' => $request->status];
 
-            if ($request->status === 'picked_up') {
+            if ($request->status === 'out_for_delivery') {
                 $data['picked_up_at'] = now();
             }
 

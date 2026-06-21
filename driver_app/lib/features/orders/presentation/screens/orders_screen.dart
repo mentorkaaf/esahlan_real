@@ -111,15 +111,13 @@ class _ActiveTab extends ConsumerWidget {
   }
 
   String? _nextStatus(String? status) => switch (status) {
-    'ready_for_pickup' || 'confirmed' || 'preparing' => 'picked_up',
-    'picked_up' => 'out_for_delivery',
+    'ready_for_pickup' || 'confirmed' || 'preparing' => 'out_for_delivery',
     'out_for_delivery' => 'delivered',
     _ => null,
   };
 
   String _statusLabel(String s) => switch (s) {
-    'picked_up' => 'Picked Up',
-    'out_for_delivery' => 'Out for Delivery',
+    'out_for_delivery' => 'Picked Up & Delivering',
     'delivered' => 'Delivered',
     _ => s,
   };
@@ -223,9 +221,8 @@ class _OrderCard extends StatelessWidget {
   }
 
   String _btnLabel(String s) => switch (s) {
-    'picked_up' => 'Mark Picked Up',
-    'out_for_delivery' => 'Start Delivery',
-    'delivered' => 'Mark Delivered',
+    'out_for_delivery' => 'Picked Up — Start Delivery',
+    'delivered' => '✓ Mark Delivered',
     _ => s,
   };
 }
