@@ -9,37 +9,56 @@ class PendingScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: DC.navy,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
+      body: Container(
+        decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+          colors: [Color(0xFF0A1628), Color(0xFF162A4A)])),
+        child: SafeArea(child: Center(child: Padding(
+          padding: const EdgeInsets.all(36),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              width: 100, height: 100,
-              decoration: BoxDecoration(color: DC.orangeDim, shape: BoxShape.circle),
-              child: const Icon(Icons.hourglass_top_rounded, color: DC.orange, size: 48),
+            // Animated icon
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.elasticOut,
+              builder: (_, v, child) => Transform.scale(scale: v, child: child),
+              child: Container(width: 120, height: 120,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [DC.orange.withValues(alpha: 0.15), DC.orange.withValues(alpha: 0.05)]),
+                  shape: BoxShape.circle, border: Border.all(color: DC.orange.withValues(alpha: 0.3), width: 2)),
+                child: const Icon(Icons.hourglass_top_rounded, color: DC.orange, size: 56)),
             ),
-            const SizedBox(height: 28),
-            const Text('Under Review', style: TextStyle(color: DC.text, fontSize: 24, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 32),
+            const Text('Under Review', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
             const SizedBox(height: 12),
-            const Text(
-              'Your application is being reviewed by our team.\nYou will be notified once approved.',
+            Text(
+              'Your application is being reviewed by our team.\nThis usually takes a few hours.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: DC.textSec, fontSize: 14, height: 1.6),
+              style: TextStyle(color: DC.textSec, fontSize: 14, height: 1.7),
             ),
-            const SizedBox(height: 36),
-            SizedBox(width: double.infinity, height: 50, child: OutlinedButton.icon(
-              onPressed: () => ref.invalidate(authStateProvider),
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Check Status'),
-            )),
             const SizedBox(height: 12),
-            TextButton(
-              onPressed: () => ref.read(logoutProvider)(),
-              child: const Text('Logout', style: TextStyle(color: DC.error)),
+            Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(color: DC.orange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.notifications_active_rounded, color: DC.orange, size: 18),
+                SizedBox(width: 8),
+                Text("You'll be notified when approved", style: TextStyle(color: DC.orange, fontSize: 12, fontWeight: FontWeight.w600)),
+              ])),
+            const SizedBox(height: 40),
+            GestureDetector(
+              onTap: () => ref.invalidate(authStateProvider),
+              child: Container(width: double.infinity, height: 52,
+                decoration: BoxDecoration(border: Border.all(color: DC.orange), borderRadius: BorderRadius.circular(14)),
+                child: const Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.refresh_rounded, color: DC.orange, size: 20),
+                  SizedBox(width: 8),
+                  Text('Check Status', style: TextStyle(color: DC.orange, fontWeight: FontWeight.w700, fontSize: 15)),
+                ]))),
             ),
+            const SizedBox(height: 16),
+            TextButton(onPressed: () => ref.read(logoutProvider)(),
+              child: const Text('Logout', style: TextStyle(color: DC.error, fontWeight: FontWeight.w600))),
           ]),
-        ),
+        ))),
       ),
     );
   }
