@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/driver_colors.dart';
+import '../../../../core/services/location_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 final _dashProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
@@ -42,6 +43,12 @@ class DashboardScreen extends ConsumerWidget {
             _OnlineToggle(isOnline: d['is_online'] == true, onToggle: () async {
               await ref.read(authRepoProvider).toggleStatus();
               ref.invalidate(_dashProvider);
+              final goingOnline = d['is_online'] != true;
+              if (goingOnline) {
+                DriverLocationService.startTracking();
+              } else {
+                DriverLocationService.stopTracking();
+              }
             }),
             const SizedBox(height: 20),
 

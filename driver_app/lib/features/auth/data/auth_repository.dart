@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../../../core/api/api_client.dart';
+import '../../../core/services/firebase_service.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/storage/local_storage.dart';
 
 class AuthRepository {
@@ -38,6 +40,8 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
+    DriverLocationService.stopTracking();
+    await FirebaseService().deleteToken();
     try { await _dio.post('/auth/logout'); } catch (_) {}
     await LocalStorage.clear();
   }
