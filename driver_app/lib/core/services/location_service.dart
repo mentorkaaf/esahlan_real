@@ -51,7 +51,7 @@ class DriverLocationService {
   static int? _activeOrderId;
 
   static Future<void> initBackground() async {
-    await Workmanager().initialize(locationCallbackDispatcher, isInDebugMode: false);
+    await Workmanager().initialize(locationCallbackDispatcher);
   }
 
   static void startTracking({int? orderId}) {

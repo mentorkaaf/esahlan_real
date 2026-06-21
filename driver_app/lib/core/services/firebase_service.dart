@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -59,11 +60,11 @@ class FirebaseService {
       msg.hashCode,
       title,
       body,
-      const NotificationDetails(android: AndroidNotificationDetails(
+      NotificationDetails(android: AndroidNotificationDetails(
         'esahlan_driver_v1', 'eSahlan Driver',
         importance: Importance.high,
         priority: Priority.high,
-        color: Color(0xFFFF8A00),
+        color: const Color(0xFFFF8A00),
         playSound: true,
       )),
       payload: jsonEncode(msg.data),
