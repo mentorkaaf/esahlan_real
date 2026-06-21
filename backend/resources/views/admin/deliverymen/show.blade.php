@@ -69,8 +69,9 @@
         <div class="card-body">
             @forelse($deliveryman->documents ?? [] as $doc)
             <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #f0f1f5;border-radius:12px;margin-bottom:10px;">
-                <a href="{{ asset('storage/'.$doc->file_path) }}" target="_blank" style="flex-shrink:0;">
-                    <img src="{{ asset('storage/'.$doc->file_path) }}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #e0e0e0;" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 60%22><rect fill=%22%23f0f0f0%22 width=%2260%22 height=%2260%22/><text x=%2230%22 y=%2235%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2212%22>📄</text></svg>'">
+                @php $docUrl = url('/api/v1/img/' . $doc->file_path); @endphp
+                <a href="{{ $docUrl }}" target="_blank" style="flex-shrink:0;">
+                    <img src="{{ $docUrl }}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #e0e0e0;" onerror="this.style.display='none'">
                 </a>
                 <div style="flex:1;">
                     <div style="font-weight:700;font-size:13px;color:#07003B;">{{ ucwords(str_replace('_',' ',$doc->type)) }}</div>
