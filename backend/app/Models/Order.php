@@ -13,7 +13,7 @@ class Order extends Model
     protected $fillable = [
         'uuid','order_number','user_id','vendor_id','module_id','module_slug','deliveryman_id',
         'status','payment_status','payment_method','subtotal','delivery_fee',
-        'tax_amount','discount_amount','coupon_discount','total_amount','wallet_used',
+        'tax_amount','discount_amount','coupon_discount','total_amount','commission','wallet_used',
         'notes','note','scheduled_at','placed_at','confirmed_at','ready_at','dispatched_at',
         'picked_up_at','delivered_at','cancelled_at','cancellation_reason',
         'refund_amount','coupon_id','delivery_address','meta',

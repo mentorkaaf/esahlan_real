@@ -495,6 +495,7 @@ class EFoodController extends Controller
         }
         $commissionAmount = round($subtotal * $commissionRate / 100, 2);
         $vendorEarning    = round($subtotal - $commissionAmount, 2);
+        \Log::info("[eFood] Commission: rate={$commissionRate}%, subtotal={$subtotal}, commission={$commissionAmount}");
 
         // ── Wallet balance check ───────────────────────────────────────
         if ($pm === 'wallet' && $userId) {
