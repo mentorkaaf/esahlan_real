@@ -125,6 +125,10 @@ Route::prefix('v1')->group(function () {
         Route::post('reset-password',  [AuthController::class, 'resetPassword']);
     });
 
+    // Deliveryman auth (public — no token required)
+    Route::post('delivery/auth/register', [DeliveryController::class, 'register']);
+    Route::post('delivery/auth/login',    [DeliveryController::class, 'login']);
+
     // Public info
     Route::get('ads',                   [AdController::class, 'index']);         // ?type=popup|banner|card &module=efood
     Route::post('ads/{id}/track',       [AdController::class, 'track']);         // body: {action: impression|click}
@@ -420,10 +424,6 @@ Route::prefix('v1')->group(function () {
             Route::post('wallet/withdraw',                  [DeliveryController::class, 'withdrawRequest']);
             Route::post('documents/upload',                 [DeliveryController::class, 'uploadDocument']);
         });
-
-        // Deliveryman auth (public)
-        Route::post('delivery/auth/register', [DeliveryController::class, 'register']);
-        Route::post('delivery/auth/login',    [DeliveryController::class, 'login']);
 
         // ─── VENDOR ───────────────────────────────────────────────
         Route::prefix('vendor')->middleware('role:vendor_owner,vendor_employee')->group(function () {
