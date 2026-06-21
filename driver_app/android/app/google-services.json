@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:855727793462:android:5a0adf3f2f8c4fa90cbf97",
         "android_client_info": {
-          "package_name": "com.esahlan.user"
+          "package_name": "com.esahlan.esahlan_driver"
         }
       },
       "oauth_client": [
@@ -29,13 +29,6 @@
             {
               "client_id": "855727793462-71voqikke5uevn0s3iaqha24hdm1er8l.apps.googleusercontent.com",
               "client_type": 3
-            },
-            {
-              "client_id": "855727793462-2qeo2m5nb82phq07i4druggtc5u9lumf.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.esahlan.app"
-              }
             }
           ]
         }
