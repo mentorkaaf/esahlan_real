@@ -232,7 +232,7 @@ function renderPanel() {
                 '<span style="font-weight:700;color:#10B981;font-size:13px;">$'+o.total.toFixed(2)+'</span>'+
                 (hasDriver
                     ? '<span style="font-size:11px;padding:3px 8px;background:#e8f5e9;color:#2e7d32;border-radius:6px;font-weight:600;">'+o.driver_name+'</span>'
-                    : '<button onclick="event.stopPropagation();openAssign('+o.id+\',\\\''+o.order_number+'\\\'\'+')" style="padding:4px 12px;background:#FF8A00;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Assign</button>')+
+                    : '<button onclick="event.stopPropagation();openAssign('+o.id+',\''+o.order_number+'\')" style="padding:4px 12px;background:#FF8A00;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Assign</button>')+
                 '</div>'+
                 '<div style="font-size:10px;color:#aaa;margin-top:4px;">'+o.placed_at+'</div>'+
                 '</div>';
