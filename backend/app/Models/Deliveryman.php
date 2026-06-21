@@ -10,7 +10,7 @@ class Deliveryman extends Model {
     protected $fillable = [
         'uuid','user_id','district_id','national_id',
         'vehicle_type','vehicle_plate','vehicle_model','license_number',
-        'status','is_approved','is_online','is_available',
+        'status','driver_type','is_approved','is_online','is_available',
         'latitude','longitude','last_location_at',
         'rating','total_deliveries','cash_in_hand','fcm_token','meta',
     ];

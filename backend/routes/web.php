@@ -220,9 +220,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Deliverymen
         Route::prefix('deliverymen')->name('deliverymen.')->group(function () {
             Route::get('/', [AdminDeliverymanController::class, 'index'])->name('index');
+            Route::post('/', [AdminDeliverymanController::class, 'store'])->name('store');
             Route::get('/{deliveryman}', [AdminDeliverymanController::class, 'show'])->name('show');
             Route::post('/{deliveryman}/approve', [AdminDeliverymanController::class, 'approve'])->name('approve');
+            Route::post('/{deliveryman}/reject', [AdminDeliverymanController::class, 'reject'])->name('reject');
             Route::post('/{deliveryman}/toggle-block', [AdminDeliverymanController::class, 'toggleBlock'])->name('toggle-block');
+            Route::delete('/{deliveryman}', [AdminDeliverymanController::class, 'destroy'])->name('destroy');
+            Route::post('/documents/{document}/approve', [AdminDeliverymanController::class, 'approveDocument'])->name('document.approve');
+            Route::post('/documents/{document}/reject', [AdminDeliverymanController::class, 'rejectDocument'])->name('document.reject');
         });
 
         // Modules

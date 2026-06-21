@@ -32,8 +32,12 @@ class DeliveryController extends Controller
             'name'         => 'required|string|max:100',
             'phone'        => 'required|string|unique:users,phone',
             'password'     => 'required|string|min:4',
+            'driver_type'  => 'required|in:normal,truck',
             'vehicle_type' => 'required|in:motorcycle,car,bicycle,truck,bajaj,van,pickup',
             'plate_number' => 'nullable|string|max:50',
+            'national_id'  => 'required|file|max:5120',
+            'driver_license'=> 'required|file|max:5120',
+            'vehicle_reg'  => 'required|file|max:5120',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
@@ -51,13 +55,27 @@ class DeliveryController extends Controller
                 'referral_code' => strtoupper(Str::random(8)),
             ]);
 
-            Deliveryman::create([
+            $dm = Deliveryman::create([
                 'user_id'       => $user->id,
+                'driver_type'   => $request->driver_type,
                 'vehicle_type'  => $request->vehicle_type,
                 'vehicle_plate' => $request->plate_number,
                 'status'        => 'pending',
                 'is_approved'   => false,
             ]);
+
+            // Store required documents
+            foreach (['national_id', 'driver_license', 'vehicle_reg'] as $docType) {
+                if ($request->hasFile($docType)) {
+                    $path = $request->file($docType)->store('deliveryman-docs', 'public');
+                    DeliverymanDocument::create([
+                        'deliveryman_id' => $dm->id,
+                        'type'           => $docType,
+                        'file_path'      => $path,
+                        'status'         => 'pending',
+                    ]);
+                }
+            }
 
             Wallet::getOrCreateFor('App\\Models\\User', $user->id);
 
@@ -102,6 +120,7 @@ class DeliveryController extends Controller
                 'deliveryman' => $dm,
                 'token'       => $token,
                 'is_approved' => (bool) $dm->is_approved,
+                'driver_type' => $dm->driver_type ?? 'normal',
             ],
         ]);
     }
@@ -135,6 +154,7 @@ class DeliveryController extends Controller
             'success' => true,
             'data'    => [
                 'status'          => $dm->status,
+                'driver_type'     => $dm->driver_type ?? 'normal',
                 'is_online'       => (bool) $dm->is_online,
                 'is_approved'     => (bool) $dm->is_approved,
                 'today_orders'    => $todayOrders,
@@ -154,6 +174,9 @@ class DeliveryController extends Controller
     // ORDERS
     // ══════════════════════════════════════════════════════════════
 
+    private const NORMAL_MODULES = ['efood', 'eshop', 'eparcel', 'egrocery', 'elaundry'];
+    private const TRUCK_MODULES  = ['emoving'];
+
     public function availableOrders(Request $request)
     {
         $dm = $this->dm($request);
@@ -161,8 +184,11 @@ class DeliveryController extends Controller
             return response()->json(['success' => false, 'message' => 'Not approved'], 403);
         }
 
+        $allowedModules = $dm->driver_type === 'truck' ? self::TRUCK_MODULES : self::NORMAL_MODULES;
+
         $orders = Order::whereNull('deliveryman_id')
             ->where('status', 'ready_for_pickup')
+            ->whereIn('module_slug', $allowedModules)
             ->with(['vendor:id,name,address,latitude,longitude,phone,logo', 'user:id,name,phone'])
             ->latest()
             ->limit(20)
@@ -209,6 +235,16 @@ class DeliveryController extends Controller
             return response()->json(['success' => false, 'message' => 'Order already assigned'], 422);
         }
 
+        // Max 5 active orders for normal drivers
+        if ($dm->driver_type !== 'truck') {
+            $activeCount = Order::where('deliveryman_id', $dm->id)
+                ->whereIn('status', ['confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery'])
+                ->count();
+            if ($activeCount >= 5) {
+                return response()->json(['success' => false, 'message' => 'Maximum 5 active orders. Complete existing deliveries first.'], 422);
+            }
+        }
+
         DB::transaction(function () use ($order, $dm, $request) {
             $order->update([
                 'deliveryman_id' => $dm->id,
@@ -251,8 +287,9 @@ class DeliveryController extends Controller
         }
 
         $v = Validator::make($request->all(), [
-            'status' => 'required|in:out_for_delivery,delivered',
-            'note'   => 'nullable|string',
+            'status'       => 'required|in:out_for_delivery,delivered',
+            'note'         => 'nullable|string',
+            'delivery_photo'=> 'nullable|image|max:5120',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
@@ -265,6 +302,14 @@ class DeliveryController extends Controller
 
             if ($request->status === 'delivered') {
                 $data['delivered_at'] = now();
+
+                // Store delivery confirmation photo
+                if ($request->hasFile('delivery_photo')) {
+                    $photoPath = $request->file('delivery_photo')->store('delivery-photos', 'public');
+                    $meta = $order->meta ?? [];
+                    $meta['delivery_photo'] = $photoPath;
+                    $data['meta'] = $meta;
+                }
 
                 // Credit delivery fee to driver wallet
                 $fee = (float) ($order->delivery_fee ?? 0);
