@@ -405,16 +405,25 @@ Route::prefix('v1')->group(function () {
             Route::get('dashboard',                         [DeliveryController::class, 'dashboard']);
             Route::get('orders/available',                  [DeliveryController::class, 'availableOrders']);
             Route::get('orders/active',                     [DeliveryController::class, 'activeOrders']);
+            Route::get('orders/history',                    [DeliveryController::class, 'orderHistory']);
             Route::post('orders/{order}/accept',            [DeliveryController::class, 'acceptOrder']);
             Route::post('orders/{order}/reject',            [DeliveryController::class, 'rejectOrder']);
             Route::post('orders/{order}/status',            [DeliveryController::class, 'updateOrderStatus']);
             Route::post('location',                         [DeliveryController::class, 'updateLocation']);
             Route::post('toggle-status',                    [DeliveryController::class, 'toggleStatus']);
             Route::get('earnings',                          [DeliveryController::class, 'earnings']);
+            Route::get('profile',                           [DeliveryController::class, 'profile']);
+            Route::post('profile/update',                   [DeliveryController::class, 'updateProfile']);
+            Route::post('fcm-token',                        [DeliveryController::class, 'updateFcmToken']);
+            Route::get('wallet',                            [DeliveryController::class, 'wallet']);
+            Route::get('wallet/transactions',               [DeliveryController::class, 'walletTransactions']);
+            Route::post('wallet/withdraw',                  [DeliveryController::class, 'withdrawRequest']);
+            Route::post('documents/upload',                 [DeliveryController::class, 'uploadDocument']);
         });
 
-        // Deliveryman registration
+        // Deliveryman auth (public)
         Route::post('delivery/auth/register', [DeliveryController::class, 'register']);
+        Route::post('delivery/auth/login',    [DeliveryController::class, 'login']);
 
         // ─── VENDOR ───────────────────────────────────────────────
         Route::prefix('vendor')->middleware('role:vendor_owner,vendor_employee')->group(function () {
