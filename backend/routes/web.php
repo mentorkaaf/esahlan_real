@@ -215,6 +215,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/{order}', [AdminOrderController::class, 'show'])->name('show');
             Route::patch('/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('status');
             Route::post('/{order}/assign', [AdminOrderController::class, 'assignDeliveryman'])->name('assign');
+            Route::post('/{order}/unassign-driver', [AdminOrderController::class, 'unassignDriver'])->name('unassign-driver');
+            Route::post('/{order}/reassign-driver', [AdminOrderController::class, 'reassignDriver'])->name('reassign-driver');
         });
 
         // Deliverymen

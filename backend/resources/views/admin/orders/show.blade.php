@@ -866,20 +866,74 @@ $tz = \App\Helpers\AppSettings::timezone();
         <div class="title">Deliveryman</div>
     </div>
     <div class="od-card-body">
-        <div style="display:flex;align-items:center;gap:12px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
             <div style="width:44px;height:44px;background:#E0F2F1;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#00695C;">
                 {{ strtoupper(substr($order->deliveryman->user?->name ?? 'D',0,1)) }}
             </div>
-            <div>
+            <div style="flex:1;">
                 <div style="font-weight:800;font-size:15px;color:#1a1a2e;">{{ $order->deliveryman->user?->name ?? '—' }}</div>
                 <div style="margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;">
-                    <span style="background:#E0F2F1;color:#00695C;padding:2px 8px;border-radius:5px;font-size:12px;font-weight:700;">{{ ucfirst($order->deliveryman->vehicle_type) }}</span>
+                    @php $vEmoji = ['motorcycle'=>'🏍️','bajaj'=>'🛺','car'=>'🚗','van'=>'🚐','truck'=>'🚛','bicycle'=>'🚲'][$order->deliveryman->vehicle_type] ?? '🚗'; @endphp
+                    <span style="background:#E0F2F1;color:#00695C;padding:2px 8px;border-radius:5px;font-size:12px;font-weight:700;">{{ $vEmoji }} {{ ucfirst($order->deliveryman->vehicle_type) }}</span>
                     @if($order->deliveryman->user?->phone)
                     <span style="background:#F5F5F5;color:#666;padding:2px 8px;border-radius:5px;font-size:12px;"><i class="fas fa-phone" style="font-size:9px;margin-right:3px;"></i>{{ $order->deliveryman->user->phone }}</span>
                     @endif
                 </div>
             </div>
         </div>
+
+        @if(in_array($order->status, ['confirmed','preparing','ready_for_pickup','out_for_delivery']))
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            {{-- Unassign --}}
+            <form action="{{ route('admin.orders.unassign-driver', $order->id) }}" method="POST" style="margin:0;" onsubmit="return confirm('Remove driver from this order?')">
+                @csrf
+                <button class="btn btn-sm" style="background:#fff5f5;color:#ef4444;border:1.5px solid #fecaca;font-size:12px;">
+                    <i class="fas fa-user-minus"></i> Remove Driver
+                </button>
+            </form>
+            {{-- Reassign --}}
+            <button class="btn btn-sm btn-primary" style="font-size:12px;" onclick="openModal('reassignModal')">
+                <i class="fas fa-exchange-alt"></i> Change Driver
+            </button>
+        </div>
+        @endif
+    </div>
+</div>
+@endif
+
+{{-- Reassign Modal --}}
+@if($order->deliveryman && in_array($order->status, ['confirmed','preparing','ready_for_pickup','out_for_delivery']))
+<div class="modal-overlay" id="reassignModal">
+    <div class="modal-box" style="max-width:420px;">
+        <div class="modal-header">
+            <h3 class="modal-title">Reassign Driver</h3>
+            <button class="modal-close" onclick="closeModal('reassignModal')">✕</button>
+        </div>
+        <form action="{{ route('admin.orders.reassign-driver', $order->id) }}" method="POST">
+            @csrf
+            <div class="modal-body">
+                <div style="background:#fff3e0;border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:#e65100;">
+                    <i class="fas fa-info-circle" style="margin-right:6px;"></i>
+                    Current driver <strong>{{ $order->deliveryman->user?->name }}</strong> will be removed and made available again.
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Select New Driver</label>
+                    <select name="deliveryman_id" class="form-control" required>
+                        <option value="">— Choose driver —</option>
+                        @foreach($deliverymen as $dm)
+                        @if($dm->id !== $order->deliveryman_id)
+                        @php $emoji = ['motorcycle'=>'🏍️','bajaj'=>'🛺','car'=>'🚗','van'=>'🚐','truck'=>'🚛','bicycle'=>'🚲'][$dm->vehicle_type] ?? '🚗'; @endphp
+                        <option value="{{ $dm->id }}">{{ $emoji }} {{ $dm->user?->name }} — {{ $dm->user?->phone }} (★{{ number_format($dm->rating ?? 5, 1) }})</option>
+                        @endif
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+            <div style="padding:16px;border-top:1px solid #f0f1f5;display:flex;gap:10px;">
+                <button type="button" onclick="closeModal('reassignModal')" style="flex:1;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;background:#fff;font-weight:600;cursor:pointer;">Cancel</button>
+                <button type="submit" style="flex:1;padding:10px;border:none;border-radius:10px;background:#FF8A00;color:#fff;font-weight:700;cursor:pointer;">Reassign</button>
+            </div>
+        </form>
     </div>
 </div>
 @endif

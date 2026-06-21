@@ -229,6 +229,77 @@ class AdminOrderController extends Controller
         return back()->with('success', 'Deliveryman assigned successfully.');
     }
 
+    public function unassignDriver(Order $order)
+    {
+        $oldDriverId = $order->deliveryman_id;
+
+        DB::transaction(function () use ($order, $oldDriverId) {
+            $order->update(['deliveryman_id' => null, 'dispatched_at' => null]);
+
+            OrderStatusHistory::create([
+                'order_id'   => $order->id,
+                'status'     => $order->status,
+                'note'       => 'Driver removed by admin',
+                'changed_by' => auth()->id(),
+            ]);
+
+            if ($oldDriverId) {
+                $hasOther = Order::where('deliveryman_id', $oldDriverId)
+                    ->whereIn('status', ['confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery'])
+                    ->exists();
+                if (!$hasOther) {
+                    Deliveryman::where('id', $oldDriverId)->update(['status' => 'available', 'is_available' => true]);
+                }
+            }
+        });
+
+        return back()->with('success', 'Driver removed. Order is now unassigned.');
+    }
+
+    public function reassignDriver(Request $request, Order $order)
+    {
+        $request->validate(['deliveryman_id' => 'required|exists:deliverymen,id']);
+        $oldDriverId = $order->deliveryman_id;
+        $newDriverId = $request->deliveryman_id;
+
+        DB::transaction(function () use ($order, $oldDriverId, $newDriverId) {
+            $order->update(['deliveryman_id' => $newDriverId, 'dispatched_at' => now()]);
+
+            $newDriver = Deliveryman::with('user')->find($newDriverId);
+            OrderStatusHistory::create([
+                'order_id'   => $order->id,
+                'status'     => $order->status,
+                'note'       => 'Reassigned to ' . ($newDriver?->user?->name ?? 'driver'),
+                'changed_by' => auth()->id(),
+            ]);
+
+            // Free old driver if no other active orders
+            if ($oldDriverId) {
+                $hasOther = Order::where('deliveryman_id', $oldDriverId)
+                    ->where('id', '!=', $order->id)
+                    ->whereIn('status', ['confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery'])
+                    ->exists();
+                if (!$hasOther) {
+                    Deliveryman::where('id', $oldDriverId)->update(['status' => 'available', 'is_available' => true]);
+                }
+            }
+
+            // Mark new driver as busy
+            Deliveryman::where('id', $newDriverId)->update(['status' => 'busy', 'is_available' => false]);
+        });
+
+        // Notify new driver
+        try {
+            $newDm = Deliveryman::with('user')->find($newDriverId);
+            $token = $newDm?->fcm_token ?? $newDm?->user?->fcm_token;
+            if ($token) {
+                FcmService::sendOrderUpdate($token, $order->order_number, 'out_for_delivery', $order->id, $order->module_slug);
+            }
+        } catch (\Throwable) {}
+
+        return back()->with('success', 'Order reassigned to new driver.');
+    }
+
     public function pollNew(Request $request)
     {
         $since = $request->query('since'); // Unix timestamp (seconds)
