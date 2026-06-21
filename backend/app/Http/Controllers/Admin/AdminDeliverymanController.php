@@ -127,6 +127,64 @@ class AdminDeliverymanController extends Controller
         return back()->with('success', 'Driver permanently deleted.');
     }
 
+    public function earnings(Request $request)
+    {
+        $query = DB::table('deliveryman_earnings')
+            ->join('deliverymen', 'deliverymen.id', '=', 'deliveryman_earnings.deliveryman_id')
+            ->join('users', 'users.id', '=', 'deliverymen.user_id')
+            ->leftJoin('orders', 'orders.id', '=', 'deliveryman_earnings.order_id')
+            ->select(
+                'deliveryman_earnings.*',
+                'users.name as driver_name',
+                'users.phone as driver_phone',
+                'deliverymen.vehicle_type',
+                'deliverymen.driver_type',
+                'orders.order_number',
+                'orders.module_slug'
+            );
+
+        if ($request->filled('driver_id')) {
+            $query->where('deliveryman_earnings.deliveryman_id', $request->driver_id);
+        }
+        if ($request->filled('from')) {
+            $query->whereDate('deliveryman_earnings.created_at', '>=', $request->from);
+        }
+        if ($request->filled('to')) {
+            $query->whereDate('deliveryman_earnings.created_at', '<=', $request->to);
+        }
+
+        $earnings = $query->orderByDesc('deliveryman_earnings.created_at')->paginate(30)->withQueryString();
+
+        // Summary stats
+        $summaryQuery = DB::table('deliveryman_earnings');
+        if ($request->filled('driver_id')) $summaryQuery->where('deliveryman_id', $request->driver_id);
+        if ($request->filled('from')) $summaryQuery->whereDate('created_at', '>=', $request->from);
+        if ($request->filled('to')) $summaryQuery->whereDate('created_at', '<=', $request->to);
+
+        $summary = [
+            'total'       => (float) (clone $summaryQuery)->sum('amount'),
+            'today'       => (float) (clone $summaryQuery)->whereDate('created_at', today())->sum('amount'),
+            'this_month'  => (float) (clone $summaryQuery)->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->sum('amount'),
+            'total_count' => (clone $summaryQuery)->count(),
+        ];
+
+        // Driver list for filter dropdown
+        $drivers = Deliveryman::with('user:id,name')->whereHas('earnings')->get();
+
+        // Per-driver summary
+        $perDriver = DB::table('deliveryman_earnings')
+            ->join('deliverymen', 'deliverymen.id', '=', 'deliveryman_earnings.deliveryman_id')
+            ->join('users', 'users.id', '=', 'deliverymen.user_id')
+            ->select('deliveryman_earnings.deliveryman_id', 'users.name', 'deliverymen.vehicle_type',
+                DB::raw('SUM(deliveryman_earnings.amount) as total_earned'),
+                DB::raw('COUNT(*) as total_deliveries'))
+            ->groupBy('deliveryman_earnings.deliveryman_id', 'users.name', 'deliverymen.vehicle_type')
+            ->orderByDesc('total_earned')
+            ->get();
+
+        return view('admin.deliverymen.earnings', compact('earnings', 'summary', 'drivers', 'perDriver'));
+    }
+
     public function saveSettings(Request $request)
     {
         $max = $request->filled('max_orders_custom') && $request->max_orders_custom > 0

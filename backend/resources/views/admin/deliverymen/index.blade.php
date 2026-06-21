@@ -8,6 +8,7 @@
         <ul class="breadcrumb"><li><a href="{{ route('admin.dashboard') }}">Dashboard</a></li><li>Deliverymen</li></ul>
     </div>
     <div style="display:flex;gap:8px;">
+        <a href="{{ route('admin.deliverymen.earnings') }}" class="btn btn-outline-success"><i class="fas fa-coins"></i> Earnings</a>
         <button class="btn btn-outline" onclick="openModal('settingsModal')"><i class="fas fa-cog"></i> Settings</button>
         <button class="btn btn-primary" onclick="openModal('createModal')"><i class="fas fa-plus"></i> Add Driver</button>
     </div>

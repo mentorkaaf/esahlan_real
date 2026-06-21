@@ -222,6 +222,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Deliverymen
         Route::prefix('deliverymen')->name('deliverymen.')->group(function () {
             Route::get('/', [AdminDeliverymanController::class, 'index'])->name('index');
+            Route::get('/earnings', [AdminDeliverymanController::class, 'earnings'])->name('earnings');
             Route::post('/', [AdminDeliverymanController::class, 'store'])->name('store');
             Route::get('/{deliveryman}', [AdminDeliverymanController::class, 'show'])->name('show');
             Route::post('/{deliveryman}/approve', [AdminDeliverymanController::class, 'approve'])->name('approve');
