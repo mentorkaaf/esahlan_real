@@ -3,6 +3,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'core/router/app_router.dart';
 import 'core/services/firebase_service.dart';
 import 'core/services/location_service.dart';
@@ -50,6 +52,7 @@ class _DriverAppState extends ConsumerState<DriverApp> with WidgetsBindingObserv
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await FirebaseService().initialize();
       _setupNotifications();
+      _requestPermissions();
     });
   }
 
@@ -64,6 +67,20 @@ class _DriverAppState extends ConsumerState<DriverApp> with WidgetsBindingObserv
     if (state == AppLifecycleState.resumed) {
       FirebaseService().refreshTokenIfNeeded();
     }
+  }
+
+  Future<void> _requestPermissions() async {
+    // Location
+    LocationPermission locPerm = await Geolocator.checkPermission();
+    if (locPerm == LocationPermission.denied) {
+      locPerm = await Geolocator.requestPermission();
+    }
+    if (locPerm == LocationPermission.deniedForever) {
+      await Geolocator.openAppSettings();
+    }
+
+    // Notifications
+    await Permission.notification.request();
   }
 
   void _setupNotifications() {

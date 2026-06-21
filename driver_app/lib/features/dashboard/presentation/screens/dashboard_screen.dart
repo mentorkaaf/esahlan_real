@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/driver_colors.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -109,7 +110,7 @@ class DashboardScreen extends ConsumerWidget {
                   const SizedBox(height: 10),
                   if (d['active_order']['vendor'] != null) Text(d['active_order']['vendor']['name'] ?? '', style: const TextStyle(color: DC.textSec, fontSize: 13)),
                   const SizedBox(height: 8),
-                  SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () {}, child: const Text('View Details'))),
+                  SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => context.go('/orders'), child: const Text('View Details'))),
                 ]),
               ),
             ],

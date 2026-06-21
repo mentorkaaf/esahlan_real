@@ -398,8 +398,8 @@ class DeliveryController extends Controller
             ->get();
 
         $recentDeliveries = DB::table('deliveryman_earnings')
-            ->where('deliveryman_id', $dm->id)
-            ->join('orders', 'orders.id', '=', 'deliveryman_earnings.order_id')
+            ->where('deliveryman_earnings.deliveryman_id', $dm->id)
+            ->leftJoin('orders', 'orders.id', '=', 'deliveryman_earnings.order_id')
             ->select('deliveryman_earnings.*', 'orders.order_number', 'orders.module_slug')
             ->orderByDesc('deliveryman_earnings.created_at')
             ->limit(20)
