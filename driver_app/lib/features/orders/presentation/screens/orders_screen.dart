@@ -412,6 +412,11 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
           ),
           const SizedBox(height: 12),
 
+          // Module-specific details
+          if (o['parcel'] != null) _ParcelDetails(data: o['parcel'] as Map<String, dynamic>),
+          if (o['moving'] != null) _MovingDetails(data: o['moving'] as Map<String, dynamic>),
+          if (o['laundry'] != null) _LaundryDetails(data: o['laundry'] as Map<String, dynamic>),
+
           // Stats
           Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
@@ -505,6 +510,114 @@ class _MiniInfo extends StatelessWidget {
     Text(value, style: const TextStyle(color: DC.text, fontWeight: FontWeight.w800, fontSize: 14)),
     Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 10)),
   ]));
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MODULE-SPECIFIC DETAIL WIDGETS
+// ══════════════════════════════════════════════════════════════════
+
+class _ParcelDetails extends StatelessWidget {
+  final Map<String, dynamic> data;
+  const _ParcelDetails({required this.data});
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3))),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        const Icon(Icons.inventory_2_rounded, color: Color(0xFF8B5CF6), size: 18),
+        const SizedBox(width: 8),
+        const Text('Parcel Details', style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.w700, fontSize: 14)),
+      ]),
+      const SizedBox(height: 12),
+      if (data['sender_name'] != null) _DetailRow('Sender', data['sender_name']),
+      if (data['sender_phone'] != null) _DetailRow('Sender Phone', data['sender_phone']),
+      if (data['sender_address'] != null) _DetailRow('Pickup Address', data['sender_address']),
+      if (data['receiver_name'] != null) _DetailRow('Receiver', data['receiver_name']),
+      if (data['receiver_phone'] != null) _DetailRow('Receiver Phone', data['receiver_phone']),
+      if (data['receiver_address'] != null) _DetailRow('Delivery Address', data['receiver_address']),
+      if (data['package_type'] != null) _DetailRow('Package Type', data['package_type']),
+      if (data['weight'] != null) _DetailRow('Weight', '${data['weight']} kg'),
+      if (data['description'] != null) _DetailRow('Description', data['description']),
+    ]),
+  );
+}
+
+class _MovingDetails extends StatelessWidget {
+  final Map<String, dynamic> data;
+  const _MovingDetails({required this.data});
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: DC.error.withValues(alpha: 0.3))),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        const Icon(Icons.local_shipping_rounded, color: DC.error, size: 18),
+        const SizedBox(width: 8),
+        const Text('Moving Details', style: TextStyle(color: DC.error, fontWeight: FontWeight.w700, fontSize: 14)),
+      ]),
+      const SizedBox(height: 12),
+      if (data['from_address'] != null) _DetailRow('From', data['from_address']),
+      if (data['to_address'] != null) _DetailRow('To', data['to_address']),
+      if (data['moving_type'] != null) _DetailRow('Type', data['moving_type']),
+      if (data['description'] != null) _DetailRow('Notes', data['description']),
+      if (data['packages'] is List) ...[
+        const SizedBox(height: 6),
+        const Text('Items:', style: TextStyle(color: DC.textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+        ...(data['packages'] as List).map((p) => Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text('• ${p is Map ? (p['name'] ?? p.toString()) : p}', style: const TextStyle(color: DC.textSec, fontSize: 12)),
+        )),
+      ],
+    ]),
+  );
+}
+
+class _LaundryDetails extends StatelessWidget {
+  final Map<String, dynamic> data;
+  const _LaundryDetails({required this.data});
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFF06B6D4).withValues(alpha: 0.3))),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        const Icon(Icons.local_laundry_service_rounded, color: Color(0xFF06B6D4), size: 18),
+        const SizedBox(width: 8),
+        const Text('Laundry Details', style: TextStyle(color: Color(0xFF06B6D4), fontWeight: FontWeight.w700, fontSize: 14)),
+      ]),
+      const SizedBox(height: 12),
+      if (data['service_type'] != null) _DetailRow('Service', data['service_type'] == 'express' ? '⚡ Express' : '🌿 Normal'),
+      if (data['eta'] != null) _DetailRow('ETA', data['eta']),
+      if (data['district'] != null) _DetailRow('District', data['district']),
+      if (data['items'] is List) ...[
+        const SizedBox(height: 6),
+        ...(data['items'] as List).map((item) => Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text(item is Map ? '${item['name']} × ${item['qty']}' : '$item', style: const TextStyle(color: DC.textSec, fontSize: 12)),
+            if (item is Map && item['sub'] != null) Text('\$${item['sub']}', style: const TextStyle(color: DC.success, fontSize: 12, fontWeight: FontWeight.w600)),
+          ]),
+        )),
+      ],
+    ]),
+  );
+}
+
+class _DetailRow extends StatelessWidget {
+  final String label, value; final Color? valueColor;
+  const _DetailRow(this.label, this.value, {this.valueColor});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      SizedBox(width: 110, child: Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 12))),
+      Expanded(child: Text(value, style: TextStyle(color: valueColor ?? DC.text, fontWeight: FontWeight.w600, fontSize: 12))),
+    ]),
+  );
 }
 
 // ══════════════════════════════════════════════════════════════════

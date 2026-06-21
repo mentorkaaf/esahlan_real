@@ -275,7 +275,8 @@ class EShopController extends Controller
             ];
         }
 
-        $deliveryFee = 2.00;
+        $customerDistrictId = $request->input('district_id') ?? ($request->delivery_address['district_id'] ?? null);
+        $deliveryFee = \App\Helpers\DeliveryPricing::forShopOrLaundry($customerDistrictId ? (int)$customerDistrictId : null, 2.00);
         $total += $deliveryFee;
 
         if ($request->payment_method === 'wallet') {

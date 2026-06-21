@@ -636,12 +636,21 @@ class DeliveryController extends Controller
             $distance = round($this->haversine($vendorLat, $vendorLng, $custLat, $custLng), 1);
         }
 
-        return [
+        // Parse parcel/laundry/moving details from note field
+        $noteData = null;
+        $rawNote = $order->note ?? $order->notes;
+        if ($rawNote) {
+            if (is_string($rawNote)) { try { $noteData = json_decode($rawNote, true); } catch (\Throwable) {} }
+            elseif (is_array($rawNote)) { $noteData = $rawNote; }
+        }
+
+        $result = [
             'id'              => $order->id,
             'order_number'    => $order->order_number,
             'status'          => $order->status,
             'module_slug'     => $order->module_slug,
             'total_amount'    => (float) $order->total_amount,
+            'subtotal'        => (float) ($order->subtotal ?? 0),
             'delivery_fee'    => (float) ($order->delivery_fee ?? 0),
             'items_count'     => $order->items?->count() ?? 0,
             'vendor'          => $order->vendor ? [
@@ -653,14 +662,54 @@ class DeliveryController extends Controller
                 'logo'    => $order->vendor->logo,
             ] : null,
             'customer'        => $order->user ? [
-                'name'  => $order->user->name,
-                'phone' => $order->user->phone,
+                'name'    => $order->user->name,
+                'phone'   => $order->user->phone,
+                'lat'     => $order->user->latitude,
+                'lng'     => $order->user->longitude,
             ] : null,
             'delivery_address'=> $addr,
             'distance_km'     => $distance,
             'created_at'      => $order->created_at?->toIso8601String(),
             'placed_at'       => $order->placed_at,
         ];
+
+        // Parcel-specific details
+        if ($order->module_slug === 'eparcel' && $noteData) {
+            $result['parcel'] = [
+                'sender_name'    => $noteData['sender_name'] ?? null,
+                'sender_phone'   => $noteData['sender_phone'] ?? null,
+                'sender_address' => $noteData['sender_address'] ?? $noteData['pickup_address'] ?? null,
+                'receiver_name'  => $noteData['receiver_name'] ?? null,
+                'receiver_phone' => $noteData['receiver_phone'] ?? null,
+                'receiver_address'=> $noteData['receiver_address'] ?? $noteData['delivery_address'] ?? null,
+                'package_type'   => $noteData['parcel_type'] ?? $noteData['package_type'] ?? null,
+                'weight'         => $noteData['weight'] ?? null,
+                'description'    => $noteData['description'] ?? $noteData['note'] ?? null,
+            ];
+        }
+
+        // eMoving details
+        if ($order->module_slug === 'emoving' && $noteData) {
+            $result['moving'] = [
+                'from_address'  => $noteData['from_address'] ?? $noteData['pickup_address'] ?? null,
+                'to_address'    => $noteData['to_address'] ?? $noteData['delivery_address'] ?? null,
+                'moving_type'   => $noteData['moving_type'] ?? null,
+                'packages'      => $noteData['items'] ?? $noteData['packages'] ?? null,
+                'description'   => $noteData['note'] ?? $noteData['description'] ?? null,
+            ];
+        }
+
+        // Laundry details
+        if ($order->module_slug === 'elaundry' && $noteData) {
+            $result['laundry'] = [
+                'service_type' => $noteData['service_type'] ?? null,
+                'items'        => $noteData['items'] ?? null,
+                'eta'          => $noteData['eta'] ?? null,
+                'district'     => $noteData['district'] ?? null,
+            ];
+        }
+
+        return $result;
     }
 
     private function haversine(float $lat1, float $lng1, float $lat2, float $lng2): float

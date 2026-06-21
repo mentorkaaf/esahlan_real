@@ -112,8 +112,10 @@ class ELaundryController extends Controller
         }
 
         $district = DB::table('districts')->find($request->pickup_district_id);
+        $deliveryFee = \App\Helpers\DeliveryPricing::forShopOrLaundry($request->pickup_district_id ? (int)$request->pickup_district_id : null, 0);
+        $totalWithDelivery = $total + $deliveryFee;
 
-        $order = DB::transaction(function () use ($request, $user, $total, $orderLines, $district, $isExpress) {
+        $order = DB::transaction(function () use ($request, $user, $total, $totalWithDelivery, $deliveryFee, $orderLines, $district, $isExpress) {
             $order = Order::create([
                 'order_number'    => 'LDR-' . strtoupper(Str::random(8)),
                 'user_id'         => $user->id,
@@ -123,8 +125,8 @@ class ELaundryController extends Controller
                 'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'unpaid',
                 'delivery_address'=> ['address' => $request->delivery_address ?? $request->pickup_address, 'district' => $district?->name],
                 'subtotal'        => $total,
-                'delivery_fee'    => 0,
-                'total_amount'    => $total,
+                'delivery_fee'    => $deliveryFee,
+                'total_amount'    => $totalWithDelivery,
                 'note'            => json_encode([
                     'service_type'   => $request->service_type,
                     'items'          => $orderLines,

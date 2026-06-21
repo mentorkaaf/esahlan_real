@@ -480,25 +480,13 @@ class EFoodController extends Controller
         $vendor = DB::table('vendors')->find($vendorId);
 
         // Delivery fee: zone pricing (vendor district → customer district) → vendor static fee → 0
-        $deliveryFee = 0;
         $vendorDistrictId = $vendor->district_id ?? null;
         $customerDistrictId = $request->input('district_id');
-        if ($vendorDistrictId && $customerDistrictId) {
-            $zone = DB::table('delivery_zone_pricing')
-                ->where('from_district_id', $vendorDistrictId)
-                ->where('to_district_id', $customerDistrictId)
-                ->where('is_active', true)
-                ->where(function ($q) {
-                    $q->where('module_id', 'eparcel')->orWhere('module_id', 'efood');
-                })
-                ->first();
-            if ($zone) {
-                $deliveryFee = (float) $zone->base_price;
-            }
-        }
-        if ($deliveryFee <= 0) {
-            $deliveryFee = (float) ($vendor->delivery_fee ?? 0);
-        }
+        $deliveryFee = \App\Helpers\DeliveryPricing::forFood(
+            $vendorDistrictId ? (int)$vendorDistrictId : null,
+            $customerDistrictId ? (int)$customerDistrictId : null,
+            (float) ($vendor->delivery_fee ?? 0)
+        );
 
         $discountTotal = round($discountTotal, 2);
         $total         = round(max(0, $subtotal - $discountTotal) + $deliveryFee, 2);
