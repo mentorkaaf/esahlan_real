@@ -1,224 +1,301 @@
 @extends('admin.layouts.app')
 @section('title', 'Dispatch Center')
-@push('styles')
-<style>
-    #dispatch-map { height: 500px; border-radius: 12px; }
-    .order-card { cursor: pointer; transition: all 0.2s; border-left: 4px solid transparent; }
-    .order-card:hover { border-left-color: var(--primary); background: #fff9f0; }
-    .order-card.selected { border-left-color: var(--primary); background: #fff3e0; }
-    .dm-badge { background: #e8f5e9; color: #2e7d32; border-radius: 20px; padding: 2px 10px; font-size: 0.8rem; }
-    .orders-panel { height: 500px; overflow-y: auto; }
-</style>
-@endpush
+
 @section('content')
 <div class="page-header">
-    <h2 class="page-title"><i class="fas fa-broadcast-tower text-primary me-2"></i>Dispatch Center</h2>
-    <div class="d-flex gap-2">
-        <span class="badge bg-success" id="active-count">Loading...</span>
-        <button class="btn btn-sm btn-outline-primary" id="refresh-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
+    <div>
+        <h2 class="page-title"><i class="fas fa-broadcast-tower" style="color:var(--primary)"></i> Dispatch Center</h2>
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item active">Dispatch</li>
+        </ol>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+        <span id="lastUpdate" style="font-size:11px;color:#8A8A9A;"></span>
+        <button class="btn btn-primary btn-sm" onclick="loadData()"><i class="fas fa-sync-alt"></i> Refresh</button>
     </div>
 </div>
 
-<div class="row g-4">
-    <!-- Map -->
-    <div class="col-lg-8">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Live Map</h5>
-                <div>
-                    <span class="badge bg-warning me-1">● Pending Orders</span>
-                    <span class="badge bg-success me-1">● Available Riders</span>
-                    <span class="badge bg-primary">● Active Deliveries</span>
-                </div>
-            </div>
-            <div class="card-body p-0">
-                <div id="dispatch-map"></div>
-            </div>
+{{-- Stats Strip --}}
+<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:16px;">
+    <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #F59E0B;">
+        <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['pending'] }}</div>
+        <div style="font-size:11px;color:#8A8A9A;">Pending</div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #3B82F6;">
+        <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['confirmed'] }}</div>
+        <div style="font-size:11px;color:#8A8A9A;">Confirmed</div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #FF8A00;">
+        <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['ready'] }}</div>
+        <div style="font-size:11px;color:#8A8A9A;">Ready</div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #8B5CF6;">
+        <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['delivering'] }}</div>
+        <div style="font-size:11px;color:#8A8A9A;">Delivering</div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #EF4444;">
+        <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['unassigned'] }}</div>
+        <div style="font-size:11px;color:#8A8A9A;">Unassigned</div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #10B981;">
+        <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['drivers_online'] }}</div>
+        <div style="font-size:11px;color:#8A8A9A;">Drivers Online</div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #F59E0B;">
+        <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['drivers_busy'] }}</div>
+        <div style="font-size:11px;color:#8A8A9A;">Drivers Busy</div>
+    </div>
+</div>
+
+{{-- Map + Panel --}}
+<div style="display:grid;grid-template-columns:1fr 380px;gap:16px;align-items:start;">
+    {{-- Map --}}
+    <div style="background:#fff;border-radius:16px;overflow:hidden;border:1.5px solid #f0f1f5;">
+        <div style="padding:14px 18px;border-bottom:1px solid #f0f1f5;display:flex;align-items:center;gap:12px;">
+            <span style="font-weight:800;font-size:15px;color:#07003B;">Live Map</span>
+            <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:#8A8A9A;"><span style="width:8px;height:8px;border-radius:50%;background:#F59E0B;"></span> Orders</span>
+            <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:#8A8A9A;"><span style="width:8px;height:8px;border-radius:50%;background:#10B981;"></span> Drivers</span>
+            <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:#8A8A9A;"><span style="width:8px;height:8px;border-radius:50%;background:#FF8A00;"></span> Vendors</span>
         </div>
+        <div id="dispatch-map" style="height:520px;"></div>
     </div>
 
-    <!-- Orders Panel -->
-    <div class="col-lg-4">
-        <div class="card h-100">
-            <div class="card-header">
-                <ul class="nav nav-tabs card-header-tabs" id="dispatch-tabs">
-                    <li class="nav-item"><a class="nav-link active" href="#" data-tab="orders">Active Orders</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#" data-tab="riders">Available Riders</a></li>
-                </ul>
+    {{-- Side Panel --}}
+    <div style="background:#fff;border-radius:16px;border:1.5px solid #f0f1f5;max-height:590px;display:flex;flex-direction:column;">
+        <div style="padding:10px 14px;border-bottom:1px solid #f0f1f5;display:flex;gap:0;">
+            <button class="dispatch-tab active" data-tab="orders" onclick="switchTab('orders',this)">Orders <span id="ordersCount" style="background:#FF8A00;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px;">0</span></button>
+            <button class="dispatch-tab" data-tab="drivers" onclick="switchTab('drivers',this)">Drivers <span id="driversCount" style="background:#10B981;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px;">0</span></button>
+        </div>
+        <div id="panelContent" style="flex:1;overflow-y:auto;padding:10px;"></div>
+    </div>
+</div>
+
+{{-- Assign Modal --}}
+<div class="modal-overlay" id="assignModal">
+    <div class="modal-box" style="max-width:420px;">
+        <div class="modal-header">
+            <h3 class="modal-title">Assign Driver</h3>
+            <button class="modal-close" onclick="closeModal('assignModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div style="background:#f8f9fa;border-radius:10px;padding:12px;margin-bottom:14px;">
+                <div style="font-size:12px;color:#8A8A9A;">Order</div>
+                <div style="font-weight:800;color:#07003B;" id="assignOrderNum"></div>
             </div>
-            <div class="card-body p-2 orders-panel" id="dispatch-panel">
-                <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+            <div class="form-group">
+                <label class="form-label">Select Driver</label>
+                <select id="assignDriverSelect" class="form-control"></select>
             </div>
+        </div>
+        <div style="padding:16px;border-top:1px solid #f0f1f5;display:flex;gap:10px;">
+            <button onclick="closeModal('assignModal')" style="flex:1;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;background:#fff;font-weight:600;cursor:pointer;">Cancel</button>
+            <button onclick="confirmAssign()" style="flex:1;padding:10px;border:none;border-radius:10px;background:#FF8A00;color:#fff;font-weight:700;cursor:pointer;">Assign Driver</button>
         </div>
     </div>
 </div>
 
-<!-- Assign Modal -->
-<div class="modal fade" id="assignModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Assign Deliveryman</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Order: <strong id="assign-order-num"></strong></p>
-                <div class="mb-3">
-                    <label class="form-label">Select Deliveryman</label>
-                    <select class="form-select" id="assign-dm-select">
-                        <option value="">Loading available riders...</option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="confirm-assign">Assign</button>
-            </div>
-        </div>
-    </div>
-</div>
-@endsection
+<style>
+.dispatch-tab { background:none;border:none;padding:10px 16px;font-size:13px;font-weight:600;color:#8A8A9A;cursor:pointer;border-bottom:2px solid transparent; }
+.dispatch-tab.active { color:#FF8A00;border-bottom-color:#FF8A00; }
+.d-order { padding:12px;border-radius:12px;border:1.5px solid #f0f1f5;margin-bottom:8px;cursor:pointer;transition:all .15s; }
+.d-order:hover { border-color:#FF8A00;background:#fff9f0; }
+.d-driver { padding:12px;border-radius:12px;border:1.5px solid #f0f1f5;margin-bottom:8px; }
+</style>
 
 @push('scripts')
-@if($googleMapsKey)
-<script src="https://maps.googleapis.com/maps/api/js?key={{ $googleMapsKey }}&callback=initMap" async defer></script>
-@else
 <script>
-function initMap() {
-    const el = document.getElementById('dispatch-map');
-    if (el) {
-        el.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:#64748b;">'
-            + '<i class="fas fa-map-marked-alt" style="font-size:40px;color:#cbd5e1;"></i>'
-            + '<div style="font-weight:700;">Google Maps API Key Not Set</div>'
-            + '<div style="font-size:13px;">Go to <a href="/admin/settings#section-maps" style="color:#140465;">Settings → Google Maps</a> and add your API key.</div>'
-            + '</div>';
-    }
-}
-window.addEventListener('load', initMap);
-</script>
-@endif
-<script>
-let map, ordersData = [], ridersData = [], currentTab = 'orders';
-let selectedOrderId = null;
-const markers = [];
+var map, ordersData=[], driversData=[], markers=[], currentTab='orders', assignOrderId=null;
+var vehicleEmoji = {motorcycle:'🏍️',bajaj:'🛺',car:'🚗',van:'🚐',truck:'🚛',bicycle:'🚲',pickup:'🚛'};
+var statusColor = {pending:'#F59E0B',confirmed:'#3B82F6',preparing:'#8B5CF6',ready_for_pickup:'#FF8A00',out_for_delivery:'#10B981'};
 
-function initMap() {
+function initDispatchMap() {
     map = new google.maps.Map(document.getElementById('dispatch-map'), {
-        center: { lat: {{ $defaultLat }}, lng: {{ $defaultLng }} },
-        zoom: {{ $defaultZoom }},
-        styles: [{ featureType: 'poi', stylers: [{ visibility: 'off' }] }]
+        center:{lat:2.0469,lng:45.3182}, zoom:13,
+        mapTypeControl:true,
+        mapTypeControlOptions:{style:google.maps.MapTypeControlStyle.HORIZONTAL_BAR,position:google.maps.ControlPosition.TOP_RIGHT,mapTypeIds:['roadmap','satellite','hybrid']},
+        streetViewControl:false,
+        styles:[{featureType:'poi',stylers:[{visibility:'off'}]}],
     });
     loadData();
+    setInterval(loadData, 20000);
 }
 
-function clearMarkers() {
-    markers.forEach(m => m.setMap(null));
-    markers.length = 0;
-}
+function clearMarkers() { markers.forEach(function(m){m.setMap(null)}); markers=[]; }
 
 async function loadData() {
-    const [ordersRes, ridersRes] = await Promise.all([
-        fetch('{{ route("admin.dispatch.orders") }}').then(r => r.json()),
-        fetch('{{ route("admin.dispatch.deliverymen") }}').then(r => r.json()),
-    ]);
-    ordersData = ordersRes.data || [];
-    ridersData = ridersRes.data || [];
-    document.getElementById('active-count').textContent = `${ordersData.length} Active Orders`;
-    renderPanel();
-    plotMapMarkers();
+    try {
+        var [oRes, dRes] = await Promise.all([
+            fetch('/admin/dispatch/orders').then(function(r){return r.json()}),
+            fetch('/admin/dispatch/deliverymen/available').then(function(r){return r.json()})
+        ]);
+        ordersData = oRes.data || [];
+        driversData = dRes.data || [];
+        document.getElementById('ordersCount').textContent = ordersData.length;
+        document.getElementById('driversCount').textContent = driversData.length;
+        document.getElementById('lastUpdate').textContent = 'Updated ' + new Date().toLocaleTimeString();
+        renderPanel();
+        plotMarkers();
+    } catch(e) {}
 }
 
-function plotMapMarkers() {
+function plotMarkers() {
     clearMarkers();
-    ordersData.forEach(order => {
-        if (order.delivery_lat && order.delivery_lng) {
-            const m = new google.maps.Marker({
-                position: { lat: parseFloat(order.delivery_lat), lng: parseFloat(order.delivery_lng) },
-                map, title: order.order_number,
-                icon: { url: 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png' }
+    var iw = new google.maps.InfoWindow();
+
+    // Vendor markers (orange store icon)
+    var vendorsSeen = {};
+    ordersData.forEach(function(o) {
+        if (o.vendor_lat && o.vendor_lng && !vendorsSeen[o.vendor_name]) {
+            vendorsSeen[o.vendor_name] = true;
+            var m = new google.maps.Marker({
+                position:{lat:o.vendor_lat,lng:o.vendor_lng}, map:map,
+                icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:'#FF8A00',fillOpacity:1,strokeColor:'#fff',strokeWeight:3},
+                title:o.vendor_name,
+            });
+            m.addListener('click',function(){
+                iw.setContent('<div style="padding:4px"><b style="color:#FF8A00">🏪 '+o.vendor_name+'</b></div>');
+                iw.open(map,m);
             });
             markers.push(m);
         }
     });
-    ridersData.forEach(rider => {
-        if (rider.latitude && rider.longitude) {
-            const m = new google.maps.Marker({
-                position: { lat: parseFloat(rider.latitude), lng: parseFloat(rider.longitude) },
-                map, title: rider.name,
-                icon: { url: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png' }
+
+    // Customer markers (blue person)
+    ordersData.forEach(function(o) {
+        if (o.customer_lat && o.customer_lng) {
+            var m = new google.maps.Marker({
+                position:{lat:o.customer_lat,lng:o.customer_lng}, map:map,
+                icon:{path:google.maps.SymbolPath.CIRCLE,scale:8,fillColor:'#3B82F6',fillOpacity:1,strokeColor:'#fff',strokeWeight:2},
+                title:o.customer_name,
+            });
+            m.addListener('click',function(){
+                iw.setContent('<div style="padding:4px"><b>👤 '+o.customer_name+'</b><br><small>#'+o.order_number+'</small></div>');
+                iw.open(map,m);
             });
             markers.push(m);
         }
     });
+
+    // Driver markers (vehicle emoji)
+    driversData.forEach(function(d) {
+        if (!d.latitude || !d.longitude) return;
+        var emoji = vehicleEmoji[d.vehicle_type] || '🚗';
+        var color = d.status === 'available' ? '#10B981' : '#F59E0B';
+        var m = new google.maps.Marker({
+            position:{lat:d.latitude,lng:d.longitude}, map:map,
+            label:{text:emoji,fontSize:'20px'},
+            title:d.name+' ('+d.vehicle_type+')',
+        });
+        m.addListener('click',function(){
+            iw.setContent(
+                '<div style="padding:6px;min-width:160px;">'+
+                '<div style="font-weight:800;font-size:14px;">'+d.name+'</div>'+
+                '<div style="font-size:12px;color:#666;">'+d.phone+'</div>'+
+                '<div style="margin-top:4px;">'+
+                '<span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;background:'+color+'20;color:'+color+';">'+d.status+'</span>'+
+                ' <span style="color:#f59e0b;">★ '+d.rating+'</span>'+
+                '</div>'+
+                '<div style="font-size:11px;color:#888;margin-top:4px;">'+emoji+' '+d.vehicle_type+' · '+d.total_deliveries+' trips</div>'+
+                (d.last_seen ? '<div style="font-size:10px;color:#aaa;margin-top:2px;">Last seen: '+d.last_seen+'</div>' : '')+
+                '</div>'
+            );
+            iw.open(map,m);
+        });
+        markers.push(m);
+    });
+}
+
+function switchTab(tab, btn) {
+    currentTab = tab;
+    document.querySelectorAll('.dispatch-tab').forEach(function(t){t.classList.remove('active')});
+    btn.classList.add('active');
+    renderPanel();
 }
 
 function renderPanel() {
-    const panel = document.getElementById('dispatch-panel');
+    var panel = document.getElementById('panelContent');
     if (currentTab === 'orders') {
-        panel.innerHTML = ordersData.length ? ordersData.map(o => `
-            <div class="order-card p-3 mb-2 rounded border" onclick="selectOrder(${o.id}, '${o.order_number}')">
-                <div class="d-flex justify-content-between">
-                    <strong>${o.order_number}</strong>
-                    <span class="badge bg-warning">${o.status.replace(/_/g,' ')}</span>
-                </div>
-                <div class="text-muted small mt-1">${o.vendor} → ${o.customer}</div>
-                <div class="d-flex justify-content-between mt-2">
-                    <small class="text-success fw-bold">$${o.total}</small>
-                    ${o.deliveryman ? `<span class="dm-badge">${o.deliveryman}</span>` : '<button class="btn btn-xs btn-primary py-0 px-2" onclick="openAssign(event,'+o.id+',\''+o.order_number+'\')">Assign</button>'}
-                </div>
-            </div>
-        `).join('') : '<p class="text-center text-muted py-4">No active orders</p>';
+        if (!ordersData.length) { panel.innerHTML = '<div style="text-align:center;padding:40px;color:#8A8A9A;"><i class="fas fa-inbox" style="font-size:30px;display:block;margin-bottom:10px;opacity:0.3;"></i>No active orders</div>'; return; }
+        panel.innerHTML = ordersData.map(function(o) {
+            var sc = statusColor[o.status] || '#888';
+            var hasDriver = !!o.driver_name;
+            return '<div class="d-order" onclick="focusOrder('+o.id+')">'+
+                '<div style="display:flex;justify-content:space-between;align-items:center;">'+
+                '<span style="font-weight:800;font-size:13px;color:#07003B;">#'+o.order_number+'</span>'+
+                '<span style="padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:'+sc+'15;color:'+sc+';">'+o.status.replace(/_/g,' ')+'</span>'+
+                '</div>'+
+                '<div style="font-size:12px;color:#666;margin-top:6px;">'+
+                '<span style="color:#FF8A00;">🏪</span> '+(o.vendor_name||'—')+' → <span style="color:#3B82F6;">👤</span> '+(o.customer_name||'—')+
+                '</div>'+
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">'+
+                '<span style="font-weight:700;color:#10B981;font-size:13px;">$'+o.total.toFixed(2)+'</span>'+
+                (hasDriver
+                    ? '<span style="font-size:11px;padding:3px 8px;background:#e8f5e9;color:#2e7d32;border-radius:6px;font-weight:600;">'+o.driver_name+'</span>'
+                    : '<button onclick="event.stopPropagation();openAssign('+o.id+\',\\\''+o.order_number+'\\\'\'+')" style="padding:4px 12px;background:#FF8A00;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Assign</button>')+
+                '</div>'+
+                '<div style="font-size:10px;color:#aaa;margin-top:4px;">'+o.placed_at+'</div>'+
+                '</div>';
+        }).join('');
     } else {
-        panel.innerHTML = ridersData.length ? ridersData.map(r => `
-            <div class="order-card p-3 mb-2 rounded border">
-                <div class="fw-semibold">${r.name}</div>
-                <div class="text-muted small">${r.phone}</div>
-                <div class="d-flex justify-content-between mt-1">
-                    <span class="dm-badge">Available</span>
-                    <span class="text-warning">★ ${r.rating}</span>
-                </div>
-            </div>
-        `).join('') : '<p class="text-center text-muted py-4">No available riders</p>';
+        if (!driversData.length) { panel.innerHTML = '<div style="text-align:center;padding:40px;color:#8A8A9A;"><i class="fas fa-motorcycle" style="font-size:30px;display:block;margin-bottom:10px;opacity:0.3;"></i>No drivers online</div>'; return; }
+        panel.innerHTML = driversData.map(function(d) {
+            var emoji = vehicleEmoji[d.vehicle_type] || '🚗';
+            var color = d.status === 'available' ? '#10B981' : '#F59E0B';
+            return '<div class="d-driver">'+
+                '<div style="display:flex;align-items:center;gap:10px;">'+
+                '<div style="width:40px;height:40px;border-radius:10px;background:'+color+'15;display:flex;align-items:center;justify-content:center;font-size:20px;">'+emoji+'</div>'+
+                '<div style="flex:1;">'+
+                '<div style="font-weight:700;font-size:13px;color:#07003B;">'+d.name+'</div>'+
+                '<div style="font-size:11px;color:#8A8A9A;">'+d.phone+'</div>'+
+                '</div>'+
+                '<div style="text-align:right;">'+
+                '<span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:'+color+'15;color:'+color+';">'+d.status+'</span>'+
+                '<div style="font-size:11px;color:#f59e0b;margin-top:2px;">★ '+d.rating+' · '+d.total_deliveries+' trips</div>'+
+                '</div>'+
+                '</div>'+
+                (d.last_seen ? '<div style="font-size:10px;color:#aaa;margin-top:6px;">📍 Last seen: '+d.last_seen+'</div>' : '')+
+                '</div>';
+        }).join('');
     }
 }
 
-function selectOrder(id, num) { selectedOrderId = id; }
-
-function openAssign(e, orderId, orderNum) {
-    e.stopPropagation();
-    selectedOrderId = orderId;
-    document.getElementById('assign-order-num').textContent = orderNum;
-    const sel = document.getElementById('assign-dm-select');
-    sel.innerHTML = ridersData.map(r => `<option value="${r.id}">${r.name} — ${r.phone} (★${r.rating})</option>`).join('');
-    new bootstrap.Modal(document.getElementById('assignModal')).show();
+function focusOrder(id) {
+    var o = ordersData.find(function(x){return x.id===id});
+    if (o && o.vendor_lat && o.vendor_lng) map.panTo({lat:o.vendor_lat,lng:o.vendor_lng});
+    if (o) map.setZoom(15);
 }
 
-document.getElementById('confirm-assign').addEventListener('click', async () => {
-    const dmId = document.getElementById('assign-dm-select').value;
-    if (!selectedOrderId || !dmId) return;
-    const res = await fetch('{{ route("admin.dispatch.assign") }}', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-        body: JSON.stringify({ order_id: selectedOrderId, deliveryman_id: dmId })
-    }).then(r => r.json());
-    if (res.success) {
-        bootstrap.Modal.getInstance(document.getElementById('assignModal')).hide();
-        toastr.success('Deliveryman assigned!');
-        loadData();
-    }
-});
+function openAssign(orderId, orderNum) {
+    assignOrderId = orderId;
+    document.getElementById('assignOrderNum').textContent = '#' + orderNum;
+    var sel = document.getElementById('assignDriverSelect');
+    var available = driversData.filter(function(d){return d.status==='available'});
+    sel.innerHTML = available.length
+        ? available.map(function(d){
+            var emoji = vehicleEmoji[d.vehicle_type]||'🚗';
+            return '<option value="'+d.id+'">'+emoji+' '+d.name+' — '+d.phone+' (★'+d.rating+')</option>';
+        }).join('')
+        : '<option value="">No available drivers</option>';
+    openModal('assignModal');
+}
 
-document.querySelectorAll('[data-tab]').forEach(tab => {
-    tab.addEventListener('click', e => {
-        e.preventDefault();
-        document.querySelectorAll('[data-tab]').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        currentTab = tab.dataset.tab;
-        renderPanel();
-    });
-});
-
-document.getElementById('refresh-btn').addEventListener('click', loadData);
-setInterval(loadData, 30000); // Refresh every 30s
+async function confirmAssign() {
+    var dmId = document.getElementById('assignDriverSelect').value;
+    if (!assignOrderId || !dmId) return;
+    try {
+        var res = await fetch('/admin/dispatch/assign', {
+            method:'POST',
+            headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]').content},
+            body:JSON.stringify({order_id:assignOrderId,deliveryman_id:parseInt(dmId)})
+        }).then(function(r){return r.json()});
+        if (res.success) {
+            closeModal('assignModal');
+            loadData();
+        }
+    } catch(e) {}
+}
 </script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A&callback=initDispatchMap" async defer></script>
 @endpush
+@endsection
