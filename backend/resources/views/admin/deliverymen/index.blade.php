@@ -5,130 +5,211 @@
 <div class="page-header">
     <div>
         <h1 class="page-title">Deliverymen</h1>
-        <ul class="breadcrumb">
-            <li><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
-            <li>Deliverymen</li>
-        </ul>
+        <ul class="breadcrumb"><li><a href="{{ route('admin.dashboard') }}">Dashboard</a></li><li>Deliverymen</li></ul>
     </div>
+    <button class="btn btn-primary" onclick="openModal('createModal')"><i class="fas fa-plus"></i> Add Driver</button>
 </div>
 
-{{-- Quick stats --}}
+@if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+
+{{-- Stats --}}
 @php
-    $dmAll       = $deliverymen ?? collect();
-    $dmAvailable = $dmAll->where('status','available')->count();
-    $dmBusy      = $dmAll->where('status','busy')->count();
-    $dmPending   = $dmAll->where('is_approved',false)->count();
+    $all = $deliverymen->getCollection();
+    $avail = $all->where('status','available')->count();
+    $busy  = $all->where('status','busy')->count();
+    $pend  = $all->where('is_approved',false)->count();
+    $normal = $all->where('driver_type','normal')->count();
+    $truck  = $all->where('driver_type','truck')->count();
 @endphp
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;">
-    <div style="background:#fff;border-radius:10px;border:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:10px;">
-        <div style="width:36px;height:36px;border-radius:9px;background:rgba(16,185,129,0.1);color:var(--success);display:flex;align-items:center;justify-content:center;"><i class="fas fa-circle" style="font-size:9px;"></i></div>
-        <div><div style="font-size:20px;font-weight:800;">{{ $dmAvailable }}</div><div style="font-size:11px;color:var(--text-muted);">Available</div></div>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px;">
+    <div style="background:#fff;border-radius:12px;padding:14px 16px;border-left:4px solid #10B981;">
+        <div style="font-size:22px;font-weight:900;">{{ $avail }}</div><div style="font-size:11px;color:#8A8A9A;">Available</div>
     </div>
-    <div style="background:#fff;border-radius:10px;border:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:10px;">
-        <div style="width:36px;height:36px;border-radius:9px;background:rgba(245,158,11,0.1);color:var(--warning);display:flex;align-items:center;justify-content:center;"><i class="fas fa-motorcycle"></i></div>
-        <div><div style="font-size:20px;font-weight:800;">{{ $dmBusy }}</div><div style="font-size:11px;color:var(--text-muted);">On Delivery</div></div>
+    <div style="background:#fff;border-radius:12px;padding:14px 16px;border-left:4px solid #F59E0B;">
+        <div style="font-size:22px;font-weight:900;">{{ $busy }}</div><div style="font-size:11px;color:#8A8A9A;">On Delivery</div>
     </div>
-    <div style="background:#fff;border-radius:10px;border:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:10px;">
-        <div style="width:36px;height:36px;border-radius:9px;background:rgba(255,138,0,0.1);color:var(--brand);display:flex;align-items:center;justify-content:center;"><i class="fas fa-hourglass-half"></i></div>
-        <div><div style="font-size:20px;font-weight:800;">{{ $dmPending }}</div><div style="font-size:11px;color:var(--text-muted);">Pending Approval</div></div>
+    <div style="background:#fff;border-radius:12px;padding:14px 16px;border-left:4px solid #FF8A00;">
+        <div style="font-size:22px;font-weight:900;">{{ $pend }}</div><div style="font-size:11px;color:#8A8A9A;">Pending</div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:14px 16px;border-left:4px solid #3B82F6;">
+        <div style="font-size:22px;font-weight:900;">{{ $normal }}</div><div style="font-size:11px;color:#8A8A9A;">🏍️ Normal</div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:14px 16px;border-left:4px solid #8B5CF6;">
+        <div style="font-size:22px;font-weight:900;">{{ $truck }}</div><div style="font-size:11px;color:#8A8A9A;">🚛 Truck</div>
     </div>
 </div>
 
+{{-- Filters --}}
+<div class="card" style="padding:12px 16px;margin-bottom:12px;">
+    <form method="GET" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <input type="text" name="search" class="form-control" style="width:200px;" value="{{ request('search') }}" placeholder="Search name or phone...">
+        <select name="status" class="form-control" style="width:140px;" onchange="this.form.submit()">
+            <option value="">All Status</option>
+            @foreach(['pending','available','busy','offline','banned'] as $st)
+            <option value="{{ $st }}" {{ request('status')===$st?'selected':'' }}>{{ ucfirst($st) }}</option>
+            @endforeach
+        </select>
+        <select name="driver_type" class="form-control" style="width:140px;" onchange="this.form.submit()">
+            <option value="">All Types</option>
+            <option value="normal" {{ request('driver_type')==='normal'?'selected':'' }}>🏍️ Normal</option>
+            <option value="truck" {{ request('driver_type')==='truck'?'selected':'' }}>🚛 Truck</option>
+        </select>
+        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i></button>
+    </form>
+</div>
+
+{{-- Table --}}
 <div class="card">
-    <div class="card-header">
-        <div class="card-header-title">
-            <div class="card-header-icon" style="background:rgba(20,184,166,0.1);color:#14b8a6;">
-                <i class="fas fa-motorcycle"></i>
-            </div>
-            All Deliverymen
-        </div>
-        <form method="GET" style="display:flex;gap:8px;">
-            <select name="status" class="form-control" style="width:150px;" onchange="this.form.submit()">
-                <option value="">All Status</option>
-                @foreach(['pending','available','busy','offline','banned'] as $st)
-                <option value="{{ $st }}" {{ request('status')===$st?'selected':'' }}>{{ ucfirst($st) }}</option>
-                @endforeach
-            </select>
-        </form>
-    </div>
     <div class="table-wrap">
         <table>
             <thead>
                 <tr>
-                    <th>Deliveryman</th>
+                    <th>Driver</th>
                     <th>Phone</th>
+                    <th>Type</th>
                     <th>Vehicle</th>
                     <th>Status</th>
-                    <th>Approval</th>
+                    <th>Docs</th>
                     <th>Rating</th>
                     <th>Joined</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                @forelse($deliverymen ?? [] as $dm)
+                @forelse($deliverymen as $dm)
                 @php
                     $sc = ['available'=>'badge-success','busy'=>'badge-warning','offline'=>'badge-secondary','pending'=>'badge-warning','banned'=>'badge-danger'][$dm->status] ?? 'badge-secondary';
+                    $vehicleEmoji = ['motorcycle'=>'🏍️','bajaj'=>'🛺','car'=>'🚗','van'=>'🚐','truck'=>'🚛','bicycle'=>'🚲','pickup'=>'🚛'][$dm->vehicle_type] ?? '🚗';
                 @endphp
                 <tr>
                     <td>
                         <div style="display:flex;align-items:center;gap:10px;">
                             <div class="avatar avatar-sm avatar-green">{{ strtoupper(substr($dm->user->name??'D',0,1)) }}</div>
-                            <span style="font-weight:700;font-size:13px;">{{ $dm->user->name ?? 'N/A' }}</span>
+                            <div>
+                                <span style="font-weight:700;font-size:13px;">{{ $dm->user->name ?? 'N/A' }}</span>
+                                @if(!$dm->is_approved)
+                                <span style="display:block;font-size:10px;color:#FF8A00;font-weight:600;">⏳ Pending Approval</span>
+                                @endif
+                            </div>
                         </div>
                     </td>
-                    <td style="font-size:13px;color:var(--text-muted);">{{ $dm->user->phone ?? '—' }}</td>
-                    <td><span class="badge badge-info">{{ ucfirst($dm->vehicle_type ?? '—') }}</span></td>
-                    <td><span class="badge {{ $sc }} badge-dot">{{ ucfirst($dm->status) }}</span></td>
+                    <td style="font-size:13px;color:#8A8A9A;">{{ $dm->user->phone ?? '—' }}</td>
                     <td>
-                        @if($dm->is_approved)
-                            <span class="badge badge-success"><i class="fas fa-check"></i> Approved</span>
+                        @if($dm->driver_type === 'truck')
+                        <span class="badge" style="background:#f3e8ff;color:#7c3aed;">🚛 Truck</span>
                         @else
-                            <span class="badge badge-warning">Pending</span>
+                        <span class="badge" style="background:#e0f2fe;color:#0284c7;">🏍️ Normal</span>
                         @endif
                     </td>
+                    <td><span class="badge badge-info">{{ $vehicleEmoji }} {{ ucfirst($dm->vehicle_type ?? '—') }}</span></td>
+                    <td><span class="badge {{ $sc }}">{{ ucfirst($dm->status) }}</span></td>
                     <td>
-                        @if($dm->rating)
+                        <a href="{{ route('admin.deliverymen.show', $dm->id) }}" style="font-size:11px;color:#3B82F6;font-weight:600;">
+                            📄 View
+                        </a>
+                    </td>
+                    <td>
                         <span style="color:#f59e0b;">★</span>
-                        <span style="font-weight:700;">{{ number_format($dm->rating,1) }}</span>
-                        @else
-                        <span style="color:var(--text-muted);">—</span>
-                        @endif
+                        <span style="font-weight:700;">{{ number_format($dm->rating ?? 5, 1) }}</span>
                     </td>
-                    <td style="font-size:12px;color:var(--text-muted);">{{ $dm->created_at->format('d M Y') }}</td>
+                    <td style="font-size:12px;color:#8A8A9A;">{{ $dm->created_at->format('d M Y') }}</td>
                     <td>
-                        <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                        <div style="display:flex;gap:4px;flex-wrap:wrap;">
                             @if(!$dm->is_approved)
-                            <form action="{{ route('admin.deliverymen.approve',$dm->id) }}" method="POST">
+                            <form action="{{ route('admin.deliverymen.approve', $dm->id) }}" method="POST" style="margin:0;">
                                 @csrf
-                                <button class="btn btn-xs btn-success"><i class="fas fa-check"></i> Approve</button>
+                                <button class="btn btn-xs btn-success"><i class="fas fa-check"></i></button>
+                            </form>
+                            <form action="{{ route('admin.deliverymen.reject', $dm->id) }}" method="POST" style="margin:0;">
+                                @csrf
+                                <button class="btn btn-xs btn-warning"><i class="fas fa-times"></i></button>
                             </form>
                             @endif
-                            <form action="{{ route('admin.deliverymen.toggle-block',$dm->id) }}" method="POST">
+                            <form action="{{ route('admin.deliverymen.toggle-block', $dm->id) }}" method="POST" style="margin:0;">
                                 @csrf
-                                @if($dm->status === 'banned')
-                                <button class="btn btn-xs btn-outline"><i class="fas fa-unlock"></i> Unblock</button>
-                                @else
-                                <button class="btn btn-xs" style="background:#fff5f5;color:var(--danger);border:1.5px solid #fecaca;"><i class="fas fa-ban"></i> Block</button>
-                                @endif
+                                <button class="btn btn-xs {{ $dm->user->status === 'banned' ? 'btn-outline' : 'btn-danger' }}" title="{{ $dm->user->status === 'banned' ? 'Unblock' : 'Block' }}">
+                                    <i class="fas {{ $dm->user->status === 'banned' ? 'fa-unlock' : 'fa-ban' }}"></i>
+                                </button>
+                            </form>
+                            <form action="{{ route('admin.deliverymen.destroy', $dm->id) }}" method="POST" style="margin:0;" onsubmit="return confirm('Delete this driver permanently?')">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-xs btn-danger" title="Delete"><i class="fas fa-trash"></i></button>
                             </form>
                         </div>
                     </td>
                 </tr>
                 @empty
-                <tr>
-                    <td colspan="8">
-                        <div class="empty-state"><i class="fas fa-motorcycle"></i><h3>No deliverymen found</h3></div>
-                    </td>
-                </tr>
+                <tr><td colspan="9"><div class="empty-state"><i class="fas fa-motorcycle"></i><h3>No drivers found</h3></div></td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
-    @if(isset($deliverymen) && method_exists($deliverymen,'links') && $deliverymen->hasPages())
-    <div class="card-footer" style="display:flex;justify-content:center;">
-        {{ $deliverymen->links() }}
-    </div>
+    @if($deliverymen->hasPages())
+    <div style="padding:16px;display:flex;justify-content:center;">{{ $deliverymen->withQueryString()->links() }}</div>
     @endif
+</div>
+
+{{-- Create Driver Modal --}}
+<div class="modal-overlay" id="createModal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 class="modal-title">Add New Driver</h3>
+            <button class="modal-close" onclick="closeModal('createModal')">✕</button>
+        </div>
+        <form action="{{ route('admin.deliverymen.store') }}" method="POST">
+            @csrf
+            <div class="modal-body">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Full Name *</label>
+                        <input type="text" name="name" class="form-control" required placeholder="Driver name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone *</label>
+                        <input type="text" name="phone" class="form-control" required placeholder="+252...">
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Password *</label>
+                        <input type="text" name="password" class="form-control" required placeholder="Min 4 characters">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Plate Number</label>
+                        <input type="text" name="plate_number" class="form-control" placeholder="MG-1234">
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Driver Type *</label>
+                        <select name="driver_type" class="form-control" required>
+                            <option value="normal">🏍️ Normal Delivery</option>
+                            <option value="truck">🚛 Truck / Moving</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Vehicle Type *</label>
+                        <select name="vehicle_type" class="form-control" required>
+                            <option value="motorcycle">🏍️ Motorcycle</option>
+                            <option value="bajaj">🛺 Bajaj</option>
+                            <option value="car">🚗 Car</option>
+                            <option value="truck">🚛 Truck</option>
+                            <option value="van">🚐 Van</option>
+                            <option value="bicycle">🚲 Bicycle</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:8px">
+                        <input type="checkbox" name="auto_approve" value="1"> Auto-approve this driver
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('createModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Driver</button>
+            </div>
+        </form>
+    </div>
 </div>
 @endsection
