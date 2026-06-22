@@ -270,6 +270,16 @@ class DeliveryController extends Controller
             }
         } catch (\Throwable) {}
 
+        // Notify driver — order assigned confirmation
+        try {
+            $driverToken = $dm->fcm_token ?? $request->user()->fcm_token;
+            if ($driverToken) {
+                \App\Services\FcmService::sendDriverOrderUpdate(
+                    $driverToken, $order->order_number, 'out_for_delivery', $order->id, $order->module_slug
+                );
+            }
+        } catch (\Throwable) {}
+
         return response()->json(['success' => true, 'message' => 'Order accepted']);
     }
 
@@ -356,6 +366,16 @@ class DeliveryController extends Controller
             if ($order->user?->fcm_token) {
                 \App\Services\FcmService::sendOrderUpdate(
                     $order->user->fcm_token, $order->order_number, $request->status, $order->id, $order->module_slug
+                );
+            }
+        } catch (\Throwable) {}
+
+        // Notify driver — delivery complete / status change
+        try {
+            $driverToken = $dm->fcm_token ?? $request->user()->fcm_token;
+            if ($driverToken) {
+                \App\Services\FcmService::sendDriverOrderUpdate(
+                    $driverToken, $order->order_number, $request->status, $order->id, $order->module_slug
                 );
             }
         } catch (\Throwable) {}
