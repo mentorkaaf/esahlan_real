@@ -28,25 +28,27 @@ class AdminNotificationController extends Controller
 
     public function templates(Request $request)
     {
-        $moduleSlug = $request->get('module'); // null = global
+        $moduleSlug = $request->get('module');
+        $target     = $request->get('target', 'customer');
         $statuses   = ['pending','confirmed','preparing','ready_for_pickup','out_for_delivery','delivered','cancelled','refunded','failed'];
 
-        // Get all templates for this module (or global)
         $existing = OrderNotificationTemplate::where('module_slug', $moduleSlug ?: null)
+            ->where('target', $target)
             ->get()->keyBy('status');
 
-        // Also get global defaults for display when module has no override
         $globals = OrderNotificationTemplate::whereNull('module_slug')
+            ->where('target', $target)
             ->get()->keyBy('status');
 
         $modules = \App\Models\Module::orderBy('name')->get(['slug','name']);
 
-        return view('admin.notifications.templates', compact('statuses','existing','globals','modules','moduleSlug'));
+        return view('admin.notifications.templates', compact('statuses','existing','globals','modules','moduleSlug','target'));
     }
 
     public function saveTemplates(Request $request)
     {
         $moduleSlug = $request->input('module_slug') ?: null;
+        $target     = $request->input('target', 'customer');
         $statuses   = ['pending','confirmed','preparing','ready_for_pickup','out_for_delivery','delivered','cancelled','refunded','failed'];
 
         foreach ($statuses as $status) {
@@ -54,14 +56,13 @@ class AdminNotificationController extends Controller
             $body  = trim($request->input("body_{$status}", ''));
 
             if ($title === '' && $body === '') {
-                // Delete override for this status (revert to global)
                 OrderNotificationTemplate::where('module_slug', $moduleSlug)
-                    ->where('status', $status)->delete();
+                    ->where('status', $status)->where('target', $target)->delete();
                 continue;
             }
 
             OrderNotificationTemplate::updateOrCreate(
-                ['module_slug' => $moduleSlug, 'status' => $status],
+                ['module_slug' => $moduleSlug, 'status' => $status, 'target' => $target],
                 ['title' => $title, 'body' => $body]
             );
         }

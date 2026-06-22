@@ -115,7 +115,7 @@ class FcmService
         int     $orderId,
         ?string $moduleSlug = null,
     ): bool {
-        $tpl   = \App\Models\OrderNotificationTemplate::resolve($status, $moduleSlug);
+        $tpl   = \App\Models\OrderNotificationTemplate::resolve($status, $moduleSlug, 'customer');
         $title = $tpl['title'];
         $body  = str_replace('{order_number}', $orderNumber, $tpl['body']);
 
@@ -126,6 +126,27 @@ class FcmService
             'status'       => $status,
             'module'       => (string) ($moduleSlug ?? ''),
             'deep_link'    => '/orders/' . $orderId,
+        ]);
+    }
+
+    public static function sendDriverOrderUpdate(
+        string  $fcmToken,
+        string  $orderNumber,
+        string  $status,
+        int     $orderId,
+        ?string $moduleSlug = null,
+    ): bool {
+        $tpl   = \App\Models\OrderNotificationTemplate::resolve($status, $moduleSlug, 'driver');
+        $title = $tpl['title'];
+        $body  = str_replace('{order_number}', $orderNumber, $tpl['body']);
+
+        return self::sendToToken($fcmToken, $title, $body, [
+            'type'         => 'driver_order_update',
+            'order_id'     => (string) $orderId,
+            'order_number' => $orderNumber,
+            'status'       => $status,
+            'module'       => (string) ($moduleSlug ?? ''),
+            'deep_link'    => '/orders',
         ]);
     }
 

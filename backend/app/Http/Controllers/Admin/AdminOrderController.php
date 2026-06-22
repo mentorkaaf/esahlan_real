@@ -183,6 +183,39 @@ class AdminOrderController extends Controller
             }
         }
 
+        // ── Notify assigned driver ───────────────────────────────────────
+        if ($order->deliveryman_id) {
+            try {
+                $order->load('deliveryman.user');
+                $driverToken = $order->deliveryman?->fcm_token ?? $order->deliveryman?->user?->fcm_token;
+                if ($driverToken) {
+                    FcmService::sendDriverOrderUpdate($driverToken, $order->order_number, $request->status, $order->id, $order->module_slug);
+                }
+            } catch (\Throwable) {}
+        }
+
+        // ── Notify available drivers when order is confirmed (new order available) ──
+        if (in_array($request->status, ['confirmed', 'ready_for_pickup']) && !$order->deliveryman_id) {
+            try {
+                $onlineDrivers = Deliveryman::where('is_approved', true)
+                    ->where('is_online', true)
+                    ->whereNotNull('fcm_token')
+                    ->pluck('fcm_token')
+                    ->toArray();
+                if (!empty($onlineDrivers)) {
+                    $tpl = \App\Models\OrderNotificationTemplate::resolve($request->status, $order->module_slug, 'driver');
+                    $title = $tpl['title'];
+                    $body = str_replace('{order_number}', $order->order_number, $tpl['body']);
+                    FcmService::sendToTokens($onlineDrivers, $title, $body, [
+                        'type' => 'new_order_available',
+                        'order_id' => (string) $order->id,
+                        'order_number' => $order->order_number,
+                        'deep_link' => '/orders',
+                    ]);
+                }
+            } catch (\Throwable) {}
+        }
+
         return back()->with('success', 'Order status updated to ' . $request->status);
     }
 

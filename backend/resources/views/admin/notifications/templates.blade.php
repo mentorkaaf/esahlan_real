@@ -52,14 +52,26 @@ textarea.tpl-input { resize:vertical; min-height:60px; }
 </div>
 @endif
 
+{{-- Target tabs (Customer / Driver) --}}
+<div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #e2e8f0;">
+    <a href="{{ route('admin.notifications.templates', ['module' => $moduleSlug, 'target' => 'customer']) }}"
+       style="padding:10px 24px;font-size:14px;font-weight:700;border-bottom:3px solid {{ $target === 'customer' ? '#FF8A00' : 'transparent' }};color:{{ $target === 'customer' ? '#FF8A00' : '#64748b' }};text-decoration:none;margin-bottom:-2px;">
+        <i class="fas fa-user"></i> Customer Notifications
+    </a>
+    <a href="{{ route('admin.notifications.templates', ['module' => $moduleSlug, 'target' => 'driver']) }}"
+       style="padding:10px 24px;font-size:14px;font-weight:700;border-bottom:3px solid {{ $target === 'driver' ? '#10B981' : 'transparent' }};color:{{ $target === 'driver' ? '#10B981' : '#64748b' }};text-decoration:none;margin-bottom:-2px;">
+        <i class="fas fa-motorcycle"></i> Driver Notifications
+    </a>
+</div>
+
 {{-- Module tabs --}}
 <div class="mod-tabs">
-    <a href="{{ route('admin.notifications.templates') }}"
+    <a href="{{ route('admin.notifications.templates', ['target' => $target]) }}"
        class="mod-tab global {{ $moduleSlug === null ? 'active' : '' }}">
         <i class="fas fa-globe"></i> Global Default
     </a>
     @foreach($modules as $mod)
-    <a href="{{ route('admin.notifications.templates', ['module' => $mod->slug]) }}"
+    <a href="{{ route('admin.notifications.templates', ['module' => $mod->slug, 'target' => $target]) }}"
        class="mod-tab {{ $moduleSlug === $mod->slug ? 'active' : '' }}">
         {{ $mod->name }}
     </a>
@@ -83,6 +95,7 @@ $statusMeta = [
 <form method="POST" action="{{ route('admin.notifications.templates.save') }}">
 @csrf
 <input type="hidden" name="module_slug" value="{{ $moduleSlug }}">
+<input type="hidden" name="target" value="{{ $target }}">
 
 <div class="status-grid">
 @foreach($statuses as $status)
