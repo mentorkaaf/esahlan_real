@@ -230,14 +230,11 @@ class _NewOrderCard extends StatelessWidget {
                 if (moving?['moving_type'] != null) ...[const Divider(color: DC.divider, height: 14), _DetailLine('Type', '${moving!['moving_type']}${moving['room_count'] != null ? ' · ${moving['room_count']} rooms' : ''}')],
                 if (moving?['scheduled_date'] != null) _DetailLine('Date', moving!['scheduled_date']),
 
-                // Price breakdown
-                const Divider(color: DC.divider, height: 14),
-                const Text('💰 Price Breakdown', style: TextStyle(color: DC.orange, fontSize: 11, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 6),
-                if (moving?['base_price'] != null && (moving!['base_price'] as num) > 0) _DetailLine('Base Price', '\$${moving!['base_price']}'),
-                if (moving?['room_price'] != null && (moving!['room_price'] as num) > 0) _DetailLine('Room Price', '\$${moving!['room_price']}${moving['room_count'] != null ? ' × ${moving['room_count']}' : ''}'),
-                if (moving?['distance_fee'] != null && (moving!['distance_fee'] as num) > 0) _DetailLine('Distance Fee', '\$${moving!['distance_fee']}'),
-                if (moving?['order_total'] != null) _DetailLine('Order Total', '\$${moving!['order_total']}', valueColor: DC.success),
+                // Driver earning — only distance price
+                if (moving?['distance_price'] != null) ...[
+                  const Divider(color: DC.divider, height: 14),
+                  _DetailLine('Your Earning', '\$${moving!['distance_price']}', valueColor: DC.success),
+                ],
 
                 if (moving?['packages'] is List && (moving!['packages'] as List).isNotEmpty) ...[
                   const Divider(color: DC.divider, height: 14),

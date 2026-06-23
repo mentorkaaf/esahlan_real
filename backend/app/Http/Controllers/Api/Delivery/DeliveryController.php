@@ -245,10 +245,37 @@ class DeliveryController extends Controller
         }
 
         DB::transaction(function () use ($order, $dm, $request) {
-            $order->update([
+            $updateData = [
                 'deliveryman_id' => $dm->id,
                 'dispatched_at'  => now(),
-            ]);
+            ];
+
+            // Set delivery_fee from pricing if not already set
+            if (($order->delivery_fee ?? 0) == 0) {
+                $noteData = is_string($order->note) ? json_decode($order->note, true) : ($order->note ?? []);
+
+                if ($order->module_slug === 'emoving' && $noteData) {
+                    $fromDist = DB::table('districts')->where('name', $noteData['from_district'] ?? '')->first();
+                    $toDist = DB::table('districts')->where('name', $noteData['to_district'] ?? '')->first();
+                    if ($fromDist && $toDist) {
+                        $mp = DB::table('moving_pricing')->where('from_district_id', $fromDist->id)->where('to_district_id', $toDist->id)->where('is_active', true)->first();
+                        $updateData['delivery_fee'] = $mp ? (float) ($mp->distance_price ?? 20) : (float) ($noteData['distance_fee'] ?? 20);
+                    } else {
+                        $updateData['delivery_fee'] = (float) ($noteData['distance_fee'] ?? 20);
+                    }
+                } elseif ($order->module_slug === 'eparcel') {
+                    $addr = is_string($order->delivery_address) ? json_decode($order->delivery_address, true) : ($order->delivery_address ?? []);
+                    $pickupInfo = $noteData['pickup'] ?? [];
+                    $fromId = $pickupInfo['district_id'] ?? null;
+                    $toId = $addr['district_id'] ?? null;
+                    if ($fromId && $toId) {
+                        $zone = DB::table('delivery_zone_pricing')->where('from_district_id', $fromId)->where('to_district_id', $toId)->where('is_active', true)->first();
+                        if ($zone) $updateData['delivery_fee'] = (float) $zone->base_price;
+                    }
+                }
+            }
+
+            $order->update($updateData);
 
             OrderStatusHistory::create([
                 'order_id'   => $order->id,
@@ -820,14 +847,12 @@ class DeliveryController extends Controller
             }
 
             // Moving pricing from moving_pricing table
-            $routeBasePrice = $movingPrice ? (float) $movingPrice->base_price : 0;
-            $pricePerRoom = $movingPrice ? (float) $movingPrice->price_per_room : 0;
+            $distancePrice = $movingPrice ? (float) ($movingPrice->distance_price ?? 20) : (float) ($noteData['distance_fee'] ?? 20);
+
+            // Driver earning = distance_price (what driver gets for this route)
+            $result['delivery_fee'] = $distancePrice;
+
             $roomCount = (int) ($noteData['room_count'] ?? 0);
-
-            // Driver earning = distance_fee from order (what customer paid for distance)
-            $driverEarning = (float) ($noteData['distance_fee'] ?? $noteData['total'] ?? 0);
-            $result['delivery_fee'] = $driverEarning;
-
             $result['moving'] = [
                 'customer_name'   => $noteData['customer_name'] ?? $order->user?->name,
                 'customer_phone'  => $noteData['customer_phone'] ?? $order->user?->phone,
@@ -839,10 +864,7 @@ class DeliveryController extends Controller
                 'room_count'      => $roomCount > 0 ? $roomCount : null,
                 'packages'        => $noteData['extra_services'] ?? $noteData['packages'] ?? $noteData['items'] ?? null,
                 'scheduled_date'  => $noteData['scheduled_date'] ?? null,
-                'order_total'     => (float) ($noteData['total'] ?? 0),
-                'base_price'      => $routeBasePrice > 0 ? $routeBasePrice : (float) ($noteData['base_price'] ?? 0),
-                'room_price'      => $pricePerRoom > 0 ? $pricePerRoom : (float) ($noteData['room_price'] ?? 0),
-                'distance_fee'    => (float) ($noteData['distance_fee'] ?? 0),
+                'distance_price'  => $distancePrice,
                 'description'     => $noteData['user_note'] ?? $noteData['note'] ?? $noteData['description'] ?? null,
             ];
         }

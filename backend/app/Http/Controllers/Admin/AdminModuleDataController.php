@@ -984,7 +984,7 @@ class AdminModuleDataController extends Controller
             'price_per_room'   => 'nullable|numeric|min:0',
             'notes'            => 'nullable|string',
         ]);
-        MovingPricing::create($data + ['is_active'=>true,'price_per_room'=>$data['price_per_room']??0]);
+        MovingPricing::create($data + ['is_active'=>true,'price_per_room'=>$data['price_per_room']??0,'distance_price'=>$data['distance_price']??20]);
         return back()->with('success', 'Pricing added.');
     }
 
@@ -1004,12 +1004,13 @@ class AdminModuleDataController extends Controller
             'notes'         => 'nullable|string',
         ]);
         DB::table('moving_pricing')->where('id', $id)->update([
-            'base_price'    => $data['base_price'],
-            'price_per_room'=> $data['price_per_room'] ?? 0,
-            'vehicle_type'  => $data['vehicle_type'],
-            'is_active'     => $request->boolean('is_active', true),
-            'notes'         => $data['notes'] ?? null,
-            'updated_at'    => now(),
+            'base_price'     => $data['base_price'],
+            'price_per_room' => $data['price_per_room'] ?? 0,
+            'distance_price' => $request->input('distance_price', 20),
+            'vehicle_type'   => $data['vehicle_type'],
+            'is_active'      => $request->boolean('is_active', true),
+            'notes'          => $data['notes'] ?? null,
+            'updated_at'     => now(),
         ]);
         return back()->with('success', 'Pricing updated.');
     }
