@@ -787,10 +787,16 @@ class DeliveryController extends Controller
             $fromDist = $fromDistName ? DB::table('districts')->where('name', $fromDistName)->first() : null;
             $toDist = $toDistName ? DB::table('districts')->where('name', $toDistName)->first() : null;
 
-            // Zone pricing for moving
-            if ($fromDist && $toDist && $zoneFee == 0) {
-                $zone = DB::table('delivery_zone_pricing')->where('from_district_id', $fromDist->id)->where('to_district_id', $toDist->id)->where('is_active', true)->first();
-                if ($zone) { $zoneFee = (float) $zone->base_price; $result['delivery_fee'] = $zoneFee; }
+            // Moving route pricing (separate table from parcel zone pricing)
+            $movingPrice = null;
+            if ($fromDist && $toDist) {
+                $moveType = $noteData['move_type'] ?? 'house';
+                $movingPrice = DB::table('moving_pricing')
+                    ->where('from_district_id', $fromDist->id)
+                    ->where('to_district_id', $toDist->id)
+                    ->where('move_type', $moveType)
+                    ->where('is_active', true)
+                    ->first();
             }
 
             // Use district coordinates for map
@@ -813,10 +819,14 @@ class DeliveryController extends Controller
                 $result['estimated_minutes'] = (int) round($result['distance_km'] * 3);
             }
 
-            // Use total from note as delivery fee if zone not found
-            if ($zoneFee == 0 && isset($noteData['distance_fee'])) {
-                $result['delivery_fee'] = (float) $noteData['distance_fee'];
-            }
+            // Moving pricing from moving_pricing table
+            $routeBasePrice = $movingPrice ? (float) $movingPrice->base_price : 0;
+            $pricePerRoom = $movingPrice ? (float) $movingPrice->price_per_room : 0;
+            $roomCount = (int) ($noteData['room_count'] ?? 0);
+
+            // Driver earning = distance_fee from order (what customer paid for distance)
+            $driverEarning = (float) ($noteData['distance_fee'] ?? $noteData['total'] ?? 0);
+            $result['delivery_fee'] = $driverEarning;
 
             $result['moving'] = [
                 'customer_name'   => $noteData['customer_name'] ?? $order->user?->name,
@@ -826,10 +836,13 @@ class DeliveryController extends Controller
                 'from_address'    => $noteData['pickup_address'] ?? null,
                 'to_address'      => $noteData['delivery_address'] ?? null,
                 'moving_type'     => $noteData['move_type'] ?? $noteData['moving_type'] ?? null,
-                'room_count'      => $noteData['room_count'] ?? null,
+                'room_count'      => $roomCount > 0 ? $roomCount : null,
                 'packages'        => $noteData['extra_services'] ?? $noteData['packages'] ?? $noteData['items'] ?? null,
                 'scheduled_date'  => $noteData['scheduled_date'] ?? null,
-                'total_price'     => $noteData['total'] ?? null,
+                'order_total'     => (float) ($noteData['total'] ?? 0),
+                'base_price'      => $routeBasePrice > 0 ? $routeBasePrice : (float) ($noteData['base_price'] ?? 0),
+                'room_price'      => $pricePerRoom > 0 ? $pricePerRoom : (float) ($noteData['room_price'] ?? 0),
+                'distance_fee'    => (float) ($noteData['distance_fee'] ?? 0),
                 'description'     => $noteData['user_note'] ?? $noteData['note'] ?? $noteData['description'] ?? null,
             ];
         }

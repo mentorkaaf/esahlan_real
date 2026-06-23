@@ -176,7 +176,7 @@ class _NewOrderCard extends StatelessWidget {
           polylines: {Polyline(polylineId: const PolylineId('route'),
             points: [LatLng(pickupLat, pickupLng), LatLng(deliveryLat, deliveryLng)],
             color: DC.orange, width: 3, patterns: [PatternItem.dash(20), PatternItem.gap(10)])},
-          myLocationEnabled: false, zoomControlsEnabled: false, mapToolbarEnabled: false, liteModeEnabled: true,
+          myLocationEnabled: false, zoomControlsEnabled: true, mapToolbarEnabled: false,
         )),
 
         Padding(padding: const EdgeInsets.fromLTRB(18, 14, 18, 0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -229,7 +229,16 @@ class _NewOrderCard extends StatelessWidget {
                 if (moving?['to_address'] != null) _DetailLine('Address', moving!['to_address']),
                 if (moving?['moving_type'] != null) ...[const Divider(color: DC.divider, height: 14), _DetailLine('Type', '${moving!['moving_type']}${moving['room_count'] != null ? ' · ${moving['room_count']} rooms' : ''}')],
                 if (moving?['scheduled_date'] != null) _DetailLine('Date', moving!['scheduled_date']),
-                if (moving?['total_price'] != null) ...[const Divider(color: DC.divider, height: 14), _DetailLine('Order Total', '\$${moving!['total_price']}')],
+
+                // Price breakdown
+                const Divider(color: DC.divider, height: 14),
+                const Text('💰 Price Breakdown', style: TextStyle(color: DC.orange, fontSize: 11, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                if (moving?['base_price'] != null && (moving!['base_price'] as num) > 0) _DetailLine('Base Price', '\$${moving!['base_price']}'),
+                if (moving?['room_price'] != null && (moving!['room_price'] as num) > 0) _DetailLine('Room Price', '\$${moving!['room_price']}${moving['room_count'] != null ? ' × ${moving['room_count']}' : ''}'),
+                if (moving?['distance_fee'] != null && (moving!['distance_fee'] as num) > 0) _DetailLine('Distance Fee', '\$${moving!['distance_fee']}'),
+                if (moving?['order_total'] != null) _DetailLine('Order Total', '\$${moving!['order_total']}', valueColor: DC.success),
+
                 if (moving?['packages'] is List && (moving!['packages'] as List).isNotEmpty) ...[
                   const Divider(color: DC.divider, height: 14),
                   const Text('Packages:', style: TextStyle(color: DC.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
@@ -318,13 +327,14 @@ class _PersonCard extends StatelessWidget {
 
 class _DetailLine extends StatelessWidget {
   final String label, value;
-  const _DetailLine(this.label, this.value);
+  final Color? valueColor;
+  const _DetailLine(this.label, this.value, {this.valueColor});
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 4),
     child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SizedBox(width: 70, child: Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 11))),
-      Expanded(child: Text(value, style: const TextStyle(color: DC.text, fontSize: 11, fontWeight: FontWeight.w600))),
+      SizedBox(width: 80, child: Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 11))),
+      Expanded(child: Text(value, style: TextStyle(color: valueColor ?? DC.text, fontSize: 11, fontWeight: FontWeight.w600))),
     ]),
   );
 }
