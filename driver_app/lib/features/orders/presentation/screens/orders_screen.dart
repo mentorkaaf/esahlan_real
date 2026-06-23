@@ -111,81 +111,147 @@ class _AvailableTab extends ConsumerWidget {
 // NEW ORDER REQUEST CARD (matches UI reference exactly)
 // ══════════════════════════════════════════════════════════════════
 
-class _NewOrderCard extends StatelessWidget {
+class _NewOrderCard extends StatefulWidget {
   final Map<String, dynamic> order;
   final VoidCallback onAccept;
   const _NewOrderCard({required this.order, required this.onAccept});
+
+  @override
+  State<_NewOrderCard> createState() => _NewOrderCardState();
+}
+
+class _NewOrderCardState extends State<_NewOrderCard> {
+  bool _expanded = false;
 
   static const _moduleLabels = {'efood': 'eFood Delivery', 'eshop': 'eShop Delivery', 'eparcel': 'eParcel Delivery', 'egrocery': 'eGrocery Delivery', 'elaundry': 'eLaundry Pickup', 'emoving': 'eMoving Service'};
 
   @override
   Widget build(BuildContext context) {
-    final vendor = order['vendor'] as Map<String, dynamic>?;
-    final customer = order['customer'] as Map<String, dynamic>?;
-    final module = (order['module_slug'] ?? 'order').toString();
-    final fee = double.tryParse('${order['delivery_fee'] ?? 0}') ?? 0;
-    final distance = order['distance_km'];
-    final addr = order['delivery_address'];
-    final district = addr is Map ? (addr['district'] ?? addr['city'] ?? '') : '';
+    final o = widget.order;
+    final pickup = o['pickup'] as Map<String, dynamic>? ?? {};
+    final delivery = o['delivery'] as Map<String, dynamic>? ?? {};
+    final module = (o['module_slug'] ?? 'order').toString();
+    final fee = double.tryParse('${o['delivery_fee'] ?? 0}') ?? 0;
+    final distance = o['distance_km'];
+    final estMin = o['estimated_minutes'];
+    final parcel = o['parcel'] as Map<String, dynamic>?;
+    final moving = o['moving'] as Map<String, dynamic>?;
+
+    final pickupLat = double.tryParse('${pickup['lat'] ?? 0}') ?? 0;
+    final pickupLng = double.tryParse('${pickup['lng'] ?? 0}') ?? 0;
+    final deliveryLat = double.tryParse('${delivery['lat'] ?? 0}') ?? 0;
+    final deliveryLng = double.tryParse('${delivery['lng'] ?? 0}') ?? 0;
+    final hasCoords = pickupLat != 0 && deliveryLat != 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: DC.card,
-        borderRadius: BorderRadius.circular(20),
+        color: DC.card, borderRadius: BorderRadius.circular(20),
         border: Border.all(color: DC.border.withValues(alpha: 0.5)),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Column(children: [
-        // Header — module label
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          decoration: BoxDecoration(
-            color: DC.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        // Header — tap to expand map
+        GestureDetector(
+          onTap: hasCoords ? () => setState(() => _expanded = !_expanded) : null,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            decoration: BoxDecoration(color: DC.surface, borderRadius: BorderRadius.vertical(top: const Radius.circular(20), bottom: _expanded ? Radius.zero : Radius.zero)),
+            child: Row(children: [
+              Container(width: 36, height: 36, decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.delivery_dining_rounded, color: DC.orange, size: 20)),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(_moduleLabels[module] ?? 'Delivery', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
+                Text('Order #${o['order_number'] ?? ''}', style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+              ])),
+              Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: DC.textMuted),
+            ]),
           ),
-          child: Row(children: [
-            Container(width: 36, height: 36,
-              decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.delivery_dining_rounded, color: DC.orange, size: 20)),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(_moduleLabels[module] ?? 'Delivery', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
-              Text('Order #${order['order_number'] ?? ''}', style: const TextStyle(color: DC.textMuted, fontSize: 11)),
-            ])),
-            const Icon(Icons.chevron_right_rounded, color: DC.textMuted, size: 20),
-          ]),
         ),
 
-        // Pickup → Dropoff
-        Padding(padding: const EdgeInsets.fromLTRB(18, 16, 18, 0), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Column(children: [
-            Container(width: 12, height: 12, decoration: BoxDecoration(color: DC.orange, shape: BoxShape.circle, border: Border.all(color: DC.card, width: 2))),
-            Container(width: 2, height: 30, decoration: BoxDecoration(color: DC.border, borderRadius: BorderRadius.circular(1))),
-            Container(width: 12, height: 12, decoration: BoxDecoration(color: DC.success, shape: BoxShape.circle, border: Border.all(color: DC.card, width: 2))),
+        // Expandable map
+        if (_expanded && hasCoords) SizedBox(height: 180, child: GoogleMap(
+          initialCameraPosition: CameraPosition(target: LatLng(pickupLat, pickupLng), zoom: 13),
+          markers: {
+            Marker(markerId: const MarkerId('pickup'), position: LatLng(pickupLat, pickupLng),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange), infoWindow: InfoWindow(title: 'Pickup', snippet: pickup['name'])),
+            Marker(markerId: const MarkerId('delivery'), position: LatLng(deliveryLat, deliveryLng),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), infoWindow: InfoWindow(title: 'Delivery', snippet: delivery['name'])),
+          },
+          polylines: {Polyline(polylineId: const PolylineId('route'), points: [LatLng(pickupLat, pickupLng), LatLng(deliveryLat, deliveryLng)], color: DC.orange, width: 3)},
+          myLocationEnabled: false, zoomControlsEnabled: false, mapToolbarEnabled: false,
+        )),
+
+        Padding(padding: const EdgeInsets.fromLTRB(18, 16, 18, 0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Pickup → Delivery
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Column(children: [
+              Container(width: 12, height: 12, decoration: BoxDecoration(color: DC.orange, shape: BoxShape.circle, border: Border.all(color: DC.card, width: 2))),
+              Container(width: 2, height: 30, decoration: BoxDecoration(color: DC.border, borderRadius: BorderRadius.circular(1))),
+              Container(width: 12, height: 12, decoration: BoxDecoration(color: DC.success, shape: BoxShape.circle, border: Border.all(color: DC.card, width: 2))),
+            ]),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Pickup Location', style: TextStyle(color: DC.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+              Text(pickup['name'] ?? 'Pickup', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w800, fontSize: 15)),
+              if (pickup['district'] != null) Text(pickup['district'], style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+              if (pickup['address'] != null) Text(pickup['address'], style: const TextStyle(color: DC.textMuted, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 12),
+              const Text('Drop Location', style: TextStyle(color: DC.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+              Text(delivery['name'] ?? 'Customer', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
+              if (delivery['district'] != null) Text(delivery['district'], style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+              if (delivery['phone'] != null) Text(delivery['phone'], style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+            ])),
           ]),
-          const SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Pickup Location', style: TextStyle(color: DC.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
-            const SizedBox(height: 2),
-            Text(vendor?['name'] ?? 'Vendor', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w800, fontSize: 15)),
-            if (vendor?['address'] != null) Text(vendor!['address'], style: const TextStyle(color: DC.textMuted, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 14),
-            const Text('Drop Location', style: TextStyle(color: DC.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
-            const SizedBox(height: 2),
-            Text(customer?['name'] ?? 'Customer', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
-            if (district.toString().isNotEmpty) Text(district.toString(), style: const TextStyle(color: DC.textMuted, fontSize: 11)),
-          ])),
+
+          // Parcel specific details
+          if (parcel != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: const Color(0xFF8B5CF6).withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.2))),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Row(children: [Icon(Icons.inventory_2_rounded, color: Color(0xFF8B5CF6), size: 14), SizedBox(width: 6), Text('Parcel Details', style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.w700, fontSize: 12))]),
+                const SizedBox(height: 8),
+                if (parcel['sender_name'] != null) _DetailLine('Sender', '${parcel['sender_name']} · ${parcel['sender_phone'] ?? ''}'),
+                if (parcel['sender_district'] != null) _DetailLine('From', parcel['sender_district']),
+                if (parcel['receiver_name'] != null) _DetailLine('Receiver', '${parcel['receiver_name']} · ${parcel['receiver_phone'] ?? ''}'),
+                if (parcel['receiver_district'] != null) _DetailLine('To', parcel['receiver_district']),
+                if (parcel['package_type'] != null) _DetailLine('Type', parcel['package_type']),
+                if (parcel['weight'] != null) _DetailLine('Weight', '${parcel['weight']} kg'),
+                if (parcel['description'] != null) _DetailLine('Note', parcel['description']),
+              ]),
+            ),
+          ],
+
+          // Moving specific details
+          if (moving != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: DC.error.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10), border: Border.all(color: DC.error.withValues(alpha: 0.2))),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Row(children: [Icon(Icons.local_shipping_rounded, color: DC.error, size: 14), SizedBox(width: 6), Text('Moving Details', style: TextStyle(color: DC.error, fontWeight: FontWeight.w700, fontSize: 12))]),
+                const SizedBox(height: 8),
+                if (moving['customer_name'] != null) _DetailLine('Customer', '${moving['customer_name']} · ${moving['customer_phone'] ?? ''}'),
+                if (moving['from_district'] != null) _DetailLine('From', '${moving['from_district']}${moving['from_address'] != null ? ' · ${moving['from_address']}' : ''}'),
+                if (moving['to_district'] != null) _DetailLine('To', '${moving['to_district']}${moving['to_address'] != null ? ' · ${moving['to_address']}' : ''}'),
+                if (moving['moving_type'] != null) _DetailLine('Type', moving['moving_type']),
+                if (moving['description'] != null) _DetailLine('Note', moving['description']),
+              ]),
+            ),
+          ],
         ])),
 
         // Stats row
         Container(
-          margin: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+          margin: const EdgeInsets.fromLTRB(18, 14, 18, 0),
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(border: Border(top: BorderSide(color: DC.border.withValues(alpha: 0.5)))),
           child: Row(children: [
             _Stat('Distance', distance != null ? '${distance} km' : '—'),
-            _Stat('Time', distance != null ? '${(distance * 3).toInt()} min' : '—'),
+            _Stat('Time', estMin != null ? '$estMin min' : '—'),
             _Stat('Earnings', '\$${fee.toStringAsFixed(2)}'),
           ]),
         ),
@@ -194,26 +260,32 @@ class _NewOrderCard extends StatelessWidget {
         Padding(padding: const EdgeInsets.all(14), child: Row(children: [
           Expanded(child: SizedBox(height: 48, child: OutlinedButton(
             onPressed: () {},
-            style: OutlinedButton.styleFrom(
-              foregroundColor: DC.textSec,
-              side: BorderSide(color: DC.border),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
+            style: OutlinedButton.styleFrom(foregroundColor: DC.textSec, side: BorderSide(color: DC.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
             child: const Text('Decline', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
           ))),
           const SizedBox(width: 12),
           Expanded(child: SizedBox(height: 48, child: ElevatedButton(
-            onPressed: onAccept,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: DC.orange,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
+            onPressed: widget.onAccept,
+            style: ElevatedButton.styleFrom(backgroundColor: DC.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
             child: const Text('Accept', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
           ))),
         ])),
       ]),
     );
   }
+}
+
+class _DetailLine extends StatelessWidget {
+  final String label, value;
+  const _DetailLine(this.label, this.value);
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      SizedBox(width: 70, child: Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 11))),
+      Expanded(child: Text(value, style: const TextStyle(color: DC.text, fontSize: 11, fontWeight: FontWeight.w600))),
+    ]),
+  );
 }
 
 class _Stat extends StatelessWidget {

@@ -644,19 +644,50 @@ class DeliveryController extends Controller
 
     private function formatOrder(Order $order, Deliveryman $dm): array
     {
-        $vendorLat = $order->vendor?->latitude;
-        $vendorLng = $order->vendor?->longitude;
         $addr = $order->delivery_address;
         if (is_string($addr)) $addr = json_decode($addr, true);
-        $custLat = $addr['latitude'] ?? null;
-        $custLng = $addr['longitude'] ?? null;
 
-        $distance = null;
-        if ($vendorLat && $vendorLng && $custLat && $custLng) {
-            $distance = round($this->haversine($vendorLat, $vendorLng, $custLat, $custLng), 1);
+        // Resolve districts for pickup and delivery
+        $pickupDistrict = $order->vendor?->district;
+        $deliveryDistrictName = $addr['district'] ?? $addr['city'] ?? null;
+        $deliveryDistrict = $deliveryDistrictName
+            ? DB::table('districts')->where('name', $deliveryDistrictName)->first()
+            : ($order->user?->district_id ? DB::table('districts')->find($order->user->district_id) : null);
+
+        // Pickup coordinates (vendor or sender)
+        $pickupLat = (float) ($order->vendor?->latitude ?? 0);
+        $pickupLng = (float) ($order->vendor?->longitude ?? 0);
+
+        // Delivery coordinates (customer GPS → district center)
+        $deliveryLat = (float) ($order->user?->latitude ?? $deliveryDistrict?->latitude ?? 0);
+        $deliveryLng = (float) ($order->user?->longitude ?? $deliveryDistrict?->longitude ?? 0);
+
+        // If no pickup coords, use pickup district center
+        if ($pickupLat == 0 && $pickupDistrict) {
+            $pickupLat = (float) ($pickupDistrict->latitude ?? 0);
+            $pickupLng = (float) ($pickupDistrict->longitude ?? 0);
         }
 
-        // Parse parcel/laundry/moving details from note field
+        // Calculate distance between pickup and delivery
+        $distance = null;
+        if ($pickupLat != 0 && $deliveryLat != 0) {
+            $distance = round($this->haversine($pickupLat, $pickupLng, $deliveryLat, $deliveryLng), 1);
+        }
+
+        // Estimate time (avg 20km/h in city)
+        $estimatedMinutes = $distance ? (int) round($distance * 3) : null;
+
+        // Zone pricing lookup
+        $zoneFee = (float) ($order->delivery_fee ?? 0);
+        if ($zoneFee == 0 && $pickupDistrict && $deliveryDistrict) {
+            $zone = DB::table('delivery_zone_pricing')
+                ->where('from_district_id', $pickupDistrict->id ?? $order->vendor?->district_id)
+                ->where('to_district_id', $deliveryDistrict->id)
+                ->where('is_active', true)->first();
+            if ($zone) $zoneFee = (float) $zone->base_price;
+        }
+
+        // Parse note/meta for module-specific data
         $noteData = null;
         $rawNote = $order->note ?? $order->notes;
         if ($rawNote) {
@@ -671,61 +702,75 @@ class DeliveryController extends Controller
             'module_slug'     => $order->module_slug,
             'total_amount'    => (float) $order->total_amount,
             'subtotal'        => (float) ($order->subtotal ?? 0),
-            'delivery_fee'    => (float) ($order->delivery_fee ?? 0),
+            'delivery_fee'    => $zoneFee,
             'items_count'     => $order->items?->count() ?? 0,
-            'vendor'          => $order->vendor ? [
-                'name'    => $order->vendor->name,
-                'address' => $order->vendor->address,
-                'phone'   => $order->vendor->phone,
-                'lat'     => $order->vendor->latitude,
-                'lng'     => $order->vendor->longitude,
-                'logo'    => $order->vendor->logo,
-            ] : null,
-            'customer'        => $order->user ? [
-                'name'    => $order->user->name,
-                'phone'   => $order->user->phone,
-                'lat'     => $order->user->latitude,
-                'lng'     => $order->user->longitude,
-            ] : null,
-            'delivery_address'=> $addr,
             'distance_km'     => $distance,
-            'created_at'      => $order->created_at?->toIso8601String(),
-            'placed_at'       => $order->placed_at,
+            'estimated_minutes'=> $estimatedMinutes,
+
+            // Pickup info
+            'pickup' => [
+                'name'     => $order->vendor?->name ?? ($noteData['sender_name'] ?? 'Pickup'),
+                'phone'    => $order->vendor?->phone ?? ($noteData['sender_phone'] ?? null),
+                'address'  => $order->vendor?->address ?? ($noteData['pickup_address'] ?? $noteData['from_address'] ?? null),
+                'district' => $pickupDistrict?->name ?? ($noteData['district'] ?? null),
+                'lat'      => $pickupLat,
+                'lng'      => $pickupLng,
+            ],
+
+            // Delivery info
+            'delivery' => [
+                'name'     => $order->user?->name ?? ($noteData['receiver_name'] ?? 'Customer'),
+                'phone'    => $order->user?->phone ?? ($noteData['receiver_phone'] ?? null),
+                'address'  => $addr['address'] ?? ($noteData['receiver_address'] ?? $noteData['to_address'] ?? null),
+                'district' => $deliveryDistrict?->name ?? $deliveryDistrictName,
+                'lat'      => $deliveryLat,
+                'lng'      => $deliveryLng,
+            ],
+
+            'delivery_address' => $addr,
+            'created_at'       => $order->created_at?->toIso8601String(),
+            'placed_at'        => $order->placed_at,
         ];
 
-        // Parcel-specific details
+        // eParcel — full sender/receiver details
         if ($order->module_slug === 'eparcel' && $noteData) {
             $result['parcel'] = [
-                'sender_name'    => $noteData['sender_name'] ?? null,
-                'sender_phone'   => $noteData['sender_phone'] ?? null,
-                'sender_address' => $noteData['sender_address'] ?? $noteData['pickup_address'] ?? null,
-                'receiver_name'  => $noteData['receiver_name'] ?? null,
-                'receiver_phone' => $noteData['receiver_phone'] ?? null,
-                'receiver_address'=> $noteData['receiver_address'] ?? $noteData['delivery_address'] ?? null,
-                'package_type'   => $noteData['parcel_type'] ?? $noteData['package_type'] ?? null,
-                'weight'         => $noteData['weight'] ?? null,
-                'description'    => $noteData['description'] ?? $noteData['note'] ?? null,
+                'sender_name'      => $noteData['sender_name'] ?? $order->user?->name,
+                'sender_phone'     => $noteData['sender_phone'] ?? $order->user?->phone,
+                'sender_district'  => $noteData['from_district'] ?? $noteData['district'] ?? $pickupDistrict?->name,
+                'sender_address'   => $noteData['sender_address'] ?? $noteData['pickup_address'] ?? null,
+                'receiver_name'    => $noteData['receiver_name'] ?? null,
+                'receiver_phone'   => $noteData['receiver_phone'] ?? null,
+                'receiver_district'=> $noteData['to_district'] ?? $deliveryDistrict?->name,
+                'receiver_address' => $noteData['receiver_address'] ?? $noteData['delivery_address'] ?? null,
+                'package_type'     => $noteData['parcel_type'] ?? $noteData['package_type'] ?? null,
+                'weight'           => $noteData['weight'] ?? null,
+                'description'      => $noteData['description'] ?? $noteData['note'] ?? null,
             ];
         }
 
-        // eMoving details
+        // eMoving — full moving details
         if ($order->module_slug === 'emoving' && $noteData) {
             $result['moving'] = [
-                'from_address'  => $noteData['from_address'] ?? $noteData['pickup_address'] ?? null,
-                'to_address'    => $noteData['to_address'] ?? $noteData['delivery_address'] ?? null,
-                'moving_type'   => $noteData['moving_type'] ?? null,
-                'packages'      => $noteData['items'] ?? $noteData['packages'] ?? null,
-                'description'   => $noteData['note'] ?? $noteData['description'] ?? null,
+                'customer_name'   => $order->user?->name,
+                'customer_phone'  => $order->user?->phone,
+                'from_district'   => $noteData['from_district'] ?? $pickupDistrict?->name,
+                'from_address'    => $noteData['from_address'] ?? $noteData['pickup_address'] ?? null,
+                'to_district'     => $noteData['to_district'] ?? $deliveryDistrict?->name,
+                'to_address'      => $noteData['to_address'] ?? $noteData['delivery_address'] ?? null,
+                'moving_type'     => $noteData['moving_type'] ?? null,
+                'packages'        => $noteData['items'] ?? $noteData['packages'] ?? null,
+                'description'     => $noteData['note'] ?? $noteData['description'] ?? null,
             ];
         }
 
-        // Laundry details
+        // eLaundry
         if ($order->module_slug === 'elaundry' && $noteData) {
             $result['laundry'] = [
                 'service_type' => $noteData['service_type'] ?? null,
                 'items'        => $noteData['items'] ?? null,
                 'eta'          => $noteData['eta'] ?? null,
-                'district'     => $noteData['district'] ?? null,
+                'district'     => $noteData['district'] ?? $deliveryDistrict?->name,
             ];
         }
 
