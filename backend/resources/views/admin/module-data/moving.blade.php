@@ -227,6 +227,7 @@
                             <th>Vehicle</th>
                             <th>Base Price</th>
                             <th>Per Room</th>
+                            <th style="color:#2e7d32;">Distance Price</th>
                             <th>Status</th>
                             <th style="text-align:center">Actions</th>
                         </tr>
@@ -249,6 +250,7 @@
                             <td><span style="background:#f4f5fa;padding:3px 9px;border-radius:6px;font-size:12px">{{ $pr->vehicle_type ?? '—' }}</span></td>
                             <td><span class="price-tag">${{ number_format($pr->base_price) }}</span></td>
                             <td>${{ number_format($pr->price_per_room ?? 0) }}<span style="font-size:10px;color:#8A8A9A">/room</span></td>
+                            <td><span class="price-tag" style="background:#e8f5e9;color:#2e7d32;">${{ number_format($pr->distance_price ?? 20) }}</span></td>
                             <td>
                                 <span class="badge-xs {{ $pr->is_active ? 'badge-active' : 'badge-inactive' }}">
                                     {{ $pr->is_active ? 'Active' : 'Inactive' }}
@@ -448,6 +450,10 @@
                         <input type="number" name="price_per_room" min="0" step="0.01" value="0">
                     </div>
                     <div class="fgroup">
+                        <label>Distance Price ($) <small style="color:#2e7d32;">Driver Earning</small></label>
+                        <input type="number" name="distance_price" min="0" step="0.01" value="20">
+                    </div>
+                    <div class="fgroup">
                         <label>Notes</label>
                         <input type="text" name="notes" placeholder="Optional notes">
                     </div>
@@ -618,6 +624,7 @@
                 <div class="form-grid-3" style="margin-bottom:14px">
                     <div class="fgroup"><label>Base Price ($)</label><input type="number" name="base_price" id="epr_base" min="0" step="0.01"></div>
                     <div class="fgroup"><label>Per Room ($)</label><input type="number" name="price_per_room" id="epr_room" min="0" step="0.01"></div>
+                    <div class="fgroup"><label>Distance Price ($) <small style="color:#2e7d32;">Driver</small></label><input type="number" name="distance_price" id="epr_dist" min="0" step="0.01"></div>
                     <div class="fgroup"><label>Active</label><select name="is_active" id="epr_active"><option value="1">Active</option><option value="0">Inactive</option></select></div>
                 </div>
                 <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid #f0f1f5">
@@ -685,6 +692,7 @@ function openEditPricing(pr) {
     document.getElementById('epr_vehicle').value = pr.vehicle_type || '';
     document.getElementById('epr_base').value    = pr.base_price || 0;
     document.getElementById('epr_room').value    = pr.price_per_room || 0;
+    document.getElementById('epr_dist').value    = pr.distance_price || 20;
     document.getElementById('epr_active').value  = pr.is_active ? '1' : '0';
     document.getElementById('editPricingModal').classList.add('open');
 }
