@@ -111,23 +111,16 @@ class _AvailableTab extends ConsumerWidget {
 // NEW ORDER REQUEST CARD (matches UI reference exactly)
 // ══════════════════════════════════════════════════════════════════
 
-class _NewOrderCard extends StatefulWidget {
+class _NewOrderCard extends StatelessWidget {
   final Map<String, dynamic> order;
   final VoidCallback onAccept;
   const _NewOrderCard({required this.order, required this.onAccept});
-
-  @override
-  State<_NewOrderCard> createState() => _NewOrderCardState();
-}
-
-class _NewOrderCardState extends State<_NewOrderCard> {
-  bool _expanded = false;
 
   static const _moduleLabels = {'efood': 'eFood Delivery', 'eshop': 'eShop Delivery', 'eparcel': 'eParcel Delivery', 'egrocery': 'eGrocery Delivery', 'elaundry': 'eLaundry Pickup', 'emoving': 'eMoving Service'};
 
   @override
   Widget build(BuildContext context) {
-    final o = widget.order;
+    final o = order;
     final pickup = o['pickup'] as Map<String, dynamic>? ?? {};
     final delivery = o['delivery'] as Map<String, dynamic>? ?? {};
     final module = (o['module_slug'] ?? 'order').toString();
@@ -136,6 +129,8 @@ class _NewOrderCardState extends State<_NewOrderCard> {
     final estMin = o['estimated_minutes'];
     final parcel = o['parcel'] as Map<String, dynamic>?;
     final moving = o['moving'] as Map<String, dynamic>?;
+    final isParcel = module == 'eparcel';
+    final isMoving = module == 'emoving';
 
     final pickupLat = double.tryParse('${pickup['lat'] ?? 0}') ?? 0;
     final pickupLng = double.tryParse('${pickup['lng'] ?? 0}') ?? 0;
@@ -151,96 +146,119 @@ class _NewOrderCardState extends State<_NewOrderCard> {
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Column(children: [
-        // Header — tap to expand map
-        GestureDetector(
-          onTap: hasCoords ? () => setState(() => _expanded = !_expanded) : null,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            decoration: BoxDecoration(color: DC.surface, borderRadius: BorderRadius.vertical(top: const Radius.circular(20), bottom: _expanded ? Radius.zero : Radius.zero)),
-            child: Row(children: [
-              Container(width: 36, height: 36, decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.delivery_dining_rounded, color: DC.orange, size: 20)),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(_moduleLabels[module] ?? 'Delivery', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
-                Text('Order #${o['order_number'] ?? ''}', style: const TextStyle(color: DC.textMuted, fontSize: 11)),
-              ])),
-              Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: DC.textMuted),
-            ]),
-          ),
-        ),
-
-        // Expandable map
-        if (_expanded && hasCoords) SizedBox(height: 180, child: GoogleMap(
-          initialCameraPosition: CameraPosition(target: LatLng(pickupLat, pickupLng), zoom: 13),
-          markers: {
-            Marker(markerId: const MarkerId('pickup'), position: LatLng(pickupLat, pickupLng),
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange), infoWindow: InfoWindow(title: 'Pickup', snippet: pickup['name'])),
-            Marker(markerId: const MarkerId('delivery'), position: LatLng(deliveryLat, deliveryLng),
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), infoWindow: InfoWindow(title: 'Delivery', snippet: delivery['name'])),
-          },
-          polylines: {Polyline(polylineId: const PolylineId('route'), points: [LatLng(pickupLat, pickupLng), LatLng(deliveryLat, deliveryLng)], color: DC.orange, width: 3)},
-          myLocationEnabled: false, zoomControlsEnabled: false, mapToolbarEnabled: false,
-        )),
-
-        Padding(padding: const EdgeInsets.fromLTRB(18, 16, 18, 0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Pickup → Delivery
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Column(children: [
-              Container(width: 12, height: 12, decoration: BoxDecoration(color: DC.orange, shape: BoxShape.circle, border: Border.all(color: DC.card, width: 2))),
-              Container(width: 2, height: 30, decoration: BoxDecoration(color: DC.border, borderRadius: BorderRadius.circular(1))),
-              Container(width: 12, height: 12, decoration: BoxDecoration(color: DC.success, shape: BoxShape.circle, border: Border.all(color: DC.card, width: 2))),
-            ]),
-            const SizedBox(width: 14),
+        // Header
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          decoration: const BoxDecoration(color: DC.surface, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          child: Row(children: [
+            Container(width: 36, height: 36, decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.delivery_dining_rounded, color: DC.orange, size: 20)),
+            const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Pickup Location', style: TextStyle(color: DC.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
-              Text(pickup['name'] ?? 'Pickup', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w800, fontSize: 15)),
-              if (pickup['district'] != null) Text(pickup['district'], style: const TextStyle(color: DC.textMuted, fontSize: 11)),
-              if (pickup['address'] != null) Text(pickup['address'], style: const TextStyle(color: DC.textMuted, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 12),
-              const Text('Drop Location', style: TextStyle(color: DC.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
-              Text(delivery['name'] ?? 'Customer', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
-              if (delivery['district'] != null) Text(delivery['district'], style: const TextStyle(color: DC.textMuted, fontSize: 11)),
-              if (delivery['phone'] != null) Text(delivery['phone'], style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+              Text(_moduleLabels[module] ?? 'Delivery', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
+              Text('Order #${o['order_number'] ?? ''}', style: const TextStyle(color: DC.textMuted, fontSize: 11)),
             ])),
           ]),
+        ),
 
-          // Parcel specific details
-          if (parcel != null) ...[
-            const SizedBox(height: 12),
+        // MAP — always visible when coordinates exist
+        if (hasCoords) SizedBox(height: 160, child: GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: LatLng((pickupLat + deliveryLat) / 2, (pickupLng + deliveryLng) / 2), zoom: 12),
+          markers: {
+            Marker(markerId: const MarkerId('pickup'), position: LatLng(pickupLat, pickupLng),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+              infoWindow: InfoWindow(title: pickup['district'] ?? 'Pickup')),
+            Marker(markerId: const MarkerId('delivery'), position: LatLng(deliveryLat, deliveryLng),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+              infoWindow: InfoWindow(title: delivery['district'] ?? 'Delivery')),
+          },
+          polylines: {Polyline(polylineId: const PolylineId('route'),
+            points: [LatLng(pickupLat, pickupLng), LatLng(deliveryLat, deliveryLng)],
+            color: DC.orange, width: 3, patterns: [PatternItem.dash(20), PatternItem.gap(10)])},
+          myLocationEnabled: false, zoomControlsEnabled: false, mapToolbarEnabled: false, liteModeEnabled: true,
+        )),
+
+        Padding(padding: const EdgeInsets.fromLTRB(18, 14, 18, 0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+          // ═══ eParcel: Sender → Receiver ═══
+          if (isParcel) ...[
+            _PersonCard(
+              icon: Icons.person_outline_rounded, color: DC.orange, label: 'SENDER',
+              name: parcel?['sender_name'] ?? pickup['name'] ?? '—',
+              phone: parcel?['sender_phone'] ?? pickup['phone'],
+              district: parcel?['sender_district'] ?? pickup['district'],
+            ),
+            const SizedBox(height: 10),
+            _PersonCard(
+              icon: Icons.person_rounded, color: DC.success, label: 'RECEIVER',
+              name: parcel?['receiver_name'] ?? delivery['name'] ?? '—',
+              phone: parcel?['receiver_phone'] ?? delivery['phone'],
+              district: parcel?['receiver_district'] ?? delivery['district'],
+            ),
+            if (parcel?['package_type'] != null || parcel?['weight'] != null || parcel?['description'] != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: const Color(0xFF8B5CF6).withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('📦 Package Info', style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.w700, fontSize: 11)),
+                  const SizedBox(height: 6),
+                  if (parcel!['package_type'] != null) _DetailLine('Type', parcel['package_type']),
+                  if (parcel['weight'] != null) _DetailLine('Weight', '${parcel['weight']} kg'),
+                  if (parcel['description'] != null) _DetailLine('Note', parcel['description']),
+                ]),
+              ),
+            ],
+          ]
+
+          // ═══ eMoving: Moving Details ═══
+          else if (isMoving) ...[
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: const Color(0xFF8B5CF6).withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.2))),
+              decoration: BoxDecoration(color: DC.error.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12), border: Border.all(color: DC.error.withValues(alpha: 0.15))),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Row(children: [Icon(Icons.inventory_2_rounded, color: Color(0xFF8B5CF6), size: 14), SizedBox(width: 6), Text('Parcel Details', style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.w700, fontSize: 12))]),
-                const SizedBox(height: 8),
-                if (parcel['sender_name'] != null) _DetailLine('Sender', '${parcel['sender_name']} · ${parcel['sender_phone'] ?? ''}'),
-                if (parcel['sender_district'] != null) _DetailLine('From', parcel['sender_district']),
-                if (parcel['receiver_name'] != null) _DetailLine('Receiver', '${parcel['receiver_name']} · ${parcel['receiver_phone'] ?? ''}'),
-                if (parcel['receiver_district'] != null) _DetailLine('To', parcel['receiver_district']),
-                if (parcel['package_type'] != null) _DetailLine('Type', parcel['package_type']),
-                if (parcel['weight'] != null) _DetailLine('Weight', '${parcel['weight']} kg'),
-                if (parcel['description'] != null) _DetailLine('Note', parcel['description']),
+                const Row(children: [Icon(Icons.local_shipping_rounded, color: DC.error, size: 16), SizedBox(width: 8), Text('Moving Details', style: TextStyle(color: DC.error, fontWeight: FontWeight.w800, fontSize: 13))]),
+                const SizedBox(height: 10),
+                _DetailLine('Customer', '${moving?['customer_name'] ?? delivery['name']} · ${moving?['customer_phone'] ?? delivery['phone'] ?? ''}'),
+                const Divider(color: DC.divider, height: 14),
+                _DetailLine('From', moving?['from_district'] ?? pickup['district'] ?? '—'),
+                if (moving?['from_address'] != null) _DetailLine('Address', moving!['from_address']),
+                const Divider(color: DC.divider, height: 14),
+                _DetailLine('To', moving?['to_district'] ?? delivery['district'] ?? '—'),
+                if (moving?['to_address'] != null) _DetailLine('Address', moving!['to_address']),
+                if (moving?['moving_type'] != null) ...[const Divider(color: DC.divider, height: 14), _DetailLine('Type', moving!['moving_type'])],
+                if (moving?['packages'] is List) ...[
+                  const Divider(color: DC.divider, height: 14),
+                  const Text('Packages:', style: TextStyle(color: DC.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  ...(moving!['packages'] as List).map((p) => Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text('• ${p is Map ? (p['name'] ?? p.toString()) : p}', style: const TextStyle(color: DC.textSec, fontSize: 11)),
+                  )),
+                ],
+                if (moving?['description'] != null) ...[const Divider(color: DC.divider, height: 14), _DetailLine('Note', moving!['description'])],
               ]),
             ),
-          ],
+          ]
 
-          // Moving specific details
-          if (moving != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: DC.error.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10), border: Border.all(color: DC.error.withValues(alpha: 0.2))),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Row(children: [Icon(Icons.local_shipping_rounded, color: DC.error, size: 14), SizedBox(width: 6), Text('Moving Details', style: TextStyle(color: DC.error, fontWeight: FontWeight.w700, fontSize: 12))]),
-                const SizedBox(height: 8),
-                if (moving['customer_name'] != null) _DetailLine('Customer', '${moving['customer_name']} · ${moving['customer_phone'] ?? ''}'),
-                if (moving['from_district'] != null) _DetailLine('From', '${moving['from_district']}${moving['from_address'] != null ? ' · ${moving['from_address']}' : ''}'),
-                if (moving['to_district'] != null) _DetailLine('To', '${moving['to_district']}${moving['to_address'] != null ? ' · ${moving['to_address']}' : ''}'),
-                if (moving['moving_type'] != null) _DetailLine('Type', moving['moving_type']),
-                if (moving['description'] != null) _DetailLine('Note', moving['description']),
+          // ═══ eFood/eShop/eLaundry/eGrocery: Pickup → Delivery ═══
+          else ...[
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Column(children: [
+                Container(width: 12, height: 12, decoration: BoxDecoration(color: DC.orange, shape: BoxShape.circle, border: Border.all(color: DC.card, width: 2))),
+                Container(width: 2, height: 28, color: DC.border),
+                Container(width: 12, height: 12, decoration: BoxDecoration(color: DC.success, shape: BoxShape.circle, border: Border.all(color: DC.card, width: 2))),
               ]),
-            ),
+              const SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(pickup['name'] ?? 'Vendor', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w800, fontSize: 15)),
+                if (pickup['district'] != null) Text(pickup['district'], style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+                const SizedBox(height: 10),
+                Text(delivery['name'] ?? 'Customer', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
+                if (delivery['district'] != null) Text(delivery['district'], style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+              ])),
+            ]),
           ],
         ])),
 
@@ -256,7 +274,7 @@ class _NewOrderCardState extends State<_NewOrderCard> {
           ]),
         ),
 
-        // Decline / Accept buttons
+        // Decline / Accept
         Padding(padding: const EdgeInsets.all(14), child: Row(children: [
           Expanded(child: SizedBox(height: 48, child: OutlinedButton(
             onPressed: () {},
@@ -265,7 +283,7 @@ class _NewOrderCardState extends State<_NewOrderCard> {
           ))),
           const SizedBox(width: 12),
           Expanded(child: SizedBox(height: 48, child: ElevatedButton(
-            onPressed: widget.onAccept,
+            onPressed: onAccept,
             style: ElevatedButton.styleFrom(backgroundColor: DC.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
             child: const Text('Accept', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
           ))),
@@ -273,6 +291,27 @@ class _NewOrderCardState extends State<_NewOrderCard> {
       ]),
     );
   }
+}
+
+class _PersonCard extends StatelessWidget {
+  final IconData icon; final Color color; final String label, name; final String? phone, district;
+  const _PersonCard({required this.icon, required this.color, required this.label, required this.name, this.phone, this.district});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(color: color.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withValues(alpha: 0.15))),
+    child: Row(children: [
+      Container(width: 40, height: 40, decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+        child: Icon(icon, color: color, size: 20)),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
+        Text(name, style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
+        if (phone != null) Text(phone!, style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+        if (district != null) Text('📍 $district', style: const TextStyle(color: DC.textSec, fontSize: 11)),
+      ])),
+    ]),
+  );
 }
 
 class _DetailLine extends StatelessWidget {
