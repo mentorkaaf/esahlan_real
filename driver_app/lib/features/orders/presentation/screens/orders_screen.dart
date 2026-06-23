@@ -227,8 +227,10 @@ class _NewOrderCard extends StatelessWidget {
                 const Divider(color: DC.divider, height: 14),
                 _DetailLine('To', moving?['to_district'] ?? delivery['district'] ?? '—'),
                 if (moving?['to_address'] != null) _DetailLine('Address', moving!['to_address']),
-                if (moving?['moving_type'] != null) ...[const Divider(color: DC.divider, height: 14), _DetailLine('Type', moving!['moving_type'])],
-                if (moving?['packages'] is List) ...[
+                if (moving?['moving_type'] != null) ...[const Divider(color: DC.divider, height: 14), _DetailLine('Type', '${moving!['moving_type']}${moving['room_count'] != null ? ' · ${moving['room_count']} rooms' : ''}')],
+                if (moving?['scheduled_date'] != null) _DetailLine('Date', moving!['scheduled_date']),
+                if (moving?['total_price'] != null) ...[const Divider(color: DC.divider, height: 14), _DetailLine('Order Total', '\$${moving!['total_price']}')],
+                if (moving?['packages'] is List && (moving!['packages'] as List).isNotEmpty) ...[
                   const Divider(color: DC.divider, height: 14),
                   const Text('Packages:', style: TextStyle(color: DC.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),

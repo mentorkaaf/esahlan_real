@@ -732,35 +732,105 @@ class DeliveryController extends Controller
             'placed_at'        => $order->placed_at,
         ];
 
-        // eParcel — full sender/receiver details
+        // eParcel — resolve districts from IDs
         if ($order->module_slug === 'eparcel' && $noteData) {
+            $pickupInfo = $noteData['pickup'] ?? [];
+            $senderDistrictId = $pickupInfo['district_id'] ?? null;
+            $receiverDistrictId = $addr['district_id'] ?? null;
+            $senderDist = $senderDistrictId ? DB::table('districts')->find($senderDistrictId) : null;
+            $receiverDist = $receiverDistrictId ? DB::table('districts')->find($receiverDistrictId) : null;
+
+            // Zone pricing for parcel
+            if ($senderDist && $receiverDist && $zoneFee == 0) {
+                $zone = DB::table('delivery_zone_pricing')->where('from_district_id', $senderDist->id)->where('to_district_id', $receiverDist->id)->where('is_active', true)->first();
+                if ($zone) { $zoneFee = (float) $zone->base_price; $result['delivery_fee'] = $zoneFee; }
+            }
+
+            // Use district coordinates for map
+            if ($senderDist && $result['pickup']['lat'] == 0) {
+                $result['pickup']['lat'] = (float) $senderDist->latitude;
+                $result['pickup']['lng'] = (float) $senderDist->longitude;
+                $result['pickup']['district'] = $senderDist->name;
+            }
+            if ($receiverDist && $result['delivery']['lat'] == 0) {
+                $result['delivery']['lat'] = (float) $receiverDist->latitude;
+                $result['delivery']['lng'] = (float) $receiverDist->longitude;
+                $result['delivery']['district'] = $receiverDist->name;
+            }
+
+            // Recalculate distance with correct coords
+            if ($result['pickup']['lat'] != 0 && $result['delivery']['lat'] != 0) {
+                $result['distance_km'] = round($this->haversine($result['pickup']['lat'], $result['pickup']['lng'], $result['delivery']['lat'], $result['delivery']['lng']), 1);
+                $result['estimated_minutes'] = (int) round($result['distance_km'] * 3);
+            }
+
             $result['parcel'] = [
-                'sender_name'      => $noteData['sender_name'] ?? $order->user?->name,
-                'sender_phone'     => $noteData['sender_phone'] ?? $order->user?->phone,
-                'sender_district'  => $noteData['from_district'] ?? $noteData['district'] ?? $pickupDistrict?->name,
-                'sender_address'   => $noteData['sender_address'] ?? $noteData['pickup_address'] ?? null,
-                'receiver_name'    => $noteData['receiver_name'] ?? null,
-                'receiver_phone'   => $noteData['receiver_phone'] ?? null,
-                'receiver_district'=> $noteData['to_district'] ?? $deliveryDistrict?->name,
-                'receiver_address' => $noteData['receiver_address'] ?? $noteData['delivery_address'] ?? null,
+                'sender_name'      => $pickupInfo['name'] ?? $order->user?->name,
+                'sender_phone'     => $pickupInfo['phone'] ?? $order->user?->phone,
+                'sender_district'  => $senderDist?->name,
+                'receiver_name'    => $noteData['recipient'] ?? $noteData['receiver_name'] ?? null,
+                'receiver_phone'   => $noteData['recipient_phone'] ?? $noteData['receiver_phone'] ?? null,
+                'receiver_district'=> $receiverDist?->name,
                 'package_type'     => $noteData['parcel_type'] ?? $noteData['package_type'] ?? null,
                 'weight'           => $noteData['weight'] ?? null,
-                'description'      => $noteData['description'] ?? $noteData['note'] ?? null,
+                'description'      => $noteData['description'] ?? null,
             ];
+
+            $result['pickup']['name'] = $pickupInfo['name'] ?? $order->user?->name ?? 'Sender';
+            $result['delivery']['name'] = $noteData['recipient'] ?? 'Receiver';
         }
 
-        // eMoving — full moving details
+        // eMoving — resolve districts by name, get zone pricing
         if ($order->module_slug === 'emoving' && $noteData) {
+            $fromDistName = $noteData['from_district'] ?? null;
+            $toDistName = $noteData['to_district'] ?? null;
+            $fromDist = $fromDistName ? DB::table('districts')->where('name', $fromDistName)->first() : null;
+            $toDist = $toDistName ? DB::table('districts')->where('name', $toDistName)->first() : null;
+
+            // Zone pricing for moving
+            if ($fromDist && $toDist && $zoneFee == 0) {
+                $zone = DB::table('delivery_zone_pricing')->where('from_district_id', $fromDist->id)->where('to_district_id', $toDist->id)->where('is_active', true)->first();
+                if ($zone) { $zoneFee = (float) $zone->base_price; $result['delivery_fee'] = $zoneFee; }
+            }
+
+            // Use district coordinates for map
+            if ($fromDist) {
+                $result['pickup']['lat'] = (float) $fromDist->latitude;
+                $result['pickup']['lng'] = (float) $fromDist->longitude;
+                $result['pickup']['district'] = $fromDist->name;
+                $result['pickup']['name'] = $fromDistName;
+            }
+            if ($toDist) {
+                $result['delivery']['lat'] = (float) $toDist->latitude;
+                $result['delivery']['lng'] = (float) $toDist->longitude;
+                $result['delivery']['district'] = $toDist->name;
+                $result['delivery']['name'] = $toDistName;
+            }
+
+            // Recalculate distance
+            if ($result['pickup']['lat'] != 0 && $result['delivery']['lat'] != 0) {
+                $result['distance_km'] = round($this->haversine($result['pickup']['lat'], $result['pickup']['lng'], $result['delivery']['lat'], $result['delivery']['lng']), 1);
+                $result['estimated_minutes'] = (int) round($result['distance_km'] * 3);
+            }
+
+            // Use total from note as delivery fee if zone not found
+            if ($zoneFee == 0 && isset($noteData['distance_fee'])) {
+                $result['delivery_fee'] = (float) $noteData['distance_fee'];
+            }
+
             $result['moving'] = [
-                'customer_name'   => $order->user?->name,
-                'customer_phone'  => $order->user?->phone,
-                'from_district'   => $noteData['from_district'] ?? $pickupDistrict?->name,
-                'from_address'    => $noteData['from_address'] ?? $noteData['pickup_address'] ?? null,
-                'to_district'     => $noteData['to_district'] ?? $deliveryDistrict?->name,
-                'to_address'      => $noteData['to_address'] ?? $noteData['delivery_address'] ?? null,
-                'moving_type'     => $noteData['moving_type'] ?? null,
-                'packages'        => $noteData['items'] ?? $noteData['packages'] ?? null,
-                'description'     => $noteData['note'] ?? $noteData['description'] ?? null,
+                'customer_name'   => $noteData['customer_name'] ?? $order->user?->name,
+                'customer_phone'  => $noteData['customer_phone'] ?? $order->user?->phone,
+                'from_district'   => $fromDistName,
+                'to_district'     => $toDistName,
+                'from_address'    => $noteData['pickup_address'] ?? null,
+                'to_address'      => $noteData['delivery_address'] ?? null,
+                'moving_type'     => $noteData['move_type'] ?? $noteData['moving_type'] ?? null,
+                'room_count'      => $noteData['room_count'] ?? null,
+                'packages'        => $noteData['extra_services'] ?? $noteData['packages'] ?? $noteData['items'] ?? null,
+                'scheduled_date'  => $noteData['scheduled_date'] ?? null,
+                'total_price'     => $noteData['total'] ?? null,
+                'description'     => $noteData['user_note'] ?? $noteData['note'] ?? $noteData['description'] ?? null,
             ];
         }
 
