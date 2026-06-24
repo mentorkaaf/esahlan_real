@@ -14,6 +14,7 @@ import 'community_shell.dart';
 import 'community_notifications_screen.dart';
 import 'create_post_screen.dart';
 import '../widgets/comments_sheet.dart';
+import '../widgets/video_ad_overlay.dart';
 import 'business_page_detail_screen.dart';
 import 'community_search_screen.dart';
 
@@ -874,16 +875,16 @@ class _MediaGrid extends StatelessWidget {
   }
 }
 
-class _MediaItem extends StatefulWidget {
+class _MediaItem extends ConsumerStatefulWidget {
   final CommunityPostMedia m;
   final double height;
   const _MediaItem({required this.m, required this.height});
 
   @override
-  State<_MediaItem> createState() => _MediaItemState();
+  ConsumerState<_MediaItem> createState() => _MediaItemState();
 }
 
-class _MediaItemState extends State<_MediaItem> {
+class _MediaItemState extends ConsumerState<_MediaItem> {
   VideoPlayerController? _ctrl;
   bool _ready = false;
   bool _paused = false;
@@ -976,10 +977,7 @@ class _MediaItemState extends State<_MediaItem> {
       videoH = (screenW / ar).clamp(200.0, screenW * 1.6);
     }
 
-    return VisibilityDetector(
-      key: _key,
-      onVisibilityChanged: _onVisibilityChanged,
-      child: GestureDetector(
+    final videoContent = GestureDetector(
         onTap: _ready ? _togglePause : null,
         onDoubleTap: _ready && _ctrl != null ? () {
           _ctrl!.pause();
@@ -1026,7 +1024,14 @@ class _MediaItemState extends State<_MediaItem> {
                 ]))),
           ],
         ),
-      ),
+      );
+
+    return VisibilityDetector(
+      key: _key,
+      onVisibilityChanged: _onVisibilityChanged,
+      child: _ready && _ctrl != null
+          ? VideoAdOverlay(mainController: _ctrl!, child: videoContent)
+          : videoContent,
     );
   }
 }

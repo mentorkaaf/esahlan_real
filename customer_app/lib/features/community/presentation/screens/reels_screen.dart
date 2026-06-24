@@ -8,6 +8,7 @@ import '../../data/models/community_models.dart';
 import '../../../../features/modules/erent/erent_screen.dart';
 import '../providers/community_provider.dart';
 import '../widgets/comments_sheet.dart';
+import '../widgets/video_ad_overlay.dart';
 import 'community_shell.dart';
 
 // Unified reel item — either a community post or an eRent property reel
@@ -200,7 +201,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     final reel = widget.reel;
     final media = reel.media.isNotEmpty ? reel.media.first : null;
 
-    return GestureDetector(
+    final reelContent = GestureDetector(
       onTap: _togglePause,
       onDoubleTap: _onDoubleTap,
       child: Stack(fit: StackFit.expand, children: [
@@ -268,6 +269,10 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         ])),
       ]),
     );
+
+    return _videoReady && _videoCtrl != null
+        ? VideoAdOverlay(mainController: _videoCtrl!, child: reelContent)
+        : reelContent;
   }
 
   Widget _sideAction({required IconData icon, required String label, required Color color, required VoidCallback onTap}) =>
