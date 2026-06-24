@@ -33,29 +33,6 @@ class _State extends ConsumerState<CommunityNotificationsScreen>
     super.dispose();
   }
 
-  void _navigateNotif(BuildContext context, CommunityNotification n) {
-    switch (n.type) {
-      case 'like':
-      case 'comment':
-      case 'share':
-      case 'mention':
-        if (n.notifiableId != null) context.push('/community/post/${n.notifiableId}');
-        break;
-      case 'follow':
-        if (n.actor != null) context.push('/community/profile/${n.actor!.id}');
-        break;
-      case 'message':
-        if (n.notifiableId != null) {
-          final chatId = n.notifiableId!;
-          final chat = CommunityChat(id: chatId, type: 'direct', otherUser: n.actor);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityChatScreen(chat: chat)));
-        }
-        break;
-      default:
-        if (n.actor != null) context.push('/community/profile/${n.actor!.id}');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final notifsAsync = ref.watch(communityNotifProvider);
@@ -176,6 +153,25 @@ class _NotifList extends ConsumerWidget {
         );
       },
     );
+  }
+
+  void _navigateNotif(BuildContext context, CommunityNotification n) {
+    switch (n.type) {
+      case 'like': case 'comment': case 'share': case 'mention':
+        if (n.actor != null) context.push('/community/profile/${n.actor!.id}');
+        break;
+      case 'follow':
+        if (n.actor != null) context.push('/community/profile/${n.actor!.id}');
+        break;
+      case 'message':
+        if (n.notifiableId != null && n.actor != null) {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityChatScreen(
+            chat: CommunityChat(id: n.notifiableId!, type: 'direct', otherUser: n.actor))));
+        }
+        break;
+      default:
+        if (n.actor != null) context.push('/community/profile/${n.actor!.id}');
+    }
   }
 
   bool _isToday(DateTime dt, DateTime now) => dt.year == now.year && dt.month == now.month && dt.day == now.day;
