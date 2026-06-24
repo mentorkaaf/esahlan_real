@@ -209,12 +209,13 @@ class _BusinessPageDetailScreenState extends ConsumerState<BusinessPageDetailScr
             ),
 
             SliverToBoxAdapter(child: Container(color: Colors.white, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Avatar + info
-              Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Transform.translate(offset: const Offset(0, -30),
-                    child: Container(decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 4)),
-                      child: CircleNetImage(url: page['avatar'], size: 88, fallbackText: page['name'] ?? '?'))),
+              // Avatar row — fully below cover
+              Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                child: Row(children: [
+                  Container(
+                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 6)]),
+                    child: CircleNetImage(url: page['avatar'], size: 76, fallbackText: page['name'] ?? '?')),
                   const Spacer(),
                   if (page['is_owner'] == true)
                     ElevatedButton.icon(
@@ -235,6 +236,7 @@ class _BusinessPageDetailScreenState extends ConsumerState<BusinessPageDetailScr
                       child: Text(_following ? 'Following' : 'Follow', style: const TextStyle(fontWeight: FontWeight.w700)),
                     ),
                 ])),
+              const SizedBox(height: 12),
 
               // Name
               Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
