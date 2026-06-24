@@ -325,7 +325,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             // eMoving
             Route::get('/moving',                    [$ctrl, 'movingIndex'])->name('moving');
             Route::post('/moving/pricing',            [$ctrl, 'movingPricingStore'])->name('moving.pricing.store');
-            Route::patch('/moving/pricing/{id}',      [$ctrl, 'movingPricingUpdate'])->name('moving.pricing.update');
+            Route::match(['PATCH','POST'], '/moving/pricing/{id}', [$ctrl, 'movingPricingUpdate'])->name('moving.pricing.update');
             Route::delete('/moving/pricing/{pricing}',[$ctrl, 'movingPricingDestroy'])->name('moving.pricing.destroy');
             Route::post('/moving/extras',             [$ctrl, 'movingExtraStore'])->name('moving.extra.store');
             Route::patch('/moving/extras/{extra}',    [$ctrl, 'movingExtraUpdate'])->name('moving.extra.update');

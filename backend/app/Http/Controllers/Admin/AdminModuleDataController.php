@@ -982,6 +982,7 @@ class AdminModuleDataController extends Controller
             'vehicle_type'     => 'required|string|max:100',
             'base_price'       => 'required|numeric|min:0',
             'price_per_room'   => 'nullable|numeric|min:0',
+            'distance_price'   => 'nullable|numeric|min:0',
             'notes'            => 'nullable|string',
         ]);
         MovingPricing::create($data + ['is_active'=>true,'price_per_room'=>$data['price_per_room']??0,'distance_price'=>$data['distance_price']??20]);
