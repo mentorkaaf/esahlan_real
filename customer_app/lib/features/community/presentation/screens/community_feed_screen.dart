@@ -271,94 +271,46 @@ class _EmptyTab extends StatelessWidget {
   }
 }
 
-// ── Ad Card with auto-play video ────────────────────────────────────────────
-class _AdCard extends ConsumerStatefulWidget {
+// ── Ad Card — image only, loads instantly ───────────────────────────────────
+class _AdCard extends ConsumerWidget {
   final CommunityPost post;
   const _AdCard({required this.post});
-  @override
-  ConsumerState<_AdCard> createState() => _AdCardState();
-}
-
-class _AdCardState extends ConsumerState<_AdCard> {
-  VideoPlayerController? _ctrl;
-  bool _ready = false;
-  final _visKey = UniqueKey();
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.post.adType == 'video' && widget.post.adMediaUrl != null) _initVideo();
-  }
-
-  Future<void> _initVideo() async {
-    final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.post.adMediaUrl!));
-    try {
-      await ctrl.initialize();
-      ctrl.setLooping(true);
-      ctrl.setVolume(0);
-      if (mounted) setState(() { _ctrl = ctrl; _ready = true; });
-    } catch (_) { ctrl.dispose(); }
-  }
-
-  @override
-  void dispose() { _ctrl?.dispose(); super.dispose(); }
-
-  void _onVis(VisibilityInfo info) {
-    if (!_ready || _ctrl == null) return;
-    if (info.visibleFraction > 0.4) { if (!_ctrl!.value.isPlaying) _ctrl!.play(); }
-    else { if (_ctrl!.value.isPlaying) _ctrl!.pause(); }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final p = widget.post;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = post;
     return Container(
       margin: const EdgeInsets.only(bottom: 8), color: Colors.white,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(padding: const EdgeInsets.fromLTRB(12, 12, 12, 8), child: Row(children: [
+        Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 6), child: Row(children: [
           if (p.adPage?['avatar'] != null)
-            CircleNetImage(url: p.adPage!['avatar'], size: 36, fallbackText: p.adPage?['name'] ?? 'Ad')
-          else Container(width: 36, height: 36, decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
-            child: const Icon(Icons.campaign_rounded, color: kOrange, size: 18)),
-          const SizedBox(width: 10),
+            CircleNetImage(url: p.adPage!['avatar'], size: 32, fallbackText: p.adPage?['name'] ?? 'Ad')
+          else Container(width: 32, height: 32, decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
+            child: const Icon(Icons.campaign_rounded, color: kOrange, size: 16)),
+          const SizedBox(width: 8),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(p.adPage?['name'] ?? 'Sponsored', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1A1B2E))),
-            const Row(children: [Icon(Icons.campaign_rounded, size: 12, color: kOrange), SizedBox(width: 3),
-              Text('Sponsored', style: TextStyle(color: kOrange, fontSize: 11, fontWeight: FontWeight.w600))]),
+            Text(p.adPage?['name'] ?? 'Sponsored', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E))),
+            const Text('Sponsored', style: TextStyle(color: kOrange, fontSize: 11, fontWeight: FontWeight.w600)),
           ])),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(4)),
+            child: const Text('AD', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1))),
         ])),
-        if (p.adTitle != null) Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
-          child: Text(p.adTitle!, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E)))),
-        if (p.content != null && p.content!.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-          child: Text(p.content!, style: const TextStyle(color: Color(0xFF374151), fontSize: 14))),
 
-        // Media — auto-play video or image
-        if (p.adMediaUrl != null)
-          p.adType == 'video'
-              ? VisibilityDetector(key: _visKey, onVisibilityChanged: _onVis,
-                  child: GestureDetector(
-                    onTap: () { ref.read(communityRepoProvider).trackAdClick(p.id);
-                      _ctrl?.setVolume(_ctrl!.value.volume > 0 ? 0 : 1); },
-                    child: AspectRatio(aspectRatio: _ready ? _ctrl!.value.aspectRatio.clamp(0.6, 2.0) : 16/9,
-                      child: Container(color: const Color(0xFF1A1B2E), child: _ready && _ctrl != null
-                          ? Stack(children: [
-                              VideoPlayer(_ctrl!),
-                              Positioned(top: 8, right: 8, child: Container(padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
-                                child: Icon(_ctrl!.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 16))),
-                            ])
-                          : Stack(alignment: Alignment.center, children: [
-                              if (p.adThumbnailUrl != null) NetImage(url: p.adThumbnailUrl, fit: BoxFit.cover, width: double.infinity),
-                              const CircularProgressIndicator(color: kOrange, strokeWidth: 2)])))))
-              : GestureDetector(
-                  onTap: () => ref.read(communityRepoProvider).trackAdClick(p.id),
-                  child: NetImage(url: p.adMediaUrl, fit: BoxFit.cover, width: double.infinity)),
+        if (p.adTitle != null) Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+          child: Text(p.adTitle!, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1A1B2E)))),
+        if (p.content != null && p.content!.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+          child: Text(p.content!, style: const TextStyle(color: Color(0xFF374151), fontSize: 13))),
 
-        if (p.adCtaText != null) Padding(padding: const EdgeInsets.all(12),
+        // Image — loads instantly, no video
+        if (p.adMediaUrl != null) GestureDetector(
+          onTap: () { if (p.id > 0) ref.read(communityRepoProvider).trackAdClick(p.id); },
+          child: NetImage(url: p.adMediaUrl, fit: BoxFit.cover, width: double.infinity)),
+
+        if (p.adCtaText != null) Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
           child: SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: () => ref.read(communityRepoProvider).trackAdClick(p.id),
+            onPressed: () { if (p.id > 0) ref.read(communityRepoProvider).trackAdClick(p.id); },
             style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 11)),
             child: Text(p.adCtaText!, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14))))),
       ]),
     );
