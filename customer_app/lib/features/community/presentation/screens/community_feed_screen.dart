@@ -301,10 +301,25 @@ class _AdCard extends ConsumerWidget {
         if (p.content != null && p.content!.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
           child: Text(p.content!, style: const TextStyle(color: Color(0xFF374151), fontSize: 13))),
 
-        // Image — loads instantly, no video
+        // Media — image loads instantly, video shows thumbnail + play icon
         if (p.adMediaUrl != null) GestureDetector(
-          onTap: () { if (p.id > 0) ref.read(communityRepoProvider).trackAdClick(p.id); },
-          child: NetImage(url: p.adMediaUrl, fit: BoxFit.cover, width: double.infinity)),
+          onTap: () {
+            if (p.id > 0) ref.read(communityRepoProvider).trackAdClick(p.id);
+            if (p.adType == 'video') Navigator.push(context, MaterialPageRoute(builder: (_) => _VideoPlayerScreen(url: p.adMediaUrl!)));
+          },
+          child: p.adType == 'video'
+              ? AspectRatio(aspectRatio: 16 / 9, child: Container(color: const Color(0xFF1A1B2E),
+                  child: Stack(alignment: Alignment.center, children: [
+                    if (p.adThumbnailUrl != null) Positioned.fill(child: NetImage(url: p.adThumbnailUrl, fit: BoxFit.cover)),
+                    Container(width: 56, height: 56, decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.9), shape: BoxShape.circle),
+                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32)),
+                    Positioned(bottom: 8, left: 8, child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
+                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.videocam_rounded, color: Colors.white, size: 12), SizedBox(width: 3),
+                        Text('Video Ad', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600))]))),
+                  ])))
+              : NetImage(url: p.adMediaUrl, fit: BoxFit.cover, width: double.infinity)),
 
         if (p.adCtaText != null) Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
           child: SizedBox(width: double.infinity, child: ElevatedButton(

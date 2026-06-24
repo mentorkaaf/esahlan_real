@@ -26,6 +26,7 @@ class CommunityAdController extends Controller
             'description'    => 'nullable|string|max:500',
             'ad_type'        => 'required|in:image,video',
             'media'          => 'required|file|max:51200',
+            'thumbnail'      => 'nullable|image|max:5120',
             'cta_text'       => 'nullable|string|max:30',
             'cta_url'        => 'nullable|string|max:500',
             'placement'      => 'required|in:feed,reels,explore,stories',
@@ -59,9 +60,14 @@ class CommunityAdController extends Controller
         $path = $request->file('media')->store('community-ads', 'public');
         $mediaUrl = url('/api/v1/img/' . $path);
 
+        // Thumbnail: use separate upload if provided, or page avatar as fallback
         $thumbnailUrl = null;
-        if ($data['ad_type'] === 'video') {
-            $thumbnailUrl = $mediaUrl;
+        if ($request->hasFile('thumbnail')) {
+            $thumbPath = $request->file('thumbnail')->store('community-ads/thumbs', 'public');
+            $thumbnailUrl = url('/api/v1/img/' . $thumbPath);
+        } elseif ($data['ad_type'] === 'video') {
+            $page = \App\Models\CommunityBusinessPage::find($data['page_id']);
+            $thumbnailUrl = $page?->avatar ? cdn_url($page->avatar) : null;
         }
 
         $ad = CommunityAd::create([

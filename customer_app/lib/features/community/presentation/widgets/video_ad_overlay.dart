@@ -87,10 +87,8 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
           if (_ad?['id'] != null) ref.read(communityRepoProvider).trackAdClick(_ad!['id']);
         },
         child: Container(color: Colors.black, child: Stack(children: [
-          // Ad image — loads instantly
-          Center(child: _ad!['media_url'] != null
-              ? NetImage(url: _ad!['media_url'], fit: BoxFit.contain, width: double.infinity)
-              : const SizedBox()),
+          // Ad image — loads instantly (use thumbnail for video ads)
+          Center(child: NetImage(url: _ad!['thumbnail_url'] ?? _ad!['media_url'], fit: BoxFit.contain, width: double.infinity)),
 
           // Top bar: Ad badge + progress
           Positioned(top: 0, left: 0, right: 0, child: Container(
