@@ -612,7 +612,7 @@
         </div>
         <div class="modal-body">
             <form id="editPricingForm" method="POST">
-                @csrf @method('PUT')
+                @csrf
                 <div class="form-grid-2" style="margin-bottom:14px">
                     <div class="fgroup"><label>From District</label><select name="from_district_id" id="epr_from">@foreach($districts as $d)<option value="{{ $d->id }}">{{ $d->name }}</option>@endforeach</select></div>
                     <div class="fgroup"><label>To District</label><select name="to_district_id" id="epr_to">@foreach($districts as $d)<option value="{{ $d->id }}">{{ $d->name }}</option>@endforeach</select></div>
