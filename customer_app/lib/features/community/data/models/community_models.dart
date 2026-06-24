@@ -120,6 +120,16 @@ class CommunityPost {
   String? userReaction;
   bool isSaved;
 
+  // Ad fields
+  final bool isAd;
+  final String? adTitle;
+  final String? adMediaUrl;
+  final String? adThumbnailUrl;
+  final String? adCtaText;
+  final String? adCtaUrl;
+  final String? adType; // image|video
+  final Map<String, dynamic>? adPage;
+
   CommunityPost({
     required this.id,
     required this.type,
@@ -140,7 +150,31 @@ class CommunityPost {
     required this.user,
     this.userReaction,
     this.isSaved = false,
+    this.isAd = false,
+    this.adTitle,
+    this.adMediaUrl,
+    this.adThumbnailUrl,
+    this.adCtaText,
+    this.adCtaUrl,
+    this.adType,
+    this.adPage,
   });
+
+  factory CommunityPost.ad(Map<String, dynamic> j) => CommunityPost(
+    id: j['id'] as int? ?? 0,
+    type: 'ad',
+    content: j['description'] as String?,
+    createdAt: DateTime.now(),
+    user: CommunityUser(id: 0, name: j['page']?['name'] ?? 'Sponsored'),
+    isAd: true,
+    adTitle: j['title'] as String?,
+    adMediaUrl: j['media_url'] as String?,
+    adThumbnailUrl: j['thumbnail_url'] as String?,
+    adCtaText: j['cta_text'] as String?,
+    adCtaUrl: j['cta_url'] as String?,
+    adType: j['ad_type'] as String?,
+    adPage: j['page'] as Map<String, dynamic>?,
+  );
 
   factory CommunityPost.fromJson(Map<String, dynamic> j) => CommunityPost(
         id: j['id'] as int,

@@ -264,6 +264,50 @@ class CommunityRepository {
     return r.data['blocked'] as bool;
   }
 
+  // ── Business Pages ─────────────────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getBusinessPages({int page = 1}) async {
+    final r = await _dio.get('/community/pages', queryParameters: {'page': page});
+    return (r.data['data'] as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<List<Map<String, dynamic>>> getMyPages() async {
+    final r = await _dio.get('/community/pages/mine');
+    return (r.data['data'] as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> createBusinessPage(FormData data) async {
+    final r = await _dio.post('/community/pages', data: data);
+    return r.data['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getBusinessPage(int id) async {
+    final r = await _dio.get('/community/pages/$id');
+    return r.data['data'] as Map<String, dynamic>;
+  }
+
+  Future<bool> togglePageFollow(int pageId) async {
+    final r = await _dio.post('/community/pages/$pageId/follow');
+    return r.data['is_following'] as bool;
+  }
+
+  // ── Ads ────────────────────────────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getAdPricing() async {
+    final r = await _dio.get('/community/ads/pricing');
+    return (r.data['data'] as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<List<Map<String, dynamic>>> getMyAds() async {
+    final r = await _dio.get('/community/ads/mine');
+    return (r.data['data'] as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> createAd(FormData data) async {
+    final r = await _dio.post('/community/ads', data: data);
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<void> trackAdClick(int adId) => _dio.post('/community/ads/$adId/click');
+
   // ── Helper ─────────────────────────────────────────────────────────────────
   List<CommunityPost> _parsePosts(dynamic data) {
     List raw;
@@ -274,6 +318,10 @@ class CommunityRepository {
     } else {
       return [];
     }
-    return raw.map((e) => CommunityPost.fromJson(e as Map<String, dynamic>)).toList();
+    return raw.map((e) {
+      final m = e as Map<String, dynamic>;
+      if (m['is_ad'] == true) return CommunityPost.ad(m);
+      return CommunityPost.fromJson(m);
+    }).toList();
   }
 }

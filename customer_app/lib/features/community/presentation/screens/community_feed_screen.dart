@@ -88,9 +88,9 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
               labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
               unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
               tabs: const [
-                Tab(text: 'Following'),
+                Tab(text: 'For You'),
                 Tab(text: 'Trending'),
-                Tab(text: 'Nearby'),
+                Tab(text: 'Reels'),
                 Tab(text: 'Businesses'),
               ],
             ),
@@ -101,7 +101,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
           children: [
             _FeedTab(feedState: feedState, storiesState: storiesState),
             _TrendingTab(),
-            const _EmptyTab(message: 'No nearby posts yet', icon: Icons.location_on_rounded),
+            _ReelsTab(),
             const _BusinessesTab(),
           ],
         ),
@@ -228,6 +228,29 @@ class _TrendingTab extends ConsumerWidget {
   }
 }
 
+class _ReelsTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reelsState = ref.watch(communityReelsProvider);
+    return RefreshIndicator(
+      color: kOrange,
+      onRefresh: () => ref.read(communityReelsProvider.notifier).refresh(),
+      child: reelsState.when(
+        loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
+        data: (posts) {
+          final reels = posts.where((p) => p.type == 'video' || p.type == 'reel' || (p.isAd && p.adType == 'video')).toList();
+          if (reels.isEmpty) return const _EmptyTab(message: 'No reels yet', icon: Icons.videocam_rounded);
+          return ListView(
+            padding: const EdgeInsets.only(bottom: 80),
+            children: reels.map((p) => _PostCard(post: p, onDelete: () {})).toList(),
+          );
+        },
+        error: (_, __) => const _EmptyTab(message: 'No reels yet', icon: Icons.videocam_rounded),
+      ),
+    );
+  }
+}
+
 class _EmptyTab extends StatelessWidget {
   final String message;
   final IconData icon;
@@ -242,6 +265,81 @@ class _EmptyTab extends StatelessWidget {
         Text(message, style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 15)),
       ]),
     );
+  }
+}
+
+// ── Ad Card ─────────────────────────────────────────────────────────────────
+class _AdCard extends ConsumerWidget {
+  final CommunityPost post;
+  const _AdCard({required this.post});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      color: Colors.white,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Sponsored header
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+          child: Row(children: [
+            if (post.adPage?['avatar'] != null)
+              CircleNetImage(url: post.adPage!['avatar'], size: 36, fallbackText: post.adPage?['name'] ?? 'Ad')
+            else Container(width: 36, height: 36, decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
+              child: const Icon(Icons.campaign_rounded, color: kOrange, size: 18)),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(post.adPage?['name'] ?? 'Sponsored', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1A1B2E))),
+              const Row(children: [
+                Icon(Icons.campaign_rounded, size: 12, color: kOrange),
+                SizedBox(width: 3),
+                Text('Sponsored', style: TextStyle(color: kOrange, fontSize: 11, fontWeight: FontWeight.w600)),
+              ]),
+            ])),
+          ]),
+        ),
+
+        // Title & description
+        if (post.adTitle != null)
+          Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: Text(post.adTitle!, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E)))),
+        if (post.content != null && post.content!.isNotEmpty)
+          Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: Text(post.content!, style: const TextStyle(color: Color(0xFF374151), fontSize: 14))),
+
+        // Media
+        if (post.adMediaUrl != null)
+          GestureDetector(
+            onTap: () => _trackClick(ref),
+            child: AspectRatio(aspectRatio: 16 / 9,
+              child: post.adType == 'video'
+                ? Stack(alignment: Alignment.center, children: [
+                    NetImage(url: post.adThumbnailUrl ?? post.adMediaUrl, fit: BoxFit.cover, width: double.infinity),
+                    Container(width: 56, height: 56, decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
+                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32)),
+                  ])
+                : NetImage(url: post.adMediaUrl, fit: BoxFit.cover, width: double.infinity)),
+          ),
+
+        // CTA button
+        if (post.adCtaText != null)
+          Padding(padding: const EdgeInsets.all(12),
+            child: SizedBox(width: double.infinity, child: ElevatedButton(
+              onPressed: () => _trackClick(ref),
+              style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 12)),
+              child: Text(post.adCtaText!, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            )),
+          ),
+      ]),
+    );
+  }
+
+  void _trackClick(WidgetRef ref) {
+    if (post.id > 0) {
+      ref.read(communityRepoProvider).trackAdClick(post.id);
+    }
   }
 }
 
@@ -410,6 +508,10 @@ class _PostCardState extends ConsumerState<_PostCard> {
   @override
   Widget build(BuildContext context) {
     final p = widget.post;
+
+    // ── Ad Card ──
+    if (p.isAd) return _AdCard(post: p);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       color: Colors.white,
