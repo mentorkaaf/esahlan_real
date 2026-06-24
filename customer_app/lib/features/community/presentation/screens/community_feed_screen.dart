@@ -78,7 +78,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
                 badge: unread > 0 ? unread : null,
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityNotificationsScreen())),
               ),
-              _AppBarBtn(icon: Icons.home_rounded, onTap: () => context.go('/')),
+              _AppBarBtn(icon: Icons.home_rounded, onTap: () => context.go('/home')),
               const SizedBox(width: 4),
             ],
             bottom: TabBar(
@@ -312,7 +312,12 @@ class _AdCard extends ConsumerWidget {
         // Media
         if (post.adMediaUrl != null)
           GestureDetector(
-            onTap: () => _trackClick(ref),
+            onTap: () {
+              _trackClick(ref);
+              if (post.adType == 'video' && post.adMediaUrl != null) {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => _VideoPlayerScreen(url: post.adMediaUrl!)));
+              }
+            },
             child: AspectRatio(aspectRatio: 16 / 9,
               child: post.adType == 'video'
                 ? Stack(alignment: Alignment.center, children: [
@@ -541,13 +546,17 @@ class _PostCardState extends ConsumerState<_PostCard> {
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
           child: Row(children: [
             GestureDetector(
-              onTap: () => context.push('/community/profile/${p.user.id}'),
+              onTap: () => p.pageId != null
+                  ? Navigator.push(context, MaterialPageRoute(builder: (_) => BusinessPageDetailScreen(pageId: p.pageId!)))
+                  : context.push('/community/profile/${p.user.id}'),
               child: CircleNetImage(url: p.user.avatar, size: 40, fallbackText: p.user.name),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: GestureDetector(
-                onTap: () => context.push('/community/profile/${p.user.id}'),
+                onTap: () => p.pageId != null
+                    ? Navigator.push(context, MaterialPageRoute(builder: (_) => BusinessPageDetailScreen(pageId: p.pageId!)))
+                    : context.push('/community/profile/${p.user.id}'),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(children: [
                     Text(p.user.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1A1B2E))),
@@ -588,6 +597,28 @@ class _PostCardState extends ConsumerState<_PostCard> {
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
             child: Text(p.content!, style: const TextStyle(color: Color(0xFF1A1B2E), fontSize: 15, height: 1.4)),
+          ),
+
+        // Shared post preview
+        if (p.type == 'share' && p.sharedPost != null)
+          Container(
+            margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+            decoration: BoxDecoration(border: Border.all(color: const Color(0xFFE5E7EB)), borderRadius: BorderRadius.circular(12)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 6), child: Row(children: [
+                CircleNetImage(url: (p.sharedPost!['user'] as Map?)?['avatar'], size: 28, fallbackText: (p.sharedPost!['user'] as Map?)?['name'] ?? '?'),
+                const SizedBox(width: 8),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text((p.sharedPost!['user'] as Map?)?['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E))),
+                  Text(p.sharedPost!['created_at'] != null ? timeago.format(DateTime.tryParse('${p.sharedPost!['created_at']}') ?? DateTime.now()) : '', style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+                ])),
+              ])),
+              if (p.sharedPost!['content'] != null)
+                Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 8), child: Text('${p.sharedPost!['content']}', style: const TextStyle(fontSize: 14, color: Color(0xFF374151)))),
+              if (p.sharedPost!['media'] is List && (p.sharedPost!['media'] as List).isNotEmpty)
+                ClipRRect(borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                  child: NetImage(url: (p.sharedPost!['media'] as List).first['url'], fit: BoxFit.cover, width: double.infinity)),
+            ]),
           ),
 
         // Media

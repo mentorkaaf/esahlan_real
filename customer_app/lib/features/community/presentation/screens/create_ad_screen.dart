@@ -30,6 +30,8 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
   String _payment = 'wallet';
   XFile? _mediaFile;
   bool _creating = false;
+  DateTime _startDate = DateTime.now();
+  DateTime _endDate = DateTime.now().add(const Duration(days: 7));
 
   List<Map<String, dynamic>> _pricing = [];
 
@@ -95,6 +97,8 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
         'payment_method': _payment,
         if (_ctaTextCtrl.text.trim().isNotEmpty) 'cta_text': _ctaTextCtrl.text.trim(),
         if (_ctaUrlCtrl.text.trim().isNotEmpty) 'cta_url': _ctaUrlCtrl.text.trim(),
+        'starts_at': _startDate.toIso8601String().split('T')[0],
+        'ends_at': _endDate.toIso8601String().split('T')[0],
         'media': MultipartFile.fromBytes(bytes, filename: 'ad_media.$ext', contentType: DioMediaType.parse(mime)),
       });
       await ref.read(communityRepoProvider).createAd(form);
@@ -200,6 +204,36 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
         // Budget
         _sectionLabel('Budget (\$)'),
         TextField(controller: _budgetCtrl, keyboardType: TextInputType.number, decoration: _inputDeco('10.00')),
+        const SizedBox(height: 16),
+
+        // Dates
+        Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _sectionLabel('Start date'),
+            GestureDetector(
+              onTap: () async {
+                final d = await showDatePicker(context: context, initialDate: _startDate, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)));
+                if (d != null) setState(() => _startDate = d);
+              },
+              child: Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+                child: Row(children: [const Icon(Icons.calendar_today_rounded, size: 16, color: kOrange), const SizedBox(width: 8),
+                  Text('${_startDate.day}/${_startDate.month}/${_startDate.year}', style: const TextStyle(fontSize: 14))])),
+            ),
+          ])),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _sectionLabel('End date'),
+            GestureDetector(
+              onTap: () async {
+                final d = await showDatePicker(context: context, initialDate: _endDate, firstDate: _startDate, lastDate: DateTime.now().add(const Duration(days: 365)));
+                if (d != null) setState(() => _endDate = d);
+              },
+              child: Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+                child: Row(children: [const Icon(Icons.calendar_today_rounded, size: 16, color: kOrange), const SizedBox(width: 8),
+                  Text('${_endDate.day}/${_endDate.month}/${_endDate.year}', style: const TextStyle(fontSize: 14))])),
+            ),
+          ])),
+        ]),
         const SizedBox(height: 16),
 
         // Payment

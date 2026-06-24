@@ -120,7 +120,11 @@ class CommunityPost {
   String? userReaction;
   bool isSaved;
 
-  // Ad fields
+  // Shared post
+  final Map<String, dynamic>? sharedPost;
+  // Page & Ad fields
+  final int? pageId;
+  final Map<String, dynamic>? page;
   final bool isAd;
   final String? adTitle;
   final String? adMediaUrl;
@@ -150,6 +154,9 @@ class CommunityPost {
     required this.user,
     this.userReaction,
     this.isSaved = false,
+    this.sharedPost,
+    this.pageId,
+    this.page,
     this.isAd = false,
     this.adTitle,
     this.adMediaUrl,
@@ -202,6 +209,9 @@ class CommunityPost {
         user: CommunityUser.fromJson(j['user'] as Map<String, dynamic>),
         userReaction: j['user_reaction'] as String?,
         isSaved: j['is_saved'] as bool? ?? false,
+        sharedPost: j['shared_post'] as Map<String, dynamic>?,
+        pageId: j['page_id'] as int?,
+        page: j['page'] as Map<String, dynamic>?,
       );
 
   bool get isLiked => userReaction != null;

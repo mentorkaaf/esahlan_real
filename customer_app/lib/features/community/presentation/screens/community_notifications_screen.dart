@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../data/models/community_models.dart';
 import '../providers/community_provider.dart';
+import 'package:go_router/go_router.dart';
 import 'community_shell.dart';
+import 'community_chat_screen.dart';
 
 class CommunityNotificationsScreen extends ConsumerStatefulWidget {
   const CommunityNotificationsScreen({super.key});
@@ -29,6 +31,29 @@ class _State extends ConsumerState<CommunityNotificationsScreen>
   void dispose() {
     _tab.dispose();
     super.dispose();
+  }
+
+  void _navigateNotif(BuildContext context, CommunityNotification n) {
+    switch (n.type) {
+      case 'like':
+      case 'comment':
+      case 'share':
+      case 'mention':
+        if (n.notifiableId != null) context.push('/community/post/${n.notifiableId}');
+        break;
+      case 'follow':
+        if (n.actor != null) context.push('/community/profile/${n.actor!.id}');
+        break;
+      case 'message':
+        if (n.notifiableId != null) {
+          final chatId = n.notifiableId!;
+          final chat = CommunityChat(id: chatId, type: 'direct', otherUser: n.actor);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityChatScreen(chat: chat)));
+        }
+        break;
+      default:
+        if (n.actor != null) context.push('/community/profile/${n.actor!.id}');
+    }
   }
 
   @override
@@ -134,17 +159,17 @@ class _NotifList extends ConsumerWidget {
               if (todayN.isNotEmpty) ...[
                 _section('New'),
                 ...todayN.map((n) => _NotifTile(notif: n,
-                    onTap: () => ref.read(communityNotifProvider.notifier).markRead(n.id))),
+                    onTap: () { ref.read(communityNotifProvider.notifier).markRead(n.id); _navigateNotif(context, n); })),
               ],
               if (weekN.isNotEmpty) ...[
                 _section('This Week'),
                 ...weekN.map((n) => _NotifTile(notif: n,
-                    onTap: () => ref.read(communityNotifProvider.notifier).markRead(n.id))),
+                    onTap: () { ref.read(communityNotifProvider.notifier).markRead(n.id); _navigateNotif(context, n); })),
               ],
               if (olderN.isNotEmpty) ...[
                 _section('Earlier'),
                 ...olderN.map((n) => _NotifTile(notif: n,
-                    onTap: () => ref.read(communityNotifProvider.notifier).markRead(n.id))),
+                    onTap: () { ref.read(communityNotifProvider.notifier).markRead(n.id); _navigateNotif(context, n); })),
               ],
             ],
           ),

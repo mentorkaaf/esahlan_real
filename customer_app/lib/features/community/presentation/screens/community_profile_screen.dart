@@ -12,6 +12,7 @@ import '../providers/community_provider.dart';
 import 'community_shell.dart';
 import 'community_chat_screen.dart';
 import 'edit_profile_screen.dart';
+import 'ad_analytics_screen.dart';
 
 class CommunityProfileScreen extends ConsumerWidget {
   final int userId;
@@ -284,7 +285,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _QuickAction(icon: Icons.store_rounded, label: 'Services', onTap: () {}),
+                        _QuickAction(icon: Icons.campaign_rounded, label: 'My Ads', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdAnalyticsScreen()))),
                         _QuickAction(icon: Icons.shopping_bag_rounded, label: 'Marketplace', onTap: () {}),
                         _QuickAction(icon: Icons.bookmark_rounded, label: 'Saved', onTap: () {}),
                         _QuickAction(icon: Icons.star_rounded, label: 'Highlights', onTap: () {}),
