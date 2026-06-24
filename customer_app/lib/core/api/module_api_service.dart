@@ -197,10 +197,11 @@ class ModuleApiService {
   // ═══════════════════════════════════════════════════════════════════
 
   Future<dynamic> getGroceryCategories() => _get('/egrocery/categories');
-  Future<dynamic> getGroceryProducts({int? categoryId, String? search}) =>
+  Future<dynamic> getGroceryProducts({int? categoryId, String? search, bool? featured}) =>
       _get('/egrocery/products', params: {
         if (categoryId != null) 'category_id': categoryId,
         if (search != null) 'search': search,
+        if (featured == true) 'featured': 1,
       });
   Future<dynamic> placeGroceryOrder(Map<String, dynamic> data) => _post('/egrocery/order', data);
 
