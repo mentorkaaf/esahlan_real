@@ -1039,78 +1039,175 @@ class _VideoPlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _VideoPlayerScreenState extends ConsumerState<_VideoPlayerScreen> {
-  late VideoPlayerController _ctrl;
+  late VideoPlayerController _mainCtrl;
   VideoPlayerController? _adCtrl;
-  bool _ready = false;
+  bool _mainReady = false;
+  bool _adReady = false;
   bool _showingAd = true;
-  int _adCountdown = 5;
+  int _skipCountdown = 5;
   bool _canSkip = false;
-  Map<String, dynamic>? _ad;
+  Map<String, dynamic>? _adData;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
-      ..initialize().then((_) { if (mounted) setState(() => _ready = true); }).catchError((_) {});
+    _mainCtrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize().then((_) { if (mounted) setState(() => _mainReady = true); }).catchError((_) {});
     _loadPrerollAd();
   }
 
   Future<void> _loadPrerollAd() async {
     try {
-      final ads = await ref.read(communityRepoProvider).getAdPricing();
-      final feedAds = await ref.read(communityRepoProvider).getMyAds();
-      // Reuse feed ads endpoint logic — for now just skip ad if none available
-      setState(() { _showingAd = false; _ctrl.play(); });
-    } catch (_) {
-      setState(() { _showingAd = false; _ctrl.play(); });
+      final ad = await ref.read(communityRepoProvider).getPrerollAd();
+      if (ad == null || ad['media_url'] == null) { _startMainVideo(); return; }
+      setState(() => _adData = ad);
+      final ctrl = VideoPlayerController.networkUrl(Uri.parse(ad['media_url']));
+      await ctrl.initialize();
+      ctrl.setLooping(false);
+      ctrl.setVolume(1);
+      if (!mounted) { ctrl.dispose(); return; }
+      setState(() { _adCtrl = ctrl; _adReady = true; });
+      ctrl.play();
+      ctrl.addListener(_onAdProgress);
+      _startSkipTimer();
+    } catch (_) { _startMainVideo(); }
+  }
+
+  void _onAdProgress() {
+    if (_adCtrl == null) return;
+    if (_adCtrl!.value.position >= _adCtrl!.value.duration && _adCtrl!.value.duration > Duration.zero) {
+      _skipAd();
     }
+    if (mounted) setState(() {});
+  }
+
+  void _startSkipTimer() async {
+    for (var i = 5; i > 0; i--) {
+      await Future.delayed(const Duration(seconds: 1));
+      if (!mounted || !_showingAd) return;
+      setState(() => _skipCountdown = i - 1);
+    }
+    if (mounted) setState(() => _canSkip = true);
   }
 
   void _skipAd() {
+    _adCtrl?.removeListener(_onAdProgress);
+    _adCtrl?.pause();
     _adCtrl?.dispose();
-    setState(() { _showingAd = false; });
-    if (_ready) _ctrl.play();
+    _adCtrl = null;
+    setState(() { _showingAd = false; _adReady = false; });
+    _startMainVideo();
+  }
+
+  void _startMainVideo() {
+    setState(() => _showingAd = false);
+    if (_mainReady) _mainCtrl.play();
   }
 
   @override
-  void dispose() { _ctrl.dispose(); _adCtrl?.dispose(); super.dispose(); }
+  void dispose() { _mainCtrl.dispose(); _adCtrl?.removeListener(_onAdProgress); _adCtrl?.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, iconTheme: const IconThemeData(color: Colors.white)),
       extendBodyBehindAppBar: true,
-      body: Center(
-        child: _ready
-            ? GestureDetector(
-                onTap: () { _ctrl.value.isPlaying ? _ctrl.pause() : _ctrl.play(); setState(() {}); },
-                child: Stack(children: [
-                  Center(child: AspectRatio(aspectRatio: _ctrl.value.aspectRatio, child: VideoPlayer(_ctrl))),
-                  Positioned(bottom: 0, left: 0, right: 0, child: Container(
-                    padding: const EdgeInsets.fromLTRB(12, 20, 12, 30),
-                    decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)])),
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      VideoProgressIndicator(_ctrl, allowScrubbing: true, colors: const VideoProgressColors(
-                        playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12)),
-                      const SizedBox(height: 8),
-                      Row(children: [
-                        GestureDetector(onTap: () { _ctrl.value.isPlaying ? _ctrl.pause() : _ctrl.play(); setState(() {}); },
-                          child: Icon(_ctrl.value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 28)),
-                        const SizedBox(width: 12),
-                        ValueListenableBuilder(valueListenable: _ctrl, builder: (_, v, __) =>
-                          Text('${_fmtD(v.position)} / ${_fmtD(v.duration)}', style: const TextStyle(color: Colors.white70, fontSize: 12))),
-                        const Spacer(),
-                        GestureDetector(onTap: () { _ctrl.setVolume(_ctrl.value.volume > 0 ? 0 : 1); setState(() {}); },
-                          child: Icon(_ctrl.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 22)),
-                      ]),
-                    ]),
-                  )),
-                ]),
-              )
-            : const CircularProgressIndicator(color: kOrange),
-      ),
+      appBar: _showingAd ? null : AppBar(backgroundColor: Colors.transparent, elevation: 0, iconTheme: const IconThemeData(color: Colors.white)),
+      body: _showingAd ? _buildAdPlayer() : _buildMainPlayer(),
+    );
+  }
+
+  // ── Pre-roll Ad Player ──
+  Widget _buildAdPlayer() {
+    return Stack(children: [
+      // Ad video
+      Center(child: _adReady && _adCtrl != null
+          ? AspectRatio(aspectRatio: _adCtrl!.value.aspectRatio.clamp(0.5, 2.5), child: VideoPlayer(_adCtrl!))
+          : const CircularProgressIndicator(color: kOrange)),
+
+      // "Ad" badge top-left
+      Positioned(top: MediaQuery.of(context).padding.top + 12, left: 16,
+        child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(6)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.campaign_rounded, color: kOrange, size: 14),
+            const SizedBox(width: 4),
+            Text(_adData?['page']?['name'] ?? 'Ad', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+          ]))),
+
+      // Ad progress bar at top
+      if (_adReady && _adCtrl != null) Positioned(top: 0, left: 0, right: 0,
+        child: VideoProgressIndicator(_adCtrl!, allowScrubbing: false,
+          colors: const VideoProgressColors(playedColor: kOrange, backgroundColor: Colors.white24))),
+
+      // Skip button bottom-right
+      Positioned(bottom: 60, right: 16,
+        child: GestureDetector(
+          onTap: _canSkip ? _skipAd : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: _canSkip ? Colors.white : Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(
+                _canSkip ? 'Skip Ad' : 'Skip in $_skipCountdown',
+                style: TextStyle(color: _canSkip ? const Color(0xFF1A1B2E) : Colors.white70,
+                  fontWeight: FontWeight.w700, fontSize: 14)),
+              if (_canSkip) ...[const SizedBox(width: 4), const Icon(Icons.skip_next_rounded, size: 18, color: Color(0xFF1A1B2E))],
+            ]),
+          ),
+        )),
+
+      // CTA button bottom-left
+      if (_adData?['cta_text'] != null) Positioned(bottom: 60, left: 16,
+        child: GestureDetector(
+          onTap: () { if (_adData?['id'] != null) ref.read(communityRepoProvider).trackAdClick(_adData!['id']); },
+          child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(8)),
+            child: Text(_adData!['cta_text'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14))))),
+
+      // Close button
+      Positioned(top: MediaQuery.of(context).padding.top + 12, right: 16,
+        child: GestureDetector(onTap: () => Navigator.pop(context),
+          child: Container(padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
+            child: const Icon(Icons.close_rounded, color: Colors.white, size: 20)))),
+    ]);
+  }
+
+  // ── Main Video Player ──
+  Widget _buildMainPlayer() {
+    if (!_mainReady) return const Center(child: CircularProgressIndicator(color: kOrange));
+    return GestureDetector(
+      onTap: () { _mainCtrl.value.isPlaying ? _mainCtrl.pause() : _mainCtrl.play(); setState(() {}); },
+      child: Stack(children: [
+        Center(child: AspectRatio(aspectRatio: _mainCtrl.value.aspectRatio.clamp(0.5, 2.5), child: VideoPlayer(_mainCtrl))),
+        if (!_mainCtrl.value.isPlaying)
+          Center(child: Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
+            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 48))),
+        Positioned(bottom: 0, left: 0, right: 0, child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 24, 12, 30),
+          decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)])),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            VideoProgressIndicator(_mainCtrl, allowScrubbing: true, colors: const VideoProgressColors(
+              playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12)),
+            const SizedBox(height: 8),
+            Row(children: [
+              GestureDetector(onTap: () { _mainCtrl.value.isPlaying ? _mainCtrl.pause() : _mainCtrl.play(); setState(() {}); },
+                child: Icon(_mainCtrl.value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 28)),
+              const SizedBox(width: 12),
+              ValueListenableBuilder(valueListenable: _mainCtrl, builder: (_, v, __) =>
+                Text('${_fmtD(v.position)} / ${_fmtD(v.duration)}', style: const TextStyle(color: Colors.white70, fontSize: 12))),
+              const Spacer(),
+              GestureDetector(onTap: () { _mainCtrl.setVolume(_mainCtrl.value.volume > 0 ? 0 : 1); setState(() {}); },
+                child: Icon(_mainCtrl.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 22)),
+            ]),
+          ]),
+        )),
+      ]),
     );
   }
 

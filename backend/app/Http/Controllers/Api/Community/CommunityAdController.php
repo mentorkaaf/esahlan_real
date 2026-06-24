@@ -156,6 +156,34 @@ class CommunityAdController extends Controller
         return $result;
     }
 
+    // Get a pre-roll video ad for fullscreen player
+    public function preroll()
+    {
+        $userId = auth()->id();
+        $ad = CommunityAd::with('page:id,name,avatar')
+            ->where('status', 'active')
+            ->where('ad_type', 'video')
+            ->where(function ($q) { $q->whereNull('ends_at')->orWhere('ends_at', '>', now()); })
+            ->whereColumn('spent', '<', 'budget')
+            ->inRandomOrder()
+            ->first();
+
+        if (!$ad) return response()->json(['status' => 'success', 'data' => null]);
+
+        CommunityAdInteraction::create(['ad_id' => $ad->id, 'user_id' => $userId, 'type' => 'impression']);
+        $ad->increment('impressions');
+        if ($ad->pricing) $ad->increment('spent', $ad->pricing->cost_per_impression);
+
+        return response()->json(['status' => 'success', 'data' => [
+            'id'          => $ad->id,
+            'title'       => $ad->title,
+            'media_url'   => cdn_url($ad->media_url),
+            'cta_text'    => $ad->cta_text,
+            'cta_url'     => $ad->cta_url,
+            'page'        => $ad->page ? ['name' => $ad->page->name, 'avatar' => cdn_url($ad->page->avatar)] : null,
+        ]]);
+    }
+
     // Track ad click
     public function trackClick($id)
     {

@@ -356,6 +356,11 @@ class CommunityRepository {
 
   Future<void> trackAdClick(int adId) => _dio.post('/community/ads/$adId/click');
 
+  Future<Map<String, dynamic>?> getPrerollAd() async {
+    final r = await _dio.get('/community/ads/preroll');
+    return r.data['data'] as Map<String, dynamic>?;
+  }
+
   // ── Helper ─────────────────────────────────────────────────────────────────
   List<CommunityPost> _parsePosts(dynamic data) {
     List raw;
