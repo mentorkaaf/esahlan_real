@@ -125,8 +125,17 @@ class EMovingController extends Controller
                 ->whereIn('id', $request->extra_services)->sum('price');
         }
 
-        // Distance fee: 0 if same district, flat fee otherwise
-        $breakdown['distance_fee'] = ($request->from_district_id == $request->to_district_id) ? 0 : 20.00;
+        // Distance fee from moving_pricing table (admin configured)
+        if ($request->from_district_id == $request->to_district_id) {
+            $breakdown['distance_fee'] = 0;
+        } else {
+            $movingRoute = DB::table('moving_pricing')
+                ->where('from_district_id', $request->from_district_id)
+                ->where('to_district_id', $request->to_district_id)
+                ->where('is_active', true)
+                ->first();
+            $breakdown['distance_fee'] = $movingRoute ? (float) ($movingRoute->distance_price ?? 20) : 20.00;
+        }
 
         $total = round(
             $basePrice +
@@ -183,7 +192,8 @@ class EMovingController extends Controller
         $fromDistrict = DB::table('districts')->find($request->from_district_id)?->name;
         $toDistrict   = DB::table('districts')->find($request->to_district_id)?->name;
 
-        $order = DB::transaction(function () use ($request, $user, $total, $calc, $extraNames, $packageName, $fromDistrict, $toDistrict) {
+        $distanceFee = $breakdown['distance_fee'];
+        $order = DB::transaction(function () use ($request, $user, $total, $distanceFee, $calc, $extraNames, $packageName, $fromDistrict, $toDistrict) {
             $order = Order::create([
                 'order_number'    => 'MOV-' . strtoupper(Str::random(8)),
                 'user_id'         => $user->id,
@@ -193,7 +203,7 @@ class EMovingController extends Controller
                 'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'unpaid',
                 'delivery_address'=> ['from' => $request->pickup_address, 'to' => $request->delivery_address],
                 'subtotal'        => $total,
-                'delivery_fee'    => 0,
+                'delivery_fee'    => $distanceFee,
                 'total_amount'    => $total,
                 'note'            => json_encode(array_merge($calc, [
                     'move_type'      => $request->move_type,
