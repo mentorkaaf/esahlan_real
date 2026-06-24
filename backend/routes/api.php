@@ -317,6 +317,7 @@ Route::prefix('v1')->group(function () {
         Route::get('pages/{id}', [CommunityBusinessPageController::class, 'show']);
         Route::put('pages/{id}', [CommunityBusinessPageController::class, 'update']);
         Route::post('pages/{id}/follow', [CommunityBusinessPageController::class, 'toggleFollow']);
+        Route::get('pages/{id}/posts', [CommunityBusinessPageController::class, 'posts']);
 
         // Ads
         Route::get('ads/pricing', [CommunityAdController::class, 'pricing']);

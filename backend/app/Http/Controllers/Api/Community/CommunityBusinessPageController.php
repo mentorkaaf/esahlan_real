@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CommunityBusinessPage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use App\Http\Controllers\Api\Community\CommunityFeedController;
 
 class CommunityBusinessPageController extends Controller
 {
@@ -119,6 +120,26 @@ class CommunityBusinessPageController extends Controller
         }
 
         return response()->json(['status' => 'success', 'is_following' => !$exists]);
+    }
+
+    public function posts($id)
+    {
+        $page = CommunityBusinessPage::findOrFail($id);
+        $userId = auth()->id();
+
+        $posts = \App\Models\CommunityPost::with(['user.communityProfile', 'media', 'userReaction'])
+            ->where('user_id', $page->user_id)
+            ->whereNull('group_id')
+            ->where('privacy', '!=', 'private')
+            ->latest()
+            ->paginate(15);
+
+        $feedCtrl = new CommunityFeedController();
+        $data = $posts->map(fn($p) => $feedCtrl->transformPost($p, $userId))->toArray();
+
+        return response()->json(['status' => 'success', 'data' => $data, 'meta' => [
+            'current_page' => $posts->currentPage(), 'last_page' => $posts->lastPage(),
+        ]]);
     }
 
     private function transform($page, $userId): array

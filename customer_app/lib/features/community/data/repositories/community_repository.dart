@@ -285,6 +285,11 @@ class CommunityRepository {
     return r.data['data'] as Map<String, dynamic>;
   }
 
+  Future<List<CommunityPost>> getPagePosts(int pageId, {int page = 1}) async {
+    final r = await _dio.get('/community/pages/$pageId/posts', queryParameters: {'page': page});
+    return _parsePosts(r.data['data']);
+  }
+
   Future<bool> togglePageFollow(int pageId) async {
     final r = await _dio.post('/community/pages/$pageId/follow');
     return r.data['is_following'] as bool;

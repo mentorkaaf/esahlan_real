@@ -6,6 +6,7 @@ import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
+import '../../data/models/community_models.dart';
 import 'create_ad_screen.dart';
 import 'community_shell.dart';
 
@@ -17,6 +18,9 @@ final _myPagesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) {
 });
 final _pageDetailProvider = FutureProvider.family<Map<String, dynamic>, int>((ref, id) {
   return ref.read(communityRepoProvider).getBusinessPage(id);
+});
+final _pagePostsProvider = FutureProvider.family<List<CommunityPost>, int>((ref, id) {
+  return ref.read(communityRepoProvider).getPagePosts(id);
 });
 
 // ══════════════════════════════════════════════════════════════════
@@ -119,39 +123,44 @@ class _PageCardState extends ConsumerState<_PageCard> {
             child: p['cover_photo'] != null
                 ? NetImage(url: p['cover_photo'], height: 100, width: double.infinity, fit: BoxFit.cover)
                 : Container(height: 100, decoration: const BoxDecoration(gradient: LinearGradient(colors: [kOrange, Color(0xFFFF6B35)])))),
-          Padding(padding: const EdgeInsets.all(14), child: Row(children: [
-            CircleNetImage(url: p['avatar'], size: 48, fallbackText: p['name'] ?? '?'),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Flexible(child: Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1A1B2E)))),
-                if (p['is_verified'] == true) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 16)),
-              ]),
-              if (p['category'] != null) Text(p['category'], style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
-              Text('${p['followers_count'] ?? 0} followers', style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280), fontWeight: FontWeight.w600)),
-            ])),
-            if (widget.isOwner)
-              ElevatedButton.icon(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CreateAdScreen(pageId: p['id'], pageName: p['name'] ?? ''))),
-                icon: const Icon(Icons.campaign_rounded, size: 16),
-                label: const Text('Promote', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
-              )
-            else
-              OutlinedButton(
-                onPressed: () async {
-                  setState(() => _following = !_following);
-                  try { await ref.read(communityRepoProvider).togglePageFollow(p['id']); } catch (_) { setState(() => _following = !_following); }
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _following ? const Color(0xFF6B7280) : kOrange,
-                  side: BorderSide(color: _following ? const Color(0xFFD1D5DB) : kOrange),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8)),
-                child: Text(_following ? 'Following' : 'Follow', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-              ),
+          Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              CircleNetImage(url: p['avatar'], size: 48, fallbackText: p['name'] ?? '?'),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Flexible(child: Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1A1B2E)), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  if (p['is_verified'] == true) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 16)),
+                ]),
+                if (p['category'] != null) Text(p['category'], style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
+                Text('${p['followers_count'] ?? 0} followers', style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280), fontWeight: FontWeight.w600)),
+              ])),
+            ]),
+            const SizedBox(height: 10),
+            Row(children: [
+              if (widget.isOwner)
+                Expanded(child: ElevatedButton.icon(
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CreateAdScreen(pageId: p['id'], pageName: p['name'] ?? ''))),
+                  icon: const Icon(Icons.campaign_rounded, size: 16),
+                  label: const Text('Promote', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                  style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 10)),
+                ))
+              else
+                Expanded(child: OutlinedButton(
+                  onPressed: () async {
+                    setState(() => _following = !_following);
+                    try { await ref.read(communityRepoProvider).togglePageFollow(p['id']); } catch (_) { setState(() => _following = !_following); }
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _following ? const Color(0xFF6B7280) : kOrange,
+                    side: BorderSide(color: _following ? const Color(0xFFD1D5DB) : kOrange),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 10)),
+                  child: Text(_following ? 'Following' : 'Follow', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                )),
+            ]),
           ])),
         ]),
       ),
@@ -265,9 +274,28 @@ class _BusinessPageDetailScreenState extends ConsumerState<BusinessPageDetailScr
               ],
 
               const Divider(height: 1),
-              const Padding(padding: EdgeInsets.all(16),
-                child: Center(child: Text('Posts coming soon', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)))),
+              const Padding(padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text('Posts', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E)))),
             ]))),
+
+            // Posts
+            Consumer(builder: (context, ref, _) {
+              final postsAsync = ref.watch(_pagePostsProvider(widget.pageId));
+              return postsAsync.when(
+                loading: () => const SliverToBoxAdapter(child: Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator(color: kOrange)))),
+                error: (_, __) => const SliverToBoxAdapter(child: SizedBox()),
+                data: (posts) {
+                  if (posts.isEmpty) {
+                    return const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(40),
+                      child: Center(child: Text('No posts yet', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)))));
+                  }
+                  return SliverList(delegate: SliverChildBuilderDelegate(
+                    (_, i) => _SimplePostCard(post: posts[i]),
+                    childCount: posts.length,
+                  ));
+                },
+              );
+            }),
           ]);
         },
       ),
@@ -375,4 +403,75 @@ class _CreatePageScreenState extends ConsumerState<_CreatePageScreen> {
         filled: true, fillColor: const Color(0xFFF9FAFB),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB)))));
+}
+
+// ── Simple Post Card for Page Detail ──────────────────────────────
+
+class _SimplePostCard extends StatelessWidget {
+  final CommunityPost post;
+  const _SimplePostCard({required this.post});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = post;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+      color: Colors.white,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Header
+        Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Row(children: [
+            CircleNetImage(url: p.user.avatar, size: 36, fallbackText: p.user.name),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(p.user.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1A1B2E))),
+              Text(_timeAgo(p.createdAt), style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 11)),
+            ])),
+          ]),
+        ),
+
+        // Content
+        if (p.content != null && p.content!.isNotEmpty)
+          Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(p.content!, style: const TextStyle(fontSize: 14, color: Color(0xFF374151), height: 1.4))),
+
+        // Media
+        if (p.media.isNotEmpty)
+          p.media.first.type == 'image'
+              ? NetImage(url: p.media.first.url, fit: BoxFit.cover, width: double.infinity)
+              : Stack(alignment: Alignment.center, children: [
+                  NetImage(url: p.media.first.thumbnail ?? p.media.first.url, fit: BoxFit.cover, width: double.infinity, height: 200),
+                  Container(width: 48, height: 48, decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
+                    child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28)),
+                ]),
+
+        // Stats
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(children: [
+            const Icon(Icons.favorite_rounded, size: 16, color: Color(0xFF9CA3AF)),
+            const SizedBox(width: 4),
+            Text('${p.likesCount}', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
+            const SizedBox(width: 16),
+            const Icon(Icons.chat_bubble_outline_rounded, size: 16, color: Color(0xFF9CA3AF)),
+            const SizedBox(width: 4),
+            Text('${p.commentsCount}', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
+            const SizedBox(width: 16),
+            const Icon(Icons.share_rounded, size: 16, color: Color(0xFF9CA3AF)),
+            const SizedBox(width: 4),
+            Text('${p.sharesCount}', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
+          ]),
+        ),
+        const Divider(height: 1),
+      ]),
+    );
+  }
+
+  String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return '${dt.day}/${dt.month}/${dt.year}';
+  }
 }
