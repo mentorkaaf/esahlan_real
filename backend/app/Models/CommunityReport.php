@@ -6,4 +6,5 @@ class CommunityReport extends Model {
     protected $fillable = ['reporter_id','reportable_type','reportable_id','reason','description','status','reviewed_by'];
     public function reporter() { return $this->belongsTo(User::class, 'reporter_id'); }
     public function reviewer() { return $this->belongsTo(User::class, 'reviewed_by'); }
+    public function reportable() { return $this->morphTo(); }
 }
