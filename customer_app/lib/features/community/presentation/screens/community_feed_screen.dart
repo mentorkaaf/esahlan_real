@@ -15,6 +15,7 @@ import 'community_notifications_screen.dart';
 import 'create_post_screen.dart';
 import '../widgets/comments_sheet.dart';
 import 'business_page_detail_screen.dart';
+import 'community_search_screen.dart';
 
 class CommunityFeedScreen extends ConsumerStatefulWidget {
   const CommunityFeedScreen({super.key});
@@ -71,7 +72,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
               ),
             ),
             actions: [
-              _AppBarBtn(icon: Icons.search_rounded, onTap: () => context.push('/community/explore')),
+              _AppBarBtn(icon: Icons.search_rounded, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunitySearchScreen()))),
               _AppBarBtn(
                 icon: Icons.notifications_rounded,
                 badge: unread > 0 ? unread : null,
@@ -496,6 +497,24 @@ class _PostCardState extends ConsumerState<_PostCard> {
     _myReaction = widget.post.userReaction;
   }
 
+  void _showEditDialog() {
+    final ctrl = TextEditingController(text: widget.post.content ?? '');
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Edit post', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+      content: TextField(controller: ctrl, maxLines: 5, decoration: const InputDecoration(hintText: 'Edit your post...', border: OutlineInputBorder())),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(onPressed: () async {
+          Navigator.pop(ctx);
+          try {
+            final updated = await ref.read(communityRepoProvider).updatePost(widget.post.id, content: ctrl.text.trim());
+            ref.read(communityFeedProvider.notifier).updatePost(updated);
+          } catch (_) {}
+        }, child: const Text('Save', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700))),
+      ],
+    ));
+  }
+
   void _react(String type) async {
     setState(() {
       _myReaction = _myReaction == type ? null : type;
@@ -640,7 +659,12 @@ class _PostCardState extends ConsumerState<_PostCard> {
       context: context,
       builder: (_) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(
+          if (widget.post.user.isMe) ListTile(
+            leading: const Icon(Icons.edit_rounded, color: kOrange),
+            title: const Text('Edit Post'),
+            onTap: () { Navigator.pop(context); _showEditDialog(); },
+          ),
+          if (widget.post.user.isMe) ListTile(
             leading: const Icon(Icons.delete_rounded, color: Colors.red),
             title: const Text('Delete Post', style: TextStyle(color: Colors.red)),
             onTap: () {

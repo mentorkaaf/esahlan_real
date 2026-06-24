@@ -302,7 +302,15 @@ Route::prefix('v1')->group(function () {
         Route::post('chats/start/{userId}', [CommunityChatController::class, 'startOrGet']);
         Route::get('chats/{chatId}/messages', [CommunityChatController::class, 'messages']);
         Route::post('chats/{chatId}/messages', [CommunityChatController::class, 'send']);
+        Route::post('chats/{chatId}/read', [CommunityChatController::class, 'markRead']);
+        Route::post('messages/{msgId}/react', [CommunityChatController::class, 'reactToMessage']);
         Route::delete('messages/{msgId}', [CommunityChatController::class, 'deleteMessage']);
+
+        // Story Highlights
+        Route::get('highlights/{userId}', [\App\Http\Controllers\Api\Community\CommunityHighlightController::class, 'index']);
+        Route::post('highlights', [\App\Http\Controllers\Api\Community\CommunityHighlightController::class, 'store']);
+        Route::post('highlights/{id}/add', [\App\Http\Controllers\Api\Community\CommunityHighlightController::class, 'addStory']);
+        Route::delete('highlights/{id}', [\App\Http\Controllers\Api\Community\CommunityHighlightController::class, 'destroy']);
 
         // Notifications
         Route::get('notifications', [CommunityNotificationController::class, 'index']);

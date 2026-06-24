@@ -11,6 +11,7 @@ import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
 import 'community_shell.dart';
 import 'community_chat_screen.dart';
+import 'edit_profile_screen.dart';
 
 class CommunityProfileScreen extends ConsumerWidget {
   final int userId;
@@ -211,7 +212,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                     ),
                     const Spacer(),
                     if (widget.isMe)
-                      _OutlineBtn(label: 'Edit Profile', icon: Icons.edit_rounded, onTap: () {})
+                      _OutlineBtn(label: 'Edit Profile', icon: Icons.edit_rounded, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfileScreen(user: u))))
                     else ...[
                       _OutlineBtn(
                         label: _following ? 'Following' : 'Follow',

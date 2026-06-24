@@ -249,6 +249,47 @@ class CommunityRepository {
     return r.data['count'] as int? ?? 0;
   }
 
+  // ── Post Edit ──────────────────────────────────────────────────────────────
+  Future<CommunityPost> updatePost(int postId, {String? content, String? privacy}) async {
+    final r = await _dio.put('/community/posts/$postId', data: {
+      if (content != null) 'content': content,
+      if (privacy != null) 'privacy': privacy,
+    });
+    return CommunityPost.fromJson(r.data['data'] as Map<String, dynamic>);
+  }
+
+  // ── Chat Extras ───────────────────────────────────────────────────────────
+  Future<void> markChatRead(int chatId) => _dio.post('/community/chats/$chatId/read');
+
+  Future<void> reactToMessage(int msgId, String emoji) =>
+    _dio.post('/community/messages/$msgId/react', data: {'emoji': emoji});
+
+  Future<CommunityMessage> sendVoiceMessage(int chatId, int myId, {required dynamic mediaFile}) async {
+    final form = FormData.fromMap({
+      'type': 'voice',
+      if (mediaFile is MultipartFile) 'media': mediaFile,
+    });
+    final r = await _dio.post('/community/chats/$chatId/messages', data: form);
+    return CommunityMessage.fromJson(r.data['data'] as Map<String, dynamic>, myId);
+  }
+
+  // ── Highlights ────────────────────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getHighlights(int userId) async {
+    final r = await _dio.get('/community/highlights/$userId');
+    return (r.data['data'] as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> createHighlight({required String title, required List<int> storyIds}) =>
+    _dio.post('/community/highlights', data: {'title': title, 'story_ids': storyIds});
+
+  Future<void> deleteHighlight(int id) => _dio.delete('/community/highlights/$id');
+
+  // ── Trending ──────────────────────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getTrending() async {
+    final r = await _dio.get('/community/trending');
+    return (r.data['data'] as List).cast<Map<String, dynamic>>();
+  }
+
   // ── Report ─────────────────────────────────────────────────────────────────
   Future<void> report(String type, int id, String reason, {String? description}) async {
     await _dio.post('/community/report', data: {

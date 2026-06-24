@@ -59,7 +59,7 @@ class CommunityChatController extends Controller
 
     public function send(Request $request, int $chatId)
     {
-        $request->validate(['type'=>'in:text,image,audio','content'=>'nullable|string|max:2000','media'=>'nullable|file|max:20480','reply_to_id'=>'nullable|exists:community_messages,id']);
+        $request->validate(['type'=>'in:text,image,video,audio,voice','content'=>'nullable|string|max:2000','media'=>'nullable|file|max:51200','reply_to_id'=>'nullable|exists:community_messages,id']);
         $userId = auth()->id();
         CommunityChatMember::where('chat_id',$chatId)->where('user_id',$userId)->firstOrFail();
 
@@ -91,6 +91,32 @@ class CommunityChatController extends Controller
         }
 
         return response()->json(['status'=>'success','data'=>$msg], 201);
+    }
+
+    public function markRead(int $chatId)
+    {
+        $userId = auth()->id();
+        CommunityChatMember::where('chat_id', $chatId)->where('user_id', $userId)->update(['last_read_at' => now()]);
+        CommunityMessage::where('chat_id', $chatId)->where('user_id', '!=', $userId)->whereNull('read_at')->update(['read_at' => now()]);
+        return response()->json(['status' => 'success']);
+    }
+
+    public function reactToMessage(Request $request, int $msgId)
+    {
+        $request->validate(['emoji' => 'required|string|max:10']);
+        $msg = CommunityMessage::findOrFail($msgId);
+        $userId = auth()->id();
+        $existing = \DB::table('community_message_reactions')->where('message_id', $msgId)->where('user_id', $userId)->first();
+        if ($existing) {
+            if ($existing->emoji === $request->emoji) {
+                \DB::table('community_message_reactions')->where('id', $existing->id)->delete();
+                return response()->json(['status' => 'success', 'reacted' => false]);
+            }
+            \DB::table('community_message_reactions')->where('id', $existing->id)->update(['emoji' => $request->emoji, 'updated_at' => now()]);
+        } else {
+            \DB::table('community_message_reactions')->insert(['message_id' => $msgId, 'user_id' => $userId, 'emoji' => $request->emoji, 'created_at' => now(), 'updated_at' => now()]);
+        }
+        return response()->json(['status' => 'success', 'reacted' => true, 'emoji' => $request->emoji]);
     }
 
     public function deleteMessage(int $msgId)
