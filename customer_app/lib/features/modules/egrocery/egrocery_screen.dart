@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
+import '../../payment/waafi_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../auth/data/models/district_model.dart';
 import '../../auth/data/repositories/district_repository.dart';
@@ -573,11 +574,20 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
     );
   }
 
+  String? _waafiReference;
+
   Future<void> _placeOrder() async {
     if (_districtId == null) { _snack('Select delivery district'); return; }
     final cart = ref.read(_cartProvider);
     if (cart.isEmpty) return;
+    final subtotal = ref.read(_cartProvider.notifier).subtotal;
+    final total = subtotal + 1.50;
 
+    if (_payment == 'waafi_pay') {
+      final result = await showWaafiPaySheet(context, amount: total, type: 'order', description: 'eGrocery Order');
+      if (result?.success != true) return;
+      _waafiReference = result!.reference;
+    }
     if (_payment == 'wallet') {
       final pinOk = await showWalletPinDialog(context);
       if (!pinOk) return;
@@ -591,6 +601,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         'district_id': _districtId,
         'delivery_address': {'district': _districtName, 'city': _districtName},
         'payment_method': _payment,
+        if (_waafiReference != null) 'waafi_reference': _waafiReference,
       });
       ref.read(_cartProvider.notifier).clear();
       if (_payment == 'wallet') ref.invalidate(walletProvider);

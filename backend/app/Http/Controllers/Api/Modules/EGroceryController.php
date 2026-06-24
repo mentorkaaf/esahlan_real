@@ -130,7 +130,8 @@ class EGroceryController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity'   => 'required|integer|min:1',
             'delivery_address'   => 'required|array',
-            'payment_method'     => 'required|in:wallet,cod',
+            'payment_method'     => 'required|in:wallet,cod,waafi_pay',
+            'waafi_reference'    => 'nullable|string',
             'note'               => 'nullable|string',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
@@ -172,7 +173,7 @@ class EGroceryController extends Controller
                 'module_slug'     => 'egrocery',
                 'status'          => 'pending',
                 'payment_method'  => $request->payment_method,
-                'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'unpaid',
+                'payment_status'  => in_array($request->payment_method, ['wallet', 'waafi_pay']) ? 'paid' : 'unpaid',
                 'delivery_address'=> $request->delivery_address,
                 'subtotal'        => $total,
                 'delivery_fee'    => $deliveryFee,
