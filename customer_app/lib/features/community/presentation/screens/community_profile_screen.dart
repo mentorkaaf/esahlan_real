@@ -68,7 +68,9 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     if (f == null) return;
     try {
       final bytes = await f.readAsBytes();
-      final mf = MultipartFile.fromBytes(bytes, filename: f.name);
+      final ext = f.name.split('.').last.toLowerCase();
+      final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
+      final mf = MultipartFile.fromBytes(bytes, filename: 'avatar.$ext', contentType: DioMediaType.parse(mime));
       final res = await ref.read(communityRepoProvider).uploadProfilePhoto(avatarFile: mf);
       setState(() => _localAvatar = res['avatar'] as String?);
       ref.invalidate(communityMyProfileProvider);
@@ -84,10 +86,14 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     if (f == null) return;
     try {
       final bytes = await f.readAsBytes();
-      final mf = MultipartFile.fromBytes(bytes, filename: f.name);
+      final ext = f.name.split('.').last.toLowerCase();
+      final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
+      final mf = MultipartFile.fromBytes(bytes, filename: 'cover.$ext', contentType: DioMediaType.parse(mime));
       final res = await ref.read(communityRepoProvider).uploadProfilePhoto(coverFile: mf);
       setState(() => _localCover = res['cover_photo'] as String?);
       ref.invalidate(communityMyProfileProvider);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cover photo updated!'), backgroundColor: Color(0xFF10B981)));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to upload cover: $e'), backgroundColor: Colors.red));
@@ -128,7 +134,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
       body: NestedScrollView(
         headerSliverBuilder: (context, _) => [
           SliverAppBar(
-            expandedHeight: 200,
+            expandedHeight: 220,
             pinned: true,
             
             leading: Navigator.canPop(context)
@@ -180,7 +186,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                   child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                     Transform.translate(
-                      offset: const Offset(0, -30),
+                      offset: const Offset(0, -44),
                       child: GestureDetector(
                         onTap: widget.isMe ? _pickAvatar : null,
                         child: Stack(clipBehavior: Clip.none, children: [
@@ -188,16 +194,21 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white, width: 4),
+                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2))],
                             ),
                             child: CircleNetImage(
                               url: _localAvatar ?? u.avatar,
-                              size: 88,
+                              size: 92,
                               fallbackText: u.name,
                             ),
                           ),
                           if (widget.isMe)
-                            const Positioned(bottom: 2, right: 2,
-                              child: CircleAvatar(radius: 12, backgroundColor: kOrange, child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: 12))),
+                            Positioned(bottom: 2, right: 2,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2)),
+                                child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 14))),
                         ]),
                       ),
                     ),
