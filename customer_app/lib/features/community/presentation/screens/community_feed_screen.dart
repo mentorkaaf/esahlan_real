@@ -14,6 +14,7 @@ import 'community_shell.dart';
 import 'community_notifications_screen.dart';
 import 'create_post_screen.dart';
 import '../widgets/comments_sheet.dart';
+import 'business_page_detail_screen.dart';
 
 class CommunityFeedScreen extends ConsumerStatefulWidget {
   const CommunityFeedScreen({super.key});
@@ -719,143 +720,11 @@ class _ReactionPicker extends StatelessWidget {
 
 // ── Businesses Tab ─────────────────────────────────────────────────────────────
 
-class _BusinessesTab extends ConsumerWidget {
+class _BusinessesTab extends StatelessWidget {
   const _BusinessesTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(efoodRestaurantsProvider);
-
-    return async.when(
-      loading: () => const Padding(padding: EdgeInsets.all(16), child: ShimmerPostList(count: 3)),
-      error: (_, __) => const _EmptyTab(message: 'Could not load restaurants', icon: Icons.restaurant_rounded),
-      data: (restaurants) {
-        if (restaurants.isEmpty) {
-          return const _EmptyTab(message: 'No restaurants registered yet', icon: Icons.restaurant_rounded);
-        }
-        return RefreshIndicator(
-          color: kOrange,
-          onRefresh: () => ref.refresh(efoodRestaurantsProvider.future),
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-            itemCount: restaurants.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (_, i) => _RestaurantFeedCard(restaurant: restaurants[i]),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _RestaurantFeedCard extends StatelessWidget {
-  final Map<String, dynamic> restaurant;
-  const _RestaurantFeedCard({required this.restaurant});
-
-  @override
-  Widget build(BuildContext context) {
-    final r = restaurant;
-    final isOpen = (r['is_open'] ?? r['is_active'] ?? 1) == 1 || r['is_open'] == true || r['is_active'] == true;
-    final rating = r['rating'];
-    final deliveryTime = r['delivery_time'];
-    final deliveryFee = r['delivery_fee'];
-    final feeNum = deliveryFee == null ? null : double.tryParse('$deliveryFee');
-    final isFreeDelivery = feeNum == null || feeNum == 0;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 2))],
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Cover image
-        Stack(children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: r['cover_image'] != null
-                ? NetImage(url: r['cover_image'], height: 140, width: double.infinity, fit: BoxFit.cover,
-                    errorWidget: Container(height: 140, color: const Color(0xFFF0F2F5), child: const Center(child: Text('🍽️', style: TextStyle(fontSize: 48)))))
-                : Container(height: 140, color: const Color(0xFFF0F2F5), child: const Center(child: Text('🍽️', style: TextStyle(fontSize: 48)))),
-          ),
-          if (!isOpen)
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Container(height: 140, color: Colors.black54, child: const Center(child: Text('CLOSED', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: 2)))),
-            ),
-          Positioned(top: 10, left: 10,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(20)),
-              child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.fastfood_rounded, color: Colors.white, size: 12),
-                SizedBox(width: 4),
-                Text('eFood', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 11)),
-              ]),
-            ),
-          ),
-        ]),
-
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              if (r['logo'] != null) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: NetImage(url: r['logo'], width: 40, height: 40, fit: BoxFit.cover,
-                      errorWidget: Container(width: 40, height: 40, color: const Color(0xFFF0F2F5), child: const Icon(Icons.restaurant_rounded, color: kOrange, size: 20))),
-                ),
-                const SizedBox(width: 10),
-              ],
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(r['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF1A1B2E)), maxLines: 1, overflow: TextOverflow.ellipsis),
-                Text(r['cuisine_type'] ?? 'Restaurant', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-              ])),
-              if (rating != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
-                    const SizedBox(width: 3),
-                    Text('$rating', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                  ]),
-                ),
-            ]),
-            const SizedBox(height: 8),
-            Row(children: [
-              if (deliveryTime != null) ...[
-                const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF9CA3AF)),
-                const SizedBox(width: 3),
-                Text('$deliveryTime min', style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-                const SizedBox(width: 12),
-              ],
-              Icon(Icons.delivery_dining_rounded, size: 14, color: isFreeDelivery ? Colors.green : const Color(0xFF9CA3AF)),
-              const SizedBox(width: 3),
-              Text(isFreeDelivery ? 'Free delivery' : '\$${feeNum!.toStringAsFixed(2)} delivery',
-                  style: TextStyle(fontSize: 12, color: isFreeDelivery ? Colors.green : const Color(0xFF6B7280), fontWeight: isFreeDelivery ? FontWeight.w600 : FontWeight.w400)),
-            ]),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isOpen ? kOrange : Colors.grey,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  elevation: 0,
-                ),
-                onPressed: isOpen ? () => context.push('/efood') : null,
-                child: Text(isOpen ? 'Order Now' : 'Closed', style: const TextStyle(fontWeight: FontWeight.w700)),
-              ),
-            ),
-          ]),
-        ),
-      ]),
-    );
-  }
+  Widget build(BuildContext context) => const BusinessPagesListWidget();
 }
 
 class _MediaGrid extends StatelessWidget {

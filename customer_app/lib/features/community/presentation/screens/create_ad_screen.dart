@@ -1,0 +1,250 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import '../../../../core/widgets/network_image_widget.dart';
+import '../../data/repositories/community_repository.dart';
+import '../providers/community_provider.dart';
+import '../../../../shared/widgets/wallet_pin_dialog.dart';
+import '../../../wallet/presentation/providers/wallet_provider.dart';
+import 'community_shell.dart';
+
+class CreateAdScreen extends ConsumerStatefulWidget {
+  final int pageId;
+  final String pageName;
+  const CreateAdScreen({super.key, required this.pageId, required this.pageName});
+  @override
+  ConsumerState<CreateAdScreen> createState() => _CreateAdScreenState();
+}
+
+class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
+  final _titleCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+  final _ctaTextCtrl = TextEditingController(text: 'Learn More');
+  final _ctaUrlCtrl = TextEditingController();
+  final _budgetCtrl = TextEditingController(text: '10');
+
+  String _adType = 'image';
+  String _placement = 'feed';
+  String _payment = 'wallet';
+  XFile? _mediaFile;
+  bool _creating = false;
+
+  List<Map<String, dynamic>> _pricing = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPricing();
+  }
+
+  Future<void> _loadPricing() async {
+    try {
+      final pricing = await ref.read(communityRepoProvider).getAdPricing();
+      if (mounted) setState(() => _pricing = pricing);
+    } catch (_) {}
+  }
+
+  Map<String, dynamic>? get _matchedPricing {
+    try {
+      return _pricing.firstWhere((p) => p['ad_type'] == _adType && p['placement'] == _placement);
+    } catch (_) { return null; }
+  }
+
+  @override
+  void dispose() { _titleCtrl.dispose(); _descCtrl.dispose(); _ctaTextCtrl.dispose(); _ctaUrlCtrl.dispose(); _budgetCtrl.dispose(); super.dispose(); }
+
+  Future<void> _pickMedia() async {
+    final picker = ImagePicker();
+    XFile? file;
+    if (_adType == 'video') {
+      file = await picker.pickVideo(source: ImageSource.gallery, maxDuration: const Duration(minutes: 2));
+    } else {
+      file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    }
+    if (file != null) setState(() => _mediaFile = file);
+  }
+
+  Future<void> _submit() async {
+    if (_titleCtrl.text.trim().isEmpty) { _snack('Enter ad title'); return; }
+    if (_mediaFile == null) { _snack('Select media'); return; }
+    final budget = double.tryParse(_budgetCtrl.text) ?? 0;
+    final minBudget = (_matchedPricing?['min_budget'] as num?)?.toDouble() ?? 5.0;
+    if (budget < minBudget) { _snack('Minimum budget is \$$minBudget'); return; }
+
+    if (_payment == 'wallet') {
+      final pinOk = await showWalletPinDialog(context);
+      if (!pinOk) return;
+    }
+
+    setState(() => _creating = true);
+    try {
+      final bytes = await _mediaFile!.readAsBytes();
+      final form = FormData.fromMap({
+        'page_id': widget.pageId,
+        'title': _titleCtrl.text.trim(),
+        'description': _descCtrl.text.trim(),
+        'ad_type': _adType,
+        'placement': _placement,
+        'budget': budget,
+        'payment_method': _payment,
+        'cta_text': _ctaTextCtrl.text.trim(),
+        'cta_url': _ctaUrlCtrl.text.trim(),
+        'media': MultipartFile.fromBytes(bytes, filename: _mediaFile!.name),
+      });
+      await ref.read(communityRepoProvider).createAd(form);
+      if (_payment == 'wallet') ref.invalidate(walletProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ad submitted for review!'), backgroundColor: Color(0xFF10B981)));
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      _snack('$e');
+    } finally { if (mounted) setState(() => _creating = false); }
+  }
+
+  void _snack(String msg) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
+
+  @override
+  Widget build(BuildContext context) {
+    final matched = _matchedPricing;
+    return Scaffold(
+      appBar: AppBar(title: Text('Create Ad — ${widget.pageName}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
+      body: ListView(padding: const EdgeInsets.all(16), children: [
+        // Ad Type
+        _sectionLabel('Ad Type'),
+        Row(children: [
+          _chip('Image', Icons.image_rounded, _adType == 'image', () => setState(() { _adType = 'image'; _mediaFile = null; })),
+          const SizedBox(width: 10),
+          _chip('Video', Icons.videocam_rounded, _adType == 'video', () => setState(() { _adType = 'video'; _mediaFile = null; })),
+        ]),
+        const SizedBox(height: 16),
+
+        // Placement
+        _sectionLabel('Placement'),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          _chip('Feed', Icons.dynamic_feed_rounded, _placement == 'feed', () => setState(() => _placement = 'feed')),
+          _chip('Reels', Icons.videocam_rounded, _placement == 'reels', () => setState(() => _placement = 'reels')),
+          _chip('Explore', Icons.explore_rounded, _placement == 'explore', () => setState(() => _placement = 'explore')),
+        ]),
+        const SizedBox(height: 16),
+
+        // Pricing info
+        if (matched != null) Container(
+          padding: const EdgeInsets.all(12), margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: kOrange.withValues(alpha: 0.3))),
+          child: Row(children: [
+            const Icon(Icons.info_outline_rounded, color: kOrange, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(
+              'Cost: \$${matched['cost_per_click']}/click · \$${matched['cost_per_1000']}/1K views · Min \$${matched['min_budget']}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF374151), fontWeight: FontWeight.w600))),
+          ]),
+        ),
+
+        // Media
+        _sectionLabel('Media'),
+        GestureDetector(
+          onTap: _pickMedia,
+          child: Container(
+            height: 180,
+            decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE5E7EB), width: 1.5, strokeAlign: BorderSide.strokeAlignInside)),
+            child: _mediaFile != null
+                ? ClipRRect(borderRadius: BorderRadius.circular(14),
+                    child: _adType == 'image'
+                        ? Image.file(File(_mediaFile!.path), fit: BoxFit.cover, width: double.infinity)
+                        : Stack(alignment: Alignment.center, children: [
+                            Container(color: Colors.black87),
+                            const Icon(Icons.videocam_rounded, color: Colors.white, size: 48),
+                            Positioned(bottom: 8, child: Text(_mediaFile!.name, style: const TextStyle(color: Colors.white70, fontSize: 11))),
+                          ]))
+                : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(_adType == 'video' ? Icons.videocam_rounded : Icons.add_photo_alternate_rounded, size: 40, color: const Color(0xFFD1D5DB)),
+                    const SizedBox(height: 8),
+                    Text('Tap to select ${_adType == 'video' ? 'video' : 'image'}', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
+                  ]),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Title
+        _sectionLabel('Ad Title *'),
+        TextField(controller: _titleCtrl, decoration: _inputDeco('What\'s your ad about?')),
+        const SizedBox(height: 14),
+
+        // Description
+        _sectionLabel('Description'),
+        TextField(controller: _descCtrl, maxLines: 3, decoration: _inputDeco('Tell people more...')),
+        const SizedBox(height: 14),
+
+        // CTA
+        Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _sectionLabel('CTA Button'),
+            TextField(controller: _ctaTextCtrl, decoration: _inputDeco('Learn More')),
+          ])),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _sectionLabel('CTA Link'),
+            TextField(controller: _ctaUrlCtrl, decoration: _inputDeco('https://...')),
+          ])),
+        ]),
+        const SizedBox(height: 16),
+
+        // Budget
+        _sectionLabel('Budget (\$)'),
+        TextField(controller: _budgetCtrl, keyboardType: TextInputType.number, decoration: _inputDeco('10.00')),
+        const SizedBox(height: 16),
+
+        // Payment
+        _sectionLabel('Payment Method'),
+        Row(children: [
+          _chip('Wallet', Icons.account_balance_wallet_rounded, _payment == 'wallet', () => setState(() => _payment = 'wallet')),
+          const SizedBox(width: 10),
+          _chip('Waafi Pay', Icons.phone_android_rounded, _payment == 'waafi_pay', () => setState(() => _payment = 'waafi_pay')),
+        ]),
+        const SizedBox(height: 24),
+
+        // Submit
+        ElevatedButton(
+          onPressed: _creating ? null : _submit,
+          style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          child: _creating ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              : const Text('Submit Ad for Review', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+        ),
+        const SizedBox(height: 8),
+        const Text('Your ad will be reviewed by admin before going live.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
+        const SizedBox(height: 40),
+      ]),
+    );
+  }
+
+  Widget _sectionLabel(String text) => Padding(padding: const EdgeInsets.only(bottom: 8),
+    child: Text(text, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E))));
+
+  Widget _chip(String label, IconData icon, bool selected, VoidCallback onTap) => GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: selected ? kOrange.withValues(alpha: 0.1) : const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: selected ? kOrange : const Color(0xFFE5E7EB), width: selected ? 2 : 1)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 18, color: selected ? kOrange : const Color(0xFF9CA3AF)),
+        const SizedBox(width: 6),
+        Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: selected ? kOrange : const Color(0xFF6B7280))),
+      ]),
+    ),
+  );
+
+  InputDecoration _inputDeco(String hint) => InputDecoration(
+    hintText: hint, filled: true, fillColor: const Color(0xFFF9FAFB),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12));
+}
