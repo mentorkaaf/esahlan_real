@@ -78,7 +78,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
                 badge: unread > 0 ? unread : null,
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityNotificationsScreen())),
               ),
-              _AppBarBtn(icon: Icons.shopping_basket_rounded, onTap: () {}),
+              _AppBarBtn(icon: Icons.home_rounded, onTap: () => context.go('/')),
               const SizedBox(width: 4),
             ],
             bottom: TabBar(
@@ -593,6 +593,37 @@ class _PostCardState extends ConsumerState<_PostCard> {
         // Media
         if (p.media.isNotEmpty) _MediaGrid(media: p.media),
 
+        // Poll
+        if (p.type == 'poll' && p.pollOptions.isNotEmpty)
+          Padding(padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+            child: Column(children: p.pollOptions.asMap().entries.map((e) {
+              final opt = e.value;
+              final totalVotes = p.pollOptions.fold<int>(0, (s, o) => s + o.votes);
+              final pct = totalVotes > 0 ? (opt.votes / totalVotes * 100).round() : 0;
+              return GestureDetector(
+                onTap: () async {
+                  try {
+                    await ref.read(communityRepoProvider).votePoll(p.id, e.key);
+                    setState(() => opt.votes++);
+                  } catch (_) {}
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFE5E7EB))),
+                  child: Stack(children: [
+                    FractionallySizedBox(widthFactor: pct / 100, child: Container(
+                      height: 44, decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(9)))),
+                    Container(height: 44, padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Row(children: [
+                        Expanded(child: Text(opt.text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1A1B2E)))),
+                        Text('$pct%', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: kOrange)),
+                      ])),
+                  ]),
+                ),
+              );
+            }).toList()),
+          ),
+
         // Counts row
         if (p.likesCount > 0 || p.commentsCount > 0 || p.sharesCount > 0 || p.viewsCount > 0)
           Padding(
@@ -639,7 +670,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
                   onLongPress: () => setState(() => _showReactions = true),
                 ),
                 _ActionBtn(icon: Icons.chat_bubble_outline_rounded, label: 'Comment', color: const Color(0xFF6B7280), onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount)),
-                _ActionBtn(icon: Icons.share_outlined, label: 'Share', color: const Color(0xFF6B7280), onTap: () {}),
+                _ActionBtn(icon: Icons.share_outlined, label: 'Share', color: const Color(0xFF6B7280), onTap: () => _showShareDialog()),
               ]),
             ),
             // Reaction popup
@@ -652,6 +683,34 @@ class _PostCardState extends ConsumerState<_PostCard> {
         ),
       ]),
     );
+  }
+
+  void _showShareDialog() {
+    final ctrl = TextEditingController();
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Share post', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(8)),
+          child: Row(children: [
+            CircleNetImage(url: widget.post.user.avatar, size: 28, fallbackText: widget.post.user.name),
+            const SizedBox(width: 8),
+            Expanded(child: Text(widget.post.content ?? 'Post by ${widget.post.user.name}', style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)), maxLines: 2, overflow: TextOverflow.ellipsis)),
+          ])),
+        const SizedBox(height: 12),
+        TextField(controller: ctrl, maxLines: 3, decoration: const InputDecoration(hintText: 'Add your thoughts...', border: OutlineInputBorder())),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(onPressed: () async {
+          Navigator.pop(ctx);
+          try {
+            final shared = await ref.read(communityRepoProvider).sharePost(widget.post.id, content: ctrl.text.trim().isEmpty ? null : ctrl.text.trim());
+            ref.read(communityFeedProvider.notifier).prependPost(shared);
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shared!'), backgroundColor: Color(0xFF10B981)));
+          } catch (_) {}
+        }, child: const Text('Share', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700))),
+      ],
+    ));
   }
 
   void _showOptions(BuildContext context) {
@@ -829,6 +888,12 @@ class _MediaItemState extends State<_MediaItem> {
     _paused ? _ctrl!.pause() : _ctrl!.play();
   }
 
+  String _formatDuration(Duration d) {
+    final m = d.inMinutes;
+    final s = d.inSeconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_isVideo) {
@@ -867,44 +932,36 @@ class _MediaItemState extends State<_MediaItem> {
         onTap: _ready ? _togglePause : null,
         child: Stack(
           children: [
-            SizedBox(
-              height: widget.height,
+            Container(
+              color: const Color(0xFF1A1B2E),
+              constraints: BoxConstraints(minHeight: widget.height > 0 ? widget.height : 200, maxHeight: 400),
               width: double.infinity,
               child: _ready && _ctrl != null
-                  ? FittedBox(
-                      fit: BoxFit.cover,
-                      clipBehavior: Clip.hardEdge,
-                      child: SizedBox(
-                        width: _ctrl!.value.size.width,
-                        height: _ctrl!.value.size.height,
-                        child: VideoPlayer(_ctrl!),
-                      ),
-                    )
+                  ? AspectRatio(aspectRatio: _ctrl!.value.aspectRatio.clamp(0.5, 2.5), child: VideoPlayer(_ctrl!))
                   : widget.m.thumbnail != null
-                      ? NetImage(
-                          url: widget.m.thumbnail!,
-                          fit: BoxFit.cover,
+                      ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.contain,
                           placeholder: Container(color: const Color(0xFF1A1B2E)),
-                          errorWidget: Container(color: const Color(0xFF1A1B2E)),
-                        )
-                      : Container(
-                          height: widget.height,
-                          color: const Color(0xFF1A1B2E),
-                        ),
+                          errorWidget: Container(color: const Color(0xFF1A1B2E)))
+                      : const SizedBox(height: 200),
             ),
             if (!_ready || _paused)
-              Positioned.fill(
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-                    child: Icon(
-                      _paused ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                      color: Colors.white, size: 32,
-                    ),
-                  ),
-                ),
-              ),
+              Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(12),
+                decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                child: Icon(_paused ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 36)))),
+            if (_ready && _ctrl != null) Positioned(bottom: 8, left: 8, right: 8,
+              child: Row(children: [
+                GestureDetector(onTap: _togglePause,
+                  child: Icon(_paused ? Icons.play_arrow_rounded : Icons.pause_rounded, color: Colors.white, size: 20)),
+                const SizedBox(width: 8),
+                Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(2),
+                  child: VideoProgressIndicator(_ctrl!, allowScrubbing: true, colors: const VideoProgressColors(
+                    playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12)))),
+                const SizedBox(width: 8),
+                Text(_formatDuration(_ctrl!.value.duration), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                const SizedBox(width: 6),
+                GestureDetector(onTap: () { setState(() { _ctrl!.setVolume(_ctrl!.value.volume > 0 ? 0 : 1); }); },
+                  child: Icon(_ctrl!.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 18)),
+              ])),
           ],
         ),
       ),

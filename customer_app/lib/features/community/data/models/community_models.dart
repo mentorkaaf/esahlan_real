@@ -401,7 +401,7 @@ class CommunityMessage {
         duration: j['duration'] as int?,
         isDeleted: j['is_deleted'] as bool? ?? false,
         isMe: (j['user_id'] as int?) == myId,
-        isRead: j['is_read'] as bool? ?? false,
+        isRead: j['is_read'] == true || j['read_at'] != null,
         createdAt: DateTime.tryParse(j['created_at'] as String? ?? '') ?? DateTime.now(),
       );
 }

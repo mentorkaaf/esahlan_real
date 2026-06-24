@@ -14,10 +14,10 @@ class CommunityFeedController extends Controller
     {
         $userId = auth()->id();
 
-        $posts = CommunityPost::with(['user.communityProfile','media','userReaction'])
+        $posts = CommunityPost::with(['user.communityProfile','media','userReaction','page'])
             ->whereNull('group_id')
             ->where('privacy', '!=', 'private')
-            ->latest()
+            ->inRandomOrder()
             ->paginate(15);
 
         $transformed = $this->transformPosts($posts, $userId);
@@ -159,6 +159,31 @@ class CommunityFeedController extends Controller
 
     public function transformPost($post, int $userId): array
     {
+        // Increment view count
+        $post->increment('views_count');
+
+        // If post belongs to a page, override user display with page info
+        $displayUser = $this->transformUser($post->user, $userId);
+        if ($post->page_id && $post->page) {
+            $displayUser['name'] = $post->page->name;
+            $displayUser['avatar'] = cdn_url($post->page->avatar) ?? $displayUser['avatar'];
+            $displayUser['is_business'] = true;
+        }
+
+        // Shared post details
+        $sharedPost = null;
+        if ($post->shared_post_id && $post->sharedPost) {
+            $sp = $post->sharedPost;
+            $sharedPost = [
+                'id' => $sp->id,
+                'content' => $sp->content,
+                'type' => $sp->type,
+                'media' => $sp->media->map(fn($m) => ['id'=>$m->id,'type'=>$m->type,'url'=>$m->url,'thumbnail'=>$m->thumbnail])->toArray(),
+                'user' => $this->transformUser($sp->user, $userId),
+                'created_at' => $sp->created_at,
+            ];
+        }
+
         return [
             'id' => $post->id,
             'type' => $post->type,
@@ -175,11 +200,11 @@ class CommunityFeedController extends Controller
             'saves_count' => $post->saves_count,
             'poll_options' => $post->poll_options,
             'created_at' => $post->created_at,
-            'media' => $post->media->map(fn($m) => ['id'=>$m->id,'type'=>$m->type,'url'=>$m->url,'thumbnail'=>$m->thumbnail,'duration'=>$m->duration])->toArray(),
-            'user' => $this->transformUser($post->user, $userId),
+            'media' => $post->media->map(fn($m) => ['id'=>$m->id,'type'=>$m->type,'url'=>cdn_url($m->url),'thumbnail'=>cdn_url($m->thumbnail),'duration'=>$m->duration])->toArray(),
+            'user' => $displayUser,
             'user_reaction' => $post->userReaction?->type,
             'is_saved' => \App\Models\CommunitySavedPost::where('user_id',$userId)->where('post_id',$post->id)->exists(),
-            'shared_post' => $post->shared_post_id ? ['id'=>$post->sharedPost?->id,'content'=>$post->sharedPost?->content] : null,
+            'shared_post' => $sharedPost,
             'page_id' => $post->page_id,
             'page' => $post->page_id ? ['id'=>$post->page?->id,'name'=>$post->page?->name,'avatar'=>cdn_url($post->page?->avatar)] : null,
         ];
