@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\Community\CommunityGroupController;
 use App\Http\Controllers\Api\Community\CommunityChatController;
 use App\Http\Controllers\Api\Community\CommunityNotificationController;
 use App\Http\Controllers\Api\Community\CommunityReportController;
+use App\Http\Controllers\Api\Community\CommunityBusinessPageController;
+use App\Http\Controllers\Api\Community\CommunityAdController;
 
 
 use Illuminate\Support\Facades\Route;
@@ -307,6 +309,20 @@ Route::prefix('v1')->group(function () {
         Route::get('notifications/unread-count', [CommunityNotificationController::class, 'unreadCount']);
         Route::post('notifications/{id}/read', [CommunityNotificationController::class, 'markRead']);
         Route::post('notifications/read-all', [CommunityNotificationController::class, 'markAllRead']);
+
+        // Business Pages
+        Route::get('pages', [CommunityBusinessPageController::class, 'index']);
+        Route::get('pages/mine', [CommunityBusinessPageController::class, 'myPages']);
+        Route::post('pages', [CommunityBusinessPageController::class, 'store']);
+        Route::get('pages/{id}', [CommunityBusinessPageController::class, 'show']);
+        Route::put('pages/{id}', [CommunityBusinessPageController::class, 'update']);
+        Route::post('pages/{id}/follow', [CommunityBusinessPageController::class, 'toggleFollow']);
+
+        // Ads
+        Route::get('ads/pricing', [CommunityAdController::class, 'pricing']);
+        Route::get('ads/mine', [CommunityAdController::class, 'myAds']);
+        Route::post('ads', [CommunityAdController::class, 'store']);
+        Route::post('ads/{id}/click', [CommunityAdController::class, 'trackClick']);
 
         // Reports & Block
         Route::post('report', [CommunityReportController::class, 'store']);

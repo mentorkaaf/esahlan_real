@@ -294,6 +294,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/users', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'users'])->name('users');
             Route::post('/users/{id}/verify', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'toggleVerify'])->name('users.verify');
         });
+        // Community Ads & Business Pages
+        Route::prefix('community-ads')->name('community-ads.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'index'])->name('index');
+            Route::patch('/ads/{id}/status', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'updateAdStatus'])->name('status');
+            Route::patch('/pricing/{id}', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'updatePricing'])->name('pricing');
+        });
+
         Route::prefix('notifications')->name('notifications.')->group(function () {
             Route::get('/', [AdminNotificationController::class, 'index'])->name('index');
             Route::post('/send', [AdminNotificationController::class, 'send'])->name('send');

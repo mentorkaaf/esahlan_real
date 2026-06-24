@@ -5,24 +5,33 @@ use App\Models\CommunityPost;
 use App\Models\CommunityFollow;
 use App\Models\CommunityProfile;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Api\Community\CommunityAdController;
 
 class CommunityFeedController extends Controller
 {
-    // Main following feed
+    // Main feed — all public posts (everyone sees everything)
     public function following(Request $request)
     {
         $userId = auth()->id();
-        $followingIds = CommunityFollow::where('follower_id', $userId)->pluck('following_id');
-        $followingIds->push($userId);
 
         $posts = CommunityPost::with(['user.communityProfile','media','userReaction'])
-            ->whereIn('user_id', $followingIds)
             ->whereNull('group_id')
             ->where('privacy', '!=', 'private')
             ->latest()
             ->paginate(15);
 
-        return response()->json(['status'=>'success','data'=>$this->transformPosts($posts, $userId),'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage(),'total'=>$posts->total()]]);
+        $transformed = $this->transformPosts($posts, $userId);
+
+        // Inject ads every 5 posts
+        if ($posts->currentPage() <= 3) {
+            $ads = CommunityAdController::getAdsForPlacement('feed', $userId, 2);
+            foreach ($ads as $i => $ad) {
+                $pos = min(($i + 1) * 4, count($transformed));
+                array_splice($transformed, $pos, 0, [$ad]);
+            }
+        }
+
+        return response()->json(['status'=>'success','data'=>$transformed,'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage(),'total'=>$posts->total()]]);
     }
 
     // Explore / trending feed
@@ -50,7 +59,18 @@ class CommunityFeedController extends Controller
             ->orderByDesc('created_at')
             ->paginate(10);
 
-        return response()->json(['status'=>'success','data'=>$this->transformPosts($posts, $userId),'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage()]]);
+        $transformed = $this->transformPosts($posts, $userId);
+
+        // Inject reel ads
+        if ($posts->currentPage() <= 2) {
+            $ads = CommunityAdController::getAdsForPlacement('reels', $userId, 1);
+            foreach ($ads as $ad) {
+                $pos = min(3, count($transformed));
+                array_splice($transformed, $pos, 0, [$ad]);
+            }
+        }
+
+        return response()->json(['status'=>'success','data'=>$transformed,'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage()]]);
     }
 
     // Trending hashtags
