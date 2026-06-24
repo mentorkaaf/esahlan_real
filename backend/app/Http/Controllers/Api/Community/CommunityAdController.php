@@ -74,14 +74,14 @@ class CommunityAdController extends Controller
             'media_url'        => $mediaUrl,
             'thumbnail_url'    => $thumbnailUrl,
             'cta_text'         => $data['cta_text'] ?? 'Learn More',
-            'cta_url'          => $data['cta_url'],
+            'cta_url'          => $data['cta_url'] ?? null,
             'placement'        => $data['placement'],
             'budget'           => $data['budget'],
             'status'           => 'pending',
             'payment_method'   => $data['payment_method'],
             'starts_at'        => $data['starts_at'] ?? now(),
-            'ends_at'          => $data['ends_at'],
-            'target_district'  => $data['target_district'],
+            'ends_at'          => $data['ends_at'] ?? null,
+            'target_district'  => $data['target_district'] ?? null,
             'target_gender'    => $data['target_gender'] ?? 'all',
         ]);
 

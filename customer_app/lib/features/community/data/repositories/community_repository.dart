@@ -48,6 +48,7 @@ class CommunityRepository {
     String? location,
     String? feeling,
     int? groupId,
+    int? pageId,
     List<String>? pollOptions,
     List<dynamic>? mediaFiles,
   }) async {
@@ -57,6 +58,7 @@ class CommunityRepository {
       if (privacy != null) 'privacy': privacy,
       if (location != null) 'location': location,
       if (feeling != null) 'feeling': feeling,
+      if (pageId != null) 'page_id': pageId,
       if (groupId != null) 'group_id': groupId,
       if (pollOptions != null) ...{for (var i = 0; i < pollOptions.length; i++) 'poll_options[$i]': pollOptions[i]},
     });

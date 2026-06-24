@@ -185,7 +185,7 @@ class _FeedTab extends ConsumerWidget {
               return Column(
                 children: [
                   ...posts.map((p) => _PostCard(post: p,
-                    onDelete: () => ref.read(communityFeedProvider.notifier).removePost(p.id),
+                    onDelete: () { ref.read(communityRepoProvider).deletePost(p.id); ref.read(communityFeedProvider.notifier).removePost(p.id); },
                   )),
                   const SizedBox(height: 80),
                 ],

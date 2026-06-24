@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
@@ -274,8 +275,24 @@ class _BusinessPageDetailScreenState extends ConsumerState<BusinessPageDetailScr
               ],
 
               const Divider(height: 1),
-              const Padding(padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Text('Posts', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E)))),
+              Padding(padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(children: [
+                  const Text('Posts', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E))),
+                  const Spacer(),
+                  if (page['is_owner'] == true) GestureDetector(
+                    onTap: () async {
+                      await Navigator.push(context, MaterialPageRoute(builder: (_) => _PageCreatePostScreen(pageId: widget.pageId, pageName: page['name'] ?? '')));
+                      ref.invalidate(_pagePostsProvider(widget.pageId));
+                    },
+                    child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(8)),
+                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.add_rounded, color: Colors.white, size: 16),
+                        SizedBox(width: 4),
+                        Text('New Post', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+                      ])),
+                  ),
+                ])),
             ]))),
 
             // Posts
@@ -473,5 +490,106 @@ class _SimplePostCard extends StatelessWidget {
     if (diff.inHours < 24) return '${diff.inHours}h';
     if (diff.inDays < 7) return '${diff.inDays}d';
     return '${dt.day}/${dt.month}/${dt.year}';
+  }
+}
+
+// ── Page Create Post Screen ─────────────────────────────────────
+
+class _PageCreatePostScreen extends ConsumerStatefulWidget {
+  final int pageId;
+  final String pageName;
+  const _PageCreatePostScreen({required this.pageId, required this.pageName});
+  @override
+  ConsumerState<_PageCreatePostScreen> createState() => _PageCreatePostScreenState();
+}
+
+class _PageCreatePostScreenState extends ConsumerState<_PageCreatePostScreen> {
+  final _contentCtrl = TextEditingController();
+  List<XFile> _mediaFiles = [];
+  String _postType = 'text';
+  bool _posting = false;
+
+  Future<void> _pickMedia() async {
+    final picker = ImagePicker();
+    final files = await picker.pickMultiImage(imageQuality: 80);
+    if (files.isNotEmpty) setState(() { _mediaFiles = files; _postType = 'image'; });
+  }
+
+  Future<void> _pickVideo() async {
+    final picker = ImagePicker();
+    final file = await picker.pickVideo(source: ImageSource.gallery, maxDuration: const Duration(minutes: 5));
+    if (file != null) setState(() { _mediaFiles = [file]; _postType = 'video'; });
+  }
+
+  Future<void> _post() async {
+    if (_contentCtrl.text.trim().isEmpty && _mediaFiles.isEmpty) return;
+    setState(() => _posting = true);
+    try {
+      final mediaMultiparts = <MultipartFile>[];
+      for (final f in _mediaFiles) {
+        final bytes = await f.readAsBytes();
+        final ext = f.name.split('.').last.toLowerCase();
+        final mime = ['mp4', 'mov'].contains(ext) ? 'video/$ext' : (ext == 'png' ? 'image/png' : 'image/jpeg');
+        mediaMultiparts.add(MultipartFile.fromBytes(bytes, filename: f.name, contentType: DioMediaType.parse(mime)));
+      }
+      await ref.read(communityRepoProvider).createPost(
+        type: _postType,
+        content: _contentCtrl.text.trim(),
+        pageId: widget.pageId,
+        mediaFiles: mediaMultiparts,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Posted!'), backgroundColor: Color(0xFF10B981)));
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally { if (mounted) setState(() => _posting = false); }
+  }
+
+  @override
+  void dispose() { _contentCtrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Post to ${widget.pageName}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+        actions: [
+          TextButton(
+            onPressed: _posting ? null : _post,
+            child: _posting
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: kOrange))
+                : const Text('Post', style: TextStyle(color: kOrange, fontWeight: FontWeight.w800, fontSize: 16)),
+          ),
+        ],
+      ),
+      body: Column(children: [
+        Expanded(child: TextField(
+          controller: _contentCtrl, maxLines: null, expands: true, textAlignVertical: TextAlignVertical.top,
+          decoration: const InputDecoration(hintText: "What's on your mind?", border: InputBorder.none, contentPadding: EdgeInsets.all(16)),
+        )),
+        if (_mediaFiles.isNotEmpty) SizedBox(height: 100, child: ListView(
+          scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16),
+          children: _mediaFiles.map((f) => Padding(padding: const EdgeInsets.only(right: 8),
+            child: Stack(children: [
+              ClipRRect(borderRadius: BorderRadius.circular(10),
+                child: Image.file(File(f.path), width: 100, height: 100, fit: BoxFit.cover)),
+              Positioned(top: 4, right: 4, child: GestureDetector(
+                onTap: () => setState(() => _mediaFiles.remove(f)),
+                child: Container(width: 22, height: 22, decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                  child: const Icon(Icons.close, color: Colors.white, size: 14)))),
+            ]))).toList(),
+        )),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          decoration: BoxDecoration(border: Border(top: BorderSide(color: const Color(0xFFE5E7EB).withValues(alpha: 0.5)))),
+          child: Row(children: [
+            IconButton(icon: const Icon(Icons.image_rounded, color: kOrange), onPressed: _pickMedia),
+            IconButton(icon: const Icon(Icons.videocam_rounded, color: kOrange), onPressed: _pickVideo),
+          ]),
+        ),
+      ]),
+    );
   }
 }

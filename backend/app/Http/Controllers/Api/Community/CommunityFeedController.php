@@ -187,13 +187,17 @@ class CommunityFeedController extends Controller
 
     public function transformUser($user, int $userId): array
     {
+        if (!$user) return ['id' => 0, 'name' => 'Unknown', 'username' => null, 'avatar' => null, 'bio' => null, 'is_verified' => false, 'is_business' => false, 'followers_count' => 0, 'following_count' => 0, 'posts_count' => 0, 'is_following' => false, 'is_me' => false, 'cover_photo' => null, 'location' => null, 'website' => null];
         $profile = $user->communityProfile;
         return [
             'id' => $user->id,
-            'name' => $user->name,
+            'name' => $user->name ?? 'User',
             'username' => $profile?->username,
-            'avatar' => $user->avatar ?? $profile?->cover_photo,
+            'avatar' => $user->avatar ?? null,
+            'cover_photo' => $profile ? cdn_url($profile->getRawOriginal('cover_photo')) : null,
             'bio' => $profile?->bio,
+            'location' => null,
+            'website' => $profile?->website,
             'is_verified' => $profile?->is_verified ?? false,
             'is_business' => $profile?->is_business ?? false,
             'followers_count' => $profile?->followers_count ?? 0,
