@@ -192,7 +192,16 @@ class EMovingController extends Controller
         $fromDistrict = DB::table('districts')->find($request->from_district_id)?->name;
         $toDistrict   = DB::table('districts')->find($request->to_district_id)?->name;
 
-        $distanceFee = $breakdown['distance_fee'];
+        // Calculate distance fee from moving_pricing table
+        $distanceFee = 0;
+        if ($request->from_district_id != $request->to_district_id) {
+            $movingRoute = DB::table('moving_pricing')
+                ->where('from_district_id', $request->from_district_id)
+                ->where('to_district_id', $request->to_district_id)
+                ->where('is_active', true)->first();
+            $distanceFee = $movingRoute ? (float) ($movingRoute->distance_price ?? 20) : 20.00;
+        }
+
         $order = DB::transaction(function () use ($request, $user, $total, $distanceFee, $calc, $extraNames, $packageName, $fromDistrict, $toDistrict) {
             $order = Order::create([
                 'order_number'    => 'MOV-' . strtoupper(Str::random(8)),
