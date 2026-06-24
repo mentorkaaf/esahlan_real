@@ -270,83 +270,97 @@ class _EmptyTab extends StatelessWidget {
   }
 }
 
-// ── Ad Card ─────────────────────────────────────────────────────────────────
-class _AdCard extends ConsumerWidget {
+// ── Ad Card with auto-play video ────────────────────────────────────────────
+class _AdCard extends ConsumerStatefulWidget {
   final CommunityPost post;
   const _AdCard({required this.post});
+  @override
+  ConsumerState<_AdCard> createState() => _AdCardState();
+}
+
+class _AdCardState extends ConsumerState<_AdCard> {
+  VideoPlayerController? _ctrl;
+  bool _ready = false;
+  final _visKey = UniqueKey();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: Colors.white,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Sponsored header
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-          child: Row(children: [
-            if (post.adPage?['avatar'] != null)
-              CircleNetImage(url: post.adPage!['avatar'], size: 36, fallbackText: post.adPage?['name'] ?? 'Ad')
-            else Container(width: 36, height: 36, decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
-              child: const Icon(Icons.campaign_rounded, color: kOrange, size: 18)),
-            const SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(post.adPage?['name'] ?? 'Sponsored', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1A1B2E))),
-              const Row(children: [
-                Icon(Icons.campaign_rounded, size: 12, color: kOrange),
-                SizedBox(width: 3),
-                Text('Sponsored', style: TextStyle(color: kOrange, fontSize: 11, fontWeight: FontWeight.w600)),
-              ]),
-            ])),
-          ]),
-        ),
-
-        // Title & description
-        if (post.adTitle != null)
-          Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-            child: Text(post.adTitle!, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E)))),
-        if (post.content != null && post.content!.isNotEmpty)
-          Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-            child: Text(post.content!, style: const TextStyle(color: Color(0xFF374151), fontSize: 14))),
-
-        // Media
-        if (post.adMediaUrl != null)
-          GestureDetector(
-            onTap: () {
-              _trackClick(ref);
-              if (post.adType == 'video' && post.adMediaUrl != null) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => _VideoPlayerScreen(url: post.adMediaUrl!)));
-              }
-            },
-            child: AspectRatio(aspectRatio: 16 / 9,
-              child: post.adType == 'video'
-                ? Stack(alignment: Alignment.center, children: [
-                    NetImage(url: post.adThumbnailUrl ?? post.adMediaUrl, fit: BoxFit.cover, width: double.infinity),
-                    Container(width: 56, height: 56, decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
-                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32)),
-                  ])
-                : NetImage(url: post.adMediaUrl, fit: BoxFit.cover, width: double.infinity)),
-          ),
-
-        // CTA button
-        if (post.adCtaText != null)
-          Padding(padding: const EdgeInsets.all(12),
-            child: SizedBox(width: double.infinity, child: ElevatedButton(
-              onPressed: () => _trackClick(ref),
-              style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(vertical: 12)),
-              child: Text(post.adCtaText!, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            )),
-          ),
-      ]),
-    );
+  void initState() {
+    super.initState();
+    if (widget.post.adType == 'video' && widget.post.adMediaUrl != null) _initVideo();
   }
 
-  void _trackClick(WidgetRef ref) {
-    if (post.id > 0) {
-      ref.read(communityRepoProvider).trackAdClick(post.id);
-    }
+  Future<void> _initVideo() async {
+    final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.post.adMediaUrl!));
+    try {
+      await ctrl.initialize();
+      ctrl.setLooping(true);
+      ctrl.setVolume(0);
+      if (mounted) setState(() { _ctrl = ctrl; _ready = true; });
+    } catch (_) { ctrl.dispose(); }
+  }
+
+  @override
+  void dispose() { _ctrl?.dispose(); super.dispose(); }
+
+  void _onVis(VisibilityInfo info) {
+    if (!_ready || _ctrl == null) return;
+    if (info.visibleFraction > 0.4) { if (!_ctrl!.value.isPlaying) _ctrl!.play(); }
+    else { if (_ctrl!.value.isPlaying) _ctrl!.pause(); }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.post;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8), color: Colors.white,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(padding: const EdgeInsets.fromLTRB(12, 12, 12, 8), child: Row(children: [
+          if (p.adPage?['avatar'] != null)
+            CircleNetImage(url: p.adPage!['avatar'], size: 36, fallbackText: p.adPage?['name'] ?? 'Ad')
+          else Container(width: 36, height: 36, decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
+            child: const Icon(Icons.campaign_rounded, color: kOrange, size: 18)),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(p.adPage?['name'] ?? 'Sponsored', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1A1B2E))),
+            const Row(children: [Icon(Icons.campaign_rounded, size: 12, color: kOrange), SizedBox(width: 3),
+              Text('Sponsored', style: TextStyle(color: kOrange, fontSize: 11, fontWeight: FontWeight.w600))]),
+          ])),
+        ])),
+        if (p.adTitle != null) Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+          child: Text(p.adTitle!, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E)))),
+        if (p.content != null && p.content!.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: Text(p.content!, style: const TextStyle(color: Color(0xFF374151), fontSize: 14))),
+
+        // Media — auto-play video or image
+        if (p.adMediaUrl != null)
+          p.adType == 'video'
+              ? VisibilityDetector(key: _visKey, onVisibilityChanged: _onVis,
+                  child: GestureDetector(
+                    onTap: () { ref.read(communityRepoProvider).trackAdClick(p.id);
+                      _ctrl?.setVolume(_ctrl!.value.volume > 0 ? 0 : 1); },
+                    child: AspectRatio(aspectRatio: _ready ? _ctrl!.value.aspectRatio.clamp(0.6, 2.0) : 16/9,
+                      child: Container(color: const Color(0xFF1A1B2E), child: _ready && _ctrl != null
+                          ? Stack(children: [
+                              VideoPlayer(_ctrl!),
+                              Positioned(top: 8, right: 8, child: Container(padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
+                                child: Icon(_ctrl!.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 16))),
+                            ])
+                          : Stack(alignment: Alignment.center, children: [
+                              if (p.adThumbnailUrl != null) NetImage(url: p.adThumbnailUrl, fit: BoxFit.cover, width: double.infinity),
+                              const CircularProgressIndicator(color: kOrange, strokeWidth: 2)])))))
+              : GestureDetector(
+                  onTap: () => ref.read(communityRepoProvider).trackAdClick(p.id),
+                  child: NetImage(url: p.adMediaUrl, fit: BoxFit.cover, width: double.infinity)),
+
+        if (p.adCtaText != null) Padding(padding: const EdgeInsets.all(12),
+          child: SizedBox(width: double.infinity, child: ElevatedButton(
+            onPressed: () => ref.read(communityRepoProvider).trackAdClick(p.id),
+            style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 12)),
+            child: Text(p.adCtaText!, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14))))),
+      ]),
+    );
   }
 }
 
@@ -848,8 +862,7 @@ class _MediaGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (media.length == 1) {
-      // height: 0 = auto-height so full image shows without cropping
-      return _MediaItem(m: media[0], height: media[0].type == 'video' ? 260 : 0);
+      return _MediaItem(m: media[0], height: 0);
     }
     if (media.length == 2) {
       return Row(children: media.map((m) => Expanded(child: _MediaItem(m: m, height: 200))).toList());
@@ -956,43 +969,61 @@ class _MediaItemState extends State<_MediaItem> {
       );
     }
 
+    final screenW = MediaQuery.of(context).size.width;
+    double videoH = widget.height > 0 ? widget.height : 300;
+    if (_ready && _ctrl != null) {
+      final ar = _ctrl!.value.aspectRatio;
+      videoH = (screenW / ar).clamp(200.0, screenW * 1.6);
+    }
+
     return VisibilityDetector(
       key: _key,
       onVisibilityChanged: _onVisibilityChanged,
       child: GestureDetector(
         onTap: _ready ? _togglePause : null,
+        onDoubleTap: _ready && _ctrl != null ? () {
+          _ctrl!.pause();
+          Navigator.push(context, MaterialPageRoute(builder: (_) => _VideoPlayerScreen(url: widget.m.url)));
+        } : null,
         child: Stack(
           children: [
             Container(
               color: const Color(0xFF1A1B2E),
-              constraints: BoxConstraints(minHeight: widget.height > 0 ? widget.height : 200, maxHeight: 400),
               width: double.infinity,
+              height: videoH,
               child: _ready && _ctrl != null
-                  ? AspectRatio(aspectRatio: _ctrl!.value.aspectRatio.clamp(0.5, 2.5), child: VideoPlayer(_ctrl!))
+                  ? FittedBox(fit: BoxFit.contain, child: SizedBox(
+                      width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))
                   : widget.m.thumbnail != null
                       ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.contain,
                           placeholder: Container(color: const Color(0xFF1A1B2E)),
                           errorWidget: Container(color: const Color(0xFF1A1B2E)))
-                      : const SizedBox(height: 200),
+                      : const SizedBox(),
             ),
-            if (!_ready || _paused)
-              Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(12),
-                decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-                child: Icon(_paused ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 36)))),
-            if (_ready && _ctrl != null) Positioned(bottom: 8, left: 8, right: 8,
-              child: Row(children: [
-                GestureDetector(onTap: _togglePause,
-                  child: Icon(_paused ? Icons.play_arrow_rounded : Icons.pause_rounded, color: Colors.white, size: 20)),
-                const SizedBox(width: 8),
-                Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(2),
-                  child: VideoProgressIndicator(_ctrl!, allowScrubbing: true, colors: const VideoProgressColors(
-                    playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12)))),
-                const SizedBox(width: 8),
-                Text(_formatDuration(_ctrl!.value.duration), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-                const SizedBox(width: 6),
-                GestureDetector(onTap: () { setState(() { _ctrl!.setVolume(_ctrl!.value.volume > 0 ? 0 : 1); }); },
-                  child: Icon(_ctrl!.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 18)),
-              ])),
+            if (!_ready)
+              Positioned.fill(child: Center(child: CircularProgressIndicator(color: kOrange.withValues(alpha: 0.7), strokeWidth: 2))),
+            if (_paused && _ready)
+              Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
+                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 40)))),
+            if (_ready && _ctrl != null) Positioned(bottom: 0, left: 0, right: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(10, 20, 10, 8),
+                decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)])),
+                child: Row(children: [
+                  GestureDetector(onTap: _togglePause,
+                    child: Icon(_paused ? Icons.play_arrow_rounded : Icons.pause_rounded, color: Colors.white, size: 22)),
+                  const SizedBox(width: 8),
+                  Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(2),
+                    child: VideoProgressIndicator(_ctrl!, allowScrubbing: true, colors: const VideoProgressColors(
+                      playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12)))),
+                  const SizedBox(width: 8),
+                  Text(_formatDuration(_ctrl!.value.duration), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 6),
+                  GestureDetector(onTap: () { setState(() { _ctrl!.setVolume(_ctrl!.value.volume > 0 ? 0 : 1); }); },
+                    child: Icon(_ctrl!.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 18)),
+                ]))),
           ],
         ),
       ),
@@ -1000,43 +1031,88 @@ class _MediaItemState extends State<_MediaItem> {
   }
 }
 
-class _VideoPlayerScreen extends StatefulWidget {
+class _VideoPlayerScreen extends ConsumerStatefulWidget {
   final String url;
   const _VideoPlayerScreen({required this.url});
-
   @override
-  State<_VideoPlayerScreen> createState() => _VideoPlayerScreenState();
+  ConsumerState<_VideoPlayerScreen> createState() => _VideoPlayerScreenState();
 }
 
-class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
+class _VideoPlayerScreenState extends ConsumerState<_VideoPlayerScreen> {
   late VideoPlayerController _ctrl;
+  VideoPlayerController? _adCtrl;
   bool _ready = false;
+  bool _showingAd = true;
+  int _adCountdown = 5;
+  bool _canSkip = false;
+  Map<String, dynamic>? _ad;
 
   @override
   void initState() {
     super.initState();
     _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
-      ..initialize().then((_) {
-        if (mounted) { setState(() => _ready = true); _ctrl.play(); }
-      }).catchError((_) {});
+      ..initialize().then((_) { if (mounted) setState(() => _ready = true); }).catchError((_) {});
+    _loadPrerollAd();
+  }
+
+  Future<void> _loadPrerollAd() async {
+    try {
+      final ads = await ref.read(communityRepoProvider).getAdPricing();
+      final feedAds = await ref.read(communityRepoProvider).getMyAds();
+      // Reuse feed ads endpoint logic — for now just skip ad if none available
+      setState(() { _showingAd = false; _ctrl.play(); });
+    } catch (_) {
+      setState(() { _showingAd = false; _ctrl.play(); });
+    }
+  }
+
+  void _skipAd() {
+    _adCtrl?.dispose();
+    setState(() { _showingAd = false; });
+    if (_ready) _ctrl.play();
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() { _ctrl.dispose(); _adCtrl?.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(backgroundColor: Colors.black, iconTheme: const IconThemeData(color: Colors.white)),
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, iconTheme: const IconThemeData(color: Colors.white)),
+      extendBodyBehindAppBar: true,
       body: Center(
         child: _ready
             ? GestureDetector(
                 onTap: () { _ctrl.value.isPlaying ? _ctrl.pause() : _ctrl.play(); setState(() {}); },
-                child: AspectRatio(aspectRatio: _ctrl.value.aspectRatio, child: VideoPlayer(_ctrl)),
+                child: Stack(children: [
+                  Center(child: AspectRatio(aspectRatio: _ctrl.value.aspectRatio, child: VideoPlayer(_ctrl))),
+                  Positioned(bottom: 0, left: 0, right: 0, child: Container(
+                    padding: const EdgeInsets.fromLTRB(12, 20, 12, 30),
+                    decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)])),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      VideoProgressIndicator(_ctrl, allowScrubbing: true, colors: const VideoProgressColors(
+                        playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12)),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        GestureDetector(onTap: () { _ctrl.value.isPlaying ? _ctrl.pause() : _ctrl.play(); setState(() {}); },
+                          child: Icon(_ctrl.value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 28)),
+                        const SizedBox(width: 12),
+                        ValueListenableBuilder(valueListenable: _ctrl, builder: (_, v, __) =>
+                          Text('${_fmtD(v.position)} / ${_fmtD(v.duration)}', style: const TextStyle(color: Colors.white70, fontSize: 12))),
+                        const Spacer(),
+                        GestureDetector(onTap: () { _ctrl.setVolume(_ctrl.value.volume > 0 ? 0 : 1); setState(() {}); },
+                          child: Icon(_ctrl.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 22)),
+                      ]),
+                    ]),
+                  )),
+                ]),
               )
-            : const CircularProgressIndicator(color: Colors.white),
+            : const CircularProgressIndicator(color: kOrange),
       ),
     );
   }
+
+  String _fmtD(Duration d) => '${d.inMinutes.toString().padLeft(2,'0')}:${(d.inSeconds%60).toString().padLeft(2,'0')}';
 }
