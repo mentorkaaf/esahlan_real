@@ -494,7 +494,7 @@
             </a>
             @endif
             @if($u->canManageModule('egrocery'))
-            <a href="{{ route('admin.module-data.grocery') }}" class="nav-link {{ request()->routeIs('admin.module-data.grocery*') ? 'active' : '' }}">
+            <a href="{{ route('admin.module-data.egrocery.index') }}" class="nav-link {{ request()->routeIs('admin.module-data.egrocery*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-carrot"></i></div> eGrocery
             </a>
             @endif

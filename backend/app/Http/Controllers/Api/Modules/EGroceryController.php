@@ -101,8 +101,16 @@ class EGroceryController extends Controller
             $lines[] = ['product_id' => $product->id, 'name' => $product->name, 'price' => $price, 'qty' => $item['quantity'], 'sub' => $sub];
         }
 
-        $deliveryFee = 1.50;
-        $grandTotal  = $total + $deliveryFee;
+        // Delivery fee from zone pricing (Hamarweyne → customer district)
+        $customerDistrictId = $request->input('district_id') ?? ($request->delivery_address['district_id'] ?? null);
+        $deliveryFee = \App\Helpers\DeliveryPricing::forShopOrLaundry($customerDistrictId ? (int)$customerDistrictId : null, 1.50);
+
+        // Commission
+        $module = DB::table('modules')->where('slug', 'egrocery')->first();
+        $commissionRate = ($module && $module->commission_value > 0) ? (float) $module->commission_value : 10;
+        $commissionAmount = round($total * $commissionRate / 100, 2);
+
+        $grandTotal = round($total + $deliveryFee, 2);
 
         if ($request->payment_method === 'wallet') {
             if (!$user->wallet || $user->wallet->balance < $grandTotal) {
@@ -110,7 +118,7 @@ class EGroceryController extends Controller
             }
         }
 
-        $order = DB::transaction(function () use ($request, $user, $total, $deliveryFee, $grandTotal, $lines) {
+        $order = DB::transaction(function () use ($request, $user, $total, $deliveryFee, $grandTotal, $commissionAmount, $lines) {
             $order = Order::create([
                 'order_number'    => 'GRC-' . strtoupper(Str::random(8)),
                 'user_id'         => $user->id,
@@ -121,6 +129,7 @@ class EGroceryController extends Controller
                 'delivery_address'=> $request->delivery_address,
                 'subtotal'        => $total,
                 'delivery_fee'    => $deliveryFee,
+                'commission'      => $commissionAmount,
                 'total_amount'    => $grandTotal,
                 'note'            => $request->note,
                 'placed_at'       => now(),

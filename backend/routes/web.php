@@ -420,10 +420,23 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::patch('/orders/{id}/status',        [$ef, 'orderUpdateStatus'])->name('order.status');
             });
 
-            // eShop / eWholesale / eGrocery
+            // eShop / eWholesale
             Route::get('/shop',                      [$ctrl, 'shopIndex'])->name('shop');
             Route::get('/wholesale',                 [$ctrl, 'wholesaleIndex'])->name('wholesale');
-            Route::get('/grocery',                   [$ctrl, 'groceryIndex'])->name('grocery');
+
+            // eGrocery — dedicated admin
+            Route::prefix('egrocery')->name('egrocery.')->group(function () {
+                $eg = \App\Http\Controllers\Admin\AdminEGroceryController::class;
+                Route::get('/',                         [$eg, 'index'])->name('index');
+                Route::post('/categories',              [$eg, 'categoryStore'])->name('category.store');
+                Route::match(['PATCH','POST'], '/categories/{id}', [$eg, 'categoryUpdate'])->name('category.update');
+                Route::delete('/categories/{id}',       [$eg, 'categoryDestroy'])->name('category.destroy');
+                Route::post('/products',                [$eg, 'productStore'])->name('product.store');
+                Route::match(['PATCH','POST'], '/products/{id}', [$eg, 'productUpdate'])->name('product.update');
+                Route::delete('/products/{id}',         [$eg, 'productDestroy'])->name('product.destroy');
+                Route::post('/products/{id}/toggle',    [$eg, 'productToggle'])->name('product.toggle');
+                Route::patch('/orders/{id}/status',     [$eg, 'orderUpdateStatus'])->name('order.status');
+            });
             Route::post('/products',                  [$ctrl, 'productStore'])->name('product.store');
             Route::patch('/products/{product}',       [$ctrl, 'productUpdate'])->name('product.update');
             Route::delete('/products/{product}',      [$ctrl, 'productDestroy'])->name('product.destroy');
