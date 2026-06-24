@@ -225,6 +225,7 @@ Route::prefix('v1')->group(function () {
     // eGrocery
     Route::get('egrocery/categories',                    [EGroceryController::class, 'categories']);
     Route::get('egrocery/products',                      [EGroceryController::class, 'products']);
+    Route::get('egrocery/products/{id}',                 [EGroceryController::class, 'productDetail']);
 
     // eTicket
     Route::get('eticket/airlines',                       [ETicketController::class, 'airlines']);

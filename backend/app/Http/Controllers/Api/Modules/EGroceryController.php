@@ -77,6 +77,51 @@ class EGroceryController extends Controller
         ]);
     }
 
+    // GET /egrocery/products/{id}
+    public function productDetail($id)
+    {
+        $p = DB::table('products')->find($id);
+        if (!$p) return response()->json(['success' => false, 'message' => 'Not found'], 404);
+
+        $cat = $p->category_id ? DB::table('categories')->find($p->category_id) : null;
+
+        $images = array_filter([
+            $this->resolveImg($p->thumbnail),
+            $this->resolveImg($p->image),
+        ]);
+
+        $reviews = collect();
+        try {
+            $reviews = DB::table('product_reviews')
+                ->where('product_id', $id)
+                ->join('users', 'product_reviews.user_id', '=', 'users.id')
+                ->select('product_reviews.*', 'users.name as user_name')
+                ->orderByDesc('product_reviews.created_at')
+                ->limit(20)
+                ->get()
+                ->map(fn($r) => (array) $r);
+        } catch (\Throwable) {}
+
+        return response()->json(['success' => true, 'data' => [
+            'id'             => $p->id,
+            'name'           => $p->name,
+            'name_so'        => $p->name_so,
+            'description'    => $p->description,
+            'price'          => $p->price,
+            'sale_price'     => $p->sale_price,
+            'images'         => array_values($images),
+            'category_name'  => $cat?->name,
+            'unit'           => $p->unit,
+            'weight'         => $p->weight,
+            'stock_quantity'  => $p->stock_quantity,
+            'is_available'   => (bool) $p->is_available,
+            'is_featured'    => (bool) $p->is_featured,
+            'rating'         => (float) ($p->rating ?? 0),
+            'total_reviews'  => (int) ($p->total_reviews ?? 0),
+            'reviews'        => $reviews,
+        ]]);
+    }
+
     // POST /egrocery/order (auth)
     public function createOrder(Request $request)
     {

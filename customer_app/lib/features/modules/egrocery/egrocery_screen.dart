@@ -200,7 +200,9 @@ class _ProductCard extends ConsumerWidget {
     final qty = ref.watch(_cartProvider.notifier).qtyOf(p['id']);
     final imgUrl = p['thumbnail'] ?? p['image'];
 
-    return Container(
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _ProductDetailPage(product: p))),
+      child: Container(
       decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -248,8 +250,285 @@ class _ProductCard extends ConsumerWidget {
           ]),
         ])),
       ]),
+    ));
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PRODUCT DETAIL PAGE
+// ══════════════════════════════════════════════════════════════════
+
+final _productDetailProvider = FutureProvider.family<dynamic, int>((_, id) => _svc.getGroceryProductDetail(id));
+
+class _ProductDetailPage extends ConsumerStatefulWidget {
+  final Map<String, dynamic> product;
+  const _ProductDetailPage({required this.product});
+  @override
+  ConsumerState<_ProductDetailPage> createState() => _ProductDetailPageState();
+}
+
+class _ProductDetailPageState extends ConsumerState<_ProductDetailPage> {
+  int _qty = 1;
+  int _imgIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = ref.read(_cartProvider.notifier).qtyOf(widget.product['id']);
+    if (existing > 0) _qty = existing;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.product;
+    final detail = ref.watch(_productDetailProvider(p['id']));
+    final cartQty = ref.watch(_cartProvider.notifier).qtyOf(p['id']);
+
+    final price = _toDouble(p['price']);
+    final salePrice = _toDouble(p['sale_price']);
+    final effectivePrice = salePrice > 0 ? salePrice : price;
+    final hasDiscount = salePrice > 0 && salePrice < price;
+    final discountPct = hasDiscount ? ((1 - salePrice / price) * 100).toInt() : 0;
+
+    return Scaffold(
+      body: detail.when(
+        loading: () => _buildBody(context, p, [], null, price, effectivePrice, hasDiscount, discountPct, true),
+        error: (_, __) => _buildBody(context, p, [], null, price, effectivePrice, hasDiscount, discountPct, false),
+        data: (res) {
+          final d = res['data'] as Map<String, dynamic>? ?? {};
+          final images = (d['images'] as List?)?.cast<String>() ?? [];
+          return _buildBody(context, {...p, ...d}, images, d, price, effectivePrice, hasDiscount, discountPct, false);
+        },
+      ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        decoration: BoxDecoration(color: context.colors.cardBg,
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, -3))]),
+        child: Row(children: [
+          // Qty selector
+          Container(
+            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(icon: const Icon(Icons.remove_rounded, size: 18), onPressed: _qty > 1 ? () => setState(() => _qty--) : null,
+                color: AppColors.primary, padding: const EdgeInsets.all(8), constraints: const BoxConstraints(minWidth: 36, minHeight: 36)),
+              SizedBox(width: 32, child: Text('$_qty', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: context.colors.navyText))),
+              IconButton(icon: const Icon(Icons.add_rounded, size: 18), onPressed: () => setState(() => _qty++),
+                color: AppColors.primary, padding: const EdgeInsets.all(8), constraints: const BoxConstraints(minWidth: 36, minHeight: 36)),
+            ]),
+          ),
+          const SizedBox(width: 12),
+          // Add to cart
+          Expanded(child: AppButton(
+            label: cartQty > 0 ? 'Update Cart • \$${(effectivePrice * _qty).toStringAsFixed(2)}' : 'Add to Cart • \$${(effectivePrice * _qty).toStringAsFixed(2)}',
+            onPressed: () {
+              final notifier = ref.read(_cartProvider.notifier);
+              final existing = notifier.qtyOf(p['id']);
+              if (existing == 0) {
+                notifier.add(p);
+                for (var i = 1; i < _qty; i++) notifier.increment(p['id']);
+              } else {
+                while (notifier.qtyOf(p['id']) < _qty) notifier.increment(p['id']);
+                while (notifier.qtyOf(p['id']) > _qty) notifier.decrement(p['id']);
+              }
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(cartQty > 0 ? 'Cart updated!' : 'Added to cart!'), backgroundColor: AppColors.success,
+                behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)));
+            },
+          )),
+          const SizedBox(width: 8),
+          // Buy now
+          SizedBox(width: 52, height: 48, child: Material(
+            color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12),
+            child: InkWell(borderRadius: BorderRadius.circular(12), onTap: () {
+              final notifier = ref.read(_cartProvider.notifier);
+              if (notifier.qtyOf(p['id']) == 0) {
+                notifier.add(p);
+                for (var i = 1; i < _qty; i++) notifier.increment(p['id']);
+              }
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const _CheckoutPage()));
+            }, child: const Icon(Icons.flash_on_rounded, color: AppColors.primary, size: 22)),
+          )),
+        ]),
+      ),
     );
   }
+
+  Widget _buildBody(BuildContext context, Map<String, dynamic> p, List<String> images, Map<String, dynamic>? detail,
+      double price, double effectivePrice, bool hasDiscount, int discountPct, bool loading) {
+    final imgUrl = p['thumbnail'] ?? p['image'];
+    final allImages = images.isNotEmpty ? images : (imgUrl != null ? [imgUrl as String] : <String>[]);
+    final stock = detail?['stock_quantity'] as int? ?? (p['stock_quantity'] as int? ?? -1);
+    final isAvailable = detail?['is_available'] ?? true;
+    final rating = _toDouble(detail?['rating'] ?? p['rating']);
+    final totalReviews = (detail?['total_reviews'] as int?) ?? 0;
+    final description = detail?['description'] as String? ?? '';
+    final weight = detail?['weight'] as String? ?? '';
+    final unit = p['unit'] as String? ?? 'piece';
+    final category = detail?['category_name'] ?? p['category_name'];
+    final reviews = (detail?['reviews'] as List?) ?? [];
+
+    return CustomScrollView(slivers: [
+      // Image gallery
+      SliverAppBar(
+        expandedHeight: 320, pinned: true,
+        leading: GestureDetector(onTap: () => Navigator.pop(context),
+          child: Container(margin: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.3), shape: BoxShape.circle),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18))),
+        actions: [
+          Container(margin: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.3), shape: BoxShape.circle),
+            child: IconButton(icon: const Icon(Icons.share_rounded, color: Colors.white, size: 18), onPressed: () {})),
+        ],
+        flexibleSpace: FlexibleSpaceBar(
+          background: Stack(children: [
+            if (allImages.isNotEmpty)
+              PageView.builder(
+                itemCount: allImages.length, onPageChanged: (i) => setState(() => _imgIndex = i),
+                itemBuilder: (_, i) => NetImage(url: allImages[i], fit: BoxFit.cover, width: double.infinity),
+              )
+            else Container(color: AppColors.surface, child: const Center(child: Icon(Icons.local_grocery_store_outlined, size: 64, color: AppColors.divider))),
+            // Discount badge
+            if (hasDiscount) Positioned(top: 100, left: 16, child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: AppColors.error, borderRadius: BorderRadius.circular(8)),
+              child: Text('-$discountPct%', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900)),
+            )),
+            // Page dots
+            if (allImages.length > 1) Positioned(bottom: 16, left: 0, right: 0, child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(allImages.length, (i) => AnimatedContainer(
+                duration: const Duration(milliseconds: 200), margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: _imgIndex == i ? 24 : 8, height: 8,
+                decoration: BoxDecoration(color: _imgIndex == i ? AppColors.primary : Colors.white.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(4)),
+              )),
+            )),
+          ]),
+        ),
+      ),
+
+      SliverToBoxAdapter(child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Category
+          if (category != null) Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+            child: Text(category, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary)),
+          ),
+
+          // Name
+          Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: context.colors.navyText, height: 1.2)),
+          const SizedBox(height: 10),
+
+          // Price row
+          Row(children: [
+            Text('\$${effectivePrice.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 26, color: AppColors.primary)),
+            if (hasDiscount) ...[
+              const SizedBox(width: 10),
+              Text('\$${price.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, color: AppColors.textGrey, decoration: TextDecoration.lineThrough, fontWeight: FontWeight.w600)),
+            ],
+            const Spacer(),
+            // Stock status
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: isAvailable == true && stock != 0
+                    ? AppColors.success.withValues(alpha: 0.1) : AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(isAvailable == true && stock != 0 ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                  size: 14, color: isAvailable == true && stock != 0 ? AppColors.success : AppColors.error),
+                const SizedBox(width: 4),
+                Text(isAvailable != true ? 'Unavailable' : stock == 0 ? 'Out of Stock' : stock > 0 ? 'In Stock ($stock)' : 'In Stock',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                    color: isAvailable == true && stock != 0 ? AppColors.success : AppColors.error)),
+              ]),
+            ),
+          ]),
+          const SizedBox(height: 16),
+
+          // Rating
+          if (rating > 0 || totalReviews > 0) ...[
+            Row(children: [
+              ...List.generate(5, (i) => Icon(
+                i < rating.round() ? Icons.star_rounded : Icons.star_outline_rounded,
+                size: 20, color: i < rating.round() ? Colors.amber : AppColors.divider)),
+              const SizedBox(width: 8),
+              Text('${rating.toStringAsFixed(1)} ($totalReviews reviews)',
+                style: const TextStyle(fontSize: 13, color: AppColors.textGrey, fontWeight: FontWeight.w600)),
+            ]),
+            const SizedBox(height: 16),
+          ],
+
+          // Info chips
+          Wrap(spacing: 10, runSpacing: 8, children: [
+            if (unit.isNotEmpty) _infoChip(Icons.straighten_rounded, 'Unit', unit),
+            if (weight.isNotEmpty) _infoChip(Icons.fitness_center_rounded, 'Weight', weight),
+            if (p['is_featured'] == true || p['is_featured'] == 1) _infoChip(Icons.star_rounded, 'Featured', 'Yes'),
+          ]),
+
+          // Description
+          if (description.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text('Description', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+            const SizedBox(height: 8),
+            Text(description, style: TextStyle(fontSize: 14, color: context.colors.navyText.withValues(alpha: 0.7), height: 1.5)),
+          ],
+
+          // Reviews
+          if (reviews.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Text('Reviews', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+            const SizedBox(height: 12),
+            ...reviews.map((r) {
+              final rv = r as Map<String, dynamic>;
+              final rRating = _toDouble(rv['rating']);
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    CircleAvatar(radius: 16, backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                      child: Text((rv['user_name'] as String? ?? '?')[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.primary))),
+                    const SizedBox(width: 10),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(rv['user_name'] ?? 'Customer', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
+                      Row(children: List.generate(5, (i) => Icon(i < rRating.round() ? Icons.star_rounded : Icons.star_outline_rounded, size: 12, color: Colors.amber))),
+                    ])),
+                  ]),
+                  if (rv['comment'] != null && (rv['comment'] as String).isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(rv['comment'], style: TextStyle(fontSize: 13, color: context.colors.navyText.withValues(alpha: 0.7))),
+                  ],
+                ]),
+              );
+            }),
+          ],
+
+          if (loading) ...[
+            const SizedBox(height: 20),
+            const Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2)),
+          ],
+
+          const SizedBox(height: 40),
+        ]),
+      )),
+    ]);
+  }
+
+  Widget _infoChip(IconData icon, String label, String value) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10)),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 16, color: AppColors.primary),
+      const SizedBox(width: 6),
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(fontSize: 9, color: AppColors.textGrey, fontWeight: FontWeight.w600)),
+        Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.colors.navyText)),
+      ]),
+    ]),
+  );
 }
 
 // ══════════════════════════════════════════════════════════════════

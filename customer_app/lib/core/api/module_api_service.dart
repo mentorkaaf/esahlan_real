@@ -203,6 +203,7 @@ class ModuleApiService {
         if (search != null) 'search': search,
         if (featured == true) 'featured': 1,
       });
+  Future<dynamic> getGroceryProductDetail(int id) => _get('/egrocery/products/$id');
   Future<dynamic> placeGroceryOrder(Map<String, dynamic> data) => _post('/egrocery/order', data);
 
   // ═══════════════════════════════════════════════════════════════════
