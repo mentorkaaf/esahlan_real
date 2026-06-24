@@ -26,12 +26,15 @@ final _districtsProvider = FutureProvider<List<DistrictModel>>((_) => DistrictRe
 // CART STATE
 // ══════════════════════════════════════════════════════════════════
 
+double _toDouble(dynamic v) => v == null ? 0 : (v is num ? v.toDouble() : double.tryParse('$v') ?? 0);
+double _effectivePrice(Map<String, dynamic> p) { final s = _toDouble(p['sale_price']); return s > 0 ? s : _toDouble(p['price']); }
+
 class _CartItem {
   final Map<String, dynamic> product;
   int qty;
   _CartItem(this.product, [this.qty = 1]);
-  double get lineTotal => ((product['sale_price'] as num?) ?? (product['price'] as num? ?? 0)).toDouble() * qty;
-  double get unitPrice => ((product['sale_price'] as num?) ?? (product['price'] as num? ?? 0)).toDouble();
+  double get lineTotal => _effectivePrice(product) * qty;
+  double get unitPrice => _effectivePrice(product);
 }
 
 class _CartNotifier extends StateNotifier<List<_CartItem>> {
@@ -190,10 +193,10 @@ class _ProductCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = product;
-    final price = (p['price'] as num?)?.toDouble() ?? 0;
-    final salePrice = (p['sale_price'] as num?)?.toDouble();
-    final effectivePrice = salePrice ?? price;
-    final hasDiscount = salePrice != null && salePrice < price;
+    final price = _toDouble(p['price']);
+    final salePrice = _toDouble(p['sale_price']);
+    final effectivePrice = salePrice > 0 ? salePrice : price;
+    final hasDiscount = salePrice > 0 && salePrice < price;
     final qty = ref.watch(_cartProvider.notifier).qtyOf(p['id']);
     final imgUrl = p['thumbnail'] ?? p['image'];
 
@@ -212,7 +215,7 @@ class _ProductCard extends ConsumerWidget {
             decoration: BoxDecoration(color: AppColors.error, borderRadius: BorderRadius.circular(6)),
             child: Text('-${((1 - salePrice / price) * 100).toInt()}%', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
           )),
-          if (p['is_featured'] == true) Positioned(top: 8, right: 8, child: Container(
+          if (p['is_featured'] == true || p['is_featured'] == 1) Positioned(top: 8, right: 8, child: Container(
             padding: const EdgeInsets.all(4), decoration: BoxDecoration(color: Colors.amber.withValues(alpha: 0.9), shape: BoxShape.circle),
             child: const Icon(Icons.star_rounded, size: 12, color: Colors.white),
           )),
