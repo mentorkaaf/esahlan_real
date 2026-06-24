@@ -48,8 +48,10 @@ class EGroceryController extends Controller
                 'categories.name as category_name',
             ])
             ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
-            ->join('vendors', 'products.vendor_id', '=', 'vendors.id')
-            ->where('vendors.status', 'active');
+            ->leftJoin('vendors', 'products.vendor_id', '=', 'vendors.id')
+            ->where(function ($q) {
+                $q->whereNull('products.vendor_id')->orWhere('vendors.status', 'active');
+            });
 
         if ($request->filled('category_id')) {
             $query->where('products.category_id', $request->category_id);
