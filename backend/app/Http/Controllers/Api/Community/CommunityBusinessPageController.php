@@ -128,8 +128,7 @@ class CommunityBusinessPageController extends Controller
         $userId = auth()->id();
 
         $posts = \App\Models\CommunityPost::with(['user.communityProfile', 'media', 'userReaction'])
-            ->where('user_id', $page->user_id)
-            ->whereNull('group_id')
+            ->where('page_id', $page->id)
             ->where('privacy', '!=', 'private')
             ->latest()
             ->paginate(15);

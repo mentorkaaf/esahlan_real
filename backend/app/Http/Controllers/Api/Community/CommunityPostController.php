@@ -26,6 +26,7 @@ class CommunityPostController extends Controller
             'location' => 'nullable|string|max:255',
             'feeling' => 'nullable|string|max:100',
             'group_id' => 'nullable|exists:community_groups,id',
+            'page_id' => 'nullable|exists:community_business_pages,id',
             'poll_options' => 'nullable|array|min:2|max:6',
             'poll_options.*' => 'string|max:100',
             'media.*' => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mov|max:51200',
@@ -39,6 +40,7 @@ class CommunityPostController extends Controller
             'location' => $request->location,
             'feeling' => $request->feeling,
             'group_id' => $request->group_id,
+            'page_id' => $request->page_id,
             'poll_options' => $request->type === 'poll' ? array_map(fn($o) => ['text'=>$o,'votes'=>0], $request->poll_options ?? []) : null,
             'published_at' => now(),
         ]);

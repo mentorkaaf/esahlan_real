@@ -68,10 +68,9 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
 
   Future<void> _submit() async {
     if (_titleCtrl.text.trim().isEmpty) { _snack('Enter ad title'); return; }
-    if (_mediaFile == null) { _snack('Select media'); return; }
+    if (_mediaFile == null) { _snack('Select media file'); return; }
     final budget = double.tryParse(_budgetCtrl.text) ?? 0;
-    final minBudget = (_matchedPricing?['min_budget'] as num?)?.toDouble() ?? 5.0;
-    if (budget < minBudget) { _snack('Minimum budget is \$$minBudget'); return; }
+    if (budget < 1) { _snack('Minimum budget is \$1'); return; }
 
     if (_payment == 'wallet') {
       final pinOk = await showWalletPinDialog(context);
@@ -81,17 +80,22 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
     setState(() => _creating = true);
     try {
       final bytes = await _mediaFile!.readAsBytes();
+      final ext = _mediaFile!.name.split('.').last.toLowerCase();
+      final mime = _adType == 'video'
+          ? (ext == 'mp4' ? 'video/mp4' : 'video/$ext')
+          : (ext == 'png' ? 'image/png' : 'image/jpeg');
+
       final form = FormData.fromMap({
         'page_id': widget.pageId,
         'title': _titleCtrl.text.trim(),
-        'description': _descCtrl.text.trim(),
+        if (_descCtrl.text.trim().isNotEmpty) 'description': _descCtrl.text.trim(),
         'ad_type': _adType,
         'placement': _placement,
         'budget': budget,
         'payment_method': _payment,
-        'cta_text': _ctaTextCtrl.text.trim(),
-        'cta_url': _ctaUrlCtrl.text.trim(),
-        'media': MultipartFile.fromBytes(bytes, filename: _mediaFile!.name),
+        if (_ctaTextCtrl.text.trim().isNotEmpty) 'cta_text': _ctaTextCtrl.text.trim(),
+        if (_ctaUrlCtrl.text.trim().isNotEmpty) 'cta_url': _ctaUrlCtrl.text.trim(),
+        'media': MultipartFile.fromBytes(bytes, filename: 'ad_media.$ext', contentType: DioMediaType.parse(mime)),
       });
       await ref.read(communityRepoProvider).createAd(form);
       if (_payment == 'wallet') ref.invalidate(walletProvider);
@@ -100,7 +104,7 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
-      _snack('$e');
+      _snack('Error: $e');
     } finally { if (mounted) setState(() => _creating = false); }
   }
 

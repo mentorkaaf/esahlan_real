@@ -180,6 +180,8 @@ class CommunityFeedController extends Controller
             'user_reaction' => $post->userReaction?->type,
             'is_saved' => \App\Models\CommunitySavedPost::where('user_id',$userId)->where('post_id',$post->id)->exists(),
             'shared_post' => $post->shared_post_id ? ['id'=>$post->sharedPost?->id,'content'=>$post->sharedPost?->content] : null,
+            'page_id' => $post->page_id,
+            'page' => $post->page_id ? ['id'=>$post->page?->id,'name'=>$post->page?->name,'avatar'=>cdn_url($post->page?->avatar)] : null,
         ];
     }
 

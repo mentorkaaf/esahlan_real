@@ -181,36 +181,33 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
             child: Container(
               color: Colors.white,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // Avatar + action row
+                // Avatar row — avatar sits fully below cover
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Transform.translate(
-                      offset: const Offset(0, -44),
-                      child: GestureDetector(
-                        onTap: widget.isMe ? _pickAvatar : null,
-                        child: Stack(clipBehavior: Clip.none, children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 4),
-                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2))],
-                            ),
-                            child: CircleNetImage(
-                              url: _localAvatar ?? u.avatar,
-                              size: 92,
-                              fallbackText: u.name,
-                            ),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                  child: Row(children: [
+                    GestureDetector(
+                      onTap: widget.isMe ? _pickAvatar : null,
+                      child: Stack(clipBehavior: Clip.none, children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 3),
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 6)],
                           ),
-                          if (widget.isMe)
-                            Positioned(bottom: 2, right: 2,
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2)),
-                                child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 14))),
-                        ]),
-                      ),
+                          child: CircleNetImage(
+                            url: _localAvatar ?? u.avatar,
+                            size: 80,
+                            fallbackText: u.name,
+                          ),
+                        ),
+                        if (widget.isMe)
+                          Positioned(bottom: 0, right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2)),
+                              child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 12))),
+                      ]),
                     ),
                     const Spacer(),
                     if (widget.isMe)
