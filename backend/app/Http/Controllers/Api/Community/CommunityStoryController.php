@@ -18,6 +18,13 @@ class CommunityStoryController extends Controller
             'media' => 'nullable|file|mimes:jpg,jpeg,png,mp4,mov|max:51200',
         ]);
 
+        // Content moderation
+        $mediaFiles = $request->hasFile('media') ? [$request->file('media')] : [];
+        $modResult = \App\Services\ContentModerationService::moderatePost($request->text_content, $mediaFiles);
+        if ($modResult['action'] === 'block') {
+            return response()->json(['status' => 'error', 'message' => 'Content blocked: ' . $modResult['reason']], 422);
+        }
+
         $mediaUrl = null;
         if ($request->hasFile('media')) {
             $path = $request->file('media')->store('community/stories','public');

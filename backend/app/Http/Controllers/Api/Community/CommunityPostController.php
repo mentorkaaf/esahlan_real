@@ -32,18 +32,49 @@ class CommunityPostController extends Controller
             'media.*' => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mov|max:51200',
         ]);
 
+        // ── Content Moderation ──────────────────────────────────────
+        $moderation = \App\Services\ContentModerationService::moderatePost(
+            $request->content,
+            $request->hasFile('media') ? $request->file('media') : []
+        );
+
+        if ($moderation['action'] === 'block') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Your post was blocked: ' . $moderation['reason'],
+                'moderation' => 'blocked',
+            ], 422);
+        }
+
+        $needsReview = $moderation['action'] === 'review';
+
         $post = CommunityPost::create([
             'user_id' => auth()->id(),
             'type' => $request->type,
             'content' => $request->content,
-            'privacy' => $request->privacy ?? 'public',
+            'privacy' => $needsReview ? 'private' : ($request->privacy ?? 'public'),
             'location' => $request->location,
             'feeling' => $request->feeling,
             'group_id' => $request->group_id,
             'page_id' => $request->page_id,
             'poll_options' => $request->type === 'poll' ? array_map(fn($o) => ['text'=>$o,'votes'=>0], $request->poll_options ?? []) : null,
             'published_at' => now(),
+            'is_pinned' => false,
         ]);
+
+        // Flag for review
+        if ($needsReview) {
+            \DB::table('community_reports')->insert([
+                'reportable_type' => 'App\\Models\\CommunityPost',
+                'reportable_id' => $post->id,
+                'reporter_id' => auth()->id(),
+                'reason' => 'auto_moderation',
+                'description' => 'Auto-flagged: ' . $moderation['reason'] . ' (score: ' . $moderation['score'] . ')',
+                'status' => 'pending',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         // Handle media uploads
         if ($request->hasFile('media')) {
