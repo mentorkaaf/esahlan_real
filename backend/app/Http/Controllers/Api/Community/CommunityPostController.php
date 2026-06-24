@@ -52,7 +52,7 @@ class CommunityPostController extends Controller
             'user_id' => auth()->id(),
             'type' => $request->type,
             'content' => $request->content,
-            'privacy' => $needsReview ? 'private' : ($request->privacy ?? 'public'),
+            'privacy' => $request->privacy ?? 'public',
             'location' => $request->location,
             'feeling' => $request->feeling,
             'group_id' => $request->group_id,

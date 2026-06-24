@@ -548,6 +548,9 @@
             <a href="{{ route('admin.community.users') }}" class="nav-link {{ request()->routeIs('admin.community.users') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-user-shield"></i></div> Users
             </a>
+            <a href="{{ route('admin.community.moderation') }}" class="nav-link {{ request()->routeIs('admin.community.moderation*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-shield-alt"></i></div> Moderation
+            </a>
             <a href="{{ route('admin.community-ads.index') }}" class="nav-link {{ request()->routeIs('admin.community-ads.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-bullhorn"></i></div> Ads & Pages
             </a>

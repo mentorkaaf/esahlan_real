@@ -293,6 +293,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('/groups/{id}', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'deleteGroup'])->name('groups.delete');
             Route::get('/users', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'users'])->name('users');
             Route::post('/users/{id}/verify', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'toggleVerify'])->name('users.verify');
+            Route::get('/moderation', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'moderation'])->name('moderation');
+            Route::post('/moderation', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'updateModeration'])->name('moderation.update');
+            Route::post('/moderation/{id}/approve', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'approvePost'])->name('moderation.approve');
+            Route::post('/moderation/{id}/reject', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'rejectPost'])->name('moderation.reject');
         });
         // Community Ads & Business Pages
         Route::prefix('community-ads')->name('community-ads.')->group(function () {

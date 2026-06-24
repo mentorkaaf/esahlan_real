@@ -157,4 +157,59 @@ class AdminCommunityController extends Controller
 
         return back()->with('success', $profile->is_verified ? 'User verified.' : 'Verification removed.');
     }
+
+    // ── Content Moderation ────────────────────────────────────────────────────
+
+    public function moderation()
+    {
+        $settings = \App\Services\ContentModerationService::getSettings();
+        $keywords = implode(', ', \App\Services\ContentModerationService::getBlockedKeywords());
+        $flaggedPosts = CommunityReport::with(['reportable', 'reporter'])
+            ->where('reason', 'auto_moderation')
+            ->where('status', 'pending')
+            ->latest()
+            ->paginate(20);
+
+        return view('admin.community.moderation', compact('settings', 'keywords', 'flaggedPosts'));
+    }
+
+    public function updateModeration(Request $request)
+    {
+        $settings = [
+            'enabled'          => $request->boolean('enabled'),
+            'keyword_filter'   => $request->boolean('keyword_filter'),
+            'image_scan'       => $request->boolean('image_scan'),
+            'auto_block'       => $request->boolean('auto_block'),
+            'review_all_media' => $request->boolean('review_all_media'),
+            'block_threshold'  => (float) ($request->block_threshold ?? 0.85),
+            'review_threshold' => (float) ($request->review_threshold ?? 0.60),
+        ];
+        \App\Services\ContentModerationService::saveSettings($settings);
+
+        if ($request->has('keywords')) {
+            \App\Services\ContentModerationService::saveBlockedKeywords($request->keywords);
+        }
+
+        return back()->with('success', 'Moderation settings updated.');
+    }
+
+    public function approvePost($id)
+    {
+        $report = CommunityReport::findOrFail($id);
+        $report->update(['status' => 'resolved', 'reviewed_at' => now()]);
+        if ($report->reportable) {
+            $report->reportable->update(['privacy' => 'public']);
+        }
+        return back()->with('success', 'Post approved.');
+    }
+
+    public function rejectPost($id)
+    {
+        $report = CommunityReport::findOrFail($id);
+        $report->update(['status' => 'resolved', 'reviewed_at' => now()]);
+        if ($report->reportable) {
+            $report->reportable->delete();
+        }
+        return back()->with('success', 'Post removed.');
+    }
 }

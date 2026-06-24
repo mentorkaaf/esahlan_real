@@ -2,228 +2,147 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ContentModerationService
 {
-    // NSFW detection thresholds (0.0 - 1.0)
-    const BLOCK_THRESHOLD = 0.70;   // Auto-block if score >= 70%
-    const REVIEW_THRESHOLD = 0.40;  // Hold for review if score >= 40%
-
-    // Blocked keywords in multiple languages
-    private static array $blockedKeywords = [
-        // English
+    private static array $defaultKeywords = [
         'porn', 'xxx', 'nude', 'naked', 'sex video', 'onlyfans', 'nsfw',
         'hentai', 'xvideos', 'pornhub', 'xhamster', 'brazzers',
-        // Somali
         'qaawan', 'siil', 'gus', 'wasakh', 'nijaas',
-        // Arabic
         'اباحي', 'عري', 'جنس',
     ];
 
-    /**
-     * Check if uploaded image is NSFW
-     * Returns: ['safe' => bool, 'score' => float, 'action' => 'allow'|'review'|'block', 'reason' => string]
-     */
-    public static function checkImage(string $filePath): array
+    public static function getSettings(): array
     {
-        try {
-            // Method 1: Use NsfwSpy PHP (local, no API needed)
-            $score = self::analyzeWithLocalCheck($filePath);
-
-            if ($score >= self::BLOCK_THRESHOLD) {
-                return ['safe' => false, 'score' => $score, 'action' => 'block', 'reason' => 'Explicit content detected'];
-            }
-            if ($score >= self::REVIEW_THRESHOLD) {
-                return ['safe' => false, 'score' => $score, 'action' => 'review', 'reason' => 'Content flagged for review'];
-            }
-            return ['safe' => true, 'score' => $score, 'action' => 'allow', 'reason' => 'Content is safe'];
-        } catch (\Throwable $e) {
-            Log::warning('Content moderation check failed: ' . $e->getMessage());
-            // If check fails, allow but flag for review
-            return ['safe' => true, 'score' => 0, 'action' => 'allow', 'reason' => 'Check failed, allowed by default'];
+        $row = DB::table('settings')->where('key', 'content_moderation')->first();
+        if ($row) {
+            return json_decode($row->value, true) ?? self::defaultSettings();
         }
+        return self::defaultSettings();
     }
 
-    /**
-     * Check video by analyzing its first frame/thumbnail
-     */
-    public static function checkVideo(string $filePath): array
+    public static function defaultSettings(): array
     {
-        // For video, we check the uploaded thumbnail or allow with review flag
-        // Full video scanning requires heavy processing not suitable for shared hosting
-        return ['safe' => true, 'score' => 0, 'action' => 'review', 'reason' => 'Video queued for manual review'];
+        return [
+            'enabled'             => true,
+            'keyword_filter'      => true,
+            'image_scan'          => false,   // Disabled by default — too aggressive
+            'auto_block'          => false,   // Don't auto-block, just flag for review
+            'review_all_media'    => false,   // Flag all media posts for review
+            'block_threshold'     => 0.85,
+            'review_threshold'    => 0.60,
+        ];
     }
 
-    /**
-     * Check text content for inappropriate keywords
-     */
-    public static function checkText(?string $text): array
+    public static function saveSettings(array $settings): void
     {
-        if (empty($text)) return ['safe' => true, 'score' => 0, 'action' => 'allow', 'reason' => 'Empty text'];
-
-        $lower = mb_strtolower($text);
-        foreach (self::$blockedKeywords as $keyword) {
-            if (str_contains($lower, mb_strtolower($keyword))) {
-                return [
-                    'safe' => false,
-                    'score' => 0.9,
-                    'action' => 'block',
-                    'reason' => "Blocked keyword detected",
-                    'keyword' => $keyword,
-                ];
-            }
-        }
-
-        return ['safe' => true, 'score' => 0, 'action' => 'allow', 'reason' => 'Text is safe'];
+        DB::table('settings')->updateOrInsert(
+            ['key' => 'content_moderation'],
+            ['value' => json_encode($settings), 'updated_at' => now()]
+        );
     }
 
-    /**
-     * Moderate a full post (text + media)
-     * Returns the strictest result across all checks
-     */
-    public static function moderatePost(?string $text, array $mediaFiles = []): array
-    {
-        $results = [];
-
-        // Check text
-        $textResult = self::checkText($text);
-        $results[] = $textResult;
-        if ($textResult['action'] === 'block') return $textResult;
-
-        // Check each media file
-        foreach ($mediaFiles as $file) {
-            if (!$file) continue;
-
-            $mime = is_object($file) ? $file->getMimeType() : mime_content_type($file);
-            $path = is_object($file) ? $file->getRealPath() : $file;
-
-            if (str_starts_with($mime, 'image/')) {
-                $result = self::checkImage($path);
-            } elseif (str_starts_with($mime, 'video/')) {
-                $result = self::checkVideo($path);
-            } else {
-                continue;
-            }
-
-            $results[] = $result;
-            if ($result['action'] === 'block') return $result;
-        }
-
-        // Return strictest result
-        $hasReview = collect($results)->contains('action', 'review');
-        if ($hasReview) {
-            return ['safe' => true, 'score' => 0.5, 'action' => 'review', 'reason' => 'Content queued for review'];
-        }
-
-        return ['safe' => true, 'score' => 0, 'action' => 'allow', 'reason' => 'All content is safe'];
-    }
-
-    /**
-     * Local skin-tone / nudity heuristic analysis
-     * Uses GD library to analyze pixel colors for skin-tone ratio
-     * Not as accurate as ML models but works without external API
-     */
-    private static function analyzeWithLocalCheck(string $filePath): float
-    {
-        if (!function_exists('imagecreatefromstring')) return 0;
-
-        $imageData = file_get_contents($filePath);
-        if (!$imageData) return 0;
-
-        $img = @imagecreatefromstring($imageData);
-        if (!$img) return 0;
-
-        $width = imagesx($img);
-        $height = imagesy($img);
-
-        // Sample pixels (don't check every pixel for performance)
-        $sampleSize = min(100, $width) * min(100, $height);
-        $stepX = max(1, (int)($width / 100));
-        $stepY = max(1, (int)($height / 100));
-
-        $skinPixels = 0;
-        $totalPixels = 0;
-
-        for ($x = 0; $x < $width; $x += $stepX) {
-            for ($y = 0; $y < $height; $y += $stepY) {
-                $rgb = imagecolorat($img, $x, $y);
-                $r = ($rgb >> 16) & 0xFF;
-                $g = ($rgb >> 8) & 0xFF;
-                $b = $rgb & 0xFF;
-
-                // Skin color detection using RGB thresholds
-                // Covers various skin tones
-                if (self::isSkinColor($r, $g, $b)) {
-                    $skinPixels++;
-                }
-                $totalPixels++;
-            }
-        }
-
-        imagedestroy($img);
-
-        if ($totalPixels === 0) return 0;
-
-        $skinRatio = $skinPixels / $totalPixels;
-
-        // High skin-tone ratio suggests nudity
-        // > 60% skin = likely NSFW, > 40% = suspicious
-        if ($skinRatio > 0.60) return 0.85;
-        if ($skinRatio > 0.45) return 0.55;
-        if ($skinRatio > 0.30) return 0.25;
-
-        return 0.05;
-    }
-
-    /**
-     * Check if a pixel color matches common skin tones
-     */
-    private static function isSkinColor(int $r, int $g, int $b): bool
-    {
-        // Rule 1: RGB range for skin detection
-        if ($r > 95 && $g > 40 && $b > 20
-            && $r > $g && $r > $b
-            && abs($r - $g) > 15
-            && $r - $b > 15) {
-            return true;
-        }
-
-        // Rule 2: YCbCr color space skin detection
-        $y = 0.299 * $r + 0.587 * $g + 0.114 * $b;
-        $cb = 128 - 0.169 * $r - 0.331 * $g + 0.500 * $b;
-        $cr = 128 + 0.500 * $r - 0.419 * $g - 0.081 * $b;
-
-        if ($y > 80 && $cb > 77 && $cb < 127 && $cr > 133 && $cr < 173) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Get admin-configurable blocked keywords
-     */
     public static function getBlockedKeywords(): array
     {
-        $custom = \DB::table('settings')->where('key', 'nsfw_blocked_keywords')->value('value');
-        $keywords = self::$blockedKeywords;
-        if ($custom) {
-            $keywords = array_merge($keywords, array_filter(explode(',', $custom)));
-        }
-        return $keywords;
+        $custom = DB::table('settings')->where('key', 'nsfw_blocked_keywords')->value('value');
+        if ($custom) return array_filter(array_map('trim', explode(',', $custom)));
+        return self::$defaultKeywords;
     }
 
-    /**
-     * Admin: update blocked keywords
-     */
-    public static function setBlockedKeywords(string $keywords): void
+    public static function saveBlockedKeywords(string $keywords): void
     {
-        \DB::table('settings')->updateOrInsert(
+        DB::table('settings')->updateOrInsert(
             ['key' => 'nsfw_blocked_keywords'],
             ['value' => $keywords, 'updated_at' => now()]
         );
+    }
+
+    /**
+     * Moderate a post — only keyword filtering by default
+     */
+    public static function moderatePost(?string $text, array $mediaFiles = []): array
+    {
+        $settings = self::getSettings();
+
+        if (!$settings['enabled']) {
+            return ['safe' => true, 'score' => 0, 'action' => 'allow', 'reason' => 'Moderation disabled'];
+        }
+
+        // Keyword check
+        if ($settings['keyword_filter'] && $text) {
+            $result = self::checkText($text);
+            if ($result['action'] === 'block') {
+                return $settings['auto_block'] ? $result : ['safe' => false, 'score' => $result['score'], 'action' => 'review', 'reason' => $result['reason']];
+            }
+        }
+
+        // Image scan (only if enabled by admin)
+        if ($settings['image_scan'] && !empty($mediaFiles)) {
+            foreach ($mediaFiles as $file) {
+                if (!$file) continue;
+                $mime = is_object($file) ? $file->getMimeType() : (function_exists('mime_content_type') ? mime_content_type($file) : '');
+                if (str_starts_with($mime, 'image/')) {
+                    $path = is_object($file) ? $file->getRealPath() : $file;
+                    $score = self::analyzeImage($path);
+                    if ($score >= $settings['block_threshold']) {
+                        return $settings['auto_block']
+                            ? ['safe' => false, 'score' => $score, 'action' => 'block', 'reason' => 'Explicit image detected']
+                            : ['safe' => false, 'score' => $score, 'action' => 'review', 'reason' => 'Image flagged for review'];
+                    }
+                    if ($score >= $settings['review_threshold']) {
+                        return ['safe' => false, 'score' => $score, 'action' => 'review', 'reason' => 'Image flagged for review'];
+                    }
+                }
+            }
+        }
+
+        // Flag all media for review if setting enabled
+        if ($settings['review_all_media'] && !empty($mediaFiles)) {
+            return ['safe' => true, 'score' => 0.3, 'action' => 'review', 'reason' => 'Media post queued for review'];
+        }
+
+        return ['safe' => true, 'score' => 0, 'action' => 'allow', 'reason' => 'Content is safe'];
+    }
+
+    public static function checkText(?string $text): array
+    {
+        if (empty($text)) return ['safe' => true, 'score' => 0, 'action' => 'allow', 'reason' => ''];
+        $lower = mb_strtolower($text);
+        foreach (self::getBlockedKeywords() as $kw) {
+            if (str_contains($lower, mb_strtolower(trim($kw)))) {
+                return ['safe' => false, 'score' => 0.9, 'action' => 'block', 'reason' => "Blocked keyword detected"];
+            }
+        }
+        return ['safe' => true, 'score' => 0, 'action' => 'allow', 'reason' => ''];
+    }
+
+    private static function analyzeImage(string $filePath): float
+    {
+        if (!function_exists('imagecreatefromstring')) return 0;
+        $data = @file_get_contents($filePath);
+        if (!$data) return 0;
+        $img = @imagecreatefromstring($data);
+        if (!$img) return 0;
+
+        $w = imagesx($img); $h = imagesy($img);
+        $stepX = max(1, (int)($w / 80)); $stepY = max(1, (int)($h / 80));
+        $skin = 0; $total = 0;
+
+        for ($x = 0; $x < $w; $x += $stepX) {
+            for ($y = 0; $y < $h; $y += $stepY) {
+                $rgb = imagecolorat($img, $x, $y);
+                $r = ($rgb >> 16) & 0xFF; $g = ($rgb >> 8) & 0xFF; $b = $rgb & 0xFF;
+                if ($r > 95 && $g > 40 && $b > 20 && $r > $g && $r > $b && abs($r - $g) > 15 && $r - $b > 15) $skin++;
+                $total++;
+            }
+        }
+        imagedestroy($img);
+        if ($total === 0) return 0;
+        $ratio = $skin / $total;
+        if ($ratio > 0.70) return 0.90;
+        if ($ratio > 0.55) return 0.65;
+        return 0.10;
     }
 }
