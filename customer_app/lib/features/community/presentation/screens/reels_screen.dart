@@ -9,7 +9,7 @@ import '../../../../features/modules/erent/erent_screen.dart';
 import '../providers/community_provider.dart';
 import '../widgets/comments_sheet.dart';
 import '../widgets/video_ad_overlay.dart';
-import '../services/video_preloader.dart';
+import '../services/video_controller_pool.dart';
 import 'community_shell.dart';
 
 // Unified reel item — either a community post or an eRent property reel
@@ -105,6 +105,14 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                 if (i >= combined.length - 3) {
                   ref.read(communityReelsProvider.notifier).load();
                 }
+                // Warmup next reel
+                if (i + 1 < combined.length) {
+                  final next = combined[i + 1];
+                  if (!next.isRent && next.communityPost != null) {
+                    final m = next.communityPost!.media.where((m) => m.type == 'video').firstOrNull;
+                    if (m != null) VideoControllerPool().warmup(m.url);
+                  }
+                }
               },
               itemBuilder: (_, i) {
                 final item = combined[i];
@@ -142,11 +150,13 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   VideoPlayerController? _videoCtrl;
   bool _videoReady = false;
   bool _muted = false;
-  bool _paused = false; // manual pause by user tap
+  bool _paused = false;
   bool _liked = false;
   bool _saved = false;
   bool _showHeart = false;
   int _likesCount = 0;
+  String? _videoUrl;
+  final _pool = VideoControllerPool();
 
   @override
   void initState() {
@@ -157,20 +167,18 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     _initVideo();
   }
 
-  void _initVideo() {
+  void _initVideo() async {
     final media = widget.reel.media.where((m) => m.type == 'video').firstOrNull ??
         (widget.reel.media.isNotEmpty ? widget.reel.media.first : null);
     if (media == null || media.type != 'video') return;
-
-    _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(media.url))
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() => _videoReady = true);
-          _videoCtrl!.setLooping(true);
-          _videoCtrl!.setVolume(_muted ? 0 : 1);
-          if (widget.isActive && !_paused) _videoCtrl!.play();
-        }
-      }).catchError((_) {});
+    _videoUrl = media.url;
+    try {
+      final ctrl = await _pool.acquire(media.url);
+      if (!mounted) return;
+      ctrl.setVolume(_muted ? 0 : 1);
+      setState(() { _videoCtrl = ctrl; _videoReady = true; });
+      if (widget.isActive && !_paused) ctrl.play();
+    } catch (_) {}
   }
 
   @override
@@ -186,7 +194,11 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   }
 
   @override
-  void dispose() { _videoCtrl?.dispose(); super.dispose(); }
+  void dispose() {
+    _videoCtrl?.pause();
+    if (_videoUrl != null) _pool.release(_videoUrl!);
+    super.dispose();
+  }
 
   void _togglePause() {
     if (_videoCtrl == null || !_videoReady) return;

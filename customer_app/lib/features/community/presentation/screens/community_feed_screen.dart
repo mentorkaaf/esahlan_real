@@ -15,8 +15,7 @@ import 'community_notifications_screen.dart';
 import 'create_post_screen.dart';
 import '../widgets/comments_sheet.dart';
 import '../widgets/video_ad_overlay.dart';
-import '../services/ad_preloader.dart';
-import '../services/video_preloader.dart';
+import '../services/video_controller_pool.dart';
 import 'business_page_detail_screen.dart';
 import 'community_search_screen.dart';
 
@@ -957,7 +956,9 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   bool _ready = false;
   bool _paused = false;
   bool _visible = false;
+  bool _loading = false;
   final _key = UniqueKey();
+  final _pool = VideoControllerPool();
 
   bool get _isVideo => widget.m.type == 'video';
 
@@ -965,28 +966,25 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (_isVideo) _initVideo();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_ctrl == null || !_ready) return;
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      _ctrl!.pause();
+      _pool.pauseAll();
     }
   }
 
   Future<void> _initVideo() async {
-    final url = widget.m.url;
-    if (url.isEmpty) return;
-    final ctrl = VideoPlayerController.networkUrl(Uri.parse(url));
+    if (_loading || _ready) return;
+    _loading = true;
     try {
-      await ctrl.initialize();
-      ctrl.setLooping(true);
-      ctrl.setVolume(1);
-      if (mounted) setState(() { _ctrl = ctrl; _ready = true; });
+      final ctrl = await _pool.acquire(widget.m.url);
+      if (!mounted) return;
+      setState(() { _ctrl = ctrl; _ready = true; _loading = false; });
+      if (_visible && !_paused) ctrl.play();
     } catch (_) {
-      ctrl.dispose();
+      _loading = false;
     }
   }
 
@@ -994,17 +992,17 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _ctrl?.pause();
-    _ctrl?.dispose();
+    _pool.release(widget.m.url);
     super.dispose();
   }
 
   void _onVisibilityChanged(VisibilityInfo info) {
-    if (!_ready || _ctrl == null) return;
     _visible = info.visibleFraction > 0.5;
     if (_visible) {
-      if (!_paused && !_ctrl!.value.isPlaying) _ctrl!.play();
+      if (!_ready && _isVideo && !_loading) _initVideo();
+      if (_ready && _ctrl != null && !_paused && !_ctrl!.value.isPlaying) _ctrl!.play();
     } else {
-      if (_ctrl!.value.isPlaying) _ctrl!.pause();
+      if (_ctrl != null && _ctrl!.value.isPlaying) _ctrl!.pause();
     }
   }
 
