@@ -172,13 +172,18 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         (widget.reel.media.isNotEmpty ? widget.reel.media.first : null);
     if (media == null || media.type != 'video') return;
     _videoUrl = media.url;
-    try {
-      final ctrl = await _pool.acquire(media.url);
-      if (!mounted) return;
-      ctrl.setVolume(_muted ? 0 : 1);
-      setState(() { _videoCtrl = ctrl; _videoReady = true; });
-      if (widget.isActive && !_paused) ctrl.play();
-    } catch (_) {}
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final ctrl = await _pool.acquire(media.url);
+        if (!mounted) return;
+        ctrl.setVolume(_muted ? 0 : 1);
+        setState(() { _videoCtrl = ctrl; _videoReady = true; });
+        if (widget.isActive && !_paused) ctrl.play();
+        return;
+      } catch (_) {
+        if (attempt == 0) await Future.delayed(const Duration(seconds: 1));
+      }
+    }
   }
 
   @override

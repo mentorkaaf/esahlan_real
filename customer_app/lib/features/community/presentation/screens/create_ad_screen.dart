@@ -123,7 +123,7 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
         if (_targetCity.isNotEmpty) 'target_city': _targetCity,
         if (_targetMinAge.isNotEmpty) 'target_min_age': int.tryParse(_targetMinAge),
         if (_targetMaxAge.isNotEmpty) 'target_max_age': int.tryParse(_targetMaxAge),
-        if (_targetInterests.isNotEmpty) 'target_interests': _targetInterests.toList(),
+        ...{ for (var i = 0; i < _targetInterests.length; i++) 'target_interests[$i]': _targetInterests.elementAt(i) },
         'media': MultipartFile.fromBytes(bytes, filename: 'ad_media.$ext', contentType: DioMediaType.parse(mime)),
         if (_thumbnailFile != null) 'thumbnail': MultipartFile.fromBytes(
           await _thumbnailFile!.readAsBytes(), filename: 'thumb.jpg', contentType: DioMediaType.parse('image/jpeg')),
