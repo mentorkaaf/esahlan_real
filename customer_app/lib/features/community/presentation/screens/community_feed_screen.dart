@@ -15,6 +15,7 @@ import 'community_notifications_screen.dart';
 import 'create_post_screen.dart';
 import '../widgets/comments_sheet.dart';
 import '../widgets/video_ad_overlay.dart';
+import '../services/ad_preloader.dart';
 import 'business_page_detail_screen.dart';
 import 'community_search_screen.dart';
 
@@ -34,6 +35,8 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 4, vsync: this);
+    // Preload ads silently in background
+    AdPreloader().preload();
     _scrollCtrl.addListener(() {
       if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 300) {
         ref.read(communityFeedProvider.notifier).load();
@@ -350,6 +353,16 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   void _initVideo() {
     if (_initStarted || widget.post.adType != 'video' || widget.post.adMediaUrl == null) return;
     _initStarted = true;
+
+    // Try preloaded ad first (instant)
+    final preloaded = AdPreloader().getNextFeedAd();
+    if (preloaded != null && preloaded.controller != null && preloaded.controller!.value.isInitialized) {
+      preloaded.controller!.play();
+      setState(() { _vCtrl = preloaded.controller; _videoReady = true; });
+      return;
+    }
+
+    // Fallback: load fresh
     final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.post.adMediaUrl!));
     ctrl.initialize().then((_) {
       if (!mounted) { ctrl.dispose(); return; }

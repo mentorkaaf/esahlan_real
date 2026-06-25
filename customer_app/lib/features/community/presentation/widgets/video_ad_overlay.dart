@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
+import '../services/ad_preloader.dart';
 import '../screens/community_shell.dart';
 
 class VideoAdOverlay extends ConsumerStatefulWidget {
@@ -49,6 +50,18 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
     if (_adTriggered) return;
     _adTriggered = true;
     try {
+      // Try preloaded ad first (instant, no loading)
+      final preloaded = AdPreloader().getOverlayAd();
+      if (preloaded != null && preloaded.controller != null && preloaded.controller!.value.isInitialized) {
+        widget.mainController.pause();
+        setState(() { _ad = preloaded.data; _adCtrl = preloaded.controller; _adReady = true; _showingAd = true; });
+        _adCtrl!.play();
+        _adCtrl!.addListener(_onAdEnd);
+        _runCountdown();
+        return;
+      }
+
+      // Fallback: load fresh
       final ad = await ref.read(communityRepoProvider).getPrerollAd();
       if (ad == null || ad['media_url'] == null || !mounted) return;
 
