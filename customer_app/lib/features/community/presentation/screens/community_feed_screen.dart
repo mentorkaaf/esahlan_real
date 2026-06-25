@@ -418,39 +418,17 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-  }
-
-  void _initVideo() {
-    if (_initStarted || widget.post.adType != 'video' || widget.post.adMediaUrl == null) return;
-    _initStarted = true;
-    _waitForPreload();
-  }
-
-  void _waitForPreload() async {
-    final url = widget.post.adMediaUrl!;
-    // Wait for preloaded controller — check every 200ms
-    for (var i = 0; i < 50; i++) {
-      if (!mounted) return;
-      final ctrl = VideoPreloader().get(url);
-      if (ctrl != null && ctrl.value.isInitialized) {
+    // Start loading video immediately on create
+    if (widget.post.adType == 'video' && widget.post.adMediaUrl != null) {
+      _initStarted = true;
+      final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.post.adMediaUrl!));
+      ctrl.initialize().then((_) {
+        if (!mounted) { ctrl.dispose(); return; }
         ctrl.setLooping(true);
         ctrl.setVolume(1);
-        ctrl.play();
-        if (mounted) setState(() { _vCtrl = ctrl; _videoReady = true; });
-        return;
-      }
-      await Future.delayed(const Duration(milliseconds: 200));
+        setState(() { _vCtrl = ctrl; _videoReady = true; });
+      }).catchError((_) { ctrl.dispose(); });
     }
-    // After 10s if still not ready, load directly (last resort)
-    if (!mounted) return;
-    final ctrl = VideoPlayerController.networkUrl(Uri.parse(url));
-    try {
-      await ctrl.initialize();
-      ctrl.setLooping(true);
-      ctrl.setVolume(1);
-      ctrl.play();
-      if (mounted) setState(() { _vCtrl = ctrl; _videoReady = true; });
-    } catch (_) { ctrl.dispose(); }
   }
 
   @override
@@ -468,11 +446,11 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
     return VisibilityDetector(
       key: ValueKey('ad_${p.id}'),
       onVisibilityChanged: (info) {
+        if (_vCtrl == null || !_videoReady) return;
         if (info.visibleFraction > 0.5) {
-          if (!_initStarted) _initVideo();
-          if (_vCtrl != null && _videoReady && !_vCtrl!.value.isPlaying) _vCtrl!.play();
+          if (!_vCtrl!.value.isPlaying) _vCtrl!.play();
         } else {
-          if (_vCtrl != null && _vCtrl!.value.isPlaying) _vCtrl!.pause();
+          if (_vCtrl!.value.isPlaying) _vCtrl!.pause();
         }
       },
       child: Container(
@@ -498,13 +476,13 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
           if (p.content != null && p.content!.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
             child: Text(p.content!, style: const TextStyle(color: Color(0xFF374151), fontSize: 13))),
 
-          // Media — no loading shown, video appears when ready
+          // Media
           if (p.adMediaUrl != null) GestureDetector(
             onTap: () { if (p.id > 0) ref.read(communityRepoProvider).trackAdClick(p.id); },
             child: p.adType == 'video'
-                ? (_videoReady && _vCtrl != null
-                    ? AspectRatio(aspectRatio: _vCtrl!.value.aspectRatio.clamp(0.5, 2.5), child: VideoPlayer(_vCtrl!))
-                    : const SizedBox.shrink())
+                ? AspectRatio(aspectRatio: _videoReady && _vCtrl != null ? _vCtrl!.value.aspectRatio.clamp(0.5, 2.0) : 16 / 9,
+                    child: Container(color: const Color(0xFF1A1B2E),
+                      child: _videoReady && _vCtrl != null ? VideoPlayer(_vCtrl!) : null))
                 : NetImage(url: p.adMediaUrl, fit: BoxFit.cover, width: double.infinity)),
 
           if (p.adCtaText != null) Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
