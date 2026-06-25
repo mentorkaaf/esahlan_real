@@ -57,9 +57,9 @@ class CommunityAdController extends Controller
             'target_gender'  => 'nullable|in:all,male,female',
             'target_country' => 'nullable|string',
             'target_city'    => 'nullable|string',
-            'target_min_age' => 'nullable|integer|min:13|max:100',
-            'target_max_age' => 'nullable|integer|min:13|max:100',
-            'target_interests'=> 'nullable|array',
+            'target_min_age' => 'nullable|numeric|min:1|max:100',
+            'target_max_age' => 'nullable|numeric|min:1|max:100',
+            'target_interests'=> 'nullable',
         ]);
 
         // Find matching pricing
@@ -117,7 +117,7 @@ class CommunityAdController extends Controller
             'target_city'      => $data['target_city'] ?? null,
             'target_min_age'   => $data['target_min_age'] ?? null,
             'target_max_age'   => $data['target_max_age'] ?? null,
-            'target_interests' => $data['target_interests'] ?? null,
+            'target_interests' => isset($data['target_interests']) ? (is_array($data['target_interests']) ? $data['target_interests'] : [$data['target_interests']]) : null,
         ]);
 
         // Deduct wallet

@@ -9,7 +9,7 @@ import '../../../../features/modules/erent/erent_screen.dart';
 import '../providers/community_provider.dart';
 import '../widgets/comments_sheet.dart';
 import '../widgets/video_ad_overlay.dart';
-import '../services/video_controller_pool.dart';
+import '../services/video_preloader.dart';
 import 'community_shell.dart';
 
 // Unified reel item — either a community post or an eRent property reel
@@ -66,6 +66,9 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
     final rentReels = rentAsync.valueOrNull ?? [];
     final combined = _buildCombinedList(communityReels, rentReels);
 
+    // Preload next few reel videos silently
+    final reelUrls = communityReels.where((r) => r.media.isNotEmpty).take(3).map((r) => r.media.first.url).toList();
+    if (reelUrls.isNotEmpty) VideoPreloader().preloadUrls(reelUrls);
 
     if (reelsAsync.isLoading && rentAsync.isLoading) {
       return const Scaffold(
@@ -105,14 +108,6 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                 if (i >= combined.length - 3) {
                   ref.read(communityReelsProvider.notifier).load();
                 }
-                // Warmup next reel
-                if (i + 1 < combined.length) {
-                  final next = combined[i + 1];
-                  if (!next.isRent && next.communityPost != null) {
-                    final m = next.communityPost!.media.where((m) => m.type == 'video').firstOrNull;
-                    if (m != null) VideoControllerPool().warmup(m.url);
-                  }
-                }
               },
               itemBuilder: (_, i) {
                 final item = combined[i];
@@ -150,13 +145,11 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   VideoPlayerController? _videoCtrl;
   bool _videoReady = false;
   bool _muted = false;
-  bool _paused = false;
+  bool _paused = false; // manual pause by user tap
   bool _liked = false;
   bool _saved = false;
   bool _showHeart = false;
   int _likesCount = 0;
-  String? _videoUrl;
-  final _pool = VideoControllerPool();
 
   @override
   void initState() {
@@ -167,23 +160,30 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     _initVideo();
   }
 
-  void _initVideo() async {
+  void _initVideo() {
     final media = widget.reel.media.where((m) => m.type == 'video').firstOrNull ??
         (widget.reel.media.isNotEmpty ? widget.reel.media.first : null);
     if (media == null || media.type != 'video') return;
-    _videoUrl = media.url;
-    for (var attempt = 0; attempt < 2; attempt++) {
-      try {
-        final ctrl = await _pool.acquire(media.url);
-        if (!mounted) return;
-        ctrl.setVolume(_muted ? 0 : 1);
-        setState(() { _videoCtrl = ctrl; _videoReady = true; });
-        if (widget.isActive && !_paused) ctrl.play();
-        return;
-      } catch (_) {
-        if (attempt == 0) await Future.delayed(const Duration(seconds: 1));
-      }
+
+    // Try preloaded controller (instant)
+    final preloaded = VideoPreloader().get(media.url);
+    if (preloaded != null && preloaded.value.isInitialized) {
+      _videoCtrl = preloaded;
+      _videoCtrl!.setVolume(_muted ? 0 : 1);
+      if (widget.isActive && !_paused) _videoCtrl!.play();
+      setState(() => _videoReady = true);
+      return;
     }
+
+    _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(media.url))
+      ..initialize().then((_) {
+        if (mounted) {
+          setState(() => _videoReady = true);
+          _videoCtrl!.setLooping(true);
+          _videoCtrl!.setVolume(_muted ? 0 : 1);
+          if (widget.isActive && !_paused) _videoCtrl!.play();
+        }
+      }).catchError((_) {});
   }
 
   @override
@@ -199,11 +199,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   }
 
   @override
-  void dispose() {
-    _videoCtrl?.pause();
-    if (_videoUrl != null) _pool.release(_videoUrl!);
-    super.dispose();
-  }
+  void dispose() { _videoCtrl?.dispose(); super.dispose(); }
 
   void _togglePause() {
     if (_videoCtrl == null || !_videoReady) return;
@@ -225,14 +221,21 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
       onTap: _togglePause,
       onDoubleTap: _onDoubleTap,
       child: Stack(fit: StackFit.expand, children: [
-        // Video directly
+        // Video or thumbnail
         if (_videoReady && _videoCtrl != null)
           Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!)))
+        else if (media?.thumbnail != null)
+          NetImage(url: media!.thumbnail!, fit: BoxFit.cover)
+        else if (media != null && media.type == 'image')
+          NetImage(url: media.url, fit: BoxFit.cover)
         else
-          Container(color: const Color(0xFF0D0E1A)),
+          Container(color: const Color(0xFF1A1A2E)),
 
         // Gradient
         Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black45, Colors.transparent, Colors.transparent, Colors.black87], stops: [0, 0.2, 0.5, 1.0]))),
+
+        if (!_videoReady && media?.type == 'video')
+          const Center(child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)),
 
         // Pause icon overlay
         if (_paused && _videoReady)

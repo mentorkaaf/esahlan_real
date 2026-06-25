@@ -15,8 +15,8 @@ import 'community_notifications_screen.dart';
 import 'create_post_screen.dart';
 import '../widgets/comments_sheet.dart';
 import '../widgets/video_ad_overlay.dart';
-import '../services/video_controller_pool.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import '../services/ad_preloader.dart';
+import '../services/video_preloader.dart';
 import 'business_page_detail_screen.dart';
 import 'community_search_screen.dart';
 
@@ -36,6 +36,17 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 4, vsync: this);
+    // Preload ads + videos silently in background
+    AdPreloader().preload();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final posts = ref.read(communityFeedProvider).valueOrNull ?? [];
+      final urls = <String>[];
+      for (final p in posts) {
+        if (p.isAd && p.adType == 'video' && p.adMediaUrl != null) urls.add(p.adMediaUrl!);
+        if (p.isVideo && p.media.isNotEmpty) urls.add(p.media.first.url);
+      }
+      if (urls.isNotEmpty) VideoPreloader().preloadUrls(urls.take(6).toList());
+    });
     _scrollCtrl.addListener(() {
       if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 300) {
         ref.read(communityFeedProvider.notifier).load();
@@ -185,11 +196,13 @@ class _FeedTab extends ConsumerWidget {
           feedState.when(
             data: (posts) {
               if (posts.isEmpty) return const _EmptyFeed();
-              // Warmup first few videos silently
-              for (final p in posts.take(10)) {
-                if (p.isVideo && p.media.isNotEmpty) VideoControllerPool().warmup(p.media.first.url);
-                if (p.isAd && p.adType == 'video' && p.adMediaUrl != null) VideoControllerPool().warmup(p.adMediaUrl!);
+              // Preload all video URLs silently (posts + ads)
+              final videoUrls = <String>[];
+              for (final p in posts) {
+                if (p.isAd && p.adType == 'video' && p.adMediaUrl != null) videoUrls.add(p.adMediaUrl!);
+                if (p.isVideo && p.media.isNotEmpty) videoUrls.add(p.media.first.url);
               }
+              if (videoUrls.isNotEmpty) VideoPreloader().preloadUrls(videoUrls.take(6).toList());
               return Column(
                 children: [
                   ...posts.map((p) => _PostCard(post: p,
@@ -388,77 +401,120 @@ class _PersonTileState extends ConsumerState<_PersonTile> {
   }
 }
 
-// ── Ad Card — clickable, opens link ──────────────────────────────────────────
-class _AdCard extends ConsumerWidget {
+// ── Ad Card — video auto-plays, image loads instantly ────────────────────────
+class _AdCard extends ConsumerStatefulWidget {
   final CommunityPost post;
   const _AdCard({required this.post});
-
-  void _onClick(WidgetRef ref, BuildContext context) {
-    if (post.id > 0) ref.read(communityRepoProvider).trackAdClick(post.id);
-    final url = post.adCtaUrl;
-    if (url != null && url.isNotEmpty) {
-      // Open URL in browser or in-app
-      Navigator.push(context, MaterialPageRoute(builder: (_) => _AdWebView(url: url, title: post.adTitle ?? 'Ad')));
-    }
-  }
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final p = post;
-    return GestureDetector(
-      onTap: () => _onClick(ref, context),
-      child: Container(
-      margin: const EdgeInsets.only(bottom: 8), color: Colors.white,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 6), child: Row(children: [
-          if (p.adPage?['avatar'] != null)
-            CircleNetImage(url: p.adPage!['avatar'], size: 32, fallbackText: p.adPage?['name'] ?? 'Ad')
-          else Container(width: 32, height: 32, decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
-            child: const Icon(Icons.campaign_rounded, color: kOrange, size: 16)),
-          const SizedBox(width: 8),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(p.adPage?['name'] ?? 'Sponsored', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E))),
-            const Text('Sponsored', style: TextStyle(color: kOrange, fontSize: 11, fontWeight: FontWeight.w600)),
-          ])),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(4)),
-            child: const Text('AD', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1))),
-        ])),
-
-        if (p.adTitle != null) Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-          child: Text(p.adTitle!, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1A1B2E)))),
-        if (p.content != null && p.content!.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
-          child: Text(p.content!, style: const TextStyle(color: Color(0xFF374151), fontSize: 13))),
-
-        // Video/Image — uses exact same _MediaItem widget as regular posts
-        if (p.adMediaUrl != null)
-          _MediaItem(
-            m: CommunityPostMedia(id: p.id, type: p.adType ?? 'image', url: p.adMediaUrl!),
-            height: 0,
-            showAdOverlay: false,
-          ),
-
-        if (p.adCtaText != null) Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-          child: SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: () => _onClick(ref, context),
-            style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 11)),
-            child: Text(p.adCtaText!, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14))))),
-      ]),
-    ));
-  }
+  ConsumerState<_AdCard> createState() => _AdCardState();
 }
 
-class _AdWebView extends StatelessWidget {
-  final String url;
-  final String title;
-  const _AdWebView({required this.url, required this.title});
+class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
+  VideoPlayerController? _vCtrl;
+  bool _videoReady = false;
+  bool _initStarted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  void _initVideo() {
+    if (_initStarted || widget.post.adType != 'video' || widget.post.adMediaUrl == null) return;
+    _initStarted = true;
+    _waitForPreload();
+  }
+
+  void _waitForPreload() async {
+    final url = widget.post.adMediaUrl!;
+    // Wait for preloaded controller — check every 200ms
+    for (var i = 0; i < 50; i++) {
+      if (!mounted) return;
+      final ctrl = VideoPreloader().get(url);
+      if (ctrl != null && ctrl.value.isInitialized) {
+        ctrl.setLooping(true);
+        ctrl.setVolume(1);
+        ctrl.play();
+        if (mounted) setState(() { _vCtrl = ctrl; _videoReady = true; });
+        return;
+      }
+      await Future.delayed(const Duration(milliseconds: 200));
+    }
+    // After 10s if still not ready, load directly (last resort)
+    if (!mounted) return;
+    final ctrl = VideoPlayerController.networkUrl(Uri.parse(url));
+    try {
+      await ctrl.initialize();
+      ctrl.setLooping(true);
+      ctrl.setVolume(1);
+      ctrl.play();
+      if (mounted) setState(() { _vCtrl = ctrl; _videoReady = true; });
+    } catch (_) { ctrl.dispose(); }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_vCtrl == null) return;
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) _vCtrl!.pause();
+  }
+
+  @override
+  void dispose() { WidgetsBinding.instance.removeObserver(this); _vCtrl?.pause(); _vCtrl?.dispose(); super.dispose(); }
+
   @override
   Widget build(BuildContext context) {
-    final uri = url.startsWith('http') ? url : 'https://$url';
-    return Scaffold(
-      appBar: AppBar(title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-        actions: [IconButton(icon: const Icon(Icons.open_in_browser_rounded), onPressed: () {})]),
-      body: WebViewWidget(controller: WebViewController()..loadRequest(Uri.parse(uri))),
+    final p = widget.post;
+    return VisibilityDetector(
+      key: ValueKey('ad_${p.id}'),
+      onVisibilityChanged: (info) {
+        if (info.visibleFraction > 0.5) {
+          if (!_initStarted) _initVideo();
+          if (_vCtrl != null && _videoReady && !_vCtrl!.value.isPlaying) _vCtrl!.play();
+        } else {
+          if (_vCtrl != null && _vCtrl!.value.isPlaying) _vCtrl!.pause();
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8), color: Colors.white,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Header
+          Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 6), child: Row(children: [
+            if (p.adPage?['avatar'] != null)
+              CircleNetImage(url: p.adPage!['avatar'], size: 32, fallbackText: p.adPage?['name'] ?? 'Ad')
+            else Container(width: 32, height: 32, decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
+              child: const Icon(Icons.campaign_rounded, color: kOrange, size: 16)),
+            const SizedBox(width: 8),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(p.adPage?['name'] ?? 'Sponsored', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E))),
+              const Text('Sponsored', style: TextStyle(color: kOrange, fontSize: 11, fontWeight: FontWeight.w600)),
+            ])),
+            Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(4)),
+              child: const Text('AD', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1))),
+          ])),
+
+          if (p.adTitle != null) Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+            child: Text(p.adTitle!, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1A1B2E)))),
+          if (p.content != null && p.content!.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+            child: Text(p.content!, style: const TextStyle(color: Color(0xFF374151), fontSize: 13))),
+
+          // Media — no loading shown, video appears when ready
+          if (p.adMediaUrl != null) GestureDetector(
+            onTap: () { if (p.id > 0) ref.read(communityRepoProvider).trackAdClick(p.id); },
+            child: p.adType == 'video'
+                ? (_videoReady && _vCtrl != null
+                    ? AspectRatio(aspectRatio: _vCtrl!.value.aspectRatio.clamp(0.5, 2.5), child: VideoPlayer(_vCtrl!))
+                    : const SizedBox.shrink())
+                : NetImage(url: p.adMediaUrl, fit: BoxFit.cover, width: double.infinity)),
+
+          if (p.adCtaText != null) Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            child: SizedBox(width: double.infinity, child: ElevatedButton(
+              onPressed: () { if (p.id > 0) ref.read(communityRepoProvider).trackAdClick(p.id); },
+              style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 11)),
+              child: Text(p.adCtaText!, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14))))),
+        ]),
+      ),
     );
   }
 }
@@ -976,8 +1032,7 @@ class _MediaGrid extends StatelessWidget {
 class _MediaItem extends ConsumerStatefulWidget {
   final CommunityPostMedia m;
   final double height;
-  final bool showAdOverlay;
-  const _MediaItem({required this.m, required this.height, this.showAdOverlay = true});
+  const _MediaItem({required this.m, required this.height});
 
   @override
   ConsumerState<_MediaItem> createState() => _MediaItemState();
@@ -988,9 +1043,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   bool _ready = false;
   bool _paused = false;
   bool _visible = false;
-  bool _loading = false;
   final _key = UniqueKey();
-  final _pool = VideoControllerPool();
 
   bool get _isVideo => widget.m.type == 'video';
 
@@ -998,25 +1051,37 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (_isVideo) _initVideo();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_ctrl == null || !_ready) return;
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      _pool.pauseAll();
+      _ctrl!.pause();
     }
   }
 
   Future<void> _initVideo() async {
-    if (_loading || _ready) return;
-    _loading = true;
+    final url = widget.m.url;
+    if (url.isEmpty) return;
+
+    // Try preloaded controller first (instant)
+    final preloaded = VideoPreloader().get(url);
+    if (preloaded != null && preloaded.value.isInitialized) {
+      if (mounted) setState(() { _ctrl = preloaded; _ready = true; });
+      return;
+    }
+
+    // Fallback: load fresh
+    final ctrl = VideoPlayerController.networkUrl(Uri.parse(url));
     try {
-      final ctrl = await _pool.acquire(widget.m.url);
-      if (!mounted) return;
-      setState(() { _ctrl = ctrl; _ready = true; _loading = false; });
-      if (_visible && !_paused) ctrl.play();
+      await ctrl.initialize();
+      ctrl.setLooping(true);
+      ctrl.setVolume(1);
+      if (mounted) setState(() { _ctrl = ctrl; _ready = true; });
     } catch (_) {
-      _loading = false;
+      ctrl.dispose();
     }
   }
 
@@ -1024,17 +1089,17 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _ctrl?.pause();
-    _pool.release(widget.m.url);
+    _ctrl?.dispose();
     super.dispose();
   }
 
   void _onVisibilityChanged(VisibilityInfo info) {
+    if (!_ready || _ctrl == null) return;
     _visible = info.visibleFraction > 0.5;
     if (_visible) {
-      if (!_ready && _isVideo && !_loading) _initVideo();
-      if (_ready && _ctrl != null && !_paused && !_ctrl!.value.isPlaying) _ctrl!.play();
+      if (!_paused && !_ctrl!.value.isPlaying) _ctrl!.play();
     } else {
-      if (_ctrl != null && _ctrl!.value.isPlaying) _ctrl!.pause();
+      if (_ctrl!.value.isPlaying) _ctrl!.pause();
     }
   }
 
@@ -1094,21 +1159,27 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
           _ctrl!.pause();
           Navigator.push(context, MaterialPageRoute(builder: (_) => _VideoPlayerScreen(url: widget.m.url)));
         } : null,
-        child: SizedBox(
-          width: double.infinity,
-          height: videoH,
-          child: Stack(children: [
-            // Video directly — no thumbnail
-            Positioned.fill(child: Container(color: Colors.transparent,
+        child: Stack(
+          children: [
+            Container(
+              color: const Color(0xFF1A1B2E),
+              width: double.infinity,
+              height: videoH,
               child: _ready && _ctrl != null
-                  ? FittedBox(fit: BoxFit.contain, child: SizedBox(width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))
-                  : null)),
-            // Pause icon
+                  ? FittedBox(fit: BoxFit.contain, child: SizedBox(
+                      width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))
+                  : widget.m.thumbnail != null
+                      ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.contain,
+                          placeholder: Container(color: const Color(0xFF1A1B2E)),
+                          errorWidget: Container(color: const Color(0xFF1A1B2E)))
+                      : const SizedBox(),
+            ),
+            if (!_ready)
+              Positioned.fill(child: Center(child: CircularProgressIndicator(color: kOrange.withValues(alpha: 0.7), strokeWidth: 2))),
             if (_paused && _ready)
               Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
                 child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 40)))),
-            // Controls bar
             if (_ready && _ctrl != null) Positioned(bottom: 0, left: 0, right: 0,
               child: Container(
                 padding: const EdgeInsets.fromLTRB(10, 20, 10, 8),
@@ -1127,14 +1198,14 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                   GestureDetector(onTap: () { setState(() { _ctrl!.setVolume(_ctrl!.value.volume > 0 ? 0 : 1); }); },
                     child: Icon(_ctrl!.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 18)),
                 ]))),
-          ]),
+          ],
         ),
       );
 
     return VisibilityDetector(
       key: _key,
       onVisibilityChanged: _onVisibilityChanged,
-      child: widget.showAdOverlay && _ready && _ctrl != null
+      child: _ready && _ctrl != null
           ? VideoAdOverlay(mainController: _ctrl!, child: videoContent)
           : videoContent,
     );
