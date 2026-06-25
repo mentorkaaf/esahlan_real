@@ -16,6 +16,7 @@ import 'create_post_screen.dart';
 import '../widgets/comments_sheet.dart';
 import '../widgets/video_ad_overlay.dart';
 import '../services/ad_preloader.dart';
+import '../services/video_preloader.dart';
 import 'business_page_detail_screen.dart';
 import 'community_search_screen.dart';
 
@@ -186,6 +187,9 @@ class _FeedTab extends ConsumerWidget {
           feedState.when(
             data: (posts) {
               if (posts.isEmpty) return const _EmptyFeed();
+              // Preload video URLs silently
+              final videoUrls = posts.where((p) => p.isVideo && p.media.isNotEmpty).take(3).map((p) => p.media.first.url).toList();
+              if (videoUrls.isNotEmpty) VideoPreloader().preloadUrls(videoUrls);
               return Column(
                 children: [
                   ...posts.map((p) => _PostCard(post: p,
@@ -986,6 +990,15 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   Future<void> _initVideo() async {
     final url = widget.m.url;
     if (url.isEmpty) return;
+
+    // Try preloaded controller first (instant)
+    final preloaded = VideoPreloader().get(url);
+    if (preloaded != null && preloaded.value.isInitialized) {
+      if (mounted) setState(() { _ctrl = preloaded; _ready = true; });
+      return;
+    }
+
+    // Fallback: load fresh
     final ctrl = VideoPlayerController.networkUrl(Uri.parse(url));
     try {
       await ctrl.initialize();
