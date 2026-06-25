@@ -401,7 +401,7 @@ class _PersonTileState extends ConsumerState<_PersonTile> {
   }
 }
 
-// ── Ad Card — clean, simple, no video loading in feed ────────────────────────
+// ── Ad Card — uses same _MediaItem as regular posts for video ─────────────────
 class _AdCard extends ConsumerWidget {
   final CommunityPost post;
   const _AdCard({required this.post});
@@ -412,7 +412,6 @@ class _AdCard extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8), color: Colors.white,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Header
         Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 6), child: Row(children: [
           if (p.adPage?['avatar'] != null)
             CircleNetImage(url: p.adPage!['avatar'], size: 32, fallbackText: p.adPage?['name'] ?? 'Ad')
@@ -432,30 +431,16 @@ class _AdCard extends ConsumerWidget {
         if (p.content != null && p.content!.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
           child: Text(p.content!, style: const TextStyle(color: Color(0xFF374151), fontSize: 13))),
 
-        // Media — image shows directly, video shows play button
-        if (p.adMediaUrl != null) GestureDetector(
-          onTap: () {
-            if (p.id > 0) ref.read(communityRepoProvider).trackAdClick(p.id);
-            if (p.adType == 'video') Navigator.push(context, MaterialPageRoute(builder: (_) => _VideoPlayerScreen(url: p.adMediaUrl!)));
-          },
-          child: p.adType == 'video'
-              ? AspectRatio(aspectRatio: 16 / 9, child: Container(
-                  decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF1A1B2E), Color(0xFF2D1B4E)])),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Container(width: 60, height: 60, decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle,
-                      boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.3), blurRadius: 20, spreadRadius: 4)]),
-                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 36)),
-                    const SizedBox(height: 10),
-                    const Text('Tap to watch', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
-                  ])))
-              : NetImage(url: p.adMediaUrl, fit: BoxFit.cover, width: double.infinity)),
+        // Video/Image — uses exact same _MediaItem widget as regular posts
+        if (p.adMediaUrl != null)
+          _MediaItem(
+            m: CommunityPostMedia(id: p.id, type: p.adType ?? 'image', url: p.adMediaUrl!),
+            height: 0,
+          ),
 
         if (p.adCtaText != null) Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
           child: SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: () {
-              if (p.id > 0) ref.read(communityRepoProvider).trackAdClick(p.id);
-              if (p.adType == 'video' && p.adMediaUrl != null) Navigator.push(context, MaterialPageRoute(builder: (_) => _VideoPlayerScreen(url: p.adMediaUrl!)));
-            },
+            onPressed: () { if (p.id > 0) ref.read(communityRepoProvider).trackAdClick(p.id); },
             style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 11)),
             child: Text(p.adCtaText!, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14))))),
