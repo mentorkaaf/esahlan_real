@@ -166,12 +166,10 @@ class CommunityAdController extends Controller
     public function preroll()
     {
         $userId = auth()->id();
-        // Return IMAGE ads for overlay (instant load, no video buffering)
         $ad = CommunityAd::with('page:id,name,avatar')
             ->where('status', 'active')
             ->where(function ($q) { $q->whereNull('ends_at')->orWhere('ends_at', '>', now()); })
             ->whereColumn('spent', '<', 'budget')
-            ->orderByRaw("CASE WHEN ad_type = 'image' THEN 0 ELSE 1 END")
             ->inRandomOrder()
             ->first();
 
