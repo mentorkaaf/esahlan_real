@@ -184,6 +184,11 @@ class _FeedTab extends ConsumerWidget {
           feedState.when(
             data: (posts) {
               if (posts.isEmpty) return const _EmptyFeed();
+              // Warmup first few videos silently
+              for (final p in posts.take(10)) {
+                if (p.isVideo && p.media.isNotEmpty) VideoControllerPool().warmup(p.media.first.url);
+                if (p.isAd && p.adType == 'video' && p.adMediaUrl != null) VideoControllerPool().warmup(p.adMediaUrl!);
+              }
               return Column(
                 children: [
                   ...posts.map((p) => _PostCard(post: p,
