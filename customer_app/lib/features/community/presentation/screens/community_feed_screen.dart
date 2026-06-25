@@ -370,27 +370,34 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   void _initVideo() {
     if (_initStarted || widget.post.adType != 'video' || widget.post.adMediaUrl == null) return;
     _initStarted = true;
+    _waitForPreload();
+  }
+
+  void _waitForPreload() async {
     final url = widget.post.adMediaUrl!;
-
-    // Try preloaded controller (instant, 0ms)
-    final preloaded = VideoPreloader().get(url);
-    if (preloaded != null && preloaded.value.isInitialized) {
-      preloaded.setLooping(true);
-      preloaded.setVolume(1);
-      preloaded.play();
-      setState(() { _vCtrl = preloaded; _videoReady = true; });
-      return;
+    // Wait for preloaded controller — check every 200ms
+    for (var i = 0; i < 50; i++) {
+      if (!mounted) return;
+      final ctrl = VideoPreloader().get(url);
+      if (ctrl != null && ctrl.value.isInitialized) {
+        ctrl.setLooping(true);
+        ctrl.setVolume(1);
+        ctrl.play();
+        if (mounted) setState(() { _vCtrl = ctrl; _videoReady = true; });
+        return;
+      }
+      await Future.delayed(const Duration(milliseconds: 200));
     }
-
-    // Fallback: load fresh
+    // After 10s if still not ready, load directly (last resort)
+    if (!mounted) return;
     final ctrl = VideoPlayerController.networkUrl(Uri.parse(url));
-    ctrl.initialize().then((_) {
-      if (!mounted) { ctrl.dispose(); return; }
+    try {
+      await ctrl.initialize();
       ctrl.setLooping(true);
       ctrl.setVolume(1);
       ctrl.play();
-      setState(() { _vCtrl = ctrl; _videoReady = true; });
-    }).catchError((_) { ctrl.dispose(); });
+      if (mounted) setState(() { _vCtrl = ctrl; _videoReady = true; });
+    } catch (_) { ctrl.dispose(); }
   }
 
   @override

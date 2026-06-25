@@ -12,7 +12,7 @@ class VideoPreloader {
   /// Preload a list of video URLs silently in background
   void preloadUrls(List<String> urls) {
     for (final url in urls) {
-      if (_cache.length >= _maxCached) break;
+      if (_cache.length + _loading.length >= _maxCached) break;
       _preload(url);
     }
   }
@@ -31,14 +31,12 @@ class VideoPreloader {
     _loading.remove(url);
   }
 
-  /// Get preloaded controller if available, otherwise null
-  VideoPlayerController? get(String url) {
-    final ctrl = _cache.remove(url);
-    return ctrl;
-  }
+  /// Get preloaded controller — returns it and removes from cache
+  VideoPlayerController? get(String url) => _cache.remove(url);
 
-  /// Check if a URL is preloaded
-  bool has(String url) => _cache.containsKey(url);
+  /// Check if ready or still loading
+  bool isReady(String url) => _cache.containsKey(url);
+  bool isLoading(String url) => _loading.contains(url);
 
   void disposeAll() {
     for (final ctrl in _cache.values) {
