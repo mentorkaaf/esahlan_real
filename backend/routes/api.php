@@ -331,6 +331,7 @@ Route::prefix('v1')->group(function () {
         Route::get('ads/pricing', [CommunityAdController::class, 'pricing']);
         Route::get('ads/mine', [CommunityAdController::class, 'myAds']);
         Route::post('ads', [CommunityAdController::class, 'store']);
+        Route::get('ads/settings', [CommunityAdController::class, 'displaySettings']);
         Route::get('ads/preroll', [CommunityAdController::class, 'preroll']);
         Route::post('ads/{id}/click', [CommunityAdController::class, 'trackClick']);
 

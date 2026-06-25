@@ -23,7 +23,7 @@
 
 @php $tab = request('tab', 'ads'); @endphp
 <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #f0f1f5;">
-    @foreach(['ads'=>'Ads','pricing'=>'Ad Pricing','pages'=>'Business Pages'] as $k=>$v)
+    @foreach(['ads'=>'Ads','settings'=>'Ad Settings','pricing'=>'Ad Pricing','pages'=>'Business Pages'] as $k=>$v)
     <a href="?tab={{ $k }}" style="padding:10px 20px;font-weight:700;font-size:13px;color:{{ $tab===$k?'#FF8A00':'#8A8A9A' }};border-bottom:{{ $tab===$k?'3px solid #FF8A00':'none' }};text-decoration:none;">{{ $v }}</a>
     @endforeach
 </div>
@@ -79,6 +79,81 @@
         </table></div>
         @if($ads->hasPages())<div style="padding:16px;display:flex;justify-content:center;">{{ $ads->withQueryString()->links() }}</div>@endif
     </div>
+@endif
+
+@if($tab === 'settings')
+@php $adSettings = json_decode(\DB::table('settings')->where('key','ad_display_settings')->value('value') ?? '{}', true) ?? []; @endphp
+<div class="card" style="padding:20px;">
+    <h3 style="font-weight:800;font-size:16px;margin:0 0 20px;"><i class="fas fa-sliders-h" style="color:#FF8A00"></i> Ad Display Settings</h3>
+    <form action="{{ route('admin.community-ads.save-settings') }}" method="POST">
+        @csrf
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+            {{-- Feed Ads --}}
+            <div style="background:#f9fafb;border-radius:12px;padding:16px;">
+                <h4 style="font-weight:700;font-size:14px;margin:0 0 12px;color:#1A1B2E;"><i class="fas fa-newspaper" style="color:#FF8A00"></i> Feed Video Ads</h4>
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label><input type="checkbox" name="feed_ads_enabled" value="1" {{ ($adSettings['feed_ads_enabled'] ?? true) ? 'checked' : '' }}> <strong>Enable feed ads</strong></label>
+                </div>
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label class="form-label" style="font-size:12px;">Show ad every N posts</label>
+                    <input type="number" name="feed_ad_frequency" value="{{ $adSettings['feed_ad_frequency'] ?? 5 }}" min="2" max="20" class="form-control" style="width:80px;">
+                    <small style="color:#8A8A9A;">Posts between each ad (default: 5)</small>
+                </div>
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label class="form-label" style="font-size:12px;">Max ads per page</label>
+                    <input type="number" name="feed_max_ads" value="{{ $adSettings['feed_max_ads'] ?? 3 }}" min="1" max="10" class="form-control" style="width:80px;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-size:12px;">Placements</label><br>
+                    <label><input type="checkbox" name="feed_placements[]" value="feed" {{ in_array('feed', $adSettings['feed_placements'] ?? ['feed']) ? 'checked' : '' }}> Feed</label>
+                    <label style="margin-left:10px;"><input type="checkbox" name="feed_placements[]" value="explore" {{ in_array('explore', $adSettings['feed_placements'] ?? []) ? 'checked' : '' }}> Explore/Trending</label>
+                </div>
+            </div>
+
+            {{-- Overlay Ads --}}
+            <div style="background:#f9fafb;border-radius:12px;padding:16px;">
+                <h4 style="font-weight:700;font-size:14px;margin:0 0 12px;color:#1A1B2E;"><i class="fas fa-film" style="color:#FF8A00"></i> Video Overlay Ads (Skip Ads)</h4>
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label><input type="checkbox" name="overlay_ads_enabled" value="1" {{ ($adSettings['overlay_ads_enabled'] ?? true) ? 'checked' : '' }}> <strong>Enable overlay ads</strong></label>
+                </div>
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label class="form-label" style="font-size:12px;">Skip countdown (seconds)</label>
+                    <input type="number" name="overlay_skip_seconds" value="{{ $adSettings['overlay_skip_seconds'] ?? 10 }}" min="3" max="30" class="form-control" style="width:80px;">
+                </div>
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label class="form-label" style="font-size:12px;">Max overlays per video</label>
+                    <input type="number" name="overlay_max_per_video" value="{{ $adSettings['overlay_max_per_video'] ?? 3 }}" min="1" max="6" class="form-control" style="width:80px;">
+                    <small style="color:#8A8A9A;">How many ads show in one video</small>
+                </div>
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label class="form-label" style="font-size:12px;">Show overlay ads in</label><br>
+                    <label><input type="checkbox" name="overlay_placements[]" value="feed" {{ in_array('feed', $adSettings['overlay_placements'] ?? ['feed','reels']) ? 'checked' : '' }}> Feed videos</label>
+                    <label style="margin-left:10px;"><input type="checkbox" name="overlay_placements[]" value="reels" {{ in_array('reels', $adSettings['overlay_placements'] ?? ['feed','reels']) ? 'checked' : '' }}> Reels</label>
+                    <label style="margin-left:10px;"><input type="checkbox" name="overlay_placements[]" value="fullscreen" {{ in_array('fullscreen', $adSettings['overlay_placements'] ?? []) ? 'checked' : '' }}> Fullscreen player</label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-size:12px;">Min video length for overlay (seconds)</label>
+                    <input type="number" name="overlay_min_video_length" value="{{ $adSettings['overlay_min_video_length'] ?? 15 }}" min="5" max="120" class="form-control" style="width:80px;">
+                    <small style="color:#8A8A9A;">Videos shorter than this won't show overlay ads</small>
+                </div>
+            </div>
+        </div>
+
+        {{-- Frequency Rules --}}
+        <div style="background:#f9fafb;border-radius:12px;padding:16px;margin-bottom:20px;">
+            <h4 style="font-weight:700;font-size:14px;margin:0 0 12px;color:#1A1B2E;"><i class="fas fa-clock" style="color:#FF8A00"></i> Overlay Frequency by Video Length</h4>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+                <div><label class="form-label" style="font-size:12px;">Short (&lt;30s)</label><input type="number" name="freq_short" value="{{ $adSettings['freq_short'] ?? 1 }}" min="0" max="2" class="form-control"><small style="color:#8A8A9A;">ads</small></div>
+                <div><label class="form-label" style="font-size:12px;">Medium (30s-2m)</label><input type="number" name="freq_medium" value="{{ $adSettings['freq_medium'] ?? 2 }}" min="0" max="4" class="form-control"><small style="color:#8A8A9A;">ads</small></div>
+                <div><label class="form-label" style="font-size:12px;">Long (2-5m)</label><input type="number" name="freq_long" value="{{ $adSettings['freq_long'] ?? 3 }}" min="0" max="6" class="form-control"><small style="color:#8A8A9A;">ads</small></div>
+                <div><label class="form-label" style="font-size:12px;">Very long (5m+)</label><input type="number" name="freq_very_long" value="{{ $adSettings['freq_very_long'] ?? 6 }}" min="0" max="10" class="form-control"><small style="color:#8A8A9A;">max ads</small></div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Ad Settings</button>
+    </form>
+</div>
 @endif
 
 @if($tab === 'pricing')

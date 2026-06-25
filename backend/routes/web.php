@@ -305,6 +305,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::patch('/ads/{id}/status', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'updateAdStatus'])->name('status');
             Route::post('/ads/{id}/delete', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'deleteAd'])->name('delete');
             Route::post('/ads-bulk-delete', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'bulkDelete'])->name('bulk-delete');
+            Route::post('/settings', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'saveSettings'])->name('save-settings');
             Route::patch('/pricing/{id}', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'updatePricing'])->name('pricing');
         });
 

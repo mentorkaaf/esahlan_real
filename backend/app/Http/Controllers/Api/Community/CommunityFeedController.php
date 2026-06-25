@@ -22,11 +22,16 @@ class CommunityFeedController extends Controller
 
         $transformed = $this->transformPosts($posts, $userId);
 
-        // Inject ads every 5 posts
-        if ($posts->currentPage() <= 3) {
-            $ads = CommunityAdController::getAdsForPlacement('feed', $userId, 2);
+        // Inject ads based on admin settings
+        $adSettings = json_decode(\DB::table('settings')->where('key', 'ad_display_settings')->value('value') ?? '{}', true) ?? [];
+        $feedEnabled = $adSettings['feed_ads_enabled'] ?? true;
+        $frequency = $adSettings['feed_ad_frequency'] ?? 5;
+        $maxAds = $adSettings['feed_max_ads'] ?? 3;
+
+        if ($feedEnabled && $posts->currentPage() <= 3) {
+            $ads = CommunityAdController::getAdsForPlacement('feed', $userId, $maxAds);
             foreach ($ads as $i => $ad) {
-                $pos = min(($i + 1) * 4, count($transformed));
+                $pos = min(($i + 1) * $frequency, count($transformed));
                 array_splice($transformed, $pos, 0, [$ad]);
             }
         }

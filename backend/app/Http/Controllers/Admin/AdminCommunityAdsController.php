@@ -70,6 +70,32 @@ class AdminCommunityAdsController extends Controller
         return back()->with('success', count($ids) . ' ads deleted.');
     }
 
+    public function saveSettings(Request $request)
+    {
+        $settings = [
+            'feed_ads_enabled'       => $request->boolean('feed_ads_enabled'),
+            'feed_ad_frequency'      => (int) ($request->feed_ad_frequency ?? 5),
+            'feed_max_ads'           => (int) ($request->feed_max_ads ?? 3),
+            'feed_placements'        => $request->input('feed_placements', ['feed']),
+            'overlay_ads_enabled'    => $request->boolean('overlay_ads_enabled'),
+            'overlay_skip_seconds'   => (int) ($request->overlay_skip_seconds ?? 10),
+            'overlay_max_per_video'  => (int) ($request->overlay_max_per_video ?? 3),
+            'overlay_placements'     => $request->input('overlay_placements', ['feed', 'reels']),
+            'overlay_min_video_length'=> (int) ($request->overlay_min_video_length ?? 15),
+            'freq_short'             => (int) ($request->freq_short ?? 1),
+            'freq_medium'            => (int) ($request->freq_medium ?? 2),
+            'freq_long'              => (int) ($request->freq_long ?? 3),
+            'freq_very_long'         => (int) ($request->freq_very_long ?? 6),
+        ];
+
+        \DB::table('settings')->updateOrInsert(
+            ['key' => 'ad_display_settings'],
+            ['value' => json_encode($settings), 'updated_at' => now()]
+        );
+
+        return back()->with('success', 'Ad display settings saved.');
+    }
+
     public function updatePricing(Request $request, $id)
     {
         $pricing = CommunityAdPricing::findOrFail($id);

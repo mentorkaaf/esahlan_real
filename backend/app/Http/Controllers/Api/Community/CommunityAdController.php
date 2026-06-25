@@ -10,6 +10,25 @@ use Illuminate\Support\Facades\DB;
 
 class CommunityAdController extends Controller
 {
+    // Ad display settings for Flutter
+    public function displaySettings()
+    {
+        $settings = json_decode(\DB::table('settings')->where('key', 'ad_display_settings')->value('value') ?? '{}', true) ?? [];
+        return response()->json(['status' => 'success', 'data' => [
+            'feed_ads_enabled'        => $settings['feed_ads_enabled'] ?? true,
+            'feed_ad_frequency'       => $settings['feed_ad_frequency'] ?? 5,
+            'feed_max_ads'            => $settings['feed_max_ads'] ?? 3,
+            'overlay_ads_enabled'     => $settings['overlay_ads_enabled'] ?? true,
+            'overlay_skip_seconds'    => $settings['overlay_skip_seconds'] ?? 10,
+            'overlay_max_per_video'   => $settings['overlay_max_per_video'] ?? 3,
+            'overlay_min_video_length'=> $settings['overlay_min_video_length'] ?? 15,
+            'freq_short'              => $settings['freq_short'] ?? 1,
+            'freq_medium'             => $settings['freq_medium'] ?? 2,
+            'freq_long'               => $settings['freq_long'] ?? 3,
+            'freq_very_long'          => $settings['freq_very_long'] ?? 6,
+        ]]);
+    }
+
     // Get ad pricing options (for ad creation UI)
     public function pricing()
     {
