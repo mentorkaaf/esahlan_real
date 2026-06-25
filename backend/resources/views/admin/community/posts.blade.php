@@ -20,11 +20,10 @@
     </form>
 </div>
 
-<form action="{{ route('admin.community.posts.bulk-delete') }}" method="POST" id="bulkPostsForm">
-    @csrf
-    <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
-        <button type="submit" class="btn btn-danger" onclick="return confirm('Delete selected posts?')" style="display:none;" id="bulkPostDeleteBtn"><i class="fas fa-trash"></i> Delete Selected</button>
-    </div>
+<form action="{{ route('admin.community.posts.bulk-delete') }}" method="POST" id="bulkPostsForm" style="display:none;">@csrf<div id="bulkPostIds"></div></form>
+<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+    <button type="button" class="btn btn-danger" onclick="submitBulkDeletePosts()" style="display:none;" id="bulkPostDeleteBtn"><i class="fas fa-trash"></i> Delete Selected</button>
+</div>
     <div class="card">
         <div class="table-wrap"><table>
             <thead><tr>
@@ -85,7 +84,6 @@
         </table></div>
         @if($posts->hasPages())<div style="padding:16px;display:flex;justify-content:center;">{{ $posts->withQueryString()->links() }}</div>@endif
     </div>
-</form>
 
 {{-- Media Preview Modal --}}
 <div id="mediaModal" class="modal-overlay" style="display:none;z-index:9999;" onclick="if(event.target===this)closeMediaModal()">
@@ -97,6 +95,19 @@
 
 @push('scripts')
 <script>
+function submitBulkDeletePosts() {
+    var checked = document.querySelectorAll('.post-check:checked');
+    if (!checked.length) { alert('Select posts to delete'); return; }
+    if (!confirm('Delete ' + checked.length + ' selected posts?')) return;
+    var container = document.getElementById('bulkPostIds');
+    container.innerHTML = '';
+    checked.forEach(function(c) {
+        var input = document.createElement('input');
+        input.type = 'hidden'; input.name = 'ids[]'; input.value = c.value;
+        container.appendChild(input);
+    });
+    document.getElementById('bulkPostsForm').submit();
+}
 function openMediaModal(url, type) {
     var el = document.getElementById('mediaContent');
     if (type === 'video') {

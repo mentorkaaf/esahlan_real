@@ -29,11 +29,10 @@
 </div>
 
 @if($tab === 'ads')
-<form action="{{ route('admin.community-ads.bulk-delete') }}" method="POST" id="bulkForm">
-    @csrf
-    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px;">
-        <button type="submit" class="btn btn-danger" onclick="return confirm('Delete selected ads?')" style="display:none;" id="bulkDeleteBtn"><i class="fas fa-trash"></i> Delete Selected</button>
-    </div>
+<form action="{{ route('admin.community-ads.bulk-delete') }}" method="POST" id="bulkForm" style="display:none;">@csrf<div id="bulkIds"></div></form>
+<div style="display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px;">
+    <button type="button" class="btn btn-danger" onclick="submitBulkDelete()" style="display:none;" id="bulkDeleteBtn"><i class="fas fa-trash"></i> Delete Selected</button>
+</div>
     <div class="card">
         <div class="table-wrap"><table>
             <thead><tr>
@@ -80,7 +79,6 @@
         </table></div>
         @if($ads->hasPages())<div style="padding:16px;display:flex;justify-content:center;">{{ $ads->withQueryString()->links() }}</div>@endif
     </div>
-</form>
 @endif
 
 @if($tab === 'pricing')
@@ -133,6 +131,19 @@
 
 @push('scripts')
 <script>
+function submitBulkDelete() {
+    var checked = document.querySelectorAll('.ad-check:checked');
+    if (!checked.length) { alert('Select ads to delete'); return; }
+    if (!confirm('Delete ' + checked.length + ' selected ads?')) return;
+    var container = document.getElementById('bulkIds');
+    container.innerHTML = '';
+    checked.forEach(function(c) {
+        var input = document.createElement('input');
+        input.type = 'hidden'; input.name = 'ids[]'; input.value = c.value;
+        container.appendChild(input);
+    });
+    document.getElementById('bulkForm').submit();
+}
 function openMediaModal(url, type) {
     var el = document.getElementById('mediaContent');
     if (type === 'video') {
