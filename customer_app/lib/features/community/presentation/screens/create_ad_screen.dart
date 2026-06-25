@@ -180,24 +180,6 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
         ),
         const SizedBox(height: 16),
 
-        // Thumbnail for video ads
-        if (_adType == 'video') ...[
-          const SizedBox(height: 12),
-          _sectionLabel('Video thumbnail (cover image)'),
-          GestureDetector(
-            onTap: () async {
-              final f = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
-              if (f != null) setState(() => _thumbnailFile = f);
-            },
-            child: Container(height: 80,
-              decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE5E7EB))),
-              child: _thumbnailFile != null
-                  ? ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.file(File(_thumbnailFile!.path), fit: BoxFit.cover, width: double.infinity))
-                  : const Center(child: Text('Tap to add cover image', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13))),
-            ),
-          ),
-        ],
         const SizedBox(height: 16),
 
         // Title
