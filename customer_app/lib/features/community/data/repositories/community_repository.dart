@@ -16,6 +16,11 @@ class CommunityRepository {
     return _parsePosts(r.data['data']);
   }
 
+  Future<List<Map<String, dynamic>>> getTrendingHashtags() async {
+    final r = await _dio.get('/community/explore');
+    return ((r.data['hashtags'] ?? []) as List).cast<Map<String, dynamic>>();
+  }
+
   Future<List<CommunityPost>> getReels({int page = 1}) async {
     final r = await _dio.get('/community/reels', queryParameters: {'page': page});
     return _parsePosts(r.data['data']);

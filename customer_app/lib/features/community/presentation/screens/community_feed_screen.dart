@@ -229,24 +229,77 @@ class _FeedTab extends ConsumerWidget {
   }
 }
 
+final _trendingHashtagsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) => ref.read(communityRepoProvider).getTrendingHashtags());
+
 class _TrendingTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final exploreState = ref.watch(communityExploreProvider);
+    final hashtagsAsync = ref.watch(_trendingHashtagsProvider);
     return RefreshIndicator(
       color: kOrange,
-      onRefresh: () => ref.read(communityExploreProvider.notifier).refresh(),
-      child: exploreState.when(
-        data: (posts) {
-          if (posts.isEmpty) return const _EmptyTab(message: 'No trending posts yet', icon: Icons.trending_up_rounded);
-          return ListView(
-            padding: const EdgeInsets.only(bottom: 80),
-            children: posts.map((p) => _PostCard(post: p, onDelete: () {})).toList(),
-          );
-        },
-        loading: () => const Padding(padding: EdgeInsets.all(16), child: ShimmerPostList(count: 3)),
-        error: (e, _) => const _EmptyTab(message: 'No trending posts yet', icon: Icons.trending_up_rounded),
-      ),
+      onRefresh: () async { ref.read(communityExploreProvider.notifier).refresh(); ref.invalidate(_trendingHashtagsProvider); },
+      child: ListView(padding: const EdgeInsets.only(bottom: 80), children: [
+        // Trending Hashtags
+        hashtagsAsync.when(
+          data: (tags) {
+            if (tags.isEmpty) return const SizedBox();
+            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Row(children: [
+                  Icon(Icons.tag_rounded, color: kOrange, size: 20),
+                  SizedBox(width: 6),
+                  Text('Trending Hashtags', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E))),
+                ])),
+              SizedBox(height: 40, child: ListView.builder(
+                scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: tags.length,
+                itemBuilder: (_, i) => Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: kOrange.withValues(alpha: 0.2))),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text('#${tags[i]['name']}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: kOrange)),
+                    const SizedBox(width: 6),
+                    Text('${tags[i]['posts_count']}', style: TextStyle(fontSize: 11, color: kOrange.withValues(alpha: 0.6), fontWeight: FontWeight.w600)),
+                  ]),
+                ),
+              )),
+              const SizedBox(height: 8),
+              const Divider(height: 1),
+            ]);
+          },
+          loading: () => const SizedBox(),
+          error: (_, __) => const SizedBox(),
+        ),
+
+        // Trending Posts (100+ engagement)
+        const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Row(children: [
+            Icon(Icons.local_fire_department_rounded, color: kOrange, size: 20),
+            SizedBox(width: 6),
+            Text('Trending Posts', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E))),
+            Spacer(),
+            Text('100+ engagement', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+          ])),
+
+        exploreState.when(
+          data: (posts) {
+            if (posts.isEmpty) return const Padding(padding: EdgeInsets.all(40),
+              child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.trending_up_rounded, size: 48, color: Color(0xFFD1D5DB)),
+                SizedBox(height: 8),
+                Text('No trending posts yet', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
+                SizedBox(height: 4),
+                Text('Posts need 100+ total likes, comments, views or shares', style: TextStyle(color: Color(0xFFD1D5DB), fontSize: 12), textAlign: TextAlign.center),
+              ])));
+            return Column(children: posts.map((p) => _PostCard(post: p, onDelete: () {})).toList());
+          },
+          loading: () => const Padding(padding: EdgeInsets.all(16), child: ShimmerPostList(count: 3)),
+          error: (e, _) => const _EmptyTab(message: 'Error loading trending', icon: Icons.error_outline_rounded),
+        ),
+      ]),
     );
   }
 }

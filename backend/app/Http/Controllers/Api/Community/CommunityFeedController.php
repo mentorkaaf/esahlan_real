@@ -34,23 +34,21 @@ class CommunityFeedController extends Controller
         return response()->json(['status'=>'success','data'=>$transformed,'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage(),'total'=>$posts->total()]]);
     }
 
-    // Trending feed — only high-engagement posts
+    // Trending feed — only posts with 100+ total engagement
     public function explore(Request $request)
     {
         $userId = auth()->id();
         $posts = CommunityPost::with(['user.communityProfile','media','userReaction','page'])
             ->where('privacy','public')
             ->whereNull('group_id')
-            ->where(function ($q) {
-                $q->where('likes_count', '>=', 1)
-                  ->orWhere('comments_count', '>=', 1)
-                  ->orWhere('views_count', '>=', 5)
-                  ->orWhere('shares_count', '>=', 1);
-            })
+            ->whereRaw('(likes_count + comments_count + views_count + shares_count) >= 100')
             ->orderByRaw('(likes_count * 3 + comments_count * 2 + shares_count * 4 + views_count) DESC')
             ->paginate(15);
 
-        return response()->json(['status'=>'success','data'=>$this->transformPosts($posts, $userId),'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage()]]);
+        // Trending hashtags
+        $hashtags = \App\Models\CommunityHashtag::where('posts_count', '>', 0)->orderByDesc('posts_count')->take(20)->get(['id','name','posts_count']);
+
+        return response()->json(['status'=>'success','data'=>$this->transformPosts($posts, $userId),'hashtags'=>$hashtags,'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage()]]);
     }
 
     // Reels feed
