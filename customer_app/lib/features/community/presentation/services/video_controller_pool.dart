@@ -6,7 +6,7 @@ class VideoControllerPool {
   VideoControllerPool._();
 
   final Map<String, _PoolEntry> _pool = {};
-  static const _maxControllers = 4;
+  static const _maxControllers = 6;
 
   Future<VideoPlayerController> acquire(String url) async {
     // Return existing if already loaded
