@@ -113,6 +113,11 @@ class CommunityAdController extends Controller
             'ends_at'          => $data['ends_at'] ?? null,
             'target_district'  => $data['target_district'] ?? null,
             'target_gender'    => $data['target_gender'] ?? 'all',
+            'target_country'   => $data['target_country'] ?? null,
+            'target_city'      => $data['target_city'] ?? null,
+            'target_min_age'   => $data['target_min_age'] ?? null,
+            'target_max_age'   => $data['target_max_age'] ?? null,
+            'target_interests' => $data['target_interests'] ?? null,
         ]);
 
         // Deduct wallet
