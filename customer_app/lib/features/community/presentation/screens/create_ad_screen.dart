@@ -34,7 +34,25 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
   DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now().add(const Duration(days: 7));
 
+  // Targeting
+  String _targetGender = 'all';
+  String _targetCountry = '';
+  String _targetCity = '';
+  String _targetMinAge = '';
+  String _targetMaxAge = '';
+  final Set<String> _targetInterests = {};
+  int? _estimatedAudience;
+
   List<Map<String, dynamic>> _pricing = [];
+
+  static const _interestOptions = [
+    'Technology', 'Business', 'Education', 'Health', 'Sports', 'Fashion',
+    'Food & Cooking', 'Travel', 'Music', 'Photography', 'Art & Design',
+    'Gaming', 'Fitness', 'Real Estate', 'Cars & Motors', 'News & Politics',
+    'Religion', 'Science', 'Entertainment', 'Beauty', 'Parenting',
+    'Finance & Investment', 'Agriculture', 'Construction', 'Telecom',
+    'E-commerce', 'Marketing', 'Freelancing', 'Coding', 'Startups',
+  ];
 
   @override
   void initState() {
@@ -100,6 +118,12 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
         if (_ctaUrlCtrl.text.trim().isNotEmpty) 'cta_url': _ctaUrlCtrl.text.trim(),
         'starts_at': _startDate.toIso8601String().split('T')[0],
         'ends_at': _endDate.toIso8601String().split('T')[0],
+        if (_targetGender != 'all') 'target_gender': _targetGender,
+        if (_targetCountry.isNotEmpty) 'target_country': _targetCountry,
+        if (_targetCity.isNotEmpty) 'target_city': _targetCity,
+        if (_targetMinAge.isNotEmpty) 'target_min_age': int.tryParse(_targetMinAge),
+        if (_targetMaxAge.isNotEmpty) 'target_max_age': int.tryParse(_targetMaxAge),
+        if (_targetInterests.isNotEmpty) 'target_interests': _targetInterests.toList(),
         'media': MultipartFile.fromBytes(bytes, filename: 'ad_media.$ext', contentType: DioMediaType.parse(mime)),
         if (_thumbnailFile != null) 'thumbnail': MultipartFile.fromBytes(
           await _thumbnailFile!.readAsBytes(), filename: 'thumb.jpg', contentType: DioMediaType.parse('image/jpeg')),
@@ -113,6 +137,20 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
     } catch (e) {
       _snack('Error: $e');
     } finally { if (mounted) setState(() => _creating = false); }
+  }
+
+  void _estimate() async {
+    try {
+      final result = await ref.read(communityRepoProvider).estimateAudience({
+        if (_targetGender != 'all') 'gender': _targetGender,
+        if (_targetCountry.isNotEmpty) 'country': _targetCountry,
+        if (_targetCity.isNotEmpty) 'city': _targetCity,
+        if (_targetMinAge.isNotEmpty) 'min_age': int.tryParse(_targetMinAge),
+        if (_targetMaxAge.isNotEmpty) 'max_age': int.tryParse(_targetMaxAge),
+        if (_targetInterests.isNotEmpty) 'interests': _targetInterests.toList(),
+      });
+      if (mounted) setState(() => _estimatedAudience = result['matched_users'] as int?);
+    } catch (_) {}
   }
 
   void _snack(String msg) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
@@ -239,6 +277,73 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
             ),
           ])),
         ]),
+        const SizedBox(height: 16),
+
+        // ── Audience Targeting ──
+        const Divider(height: 32),
+        Row(children: [
+          const Icon(Icons.people_rounded, color: kOrange, size: 20),
+          const SizedBox(width: 8),
+          const Text('Audience Targeting', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E))),
+          const Spacer(),
+          if (_estimatedAudience != null) Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+            child: Text('~$_estimatedAudience users', style: const TextStyle(color: kOrange, fontWeight: FontWeight.w700, fontSize: 12))),
+        ]),
+        const SizedBox(height: 14),
+
+        // Gender
+        _sectionLabel('Gender'),
+        Row(children: [
+          _chip('All', Icons.people_rounded, _targetGender == 'all', () => setState(() { _targetGender = 'all'; _estimate(); })),
+          const SizedBox(width: 8),
+          _chip('Male', Icons.male_rounded, _targetGender == 'male', () => setState(() { _targetGender = 'male'; _estimate(); })),
+          const SizedBox(width: 8),
+          _chip('Female', Icons.female_rounded, _targetGender == 'female', () => setState(() { _targetGender = 'female'; _estimate(); })),
+        ]),
+        const SizedBox(height: 14),
+
+        // Country & City
+        Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _sectionLabel('Country'),
+            TextField(onChanged: (v) { _targetCountry = v; _estimate(); }, decoration: _inputDeco('e.g. Somalia')),
+          ])),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _sectionLabel('City'),
+            TextField(onChanged: (v) { _targetCity = v; _estimate(); }, decoration: _inputDeco('e.g. Mogadishu')),
+          ])),
+        ]),
+        const SizedBox(height: 14),
+
+        // Age Range
+        Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _sectionLabel('Min Age'),
+            TextField(keyboardType: TextInputType.number, onChanged: (v) { _targetMinAge = v; _estimate(); }, decoration: _inputDeco('13')),
+          ])),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _sectionLabel('Max Age'),
+            TextField(keyboardType: TextInputType.number, onChanged: (v) { _targetMaxAge = v; _estimate(); }, decoration: _inputDeco('65')),
+          ])),
+        ]),
+        const SizedBox(height: 14),
+
+        // Interests
+        _sectionLabel('Interests'),
+        Wrap(spacing: 6, runSpacing: 6, children: _interestOptions.map((i) {
+          final sel = _targetInterests.contains(i);
+          return GestureDetector(
+            onTap: () => setState(() { sel ? _targetInterests.remove(i) : _targetInterests.add(i); _estimate(); }),
+            child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(color: sel ? kOrange : const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: sel ? kOrange : const Color(0xFFE5E7EB))),
+              child: Text(i, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: sel ? Colors.white : const Color(0xFF6B7280)))),
+          );
+        }).toList()),
         const SizedBox(height: 16),
 
         // Payment
