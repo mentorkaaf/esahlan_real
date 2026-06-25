@@ -36,8 +36,17 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 4, vsync: this);
-    // Preload ads silently in background
+    // Preload ads + videos silently in background
     AdPreloader().preload();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final posts = ref.read(communityFeedProvider).valueOrNull ?? [];
+      final urls = <String>[];
+      for (final p in posts) {
+        if (p.isAd && p.adType == 'video' && p.adMediaUrl != null) urls.add(p.adMediaUrl!);
+        if (p.isVideo && p.media.isNotEmpty) urls.add(p.media.first.url);
+      }
+      if (urls.isNotEmpty) VideoPreloader().preloadUrls(urls.take(6).toList());
+    });
     _scrollCtrl.addListener(() {
       if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 300) {
         ref.read(communityFeedProvider.notifier).load();
@@ -429,14 +438,13 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
           if (p.content != null && p.content!.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
             child: Text(p.content!, style: const TextStyle(color: Color(0xFF374151), fontSize: 13))),
 
-          // Media
+          // Media — no loading shown, video appears when ready
           if (p.adMediaUrl != null) GestureDetector(
             onTap: () { if (p.id > 0) ref.read(communityRepoProvider).trackAdClick(p.id); },
             child: p.adType == 'video'
-                ? Container(color: const Color(0xFF1A1B2E),
-                    child: _videoReady && _vCtrl != null
-                        ? AspectRatio(aspectRatio: _vCtrl!.value.aspectRatio.clamp(0.5, 2.5), child: VideoPlayer(_vCtrl!))
-                        : const AspectRatio(aspectRatio: 16 / 9, child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: kOrange, strokeWidth: 2)))))
+                ? (_videoReady && _vCtrl != null
+                    ? AspectRatio(aspectRatio: _vCtrl!.value.aspectRatio.clamp(0.5, 2.5), child: VideoPlayer(_vCtrl!))
+                    : const SizedBox.shrink())
                 : NetImage(url: p.adMediaUrl, fit: BoxFit.cover, width: double.infinity)),
 
           if (p.adCtaText != null) Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
