@@ -34,15 +34,20 @@ class CommunityFeedController extends Controller
         return response()->json(['status'=>'success','data'=>$transformed,'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage(),'total'=>$posts->total()]]);
     }
 
-    // Explore / trending feed
+    // Trending feed — only high-engagement posts
     public function explore(Request $request)
     {
         $userId = auth()->id();
-        $posts = CommunityPost::with(['user.communityProfile','media','userReaction'])
+        $posts = CommunityPost::with(['user.communityProfile','media','userReaction','page'])
             ->where('privacy','public')
             ->whereNull('group_id')
-            ->orderByDesc('likes_count')
-            ->orderByDesc('created_at')
+            ->where(function ($q) {
+                $q->where('likes_count', '>=', 1)
+                  ->orWhere('comments_count', '>=', 1)
+                  ->orWhere('views_count', '>=', 5)
+                  ->orWhere('shares_count', '>=', 1);
+            })
+            ->orderByRaw('(likes_count * 3 + comments_count * 2 + shares_count * 4 + views_count) DESC')
             ->paginate(15);
 
         return response()->json(['status'=>'success','data'=>$this->transformPosts($posts, $userId),'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage()]]);
@@ -136,16 +141,16 @@ class CommunityFeedController extends Controller
         return response()->json(['status'=>'success','data'=>$users]);
     }
 
-    // Suggested users to follow
+    // People — all community users
     public function suggestions()
     {
         $userId = auth()->id();
         $followingIds = CommunityFollow::where('follower_id', $userId)->pluck('following_id')->push($userId);
 
         $users = \App\Models\User::with('communityProfile')
-            ->whereNotIn('id', $followingIds)
-            ->inRandomOrder()
-            ->limit(10)
+            ->where('id', '!=', $userId)
+            ->orderByDesc('id')
+            ->limit(50)
             ->get()
             ->map(fn($u) => $this->transformUser($u, $userId));
 

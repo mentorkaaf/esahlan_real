@@ -91,10 +91,10 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
               labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
               unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
               tabs: const [
-                Tab(text: 'For You'),
-                Tab(text: 'Trending'),
-                Tab(text: 'Reels'),
-                Tab(text: 'Businesses'),
+                Tab(icon: Icon(Icons.home_rounded, size: 20), text: 'For You'),
+                Tab(icon: Icon(Icons.local_fire_department_rounded, size: 20), text: 'Trending'),
+                Tab(icon: Icon(Icons.people_rounded, size: 20), text: 'People'),
+                Tab(icon: Icon(Icons.store_rounded, size: 20), text: 'Business'),
               ],
             ),
           ),
@@ -104,7 +104,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
           children: [
             _FeedTab(feedState: feedState, storiesState: storiesState),
             _TrendingTab(),
-            _ReelsTab(),
+            _PeopleTab(),
             const _BusinessesTab(),
           ],
         ),
@@ -231,24 +231,24 @@ class _TrendingTab extends ConsumerWidget {
   }
 }
 
-class _ReelsTab extends ConsumerWidget {
+class _PeopleTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reelsState = ref.watch(communityReelsProvider);
+    final suggestionsAsync = ref.watch(communitySuggestionsProvider);
     return RefreshIndicator(
       color: kOrange,
-      onRefresh: () => ref.read(communityReelsProvider.notifier).refresh(),
-      child: reelsState.when(
+      onRefresh: () async => ref.invalidate(communitySuggestionsProvider),
+      child: suggestionsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
-        data: (posts) {
-          final reels = posts.where((p) => p.type == 'video' || p.type == 'reel' || (p.isAd && p.adType == 'video')).toList();
-          if (reels.isEmpty) return const _EmptyTab(message: 'No reels yet', icon: Icons.videocam_rounded);
-          return ListView(
-            padding: const EdgeInsets.only(bottom: 80),
-            children: reels.map((p) => _PostCard(post: p, onDelete: () {})).toList(),
+        data: (users) {
+          if (users.isEmpty) return const _EmptyTab(message: 'No people found', icon: Icons.people_rounded);
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: users.length,
+            itemBuilder: (_, i) => _PersonTile(user: users[i]),
           );
         },
-        error: (_, __) => const _EmptyTab(message: 'No reels yet', icon: Icons.videocam_rounded),
+        error: (_, __) => const _EmptyTab(message: 'Could not load people', icon: Icons.people_rounded),
       ),
     );
   }
@@ -267,6 +267,63 @@ class _EmptyTab extends StatelessWidget {
         const SizedBox(height: 12),
         Text(message, style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 15)),
       ]),
+    );
+  }
+}
+
+class _PersonTile extends ConsumerStatefulWidget {
+  final CommunityUser user;
+  const _PersonTile({required this.user});
+  @override
+  ConsumerState<_PersonTile> createState() => _PersonTileState();
+}
+
+class _PersonTileState extends ConsumerState<_PersonTile> {
+  late bool _following;
+
+  @override
+  void initState() { super.initState(); _following = widget.user.isFollowing; }
+
+  @override
+  Widget build(BuildContext context) {
+    final u = widget.user;
+    return InkWell(
+      onTap: () => context.push('/community/profile/${u.id}'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(children: [
+          CircleNetImage(url: u.avatar, size: 52, fallbackText: u.name),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Flexible(child: Text(u.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF1A1B2E)), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              if (u.isVerified) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 16)),
+            ]),
+            if (u.username != null) Text('@${u.username}', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
+            if (u.bio != null && u.bio!.isNotEmpty) Text(u.bio!, style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 4),
+            Row(children: [
+              Text('${u.followersCount} followers', style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF), fontWeight: FontWeight.w600)),
+              const Text('  ·  ', style: TextStyle(color: Color(0xFFD1D5DB))),
+              Text('${u.postsCount} posts', style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF), fontWeight: FontWeight.w600)),
+            ]),
+          ])),
+          const SizedBox(width: 10),
+          if (!u.isMe) SizedBox(width: 90, child: ElevatedButton(
+            onPressed: () async {
+              setState(() => _following = !_following);
+              try { await ref.read(communityRepoProvider).toggleFollow(u.id); } catch (_) { setState(() => _following = !_following); }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _following ? const Color(0xFFF0F2F5) : kOrange,
+              foregroundColor: _following ? const Color(0xFF6B7280) : Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(vertical: 8)),
+            child: Text(_following ? 'Following' : 'Follow', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+          )),
+        ]),
+      ),
     );
   }
 }
