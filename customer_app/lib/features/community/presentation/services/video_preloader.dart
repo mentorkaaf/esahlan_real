@@ -7,7 +7,7 @@ class VideoPreloader {
 
   final Map<String, VideoPlayerController> _cache = {};
   final Set<String> _loading = {};
-  static const _maxCached = 4;
+  static const _maxCached = 6;
 
   /// Preload a list of video URLs silently in background
   void preloadUrls(List<String> urls) {

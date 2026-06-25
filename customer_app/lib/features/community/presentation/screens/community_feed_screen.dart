@@ -187,9 +187,13 @@ class _FeedTab extends ConsumerWidget {
           feedState.when(
             data: (posts) {
               if (posts.isEmpty) return const _EmptyFeed();
-              // Preload video URLs silently
-              final videoUrls = posts.where((p) => p.isVideo && p.media.isNotEmpty).take(3).map((p) => p.media.first.url).toList();
-              if (videoUrls.isNotEmpty) VideoPreloader().preloadUrls(videoUrls);
+              // Preload all video URLs silently (posts + ads)
+              final videoUrls = <String>[];
+              for (final p in posts) {
+                if (p.isAd && p.adType == 'video' && p.adMediaUrl != null) videoUrls.add(p.adMediaUrl!);
+                if (p.isVideo && p.media.isNotEmpty) videoUrls.add(p.media.first.url);
+              }
+              if (videoUrls.isNotEmpty) VideoPreloader().preloadUrls(videoUrls.take(6).toList());
               return Column(
                 children: [
                   ...posts.map((p) => _PostCard(post: p,
@@ -357,17 +361,20 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   void _initVideo() {
     if (_initStarted || widget.post.adType != 'video' || widget.post.adMediaUrl == null) return;
     _initStarted = true;
+    final url = widget.post.adMediaUrl!;
 
-    // Try preloaded ad first (instant)
-    final preloaded = AdPreloader().getNextFeedAd();
-    if (preloaded != null && preloaded.controller != null && preloaded.controller!.value.isInitialized) {
-      preloaded.controller!.play();
-      setState(() { _vCtrl = preloaded.controller; _videoReady = true; });
+    // Try preloaded controller (instant, 0ms)
+    final preloaded = VideoPreloader().get(url);
+    if (preloaded != null && preloaded.value.isInitialized) {
+      preloaded.setLooping(true);
+      preloaded.setVolume(1);
+      preloaded.play();
+      setState(() { _vCtrl = preloaded; _videoReady = true; });
       return;
     }
 
     // Fallback: load fresh
-    final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.post.adMediaUrl!));
+    final ctrl = VideoPlayerController.networkUrl(Uri.parse(url));
     ctrl.initialize().then((_) {
       if (!mounted) { ctrl.dispose(); return; }
       ctrl.setLooping(true);
