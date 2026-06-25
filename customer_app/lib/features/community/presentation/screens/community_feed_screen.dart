@@ -969,7 +969,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     try {
       await ctrl.initialize();
       ctrl.setLooping(true);
-      ctrl.setVolume(0);
+      ctrl.setVolume(1);
       if (mounted) setState(() { _ctrl = ctrl; _ready = true; });
     } catch (_) {
       ctrl.dispose();
