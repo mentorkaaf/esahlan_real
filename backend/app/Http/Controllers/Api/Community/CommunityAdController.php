@@ -55,6 +55,11 @@ class CommunityAdController extends Controller
             'ends_at'        => 'nullable|date|after:starts_at',
             'target_district'=> 'nullable|string',
             'target_gender'  => 'nullable|in:all,male,female',
+            'target_country' => 'nullable|string',
+            'target_city'    => 'nullable|string',
+            'target_min_age' => 'nullable|integer|min:13|max:100',
+            'target_max_age' => 'nullable|integer|min:13|max:100',
+            'target_interests'=> 'nullable|array',
         ]);
 
         // Find matching pricing
@@ -205,6 +210,38 @@ class CommunityAdController extends Controller
             'cta_text'    => $ad->cta_text,
             'cta_url'     => $ad->cta_url,
             'page'        => $ad->page ? ['name' => $ad->page->name, 'avatar' => cdn_url($ad->page->avatar)] : null,
+        ]]);
+    }
+
+    // Estimate audience size based on targeting
+    public function estimateAudience(Request $request)
+    {
+        $query = \App\Models\CommunityProfile::where('onboarding_completed', true);
+
+        if ($request->filled('country')) $query->where('country', $request->country);
+        if ($request->filled('city')) $query->where('city', $request->city);
+        if ($request->filled('gender') && $request->gender !== 'all') $query->where('gender', $request->gender);
+        if ($request->filled('min_age') || $request->filled('max_age')) {
+            $now = now();
+            if ($request->filled('min_age')) $query->where('date_of_birth', '<=', $now->copy()->subYears((int)$request->min_age));
+            if ($request->filled('max_age')) $query->where('date_of_birth', '>=', $now->copy()->subYears((int)$request->max_age));
+        }
+        if ($request->filled('interests')) {
+            $interests = is_array($request->interests) ? $request->interests : explode(',', $request->interests);
+            $query->where(function ($q) use ($interests) {
+                foreach ($interests as $interest) {
+                    $q->orWhereJsonContains('interests', trim($interest));
+                }
+            });
+        }
+
+        $total = \App\Models\CommunityProfile::where('onboarding_completed', true)->count();
+        $matched = $query->count();
+
+        return response()->json(['status' => 'success', 'data' => [
+            'total_users'   => $total,
+            'matched_users' => $matched,
+            'percentage'    => $total > 0 ? round(($matched / $total) * 100, 1) : 0,
         ]]);
     }
 

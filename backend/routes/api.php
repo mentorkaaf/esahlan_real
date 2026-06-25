@@ -271,6 +271,8 @@ Route::prefix('v1')->group(function () {
 
         // Profile
         Route::get('profile/me', fn() => app(CommunityProfileController::class)->show(auth()->id()));
+        Route::get('profile/onboarding-check', [CommunityProfileController::class, 'checkOnboarding']);
+        Route::post('profile/onboarding', [CommunityProfileController::class, 'onboarding']);
         Route::post('profile/avatar', [CommunityProfileController::class, 'updateAvatar']);
         Route::put('profile', [CommunityProfileController::class, 'update']);
         Route::get('profile/{userId}', [CommunityProfileController::class, 'show']);
@@ -332,6 +334,7 @@ Route::prefix('v1')->group(function () {
         Route::get('ads/mine', [CommunityAdController::class, 'myAds']);
         Route::post('ads', [CommunityAdController::class, 'store']);
         Route::get('ads/settings', [CommunityAdController::class, 'displaySettings']);
+        Route::post('ads/estimate-audience', [CommunityAdController::class, 'estimateAudience']);
         Route::get('ads/preroll', [CommunityAdController::class, 'preroll']);
         Route::post('ads/{id}/click', [CommunityAdController::class, 'trackClick']);
 

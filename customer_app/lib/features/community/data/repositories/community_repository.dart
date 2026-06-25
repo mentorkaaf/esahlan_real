@@ -256,6 +256,21 @@ class CommunityRepository {
     return r.data['count'] as int? ?? 0;
   }
 
+  // ── Onboarding ─────────────────────────────────────────────────────────────
+  Future<bool> checkOnboarding() async {
+    final r = await _dio.get('/community/profile/onboarding-check');
+    return r.data['completed'] as bool? ?? false;
+  }
+
+  Future<void> submitOnboarding(Map<String, dynamic> data) async {
+    await _dio.post('/community/profile/onboarding', data: data);
+  }
+
+  Future<Map<String, dynamic>> estimateAudience(Map<String, dynamic> params) async {
+    final r = await _dio.post('/community/ads/estimate-audience', data: params);
+    return r.data['data'] as Map<String, dynamic>;
+  }
+
   // ── Post Edit ──────────────────────────────────────────────────────────────
   Future<CommunityPost> updatePost(int postId, {String? content, String? privacy}) async {
     final r = await _dio.put('/community/posts/$postId', data: {

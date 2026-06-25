@@ -73,6 +73,36 @@ class CommunityProfileController extends Controller
         ]]);
     }
 
+    public function onboarding(Request $request)
+    {
+        $request->validate([
+            'country'       => 'required|string|max:100',
+            'city'          => 'required|string|max:100',
+            'gender'        => 'required|in:male,female,other',
+            'date_of_birth' => 'required|date|before:today',
+            'interests'     => 'required|array|min:1',
+            'interests.*'   => 'string|max:50',
+        ]);
+
+        $profile = CommunityProfile::firstOrCreate(['user_id' => auth()->id()]);
+        $profile->update([
+            'country'              => $request->country,
+            'city'                 => $request->city,
+            'gender'               => $request->gender,
+            'date_of_birth'        => $request->date_of_birth,
+            'interests'            => $request->interests,
+            'onboarding_completed' => true,
+        ]);
+
+        return response()->json(['status' => 'success', 'message' => 'Profile updated']);
+    }
+
+    public function checkOnboarding()
+    {
+        $profile = CommunityProfile::where('user_id', auth()->id())->first();
+        return response()->json(['status' => 'success', 'completed' => $profile?->onboarding_completed ?? false]);
+    }
+
     public function posts(int $userId, Request $request)
     {
         $type = $request->get('type','posts');

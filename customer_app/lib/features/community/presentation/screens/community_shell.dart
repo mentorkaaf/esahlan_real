@@ -7,6 +7,8 @@ import 'reels_screen.dart';
 import 'community_chat_list_screen.dart';
 import 'community_profile_screen.dart';
 import 'create_post_screen.dart';
+import 'community_onboarding_screen.dart';
+import '../../data/repositories/community_repository.dart';
 
 final communityNavIndexProvider = StateProvider<int>((ref) => 0);
 
@@ -17,15 +19,41 @@ const kNavBg = Color(0xFF140465);      // bottom-nav background = brand navy
 const kNavInactive = Color(0xFF9AA0C2);
 const kBg = Color(0xFFF0F2F5);         // Facebook-style page background
 
-class CommunityShell extends ConsumerWidget {
+class CommunityShell extends ConsumerStatefulWidget {
   const CommunityShell({super.key});
+  @override
+  ConsumerState<CommunityShell> createState() => _CommunityShellState();
+}
+
+class _CommunityShellState extends ConsumerState<CommunityShell> {
+  bool? _onboardingDone;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    _checkOnboarding();
+  }
+
+  void _checkOnboarding() async {
+    try {
+      final done = await ref.read(communityRepoProvider).checkOnboarding();
+      if (mounted) setState(() => _onboardingDone = done);
+    } catch (_) {
+      if (mounted) setState(() => _onboardingDone = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_onboardingDone == null) return const Scaffold(body: Center(child: CircularProgressIndicator(color: kOrange)));
+
+    if (_onboardingDone == false) {
+      return CommunityOnboardingScreen(onComplete: () => setState(() => _onboardingDone = true));
+    }
+
     final idx = ref.watch(communityNavIndexProvider);
 
     return Scaffold(
-      
       body: IndexedStack(
         index: idx,
         children: const [
