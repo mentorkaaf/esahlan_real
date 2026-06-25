@@ -1062,27 +1062,25 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
           _ctrl!.pause();
           Navigator.push(context, MaterialPageRoute(builder: (_) => _VideoPlayerScreen(url: widget.m.url)));
         } : null,
-        child: Stack(
-          children: [
-            Container(
-              color: const Color(0xFF1A1B2E),
-              width: double.infinity,
-              height: videoH,
-              child: _ready && _ctrl != null
-                  ? FittedBox(fit: BoxFit.contain, child: SizedBox(
-                      width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))
-                  : widget.m.thumbnail != null
-                      ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.contain,
-                          placeholder: Container(color: const Color(0xFF1A1B2E)),
-                          errorWidget: Container(color: const Color(0xFF1A1B2E)))
-                      : const SizedBox(),
-            ),
-            if (!_ready)
-              Positioned.fill(child: Center(child: CircularProgressIndicator(color: kOrange.withValues(alpha: 0.7), strokeWidth: 2))),
+        child: SizedBox(
+          width: double.infinity,
+          height: videoH,
+          child: Stack(children: [
+            // Layer 1: Thumbnail (always visible until video plays)
+            Positioned.fill(
+              child: widget.m.thumbnail != null
+                  ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.cover)
+                  : Container(color: const Color(0xFFE5E7EB))),
+            // Layer 2: Video (overlays thumbnail when ready)
+            if (_ready && _ctrl != null)
+              Positioned.fill(child: FittedBox(fit: BoxFit.contain,
+                child: SizedBox(width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))),
+            // Pause icon
             if (_paused && _ready)
               Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
                 child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 40)))),
+            // Controls bar
             if (_ready && _ctrl != null) Positioned(bottom: 0, left: 0, right: 0,
               child: Container(
                 padding: const EdgeInsets.fromLTRB(10, 20, 10, 8),
@@ -1101,7 +1099,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                   GestureDetector(onTap: () { setState(() { _ctrl!.setVolume(_ctrl!.value.volume > 0 ? 0 : 1); }); },
                     child: Icon(_ctrl!.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 18)),
                 ]))),
-          ],
+          ]),
         ),
       );
 
