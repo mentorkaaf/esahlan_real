@@ -104,7 +104,7 @@ class _CountryCityPickerState extends State<CountryCityPicker> {
     showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
       builder: (_) => _SearchSheet(
         title: 'Select Country',
-        items: _countries.map((c) => {'label': '${c['flag']} ${c['name']}', 'value': c['code'], 'name': c['name']}).toList(),
+        items: _countries.map((c) => <String, String?>{'label': '${c['flag']} ${c['name']}', 'value': '${c['code']}', 'name': '${c['name']}'}).toList(),
         onSelected: (item) {
           setState(() { _selectedCountryCode = item['value']; _selectedCountryName = item['name']; _selectedCity = null; });
           _loadCities(item['value']!);
@@ -118,7 +118,7 @@ class _CountryCityPickerState extends State<CountryCityPicker> {
     showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
       builder: (_) => _SearchSheet(
         title: 'Select City',
-        items: _cities.map((c) => {'label': c, 'value': c, 'name': c}).toList(),
+        items: _cities.map((c) => <String, String?>{'label': c, 'value': c, 'name': c}).toList(),
         onSelected: (item) {
           setState(() => _selectedCity = item['value']);
           widget.onChanged(_selectedCountryName!, _selectedCountryCode!, _selectedCity!);
