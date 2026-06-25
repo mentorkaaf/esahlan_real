@@ -270,6 +270,9 @@ Route::prefix('v1')->group(function () {
         Route::post('comments/{id}/react', [CommunityCommentController::class, 'react']);
 
         // Profile
+        Route::get('geo/countries', [\App\Http\Controllers\Api\GeoController::class, 'countries']);
+        Route::get('geo/cities/{code}', [\App\Http\Controllers\Api\GeoController::class, 'cities']);
+
         Route::get('profile/me', fn() => app(CommunityProfileController::class)->show(auth()->id()));
         Route::get('profile/onboarding-check', [CommunityProfileController::class, 'checkOnboarding']);
         Route::post('profile/onboarding', [CommunityProfileController::class, 'onboarding']);

@@ -6,6 +6,7 @@ import 'dart:io';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
+import '../widgets/country_city_picker.dart';
 import '../../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import 'community_shell.dart';
@@ -305,17 +306,11 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
         const SizedBox(height: 14),
 
         // Country & City
-        Row(children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _sectionLabel('Country'),
-            TextField(onChanged: (v) { _targetCountry = v; _estimate(); }, decoration: _inputDeco('e.g. Somalia')),
-          ])),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _sectionLabel('City'),
-            TextField(onChanged: (v) { _targetCity = v; _estimate(); }, decoration: _inputDeco('e.g. Mogadishu')),
-          ])),
-        ]),
+        CountryCityPicker(
+          initialCountry: _targetCountry.isNotEmpty ? _targetCountry : null,
+          initialCity: _targetCity.isNotEmpty ? _targetCity : null,
+          onChanged: (country, code, city) { setState(() { _targetCountry = country; _targetCity = city; }); _estimate(); },
+        ),
         const SizedBox(height: 14),
 
         // Age Range

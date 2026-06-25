@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
+import '../widgets/country_city_picker.dart';
 import 'community_shell.dart';
 
 class CommunityOnboardingScreen extends ConsumerStatefulWidget {
@@ -99,21 +100,11 @@ class _State extends ConsumerState<CommunityOnboardingScreen> {
     const Text('This helps us personalize your experience', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 15)),
     const SizedBox(height: 28),
 
-    const Text('Country', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF374151))),
-    const SizedBox(height: 8),
-    Wrap(spacing: 8, runSpacing: 8, children: _countries.map((c) => ChoiceChip(
-      label: Text(c), selected: _country == c,
-      onSelected: (s) => setState(() => _country = s ? c : null),
-      selectedColor: kOrange.withValues(alpha: 0.15),
-      labelStyle: TextStyle(fontWeight: FontWeight.w600, color: _country == c ? kOrange : const Color(0xFF6B7280)),
-    )).toList()),
-    const SizedBox(height: 20),
-
-    const Text('City', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF374151))),
-    const SizedBox(height: 8),
-    TextField(onChanged: (v) => setState(() => _city = v),
-      decoration: InputDecoration(hintText: 'e.g. Mogadishu', filled: true, fillColor: const Color(0xFFF9FAFB),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))))),
+    CountryCityPicker(
+      initialCountry: _country,
+      initialCity: _city,
+      onChanged: (country, code, city) => setState(() { _country = country; _city = city; }),
+    ),
     const SizedBox(height: 20),
 
     const Text('Gender', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF374151))),
