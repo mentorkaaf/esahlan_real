@@ -30,7 +30,7 @@
 
 @if($tab === 'ads')
 <form action="{{ route('admin.community-ads.bulk-delete') }}" method="POST" id="bulkForm">
-    @csrf @method('DELETE')
+    @csrf
     <div style="display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px;">
         <button type="submit" class="btn btn-danger" onclick="return confirm('Delete selected ads?')" style="display:none;" id="bulkDeleteBtn"><i class="fas fa-trash"></i> Delete Selected</button>
     </div>
@@ -69,7 +69,7 @@
                                 <select name="status" class="form-control" style="width:100px;font-size:11px;">@foreach(['pending','active','paused','completed','rejected'] as $s)<option value="{{ $s }}" {{ $ad->status===$s?'selected':'' }}>{{ ucfirst($s) }}</option>@endforeach</select>
                                 <button class="btn btn-sm btn-primary"><i class="fas fa-check"></i></button>
                             </form>
-                            <form action="{{ route('admin.community-ads.delete', $ad->id) }}" method="POST" onsubmit="return confirm('Delete?')">@csrf @method('DELETE')<button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button></form>
+                            <form action="{{ route('admin.community-ads.delete', $ad->id) }}" method="POST" onsubmit="return confirm('Delete?')">@csrf<button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button></form>
                         </div>
                     </td>
                 </tr>

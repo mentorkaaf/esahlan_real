@@ -21,7 +21,7 @@
 </div>
 
 <form action="{{ route('admin.community.posts.bulk-delete') }}" method="POST" id="bulkPostsForm">
-    @csrf @method('DELETE')
+    @csrf
     <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
         <button type="submit" class="btn btn-danger" onclick="return confirm('Delete selected posts?')" style="display:none;" id="bulkPostDeleteBtn"><i class="fas fa-trash"></i> Delete Selected</button>
     </div>
