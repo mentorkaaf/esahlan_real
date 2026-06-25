@@ -66,9 +66,6 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
     final rentReels = rentAsync.valueOrNull ?? [];
     final combined = _buildCombinedList(communityReels, rentReels);
 
-    // Preload next few reel videos silently
-    final reelUrls = communityReels.where((r) => r.media.isNotEmpty).take(3).map((r) => r.media.first.url).toList();
-    if (reelUrls.isNotEmpty) VideoPreloader().preloadUrls(reelUrls);
 
     if (reelsAsync.isLoading && rentAsync.isLoading) {
       return const Scaffold(
@@ -164,16 +161,6 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     final media = widget.reel.media.where((m) => m.type == 'video').firstOrNull ??
         (widget.reel.media.isNotEmpty ? widget.reel.media.first : null);
     if (media == null || media.type != 'video') return;
-
-    // Try preloaded controller (instant)
-    final preloaded = VideoPreloader().get(media.url);
-    if (preloaded != null && preloaded.value.isInitialized) {
-      _videoCtrl = preloaded;
-      _videoCtrl!.setVolume(_muted ? 0 : 1);
-      if (widget.isActive && !_paused) _videoCtrl!.play();
-      setState(() => _videoReady = true);
-      return;
-    }
 
     _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(media.url))
       ..initialize().then((_) {
