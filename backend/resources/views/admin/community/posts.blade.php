@@ -1,128 +1,115 @@
 @extends('admin.layouts.app')
 @section('title', 'Community Posts')
 @section('content')
-<div class="container-fluid py-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
+
+<div class="page-header">
     <div>
-      <h2 class="mb-0 fw-bold">Community Posts</h2>
-      <p class="text-muted mb-0">Moderate and manage all community posts</p>
+        <h2 class="page-title"><i class="fas fa-file-alt" style="color:#FF8A00"></i> Community Posts</h2>
+        <ol class="breadcrumb"><li><a href="{{ route('admin.dashboard') }}">Dashboard</a></li><li><a href="{{ route('admin.community.index') }}">Community</a></li><li>Posts</li></ol>
     </div>
-    <a href="{{ route('admin.community.index') }}" class="btn btn-outline-secondary btn-sm">
-      <i class="fas fa-arrow-left me-1"></i> Back
-    </a>
-  </div>
-
-  {{-- Filters --}}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-body">
-      <form method="GET" class="row g-3 align-items-end">
-        <div class="col-md-4">
-          <label class="form-label small fw-semibold">Search</label>
-          <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Search posts...">
-        </div>
-        <div class="col-md-3">
-          <label class="form-label small fw-semibold">Type</label>
-          <select name="type" class="form-select">
-            <option value="">All Types</option>
-            @foreach(['text','image','video','reel','poll'] as $t)
-              <option value="{{ $t }}" @selected(request('type') === $t)>{{ ucfirst($t) }}</option>
-            @endforeach
-          </select>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label small fw-semibold">Status</label>
-          <select name="status" class="form-select">
-            <option value="">All</option>
-            <option value="reported" @selected(request('status')==='reported')>Reported</option>
-            <option value="active" @selected(request('status')==='active')>Active</option>
-          </select>
-        </div>
-        <div class="col-md-2">
-          <button type="submit" class="btn btn-primary w-100">Filter</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div class="card border-0 shadow-sm">
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0 align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>#</th>
-              <th>Author</th>
-              <th>Content</th>
-              <th>Type</th>
-              <th>Privacy</th>
-              <th>Likes</th>
-              <th>Comments</th>
-              <th>Reports</th>
-              <th>Date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @forelse($posts as $post)
-            <tr>
-              <td class="text-muted small">{{ $post->id }}</td>
-              <td>
-                <div class="d-flex align-items-center gap-2">
-                  @if($post->user?->profile_photo_path)
-                    <img src="{{ $post->user->profile_photo_path }}" class="rounded-circle" width="36" height="36" style="object-fit:cover">
-                  @else
-                    <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center" style="width:36px;height:36px;font-weight:700">
-                      {{ strtoupper(substr($post->user?->name ?? '?', 0, 1)) }}
-                    </div>
-                  @endif
-                  <div>
-                    <div class="fw-semibold small">{{ $post->user?->name }}</div>
-                    <div class="text-muted" style="font-size:11px">{{ $post->user?->email }}</div>
-                  </div>
-                </div>
-              </td>
-              <td style="max-width:220px">
-                <p class="mb-0 small text-truncate">{{ $post->content ?? '—' }}</p>
-                @if($post->media->count())
-                  <span class="badge bg-info bg-opacity-10 text-info small">{{ $post->media->count() }} media</span>
-                @endif
-              </td>
-              <td><span class="badge bg-secondary bg-opacity-15 text-secondary">{{ $post->type }}</span></td>
-              <td><span class="badge bg-light text-dark border">{{ $post->privacy }}</span></td>
-              <td class="fw-semibold">{{ $post->likes_count }}</td>
-              <td class="fw-semibold">{{ $post->comments_count }}</td>
-              <td>
-                @if($post->reports_count > 0)
-                  <span class="badge bg-danger">{{ $post->reports_count }}</span>
-                @else
-                  <span class="text-muted">—</span>
-                @endif
-              </td>
-              <td class="small text-muted">{{ $post->created_at->format('d M Y') }}</td>
-              <td>
-                <div class="d-flex gap-1">
-                  <button class="btn btn-sm btn-outline-secondary py-0" onclick="viewPost({{ $post->id }})">
-                    <i class="fas fa-eye"></i>
-                  </button>
-                  <form method="POST" action="{{ route('admin.community.posts.delete', $post->id) }}" onsubmit="return confirm('Delete this post?')">
-                    @csrf @method('DELETE')
-                    <button class="btn btn-sm btn-outline-danger py-0"><i class="fas fa-trash"></i></button>
-                  </form>
-                </div>
-              </td>
-            </tr>
-            @empty
-            <tr><td colspan="10" class="text-center text-muted py-5">No posts found</td></tr>
-            @endforelse
-          </tbody>
-        </table>
-      </div>
-    </div>
-    @if($posts->hasPages())
-    <div class="card-footer bg-white border-0">
-      {{ $posts->withQueryString()->links() }}
-    </div>
-    @endif
-  </div>
 </div>
+
+@if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+
+{{-- Filters --}}
+<div class="card" style="margin-bottom:16px;padding:16px;">
+    <form method="GET" style="display:flex;gap:10px;align-items:end;">
+        <div style="flex:2"><label class="form-label" style="font-size:12px;">Search</label><input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Search posts..."></div>
+        <div style="flex:1"><label class="form-label" style="font-size:12px;">Type</label><select name="type" class="form-control"><option value="">All</option>@foreach(['text','image','video','reel','poll','share'] as $t)<option value="{{ $t }}" @selected(request('type')===$t)>{{ ucfirst($t) }}</option>@endforeach</select></div>
+        <div><button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filter</button></div>
+    </form>
+</div>
+
+<form action="{{ route('admin.community.posts.bulk-delete') }}" method="POST" id="bulkPostsForm">
+    @csrf @method('DELETE')
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+        <button type="submit" class="btn btn-danger" onclick="return confirm('Delete selected posts?')" style="display:none;" id="bulkPostDeleteBtn"><i class="fas fa-trash"></i> Delete Selected</button>
+    </div>
+    <div class="card">
+        <div class="table-wrap"><table>
+            <thead><tr>
+                <th><input type="checkbox" id="selectAllPosts" onchange="document.querySelectorAll('.post-check').forEach(c=>{c.checked=this.checked});document.getElementById('bulkPostDeleteBtn').style.display=this.checked?'block':'none'"></th>
+                <th>#</th><th>Author</th><th>Media</th><th>Content</th><th>Type</th><th>Privacy</th><th>Likes</th><th>Comments</th><th>Views</th><th>Date</th><th>Actions</th>
+            </tr></thead>
+            <tbody>
+                @forelse($posts as $post)
+                <tr>
+                    <td><input type="checkbox" name="ids[]" value="{{ $post->id }}" class="post-check" onchange="document.getElementById('bulkPostDeleteBtn').style.display=document.querySelectorAll('.post-check:checked').length?'block':'none'"></td>
+                    <td style="font-weight:700;">{{ $post->id }}</td>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div style="width:32px;height:32px;border-radius:50%;background:#f0f2f5;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#FF8A00;">{{ strtoupper(substr($post->user?->name ?? '?', 0, 1)) }}</div>
+                            <div><div style="font-weight:600;font-size:13px;">{{ $post->user?->name ?? '—' }}</div></div>
+                        </div>
+                    </td>
+                    <td>
+                        @if($post->media->count() > 0)
+                            @php $m = $post->media->first(); @endphp
+                            @if($m->type === 'video')
+                                <div onclick="openMediaModal('{{ cdn_url($m->url) }}', 'video')" style="width:50px;height:50px;border-radius:8px;background:#1a1b2e;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;">
+                                    <i class="fas fa-play" style="color:#fff;font-size:14px;"></i>
+                                    @if($post->media->count() > 1)<span style="position:absolute;top:2px;right:2px;background:#FF8A00;color:#fff;border-radius:4px;font-size:9px;padding:1px 4px;">+{{ $post->media->count() - 1 }}</span>@endif
+                                </div>
+                            @else
+                                <div style="position:relative;cursor:pointer;" onclick="openMediaModal('{{ cdn_url($m->url) }}', 'image')">
+                                    <img src="{{ cdn_url($m->url) }}" style="width:50px;height:50px;border-radius:8px;object-fit:cover;" onerror="this.style.display='none'">
+                                    @if($post->media->count() > 1)<span style="position:absolute;top:2px;right:2px;background:#FF8A00;color:#fff;border-radius:4px;font-size:9px;padding:1px 4px;">+{{ $post->media->count() - 1 }}</span>@endif
+                                </div>
+                            @endif
+                        @else
+                            <span style="color:#ccc;">—</span>
+                        @endif
+                    </td>
+                    <td style="max-width:250px;"><div style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $post->content ?? '—' }}</div></td>
+                    <td><span class="badge badge-info">{{ $post->type }}</span></td>
+                    <td><span class="badge {{ $post->privacy === 'public' ? 'badge-success' : 'badge-secondary' }}">{{ $post->privacy }}</span></td>
+                    <td style="font-weight:700;">{{ $post->likes_count }}</td>
+                    <td>{{ $post->comments_count }}</td>
+                    <td>{{ $post->views_count }}</td>
+                    <td style="font-size:12px;color:#8A8A9A;">{{ $post->created_at->format('d M Y') }}</td>
+                    <td>
+                        <div style="display:flex;gap:4px;">
+                            @if($post->media->count() > 0)
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="openMediaModal('{{ cdn_url($post->media->first()->url) }}', '{{ $post->media->first()->type }}')"><i class="fas fa-eye"></i></button>
+                            @endif
+                            <form method="POST" action="{{ route('admin.community.posts.delete', $post->id) }}" onsubmit="return confirm('Delete?')">@csrf @method('DELETE')
+                                <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                @empty
+                <tr><td colspan="12" style="text-align:center;padding:30px;color:#8A8A9A;">No posts found</td></tr>
+                @endforelse
+            </tbody>
+        </table></div>
+        @if($posts->hasPages())<div style="padding:16px;display:flex;justify-content:center;">{{ $posts->withQueryString()->links() }}</div>@endif
+    </div>
+</form>
+
+{{-- Media Preview Modal --}}
+<div id="mediaModal" class="modal-overlay" style="display:none;z-index:9999;" onclick="if(event.target===this)closeMediaModal()">
+    <div style="position:relative;max-width:800px;margin:auto;padding-top:60px;">
+        <button onclick="closeMediaModal()" style="position:absolute;top:20px;right:0;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;">&times;</button>
+        <div id="mediaContent"></div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+function openMediaModal(url, type) {
+    var el = document.getElementById('mediaContent');
+    if (type === 'video') {
+        el.innerHTML = '<video src="'+url+'" controls autoplay style="width:100%;max-height:80vh;border-radius:12px;background:#000;"></video>';
+    } else {
+        el.innerHTML = '<img src="'+url+'" style="width:100%;max-height:80vh;border-radius:12px;object-fit:contain;background:#000;">';
+    }
+    document.getElementById('mediaModal').style.display = 'flex';
+}
+function closeMediaModal() {
+    document.getElementById('mediaModal').style.display = 'none';
+    document.getElementById('mediaContent').innerHTML = '';
+}
+</script>
+@endpush
 @endsection

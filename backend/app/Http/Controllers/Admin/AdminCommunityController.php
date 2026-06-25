@@ -73,6 +73,19 @@ class AdminCommunityController extends Controller
         return back()->with('success', 'Post deleted successfully.');
     }
 
+    public function bulkDeletePosts(Request $request)
+    {
+        $ids = $request->input('ids', []);
+        if (empty($ids)) return back()->with('success', 'No posts selected.');
+        CommunityPost::whereIn('id', $ids)->each(function ($post) {
+            $post->media()->delete();
+            $post->reactions()->delete();
+            $post->comments()->delete();
+            $post->delete();
+        });
+        return back()->with('success', count($ids) . ' posts deleted.');
+    }
+
     // ── Reports ────────────────────────────────────────────────────────────────
 
     public function reports(Request $request)

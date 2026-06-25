@@ -287,6 +287,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'index'])->name('index');
             Route::get('/posts', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'posts'])->name('posts');
             Route::delete('/posts/{id}', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'deletePost'])->name('posts.delete');
+            Route::delete('/posts-bulk', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'bulkDeletePosts'])->name('posts.bulk-delete');
             Route::get('/reports', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'reports'])->name('reports');
             Route::post('/reports/{id}/action', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'actionReport'])->name('reports.action');
             Route::get('/groups', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'groups'])->name('groups');
@@ -302,6 +303,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('community-ads')->name('community-ads.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'index'])->name('index');
             Route::patch('/ads/{id}/status', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'updateAdStatus'])->name('status');
+            Route::delete('/ads/{id}', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'deleteAd'])->name('delete');
+            Route::delete('/ads-bulk', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'bulkDelete'])->name('bulk-delete');
             Route::patch('/pricing/{id}', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'updatePricing'])->name('pricing');
         });
 

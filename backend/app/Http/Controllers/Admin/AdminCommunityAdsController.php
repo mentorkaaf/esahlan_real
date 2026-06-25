@@ -45,6 +45,31 @@ class AdminCommunityAdsController extends Controller
         return back()->with('success', "Ad #{$ad->id} status updated to {$request->status}");
     }
 
+    public function deleteAd($id)
+    {
+        $ad = CommunityAd::findOrFail($id);
+        // Refund remaining budget
+        if ($ad->spent < $ad->budget && $ad->user?->wallet) {
+            $ad->user->wallet->increment('balance', $ad->budget - $ad->spent);
+        }
+        $ad->delete();
+        return back()->with('success', 'Ad deleted and remaining budget refunded.');
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $ids = $request->input('ids', []);
+        if (empty($ids)) return back()->with('success', 'No ads selected.');
+        $ads = CommunityAd::whereIn('id', $ids)->get();
+        foreach ($ads as $ad) {
+            if ($ad->spent < $ad->budget && $ad->user?->wallet) {
+                $ad->user->wallet->increment('balance', $ad->budget - $ad->spent);
+            }
+            $ad->delete();
+        }
+        return back()->with('success', count($ids) . ' ads deleted.');
+    }
+
     public function updatePricing(Request $request, $id)
     {
         $pricing = CommunityAdPricing::findOrFail($id);
