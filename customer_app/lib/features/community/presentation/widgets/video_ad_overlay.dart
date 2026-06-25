@@ -86,9 +86,18 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
         onTap: () {
           if (_ad?['id'] != null) ref.read(communityRepoProvider).trackAdClick(_ad!['id']);
         },
-        child: Container(color: Colors.black, child: Stack(children: [
-          // Ad image — loads instantly (use thumbnail for video ads)
-          Center(child: NetImage(url: _ad!['thumbnail_url'] ?? _ad!['media_url'], fit: BoxFit.contain, width: double.infinity)),
+        child: Container(
+          decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF1A1B2E), Color(0xFF0D0E1A)])),
+          child: Stack(children: [
+          // Ad title centered
+          Center(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              if (_ad!['page']?['avatar'] != null) CircleNetImage(url: _ad!['page']['avatar'], size: 56, fallbackText: _ad!['page']?['name'] ?? 'Ad'),
+              if (_ad!['page']?['avatar'] == null) Container(width: 56, height: 56, decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle), child: const Icon(Icons.campaign_rounded, color: Colors.white, size: 28)),
+              const SizedBox(height: 12),
+              Text(_ad!['title'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800), textAlign: TextAlign.center),
+              if (_ad!['description'] != null) ...[const SizedBox(height: 6), Text(_ad!['description'], style: const TextStyle(color: Colors.white70, fontSize: 14), textAlign: TextAlign.center)],
+            ]))),
 
           // Top bar: Ad badge + progress
           Positioned(top: 0, left: 0, right: 0, child: Container(

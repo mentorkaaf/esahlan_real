@@ -336,23 +336,30 @@ class _AdCard extends ConsumerStatefulWidget {
   ConsumerState<_AdCard> createState() => _AdCardState();
 }
 
-class _AdCardState extends ConsumerState<_AdCard> {
+class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   VideoPlayerController? _vCtrl;
   bool _videoReady = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (widget.post.adType == 'video' && widget.post.adMediaUrl != null) {
       _vCtrl = VideoPlayerController.networkUrl(Uri.parse(widget.post.adMediaUrl!))
         ..initialize().then((_) {
-          if (mounted) { setState(() => _videoReady = true); _vCtrl!.setLooping(true); _vCtrl!.setVolume(1); _vCtrl!.play(); }
+          if (mounted) { setState(() => _videoReady = true); _vCtrl!.setLooping(true); _vCtrl!.setVolume(1); }
         }).catchError((_) {});
     }
   }
 
   @override
-  void dispose() { _vCtrl?.dispose(); super.dispose(); }
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_vCtrl == null) return;
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) _vCtrl!.pause();
+  }
+
+  @override
+  void dispose() { WidgetsBinding.instance.removeObserver(this); _vCtrl?.pause(); _vCtrl?.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -390,10 +397,10 @@ class _AdCardState extends ConsumerState<_AdCard> {
           if (p.adMediaUrl != null) GestureDetector(
             onTap: () { if (p.id > 0) ref.read(communityRepoProvider).trackAdClick(p.id); },
             child: p.adType == 'video'
-                ? AspectRatio(aspectRatio: 16 / 9, child: Container(color: const Color(0xFF1A1B2E),
+                ? Container(color: const Color(0xFF1A1B2E),
                     child: _videoReady && _vCtrl != null
-                        ? VideoPlayer(_vCtrl!)
-                        : const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: kOrange, strokeWidth: 2)))))
+                        ? AspectRatio(aspectRatio: _vCtrl!.value.aspectRatio.clamp(0.5, 2.5), child: VideoPlayer(_vCtrl!))
+                        : const AspectRatio(aspectRatio: 16 / 9, child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: kOrange, strokeWidth: 2)))))
                 : NetImage(url: p.adMediaUrl, fit: BoxFit.cover, width: double.infinity)),
 
           if (p.adCtaText != null) Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -906,7 +913,7 @@ class _MediaGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (media.length == 1) {
-      return _MediaItem(m: media[0], height: 0);
+      return _MediaItem(m: media[0], height: media[0].type == 'video' ? 0 : 0);
     }
     if (media.length == 2) {
       return Row(children: media.map((m) => Expanded(child: _MediaItem(m: m, height: 200))).toList());
@@ -927,10 +934,11 @@ class _MediaItem extends ConsumerStatefulWidget {
   ConsumerState<_MediaItem> createState() => _MediaItemState();
 }
 
-class _MediaItemState extends ConsumerState<_MediaItem> {
+class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObserver {
   VideoPlayerController? _ctrl;
   bool _ready = false;
   bool _paused = false;
+  bool _visible = false;
   final _key = UniqueKey();
 
   bool get _isVideo => widget.m.type == 'video';
@@ -938,7 +946,16 @@ class _MediaItemState extends ConsumerState<_MediaItem> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (_isVideo) _initVideo();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_ctrl == null || !_ready) return;
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _ctrl!.pause();
+    }
   }
 
   Future<void> _initVideo() async {
@@ -948,7 +965,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> {
     try {
       await ctrl.initialize();
       ctrl.setLooping(true);
-      ctrl.setVolume(1);
+      ctrl.setVolume(0);
       if (mounted) setState(() { _ctrl = ctrl; _ready = true; });
     } catch (_) {
       ctrl.dispose();
@@ -957,13 +974,16 @@ class _MediaItemState extends ConsumerState<_MediaItem> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _ctrl?.pause();
     _ctrl?.dispose();
     super.dispose();
   }
 
   void _onVisibilityChanged(VisibilityInfo info) {
     if (!_ready || _ctrl == null) return;
-    if (info.visibleFraction > 0.5) {
+    _visible = info.visibleFraction > 0.5;
+    if (_visible) {
       if (!_paused && !_ctrl!.value.isPlaying) _ctrl!.play();
     } else {
       if (_ctrl!.value.isPlaying) _ctrl!.pause();
