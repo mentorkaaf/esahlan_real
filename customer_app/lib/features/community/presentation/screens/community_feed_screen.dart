@@ -339,17 +339,25 @@ class _AdCard extends ConsumerStatefulWidget {
 class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   VideoPlayerController? _vCtrl;
   bool _videoReady = false;
+  bool _initStarted = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (widget.post.adType == 'video' && widget.post.adMediaUrl != null) {
-      _vCtrl = VideoPlayerController.networkUrl(Uri.parse(widget.post.adMediaUrl!))
-        ..initialize().then((_) {
-          if (mounted) { setState(() => _videoReady = true); _vCtrl!.setLooping(true); _vCtrl!.setVolume(1); }
-        }).catchError((_) {});
-    }
+  }
+
+  void _initVideo() {
+    if (_initStarted || widget.post.adType != 'video' || widget.post.adMediaUrl == null) return;
+    _initStarted = true;
+    final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.post.adMediaUrl!));
+    ctrl.initialize().then((_) {
+      if (!mounted) { ctrl.dispose(); return; }
+      ctrl.setLooping(true);
+      ctrl.setVolume(1);
+      ctrl.play();
+      setState(() { _vCtrl = ctrl; _videoReady = true; });
+    }).catchError((_) { ctrl.dispose(); });
   }
 
   @override
@@ -367,11 +375,11 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
     return VisibilityDetector(
       key: ValueKey('ad_${p.id}'),
       onVisibilityChanged: (info) {
-        if (_vCtrl == null || !_videoReady) return;
         if (info.visibleFraction > 0.5) {
-          if (!_vCtrl!.value.isPlaying) _vCtrl!.play();
+          if (!_initStarted) _initVideo();
+          if (_vCtrl != null && _videoReady && !_vCtrl!.value.isPlaying) _vCtrl!.play();
         } else {
-          if (_vCtrl!.value.isPlaying) _vCtrl!.pause();
+          if (_vCtrl != null && _vCtrl!.value.isPlaying) _vCtrl!.pause();
         }
       },
       child: Container(
