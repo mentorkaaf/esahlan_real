@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
-import '../services/ad_preloader.dart';
 import '../screens/community_shell.dart';
 
 class VideoAdOverlay extends ConsumerStatefulWidget {
@@ -22,51 +21,72 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
   bool _canSkip = false;
   int _countdown = 10;
   Map<String, dynamic>? _ad;
-  bool _adTriggered = false;
-  double _triggerPoint = 0;
-  int _playSeconds = 0;
+
+  // Multiple trigger points for long videos
+  final List<double> _triggerPoints = [];
+  int _nextTriggerIndex = 0;
+  bool _fetchingAd = false;
 
   @override
   void initState() {
     super.initState();
-    _triggerPoint = [0.3, 0.5, 0.7][Random().nextInt(3)];
     widget.mainController.addListener(_onProgress);
+    // Generate trigger points after first frame when duration is known
+    WidgetsBinding.instance.addPostFrameCallback((_) => _generateTriggerPoints());
+  }
+
+  void _generateTriggerPoints() {
+    final dur = widget.mainController.value.duration;
+    if (dur <= Duration.zero) {
+      // Duration not ready yet, try again
+      Future.delayed(const Duration(seconds: 1), () { if (mounted) _generateTriggerPoints(); });
+      return;
+    }
+    final totalSecs = dur.inSeconds;
+
+    if (totalSecs < 30) {
+      // Short video: 1 ad at random point
+      _triggerPoints.add(0.4 + Random().nextDouble() * 0.3);
+    } else if (totalSecs < 120) {
+      // 30s-2min: 2 ads
+      _triggerPoints.addAll([0.3, 0.7]);
+    } else if (totalSecs < 300) {
+      // 2-5min: 3 ads
+      _triggerPoints.addAll([0.2, 0.5, 0.8]);
+    } else {
+      // 5min+: 1 ad every ~90 seconds
+      final count = (totalSecs / 90).floor().clamp(2, 6);
+      for (var i = 1; i <= count; i++) {
+        _triggerPoints.add(i / (count + 1));
+      }
+    }
   }
 
   void _onProgress() {
-    if (_adTriggered || !mounted) return;
-    // Only trigger when video is actually playing
+    if (_showingAd || _fetchingAd || !mounted) return;
     if (!widget.mainController.value.isPlaying) return;
+    if (_nextTriggerIndex >= _triggerPoints.length) return;
+
     final dur = widget.mainController.value.duration;
     if (dur <= Duration.zero) return;
     final progress = widget.mainController.value.position.inMilliseconds / dur.inMilliseconds;
-    // Must have played at least 3 seconds before showing ad
     final playedSecs = widget.mainController.value.position.inSeconds;
-    if (playedSecs < 3) return;
-    if (progress >= _triggerPoint) _fetchAndShowAd();
+    if (playedSecs < 5) return;
+
+    if (progress >= _triggerPoints[_nextTriggerIndex]) {
+      _nextTriggerIndex++;
+      _fetchAndShowAd();
+    }
   }
 
   Future<void> _fetchAndShowAd() async {
-    if (_adTriggered) return;
-    _adTriggered = true;
+    _fetchingAd = true;
     try {
-      // Try preloaded ad first (instant, no loading)
-      final preloaded = AdPreloader().getOverlayAd();
-      if (preloaded != null && preloaded.controller != null && preloaded.controller!.value.isInitialized) {
-        widget.mainController.pause();
-        setState(() { _ad = preloaded.data; _adCtrl = preloaded.controller; _adReady = true; _showingAd = true; });
-        _adCtrl!.play();
-        _adCtrl!.addListener(_onAdEnd);
-        _runCountdown();
-        return;
-      }
-
-      // Fallback: load fresh
       final ad = await ref.read(communityRepoProvider).getPrerollAd();
-      if (ad == null || ad['media_url'] == null || !mounted) return;
+      if (ad == null || ad['media_url'] == null || !mounted) { _fetchingAd = false; return; }
 
       widget.mainController.pause();
-      setState(() { _ad = ad; _showingAd = true; });
+      setState(() { _ad = ad; _showingAd = true; _canSkip = false; _countdown = 10; });
 
       final ctrl = VideoPlayerController.networkUrl(Uri.parse(ad['media_url']));
       await ctrl.initialize();
@@ -77,7 +97,10 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
       ctrl.play();
       ctrl.addListener(_onAdEnd);
       _runCountdown();
-    } catch (_) { _resumeMain(); }
+    } catch (_) {
+      _fetchingAd = false;
+      _resumeMain();
+    }
   }
 
   void _onAdEnd() {
@@ -101,6 +124,7 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
     _adCtrl?.pause();
     _adCtrl?.dispose();
     _adCtrl = null;
+    _fetchingAd = false;
     setState(() { _showingAd = false; _adReady = false; });
     _resumeMain();
   }
