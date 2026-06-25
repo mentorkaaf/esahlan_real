@@ -220,17 +220,11 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
       onTap: _togglePause,
       onDoubleTap: _onDoubleTap,
       child: Stack(fit: StackFit.expand, children: [
-        // Layer 1: Thumbnail always shown first
-        if (media?.thumbnail != null)
-          NetImage(url: media!.thumbnail!, fit: BoxFit.cover)
-        else if (media != null && media.type == 'image')
-          NetImage(url: media.url, fit: BoxFit.cover)
-        else
-          Container(color: const Color(0xFF1A1A2E)),
-
-        // Layer 2: Video overlays thumbnail when ready
+        // Video directly
         if (_videoReady && _videoCtrl != null)
-          Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!))),
+          Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!)))
+        else
+          Container(color: const Color(0xFF0D0E1A)),
 
         // Gradient
         Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black45, Colors.transparent, Colors.transparent, Colors.black87], stops: [0, 0.2, 0.5, 1.0]))),

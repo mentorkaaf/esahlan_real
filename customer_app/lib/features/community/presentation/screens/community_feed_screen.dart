@@ -1071,15 +1071,11 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
           width: double.infinity,
           height: videoH,
           child: Stack(children: [
-            // Layer 1: Thumbnail (always visible until video plays)
-            Positioned.fill(
-              child: widget.m.thumbnail != null
-                  ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.cover)
-                  : Container(color: const Color(0xFFE5E7EB))),
-            // Layer 2: Video (overlays thumbnail when ready)
-            if (_ready && _ctrl != null)
-              Positioned.fill(child: FittedBox(fit: BoxFit.contain,
-                child: SizedBox(width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))),
+            // Video directly — no thumbnail
+            Positioned.fill(child: Container(color: Colors.transparent,
+              child: _ready && _ctrl != null
+                  ? FittedBox(fit: BoxFit.contain, child: SizedBox(width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))
+                  : null)),
             // Pause icon
             if (_paused && _ready)
               Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(14),
