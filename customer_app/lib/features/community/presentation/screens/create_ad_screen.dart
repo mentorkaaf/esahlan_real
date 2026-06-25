@@ -136,7 +136,18 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
-      _snack('Error: $e');
+      String msg = '$e';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map) {
+          if (data['message'] != null) msg = '${data['message']}';
+          if (data['errors'] != null) {
+            final errors = data['errors'] as Map;
+            msg = errors.values.map((v) => v is List ? v.join(', ') : '$v').join('\n');
+          }
+        }
+      }
+      _snack(msg);
     } finally { if (mounted) setState(() => _creating = false); }
   }
 
