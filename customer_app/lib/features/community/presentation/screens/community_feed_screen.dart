@@ -1003,8 +1003,11 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       return;
     }
 
-    // Fallback: load fresh
-    final ctrl = VideoPlayerController.networkUrl(Uri.parse(url));
+    // Load fresh with optimized settings
+    final ctrl = VideoPlayerController.networkUrl(
+      Uri.parse(url),
+      httpHeaders: const {'Connection': 'keep-alive'},
+    );
     try {
       await ctrl.initialize();
       ctrl.setLooping(true);

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
+import '../services/video_optimizer.dart';
 import '../providers/community_provider.dart';
 import 'community_shell.dart';
 
@@ -61,10 +62,20 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       final type = _hasVideo ? 'video' : (_mediaFiles.isNotEmpty ? 'image' : 'text');
       List<dynamic>? files;
       if (_mediaFiles.isNotEmpty) {
-        files = await Future.wait(_mediaFiles.map((f) async {
-          final bytes = await f.readAsBytes();
-          return MultipartFile.fromBytes(bytes, filename: f.name);
-        }));
+        files = [];
+        for (final f in _mediaFiles) {
+          if (_hasVideo) {
+            // Compress video before upload for faster playback
+            final compressed = await VideoOptimizer.compress(f);
+            if (compressed != null) {
+              final bytes = await compressed.readAsBytes();
+              files.add(MultipartFile.fromBytes(bytes, filename: 'video.mp4', contentType: DioMediaType.parse('video/mp4')));
+            }
+          } else {
+            final bytes = await f.readAsBytes();
+            files.add(MultipartFile.fromBytes(bytes, filename: f.name));
+          }
+        }
       }
       final post = await repo.createPost(
         type: type,
