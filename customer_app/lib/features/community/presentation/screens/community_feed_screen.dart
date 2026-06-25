@@ -1135,9 +1135,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     return VisibilityDetector(
       key: _key,
       onVisibilityChanged: _onVisibilityChanged,
-      child: _ready && _ctrl != null
-          ? VideoAdOverlay(mainController: _ctrl!, child: videoContent)
-          : videoContent,
+      child: videoContent,
     );
   }
 }
