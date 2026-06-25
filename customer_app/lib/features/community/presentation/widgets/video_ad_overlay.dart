@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
+import '../services/video_controller_pool.dart';
 import '../screens/community_shell.dart';
 
 class VideoAdOverlay extends ConsumerStatefulWidget {
@@ -27,12 +28,25 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
   int _nextTriggerIndex = 0;
   bool _fetchingAd = false;
 
+  Map<String, dynamic>? _preloadedAd;
+
   @override
   void initState() {
     super.initState();
     widget.mainController.addListener(_onProgress);
-    // Generate trigger points after first frame when duration is known
     WidgetsBinding.instance.addPostFrameCallback((_) => _generateTriggerPoints());
+    // Pre-fetch ad data + warm up video
+    _prefetchAd();
+  }
+
+  void _prefetchAd() async {
+    try {
+      final ad = await ref.read(communityRepoProvider).getPrerollAd();
+      if (ad != null && ad['media_url'] != null) {
+        _preloadedAd = ad;
+        VideoControllerPool().warmup(ad['media_url']);
+      }
+    } catch (_) {}
   }
 
   void _generateTriggerPoints() {
@@ -82,14 +96,25 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
   Future<void> _fetchAndShowAd() async {
     _fetchingAd = true;
     try {
-      final ad = await ref.read(communityRepoProvider).getPrerollAd();
+      // Use preloaded ad if available, else fetch fresh
+      final ad = _preloadedAd ?? await ref.read(communityRepoProvider).getPrerollAd();
+      _preloadedAd = null;
       if (ad == null || ad['media_url'] == null || !mounted) { _fetchingAd = false; return; }
 
       widget.mainController.pause();
       setState(() { _ad = ad; _showingAd = true; _canSkip = false; _countdown = 10; });
 
-      final ctrl = VideoPlayerController.networkUrl(Uri.parse(ad['media_url']));
-      await ctrl.initialize();
+      // Try pool first (may be pre-warmed)
+      final pool = VideoControllerPool();
+      VideoPlayerController ctrl;
+      final pooled = pool.peek(ad['media_url']);
+      if (pooled != null && pooled.value.isInitialized) {
+        ctrl = pooled;
+        pool.release(ad['media_url']);
+      } else {
+        ctrl = VideoPlayerController.networkUrl(Uri.parse(ad['media_url']));
+        await ctrl.initialize();
+      }
       ctrl.setLooping(false);
       ctrl.setVolume(1);
       if (!mounted) { ctrl.dispose(); return; }
@@ -97,6 +122,9 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
       ctrl.play();
       ctrl.addListener(_onAdEnd);
       _runCountdown();
+
+      // Pre-fetch next ad for later
+      _prefetchAd();
     } catch (_) {
       _fetchingAd = false;
       _resumeMain();

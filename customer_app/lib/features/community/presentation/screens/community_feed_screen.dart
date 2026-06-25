@@ -16,6 +16,7 @@ import 'create_post_screen.dart';
 import '../widgets/comments_sheet.dart';
 import '../widgets/video_ad_overlay.dart';
 import '../services/video_controller_pool.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import 'business_page_detail_screen.dart';
 import 'community_search_screen.dart';
 
@@ -387,15 +388,26 @@ class _PersonTileState extends ConsumerState<_PersonTile> {
   }
 }
 
-// ── Ad Card — uses same _MediaItem as regular posts for video ─────────────────
+// ── Ad Card — clickable, opens link ──────────────────────────────────────────
 class _AdCard extends ConsumerWidget {
   final CommunityPost post;
   const _AdCard({required this.post});
 
+  void _onClick(WidgetRef ref, BuildContext context) {
+    if (post.id > 0) ref.read(communityRepoProvider).trackAdClick(post.id);
+    final url = post.adCtaUrl;
+    if (url != null && url.isNotEmpty) {
+      // Open URL in browser or in-app
+      Navigator.push(context, MaterialPageRoute(builder: (_) => _AdWebView(url: url, title: post.adTitle ?? 'Ad')));
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = post;
-    return Container(
+    return GestureDetector(
+      onTap: () => _onClick(ref, context),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 8), color: Colors.white,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 6), child: Row(children: [
@@ -427,11 +439,26 @@ class _AdCard extends ConsumerWidget {
 
         if (p.adCtaText != null) Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
           child: SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: () { if (p.id > 0) ref.read(communityRepoProvider).trackAdClick(p.id); },
+            onPressed: () => _onClick(ref, context),
             style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 11)),
             child: Text(p.adCtaText!, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14))))),
       ]),
+    ));
+  }
+}
+
+class _AdWebView extends StatelessWidget {
+  final String url;
+  final String title;
+  const _AdWebView({required this.url, required this.title});
+  @override
+  Widget build(BuildContext context) {
+    final uri = url.startsWith('http') ? url : 'https://$url';
+    return Scaffold(
+      appBar: AppBar(title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+        actions: [IconButton(icon: const Icon(Icons.open_in_browser_rounded), onPressed: () {})]),
+      body: WebViewWidget(controller: WebViewController()..loadRequest(Uri.parse(uri))),
     );
   }
 }
