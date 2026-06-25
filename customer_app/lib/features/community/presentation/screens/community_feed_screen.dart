@@ -436,6 +436,7 @@ class _AdCard extends ConsumerWidget {
           _MediaItem(
             m: CommunityPostMedia(id: p.id, type: p.adType ?? 'image', url: p.adMediaUrl!),
             height: 0,
+            showAdOverlay: false,
           ),
 
         if (p.adCtaText != null) Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -962,7 +963,8 @@ class _MediaGrid extends StatelessWidget {
 class _MediaItem extends ConsumerStatefulWidget {
   final CommunityPostMedia m;
   final double height;
-  const _MediaItem({required this.m, required this.height});
+  final bool showAdOverlay;
+  const _MediaItem({required this.m, required this.height, this.showAdOverlay = true});
 
   @override
   ConsumerState<_MediaItem> createState() => _MediaItemState();
@@ -1138,7 +1140,9 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     return VisibilityDetector(
       key: _key,
       onVisibilityChanged: _onVisibilityChanged,
-      child: videoContent,
+      child: widget.showAdOverlay && _ready && _ctrl != null
+          ? VideoAdOverlay(mainController: _ctrl!, child: videoContent)
+          : videoContent,
     );
   }
 }
