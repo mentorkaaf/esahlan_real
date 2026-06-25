@@ -19,25 +19,30 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
   bool _showingAd = false;
   bool _adReady = false;
   bool _canSkip = false;
-  int _countdown = 5;
+  int _countdown = 10;
   Map<String, dynamic>? _ad;
   bool _adTriggered = false;
   double _triggerPoint = 0;
+  int _playSeconds = 0;
 
   @override
   void initState() {
     super.initState();
-    _triggerPoint = [0.0, 0.4 + Random().nextDouble() * 0.2, 0.8][Random().nextInt(3)];
+    _triggerPoint = [0.3, 0.5, 0.7][Random().nextInt(3)];
     widget.mainController.addListener(_onProgress);
-    if (_triggerPoint == 0.0) _fetchAndShowAd();
   }
 
   void _onProgress() {
     if (_adTriggered || !mounted) return;
+    // Only trigger when video is actually playing
+    if (!widget.mainController.value.isPlaying) return;
     final dur = widget.mainController.value.duration;
     if (dur <= Duration.zero) return;
     final progress = widget.mainController.value.position.inMilliseconds / dur.inMilliseconds;
-    if (_triggerPoint > 0 && progress >= _triggerPoint) _fetchAndShowAd();
+    // Must have played at least 3 seconds before showing ad
+    final playedSecs = widget.mainController.value.position.inSeconds;
+    if (playedSecs < 3) return;
+    if (progress >= _triggerPoint) _fetchAndShowAd();
   }
 
   Future<void> _fetchAndShowAd() async {
@@ -45,12 +50,11 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
     _adTriggered = true;
     try {
       final ad = await ref.read(communityRepoProvider).getPrerollAd();
-      if (ad == null || ad['media_url'] == null || !mounted) { _resumeMain(); return; }
+      if (ad == null || ad['media_url'] == null || !mounted) return;
 
       widget.mainController.pause();
       setState(() { _ad = ad; _showingAd = true; });
 
-      // Load video ad
       final ctrl = VideoPlayerController.networkUrl(Uri.parse(ad['media_url']));
       await ctrl.initialize();
       ctrl.setLooping(false);
@@ -71,7 +75,7 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
   }
 
   void _runCountdown() async {
-    for (var i = 5; i > 0; i--) {
+    for (var i = 10; i > 0; i--) {
       await Future.delayed(const Duration(seconds: 1));
       if (!mounted || !_showingAd) return;
       setState(() => _countdown = i - 1);
@@ -107,7 +111,6 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
       if (_showingAd && _ad != null) Positioned.fill(child: Container(
         color: Colors.black,
         child: Stack(children: [
-          // Video ad — plays directly, no thumbnail, no overlay
           if (_adReady && _adCtrl != null)
             Center(child: AspectRatio(
               aspectRatio: _adCtrl!.value.aspectRatio.clamp(0.5, 2.5),
@@ -116,7 +119,6 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
             const Center(child: SizedBox(width: 24, height: 24,
               child: CircularProgressIndicator(color: kOrange, strokeWidth: 2))),
 
-          // Minimal top bar: AD badge + page name
           Positioned(top: MediaQuery.of(context).padding.top + 8, left: 12,
             child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
@@ -128,7 +130,6 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
                 Text(_ad!['page']?['name'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
               ]))),
 
-          // Skip button — bottom right
           Positioned(bottom: 16, right: 12,
             child: GestureDetector(
               onTap: _canSkip ? _dismiss : null,
@@ -143,7 +144,6 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
                     color: _canSkip ? Colors.black : Colors.white70,
                     fontWeight: FontWeight.w700, fontSize: 14))))),
 
-          // CTA — bottom left
           if (_ad!['cta_text'] != null) Positioned(bottom: 16, left: 12,
             child: GestureDetector(
               onTap: () { if (_ad?['id'] != null) ref.read(communityRepoProvider).trackAdClick(_ad!['id']); },

@@ -367,8 +367,12 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
     return VisibilityDetector(
       key: ValueKey('ad_${p.id}'),
       onVisibilityChanged: (info) {
-        if (_vCtrl == null) return;
-        info.visibleFraction > 0.5 ? _vCtrl!.play() : _vCtrl!.pause();
+        if (_vCtrl == null || !_videoReady) return;
+        if (info.visibleFraction > 0.5) {
+          if (!_vCtrl!.value.isPlaying) _vCtrl!.play();
+        } else {
+          if (_vCtrl!.value.isPlaying) _vCtrl!.pause();
+        }
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 8), color: Colors.white,
