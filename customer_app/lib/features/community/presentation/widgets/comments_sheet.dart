@@ -54,22 +54,35 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     if (f != null) setState(() { _mediaFile = f; _mediaType = 'image'; });
   }
 
+  String? _recordPath;
+
   Future<void> _toggleRecording() async {
     if (_recording) {
       // Stop recording
-      final path = await _recorderCtrl?.stop();
+      try { await _recorderCtrl?.stop(); } catch (_) {}
       _recordTimer?.cancel();
-      if (path != null && mounted) {
-        setState(() { _mediaFile = XFile(path); _mediaType = 'voice'; _recording = false; _recordSeconds = 0; });
+      if (_recordPath != null && mounted) {
+        final file = File(_recordPath!);
+        if (await file.exists()) {
+          setState(() { _mediaFile = XFile(_recordPath!); _mediaType = 'voice'; _recording = false; _recordSeconds = 0; });
+        } else {
+          setState(() { _recording = false; _recordSeconds = 0; });
+        }
+      } else {
+        setState(() { _recording = false; _recordSeconds = 0; });
       }
     } else {
       // Start recording
-      final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.aac';
-      _recorderCtrl = RecorderController()..androidEncoder = AndroidEncoder.aac..sampleRate = 44100;
-      await _recorderCtrl!.record(path: path);
-      _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) { if (mounted) setState(() => _recordSeconds++); });
-      setState(() => _recording = true);
+      try {
+        final dir = await getTemporaryDirectory();
+        _recordPath = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.aac';
+        _recorderCtrl = RecorderController()..androidEncoder = AndroidEncoder.aac..sampleRate = 44100;
+        await _recorderCtrl!.record(path: _recordPath!);
+        _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) { if (mounted) setState(() => _recordSeconds++); });
+        setState(() => _recording = true);
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Recording failed: $e'), backgroundColor: Colors.red));
+      }
     }
   }
 
