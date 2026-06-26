@@ -53,7 +53,18 @@ class CommunityFeedController extends Controller
         // Trending hashtags
         $hashtags = \App\Models\CommunityHashtag::where('posts_count', '>', 0)->orderByDesc('posts_count')->take(20)->get(['id','name','posts_count']);
 
-        return response()->json(['status'=>'success','data'=>$this->transformPosts($posts, $userId),'hashtags'=>$hashtags,'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage()]]);
+        $transformed = $this->transformPosts($posts, $userId);
+
+        // Inject explore ads
+        if ($posts->currentPage() <= 2) {
+            $ads = CommunityAdController::getAdsForPlacement('explore', $userId, 2);
+            foreach ($ads as $i => $ad) {
+                $pos = min(($i + 1) * 3, count($transformed));
+                array_splice($transformed, $pos, 0, [$ad]);
+            }
+        }
+
+        return response()->json(['status'=>'success','data'=>$transformed,'hashtags'=>$hashtags,'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage()]]);
     }
 
     // Reels feed

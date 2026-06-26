@@ -12,15 +12,18 @@ import '../widgets/video_ad_overlay.dart';
 import '../services/video_preloader.dart';
 import 'community_shell.dart';
 
-// Unified reel item — either a community post or an eRent property reel
+// Unified reel item — community post, eRent reel, or ad
 class _ReelItem {
   final CommunityPost? communityPost;
   final Map<String, dynamic>? rentReel;
+  final Map<String, dynamic>? adData;
 
-  const _ReelItem.community(this.communityPost) : rentReel = null;
-  const _ReelItem.rent(this.rentReel) : communityPost = null;
+  const _ReelItem.community(this.communityPost) : rentReel = null, adData = null;
+  const _ReelItem.rent(this.rentReel) : communityPost = null, adData = null;
+  const _ReelItem.ad(this.adData) : communityPost = null, rentReel = null;
 
   bool get isRent => rentReel != null;
+  bool get isAd => adData != null;
 }
 
 class ReelsScreen extends ConsumerStatefulWidget {
@@ -35,24 +38,45 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
   int _currentIndex = 0;
 
   @override
+  void initState() { super.initState(); _loadReelAds(); }
+
+  @override
   void dispose() {
     _pageCtrl.dispose();
     super.dispose();
   }
 
+  List<Map<String, dynamic>> _reelAds = [];
+
   List<_ReelItem> _buildCombinedList(
       List<CommunityPost> communityReels, List<Map<String, dynamic>> rentReels) {
     final items = <_ReelItem>[];
-    int ci = 0, ri = 0;
+    int ci = 0, ri = 0, ai = 0;
+    int count = 0;
     while (ci < communityReels.length || ri < rentReels.length) {
       for (int i = 0; i < 2 && ci < communityReels.length; i++, ci++) {
         items.add(_ReelItem.community(communityReels[ci]));
+        count++;
+        // Insert ad every 4 reels
+        if (count % 4 == 0 && ai < _reelAds.length) {
+          items.add(_ReelItem.ad(_reelAds[ai++]));
+        }
       }
       if (ri < rentReels.length) {
         items.add(_ReelItem.rent(rentReels[ri++]));
       }
     }
     return items;
+  }
+
+  void _loadReelAds() async {
+    try {
+      final repo = CommunityRepository();
+      for (var i = 0; i < 3; i++) {
+        final ad = await repo.getPrerollAd();
+        if (ad != null) _reelAds.add(ad);
+      }
+    } catch (_) {}
   }
 
   @override
@@ -112,6 +136,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
               itemBuilder: (_, i) {
                 final item = combined[i];
                 final isPageActive = i == _currentIndex && tabActive;
+                if (item.isAd) return _ReelAdCard(ad: item.adData!, key: ValueKey('reelad_$i'));
                 if (item.isRent) {
                   return _RentReelCard(
                     reel: item.rentReel!,
@@ -293,6 +318,116 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
 
   Widget _sideAction({required IconData icon, required String label, required Color color, required VoidCallback onTap}) =>
       GestureDetector(onTap: onTap, child: Column(children: [Icon(icon, color: color, size: 28), const SizedBox(height: 2), Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600))]));
+}
+
+// ── Reel Ad Card (TikTok style fullscreen ad) ─────────────────────────────────
+
+class _ReelAdCard extends ConsumerStatefulWidget {
+  final Map<String, dynamic> ad;
+  const _ReelAdCard({super.key, required this.ad});
+  @override
+  ConsumerState<_ReelAdCard> createState() => _ReelAdCardState();
+}
+
+class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
+  VideoPlayerController? _ctrl;
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final url = widget.ad['media_url'] as String?;
+    if (url != null) {
+      _ctrl = VideoPlayerController.networkUrl(Uri.parse(url))
+        ..initialize().then((_) {
+          if (mounted) { setState(() => _ready = true); _ctrl!.setLooping(true); _ctrl!.setVolume(1); _ctrl!.play(); }
+        }).catchError((_) {});
+    }
+  }
+
+  @override
+  void dispose() { _ctrl?.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final ad = widget.ad;
+    return GestureDetector(
+      onTap: () {
+        if (ad['id'] != null) ref.read(communityRepoProvider).trackAdClick(ad['id']);
+      },
+      child: Stack(fit: StackFit.expand, children: [
+        // Video or gradient background
+        if (_ready && _ctrl != null)
+          Center(child: AspectRatio(aspectRatio: _ctrl!.value.aspectRatio, child: VideoPlayer(_ctrl!)))
+        else
+          Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            colors: [Color(0xFF1A1B2E), Color(0xFF0D0E1A)]))),
+
+        // Gradient overlays
+        Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+          colors: [Colors.black45, Colors.transparent, Colors.transparent, Colors.black87], stops: [0, 0.15, 0.6, 1.0]))),
+
+        // Sponsored badge top
+        Positioned(top: MediaQuery.of(context).padding.top + 60, left: 16,
+          child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(6)),
+            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.campaign_rounded, color: Colors.white, size: 14),
+              SizedBox(width: 4),
+              Text('Sponsored', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
+            ]))),
+
+        // Bottom info
+        Positioned(bottom: 90, left: 16, right: 80,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Row(children: [
+              if (ad['page']?['avatar'] != null)
+                CircleAvatar(radius: 18, backgroundImage: CachedNetworkImageProvider(ad['page']['avatar']))
+              else Container(width: 36, height: 36, decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
+                child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 18)),
+              const SizedBox(width: 10),
+              Text(ad['page']?['name'] ?? 'Sponsored', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+            ]),
+            if (ad['title'] != null) Padding(padding: const EdgeInsets.only(top: 10),
+              child: Text(ad['title'], style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600, height: 1.3))),
+          ])),
+
+        // Right side actions (like regular reels)
+        Positioned(right: 12, bottom: 120, child: Column(children: [
+          _sideBtn(Icons.favorite_outline, '0', Colors.white),
+          const SizedBox(height: 20),
+          _sideBtn(Icons.chat_bubble_outline, '0', Colors.white),
+          const SizedBox(height: 20),
+          _sideBtn(Icons.share_outlined, 'Share', Colors.white),
+        ])),
+
+        // CTA button bottom
+        if (ad['cta_text'] != null) Positioned(bottom: 30, left: 16, right: 16,
+          child: GestureDetector(
+            onTap: () {
+              if (ad['id'] != null) ref.read(communityRepoProvider).trackAdClick(ad['id']);
+            },
+            child: Container(padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(10),
+                boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.4), blurRadius: 16)]),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text(ad['cta_text'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+                const SizedBox(width: 8),
+                const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 18),
+              ])))),
+
+        // "Swipe up" hint
+        Positioned(bottom: 10, left: 0, right: 0,
+          child: Center(child: Text('Swipe up for more', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11)))),
+      ]),
+    );
+  }
+
+  Widget _sideBtn(IconData icon, String label, Color color) => Column(children: [
+    Icon(icon, color: color, size: 28),
+    const SizedBox(height: 2),
+    Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+  ]);
 }
 
 // ── eRent reel card ────────────────────────────────────────────────────────────
