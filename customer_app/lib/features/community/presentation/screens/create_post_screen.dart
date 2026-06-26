@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../data/models/community_models.dart';
+import 'package:video_compress/video_compress.dart';
 import '../../data/repositories/community_repository.dart';
 import '../services/video_optimizer.dart';
 import '../providers/community_provider.dart';
@@ -62,10 +63,22 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       final type = _hasVideo ? 'video' : (_mediaFiles.isNotEmpty ? 'image' : 'text');
       List<dynamic>? files;
       if (_mediaFiles.isNotEmpty) {
-        files = await Future.wait(_mediaFiles.map((f) async {
+        files = [];
+        for (final f in _mediaFiles) {
+          if (_hasVideo) {
+            // Compress video for faster streaming (LowQuality = small file = fast load)
+            try {
+              final info = await VideoCompress.compressVideo(f.path, quality: VideoQuality.LowQuality, deleteOrigin: false, includeAudio: true);
+              if (info?.file != null) {
+                final bytes = await info!.file!.readAsBytes();
+                files.add(MultipartFile.fromBytes(bytes, filename: 'video.mp4'));
+                continue;
+              }
+            } catch (_) {}
+          }
           final bytes = await f.readAsBytes();
-          return MultipartFile.fromBytes(bytes, filename: f.name);
-        }));
+          files.add(MultipartFile.fromBytes(bytes, filename: f.name));
+        }
       }
       final post = await repo.createPost(
         type: type,
