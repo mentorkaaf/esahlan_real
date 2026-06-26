@@ -85,11 +85,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         for (final f in _mediaFiles) {
           if (_hasVideo) {
             try {
-              // Fetch admin compression settings
-              Map<String, dynamic>? compSettings;
-              try { compSettings = (await CommunityRepository().getAdDisplaySettings()); } catch (_) {}
-              final enabled = compSettings?['video_compress_enabled'] ?? true;
-              final q = compSettings?['video_compress_quality'] ?? 'default';
+              final settings = await repo.getAdDisplaySettings();
+              final enabled = settings['video_compress_enabled'] == true;
+              final q = settings['video_compress_quality'] ?? 'default';
               final quality = {'low': VideoQuality.LowQuality, 'medium': VideoQuality.MediumQuality, 'high': VideoQuality.HighestQuality}[q] ?? VideoQuality.DefaultQuality;
 
               if (enabled) {
