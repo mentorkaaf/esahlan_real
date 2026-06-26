@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:audioplayers/audioplayers.dart' as ap;
+import 'package:audio_waveforms/audio_waveforms.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +34,10 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   String? _replyToName;
   XFile? _mediaFile;
   String? _mediaType;
+  RecorderController? _recorderCtrl;
+  bool _recording = false;
+  int _recordSeconds = 0;
+  Timer? _recordTimer;
 
   @override
   void initState() { super.initState(); _loadComments(); }
@@ -47,15 +54,31 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     if (f != null) setState(() { _mediaFile = f; _mediaType = 'image'; });
   }
 
-  Future<void> _pickVoice() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.audio);
-    if (result != null && result.files.single.path != null) {
-      setState(() { _mediaFile = XFile(result.files.single.path!); _mediaType = 'voice'; });
+  Future<void> _toggleRecording() async {
+    if (_recording) {
+      // Stop recording
+      final path = await _recorderCtrl?.stop();
+      _recordTimer?.cancel();
+      if (path != null && mounted) {
+        setState(() { _mediaFile = XFile(path); _mediaType = 'voice'; _recording = false; _recordSeconds = 0; });
+      }
+    } else {
+      // Start recording
+      final dir = await getTemporaryDirectory();
+      final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.aac';
+      _recorderCtrl = RecorderController()..androidEncoder = AndroidEncoder.aac..sampleRate = 44100;
+      await _recorderCtrl!.record(path: path);
+      _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) { if (mounted) setState(() => _recordSeconds++); });
+      setState(() => _recording = true);
     }
   }
 
   @override
-  void dispose() { _textCtrl.dispose(); _focusNode.dispose(); super.dispose(); }
+  void dispose() {
+    _textCtrl.dispose(); _focusNode.dispose();
+    _recorderCtrl?.dispose(); _recordTimer?.cancel();
+    super.dispose();
+  }
 
   Future<void> _send() async {
     final text = _textCtrl.text.trim();
@@ -163,10 +186,17 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
               child: Container(width: 34, height: 34, margin: const EdgeInsets.only(right: 4),
                 decoration: BoxDecoration(color: const Color(0xFFF0F2F5), shape: BoxShape.circle),
                 child: const Icon(Icons.image_rounded, color: kOrange, size: 16))),
-            GestureDetector(onTap: _pickVoice,
+            GestureDetector(onTap: _toggleRecording,
               child: Container(width: 34, height: 34, margin: const EdgeInsets.only(right: 4),
-                decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
-                child: const Icon(Icons.mic_rounded, color: kOrange, size: 16))),
+                decoration: BoxDecoration(color: _recording ? Colors.red : const Color(0xFFF0F2F5), shape: BoxShape.circle),
+                child: _recording
+                    ? Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.stop_rounded, color: Colors.white, size: 14),
+                      ])
+                    : const Icon(Icons.mic_rounded, color: kOrange, size: 16))),
+            if (_recording) Padding(padding: const EdgeInsets.only(right: 6),
+              child: Text('${(_recordSeconds ~/ 60).toString().padLeft(2,'0')}:${(_recordSeconds % 60).toString().padLeft(2,'0')}',
+                style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w700))),
             Expanded(child: Container(
               decoration: BoxDecoration(color: const Color(0xFFF0F2F5), borderRadius: BorderRadius.circular(24)),
               child: TextField(controller: _textCtrl, focusNode: _focusNode, minLines: 1, maxLines: 4,
@@ -221,13 +251,7 @@ class _CommentTile extends StatelessWidget {
                   child: ClipRRect(borderRadius: BorderRadius.circular(10),
                     child: NetImage(url: comment.mediaUrl, width: 180, height: 120, fit: BoxFit.cover))),
               if (comment.mediaUrl != null && comment.mediaType == 'voice')
-                Padding(padding: const EdgeInsets.only(top: 6),
-                  child: Row(children: [
-                    Container(width: 32, height: 32, decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle),
-                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18)),
-                    const SizedBox(width: 8),
-                    const Text('Voice message', style: TextStyle(color: kOrange, fontSize: 12, fontWeight: FontWeight.w600)),
-                  ])),
+                Padding(padding: const EdgeInsets.only(top: 6), child: _MiniAudioPlayer(url: comment.mediaUrl!)),
             ]),
           ),
           const SizedBox(height: 4),
@@ -252,4 +276,49 @@ void showCommentsSheet(BuildContext context, int postId, {int initialCount = 0})
     builder: (_) => DraggableScrollableSheet(
       initialChildSize: 0.65, maxChildSize: 0.95, minChildSize: 0.4,
       builder: (_, __) => CommentsSheet(postId: postId, initialCount: initialCount)));
+}
+
+class _MiniAudioPlayer extends StatefulWidget {
+  final String url;
+  const _MiniAudioPlayer({required this.url});
+  @override
+  State<_MiniAudioPlayer> createState() => _MiniAudioPlayerState();
+}
+
+class _MiniAudioPlayerState extends State<_MiniAudioPlayer> {
+  final _player = ap.AudioPlayer();
+  bool _playing = false;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _player.onDurationChanged.listen((d) { if (mounted) setState(() => _duration = d); });
+    _player.onPositionChanged.listen((p) { if (mounted) setState(() => _position = p); });
+    _player.onPlayerComplete.listen((_) { if (mounted) setState(() { _playing = false; _position = Duration.zero; }); });
+  }
+
+  @override
+  void dispose() { _player.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      GestureDetector(
+        onTap: () async {
+          if (_playing) { await _player.pause(); setState(() => _playing = false); }
+          else { await _player.play(ap.UrlSource(widget.url)); setState(() => _playing = true); }
+        },
+        child: Container(width: 30, height: 30, decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle),
+          child: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 16))),
+      const SizedBox(width: 8),
+      SizedBox(width: 100, child: LinearProgressIndicator(
+        value: _duration.inMilliseconds > 0 ? _position.inMilliseconds / _duration.inMilliseconds : 0,
+        backgroundColor: kOrange.withValues(alpha: 0.15), color: kOrange, minHeight: 3)),
+      const SizedBox(width: 6),
+      Text('${(_position.inSeconds ~/ 60).toString().padLeft(2,'0')}:${(_position.inSeconds % 60).toString().padLeft(2,'0')}',
+        style: const TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+    ]);
+  }
 }

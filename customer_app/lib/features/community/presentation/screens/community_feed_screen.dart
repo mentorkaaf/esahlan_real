@@ -6,6 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../../../core/widgets/app_shimmer.dart';
 import 'package:video_player/video_player.dart';
+import 'package:audioplayers/audioplayers.dart' as ap;
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../../data/models/community_models.dart';
 import '../providers/community_provider.dart';
@@ -1087,6 +1090,8 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   final _key = UniqueKey();
 
   bool get _isVideo => widget.m.type == 'video';
+  bool get _isAudio => widget.m.type == 'audio';
+  bool get _isDocument => widget.m.type == 'document';
 
   @override
   void initState() {
@@ -1158,33 +1163,22 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
   @override
   Widget build(BuildContext context) {
+    // ── Audio Player ──
+    if (_isAudio) return _AudioPlayerCard(url: widget.m.url);
+
+    // ── Document Card ──
+    if (_isDocument) return _DocumentCard(url: widget.m.url);
+
     if (!_isVideo) {
-      // Single image: show full without cropping; multi-image grid uses fixed height
       if (widget.height == 0) {
-        return NetImage(
-          url: widget.m.url,
-          fit: BoxFit.fitWidth,
-          width: double.infinity,
+        return NetImage(url: widget.m.url, fit: BoxFit.fitWidth, width: double.infinity,
           placeholder: Container(color: const Color(0xFFE5E7EB), height: 200),
-          errorWidget: Container(
-            color: const Color(0xFFE5E7EB), height: 200,
-            child: const Icon(Icons.broken_image_rounded, color: Color(0xFF9CA3AF), size: 32),
-          ),
-        );
+          errorWidget: Container(color: const Color(0xFFE5E7EB), height: 200, child: const Icon(Icons.broken_image_rounded, color: Color(0xFF9CA3AF), size: 32)));
       }
-      return SizedBox(
-        height: widget.height,
-        width: double.infinity,
-        child: NetImage(
-          url: widget.m.url,
-          fit: BoxFit.cover,
+      return SizedBox(height: widget.height, width: double.infinity,
+        child: NetImage(url: widget.m.url, fit: BoxFit.cover,
           placeholder: Container(color: const Color(0xFFE5E7EB)),
-          errorWidget: Container(
-            color: const Color(0xFFE5E7EB),
-            child: const Icon(Icons.broken_image_rounded, color: Color(0xFF9CA3AF), size: 32),
-          ),
-        ),
-      );
+          errorWidget: Container(color: const Color(0xFFE5E7EB), child: const Icon(Icons.broken_image_rounded, color: Color(0xFF9CA3AF), size: 32))));
     }
 
     final screenW = MediaQuery.of(context).size.width;
@@ -1434,4 +1428,163 @@ class _VideoPlayerScreenState extends ConsumerState<_VideoPlayerScreen> {
   }
 
   String _fmtD(Duration d) => '${d.inMinutes.toString().padLeft(2,'0')}:${(d.inSeconds%60).toString().padLeft(2,'0')}';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// AUDIO PLAYER CARD
+// ══════════════════════════════════════════════════════════════════
+
+class _AudioPlayerCard extends StatefulWidget {
+  final String url;
+  const _AudioPlayerCard({required this.url});
+  @override
+  State<_AudioPlayerCard> createState() => _AudioPlayerCardState();
+}
+
+class _AudioPlayerCardState extends State<_AudioPlayerCard> {
+  final _player = ap.AudioPlayer();
+  bool _playing = false;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _player.onDurationChanged.listen((d) { if (mounted) setState(() => _duration = d); });
+    _player.onPositionChanged.listen((p) { if (mounted) setState(() => _position = p); });
+    _player.onPlayerComplete.listen((_) { if (mounted) setState(() { _playing = false; _position = Duration.zero; }); });
+    _player.onPlayerStateChanged.listen((s) { if (mounted) setState(() => _playing = s == ap.PlayerState.playing); });
+  }
+
+  @override
+  void dispose() { _player.dispose(); super.dispose(); }
+
+  void _toggle() async {
+    if (_playing) { await _player.pause(); } else { await _player.play(ap.UrlSource(widget.url)); }
+  }
+
+  String _fmt(Duration d) => '${d.inMinutes.toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = _duration.inMilliseconds > 0 ? _position.inMilliseconds / _duration.inMilliseconds : 0.0;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [kOrange.withValues(alpha: 0.08), kOrange.withValues(alpha: 0.02)]),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kOrange.withValues(alpha: 0.2))),
+      child: Row(children: [
+        GestureDetector(
+          onTap: _toggle,
+          child: Container(width: 48, height: 48,
+            decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle,
+              boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.3), blurRadius: 10)]),
+            child: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 28))),
+        const SizedBox(width: 14),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Waveform-style bars
+          SizedBox(height: 28, child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(30, (i) {
+              final barProgress = i / 30;
+              final isActive = barProgress <= progress;
+              final height = (8 + (i % 5) * 4.0 + (i % 3) * 3.0).clamp(6.0, 24.0);
+              return Expanded(child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 0.5),
+                height: height,
+                decoration: BoxDecoration(
+                  color: isActive ? kOrange : kOrange.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(2))));
+            }))),
+          const SizedBox(height: 6),
+          Row(children: [
+            Text(_fmt(_position), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kOrange)),
+            const Spacer(),
+            Text(_fmt(_duration), style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+          ]),
+        ])),
+      ]),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DOCUMENT CARD
+// ══════════════════════════════════════════════════════════════════
+
+class _DocumentCard extends StatelessWidget {
+  final String url;
+  const _DocumentCard({required this.url});
+
+  String get _fileName {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return 'Document';
+    final path = uri.queryParameters['f'] ?? uri.path;
+    return path.split('/').last;
+  }
+
+  String get _ext {
+    final name = _fileName.toLowerCase();
+    if (name.endsWith('.pdf')) return 'PDF';
+    if (name.endsWith('.doc') || name.endsWith('.docx')) return 'DOC';
+    return 'FILE';
+  }
+
+  IconData get _icon {
+    switch (_ext) {
+      case 'PDF': return Icons.picture_as_pdf_rounded;
+      case 'DOC': return Icons.description_rounded;
+      default: return Icons.insert_drive_file_rounded;
+    }
+  }
+
+  Color get _color {
+    switch (_ext) {
+      case 'PDF': return const Color(0xFFE53935);
+      case 'DOC': return const Color(0xFF1565C0);
+      default: return const Color(0xFF6B7280);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB))),
+      child: Row(children: [
+        Container(width: 52, height: 52,
+          decoration: BoxDecoration(color: _color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+          child: Icon(_icon, color: _color, size: 28)),
+        const SizedBox(width: 14),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(_fileName, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1A1B2E)), maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 4),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(color: _color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+            child: Text(_ext, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _color))),
+        ])),
+        const SizedBox(width: 8),
+        Column(children: [
+          GestureDetector(
+            onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+            child: Container(width: 36, height: 36,
+              decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.download_rounded, color: kOrange, size: 20))),
+          const SizedBox(height: 6),
+          GestureDetector(
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => Scaffold(
+                appBar: AppBar(title: Text(_fileName, style: const TextStyle(fontSize: 14))),
+                body: WebViewWidget(controller: WebViewController()..loadRequest(Uri.parse(url)))))),
+            child: Container(width: 36, height: 36,
+              decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.visibility_rounded, color: Color(0xFF6B7280), size: 20))),
+        ]),
+      ]),
+    );
+  }
 }
