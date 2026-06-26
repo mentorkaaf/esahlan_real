@@ -57,6 +57,11 @@ dependencies:
   youtube_player_flutter: ^10.0.1
   webview_flutter: ^4.10.0
 
+  # Files & Audio
+  file_picker: ^8.0.0+1
+  record: ^5.1.2
+  audioplayers: ^6.1.0
+
   # Image
   image_picker: ^1.1.2
 

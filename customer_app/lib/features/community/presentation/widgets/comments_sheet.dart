@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
@@ -30,11 +32,11 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   String? _replyToName;
   XFile? _mediaFile;
   String? _mediaType;
+  final _recorder = AudioRecorder();
+  bool _recording = false;
 
   @override
   void initState() { super.initState(); _loadComments(); }
-  @override
-  void dispose() { _textCtrl.dispose(); _focusNode.dispose(); super.dispose(); }
 
   Future<void> _loadComments() async {
     try {
@@ -47,6 +49,23 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     final f = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 70);
     if (f != null) setState(() { _mediaFile = f; _mediaType = 'image'; });
   }
+
+  Future<void> _toggleRecording() async {
+    if (_recording) {
+      final path = await _recorder.stop();
+      if (path != null) setState(() { _mediaFile = XFile(path); _mediaType = 'voice'; _recording = false; });
+    } else {
+      if (await _recorder.hasPermission()) {
+        final dir = await getTemporaryDirectory();
+        final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
+        setState(() => _recording = true);
+      }
+    }
+  }
+
+  @override
+  void dispose() { _textCtrl.dispose(); _focusNode.dispose(); _recorder.dispose(); super.dispose(); }
 
   Future<void> _send() async {
     final text = _textCtrl.text.trim();
@@ -132,11 +151,15 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
         if (_mediaFile != null) Container(
           padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
           child: Row(children: [
-            ClipRRect(borderRadius: BorderRadius.circular(8),
-              child: Image.file(File(_mediaFile!.path), width: 60, height: 60, fit: BoxFit.cover)),
+            if (_mediaType == 'image')
+              ClipRRect(borderRadius: BorderRadius.circular(8),
+                child: Image.file(File(_mediaFile!.path), width: 60, height: 60, fit: BoxFit.cover))
+            else
+              Container(width: 40, height: 40, decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                child: Icon(_mediaType == 'voice' ? Icons.mic_rounded : Icons.attach_file_rounded, color: kOrange, size: 20)),
             const SizedBox(width: 8),
-            Text(_mediaType == 'voice' ? 'Voice message' : 'Image', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
-            const Spacer(),
+            Expanded(child: Text(_mediaType == 'voice' ? 'Voice recorded' : _mediaFile!.name,
+              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis)),
             GestureDetector(onTap: () => setState(() { _mediaFile = null; _mediaType = null; }),
               child: const Icon(Icons.close, size: 18, color: Color(0xFF9CA3AF))),
           ])),
@@ -144,9 +167,13 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
           padding: EdgeInsets.only(left: 12, right: 12, top: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 12),
           child: Row(children: [
             GestureDetector(onTap: _pickImage,
-              child: Container(width: 36, height: 36, margin: const EdgeInsets.only(right: 6),
+              child: Container(width: 34, height: 34, margin: const EdgeInsets.only(right: 4),
                 decoration: BoxDecoration(color: const Color(0xFFF0F2F5), shape: BoxShape.circle),
-                child: const Icon(Icons.image_rounded, color: kOrange, size: 18))),
+                child: const Icon(Icons.image_rounded, color: kOrange, size: 16))),
+            GestureDetector(onTap: _toggleRecording,
+              child: Container(width: 34, height: 34, margin: const EdgeInsets.only(right: 4),
+                decoration: BoxDecoration(color: _recording ? Colors.red : const Color(0xFFF0F2F5), shape: BoxShape.circle),
+                child: Icon(_recording ? Icons.stop_rounded : Icons.mic_rounded, color: _recording ? Colors.white : kOrange, size: 16))),
             Expanded(child: Container(
               decoration: BoxDecoration(color: const Color(0xFFF0F2F5), borderRadius: BorderRadius.circular(24)),
               child: TextField(controller: _textCtrl, focusNode: _focusNode, minLines: 1, maxLines: 4,

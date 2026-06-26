@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../data/models/community_models.dart';
 import 'package:video_compress/video_compress.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../data/repositories/community_repository.dart';
 import '../services/video_optimizer.dart';
 import '../providers/community_provider.dart';
@@ -57,15 +58,18 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   String _postType = 'text';
 
   Future<void> _pickAudio() async {
-    // Use file picker via image_picker's pickVideo since no audio picker
-    // User can select audio files from gallery
-    final f = await _picker.pickVideo(source: ImageSource.gallery);
-    if (f != null) setState(() { _mediaFiles = [f]; _hasVideo = false; _postType = 'audio'; });
+    final result = await FilePicker.platform.pickFiles(type: FileType.audio);
+    if (result != null && result.files.single.path != null) {
+      setState(() { _mediaFiles = [XFile(result.files.single.path!)]; _hasVideo = false; _postType = 'audio'; });
+    }
   }
 
   Future<void> _pickDocument() async {
-    final f = await _picker.pickMedia();
-    if (f != null) setState(() { _mediaFiles = [f]; _hasVideo = false; _postType = 'document'; });
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom, allowedExtensions: ['pdf', 'doc', 'docx']);
+    if (result != null && result.files.single.path != null) {
+      setState(() { _mediaFiles = [XFile(result.files.single.path!)]; _hasVideo = false; _postType = 'document'; });
+    }
   }
 
   Future<void> _post() async {
