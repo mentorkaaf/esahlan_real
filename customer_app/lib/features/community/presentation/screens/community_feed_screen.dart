@@ -955,32 +955,87 @@ class _ActionBtn extends StatelessWidget {
   }
 }
 
-class _ReactionPicker extends StatelessWidget {
+class _ReactionPicker extends StatefulWidget {
   final List<Map<String, dynamic>> reactions;
   final void Function(String) onPick;
   final VoidCallback onDismiss;
   const _ReactionPicker({required this.reactions, required this.onPick, required this.onDismiss});
+  @override
+  State<_ReactionPicker> createState() => _ReactionPickerState();
+}
+
+class _ReactionPickerState extends State<_ReactionPicker> with SingleTickerProviderStateMixin {
+  late AnimationController _animCtrl;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _scaleAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.elasticOut);
+    _animCtrl.forward();
+  }
+
+  @override
+  void dispose() { _animCtrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onDismiss,
+    return ScaleTransition(
+      scale: _scaleAnim,
+      alignment: Alignment.bottomLeft,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 4))],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: reactions.map((r) => GestureDetector(
-            onTap: () => onPick(r['type'] as String),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(r['emoji'] as String, style: const TextStyle(fontSize: 28)),
-            ),
-          )).toList(),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 16, offset: const Offset(0, 4))]),
+        child: Row(mainAxisSize: MainAxisSize.min,
+          children: widget.reactions.asMap().entries.map((e) {
+            final r = e.value;
+            return _AnimatedReactionEmoji(
+              emoji: r['emoji'] as String, delay: e.key * 50,
+              onTap: () => widget.onPick(r['type'] as String));
+          }).toList()),
+      ),
+    );
+  }
+}
+
+class _AnimatedReactionEmoji extends StatefulWidget {
+  final String emoji;
+  final int delay;
+  final VoidCallback onTap;
+  const _AnimatedReactionEmoji({required this.emoji, required this.delay, required this.onTap});
+  @override
+  State<_AnimatedReactionEmoji> createState() => _AnimatedReactionEmojiState();
+}
+
+class _AnimatedReactionEmojiState extends State<_AnimatedReactionEmoji> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  double _scale = 1.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    Future.delayed(Duration(milliseconds: widget.delay), () { if (mounted) _ctrl.forward(); });
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
+      child: SlideTransition(
+        position: Tween(begin: const Offset(0, 0.5), end: Offset.zero).animate(CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut)),
+        child: GestureDetector(
+          onTapDown: (_) => setState(() => _scale = 1.4),
+          onTapUp: (_) { setState(() => _scale = 1.0); widget.onTap(); },
+          onTapCancel: () => setState(() => _scale = 1.0),
+          child: AnimatedScale(scale: _scale, duration: const Duration(milliseconds: 150), curve: Curves.elasticOut,
+            child: Padding(padding: const EdgeInsets.symmetric(horizontal: 5),
+              child: Text(widget.emoji, style: const TextStyle(fontSize: 30)))),
         ),
       ),
     );

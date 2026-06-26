@@ -12,7 +12,6 @@ class CommentsSheet extends ConsumerStatefulWidget {
   final int postId;
   final int initialCount;
   const CommentsSheet({super.key, required this.postId, required this.initialCount});
-
   @override
   ConsumerState<CommentsSheet> createState() => _CommentsSheetState();
 }
@@ -28,27 +27,15 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   String? _replyToName;
 
   @override
-  void initState() {
-    super.initState();
-    _loadComments();
-  }
-
+  void initState() { super.initState(); _loadComments(); }
   @override
-  void dispose() {
-    _textCtrl.dispose();
-    _focusNode.dispose();
-    super.dispose();
-  }
+  void dispose() { _textCtrl.dispose(); _focusNode.dispose(); super.dispose(); }
 
   Future<void> _loadComments() async {
     try {
       final comments = await _repo.getComments(widget.postId);
       if (mounted) setState(() { _comments = comments; _loading = false; });
-    } catch (e) {
-      if (mounted) setState(() => _loading = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load comments: $e'), backgroundColor: Colors.red));
-    }
+    } catch (_) { if (mounted) setState(() => _loading = false); }
   }
 
   Future<void> _send() async {
@@ -58,120 +45,90 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     try {
       final comment = await _repo.addComment(widget.postId, text, parentId: _replyToId);
       _textCtrl.clear();
-      setState(() {
-        _comments.insert(0, comment);
-        _replyToId = null;
-        _replyToName = null;
-        _sending = false;
-      });
-    } catch (e) {
-      setState(() => _sending = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send comment: $e'), backgroundColor: Colors.red));
-    }
+      setState(() { _comments.add(comment); _replyToId = null; _replyToName = null; _sending = false; });
+    } catch (_) { setState(() => _sending = false); }
   }
-
-  void _setReply(CommunityComment c) {
-    setState(() { _replyToId = c.id; _replyToName = c.user.name; });
-    _focusNode.requestFocus();
-  }
-
-  void _clearReply() => setState(() { _replyToId = null; _replyToName = null; });
 
   @override
   Widget build(BuildContext context) {
+    // Separate root comments and replies
+    final roots = _comments.where((c) => c.parentId == null).toList();
+    final repliesMap = <int, List<CommunityComment>>{};
+    for (final c in _comments.where((c) => c.parentId != null)) {
+      repliesMap.putIfAbsent(c.parentId!, () => []).add(c);
+    }
+
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       child: Column(children: [
         const SizedBox(height: 8),
         Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(children: [
-            Text('Comments', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            const Text('Comments', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             const SizedBox(width: 8),
             Text('(${_comments.length})', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
-          ]),
-        ),
+          ])),
         const Divider(height: 1),
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator(color: kOrange))
               : _comments.isEmpty
-                  ? const Center(child: Text('No comments yet.\nBe the first to comment!',
-                      textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14, height: 1.6)))
+                  ? const Center(child: Text('No comments yet.\nBe the first!', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF9CA3AF))))
                   : ListView.builder(
                       padding: const EdgeInsets.only(top: 8, bottom: 8),
-                      itemCount: _comments.length,
-                      itemBuilder: (_, i) => _CommentTile(
-                        comment: _comments[i],
-                        onReply: () => _setReply(_comments[i]),
-                        onDelete: _comments[i].user.isMe
-                            ? () async {
-                                await _repo.deleteComment(_comments[i].id);
-                                setState(() => _comments.removeAt(i));
-                              }
-                            : null,
-                      ),
-                    ),
+                      itemCount: roots.length,
+                      itemBuilder: (_, i) {
+                        final root = roots[i];
+                        final replies = repliesMap[root.id] ?? [];
+                        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          _CommentTile(comment: root, onReply: () => _setReply(root), isReply: false,
+                            onDelete: root.user.isMe ? () async { await _repo.deleteComment(root.id); setState(() => _comments.removeWhere((c) => c.id == root.id)); } : null),
+                          // Threaded replies — indented
+                          if (replies.isNotEmpty)
+                            Padding(padding: const EdgeInsets.only(left: 44),
+                              child: Column(children: [
+                                Container(width: 2, height: 8, color: const Color(0xFFE5E7EB)),
+                                ...replies.map((r) => _CommentTile(comment: r, onReply: () => _setReply(root), isReply: true,
+                                  onDelete: r.user.isMe ? () async { await _repo.deleteComment(r.id); setState(() => _comments.removeWhere((c) => c.id == r.id)); } : null)),
+                              ])),
+                        ]);
+                      }),
         ),
         const Divider(height: 1),
-        if (_replyToName != null)
-          Container(
-            color: const Color(0xFFF0F2F5),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: Row(children: [
-              Text('Replying to $_replyToName', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
-              const Spacer(),
-              GestureDetector(onTap: _clearReply, child: const Icon(Icons.close, size: 16, color: Color(0xFF9CA3AF))),
-            ]),
-          ),
-        Padding(
-          padding: EdgeInsets.only(
-            left: 12, right: 12, top: 8,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 12,
-          ),
+        if (_replyToName != null) Container(
+          color: const Color(0xFFF0F2F5), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Row(children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0F2F5),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: TextField(
-                  controller: _textCtrl,
-                  focusNode: _focusNode,
-                  minLines: 1,
-                  maxLines: 4,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _send(),
-                  decoration: const InputDecoration(
-                    hintText: 'Write a comment...',
-                    hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  ),
-                ),
-              ),
-            ),
+            const Icon(Icons.reply_rounded, size: 16, color: kOrange),
+            const SizedBox(width: 6),
+            Text('Replying to $_replyToName', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13, fontWeight: FontWeight.w600)),
+            const Spacer(),
+            GestureDetector(onTap: () => setState(() { _replyToId = null; _replyToName = null; }),
+              child: const Icon(Icons.close, size: 16, color: Color(0xFF9CA3AF))),
+          ])),
+        Padding(
+          padding: EdgeInsets.only(left: 12, right: 12, top: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 12),
+          child: Row(children: [
+            Expanded(child: Container(
+              decoration: BoxDecoration(color: const Color(0xFFF0F2F5), borderRadius: BorderRadius.circular(24)),
+              child: TextField(controller: _textCtrl, focusNode: _focusNode, minLines: 1, maxLines: 4,
+                textInputAction: TextInputAction.send, onSubmitted: (_) => _send(),
+                decoration: InputDecoration(hintText: _replyToName != null ? 'Reply to $_replyToName...' : 'Write a comment...',
+                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14), border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10))))),
             const SizedBox(width: 8),
-            GestureDetector(
-              onTap: _send,
-              child: Container(
-                width: 40, height: 40,
-                decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
-                child: _sending
-                    ? const Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-              ),
-            ),
-          ]),
-        ),
+            GestureDetector(onTap: _send, child: Container(width: 40, height: 40,
+              decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
+              child: _sending ? const Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.send_rounded, color: Colors.white, size: 20))),
+          ])),
       ]),
     );
+  }
+
+  void _setReply(CommunityComment c) {
+    setState(() { _replyToId = c.id; _replyToName = c.user.name; });
+    _focusNode.requestFocus();
   }
 }
 
@@ -179,71 +136,49 @@ class _CommentTile extends StatelessWidget {
   final CommunityComment comment;
   final VoidCallback onReply;
   final VoidCallback? onDelete;
-  const _CommentTile({required this.comment, required this.onReply, this.onDelete});
+  final bool isReply;
+  const _CommentTile({required this.comment, required this.onReply, this.onDelete, required this.isReply});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: EdgeInsets.fromLTRB(isReply ? 0 : 12, isReply ? 2 : 6, 12, isReply ? 2 : 6),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        CircleAvatar(
-          radius: 18,
-          
-          backgroundImage: comment.user.avatar != null ? CachedNetworkImageProvider(comment.user.avatar!) : null,
-          child: comment.user.avatar == null
-              ? Text(comment.user.name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))
-              : null,
-        ),
+        CircleNetImage(url: comment.user.avatar, size: isReply ? 28 : 36, fallbackText: comment.user.name),
         const SizedBox(width: 8),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0F2F5),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(comment.user.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E))),
-                const SizedBox(height: 2),
-                Text(comment.content, style: const TextStyle(fontSize: 14, color: Color(0xFF374151), height: 1.3)),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(color: isReply ? const Color(0xFFF9FAFB) : const Color(0xFFF0F2F5), borderRadius: BorderRadius.circular(16)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Text(comment.user.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: isReply ? 12 : 13, color: const Color(0xFF1A1B2E))),
+                if (comment.user.isVerified) const Padding(padding: EdgeInsets.only(left: 3), child: Icon(Icons.verified_rounded, size: 12, color: Color(0xFF1877F2))),
               ]),
-            ),
-            const SizedBox(height: 4),
-            Row(children: [
-              Text(timeago.format(comment.createdAt), style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
-              const SizedBox(width: 16),
-              GestureDetector(
-                onTap: onReply,
-                child: const Text('Reply', style: TextStyle(color: Color(0xFF6B7280), fontSize: 12, fontWeight: FontWeight.w600)),
-              ),
-              if (onDelete != null) ...[
-                const SizedBox(width: 16),
-                GestureDetector(
-                  onTap: onDelete,
-                  child: const Text('Delete', style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600)),
-                ),
-              ],
-              const SizedBox(width: 16),
-              Text('${comment.likesCount} likes', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
+              const SizedBox(height: 2),
+              Text(comment.content, style: TextStyle(fontSize: isReply ? 13 : 14, color: const Color(0xFF374151), height: 1.3)),
             ]),
+          ),
+          const SizedBox(height: 4),
+          Row(children: [
+            Text(timeago.format(comment.createdAt), style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 11)),
+            const SizedBox(width: 14),
+            GestureDetector(onTap: onReply,
+              child: const Text('Reply', style: TextStyle(color: Color(0xFF6B7280), fontSize: 11, fontWeight: FontWeight.w700))),
+            if (onDelete != null) ...[const SizedBox(width: 14),
+              GestureDetector(onTap: onDelete, child: const Text('Delete', style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w600)))],
+            const SizedBox(width: 14),
+            if (comment.likesCount > 0) Text('${comment.likesCount} likes', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 11)),
           ]),
-        ),
+        ])),
       ]),
     );
   }
 }
 
 void showCommentsSheet(BuildContext context, int postId, {int initialCount = 0}) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+  showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
     builder: (_) => DraggableScrollableSheet(
-      initialChildSize: 0.65,
-      maxChildSize: 0.95,
-      minChildSize: 0.4,
-      builder: (_, __) => CommentsSheet(postId: postId, initialCount: initialCount),
-    ),
-  );
+      initialChildSize: 0.65, maxChildSize: 0.95, minChildSize: 0.4,
+      builder: (_, __) => CommentsSheet(postId: postId, initialCount: initialCount)));
 }
