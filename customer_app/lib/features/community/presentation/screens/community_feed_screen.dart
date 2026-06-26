@@ -205,7 +205,7 @@ class _FeedTab extends ConsumerWidget {
                 if (p.isAd && p.adType == 'video' && p.adMediaUrl != null) videoUrls.add(p.adMediaUrl!);
                 if (p.isVideo && p.media.isNotEmpty) videoUrls.add(p.media.first.url);
               }
-              if (videoUrls.isNotEmpty) VideoPreloader().preloadUrls(videoUrls.take(6).toList());
+              if (videoUrls.isNotEmpty) VideoPreloader().preloadUrls(videoUrls.take(3).toList());
               return Column(
                 children: [
                   ...posts.map((p) => _PostCard(post: p,
@@ -1162,8 +1162,9 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       return;
     }
 
-    // Fallback: load fresh
-    final ctrl = VideoPlayerController.networkUrl(Uri.parse(url));
+    // Load with optimized headers
+    final ctrl = VideoPlayerController.networkUrl(Uri.parse(url),
+      httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'});
     try {
       await ctrl.initialize();
       ctrl.setLooping(true);

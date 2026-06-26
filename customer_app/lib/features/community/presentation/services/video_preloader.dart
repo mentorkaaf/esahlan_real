@@ -7,10 +7,14 @@ class VideoPreloader {
 
   final Map<String, VideoPlayerController> _cache = {};
   final Set<String> _loading = {};
-  static const _maxCached = 6;
+  static const _maxCached = 3;
 
-  /// Preload a list of video URLs silently in background
   void preloadUrls(List<String> urls) {
+    // Evict old if too many
+    while (_cache.length > _maxCached) {
+      final oldest = _cache.keys.first;
+      _cache.remove(oldest)?.dispose();
+    }
     for (final url in urls) {
       if (_cache.length + _loading.length >= _maxCached) break;
       _preload(url);
@@ -21,7 +25,8 @@ class VideoPreloader {
     if (_cache.containsKey(url) || _loading.contains(url)) return;
     _loading.add(url);
     try {
-      final ctrl = VideoPlayerController.networkUrl(Uri.parse(url));
+      final ctrl = VideoPlayerController.networkUrl(Uri.parse(url),
+        httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'});
       await ctrl.initialize();
       ctrl.setLooping(true);
       ctrl.setVolume(1);
