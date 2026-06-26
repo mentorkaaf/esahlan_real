@@ -848,30 +848,27 @@ class _PostCardState extends ConsumerState<_PostCard> {
         const Divider(height: 1, color: Color(0xFFF0F2F5)),
 
         // Action buttons
-        Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(children: [
-                _ActionBtn(
-                  icon: _myReaction != null ? Icons.thumb_up_rounded : Icons.thumb_up_alt_outlined,
-                  label: _myReaction != null ? _reactionEmoji(_myReaction!) : 'Like',
-                  color: _myReaction != null ? kOrange : const Color(0xFF6B7280),
-                  onTap: () => setState(() => _showReactions = !_showReactions),
-                  onLongPress: () => _react('like'),
-                ),
-                _ActionBtn(icon: Icons.chat_bubble_outline_rounded, label: 'Comment', color: const Color(0xFF6B7280), onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount)),
-                _ActionBtn(icon: Icons.share_outlined, label: 'Share', color: const Color(0xFF6B7280), onTap: () => _showShareDialog()),
-              ]),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(children: [
+            _ActionBtn(
+              icon: _myReaction != null ? Icons.thumb_up_rounded : Icons.thumb_up_alt_outlined,
+              label: _myReaction != null ? _reactionEmoji(_myReaction!) : 'Like',
+              color: _myReaction != null ? kOrange : const Color(0xFF6B7280),
+              onTap: () => setState(() => _showReactions = !_showReactions),
+              onLongPress: () => _react('like'),
             ),
-            // Reaction popup
-            if (_showReactions)
-              Positioned(
-                left: 8, bottom: 44,
-                child: _ReactionPicker(reactions: _reactions, onPick: _react, onDismiss: () => setState(() => _showReactions = false)),
-              ),
-          ],
+            _ActionBtn(icon: Icons.chat_bubble_outline_rounded, label: 'Comment', color: const Color(0xFF6B7280), onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount)),
+            _ActionBtn(icon: Icons.share_outlined, label: 'Share', color: const Color(0xFF6B7280), onTap: () => _showShareDialog()),
+          ]),
         ),
+
+        // Reaction picker — shown above action buttons
+        if (_showReactions)
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: _ReactionPicker(reactions: _reactions, onPick: _react, onDismiss: () => setState(() => _showReactions = false)),
+          ),
       ]),
     );
   }
