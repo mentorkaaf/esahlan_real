@@ -65,10 +65,23 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> with SingleTick
     if (progress >= _triggerPoint) _showAd();
   }
 
-  void _showAd() {
+  void _showAd() async {
     if (_adTriggered) return;
     _adTriggered = true;
-    if (!_preloadDone || _adCtrl == null || _ad == null) return;
+
+    // If preload didn't finish, try loading now
+    if (!_preloadDone || _adCtrl == null || _ad == null) {
+      try {
+        final ad = await ref.read(communityRepoProvider).getPrerollAd();
+        if (ad == null || ad['media_url'] == null || !mounted) return;
+        _ad = ad;
+        final ctrl = VideoPlayerController.networkUrl(Uri.parse(ad['media_url']));
+        await ctrl.initialize();
+        ctrl.setLooping(false); ctrl.setVolume(1); ctrl.pause();
+        if (!mounted) { ctrl.dispose(); return; }
+        _adCtrl = ctrl;
+      } catch (_) { return; }
+    }
 
     widget.mainController.pause();
     _adCtrl!.play();

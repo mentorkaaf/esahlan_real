@@ -74,8 +74,9 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
       final repo = ref.read(communityRepoProvider);
       for (var i = 0; i < 3; i++) {
         final ad = await repo.getPrerollAd();
-        if (ad != null) _reelAds.add(ad);
+        if (ad != null && ad['media_url'] != null) _reelAds.add(ad);
       }
+      if (mounted) setState(() {});
     } catch (_) {}
   }
 
@@ -356,9 +357,11 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
         if (ad['id'] != null) ref.read(communityRepoProvider).trackAdClick(ad['id']);
       },
       child: Stack(fit: StackFit.expand, children: [
-        // Video or gradient background
+        // Video or image or gradient
         if (_ready && _ctrl != null)
           Center(child: AspectRatio(aspectRatio: _ctrl!.value.aspectRatio, child: VideoPlayer(_ctrl!)))
+        else if (ad['ad_type'] == 'image' && ad['media_url'] != null)
+          NetImage(url: ad['media_url'], fit: BoxFit.cover)
         else
           Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
             colors: [Color(0xFF1A1B2E), Color(0xFF0D0E1A)]))),

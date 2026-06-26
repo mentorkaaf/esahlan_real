@@ -29,10 +29,13 @@ class CommunityFeedController extends Controller
         $maxAds = $adSettings['feed_max_ads'] ?? 3;
 
         if ($feedEnabled && $posts->currentPage() <= 3) {
-            $ads = CommunityAdController::getAdsForPlacement('feed', $userId, $maxAds);
-            foreach ($ads as $i => $ad) {
-                $pos = min(($i + 1) * $frequency, count($transformed));
+            $ads = CommunityAdController::getAdsForPlacement('feed', $userId, min($maxAds, 2));
+            $inserted = 0;
+            foreach ($ads as $ad) {
+                $pos = ($inserted + 1) * $frequency + $inserted;
+                if ($pos > count($transformed)) $pos = count($transformed);
                 array_splice($transformed, $pos, 0, [$ad]);
+                $inserted++;
             }
         }
 
@@ -57,7 +60,7 @@ class CommunityFeedController extends Controller
 
         // Inject explore ads
         if ($posts->currentPage() <= 2) {
-            $ads = CommunityAdController::getAdsForPlacement('explore', $userId, 2);
+            $ads = CommunityAdController::getAdsForPlacement('feed', $userId, 2);
             foreach ($ads as $i => $ad) {
                 $pos = min(($i + 1) * 3, count($transformed));
                 array_splice($transformed, $pos, 0, [$ad]);
