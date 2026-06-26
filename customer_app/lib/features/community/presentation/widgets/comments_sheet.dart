@@ -88,14 +88,17 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     try {
       CommunityComment comment;
       if (_mediaFile != null) {
-        final bytes = await _mediaFile!.readAsBytes();
-        final ext = _mediaFile!.path.split('.').last;
-        final fname = _mediaType == 'voice' ? 'voice.$ext' : _mediaFile!.name;
+        final file = File(_mediaFile!.path);
+        if (!await file.exists()) { setState(() => _sending = false); return; }
+        final bytes = await file.readAsBytes();
+        final ext = _mediaFile!.path.split('.').last.toLowerCase();
+        final fname = _mediaType == 'voice' ? 'voice.aac' : 'comment_media.$ext';
+        final mime = _mediaType == 'voice' ? 'audio/aac' : (ext == 'png' ? 'image/png' : 'image/jpeg');
         final form = FormData.fromMap({
           'content': text.isNotEmpty ? text : (_mediaType == 'voice' ? 'Voice message' : 'Image'),
           if (_replyToId != null) 'parent_id': _replyToId,
           'type': _mediaType ?? 'image',
-          'media': MultipartFile.fromBytes(bytes, filename: fname),
+          'media': MultipartFile.fromBytes(bytes, filename: fname, contentType: DioMediaType.parse(mime)),
         });
         comment = await _repo.addMediaComment(widget.postId, form);
       } else {
@@ -167,19 +170,26 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
               child: const Icon(Icons.close, size: 16, color: Color(0xFF9CA3AF))),
           ])),
         if (_mediaFile != null) Container(
-          padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+          margin: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: kOrange.withValues(alpha: 0.2))),
           child: Row(children: [
             if (_mediaType == 'image')
               ClipRRect(borderRadius: BorderRadius.circular(8),
-                child: Image.file(File(_mediaFile!.path), width: 60, height: 60, fit: BoxFit.cover))
+                child: Image.file(File(_mediaFile!.path), width: 50, height: 50, fit: BoxFit.cover))
             else
-              Container(width: 40, height: 40, decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                child: Icon(_mediaType == 'voice' ? Icons.mic_rounded : Icons.attach_file_rounded, color: kOrange, size: 20)),
-            const SizedBox(width: 8),
-            Expanded(child: Text(_mediaType == 'voice' ? 'Voice recorded' : _mediaFile!.name,
-              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              Container(width: 42, height: 42, decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.mic_rounded, color: Colors.white, size: 22)),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(_mediaType == 'voice' ? 'Voice recorded' : 'Image attached',
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E))),
+              Text('Tap send to post', style: TextStyle(fontSize: 11, color: kOrange.withValues(alpha: 0.7))),
+            ])),
             GestureDetector(onTap: () => setState(() { _mediaFile = null; _mediaType = null; }),
-              child: const Icon(Icons.close, size: 18, color: Color(0xFF9CA3AF))),
+              child: Container(width: 28, height: 28, decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), shape: BoxShape.circle),
+                child: const Icon(Icons.close, size: 16, color: Colors.red))),
           ])),
         Padding(
           padding: EdgeInsets.only(left: 12, right: 12, top: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 12),
