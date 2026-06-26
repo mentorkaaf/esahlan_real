@@ -59,7 +59,7 @@ dependencies:
 
   # Files & Audio
   file_picker: ^8.0.0+1
-  record: ^5.1.2
+  record: ^5.0.5
   audioplayers: ^6.1.0
 
   # Image
