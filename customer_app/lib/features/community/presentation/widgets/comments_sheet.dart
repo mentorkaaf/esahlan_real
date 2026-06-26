@@ -2,8 +2,7 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:record/record.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
@@ -32,8 +31,6 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   String? _replyToName;
   XFile? _mediaFile;
   String? _mediaType;
-  final _recorder = AudioRecorder();
-  bool _recording = false;
 
   @override
   void initState() { super.initState(); _loadComments(); }
@@ -50,22 +47,15 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     if (f != null) setState(() { _mediaFile = f; _mediaType = 'image'; });
   }
 
-  Future<void> _toggleRecording() async {
-    if (_recording) {
-      final path = await _recorder.stop();
-      if (path != null) setState(() { _mediaFile = XFile(path); _mediaType = 'voice'; _recording = false; });
-    } else {
-      if (await _recorder.hasPermission()) {
-        final dir = await getTemporaryDirectory();
-        final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
-        setState(() => _recording = true);
-      }
+  Future<void> _pickVoice() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.audio);
+    if (result != null && result.files.single.path != null) {
+      setState(() { _mediaFile = XFile(result.files.single.path!); _mediaType = 'voice'; });
     }
   }
 
   @override
-  void dispose() { _textCtrl.dispose(); _focusNode.dispose(); _recorder.dispose(); super.dispose(); }
+  void dispose() { _textCtrl.dispose(); _focusNode.dispose(); super.dispose(); }
 
   Future<void> _send() async {
     final text = _textCtrl.text.trim();
@@ -170,10 +160,10 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
               child: Container(width: 34, height: 34, margin: const EdgeInsets.only(right: 4),
                 decoration: BoxDecoration(color: const Color(0xFFF0F2F5), shape: BoxShape.circle),
                 child: const Icon(Icons.image_rounded, color: kOrange, size: 16))),
-            GestureDetector(onTap: _toggleRecording,
+            GestureDetector(onTap: _pickVoice,
               child: Container(width: 34, height: 34, margin: const EdgeInsets.only(right: 4),
-                decoration: BoxDecoration(color: _recording ? Colors.red : const Color(0xFFF0F2F5), shape: BoxShape.circle),
-                child: Icon(_recording ? Icons.stop_rounded : Icons.mic_rounded, color: _recording ? Colors.white : kOrange, size: 16))),
+                decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
+                child: const Icon(Icons.mic_rounded, color: kOrange, size: 16))),
             Expanded(child: Container(
               decoration: BoxDecoration(color: const Color(0xFFF0F2F5), borderRadius: BorderRadius.circular(24)),
               child: TextField(controller: _textCtrl, focusNode: _focusNode, minLines: 1, maxLines: 4,

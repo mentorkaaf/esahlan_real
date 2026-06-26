@@ -3,6 +3,7 @@ import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../../../core/router/app_router.dart' show authChangeNotifierProvider;
+import '../../../../core/services/location_service.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) => AuthRepository());
 
@@ -99,6 +100,7 @@ final updateProfileProvider = Provider<Future<void> Function(Map<String, dynamic
 // Logout
 final logoutProvider = Provider<Future<void> Function()>((ref) {
   return () async {
+    LocationService.stopTracking();
     await ref.read(authRepositoryProvider).logout();
     ref.invalidate(authStateProvider);
     // Trigger GoRouter redirect refresh without recreating the router
