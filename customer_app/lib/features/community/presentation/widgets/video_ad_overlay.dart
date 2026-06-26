@@ -63,7 +63,7 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
     final dur = widget.mainController.value.duration;
     if (dur <= Duration.zero) return;
     final progress = widget.mainController.value.position.inMilliseconds / dur.inMilliseconds;
-    if (widget.mainController.value.position.inSeconds < 3) return;
+    if (widget.mainController.value.position.inSeconds < 1) return;
     if (progress >= _triggerPoint) _showAd();
   }
 
