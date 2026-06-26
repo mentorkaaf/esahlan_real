@@ -86,6 +86,9 @@ class AdminCommunityAdsController extends Controller
             'freq_medium'            => (int) ($request->freq_medium ?? 2),
             'freq_long'              => (int) ($request->freq_long ?? 3),
             'freq_very_long'         => (int) ($request->freq_very_long ?? 6),
+            'video_compress_enabled' => $request->boolean('video_compress_enabled'),
+            'video_compress_quality' => $request->video_compress_quality ?? 'default',
+            'video_compress_ads'     => $request->boolean('video_compress_ads'),
         ];
 
         \DB::table('settings')->updateOrInsert(

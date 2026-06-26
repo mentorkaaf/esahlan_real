@@ -163,6 +163,28 @@
             </div>
         </div>
 
+        {{-- Video Compression --}}
+        <div style="background:#f9fafb;border-radius:12px;padding:16px;margin-bottom:20px;">
+            <h4 style="font-weight:700;font-size:14px;margin:0 0 12px;color:#1A1B2E;"><i class="fas fa-compress" style="color:#FF8A00"></i> Video Compression</h4>
+            <div class="form-group" style="margin-bottom:10px;">
+                <label><input type="checkbox" name="video_compress_enabled" value="1" {{ ($adSettings['video_compress_enabled'] ?? true) ? 'checked' : '' }}> <strong>Enable video compression</strong></label>
+                <br><small style="color:#8A8A9A;">Compress videos before upload (reduces file size, faster streaming)</small>
+            </div>
+            <div class="form-group" style="margin-bottom:10px;">
+                <label class="form-label" style="font-size:12px;">Compression quality</label>
+                <select name="video_compress_quality" class="form-control" style="width:200px;">
+                    <option value="low" {{ ($adSettings['video_compress_quality'] ?? 'default') === 'low' ? 'selected' : '' }}>Low (smallest file, lower quality)</option>
+                    <option value="medium" {{ ($adSettings['video_compress_quality'] ?? 'default') === 'medium' ? 'selected' : '' }}>Medium (balanced)</option>
+                    <option value="default" {{ ($adSettings['video_compress_quality'] ?? 'default') === 'default' ? 'selected' : '' }}>Default (good quality)</option>
+                    <option value="high" {{ ($adSettings['video_compress_quality'] ?? 'default') === 'high' ? 'selected' : '' }}>High (best quality, larger file)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" name="video_compress_ads" value="1" {{ ($adSettings['video_compress_ads'] ?? true) ? 'checked' : '' }}> <strong>Compress video ads too</strong></label>
+                <br><small style="color:#8A8A9A;">Apply compression to video ads for faster playback</small>
+            </div>
+        </div>
+
         <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Ad Settings</button>
     </form>
 </div>

@@ -81,11 +81,20 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         for (final f in _mediaFiles) {
           if (_hasVideo) {
             try {
-              final info = await VideoCompress.compressVideo(f.path, quality: VideoQuality.DefaultQuality, deleteOrigin: false, includeAudio: true);
-              if (info?.file != null) {
-                final bytes = await info!.file!.readAsBytes();
-                files.add(MultipartFile.fromBytes(bytes, filename: 'video.mp4'));
-                continue;
+              // Fetch admin compression settings
+              Map<String, dynamic>? compSettings;
+              try { compSettings = (await CommunityRepository().getAdDisplaySettings()); } catch (_) {}
+              final enabled = compSettings?['video_compress_enabled'] ?? true;
+              final q = compSettings?['video_compress_quality'] ?? 'default';
+              final quality = {'low': VideoQuality.LowQuality, 'medium': VideoQuality.MediumQuality, 'high': VideoQuality.HighestQuality}[q] ?? VideoQuality.DefaultQuality;
+
+              if (enabled) {
+                final info = await VideoCompress.compressVideo(f.path, quality: quality, deleteOrigin: false, includeAudio: true);
+                if (info?.file != null) {
+                  final bytes = await info!.file!.readAsBytes();
+                  files.add(MultipartFile.fromBytes(bytes, filename: 'video.mp4'));
+                  continue;
+                }
               }
             } catch (_) {}
           }

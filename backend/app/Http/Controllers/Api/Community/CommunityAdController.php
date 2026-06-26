@@ -26,6 +26,9 @@ class CommunityAdController extends Controller
             'freq_medium'             => $settings['freq_medium'] ?? 2,
             'freq_long'               => $settings['freq_long'] ?? 3,
             'freq_very_long'          => $settings['freq_very_long'] ?? 6,
+            'video_compress_enabled'  => $settings['video_compress_enabled'] ?? true,
+            'video_compress_quality'  => $settings['video_compress_quality'] ?? 'default',
+            'video_compress_ads'      => $settings['video_compress_ads'] ?? true,
         ]]);
     }
 
