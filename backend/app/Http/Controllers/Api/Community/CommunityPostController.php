@@ -20,7 +20,7 @@ class CommunityPostController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'type' => 'required|in:text,image,video,reel,poll,service',
+            'type' => 'required|in:text,image,video,reel,poll,service,audio,document',
             'content' => 'nullable|string|max:5000',
             'privacy' => 'in:public,followers,private',
             'location' => 'nullable|string|max:255',
@@ -29,7 +29,7 @@ class CommunityPostController extends Controller
             'page_id' => 'nullable|exists:community_business_pages,id',
             'poll_options' => 'nullable|array|min:2|max:6',
             'poll_options.*' => 'string|max:100',
-            'media.*' => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mov|max:51200',
+            'media.*' => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mov,mp3,m4a,ogg,wav,aac,pdf,doc,docx|max:51200',
         ]);
 
         // ── Content Moderation ──────────────────────────────────────
@@ -80,11 +80,14 @@ class CommunityPostController extends Controller
         if ($request->hasFile('media')) {
             foreach ($request->file('media') as $i => $file) {
                 $mime = $file->getMimeType();
-                $isVideo = str_starts_with($mime, 'video/');
+                $type = 'image';
+                if (str_starts_with($mime, 'video/')) $type = 'video';
+                elseif (str_starts_with($mime, 'audio/')) $type = 'audio';
+                elseif (str_contains($mime, 'pdf') || str_contains($mime, 'document') || str_contains($mime, 'msword')) $type = 'document';
                 $path = $file->store('community/posts', 'public');
                 CommunityPostMedia::create([
                     'post_id' => $post->id,
-                    'type' => $isVideo ? 'video' : 'image',
+                    'type' => $type,
                     'url' => cdn_url($path),
                     'sort_order' => $i,
                 ]);

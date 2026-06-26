@@ -124,6 +124,11 @@ class CommunityRepository {
     return CommunityComment.fromJson(r.data['data'] as Map<String, dynamic>);
   }
 
+  Future<CommunityComment> addMediaComment(int postId, FormData form) async {
+    final r = await _dio.post('/community/posts/$postId/comments', data: form);
+    return CommunityComment.fromJson(r.data['data'] as Map<String, dynamic>);
+  }
+
   Future<void> deleteComment(int commentId) => _dio.delete('/community/comments/$commentId');
 
   // ── Profile ────────────────────────────────────────────────────────────────

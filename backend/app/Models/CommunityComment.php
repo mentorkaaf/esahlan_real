@@ -5,7 +5,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CommunityComment extends Model {
     use SoftDeletes;
-    protected $fillable = ['post_id','user_id','parent_id','content','media_url','likes_count','replies_count','is_pinned'];
+    protected $fillable = ['post_id','user_id','parent_id','content','media_url','media_type','likes_count','replies_count','is_pinned'];
     protected $casts = ['is_pinned'=>'boolean'];
 
     public function user() { return $this->belongsTo(User::class); }

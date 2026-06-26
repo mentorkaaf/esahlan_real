@@ -50,8 +50,22 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Future<void> _pickVideo() async {
     final video = await _picker.pickVideo(source: ImageSource.gallery);
     if (video != null) {
-      setState(() { _mediaFiles = [video]; _hasVideo = true; });
+      setState(() { _mediaFiles = [video]; _hasVideo = true; _postType = 'video'; });
     }
+  }
+
+  String _postType = 'text';
+
+  Future<void> _pickAudio() async {
+    // Use file picker via image_picker's pickVideo since no audio picker
+    // User can select audio files from gallery
+    final f = await _picker.pickVideo(source: ImageSource.gallery);
+    if (f != null) setState(() { _mediaFiles = [f]; _hasVideo = false; _postType = 'audio'; });
+  }
+
+  Future<void> _pickDocument() async {
+    final f = await _picker.pickMedia();
+    if (f != null) setState(() { _mediaFiles = [f]; _hasVideo = false; _postType = 'document'; });
   }
 
   Future<void> _post() async {
@@ -60,7 +74,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     setState(() => _posting = true);
     try {
       final repo = CommunityRepository();
-      final type = _hasVideo ? 'video' : (_mediaFiles.isNotEmpty ? 'image' : 'text');
+      final type = _postType != 'text' ? _postType : (_hasVideo ? 'video' : (_mediaFiles.isNotEmpty ? 'image' : 'text'));
       List<dynamic>? files;
       if (_mediaFiles.isNotEmpty) {
         files = [];
@@ -275,9 +289,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             children: [
               _ToolbarBtn(icon: Icons.photo_library_rounded, label: 'Photo', color: const Color(0xFF45BD62), onTap: _pickMedia),
               _ToolbarBtn(icon: Icons.videocam_rounded, label: 'Video', color: kOrange, onTap: _pickVideo),
-              _ToolbarBtn(icon: Icons.bar_chart_rounded, label: 'Poll', color: const Color(0xFF8B5CF6), onTap: () {}),
+              _ToolbarBtn(icon: Icons.headphones_rounded, label: 'Audio', color: const Color(0xFF3B82F6), onTap: _pickAudio),
+              _ToolbarBtn(icon: Icons.picture_as_pdf_rounded, label: 'PDF', color: const Color(0xFFEF4444), onTap: _pickDocument),
               _ToolbarBtn(icon: Icons.emoji_emotions_rounded, label: 'Feeling', color: const Color(0xFFF59E0B), onTap: () => _showFeelingPicker(context)),
-              _ToolbarBtn(icon: Icons.location_on_rounded, label: 'Location', color: const Color(0xFFEF4444), onTap: () => _showLocationInput(context)),
             ],
           ),
         ),

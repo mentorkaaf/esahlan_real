@@ -225,6 +225,8 @@ class CommunityComment {
   final int postId;
   final CommunityUser user;
   final String content;
+  final String? mediaUrl;
+  final String? mediaType;
   int likesCount;
   int repliesCount;
   final bool isPinned;
@@ -237,6 +239,8 @@ class CommunityComment {
     required this.postId,
     required this.user,
     required this.content,
+    this.mediaUrl,
+    this.mediaType,
     this.likesCount = 0,
     this.repliesCount = 0,
     this.isPinned = false,
@@ -249,7 +253,9 @@ class CommunityComment {
         id: j['id'] as int,
         postId: j['post_id'] as int,
         user: CommunityUser.fromJson(j['user'] as Map<String, dynamic>),
-        content: j['content'] as String,
+        content: j['content'] as String? ?? '',
+        mediaUrl: j['media_url'] as String?,
+        mediaType: j['media_type'] as String?,
         likesCount: j['likes_count'] as int? ?? 0,
         repliesCount: j['replies_count'] as int? ?? 0,
         isPinned: j['is_pinned'] as bool? ?? false,

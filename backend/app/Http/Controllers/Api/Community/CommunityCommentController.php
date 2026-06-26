@@ -23,14 +23,28 @@ class CommunityCommentController extends Controller
 
     public function store(Request $request, int $postId)
     {
-        $request->validate(['content'=>'required|string|max:2000','parent_id'=>'nullable|exists:community_comments,id']);
+        $request->validate([
+            'content' => 'nullable|string|max:2000',
+            'parent_id' => 'nullable|exists:community_comments,id',
+            'media' => 'nullable|file|mimes:jpg,jpeg,png,gif,mp3,m4a,ogg,wav,aac|max:20480',
+            'type' => 'nullable|in:text,image,voice',
+        ]);
         $post = CommunityPost::findOrFail($postId);
+
+        $mediaUrl = null;
+        $commentType = $request->type ?? 'text';
+        if ($request->hasFile('media')) {
+            $path = $request->file('media')->store('community/comment-media', 'public');
+            $mediaUrl = cdn_url($path);
+        }
 
         $comment = CommunityComment::create([
             'post_id' => $postId,
             'user_id' => auth()->id(),
             'parent_id' => $request->parent_id,
-            'content' => $request->content,
+            'content' => $request->content ?? ($commentType === 'voice' ? 'Voice message' : 'Image'),
+            'media_url' => $mediaUrl,
+            'media_type' => $commentType !== 'text' ? $commentType : null,
         ]);
 
         if ($request->parent_id) {
