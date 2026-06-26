@@ -415,15 +415,13 @@ class _AdCard extends ConsumerStatefulWidget {
 class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   VideoPlayerController? _vCtrl;
   bool _videoReady = false;
-  bool _initStarted = false;
+  bool _muted = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Start loading video immediately
     if (widget.post.adType == 'video' && widget.post.adMediaUrl != null) {
-      _initStarted = true;
       final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.post.adMediaUrl!));
       ctrl.initialize().then((_) {
         if (!mounted) { ctrl.dispose(); return; }
@@ -442,6 +440,15 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   @override
   void dispose() { WidgetsBinding.instance.removeObserver(this); _vCtrl?.pause(); _vCtrl?.dispose(); super.dispose(); }
 
+  void _onAdTap() {
+    if (widget.post.id > 0) ref.read(communityRepoProvider).trackAdClick(widget.post.id);
+    final url = widget.post.adCtaUrl;
+    if (url != null && url.isNotEmpty) {
+      final uri = url.startsWith('http') ? url : 'https://$url';
+      launchUrl(Uri.parse(uri), mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = widget.post;
@@ -452,56 +459,93 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
         info.visibleFraction > 0.5 ? _vCtrl!.play() : _vCtrl!.pause();
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 2))]),
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        color: Colors.white,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Header
-          Padding(padding: const EdgeInsets.fromLTRB(14, 12, 14, 8), child: Row(children: [
-            if (p.adPage?['avatar'] != null)
-              CircleNetImage(url: p.adPage!['avatar'], size: 36, fallbackText: p.adPage?['name'] ?? 'Ad')
-            else Container(width: 32, height: 32, decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
-              child: const Icon(Icons.campaign_rounded, color: kOrange, size: 16)),
-            const SizedBox(width: 8),
+          // ── Header (Facebook style) ──
+          Padding(padding: const EdgeInsets.fromLTRB(14, 12, 14, 10), child: Row(children: [
+            Container(
+              decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: kOrange.withValues(alpha: 0.3), width: 2)),
+              child: p.adPage?['avatar'] != null
+                  ? CircleNetImage(url: p.adPage!['avatar'], size: 40, fallbackText: p.adPage?['name'] ?? '')
+                  : Container(width: 40, height: 40, decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
+                      child: const Icon(Icons.storefront_rounded, color: kOrange, size: 20))),
+            const SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(p.adPage?['name'] ?? 'Sponsored', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E))),
-              const Text('Sponsored', style: TextStyle(color: kOrange, fontSize: 11, fontWeight: FontWeight.w600)),
+              Row(children: [
+                Flexible(child: Text(p.adPage?['name'] ?? 'Sponsored', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF1A1B2E)))),
+                const SizedBox(width: 6),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(3)),
+                  child: const Text('Sponsored', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800))),
+              ]),
+              const SizedBox(height: 2),
+              Row(children: [
+                Icon(Icons.public_rounded, size: 11, color: Colors.grey[400]),
+                const SizedBox(width: 3),
+                Text('Promoted', style: TextStyle(color: Colors.grey[400], fontSize: 11)),
+              ]),
             ])),
-            Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(4)),
-              child: const Text('AD', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1))),
+            GestureDetector(onTap: () {},
+              child: Icon(Icons.more_horiz_rounded, color: Colors.grey[400], size: 22)),
           ])),
 
-          // Media — video auto-plays, image instant
-          if (p.adMediaUrl != null) ClipRRect(
-            borderRadius: const BorderRadius.only(),
-            child: p.adType == 'video'
-                ? (_videoReady && _vCtrl != null
-                    ? AspectRatio(aspectRatio: _vCtrl!.value.aspectRatio.clamp(0.5, 2.0), child: VideoPlayer(_vCtrl!))
-                    : const SizedBox.shrink())
-                : NetImage(url: p.adMediaUrl, fit: BoxFit.cover, width: double.infinity)),
+          // ── Content text ──
+          if (p.adTitle != null) Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 4),
+            child: Text(p.adTitle!, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E), height: 1.25))),
+          if (p.content != null && p.content!.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            child: Text(p.content!, style: const TextStyle(color: Color(0xFF4B5563), fontSize: 14, height: 1.35))),
 
-          // Title + Description + CTA
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                colors: [Colors.white, kOrange.withValues(alpha: 0.03)])),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (p.adTitle != null) Text(p.adTitle!, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: Color(0xFF1A1B2E), height: 1.2)),
-              if (p.content != null && p.content!.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4),
-                child: Text(p.content!, style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13, height: 1.3))),
-              const SizedBox(height: 12),
-              if (p.adCtaText != null) SizedBox(width: double.infinity, child: ElevatedButton(
-                onPressed: () { if (p.id > 0) ref.read(communityRepoProvider).trackAdClick(p.id); },
-                style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white, elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 13)),
-                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Text(p.adCtaText!, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                  const SizedBox(width: 6),
-                  const Icon(Icons.arrow_forward_rounded, size: 18),
-                ]))),
-            ]),
+          // ── Media ──
+          GestureDetector(
+            onTap: _onAdTap,
+            child: p.adType == 'video'
+                ? Stack(children: [
+                    _videoReady && _vCtrl != null
+                        ? AspectRatio(aspectRatio: _vCtrl!.value.aspectRatio.clamp(0.5, 2.0), child: VideoPlayer(_vCtrl!))
+                        : const SizedBox.shrink(),
+                    // Mute button
+                    if (_videoReady) Positioned(bottom: 12, right: 12,
+                      child: GestureDetector(
+                        onTap: () { setState(() { _muted = !_muted; _vCtrl?.setVolume(_muted ? 0 : 1); }); },
+                        child: Container(width: 32, height: 32,
+                          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
+                          child: Icon(_muted ? Icons.volume_off_rounded : Icons.volume_up_rounded, color: Colors.white, size: 16)))),
+                  ])
+                : (p.adMediaUrl != null ? NetImage(url: p.adMediaUrl, fit: BoxFit.cover, width: double.infinity) : const SizedBox.shrink())),
+
+          // ── CTA bar (Instagram style) ──
+          if (p.adCtaText != null || p.adCtaUrl != null) GestureDetector(
+            onTap: _onAdTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(color: const Color(0xFFF8F9FA),
+                border: Border(top: BorderSide(color: Colors.grey[200]!))),
+              child: Row(children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  if (p.adCtaUrl != null) Text(p.adCtaUrl!.replaceAll(RegExp(r'https?://'), ''),
+                    style: TextStyle(color: Colors.grey[500], fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  if (p.adTitle != null) Text(p.adTitle!, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E)),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                ])),
+                const SizedBox(width: 10),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(6)),
+                  child: Text(p.adCtaText ?? 'Learn More', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13))),
+              ]),
+            ),
           ),
+
+          // ── Engagement bar (like regular posts) ──
+          Padding(padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(children: [
+              Expanded(child: TextButton.icon(onPressed: () {}, icon: const Icon(Icons.thumb_up_alt_outlined, size: 18), label: const Text('Like'),
+                style: TextButton.styleFrom(foregroundColor: const Color(0xFF6B7280)))),
+              Expanded(child: TextButton.icon(onPressed: () {}, icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18), label: const Text('Comment'),
+                style: TextButton.styleFrom(foregroundColor: const Color(0xFF6B7280)))),
+              Expanded(child: TextButton.icon(onPressed: _onAdTap, icon: const Icon(Icons.share_outlined, size: 18), label: const Text('Share'),
+                style: TextButton.styleFrom(foregroundColor: const Color(0xFF6B7280)))),
+            ])),
         ]),
       ),
     );
