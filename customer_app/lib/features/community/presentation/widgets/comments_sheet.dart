@@ -78,7 +78,10 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       }
       _textCtrl.clear();
       setState(() { _comments.add(comment); _replyToId = null; _replyToName = null; _mediaFile = null; _mediaType = null; _sending = false; });
-    } catch (_) { setState(() => _sending = false); }
+    } catch (e) {
+      setState(() => _sending = false);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: Colors.red));
+    }
   }
 
   @override

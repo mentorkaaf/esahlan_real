@@ -83,23 +83,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       if (_mediaFiles.isNotEmpty) {
         files = [];
         for (final f in _mediaFiles) {
-          if (_hasVideo) {
-            try {
-              final settings = await repo.getAdDisplaySettings();
-              final enabled = settings['video_compress_enabled'] == true;
-              final q = settings['video_compress_quality'] ?? 'default';
-              final quality = {'low': VideoQuality.LowQuality, 'medium': VideoQuality.MediumQuality, 'high': VideoQuality.HighestQuality}[q] ?? VideoQuality.DefaultQuality;
-
-              if (enabled) {
-                final info = await VideoCompress.compressVideo(f.path, quality: quality, deleteOrigin: false, includeAudio: true);
-                if (info?.file != null) {
-                  final bytes = await info!.file!.readAsBytes();
-                  files.add(MultipartFile.fromBytes(bytes, filename: 'video.mp4'));
-                  continue;
-                }
-              }
-            } catch (_) {}
-          }
+          // No client-side compression — upload raw for reliability
           final bytes = await f.readAsBytes();
           files.add(MultipartFile.fromBytes(bytes, filename: f.name));
         }
