@@ -89,11 +89,13 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       CommunityComment comment;
       if (_mediaFile != null) {
         final bytes = await _mediaFile!.readAsBytes();
+        final ext = _mediaFile!.path.split('.').last;
+        final fname = _mediaType == 'voice' ? 'voice.$ext' : _mediaFile!.name;
         final form = FormData.fromMap({
-          if (text.isNotEmpty) 'content': text,
+          'content': text.isNotEmpty ? text : (_mediaType == 'voice' ? 'Voice message' : 'Image'),
           if (_replyToId != null) 'parent_id': _replyToId,
           'type': _mediaType ?? 'image',
-          'media': MultipartFile.fromBytes(bytes, filename: _mediaFile!.name),
+          'media': MultipartFile.fromBytes(bytes, filename: fname),
         });
         comment = await _repo.addMediaComment(widget.postId, form);
       } else {

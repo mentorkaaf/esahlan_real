@@ -678,6 +678,8 @@ class _PostCardState extends ConsumerState<_PostCard> {
     ));
   }
 
+  String _reactionEmoji(String type) => {'like': '👍', 'love': '❤️', 'haha': '😂', 'wow': '😮', 'sad': '😢', 'angry': '😡'}[type] ?? 'Like';
+
   void _react(String type) async {
     setState(() {
       _myReaction = _myReaction == type ? null : type;
@@ -853,10 +855,10 @@ class _PostCardState extends ConsumerState<_PostCard> {
               child: Row(children: [
                 _ActionBtn(
                   icon: _myReaction != null ? Icons.thumb_up_rounded : Icons.thumb_up_alt_outlined,
-                  label: 'Like',
+                  label: _myReaction != null ? _reactionEmoji(_myReaction!) : 'Like',
                   color: _myReaction != null ? kOrange : const Color(0xFF6B7280),
-                  onTap: () => _react('like'),
-                  onLongPress: () => setState(() => _showReactions = true),
+                  onTap: () => setState(() => _showReactions = !_showReactions),
+                  onLongPress: () => _react('like'),
                 ),
                 _ActionBtn(icon: Icons.chat_bubble_outline_rounded, label: 'Comment', color: const Color(0xFF6B7280), onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount)),
                 _ActionBtn(icon: Icons.share_outlined, label: 'Share', color: const Color(0xFF6B7280), onTap: () => _showShareDialog()),
