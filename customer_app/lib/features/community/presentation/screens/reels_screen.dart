@@ -71,7 +71,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
 
   void _loadReelAds() async {
     try {
-      final repo = CommunityRepository();
+      final repo = ref.read(communityRepoProvider);
       for (var i = 0; i < 3; i++) {
         final ad = await repo.getPrerollAd();
         if (ad != null) _reelAds.add(ad);
