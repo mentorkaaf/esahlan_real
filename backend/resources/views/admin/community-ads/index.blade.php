@@ -37,7 +37,7 @@
         <div class="table-wrap"><table>
             <thead><tr>
                 <th><input type="checkbox" id="selectAll" onchange="document.querySelectorAll('.ad-check').forEach(c=>{c.checked=this.checked});document.getElementById('bulkDeleteBtn').style.display=this.checked?'block':'none'"></th>
-                <th>ID</th><th>Media</th><th>Title</th><th>Advertiser</th><th>Page</th><th>Type</th><th>Placement</th><th>Budget</th><th>Spent</th><th>Clicks</th><th>Impr.</th><th>Status</th><th>Actions</th>
+                <th>ID</th><th>Media</th><th>Title</th><th>Advertiser</th><th>Page</th><th>Type</th><th>Placement</th><th>Budget</th><th>Spent</th><th>Clicks</th><th>Impr.</th><th>Status</th><th>Target</th><th>Actions</th>
             </tr></thead>
             <tbody>
                 @forelse($ads as $ad)
@@ -62,6 +62,18 @@
                     <td>{{ number_format($ad->clicks) }}</td>
                     <td>{{ number_format($ad->impressions) }}</td>
                     <td><span class="badge {{ $sc }}">{{ ucfirst($ad->status) }}</span></td>
+                    <td style="max-width:180px;">
+                        @php $interests = is_array($ad->target_interests) ? $ad->target_interests : (is_string($ad->target_interests) ? json_decode($ad->target_interests, true) : []); @endphp
+                        @if($ad->target_country || $ad->target_city || $ad->target_gender || $ad->target_min_age)
+                        <div style="font-size:11px;line-height:1.6;">
+                            @if($ad->target_country)<span style="background:#E3F2FD;color:#1565C0;padding:1px 5px;border-radius:4px;font-weight:600;">{{ $ad->target_country }}</span>@endif
+                            @if($ad->target_city)<span style="background:#F3E5F5;color:#7B1FA2;padding:1px 5px;border-radius:4px;font-weight:600;">{{ $ad->target_city }}</span>@endif
+                            @if($ad->target_gender && $ad->target_gender !== 'all')<span style="background:#FCE4EC;color:#C62828;padding:1px 5px;border-radius:4px;font-weight:600;">{{ ucfirst($ad->target_gender) }}</span>@endif
+                            @if($ad->target_min_age || $ad->target_max_age)<span style="background:#FFF3E0;color:#E65100;padding:1px 5px;border-radius:4px;font-weight:600;">{{ $ad->target_min_age ?? '?' }}-{{ $ad->target_max_age ?? '?' }}y</span>@endif
+                            @if(!empty($interests))@foreach(array_slice($interests, 0, 2) as $int)<span style="background:#E8F5E9;color:#2E7D32;padding:1px 5px;border-radius:4px;font-weight:600;">{{ $int }}</span>@endforeach @if(count($interests)>2)<span style="color:#8A8A9A;">+{{ count($interests)-2 }}</span>@endif @endif
+                        </div>
+                        @else <span style="color:#8A8A9A;font-size:11px;">No targeting</span>@endif
+                    </td>
                     <td>
                         <div style="display:flex;gap:4px;">
                             <form action="{{ route('admin.community-ads.status', $ad->id) }}" method="POST" style="display:flex;gap:4px;">@csrf @method('PATCH')
@@ -73,7 +85,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="14" style="text-align:center;padding:30px;color:#8A8A9A;">No ads yet</td></tr>
+                <tr><td colspan="15" style="text-align:center;padding:30px;color:#8A8A9A;">No ads yet</td></tr>
                 @endforelse
             </tbody>
         </table></div>
