@@ -1136,11 +1136,12 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   bool get _isAudio => widget.m.type == 'audio';
   bool get _isDocument => widget.m.type == 'document';
 
+  bool _initStarted = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (_isVideo) _initVideo();
   }
 
   @override
@@ -1154,22 +1155,16 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   Future<void> _initVideo() async {
     final url = widget.m.url;
     if (url.isEmpty) return;
-
-    // Try preloaded controller first (instant)
-    final preloaded = VideoPreloader().get(url);
-    if (preloaded != null && preloaded.value.isInitialized) {
-      if (mounted) setState(() { _ctrl = preloaded; _ready = true; });
-      return;
-    }
-
-    // Load with optimized headers
     final ctrl = VideoPlayerController.networkUrl(Uri.parse(url),
       httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'});
     try {
       await ctrl.initialize();
       ctrl.setLooping(true);
       ctrl.setVolume(1);
-      if (mounted) setState(() { _ctrl = ctrl; _ready = true; });
+      if (mounted) {
+        setState(() { _ctrl = ctrl; _ready = true; });
+        if (_visible && !_paused) ctrl.play();
+      }
     } catch (_) {
       ctrl.dispose();
     }
@@ -1184,12 +1179,12 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   }
 
   void _onVisibilityChanged(VisibilityInfo info) {
-    if (!_ready || _ctrl == null) return;
     _visible = info.visibleFraction > 0.5;
     if (_visible) {
-      if (!_paused && !_ctrl!.value.isPlaying) _ctrl!.play();
+      if (_isVideo && !_initStarted) { _initStarted = true; _initVideo(); }
+      if (_ready && _ctrl != null && !_paused && !_ctrl!.value.isPlaying) _ctrl!.play();
     } else {
-      if (_ctrl!.value.isPlaying) _ctrl!.pause();
+      if (_ctrl != null && _ctrl!.value.isPlaying) _ctrl!.pause();
     }
   }
 

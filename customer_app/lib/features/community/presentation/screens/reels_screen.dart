@@ -40,6 +40,12 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
   @override
   void initState() { super.initState(); _loadReelAds(); }
 
+  void _autoScrollNext(int current, int total) {
+    if (current + 1 < total) {
+      _pageCtrl.animateToPage(current + 1, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+    }
+  }
+
   @override
   void dispose() {
     _pageCtrl.dispose();
@@ -53,11 +59,14 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
     final items = <_ReelItem>[];
     int ci = 0, ri = 0, ai = 0;
     int count = 0;
-    while (ci < communityReels.length || ri < rentReels.length) {
-      for (int i = 0; i < 2 && ci < communityReels.length; i++, ci++) {
-        items.add(_ReelItem.community(communityReels[ci]));
+
+    // Shuffle community reels for random order
+    final shuffled = List<CommunityPost>.from(communityReels)..shuffle();
+
+    while (ci < shuffled.length || ri < rentReels.length) {
+      for (int i = 0; i < 2 && ci < shuffled.length; i++, ci++) {
+        items.add(_ReelItem.community(shuffled[ci]));
         count++;
-        // Insert ad every 4 reels
         if (count % 4 == 0 && ai < _reelAds.length) {
           items.add(_ReelItem.ad(_reelAds[ai++]));
         }
@@ -148,6 +157,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                 return _CommunityReelCard(
                   reel: item.communityPost!,
                   isActive: isPageActive,
+                  onVideoEnd: () => _autoScrollNext(i, combined.length),
                   key: ValueKey('comm_${item.communityPost!.id}'),
                 );
               },
@@ -161,7 +171,8 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
 class _CommunityReelCard extends ConsumerStatefulWidget {
   final CommunityPost reel;
   final bool isActive;
-  const _CommunityReelCard({super.key, required this.reel, required this.isActive});
+  final VoidCallback? onVideoEnd;
+  const _CommunityReelCard({super.key, required this.reel, required this.isActive, this.onVideoEnd});
 
   @override
   ConsumerState<_CommunityReelCard> createState() => _CommunityReelCardState();
@@ -201,15 +212,27 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
       return;
     }
 
-    _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(media.url))
+    _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(media.url),
+      httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'})
       ..initialize().then((_) {
         if (mounted) {
           setState(() => _videoReady = true);
-          _videoCtrl!.setLooping(true);
+          _videoCtrl!.setLooping(false);
+          _videoCtrl!.addListener(_onVideoProgress);
           _videoCtrl!.setVolume(_muted ? 0 : 1);
           if (widget.isActive && !_paused) _videoCtrl!.play();
         }
       }).catchError((_) {});
+  }
+
+  void _onVideoProgress() {
+    if (_videoCtrl == null || !_videoReady) return;
+    final pos = _videoCtrl!.value.position;
+    final dur = _videoCtrl!.value.duration;
+    if (dur > Duration.zero && pos >= dur - const Duration(milliseconds: 500)) {
+      _videoCtrl!.removeListener(_onVideoProgress);
+      widget.onVideoEnd?.call();
+    }
   }
 
   @override

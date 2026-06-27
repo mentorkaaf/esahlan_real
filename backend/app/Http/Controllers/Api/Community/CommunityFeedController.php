@@ -77,8 +77,7 @@ class CommunityFeedController extends Controller
         $posts = CommunityPost::with(['user.communityProfile','media','userReaction'])
             ->whereIn('type',['reel','video'])
             ->where('privacy','public')
-            ->orderByDesc('views_count')
-            ->orderByDesc('created_at')
+            ->inRandomOrder()
             ->paginate(10);
 
         $transformed = $this->transformPosts($posts, $userId);
