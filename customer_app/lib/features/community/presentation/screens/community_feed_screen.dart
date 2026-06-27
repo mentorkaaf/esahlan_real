@@ -1127,6 +1127,8 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Start loading video immediately — not waiting for visibility
+    if (_isVideo) { _initStarted = true; _initVideo(); }
   }
 
   @override
