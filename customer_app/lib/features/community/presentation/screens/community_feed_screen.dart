@@ -39,17 +39,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 4, vsync: this);
-    // Preload ads + videos silently in background
-    AdPreloader().preload();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final posts = ref.read(communityFeedProvider).valueOrNull ?? [];
-      final urls = <String>[];
-      for (final p in posts) {
-        if (p.isAd && p.adType == 'video' && p.adMediaUrl != null) urls.add(p.adMediaUrl!);
-        if (p.isVideo && p.media.isNotEmpty) urls.add(p.media.first.url);
-      }
-      if (urls.isNotEmpty) VideoPreloader().preloadUrls(urls.take(6).toList());
-    });
+    // Videos init on visibility — no preloading needed
     _scrollCtrl.addListener(() {
       if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 300) {
         ref.read(communityFeedProvider.notifier).load();
@@ -199,13 +189,7 @@ class _FeedTab extends ConsumerWidget {
           feedState.when(
             data: (posts) {
               if (posts.isEmpty) return const _EmptyFeed();
-              // Preload all video URLs silently (posts + ads)
-              final videoUrls = <String>[];
-              for (final p in posts) {
-                if (p.isAd && p.adType == 'video' && p.adMediaUrl != null) videoUrls.add(p.adMediaUrl!);
-                if (p.isVideo && p.media.isNotEmpty) videoUrls.add(p.media.first.url);
-              }
-              if (videoUrls.isNotEmpty) VideoPreloader().preloadUrls(videoUrls.take(3).toList());
+              // Videos init lazily on visibility
               return Column(
                 children: [
                   ...posts.map((p) => _PostCard(post: p,
@@ -422,10 +406,11 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     if (widget.post.adType == 'video' && widget.post.adMediaUrl != null) {
-      final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.post.adMediaUrl!));
+      final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.post.adMediaUrl!),
+        httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'});
       ctrl.initialize().then((_) {
         if (!mounted) { ctrl.dispose(); return; }
-        ctrl.setLooping(true); ctrl.setVolume(1);
+        ctrl.setLooping(true); ctrl.setVolume(1); ctrl.play();
         setState(() { _vCtrl = ctrl; _videoReady = true; });
       }).catchError((_) { ctrl.dispose(); });
     }
