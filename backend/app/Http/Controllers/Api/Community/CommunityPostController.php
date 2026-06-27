@@ -85,12 +85,32 @@ class CommunityPostController extends Controller
                 elseif (str_starts_with($mime, 'audio/')) $type = 'audio';
                 elseif (str_contains($mime, 'pdf') || str_contains($mime, 'document') || str_contains($mime, 'msword')) $type = 'document';
                 $path = $file->store('community/posts', 'public');
-                CommunityPostMedia::create([
+
+                $mediaData = [
                     'post_id' => $post->id,
                     'type' => $type,
                     'url' => cdn_url($path),
                     'sort_order' => $i,
-                ]);
+                ];
+
+                // Process video: generate multi-quality + thumbnail
+                if ($type === 'video') {
+                    try {
+                        $processed = \App\Services\VideoProcessingService::process($path);
+                        if (!empty($processed['thumbnail'])) {
+                            $mediaData['thumbnail'] = cdn_url($processed['thumbnail']);
+                        }
+                        if (!empty($processed['qualities'])) {
+                            // Use 480p as default URL for faster streaming
+                            $optimal = \App\Services\VideoProcessingService::getOptimalQuality($processed['qualities']);
+                            if ($optimal) $mediaData['url'] = $optimal;
+                        }
+                    } catch (\Throwable $e) {
+                        \Log::warning('Video processing failed: ' . $e->getMessage());
+                    }
+                }
+
+                CommunityPostMedia::create($mediaData);
             }
         }
 
