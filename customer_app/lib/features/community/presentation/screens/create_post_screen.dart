@@ -11,6 +11,7 @@ import 'package:video_compress/video_compress.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../data/repositories/community_repository.dart';
 import '../services/video_optimizer.dart';
+import '../services/background_upload_service.dart';
 import '../providers/community_provider.dart';
 import 'community_shell.dart';
 
@@ -75,39 +76,34 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Future<void> _post() async {
     final text = _textCtrl.text.trim();
     if (text.isEmpty && _mediaFiles.isEmpty) return;
+
+    final type = _postType != 'text' ? _postType : (_hasVideo ? 'video' : (_mediaFiles.isNotEmpty ? 'image' : 'text'));
+
+    // Background upload for media posts
+    if (_mediaFiles.isNotEmpty) {
+      ref.read(backgroundUploadProvider.notifier).uploadPost(
+        type: type,
+        content: text.isEmpty ? null : text,
+        privacy: _privacy.toLowerCase(),
+        feeling: _feeling,
+        location: _location,
+        mediaFiles: List<XFile>.from(_mediaFiles),
+        hasVideo: _hasVideo,
+      );
+      if (mounted) Navigator.pop(context);
+      return;
+    }
+
+    // Text-only posts: upload immediately
     setState(() => _posting = true);
     try {
       final repo = CommunityRepository();
-      final type = _postType != 'text' ? _postType : (_hasVideo ? 'video' : (_mediaFiles.isNotEmpty ? 'image' : 'text'));
-      List<dynamic>? files;
-      if (_mediaFiles.isNotEmpty) {
-        files = [];
-        for (final f in _mediaFiles) {
-          final mime = f.mimeType ?? '';
-          if (mime.startsWith('video/')) {
-            final compressed = await VideoCompress.compressVideo(
-              f.path,
-              quality: VideoQuality.MediumQuality,
-              deleteOrigin: false,
-              includeAudio: true,
-            );
-            if (compressed?.file != null) {
-              final bytes = await compressed!.file!.readAsBytes();
-              files.add(MultipartFile.fromBytes(bytes, filename: f.name));
-              continue;
-            }
-          }
-          final bytes = await f.readAsBytes();
-          files.add(MultipartFile.fromBytes(bytes, filename: f.name));
-        }
-      }
       final post = await repo.createPost(
         type: type,
         content: text.isEmpty ? null : text,
         privacy: _privacy.toLowerCase(),
         feeling: _feeling,
         location: _location,
-        mediaFiles: files,
       );
       if (mounted) Navigator.pop(context, post);
     } catch (e) {

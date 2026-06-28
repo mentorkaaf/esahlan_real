@@ -4,6 +4,7 @@ import '../models/community_models.dart';
 
 class CommunityRepository {
   final _dio = ApiClient.instance;
+  static Dio get dioInstance => ApiClient.instance;
 
   // ── Feed ───────────────────────────────────────────────────────────────────
   Future<List<CommunityPost>> getFeed({int page = 1}) async {

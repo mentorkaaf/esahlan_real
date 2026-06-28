@@ -9,6 +9,9 @@ import 'community_profile_screen.dart';
 import 'create_post_screen.dart';
 import 'community_onboarding_screen.dart';
 import '../../data/repositories/community_repository.dart';
+import '../../data/models/community_models.dart';
+import '../widgets/upload_progress_banner.dart';
+import '../services/background_upload_service.dart';
 
 final communityNavIndexProvider = StateProvider<int>((ref) => 0);
 
@@ -53,16 +56,27 @@ class _CommunityShellState extends ConsumerState<CommunityShell> {
 
     final idx = ref.watch(communityNavIndexProvider);
 
+    // Listen for background upload success → pin post to feed top
+    ref.listen<UploadState>(backgroundUploadProvider, (prev, next) {
+      if (prev?.status != UploadStatus.success && next.status == UploadStatus.success && next.post != null) {
+        ref.read(communityFeedProvider.notifier).prependPost(next.post!);
+        ref.read(communityNavIndexProvider.notifier).state = 0;
+      }
+    });
+
     return Scaffold(
-      body: IndexedStack(
-        index: idx,
-        children: const [
-          CommunityFeedScreen(),
-          ReelsScreen(),
-          CommunityChatListScreen(),
-          CommunityMyProfileScreen(),
-        ],
-      ),
+      body: Column(children: [
+        const UploadProgressBanner(),
+        Expanded(child: IndexedStack(
+          index: idx,
+          children: const [
+            CommunityFeedScreen(),
+            ReelsScreen(),
+            CommunityChatListScreen(),
+            CommunityMyProfileScreen(),
+          ],
+        )),
+      ]),
       bottomNavigationBar: _CommunityNavBar(
         currentIndex: idx,
         onTap: (i) {
@@ -78,12 +92,12 @@ class _CommunityShellState extends ConsumerState<CommunityShell> {
   }
 
   static void _openCreatePost(BuildContext context, WidgetRef ref) async {
-    final post = await Navigator.push(
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const CreatePostScreen()),
     );
-    if (post != null) {
-      ref.read(communityFeedProvider.notifier).prependPost(post);
+    if (result is CommunityPost) {
+      ref.read(communityFeedProvider.notifier).prependPost(result);
     }
   }
 }
