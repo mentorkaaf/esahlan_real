@@ -246,24 +246,37 @@ class _StoryContent extends StatefulWidget {
 
 class _StoryContentState extends State<_StoryContent> {
   VideoPlayerController? _videoCtrl;
+  bool _videoReady = false;
+  bool _videoError = false;
 
   @override
   void initState() {
     super.initState();
     widget.onViewed();
     if (widget.story.type == 'video' && widget.story.mediaUrl != null) {
-      _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(widget.story.mediaUrl!))
-        ..initialize().then((_) {
-          if (mounted) {
-            setState(() {});
-            _videoCtrl!.play();
-            _videoCtrl!.addListener(() {
-              if (_videoCtrl!.value.position >= _videoCtrl!.value.duration && _videoCtrl!.value.duration > Duration.zero) {
-                widget.onFinished();
-              }
-            });
-          }
-        });
+      _initVideo();
+    }
+  }
+
+  Future<void> _initVideo() async {
+    try {
+      final ctrl = VideoPlayerController.networkUrl(
+        Uri.parse(widget.story.mediaUrl!),
+        httpHeaders: const {'Connection': 'keep-alive'},
+      );
+      await ctrl.initialize();
+      if (!mounted) { ctrl.dispose(); return; }
+      _videoCtrl = ctrl;
+      _videoCtrl!.setLooping(false);
+      _videoCtrl!.play();
+      _videoCtrl!.addListener(() {
+        if (_videoCtrl!.value.position >= _videoCtrl!.value.duration && _videoCtrl!.value.duration > Duration.zero) {
+          widget.onFinished();
+        }
+      });
+      setState(() => _videoReady = true);
+    } catch (_) {
+      if (mounted) setState(() => _videoError = true);
     }
   }
 
@@ -293,13 +306,19 @@ class _StoryContentState extends State<_StoryContent> {
       );
     }
 
-    if (story.type == 'video' && _videoCtrl != null && _videoCtrl!.value.isInitialized) {
-      return Center(
-        child: AspectRatio(
-          aspectRatio: _videoCtrl!.value.aspectRatio,
-          child: VideoPlayer(_videoCtrl!),
-        ),
-      );
+    if (story.type == 'video') {
+      if (_videoReady && _videoCtrl != null) {
+        return Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio,
+          child: VideoPlayer(_videoCtrl!)));
+      }
+      if (_videoError) {
+        return const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.error_outline_rounded, color: Colors.white54, size: 48),
+          SizedBox(height: 8),
+          Text('Video failed to load', style: TextStyle(color: Colors.white54)),
+        ]));
+      }
+      return const Center(child: CircularProgressIndicator(color: Colors.white));
     }
 
     if (story.mediaUrl != null) {
