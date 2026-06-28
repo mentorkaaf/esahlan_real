@@ -68,6 +68,7 @@ class CommunityPostMedia {
   final int id;
   final String type; // image | video
   final String url;
+  final String? hlsUrl;
   final String? thumbnail;
   final int? duration;
 
@@ -75,6 +76,7 @@ class CommunityPostMedia {
     required this.id,
     required this.type,
     required this.url,
+    this.hlsUrl,
     this.thumbnail,
     this.duration,
   });
@@ -84,6 +86,7 @@ class CommunityPostMedia {
         id: j['id'] as int,
         type: j['type'] as String,
         url: _fixUrl(j['url'] as String?),
+        hlsUrl: _fixUrlNullable(j['hls_url'] as String?),
         thumbnail: _fixUrlNullable(j['thumbnail'] as String?),
         duration: j['duration'] as int?,
       );

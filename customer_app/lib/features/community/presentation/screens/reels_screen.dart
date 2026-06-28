@@ -4,6 +4,7 @@ import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
+import 'package:better_player_plus/better_player_plus.dart';
 import '../../data/models/community_models.dart';
 import '../../../../features/modules/erent/erent_screen.dart';
 import '../providers/community_provider.dart';
@@ -180,13 +181,15 @@ class _CommunityReelCard extends ConsumerStatefulWidget {
 
 class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   VideoPlayerController? _videoCtrl;
+  BetterPlayerController? _betterCtrl;
   bool _videoReady = false;
   bool _muted = false;
-  bool _paused = false; // manual pause by user tap
+  bool _paused = false;
   bool _liked = false;
   bool _saved = false;
   bool _showHeart = false;
   int _likesCount = 0;
+  bool _useHls = false;
 
   @override
   void initState() {
@@ -202,7 +205,29 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         (widget.reel.media.isNotEmpty ? widget.reel.media.first : null);
     if (media == null || media.type != 'video') return;
 
-    // Try preloaded controller (instant)
+    // HLS via BetterPlayer
+    if (media.hlsUrl != null && media.hlsUrl!.isNotEmpty) {
+      _useHls = true;
+      final ds = BetterPlayerDataSource(BetterPlayerDataSourceType.network, media.hlsUrl!, videoFormat: BetterPlayerVideoFormat.hls);
+      _betterCtrl = BetterPlayerController(
+        BetterPlayerConfiguration(autoPlay: false, looping: false, fit: BoxFit.contain, handleLifecycle: false,
+          controlsConfiguration: const BetterPlayerControlsConfiguration(showControls: false)),
+        betterPlayerDataSource: ds,
+      );
+      _betterCtrl!.addEventsListener((event) {
+        if (event.betterPlayerEventType == BetterPlayerEventType.initialized) {
+          if (mounted) {
+            setState(() => _videoReady = true);
+            if (widget.isActive && !_paused) _betterCtrl!.play();
+          }
+        } else if (event.betterPlayerEventType == BetterPlayerEventType.finished) {
+          widget.onVideoEnd?.call();
+        }
+      });
+      return;
+    }
+
+    // Fallback: mp4 via video_player
     final preloaded = VideoPreloader().get(media.url);
     if (preloaded != null && preloaded.value.isInitialized) {
       _videoCtrl = preloaded;
@@ -240,20 +265,24 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     super.didUpdateWidget(old);
     if (widget.isActive != old.isActive) {
       if (widget.isActive) {
-        if (!_paused) _videoCtrl?.play();
+        if (!_paused) { _useHls ? _betterCtrl?.play() : _videoCtrl?.play(); }
       } else {
-        _videoCtrl?.pause();
+        _useHls ? _betterCtrl?.pause() : _videoCtrl?.pause();
       }
     }
   }
 
   @override
-  void dispose() { _videoCtrl?.dispose(); super.dispose(); }
+  void dispose() { _videoCtrl?.dispose(); _betterCtrl?.dispose(); super.dispose(); }
 
   void _togglePause() {
-    if (_videoCtrl == null || !_videoReady) return;
+    if (!_videoReady) return;
     setState(() => _paused = !_paused);
-    _paused ? _videoCtrl!.pause() : _videoCtrl!.play();
+    if (_useHls) {
+      _paused ? _betterCtrl?.pause() : _betterCtrl?.play();
+    } else {
+      _paused ? _videoCtrl!.pause() : _videoCtrl!.play();
+    }
   }
 
   void _onDoubleTap() {
@@ -271,7 +300,9 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
       onDoubleTap: _onDoubleTap,
       child: Stack(fit: StackFit.expand, children: [
         // Video or thumbnail
-        if (_videoReady && _videoCtrl != null)
+        if (_videoReady && _useHls && _betterCtrl != null)
+          Center(child: BetterPlayer(controller: _betterCtrl!))
+        else if (_videoReady && _videoCtrl != null)
           Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!)))
         else if (media?.thumbnail != null)
           NetImage(url: media!.thumbnail!, fit: BoxFit.cover)
@@ -299,7 +330,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
 
         // Mute
         Positioned(top: MediaQuery.of(context).padding.top + 64, right: 12,
-          child: GestureDetector(onTap: () { setState(() => _muted = !_muted); _videoCtrl?.setVolume(_muted ? 0 : 1); },
+          child: GestureDetector(onTap: () { setState(() => _muted = !_muted); if (_useHls) { _betterCtrl?.setVolume(_muted ? 0 : 1); } else { _videoCtrl?.setVolume(_muted ? 0 : 1); } },
             child: Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle), child: Icon(_muted ? Icons.volume_off : Icons.volume_up, color: Colors.white, size: 20)))),
 
         // Bottom info

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../../../core/widgets/app_shimmer.dart';
 import 'package:video_player/video_player.dart';
+import 'package:better_player_plus/better_player_plus.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1111,11 +1112,15 @@ class _MediaItem extends ConsumerStatefulWidget {
 }
 
 class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObserver {
+  // HLS via BetterPlayer
+  BetterPlayerController? _betterCtrl;
+  // Fallback mp4 via video_player
   VideoPlayerController? _ctrl;
   bool _ready = false;
   bool _paused = false;
   bool _visible = false;
   final _key = UniqueKey();
+  bool _useHls = false;
 
   bool get _isVideo => widget.m.type == 'video';
   bool get _isAudio => widget.m.type == 'audio';
@@ -1127,39 +1132,69 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Start loading video immediately — not waiting for visibility
     if (_isVideo) { _initStarted = true; _initVideo(); }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_ctrl == null || !_ready) return;
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      _ctrl!.pause();
+      _betterCtrl?.pause();
+      _ctrl?.pause();
     }
   }
 
   Future<void> _initVideo() async {
-    final url = widget.m.url;
-    if (url.isEmpty) return;
-    final ctrl = VideoPlayerController.networkUrl(Uri.parse(url),
-      httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'});
-    try {
-      await ctrl.initialize();
-      ctrl.setLooping(true);
-      ctrl.setVolume(1);
-      if (mounted) {
-        setState(() { _ctrl = ctrl; _ready = true; });
-        if (_visible && !_paused) ctrl.play();
+    final hlsUrl = widget.m.hlsUrl;
+    if (hlsUrl != null && hlsUrl.isNotEmpty) {
+      _useHls = true;
+      final dataSource = BetterPlayerDataSource(
+        BetterPlayerDataSourceType.network,
+        hlsUrl,
+        videoFormat: BetterPlayerVideoFormat.hls,
+      );
+      final config = BetterPlayerConfiguration(
+        autoPlay: false,
+        looping: true,
+        controlsConfiguration: const BetterPlayerControlsConfiguration(
+          showControls: false,
+        ),
+        aspectRatio: 16 / 9,
+        fit: BoxFit.contain,
+        handleLifecycle: false,
+      );
+      _betterCtrl = BetterPlayerController(config, betterPlayerDataSource: dataSource);
+      _betterCtrl!.addEventsListener((event) {
+        if (event.betterPlayerEventType == BetterPlayerEventType.initialized) {
+          if (mounted) {
+            setState(() => _ready = true);
+            if (_visible && !_paused) _betterCtrl!.play();
+          }
+        }
+      });
+      if (mounted) setState(() {});
+    } else {
+      final url = widget.m.url;
+      if (url.isEmpty) return;
+      final ctrl = VideoPlayerController.networkUrl(Uri.parse(url),
+        httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'});
+      try {
+        await ctrl.initialize();
+        ctrl.setLooping(true);
+        ctrl.setVolume(1);
+        if (mounted) {
+          setState(() { _ctrl = ctrl; _ready = true; });
+          if (_visible && !_paused) ctrl.play();
+        }
+      } catch (_) {
+        ctrl.dispose();
       }
-    } catch (_) {
-      ctrl.dispose();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _betterCtrl?.dispose();
     _ctrl?.pause();
     _ctrl?.dispose();
     super.dispose();
@@ -1169,16 +1204,24 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     _visible = info.visibleFraction > 0.5;
     if (_visible) {
       if (_isVideo && !_initStarted) { _initStarted = true; _initVideo(); }
-      if (_ready && _ctrl != null && !_paused && !_ctrl!.value.isPlaying) _ctrl!.play();
+      if (_ready && !_paused) {
+        if (_useHls) { _betterCtrl?.play(); }
+        else if (_ctrl != null && !_ctrl!.value.isPlaying) { _ctrl!.play(); }
+      }
     } else {
-      if (_ctrl != null && _ctrl!.value.isPlaying) _ctrl!.pause();
+      if (_useHls) { _betterCtrl?.pause(); }
+      else if (_ctrl != null && _ctrl!.value.isPlaying) { _ctrl!.pause(); }
     }
   }
 
   void _togglePause() {
-    if (!_ready || _ctrl == null) return;
+    if (!_ready) return;
     setState(() => _paused = !_paused);
-    _paused ? _ctrl!.pause() : _ctrl!.play();
+    if (_useHls) {
+      _paused ? _betterCtrl?.pause() : _betterCtrl?.play();
+    } else {
+      _paused ? _ctrl!.pause() : _ctrl!.play();
+    }
   }
 
   String _formatDuration(Duration d) {
@@ -1189,10 +1232,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
   @override
   Widget build(BuildContext context) {
-    // ── Audio Player ──
     if (_isAudio) return _AudioPlayerCard(url: widget.m.url);
-
-    // ── Document Card ──
     if (_isDocument) return _DocumentCard(url: widget.m.url);
 
     if (!_isVideo) {
@@ -1209,6 +1249,43 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
     final screenW = MediaQuery.of(context).size.width;
     double videoH = widget.height > 0 ? widget.height : 300;
+
+    // HLS via BetterPlayer
+    if (_useHls && _betterCtrl != null) {
+      if (_ready) {
+        final vp = _betterCtrl!.videoPlayerController;
+        if (vp != null && (vp.value.duration ?? Duration.zero) > Duration.zero) {
+          final ar = vp.value.aspectRatio ?? 16 / 9;
+          videoH = (screenW / ar).clamp(200.0, screenW * 1.6);
+        }
+      }
+
+      final videoContent = GestureDetector(
+        onTap: _ready ? _togglePause : null,
+        onDoubleTap: _ready ? () {
+          _betterCtrl?.pause();
+          Navigator.push(context, MaterialPageRoute(builder: (_) => _VideoPlayerScreen(url: widget.m.hlsUrl ?? widget.m.url, isHls: widget.m.hlsUrl != null)));
+        } : null,
+        child: Stack(children: [
+          Container(
+            color: const Color(0xFF1A1B2E),
+            width: double.infinity,
+            height: videoH,
+            child: BetterPlayer(controller: _betterCtrl!),
+          ),
+          if (!_ready)
+            Positioned.fill(child: Center(child: CircularProgressIndicator(color: kOrange.withValues(alpha: 0.7), strokeWidth: 2))),
+          if (_paused && _ready)
+            Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
+              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 40)))),
+        ]),
+      );
+
+      return VisibilityDetector(key: _key, onVisibilityChanged: _onVisibilityChanged, child: videoContent);
+    }
+
+    // Fallback: mp4 via video_player
     if (_ready && _ctrl != null) {
       final ar = _ctrl!.value.aspectRatio;
       videoH = (screenW / ar).clamp(200.0, screenW * 1.6);
@@ -1275,13 +1352,15 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
 class _VideoPlayerScreen extends ConsumerStatefulWidget {
   final String url;
-  const _VideoPlayerScreen({required this.url});
+  final bool isHls;
+  const _VideoPlayerScreen({required this.url, this.isHls = false});
   @override
   ConsumerState<_VideoPlayerScreen> createState() => _VideoPlayerScreenState();
 }
 
 class _VideoPlayerScreenState extends ConsumerState<_VideoPlayerScreen> {
-  late VideoPlayerController _mainCtrl;
+  VideoPlayerController? _mainCtrl;
+  BetterPlayerController? _mainBetterCtrl;
   VideoPlayerController? _adCtrl;
   bool _mainReady = false;
   bool _adReady = false;
@@ -1293,8 +1372,20 @@ class _VideoPlayerScreenState extends ConsumerState<_VideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
-    _mainCtrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
-      ..initialize().then((_) { if (mounted) setState(() => _mainReady = true); }).catchError((_) {});
+    if (widget.isHls) {
+      final ds = BetterPlayerDataSource(BetterPlayerDataSourceType.network, widget.url, videoFormat: BetterPlayerVideoFormat.hls);
+      _mainBetterCtrl = BetterPlayerController(
+        const BetterPlayerConfiguration(autoPlay: false, looping: false, fit: BoxFit.contain,
+          controlsConfiguration: BetterPlayerControlsConfiguration(showControls: true, enableProgressBar: true, enablePlayPause: true)),
+        betterPlayerDataSource: ds,
+      );
+      _mainBetterCtrl!.addEventsListener((e) {
+        if (e.betterPlayerEventType == BetterPlayerEventType.initialized && mounted) setState(() => _mainReady = true);
+      });
+    } else {
+      _mainCtrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+        ..initialize().then((_) { if (mounted) setState(() => _mainReady = true); }).catchError((_) {});
+    }
     _loadPrerollAd();
   }
 
@@ -1343,11 +1434,14 @@ class _VideoPlayerScreenState extends ConsumerState<_VideoPlayerScreen> {
 
   void _startMainVideo() {
     setState(() => _showingAd = false);
-    if (_mainReady) _mainCtrl.play();
+    if (_mainReady) {
+      if (widget.isHls) { _mainBetterCtrl?.play(); }
+      else { _mainCtrl?.play(); }
+    }
   }
 
   @override
-  void dispose() { _mainCtrl.dispose(); _adCtrl?.removeListener(_onAdProgress); _adCtrl?.dispose(); super.dispose(); }
+  void dispose() { _mainCtrl?.dispose(); _mainBetterCtrl?.dispose(); _adCtrl?.removeListener(_onAdProgress); _adCtrl?.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -1422,11 +1516,24 @@ class _VideoPlayerScreenState extends ConsumerState<_VideoPlayerScreen> {
   // ── Main Video Player ──
   Widget _buildMainPlayer() {
     if (!_mainReady) return const Center(child: CircularProgressIndicator(color: kOrange));
+
+    // HLS via BetterPlayer (has built-in controls)
+    if (widget.isHls && _mainBetterCtrl != null) {
+      return Stack(children: [
+        Center(child: BetterPlayer(controller: _mainBetterCtrl!)),
+        Positioned(top: MediaQuery.of(context).padding.top + 8, left: 8,
+          child: GestureDetector(onTap: () => Navigator.pop(context),
+            child: Container(padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
+              child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20)))),
+      ]);
+    }
+
     return GestureDetector(
-      onTap: () { _mainCtrl.value.isPlaying ? _mainCtrl.pause() : _mainCtrl.play(); setState(() {}); },
+      onTap: () { _mainCtrl!.value.isPlaying ? _mainCtrl!.pause() : _mainCtrl!.play(); setState(() {}); },
       child: Stack(children: [
-        Center(child: AspectRatio(aspectRatio: _mainCtrl.value.aspectRatio.clamp(0.5, 2.5), child: VideoPlayer(_mainCtrl))),
-        if (!_mainCtrl.value.isPlaying)
+        Center(child: AspectRatio(aspectRatio: _mainCtrl!.value.aspectRatio.clamp(0.5, 2.5), child: VideoPlayer(_mainCtrl!))),
+        if (!_mainCtrl!.value.isPlaying)
           Center(child: Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
             child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 48))),
         Positioned(bottom: 0, left: 0, right: 0, child: Container(
@@ -1434,18 +1541,18 @@ class _VideoPlayerScreenState extends ConsumerState<_VideoPlayerScreen> {
           decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
             colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)])),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            VideoProgressIndicator(_mainCtrl, allowScrubbing: true, colors: const VideoProgressColors(
+            VideoProgressIndicator(_mainCtrl!, allowScrubbing: true, colors: const VideoProgressColors(
               playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12)),
             const SizedBox(height: 8),
             Row(children: [
-              GestureDetector(onTap: () { _mainCtrl.value.isPlaying ? _mainCtrl.pause() : _mainCtrl.play(); setState(() {}); },
-                child: Icon(_mainCtrl.value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 28)),
+              GestureDetector(onTap: () { _mainCtrl!.value.isPlaying ? _mainCtrl!.pause() : _mainCtrl!.play(); setState(() {}); },
+                child: Icon(_mainCtrl!.value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 28)),
               const SizedBox(width: 12),
-              ValueListenableBuilder(valueListenable: _mainCtrl, builder: (_, v, __) =>
+              ValueListenableBuilder(valueListenable: _mainCtrl!, builder: (_, v, __) =>
                 Text('${_fmtD(v.position)} / ${_fmtD(v.duration)}', style: const TextStyle(color: Colors.white70, fontSize: 12))),
               const Spacer(),
-              GestureDetector(onTap: () { _mainCtrl.setVolume(_mainCtrl.value.volume > 0 ? 0 : 1); setState(() {}); },
-                child: Icon(_mainCtrl.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 22)),
+              GestureDetector(onTap: () { _mainCtrl!.setVolume(_mainCtrl!.value.volume > 0 ? 0 : 1); setState(() {}); },
+                child: Icon(_mainCtrl!.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 22)),
             ]),
           ]),
         )),
