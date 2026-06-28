@@ -37,6 +37,8 @@ class ReelsScreen extends ConsumerStatefulWidget {
 class _ReelsScreenState extends ConsumerState<ReelsScreen> {
   final PageController _pageCtrl = PageController();
   int _currentIndex = 0;
+  List<_ReelItem>? _cachedItems;
+  int _lastInputHash = 0;
 
   @override
   void initState() { super.initState(); _loadReelAds(); }
@@ -99,7 +101,12 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
 
     final communityReels = reelsAsync.valueOrNull ?? [];
     final rentReels = rentAsync.valueOrNull ?? [];
-    final combined = _buildCombinedList(communityReels, rentReels);
+    final inputHash = Object.hashAll([communityReels.length, rentReels.length, _reelAds.length]);
+    if (_cachedItems == null || inputHash != _lastInputHash) {
+      _cachedItems = _buildCombinedList(communityReels, rentReels);
+      _lastInputHash = inputHash;
+    }
+    final combined = _cachedItems!;
 
     // Preload next few reel videos silently
     final reelUrls = communityReels.where((r) => r.media.isNotEmpty).take(3).map((r) => r.media.first.url).toList();

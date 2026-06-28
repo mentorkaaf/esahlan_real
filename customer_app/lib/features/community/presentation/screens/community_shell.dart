@@ -85,6 +85,9 @@ class _CommunityShellState extends ConsumerState<CommunityShell> {
             return;
           }
           final mapped = i > 2 ? i - 1 : i;
+          if (mapped == 0 && idx == 0) {
+            CommunityFeedScreen.scrollToTop();
+          }
           ref.read(communityNavIndexProvider.notifier).state = mapped;
         },
       ),

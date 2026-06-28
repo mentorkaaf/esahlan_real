@@ -27,20 +27,29 @@ import 'community_search_screen.dart';
 class CommunityFeedScreen extends ConsumerStatefulWidget {
   const CommunityFeedScreen({super.key});
 
+  static final scrollController = ScrollController();
+
+  static void scrollToTop() {
+    if (scrollController.hasClients) {
+      scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+    }
+  }
+
   @override
   ConsumerState<CommunityFeedScreen> createState() => _CommunityFeedScreenState();
 }
 
 class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     with SingleTickerProviderStateMixin {
-  final _scrollCtrl = ScrollController();
+  ScrollController get _scrollCtrl => CommunityFeedScreen.scrollController;
   late TabController _tabCtrl;
+  bool _hasNewPosts = false;
+  int _lastPostCount = 0;
 
   @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 4, vsync: this);
-    // Videos init on visibility — no preloading needed
     _scrollCtrl.addListener(() {
       if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 300) {
         ref.read(communityFeedProvider.notifier).load();
@@ -50,7 +59,6 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
 
   @override
   void dispose() {
-    _scrollCtrl.dispose();
     _tabCtrl.dispose();
     super.dispose();
   }
@@ -61,9 +69,19 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     final storiesState = ref.watch(communityStoriesProvider);
     final unread = ref.watch(communityUnreadCountProvider);
 
+    // Detect new posts added while scrolled down
+    feedState.whenData((posts) {
+      if (_lastPostCount > 0 && posts.length > _lastPostCount && _scrollCtrl.hasClients && _scrollCtrl.offset > 200) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_hasNewPosts) setState(() => _hasNewPosts = true);
+        });
+      }
+      _lastPostCount = posts.length;
+    });
+
     return Scaffold(
-      
-      body: NestedScrollView(
+      body: Stack(children: [
+      NestedScrollView(
         controller: _scrollCtrl,
         headerSliverBuilder: (context, _) => [
           SliverAppBar(
@@ -116,6 +134,26 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
           ],
         ),
       ),
+      // "New posts" pill — Twitter-style
+      if (_hasNewPosts) Positioned(top: MediaQuery.of(context).padding.top + 56, left: 0, right: 0,
+        child: Center(child: GestureDetector(
+          onTap: () {
+            setState(() => _hasNewPosts = false);
+            CommunityFeedScreen.scrollToTop();
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(20),
+              boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 2))]),
+            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 16),
+              SizedBox(width: 4),
+              Text('New posts', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+            ]),
+          ),
+        )),
+      ),
+      ]),
     );
   }
 }
@@ -1648,6 +1686,7 @@ class _AudioPlayerCard extends StatefulWidget {
 class _AudioPlayerCardState extends State<_AudioPlayerCard> {
   final _player = ap.AudioPlayer();
   bool _playing = false;
+  bool _loaded = false;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
 
@@ -1658,13 +1697,28 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> {
     _player.onPositionChanged.listen((p) { if (mounted) setState(() => _position = p); });
     _player.onPlayerComplete.listen((_) { if (mounted) setState(() { _playing = false; _position = Duration.zero; }); });
     _player.onPlayerStateChanged.listen((s) { if (mounted) setState(() => _playing = s == ap.PlayerState.playing); });
+    _preload();
+  }
+
+  void _preload() async {
+    try {
+      await _player.setSourceUrl(widget.url);
+      _loaded = true;
+    } catch (_) {}
   }
 
   @override
   void dispose() { _player.dispose(); super.dispose(); }
 
   void _toggle() async {
-    if (_playing) { await _player.pause(); } else { await _player.play(ap.UrlSource(widget.url)); }
+    if (_playing) {
+      await _player.pause();
+    } else if (_loaded) {
+      await _player.resume();
+    } else {
+      await _player.play(ap.UrlSource(widget.url));
+      _loaded = true;
+    }
   }
 
   String _fmt(Duration d) => '${d.inMinutes.toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
