@@ -24,6 +24,7 @@ class _StoryViewerState extends State<StoryViewer> {
   final _repo = CommunityRepository();
   final _commentCtrl = TextEditingController();
   bool _showCommentInput = false;
+  bool _isOwnStory = false;
 
   @override
   void dispose() {
@@ -165,63 +166,111 @@ class _StoryViewerState extends State<StoryViewer> {
                 Text(story.location!, style: const TextStyle(color: Colors.white70, fontSize: 12)),
               ]),
             ),
-          // Bottom reactions + comment bar
+          // Bottom bar — viewers for own stories, reactions for others
           Positioned(
             bottom: 0, left: 0, right: 0,
             child: Container(
               padding: EdgeInsets.only(left: 12, right: 12, top: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 8),
               decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Colors.black87, Colors.transparent])),
-              child: _showCommentInput
-                  ? Row(children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _commentCtrl,
-                          autofocus: true,
+              child: group.user.isMe
+                  // Own story — show viewers
+                  ? GestureDetector(
+                      onTap: () => _showViewersSheet(context, story),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        child: Row(children: [
+                          const Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          Text('${story.viewsCount} ${story.viewsCount == 1 ? 'viewer' : 'viewers'}',
+                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                          const Spacer(),
+                          const Icon(Icons.keyboard_arrow_up_rounded, color: Colors.white70, size: 24),
+                        ]),
+                      ),
+                    )
+                  // Others' story — reactions + comment
+                  : _showCommentInput
+                    ? Row(children: [
+                        Expanded(child: TextField(controller: _commentCtrl, autofocus: true,
                           style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            hintText: 'Write a comment...',
-                            hintStyle: const TextStyle(color: Colors.white54),
-                            filled: true, fillColor: Colors.white12,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                          ),
-                          onSubmitted: (_) => _sendComment(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: _sendComment,
-                        child: const CircleAvatar(backgroundColor: Color(0xFF140465), child: Icon(Icons.send_rounded, color: Colors.white, size: 18)),
-                      ),
-                    ])
-                  : Row(children: [
-                      for (final emoji in ['❤️', '😮', '😂', '😢', '🔥', '👏'])
-                        GestureDetector(
-                          onTap: () => _sendReaction(emoji),
+                          decoration: InputDecoration(hintText: 'Send message...', hintStyle: const TextStyle(color: Colors.white54),
+                            filled: true, fillColor: Colors.white24, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none)),
+                          onSubmitted: (_) => _sendComment())),
+                        const SizedBox(width: 8),
+                        GestureDetector(onTap: _sendComment,
+                          child: const CircleAvatar(radius: 18, backgroundColor: kOrange, child: Icon(Icons.send_rounded, color: Colors.white, size: 16))),
+                      ])
+                    : Row(children: [
+                        Expanded(child: GestureDetector(
+                          onTap: () => setState(() => _showCommentInput = true),
                           child: Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(color: Colors.white12, shape: BoxShape.circle),
-                            child: Text(emoji, style: const TextStyle(fontSize: 22)),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(24)),
+                            child: const Text('Send message...', style: TextStyle(color: Colors.white54, fontSize: 14)),
                           ),
-                        ),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () => setState(() => _showCommentInput = true),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(24)),
-                          child: const Row(children: [
-                            Icon(Icons.chat_bubble_outline, color: Colors.white, size: 18),
-                            SizedBox(width: 6),
-                            Text('Comment', style: TextStyle(color: Colors.white, fontSize: 13)),
-                          ]),
-                        ),
-                      ),
-                    ]),
+                        )),
+                        const SizedBox(width: 8),
+                        for (final emoji in ['❤️', '👍', '😂'])
+                          GestureDetector(
+                            onTap: () => _sendReaction(emoji),
+                            child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: Text(emoji, style: const TextStyle(fontSize: 26))),
+                          ),
+                      ]),
             ),
           ),
         ]),
+      ),
+    );
+  }
+
+  void _showViewersSheet(BuildContext context, CommunityStory story) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1B2E),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => FutureBuilder<List<Map<String, dynamic>>>(
+        future: _repo.getStoryViewers(story.id),
+        builder: (ctx, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: kOrange)));
+          }
+          final viewers = snap.data ?? [];
+          return Column(mainAxisSize: MainAxisSize.min, children: [
+            const SizedBox(height: 8),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+            Padding(padding: const EdgeInsets.all(16),
+              child: Row(children: [
+                const Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Text('${viewers.length} ${viewers.length == 1 ? 'viewer' : 'viewers'}',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+              ])),
+            const Divider(color: Colors.white12, height: 1),
+            if (viewers.isEmpty)
+              const Padding(padding: EdgeInsets.all(32), child: Text('No viewers yet', style: TextStyle(color: Colors.white54)))
+            else
+              SizedBox(
+                height: (viewers.length * 60.0).clamp(60, 300),
+                child: ListView.builder(
+                  itemCount: viewers.length,
+                  itemBuilder: (_, i) {
+                    final v = viewers[i];
+                    final user = v['user'] as Map<String, dynamic>? ?? {};
+                    return ListTile(
+                      leading: CircleNetImage(url: user['avatar']?.toString(), size: 40, fallbackText: user['name']?.toString()),
+                      title: Text(user['name']?.toString() ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
+                      trailing: v['reaction'] != null
+                        ? Text(v['reaction'].toString(), style: const TextStyle(fontSize: 20))
+                        : null,
+                    );
+                  },
+                ),
+              ),
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+          ]);
+        },
       ),
     );
   }

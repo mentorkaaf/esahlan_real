@@ -173,6 +173,10 @@ class CommunityRepository {
   Future<void> viewStory(int storyId) => _dio.post('/community/stories/$storyId/view');
   Future<void> reactToStory(int storyId, String emoji) => _dio.post('/community/stories/$storyId/react', data: {'emoji': emoji});
   Future<void> commentOnStory(int storyId, String content) => _dio.post('/community/stories/$storyId/comment', data: {'content': content});
+  Future<List<Map<String, dynamic>>> getStoryViewers(int storyId) async {
+    final r = await _dio.get('/community/stories/$storyId/viewers');
+    return List<Map<String, dynamic>>.from(r.data['data'] ?? []);
+  }
 
   Future<void> createStory({
     required String type,

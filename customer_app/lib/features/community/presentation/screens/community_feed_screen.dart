@@ -45,6 +45,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
   late TabController _tabCtrl;
   bool _hasNewPosts = false;
   int _lastPostCount = 0;
+  int _lastFirstPostId = 0;
 
   @override
   void initState() {
@@ -53,6 +54,10 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     _scrollCtrl.addListener(() {
       if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 300) {
         ref.read(communityFeedProvider.notifier).load();
+      }
+      // Reset pill when scrolled to top
+      if (_scrollCtrl.offset < 100 && _hasNewPosts) {
+        setState(() => _hasNewPosts = false);
       }
     });
   }
@@ -71,11 +76,13 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
 
     // Detect new posts added while scrolled down
     feedState.whenData((posts) {
-      if (_lastPostCount > 0 && posts.length > _lastPostCount && _scrollCtrl.hasClients && _scrollCtrl.offset > 200) {
+      final firstId = posts.isNotEmpty ? posts.first.id : 0;
+      if (_lastFirstPostId > 0 && firstId != _lastFirstPostId && _scrollCtrl.hasClients && _scrollCtrl.offset > 200) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && !_hasNewPosts) setState(() => _hasNewPosts = true);
         });
       }
+      _lastFirstPostId = firstId;
       _lastPostCount = posts.length;
     });
 
@@ -845,7 +852,19 @@ class _PostCardState extends ConsumerState<_PostCard> {
                 Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 8), child: Text('${p.sharedPost!['content']}', style: const TextStyle(fontSize: 14, color: Color(0xFF374151)))),
               if (p.sharedPost!['media'] is List && (p.sharedPost!['media'] as List).isNotEmpty)
                 ClipRRect(borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
-                  child: NetImage(url: (p.sharedPost!['media'] as List).first['url'], fit: BoxFit.cover, width: double.infinity)),
+                  child: () {
+                    final m = (p.sharedPost!['media'] as List).first;
+                    final mType = m['type'] ?? 'image';
+                    final mUrl = m['url'] ?? '';
+                    final mThumb = m['thumbnail'];
+                    if (mType == 'video') {
+                      return Stack(children: [
+                        NetImage(url: mThumb ?? mUrl, fit: BoxFit.cover, width: double.infinity, height: 200),
+                        const Positioned.fill(child: Center(child: Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 56))),
+                      ]);
+                    }
+                    return NetImage(url: mUrl, fit: BoxFit.cover, width: double.infinity);
+                  }()),
             ]),
           ),
 
@@ -1140,11 +1159,24 @@ class _MediaGrid extends StatelessWidget {
       return _MediaItem(m: media[0], height: media[0].type == 'video' ? 0 : 0);
     }
     if (media.length == 2) {
-      return Row(children: media.map((m) => Expanded(child: _MediaItem(m: m, height: 200))).toList());
+      return SizedBox(height: 200, child: Row(children: media.map((m) => Expanded(child: Padding(
+        padding: const EdgeInsets.only(right: 2), child: _MediaItem(m: m, height: 200)))).toList()));
     }
+    final extra = media.length - 3;
     return Column(children: [
       _MediaItem(m: media[0], height: 220),
-      Row(children: media.skip(1).take(2).map((m) => Expanded(child: _MediaItem(m: m, height: 120))).toList()),
+      const SizedBox(height: 2),
+      SizedBox(height: 120, child: Row(children: [
+        Expanded(child: _MediaItem(m: media[1], height: 120)),
+        const SizedBox(width: 2),
+        Expanded(child: Stack(children: [
+          _MediaItem(m: media[2], height: 120),
+          if (extra > 0) Positioned.fill(child: Container(
+            color: Colors.black45,
+            child: Center(child: Text('+$extra', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800))),
+          )),
+        ])),
+      ])),
     ]);
   }
 }
