@@ -410,7 +410,7 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
         httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'});
       ctrl.initialize().then((_) {
         if (!mounted) { ctrl.dispose(); return; }
-        ctrl.setLooping(true); ctrl.setVolume(1); ctrl.play();
+        ctrl.setLooping(true); ctrl.setVolume(1); ctrl.pause();
         setState(() { _vCtrl = ctrl; _videoReady = true; });
       }).catchError((_) { ctrl.dispose(); });
     }
