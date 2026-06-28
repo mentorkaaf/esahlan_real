@@ -316,9 +316,9 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
           controller: _tab,
           children: [
             _PostsGrid(userId: u.id),
-            _PostsGrid(userId: u.id, type: 'image'),
+            _PostsGrid(userId: u.id, mediaOnly: true),
             _PostsGrid(userId: u.id, type: 'text'),
-            _PostsGrid(userId: u.id, type: 'reel'),
+            _PostsGrid(userId: u.id, videoOnly: true),
           ],
         ),
       ),
@@ -408,7 +408,9 @@ class _QuickAction extends StatelessWidget {
 class _PostsGrid extends ConsumerWidget {
   final int userId;
   final String? type;
-  const _PostsGrid({required this.userId, this.type});
+  final bool mediaOnly;
+  final bool videoOnly;
+  const _PostsGrid({required this.userId, this.type, this.mediaOnly = false, this.videoOnly = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -417,7 +419,16 @@ class _PostsGrid extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
       error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: Colors.red))),
       data: (posts) {
-        final filtered = type == null ? posts : posts.where((p) => p.type == type).toList();
+        List<CommunityPost> filtered;
+        if (videoOnly) {
+          filtered = posts.where((p) => p.type == 'video' || p.type == 'reel').toList();
+        } else if (mediaOnly) {
+          filtered = posts.where((p) => p.media.any((m) => m.type == 'image')).toList();
+        } else if (type != null) {
+          filtered = posts.where((p) => p.type == type).toList();
+        } else {
+          filtered = posts;
+        }
         if (filtered.isEmpty) {
           return const Center(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -435,26 +446,92 @@ class _PostsGrid extends ConsumerWidget {
           itemCount: filtered.length,
           itemBuilder: (ctx, i) {
             final p = filtered[i];
-            final img = p.media.isNotEmpty ? p.media[0].url : null;
+            final media = p.media.isNotEmpty ? p.media[0] : null;
+            final isVideo = media?.type == 'video';
+            final thumb = media?.thumbnail;
+            final imgUrl = isVideo ? thumb : media?.url;
+
             return GestureDetector(
-              onTap: () {},
+              onTap: () => Navigator.push(ctx, MaterialPageRoute(
+                builder: (_) => _PostDetailScreen(post: p))),
               child: Container(
                 color: const Color(0xFFE5E7EB),
-                child: img != null
-                    ? NetImage(url: img, fit: BoxFit.cover)
-                    : Center(
-                        child: Text(
-                          p.content?.substring(0, p.content!.length.clamp(0, 30)) ?? '',
-                          style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
-                          maxLines: 3,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
+                child: Stack(children: [
+                  if (imgUrl != null)
+                    Positioned.fill(child: NetImage(url: imgUrl, fit: BoxFit.cover))
+                  else
+                    Center(child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Text(
+                        p.content?.substring(0, p.content!.length.clamp(0, 50)) ?? '',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                        maxLines: 4, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis))),
+                  if (isVideo)
+                    const Positioned(top: 4, right: 4,
+                      child: Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 22)),
+                  if (p.media.length > 1)
+                    const Positioned(top: 4, right: 4,
+                      child: Icon(Icons.collections_rounded, color: Colors.white, size: 18)),
+                ]),
               ),
             );
           },
         );
       },
+    );
+  }
+}
+
+class _PostDetailScreen extends StatelessWidget {
+  final CommunityPost post;
+  const _PostDetailScreen({required this.post});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Post'), backgroundColor: Colors.white, foregroundColor: const Color(0xFF1A1B2E)),
+      body: SingleChildScrollView(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // User header
+          Padding(padding: const EdgeInsets.all(12), child: Row(children: [
+            CircleNetImage(url: post.user.avatar, size: 40, fallbackText: post.user.name),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(post.user.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              Text(post.createdAt.toString().substring(0, 16), style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
+            ])),
+          ])),
+          // Content
+          if (post.content != null && post.content!.isNotEmpty)
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Text(post.content!, style: const TextStyle(fontSize: 15, height: 1.4))),
+          // Media
+          for (final m in post.media)
+            if (m.type == 'image')
+              NetImage(url: m.url, fit: BoxFit.fitWidth, width: double.infinity)
+            else if (m.type == 'video')
+              Container(height: 300, color: Colors.black,
+                child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.play_circle_outline_rounded, color: Colors.white, size: 64),
+                  const SizedBox(height: 8),
+                  Text(m.url.split('/').last, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                ]))),
+          // Stats
+          Padding(padding: const EdgeInsets.all(12), child: Row(children: [
+            const Icon(Icons.thumb_up_alt_rounded, size: 16, color: Color(0xFF9CA3AF)),
+            const SizedBox(width: 4),
+            Text('${post.likesCount}', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
+            const SizedBox(width: 16),
+            const Icon(Icons.chat_bubble_outline_rounded, size: 16, color: Color(0xFF9CA3AF)),
+            const SizedBox(width: 4),
+            Text('${post.commentsCount}', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
+            const SizedBox(width: 16),
+            const Icon(Icons.remove_red_eye_rounded, size: 16, color: Color(0xFF9CA3AF)),
+            const SizedBox(width: 4),
+            Text('${post.viewsCount}', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
+          ])),
+        ]),
+      ),
     );
   }
 }

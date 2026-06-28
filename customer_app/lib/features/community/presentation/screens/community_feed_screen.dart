@@ -883,33 +883,42 @@ class _PostCardState extends ConsumerState<_PostCard> {
             }).toList()),
           ),
 
-        // Counts row
+        // Engagement counts — Facebook style
         if (p.likesCount > 0 || p.commentsCount > 0 || p.sharesCount > 0 || p.viewsCount > 0)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Row(children: [
-              if (p.likesCount > 0) Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
-                  child: const Icon(Icons.thumb_up_rounded, size: 10, color: Colors.white),
-                ),
+              if (p.likesCount > 0) Expanded(child: Row(children: [
+                // Reaction icons (stacked)
+                SizedBox(width: 36, height: 20, child: Stack(children: [
+                  Container(width: 20, height: 20, decoration: const BoxDecoration(
+                    color: Color(0xFF1877F2), shape: BoxShape.circle,
+                    border: Border.fromBorderSide(BorderSide(color: Colors.white, width: 1.5))),
+                    child: const Icon(Icons.thumb_up_rounded, size: 11, color: Colors.white)),
+                  if (p.likesCount > 1) Positioned(left: 14, child: Container(width: 20, height: 20,
+                    decoration: const BoxDecoration(color: Color(0xFFED4956), shape: BoxShape.circle,
+                      border: Border.fromBorderSide(BorderSide(color: Colors.white, width: 1.5))),
+                    child: const Icon(Icons.favorite_rounded, size: 11, color: Colors.white))),
+                ])),
                 const SizedBox(width: 4),
-                Text('${p.likesCount}', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
-              ]),
-              if (p.viewsCount > 0) ...[
-                const SizedBox(width: 10),
-                const Icon(Icons.visibility_outlined, size: 13, color: Color(0xFF6B7280)),
-                const SizedBox(width: 3),
-                Text('${p.viewsCount}', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
-              ],
-              const Spacer(),
+                Flexible(child: Text(
+                  p.likesCount >= 1000 ? '${(p.likesCount / 1000).toStringAsFixed(1)}K' : '${p.likesCount}',
+                  style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                  overflow: TextOverflow.ellipsis)),
+              ])),
+              if (p.likesCount == 0) const Spacer(),
               if (p.commentsCount > 0)
-                Text('${p.commentsCount} Comments', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
-              if (p.sharesCount > 0) ...[
-                const SizedBox(width: 8),
-                Text('${p.sharesCount} Shares', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
-              ],
+                Padding(padding: const EdgeInsets.only(left: 8),
+                  child: Text('${p.commentsCount} ${p.commentsCount == 1 ? 'comment' : 'comments'}',
+                    style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13))),
+              if (p.sharesCount > 0)
+                Padding(padding: const EdgeInsets.only(left: 8),
+                  child: Text('${p.sharesCount} ${p.sharesCount == 1 ? 'share' : 'shares'}',
+                    style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13))),
+              if (p.viewsCount > 0)
+                Padding(padding: const EdgeInsets.only(left: 8),
+                  child: Text('${p.viewsCount >= 1000 ? '${(p.viewsCount / 1000).toStringAsFixed(1)}K' : p.viewsCount} ${p.viewsCount == 1 ? 'view' : 'views'}',
+                    style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13))),
             ]),
           ),
 
