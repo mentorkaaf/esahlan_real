@@ -1221,6 +1221,50 @@ class _MediaGrid extends StatelessWidget {
   }
 }
 
+class _SimpleVideoPlayer extends StatefulWidget {
+  final String url;
+  const _SimpleVideoPlayer({required this.url});
+  @override
+  State<_SimpleVideoPlayer> createState() => _SimpleVideoPlayerState();
+}
+
+class _SimpleVideoPlayerState extends State<_SimpleVideoPlayer> {
+  late VideoPlayerController _ctrl;
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize().then((_) {
+        if (mounted) { setState(() => _ready = true); _ctrl.play(); }
+      });
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(backgroundColor: Colors.transparent, foregroundColor: Colors.white, elevation: 0),
+      body: _ready
+        ? GestureDetector(
+            onTap: () { _ctrl.value.isPlaying ? _ctrl.pause() : _ctrl.play(); setState(() {}); },
+            child: Stack(children: [
+              Center(child: AspectRatio(aspectRatio: _ctrl.value.aspectRatio, child: VideoPlayer(_ctrl))),
+              if (!_ctrl.value.isPlaying)
+                const Center(child: Icon(Icons.play_circle_fill_rounded, color: Colors.white70, size: 64)),
+              Positioned(bottom: 20, left: 16, right: 16,
+                child: VideoProgressIndicator(_ctrl, allowScrubbing: true,
+                  colors: const VideoProgressColors(playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12))),
+            ]))
+        : const Center(child: CircularProgressIndicator(color: kOrange)),
+    );
+  }
+}
+
 class _ImageGalleryScreen extends StatelessWidget {
   final List<CommunityPostMedia> images;
   final int initialIndex;
@@ -1406,7 +1450,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
         onTap: _ready ? _togglePause : null,
         onDoubleTap: _ready ? () {
           _betterCtrl?.pause();
-          Navigator.push(context, MaterialPageRoute(builder: (_) => _VideoPlayerScreen(url: widget.m.hlsUrl ?? widget.m.url, isHls: widget.m.hlsUrl != null)));
+          Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: widget.m.hlsUrl ?? widget.m.url)));
         } : null,
         child: Stack(children: [
           Container(
@@ -1454,7 +1498,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
         onTap: _ready ? _togglePause : null,
         onDoubleTap: _ready && _ctrl != null ? () {
           _ctrl!.pause();
-          Navigator.push(context, MaterialPageRoute(builder: (_) => _VideoPlayerScreen(url: widget.m.url)));
+          Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: widget.m.url)));
         } : null,
         child: Stack(
           children: [

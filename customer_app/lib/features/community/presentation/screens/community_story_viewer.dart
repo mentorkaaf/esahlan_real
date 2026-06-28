@@ -237,40 +237,46 @@ class _StoryViewerState extends State<StoryViewer> {
             return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: kOrange)));
           }
           final viewers = snap.data ?? [];
-          return Column(mainAxisSize: MainAxisSize.min, children: [
-            const SizedBox(height: 8),
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
-            Padding(padding: const EdgeInsets.all(16),
-              child: Row(children: [
-                const Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Text('${viewers.length} ${viewers.length == 1 ? 'viewer' : 'viewers'}',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
-              ])),
-            const Divider(color: Colors.white12, height: 1),
-            if (viewers.isEmpty)
-              const Padding(padding: EdgeInsets.all(32), child: Text('No viewers yet', style: TextStyle(color: Colors.white54)))
-            else
-              SizedBox(
-                height: (viewers.length * 60.0).clamp(60, 300),
-                child: ListView.builder(
-                  itemCount: viewers.length,
-                  itemBuilder: (_, i) {
-                    final v = viewers[i];
-                    final name = v['name']?.toString() ?? '';
-                    final avatar = v['avatar']?.toString();
-                    return ListTile(
-                      leading: CircleNetImage(url: avatar, size: 40, fallbackText: name),
-                      title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
-                      subtitle: v['username'] != null
-                        ? Text('@${v['username']}', style: const TextStyle(color: Colors.white54, fontSize: 12))
-                        : null,
-                    );
-                  },
+          return Container(
+            color: const Color(0xFF1A1B2E),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const SizedBox(height: 8),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+              Padding(padding: const EdgeInsets.all(16),
+                child: Row(children: [
+                  const Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Text('${viewers.length} ${viewers.length == 1 ? 'viewer' : 'viewers'}',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+                ])),
+              const Divider(color: Colors.white12, height: 1),
+              if (viewers.isEmpty)
+                const Padding(padding: EdgeInsets.all(32), child: Text('No viewers yet', style: TextStyle(color: Colors.white54)))
+              else
+                SizedBox(
+                  height: (viewers.length * 64.0).clamp(64, 300),
+                  child: ListView.builder(
+                    itemCount: viewers.length,
+                    itemBuilder: (_, i) {
+                      final v = viewers[i];
+                      final name = v['name']?.toString() ?? '';
+                      final avatar = v['avatar']?.toString();
+                      return Container(
+                        color: const Color(0xFF1A1B2E),
+                        child: ListTile(
+                          leading: CircleNetImage(url: avatar, size: 44, fallbackText: name),
+                          title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
+                          subtitle: v['username'] != null
+                            ? Text('@${v['username']}', style: const TextStyle(color: Colors.white54, fontSize: 12))
+                            : null,
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              ),
-            SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
-          ]);
+              SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+            ]),
+          );
         },
       ),
     );

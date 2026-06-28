@@ -97,7 +97,7 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
   void _setupNotificationNavigation() {
     void navigate(String path) {
       try {
-        ref.read(routerProvider).go(path);
+        ref.read(routerProvider).push(path);
         debugPrint('[Nav] Navigated to: $path');
       } catch (e) {
         debugPrint('[Nav] Error navigating to $path: $e');
