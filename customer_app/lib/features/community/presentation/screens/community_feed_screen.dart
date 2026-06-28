@@ -1260,6 +1260,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
         }
       }
 
+      final vp = _betterCtrl!.videoPlayerController;
       final videoContent = GestureDetector(
         onTap: _ready ? _togglePause : null,
         onDoubleTap: _ready ? () {
@@ -1279,6 +1280,23 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
             Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
               child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 40)))),
+          if (_ready && vp != null) Positioned(bottom: 0, left: 0, right: 0,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(10, 20, 10, 8),
+              decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)])),
+              child: Row(children: [
+                GestureDetector(onTap: _togglePause,
+                  child: Icon(_paused ? Icons.play_arrow_rounded : Icons.pause_rounded, color: Colors.white, size: 22)),
+                const SizedBox(width: 8),
+                Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(2),
+                  child: _HlsProgressBar(controller: _betterCtrl!))),
+                const SizedBox(width: 8),
+                Text(_formatDuration(vp.value.duration ?? Duration.zero), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                const SizedBox(width: 6),
+                GestureDetector(onTap: () { setState(() { _betterCtrl!.setVolume(vp.value.volume > 0 ? 0 : 1); }); },
+                  child: Icon(vp.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 18)),
+              ]))),
         ]),
       );
 
@@ -1561,6 +1579,59 @@ class _VideoPlayerScreenState extends ConsumerState<_VideoPlayerScreen> {
   }
 
   String _fmtD(Duration d) => '${d.inMinutes.toString().padLeft(2,'0')}:${(d.inSeconds%60).toString().padLeft(2,'0')}';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HLS PROGRESS BAR (BetterPlayer compatible)
+// ══════════════════════════════════════════════════════════════════
+
+class _HlsProgressBar extends StatefulWidget {
+  final BetterPlayerController controller;
+  const _HlsProgressBar({required this.controller});
+  @override
+  State<_HlsProgressBar> createState() => _HlsProgressBarState();
+}
+
+class _HlsProgressBarState extends State<_HlsProgressBar> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.videoPlayerController?.addListener(_update);
+  }
+
+  void _update() { if (mounted) setState(() {}); }
+
+  @override
+  void dispose() {
+    widget.controller.videoPlayerController?.removeListener(_update);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vp = widget.controller.videoPlayerController;
+    if (vp == null) return const SizedBox(height: 4);
+    final dur = vp.value.duration ?? Duration.zero;
+    final pos = vp.value.position ?? Duration.zero;
+    final progress = dur.inMilliseconds > 0 ? pos.inMilliseconds / dur.inMilliseconds : 0.0;
+    return GestureDetector(
+      onHorizontalDragUpdate: (d) {
+        final box = context.findRenderObject() as RenderBox;
+        final fraction = (d.localPosition.dx / box.size.width).clamp(0.0, 1.0);
+        final seekTo = Duration(milliseconds: (dur.inMilliseconds * fraction).toInt());
+        widget.controller.seekTo(seekTo);
+      },
+      child: Container(
+        height: 4,
+        decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(2)),
+        child: FractionallySizedBox(
+          alignment: Alignment.centerLeft,
+          widthFactor: progress.clamp(0.0, 1.0),
+          child: Container(decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(2))),
+        ),
+      ),
+    );
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════
