@@ -83,7 +83,20 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       if (_mediaFiles.isNotEmpty) {
         files = [];
         for (final f in _mediaFiles) {
-          // No client-side compression — upload raw for reliability
+          final mime = f.mimeType ?? '';
+          if (mime.startsWith('video/')) {
+            final compressed = await VideoCompress.compressVideo(
+              f.path,
+              quality: VideoQuality.MediumQuality,
+              deleteOrigin: false,
+              includeAudio: true,
+            );
+            if (compressed?.file != null) {
+              final bytes = await compressed!.file!.readAsBytes();
+              files.add(MultipartFile.fromBytes(bytes, filename: f.name));
+              continue;
+            }
+          }
           final bytes = await f.readAsBytes();
           files.add(MultipartFile.fromBytes(bytes, filename: f.name));
         }
