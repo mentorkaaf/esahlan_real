@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../../data/models/community_models.dart';
+import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
 import '../widgets/stories_bar.dart';
 import 'community_shell.dart';
@@ -46,6 +48,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
   bool _hasNewPosts = false;
   int _lastPostCount = 0;
   int _lastFirstPostId = 0;
+  Timer? _pollTimer;
 
   @override
   void initState() {
@@ -55,15 +58,28 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
       if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 300) {
         ref.read(communityFeedProvider.notifier).load();
       }
-      // Reset pill when scrolled to top
       if (_scrollCtrl.offset < 100 && _hasNewPosts) {
         setState(() => _hasNewPosts = false);
       }
     });
+    // Poll for new posts every 30s when scrolled down
+    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkNewPosts());
+  }
+
+  Future<void> _checkNewPosts() async {
+    if (!_scrollCtrl.hasClients || _scrollCtrl.offset < 200) return;
+    try {
+      final repo = CommunityRepository();
+      final fresh = await repo.getFeed(page: 1);
+      if (fresh.isNotEmpty && _lastFirstPostId > 0 && fresh.first.id != _lastFirstPostId) {
+        if (mounted) setState(() => _hasNewPosts = true);
+      }
+    } catch (_) {}
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _tabCtrl.dispose();
     super.dispose();
   }
@@ -858,10 +874,14 @@ class _PostCardState extends ConsumerState<_PostCard> {
                     final mUrl = m['url'] ?? '';
                     final mThumb = m['thumbnail'];
                     if (mType == 'video') {
-                      return Stack(children: [
-                        NetImage(url: mThumb ?? mUrl, fit: BoxFit.cover, width: double.infinity, height: 200),
-                        const Positioned.fill(child: Center(child: Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 56))),
-                      ]);
+                      return GestureDetector(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => _VideoPlayerScreen(url: mUrl))),
+                        child: Stack(children: [
+                          NetImage(url: mThumb ?? mUrl, fit: BoxFit.cover, width: double.infinity, height: 200),
+                          const Positioned.fill(child: Center(child: Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 56))),
+                        ]),
+                      );
                     }
                     return NetImage(url: mUrl, fit: BoxFit.cover, width: double.infinity);
                   }()),
@@ -1153,31 +1173,73 @@ class _MediaGrid extends StatelessWidget {
   final List<CommunityPostMedia> media;
   const _MediaGrid({required this.media});
 
+  void _openGallery(BuildContext context, int index) {
+    final images = media.where((m) => m.type == 'image').toList();
+    if (images.isEmpty) return;
+    Navigator.push(context, MaterialPageRoute(builder: (_) => _ImageGalleryScreen(images: images, initialIndex: index)));
+  }
+
   @override
   Widget build(BuildContext context) {
     if (media.length == 1) {
-      return _MediaItem(m: media[0], height: media[0].type == 'video' ? 0 : 0);
+      final m = media[0];
+      return GestureDetector(
+        onTap: m.type == 'image' ? () => _openGallery(context, 0) : null,
+        child: _MediaItem(m: m, height: m.type == 'video' ? 0 : 0));
     }
     if (media.length == 2) {
-      return SizedBox(height: 200, child: Row(children: media.map((m) => Expanded(child: Padding(
-        padding: const EdgeInsets.only(right: 2), child: _MediaItem(m: m, height: 200)))).toList()));
+      return SizedBox(height: 200, child: Row(children: [
+        for (var i = 0; i < 2; i++)
+          Expanded(child: Padding(padding: EdgeInsets.only(right: i == 0 ? 2 : 0),
+            child: GestureDetector(
+              onTap: media[i].type == 'image' ? () => _openGallery(context, i) : null,
+              child: _MediaItem(m: media[i], height: 200)))),
+      ]));
     }
     final extra = media.length - 3;
     return Column(children: [
-      _MediaItem(m: media[0], height: 220),
+      GestureDetector(
+        onTap: media[0].type == 'image' ? () => _openGallery(context, 0) : null,
+        child: _MediaItem(m: media[0], height: 220)),
       const SizedBox(height: 2),
       SizedBox(height: 120, child: Row(children: [
-        Expanded(child: _MediaItem(m: media[1], height: 120)),
+        Expanded(child: GestureDetector(
+          onTap: media[1].type == 'image' ? () => _openGallery(context, 1) : null,
+          child: _MediaItem(m: media[1], height: 120))),
         const SizedBox(width: 2),
-        Expanded(child: Stack(children: [
-          _MediaItem(m: media[2], height: 120),
-          if (extra > 0) Positioned.fill(child: Container(
-            color: Colors.black45,
-            child: Center(child: Text('+$extra', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800))),
-          )),
-        ])),
+        Expanded(child: GestureDetector(
+          onTap: () => _openGallery(context, 2),
+          child: Stack(children: [
+            _MediaItem(m: media[2], height: 120),
+            if (extra > 0) Positioned.fill(child: Container(
+              color: Colors.black45,
+              child: Center(child: Text('+$extra', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800))),
+            )),
+          ]))),
       ])),
     ]);
+  }
+}
+
+class _ImageGalleryScreen extends StatelessWidget {
+  final List<CommunityPostMedia> images;
+  final int initialIndex;
+  const _ImageGalleryScreen({required this.images, required this.initialIndex});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white,
+        title: Text('${initialIndex + 1} / ${images.length}', style: const TextStyle(fontSize: 16))),
+      body: PageView.builder(
+        controller: PageController(initialPage: initialIndex),
+        itemCount: images.length,
+        itemBuilder: (_, i) => InteractiveViewer(
+          child: Center(child: NetImage(url: images[i].url, fit: BoxFit.contain)),
+        ),
+      ),
+    );
   }
 }
 

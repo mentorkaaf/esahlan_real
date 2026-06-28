@@ -257,12 +257,13 @@ class _StoryViewerState extends State<StoryViewer> {
                   itemCount: viewers.length,
                   itemBuilder: (_, i) {
                     final v = viewers[i];
-                    final user = v['user'] as Map<String, dynamic>? ?? {};
+                    final name = v['name']?.toString() ?? '';
+                    final avatar = v['avatar']?.toString();
                     return ListTile(
-                      leading: CircleNetImage(url: user['avatar']?.toString(), size: 40, fallbackText: user['name']?.toString()),
-                      title: Text(user['name']?.toString() ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
-                      trailing: v['reaction'] != null
-                        ? Text(v['reaction'].toString(), style: const TextStyle(fontSize: 20))
+                      leading: CircleNetImage(url: avatar, size: 40, fallbackText: name),
+                      title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
+                      subtitle: v['username'] != null
+                        ? Text('@${v['username']}', style: const TextStyle(color: Colors.white54, fontSize: 12))
                         : null,
                     );
                   },
@@ -367,7 +368,8 @@ class _StoryContentState extends State<_StoryContent> {
           Text('Video failed to load', style: TextStyle(color: Colors.white54)),
         ]));
       }
-      return const Center(child: CircularProgressIndicator(color: Colors.white));
+      return const Center(child: SizedBox(width: 28, height: 28,
+        child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)));
     }
 
     if (story.mediaUrl != null) {

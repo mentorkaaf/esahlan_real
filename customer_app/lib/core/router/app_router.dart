@@ -28,6 +28,7 @@ import '../../features/community/presentation/screens/community_chat_screen.dart
 import '../../features/community/presentation/screens/community_notifications_screen.dart';
 import '../../features/community/presentation/screens/community_explore_screen.dart';
 import '../../features/community/presentation/screens/groups_screen.dart';
+import '../../features/community/presentation/screens/post_detail_screen.dart';
 import '../../features/community/data/models/community_models.dart';
 
 // eLearning screens
@@ -135,6 +136,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               final chat = state.extra as CommunityChat;
               return CommunityChatScreen(chat: chat);
             },
+          ),
+          GoRoute(
+            path: '/community/post/:postId',
+            builder: (_, state) => PostDetailScreen(postId: int.parse(state.pathParameters['postId']!)),
           ),
           GoRoute(path: '/community/notifications', builder: (_, __) => const CommunityNotificationsScreen()),
           GoRoute(path: '/community/explore', builder: (_, __) => const CommunityExploreScreen()),

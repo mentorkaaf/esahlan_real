@@ -116,7 +116,7 @@ class _StoryCard extends StatelessWidget {
     final hasUnviewed = !group.allViewed;
 
     String? previewUrl;
-    if (firstStory != null) {
+    if (firstStory != null && firstStory.type == 'image') {
       previewUrl = firstStory.mediaUrl;
     }
 

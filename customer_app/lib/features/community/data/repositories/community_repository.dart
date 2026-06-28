@@ -7,6 +7,11 @@ class CommunityRepository {
   static Dio get dioInstance => ApiClient.instance;
 
   // ── Feed ───────────────────────────────────────────────────────────────────
+  Future<CommunityPost> getPost(int postId) async {
+    final r = await _dio.get('/community/posts/$postId');
+    return CommunityPost.fromJson(r.data['data'] as Map<String, dynamic>);
+  }
+
   Future<List<CommunityPost>> getFeed({int page = 1}) async {
     final r = await _dio.get('/community/feed', queryParameters: {'page': page});
     return _parsePosts(r.data['data']);
