@@ -2,22 +2,22 @@ import 'dart:async';
 import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
+import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 
 class VideoEngine {
   VideoEngine._();
   static final instance = VideoEngine._();
 
   static const _maxControllers = 4;
-  final _controllers = LinkedHashMap<String, _PoolEntry>();
+  final _pool = LinkedHashMap<String, _PoolEntry>();
   final _preloading = <String, Future<void>>{};
   final _retryCount = <String, int>{};
 
   VideoPlayerController? getController(String url) {
-    if (url.isEmpty) return null;
-    final entry = _controllers[url];
+    final entry = _pool[url];
     if (entry != null) {
       entry.lastAccess = DateTime.now();
-      return entry.controller;
+      return entry.vpController;
     }
     return null;
   }
@@ -25,15 +25,15 @@ class VideoEngine {
   Future<VideoPlayerController?> preload(String url) async {
     if (url.isEmpty) return null;
 
-    final existing = _controllers[url];
+    final existing = _pool[url];
     if (existing != null && existing.initialized) {
       existing.lastAccess = DateTime.now();
-      return existing.controller;
+      return existing.vpController;
     }
 
     if (_preloading.containsKey(url)) {
       await _preloading[url];
-      return _controllers[url]?.controller;
+      return _pool[url]?.vpController;
     }
 
     _evictIfNeeded();
@@ -42,15 +42,17 @@ class VideoEngine {
     _preloading[url] = completer.future;
 
     try {
-      final ctrl = VideoPlayerController.networkUrl(
+      final player = CachedVideoPlayerPlus.networkUrl(
         Uri.parse(url),
         httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'},
+        invalidateCacheIfOlderThan: const Duration(days: 7),
       );
 
-      final entry = _PoolEntry(controller: ctrl);
-      _controllers[url] = entry;
+      final entry = _PoolEntry(player: player);
+      _pool[url] = entry;
 
-      await ctrl.initialize();
+      await player.initialize();
+      final ctrl = player.controller;
       ctrl.setLooping(true);
       ctrl.setVolume(0);
       entry.initialized = true;
@@ -61,11 +63,10 @@ class VideoEngine {
       _preloading.remove(url);
       return ctrl;
     } catch (e) {
-      _controllers.remove(url);
+      _pool.remove(url);
       if (!completer.isCompleted) completer.complete();
       _preloading.remove(url);
 
-      // Auto-retry up to 2 times with delay
       final retries = _retryCount[url] ?? 0;
       if (retries < 2) {
         _retryCount[url] = retries + 1;
@@ -79,80 +80,80 @@ class VideoEngine {
 
   void preloadNext(List<String> urls) {
     for (final url in urls.take(2)) {
-      if (url.isNotEmpty && !_controllers.containsKey(url) && !_preloading.containsKey(url)) {
+      if (url.isNotEmpty && !_pool.containsKey(url) && !_preloading.containsKey(url)) {
         preload(url);
       }
     }
   }
 
   void activate(String url) {
-    for (final e in _controllers.entries) {
+    for (final e in _pool.entries) {
+      final ctrl = e.value.vpController;
+      if (ctrl == null) continue;
       if (e.key == url) {
-        e.value.controller.setVolume(1);
-        if (e.value.initialized && !e.value.controller.value.isPlaying) {
-          e.value.controller.play();
-        }
+        ctrl.setVolume(1);
+        if (e.value.initialized && !ctrl.value.isPlaying) ctrl.play();
         e.value.lastAccess = DateTime.now();
       } else {
-        if (e.value.controller.value.isPlaying) e.value.controller.pause();
-        e.value.controller.setVolume(0);
+        if (ctrl.value.isPlaying) ctrl.pause();
+        ctrl.setVolume(0);
       }
     }
   }
 
   void pause(String url) {
-    _controllers[url]?.controller.pause();
+    _pool[url]?.vpController?.pause();
   }
 
   void pauseAll() {
-    for (final e in _controllers.values) {
-      if (e.controller.value.isPlaying) e.controller.pause();
+    for (final e in _pool.values) {
+      if (e.vpController?.value.isPlaying == true) e.vpController?.pause();
     }
   }
 
   void release(String url) {
-    final entry = _controllers.remove(url);
+    final entry = _pool.remove(url);
     if (entry != null) {
-      entry.controller.pause();
-      entry.controller.dispose();
+      entry.vpController?.pause();
+      entry.player.dispose();
     }
   }
 
   void _evictIfNeeded() {
-    while (_controllers.length >= _maxControllers) {
+    while (_pool.length >= _maxControllers) {
       String? evictKey;
       DateTime? oldest;
-      for (final e in _controllers.entries) {
-        if (!e.value.controller.value.isPlaying) {
+      for (final e in _pool.entries) {
+        if (e.value.vpController?.value.isPlaying != true) {
           if (oldest == null || e.value.lastAccess.isBefore(oldest)) {
             oldest = e.value.lastAccess;
             evictKey = e.key;
           }
         }
       }
-      if (evictKey != null) {
-        release(evictKey);
-      } else {
-        release(_controllers.keys.first);
-      }
+      if (evictKey != null) release(evictKey);
+      else release(_pool.keys.first);
     }
   }
 
   void disposeAll() {
-    for (final e in _controllers.values) {
-      e.controller.pause();
-      e.controller.dispose();
+    for (final e in _pool.values) {
+      e.vpController?.pause();
+      e.player.dispose();
     }
-    _controllers.clear();
+    _pool.clear();
     _preloading.clear();
     _retryCount.clear();
   }
 }
 
 class _PoolEntry {
-  final VideoPlayerController controller;
+  final CachedVideoPlayerPlus player;
   bool initialized;
   DateTime lastAccess;
-  _PoolEntry({required this.controller, this.initialized = false})
+
+  _PoolEntry({required this.player, this.initialized = false})
       : lastAccess = DateTime.now();
+
+  VideoPlayerController? get vpController => initialized ? player.controller : null;
 }
