@@ -1480,12 +1480,14 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
           Container(
             color: const Color(0xFF1A1B2E),
             width: double.infinity,
+            constraints: const BoxConstraints(maxHeight: 400),
             child: AspectRatio(
-              aspectRatio: (_aspectRatio ?? 9 / 16).clamp(0.5, 2.0),
+              aspectRatio: (_aspectRatio ?? 16 / 9).clamp(0.75, 2.0),
               child: _ready && _ctrl != null
-                ? VideoPlayer(_ctrl!)
+                ? FittedBox(fit: BoxFit.contain, child: SizedBox(
+                    width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))
                 : widget.m.thumbnail != null
-                  ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.cover)
+                  ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.contain)
                   : const SizedBox(),
             ),
           ),
