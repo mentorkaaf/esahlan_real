@@ -71,6 +71,8 @@ class CommunityPostMedia {
   final String? hlsUrl;
   final String? thumbnail;
   final int? duration;
+  final int? width;
+  final int? height;
 
   const CommunityPostMedia({
     required this.id,
@@ -79,7 +81,11 @@ class CommunityPostMedia {
     this.hlsUrl,
     this.thumbnail,
     this.duration,
+    this.width,
+    this.height,
   });
+
+  double? get aspectRatio => width != null && height != null && height! > 0 ? width! / height! : null;
 
   factory CommunityPostMedia.fromJson(Map<String, dynamic> j) =>
       CommunityPostMedia(
@@ -89,6 +95,8 @@ class CommunityPostMedia {
         hlsUrl: _fixUrlNullable(j['hls_url'] as String?),
         thumbnail: _fixUrlNullable(j['thumbnail'] as String?),
         duration: j['duration'] as int?,
+        width: j['width'] as int?,
+        height: j['height'] as int?,
       );
 }
 
