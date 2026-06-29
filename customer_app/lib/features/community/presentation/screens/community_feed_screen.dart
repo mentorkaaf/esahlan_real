@@ -1399,15 +1399,6 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
           errorWidget: Container(color: const Color(0xFFE5E7EB), child: const Icon(Icons.broken_image_rounded, color: Color(0xFF9CA3AF), size: 32))));
     }
 
-    final screenW = MediaQuery.of(context).size.width;
-    double videoH;
-    if (_ready && _ctrl != null && _ctrl!.value.isInitialized) {
-      final ar = _ctrl!.value.aspectRatio;
-      videoH = (screenW / ar).clamp(200.0, screenW * 1.6);
-    } else {
-      videoH = widget.height > 0 ? widget.height : screenW * 0.56;
-    }
-
     return VisibilityDetector(
       key: _key,
       onVisibilityChanged: _onVisibilityChanged,
@@ -1421,13 +1412,15 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
           Container(
             color: const Color(0xFF1A1B2E),
             width: double.infinity,
-            height: videoH,
             child: _ready && _ctrl != null
-              ? FittedBox(fit: BoxFit.contain, child: SizedBox(
-                  width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))
-              : widget.m.thumbnail != null
-                ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.contain)
-                : const SizedBox(),
+              ? AspectRatio(
+                  aspectRatio: _ctrl!.value.aspectRatio.clamp(0.5, 2.0),
+                  child: VideoPlayer(_ctrl!))
+              : AspectRatio(
+                  aspectRatio: 9 / 16,
+                  child: widget.m.thumbnail != null
+                    ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.cover)
+                    : const SizedBox()),
           ),
           // Pause overlay
           if (_paused && _ready)
