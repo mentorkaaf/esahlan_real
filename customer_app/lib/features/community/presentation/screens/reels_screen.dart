@@ -160,7 +160,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                     if (m != null) preloadUrls.add(m.hlsUrl ?? m.url);
                   }
                 }
-                if (preloadUrls.isNotEmpty) engine.preloadBatch(preloadUrls);
+                if (preloadUrls.isNotEmpty) engine.preloadNext(preloadUrls);
               },
               itemBuilder: (_, i) {
                 final item = combined[i];
