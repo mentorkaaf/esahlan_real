@@ -1401,8 +1401,10 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     }
   }
 
+  String get _videoUrl => widget.m.hlsUrl ?? widget.m.url;
+
   Future<void> _initVideo() async {
-    final url = widget.m.url;
+    final url = _videoUrl;
     if (url.isEmpty) return;
     final ctrl = await _engine.preload(url);
     if (ctrl != null && mounted) {
@@ -1421,16 +1423,16 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     _visible = info.visibleFraction > 0.5;
     if (_visible) {
       if (_isVideo && !_ready) _initVideo();
-      if (_ready && _ctrl != null && !_paused) _engine.activate(widget.m.url);
+      if (_ready && _ctrl != null && !_paused) _engine.activate(_videoUrl);
     } else {
-      if (_ctrl != null && _ctrl!.value.isPlaying) _engine.pause(widget.m.url);
+      if (_ctrl != null && _ctrl!.value.isPlaying) _engine.pause(_videoUrl);
     }
   }
 
   void _togglePause() {
     if (!_ready || _ctrl == null) return;
     setState(() => _paused = !_paused);
-    _paused ? _engine.pause(widget.m.url) : _engine.activate(widget.m.url);
+    _paused ? _engine.pause(_videoUrl) : _engine.activate(_videoUrl);
   }
 
   String _formatDuration(Duration d) {
@@ -1471,8 +1473,8 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     final videoContent = GestureDetector(
         onTap: _ready ? _togglePause : null,
         onDoubleTap: _ready && _ctrl != null ? () {
-          _engine.pause(widget.m.url);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: widget.m.url)));
+          _engine.pause(_videoUrl);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: _videoUrl)));
         } : null,
         child: Stack(
           children: [
