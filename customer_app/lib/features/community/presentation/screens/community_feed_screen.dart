@@ -1112,95 +1112,9 @@ class _PostCardState extends ConsumerState<_PostCard> {
             title: const Text('Report Post'),
             onTap: () => Navigator.pop(context),
           ),
-          // Admin only — generate engagement
-          if (ref.watch(communityMyProfileProvider).valueOrNull?.id == 1)
-            ListTile(
-              leading: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF8B5CF6)),
-              title: const Text('Generate Engagement'),
-              subtitle: const Text('Admin: add likes, views, comments', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
-              onTap: () { Navigator.pop(context); _showEngagementDialog(); },
-            ),
         ]),
       ),
     );
-  }
-
-  void _showEngagementDialog() {
-    double likes = 10;
-    double views = 100;
-    double comments = 5;
-    bool generating = false;
-
-    showDialog(context: context, builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setD) => AlertDialog(
-        title: Row(children: [
-          const Icon(Icons.auto_awesome_rounded, color: Color(0xFF8B5CF6), size: 22),
-          const SizedBox(width: 8),
-          const Text('Generate Engagement', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-        ]),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          _EngSlider(label: 'Likes', value: likes, max: 200, icon: Icons.thumb_up_rounded, color: const Color(0xFF1877F2),
-            onChanged: (v) => setD(() => likes = v)),
-          _EngSlider(label: 'Views', value: views, max: 5000, icon: Icons.visibility_rounded, color: const Color(0xFF10B981),
-            onChanged: (v) => setD(() => views = v)),
-          _EngSlider(label: 'Comments', value: comments, max: 50, icon: Icons.chat_bubble_rounded, color: kOrange,
-            onChanged: (v) => setD(() => comments = v)),
-          const SizedBox(height: 8),
-          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(
-            color: const Color(0xFF8B5CF6).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
-            child: const Text('Somali names + avatars + comments will be generated',
-              style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)), textAlign: TextAlign.center)),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8B5CF6)),
-            onPressed: generating ? null : () async {
-              setD(() => generating = true);
-              try {
-                await ref.read(communityRepoProvider).generateEngagement(
-                  postId: widget.post.id, likes: likes.toInt(), views: views.toInt(), comments: comments.toInt());
-                Navigator.pop(ctx);
-                if (mounted) {
-                  ref.read(communityFeedProvider.notifier).load(refresh: true);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Engagement generated!'), backgroundColor: Color(0xFF10B981)));
-                }
-              } catch (e) {
-                setD(() => generating = false);
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
-              }
-            },
-            child: generating
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Text('Generate', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    ));
-  }
-}
-
-class _EngSlider extends StatelessWidget {
-  final String label;
-  final double value;
-  final double max;
-  final IconData icon;
-  final Color color;
-  final ValueChanged<double> onChanged;
-  const _EngSlider({required this.label, required this.value, required this.max, required this.icon, required this.color, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(children: [
-      Icon(icon, size: 16, color: color),
-      const SizedBox(width: 6),
-      SizedBox(width: 70, child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
-      Expanded(child: Slider(value: value, min: 0, max: max, divisions: (max / 5).toInt(), activeColor: color,
-        onChanged: onChanged)),
-      SizedBox(width: 35, child: Text('${value.toInt()}', style: TextStyle(fontWeight: FontWeight.w800, color: color, fontSize: 14))),
-    ]));
   }
 }
 
