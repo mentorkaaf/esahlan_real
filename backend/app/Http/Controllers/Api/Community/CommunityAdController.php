@@ -298,4 +298,92 @@ class CommunityAdController extends Controller
             'created_at'  => $ad->created_at,
         ];
     }
+
+    // Boost (promote) an existing post
+    public function boostPost(Request $request, int $id)
+    {
+        $post = \App\Models\CommunityPost::where('user_id', auth()->id())->findOrFail($id);
+        
+        $data = $request->validate([
+            'budget' => 'required|numeric|min:1',
+            'duration_hours' => 'required|integer|min:1|max:720',
+            'target_gender' => 'nullable|in:all,male,female',
+            'target_country' => 'nullable|string',
+        ]);
+
+        $user = auth()->user();
+        if ($user->wallet && $user->wallet->balance < $data['budget']) {
+            return response()->json(['status' => 'error', 'message' => 'Insufficient balance'], 422);
+        }
+
+        // Get media from post
+        $media = $post->media->first();
+        $mediaUrl = $media ? cdn_url($media->getRawOriginal('url')) : null;
+        $adType = $media && $media->type === 'video' ? 'video' : 'image';
+
+        $ad = CommunityAd::create([
+            'user_id' => auth()->id(),
+            'page_id' => $post->page_id,
+            'title' => substr($post->content ?? 'Promoted post', 0, 100),
+            'description' => $post->content,
+            'ad_type' => $adType,
+            'media_url' => $mediaUrl ?? '',
+            'thumbnail_url' => $media?->thumbnail ? cdn_url($media->getRawOriginal('thumbnail')) : null,
+            'cta_text' => 'View Post',
+            'cta_url' => null,
+            'placement' => 'feed',
+            'budget' => $data['budget'],
+            'status' => 'active',
+            'payment_method' => 'wallet',
+            'starts_at' => now(),
+            'ends_at' => now()->addHours($data['duration_hours']),
+            'target_gender' => $data['target_gender'] ?? 'all',
+            'target_country' => $data['target_country'] ?? null,
+        ]);
+
+        if ($user->wallet) {
+            $user->wallet->decrement('balance', $data['budget']);
+        }
+
+        return response()->json(['status' => 'success', 'data' => $this->transform($ad), 'message' => 'Post boosted!'], 201);
+    }
+
+    // Ad analytics summary
+    public function analytics()
+    {
+        $userId = auth()->id();
+        $ads = CommunityAd::where('user_id', $userId)->get();
+        
+        $totalSpent = $ads->sum('spent');
+        $totalImpressions = $ads->sum('impressions');
+        $totalClicks = $ads->sum('clicks');
+        $totalViews = $ads->sum('views');
+        $avgCtr = $totalImpressions > 0 ? round(($totalClicks / $totalImpressions) * 100, 2) : 0;
+        
+        // Daily stats for last 7 days
+        $dailyStats = CommunityAdInteraction::whereIn('ad_id', $ads->pluck('id'))
+            ->where('created_at', '>=', now()->subDays(7))
+            ->selectRaw('DATE(created_at) as date, type, COUNT(*) as count')
+            ->groupBy('date', 'type')
+            ->orderBy('date')
+            ->get()
+            ->groupBy('date')
+            ->map(fn($group) => [
+                'date' => $group->first()->date,
+                'impressions' => $group->where('type', 'impression')->sum('count'),
+                'clicks' => $group->where('type', 'click')->sum('count'),
+            ])->values();
+
+        return response()->json(['status' => 'success', 'data' => [
+            'total_ads' => $ads->count(),
+            'active_ads' => $ads->where('status', 'active')->count(),
+            'total_spent' => $totalSpent,
+            'total_impressions' => $totalImpressions,
+            'total_clicks' => $totalClicks,
+            'total_views' => $totalViews,
+            'avg_ctr' => $avgCtr,
+            'daily_stats' => $dailyStats,
+            'ads' => $ads->map(fn($a) => $this->transform($a)),
+        ]]);
+    }
 }

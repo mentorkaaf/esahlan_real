@@ -103,7 +103,8 @@ class CommunityPostController extends Controller
                         if (!empty($processed['qualities'])) {
                             // Use 480p as default URL for faster streaming
                             $optimal = \App\Services\VideoProcessingService::getOptimalQuality($processed['qualities']);
-                            if ($optimal) $mediaData['url'] = $optimal;
+                            if ($optimal) $mediaData["url"] = $optimal;
+                            if (!empty($processed["qualities"]["hls"]["url"])) $mediaData["hls_url"] = $processed["qualities"]["hls"]["url"];
                         }
                     } catch (\Throwable $e) {
                         \Log::warning('Video processing failed: ' . $e->getMessage());
@@ -118,7 +119,12 @@ class CommunityPostController extends Controller
         $this->extractHashtags($post);
 
         // Update profile post count
-        auth()->user()->communityProfile?->increment('posts_count');
+        auth()->user()->communityProfile?->increment("posts_count");
+
+        // Notify followers about new post
+        $postPreview = substr($post->content ?? "", 0, 50);
+        $userName = auth()->user()->name;
+        send_followers_push(auth()->id(), $userName . " posted", $postPreview ?: "shared a new post", ["type"=>"post","post_id"=>$post->id]);
 
         $post->load(['user.communityProfile','media','userReaction']);
         return response()->json(['status'=>'success','data'=>$this->feed->transformPost($post, auth()->id())], 201);

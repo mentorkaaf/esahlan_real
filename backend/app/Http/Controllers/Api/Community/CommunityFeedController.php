@@ -17,7 +17,7 @@ class CommunityFeedController extends Controller
         $posts = CommunityPost::with(['user.communityProfile','media','userReaction','page'])
             ->whereNull('group_id')
             ->where('privacy', '!=', 'private')
-            ->inRandomOrder()
+            ->latest()
             ->paginate(15);
 
         $transformed = $this->transformPosts($posts, $userId);
@@ -29,7 +29,7 @@ class CommunityFeedController extends Controller
         $maxAds = $adSettings['feed_max_ads'] ?? 3;
 
         if ($feedEnabled && $posts->currentPage() <= 3) {
-            $ads = CommunityAdController::getAdsForPlacement('feed', $userId, min($maxAds, 2));
+            $ads = CommunityAdController::getAdsForPlacement('feed', $userId, $maxAds);
             $inserted = 0;
             foreach ($ads as $ad) {
                 $pos = ($inserted + 1) * $frequency + $inserted;
@@ -77,7 +77,7 @@ class CommunityFeedController extends Controller
         $posts = CommunityPost::with(['user.communityProfile','media','userReaction'])
             ->whereIn('type',['reel','video'])
             ->where('privacy','public')
-            ->inRandomOrder()
+            ->latest()
             ->paginate(10);
 
         $transformed = $this->transformPosts($posts, $userId);

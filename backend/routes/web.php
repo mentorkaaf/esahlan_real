@@ -298,6 +298,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/moderation', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'updateModeration'])->name('moderation.update');
             Route::post('/moderation/{id}/approve', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'approvePost'])->name('moderation.approve');
             Route::post('/moderation/{id}/reject', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'rejectPost'])->name('moderation.reject');
+            Route::get('/engagement', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'engagement'])->name('engagement');
+            Route::post('/engagement/generate', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'generateEngagement'])->name('engagement.generate');
         });
         // Community Ads & Business Pages
         Route::prefix('community-ads')->name('community-ads.')->group(function () {

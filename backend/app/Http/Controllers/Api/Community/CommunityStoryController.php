@@ -28,7 +28,23 @@ class CommunityStoryController extends Controller
         $mediaUrl = null;
         if ($request->hasFile('media')) {
             $path = $request->file('media')->store('community/stories','public');
-            $mediaUrl = cdn_url($path);
+            
+            // Process video for fast playback
+            if ($request->type === 'video') {
+                try {
+                    $processed = \App\Services\VideoProcessingService::process($path);
+                    if (!empty($processed['qualities']['optimized']['url'])) {
+                        $mediaUrl = $processed['qualities']['optimized']['url'];
+                    } else {
+                        $mediaUrl = cdn_url($path);
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('Story video processing failed: ' . $e->getMessage());
+                    $mediaUrl = cdn_url($path);
+                }
+            } else {
+                $mediaUrl = cdn_url($path);
+            }
         }
 
         $story = CommunityStory::create([

@@ -225,4 +225,29 @@ class AdminCommunityController extends Controller
         }
         return back()->with('success', 'Post removed.');
     }
+
+    public function engagement()
+    {
+        $posts = \App\Models\CommunityPost::with('user')->latest()->take(20)->get();
+        $bots = \App\Models\User::where('email', 'like', '%@esahlan_bot.local')->get();
+        return view('admin.community.engagement', ['posts' => $posts, 'bots' => $bots, 'botCount' => $bots->count()]);
+    }
+
+    public function generateEngagement(\Illuminate\Http\Request $request)
+    {
+        $request->validate(['post_id' => 'required|exists:community_posts,id']);
+        
+        $ctrl = new \App\Http\Controllers\Api\Admin\EngagementGeneratorController();
+        $genReq = new \Illuminate\Http\Request([
+            'post_id' => $request->post_id,
+            'likes' => (int)$request->likes,
+            'views' => (int)$request->views,
+            'comments' => (int)$request->comments,
+        ]);
+        
+        $result = $ctrl->generateAll($genReq);
+        $data = json_decode($result->getContent(), true);
+        
+        return back()->with('success', 'Generated: ' . json_encode($data['data'] ?? []));
+    }
 }

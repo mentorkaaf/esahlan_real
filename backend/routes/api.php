@@ -552,3 +552,17 @@ Route::prefix('v1/elearning')->group(function () {
         });
     });
 });
+
+        // Promoted posts (boost)
+        Route::get('ads/analytics', [CommunityAdController::class, 'analytics']);
+        Route::post('posts/{id}/boost', [CommunityAdController::class, 'boostPost']);
+        Route::get('ads/analytics', [CommunityAdController::class, 'analytics']);
+
+    // Admin engagement generator
+    Route::prefix('admin')->middleware('auth:sanctum')->group(function () {
+        Route::post('engagement/likes', [\App\Http\Controllers\Api\Admin\EngagementGeneratorController::class, 'generateLikes']);
+        Route::post('engagement/views', [\App\Http\Controllers\Api\Admin\EngagementGeneratorController::class, 'generateViews']);
+        Route::post('engagement/comments', [\App\Http\Controllers\Api\Admin\EngagementGeneratorController::class, 'generateComments']);
+        Route::post('engagement/generate', [\App\Http\Controllers\Api\Admin\EngagementGeneratorController::class, 'generateAll']);
+        Route::get('engagement/bots', [\App\Http\Controllers\Api\Admin\EngagementGeneratorController::class, 'botUsers']);
+    });

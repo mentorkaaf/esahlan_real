@@ -176,6 +176,8 @@ if (!function_exists('proxy_storage_file')) {
             'webm'        => 'video/webm',
             'mov'         => 'video/quicktime',
             'ogg'         => 'video/ogg',
+            'm3u8'        => 'application/vnd.apple.mpegurl',
+            'ts'          => 'video/mp2t',
             'mp3'         => 'audio/mpeg',
             'pdf'         => 'application/pdf',
             default       => 'application/octet-stream',
