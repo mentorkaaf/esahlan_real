@@ -460,7 +460,7 @@ class _AdCard extends ConsumerStatefulWidget {
 class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   VideoPlayerController? _vCtrl;
   bool _videoReady = false;
-  bool _muted = true;
+  bool _muted = false;
   bool _visible = false;
 
   @override
@@ -478,7 +478,7 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
     ctrl.initialize().then((_) {
       if (!mounted) { ctrl.dispose(); return; }
       ctrl.setLooping(true);
-      ctrl.setVolume(0);
+      ctrl.setVolume(1);
       ctrl.pause();
       setState(() { _vCtrl = ctrl; _videoReady = true; });
     }).catchError((_) { ctrl.dispose(); });
