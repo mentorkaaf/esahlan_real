@@ -1398,7 +1398,8 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     }
 
     final screenW = MediaQuery.of(context).size.width;
-    double videoH = widget.height > 0 ? widget.height : 300;
+    final defaultH = screenW * 0.75;
+    double videoH = widget.height > 0 ? widget.height : defaultH;
     if (_ready && _ctrl != null && _ctrl!.value.isInitialized) {
       final ar = _ctrl!.value.aspectRatio;
       videoH = (screenW / ar).clamp(200.0, screenW * 1.6);
@@ -1414,16 +1415,16 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
           Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: _videoUrl)));
         } : null,
         child: Stack(children: [
-          Container(
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
             color: const Color(0xFF1A1B2E),
             width: double.infinity,
             height: videoH,
-            // Show thumbnail immediately, then swap to video when ready
             child: _ready && _ctrl != null
               ? FittedBox(fit: BoxFit.contain, child: SizedBox(
                   width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))
               : widget.m.thumbnail != null
-                ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.contain)
+                ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.cover)
                 : const SizedBox(),
           ),
           // Pause overlay
