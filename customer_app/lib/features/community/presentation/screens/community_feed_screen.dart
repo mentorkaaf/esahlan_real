@@ -251,10 +251,6 @@ class _FeedTab extends ConsumerWidget {
           feedState.when(
             data: (posts) {
               if (posts.isEmpty) return const _EmptyFeed();
-              // Predictive preload: first 2 video posts
-              final videoUrls = posts.where((p) => p.media.any((m) => m.type == 'video'))
-                .take(2).map((p) { final m = p.media.firstWhere((m) => m.type == 'video'); return m.hlsUrl ?? m.url; }).toList();
-              if (videoUrls.isNotEmpty) VideoEngine.instance.preloadBatch(videoUrls);
               return Column(
                 children: [
                   ...posts.map((p) => _PostCard(post: p,
@@ -466,19 +462,24 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   bool _videoReady = false;
   bool _muted = false;
 
+  bool _adInitStarted = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (widget.post.adType == 'video' && widget.post.adMediaUrl != null) {
-      final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.post.adMediaUrl!),
-        httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'});
-      ctrl.initialize().then((_) {
-        if (!mounted) { ctrl.dispose(); return; }
-        ctrl.setLooping(true); ctrl.setVolume(1); ctrl.pause();
-        setState(() { _vCtrl = ctrl; _videoReady = true; });
-      }).catchError((_) { ctrl.dispose(); });
-    }
+  }
+
+  void _initAdVideo() {
+    if (_adInitStarted || widget.post.adType != 'video' || widget.post.adMediaUrl == null) return;
+    _adInitStarted = true;
+    final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.post.adMediaUrl!),
+      httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'});
+    ctrl.initialize().then((_) {
+      if (!mounted) { ctrl.dispose(); return; }
+      ctrl.setLooping(true); ctrl.setVolume(1); ctrl.pause();
+      setState(() { _vCtrl = ctrl; _videoReady = true; });
+    }).catchError((_) { ctrl.dispose(); });
   }
 
   @override
@@ -505,8 +506,12 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
     return VisibilityDetector(
       key: ValueKey('ad_${p.id}'),
       onVisibilityChanged: (info) {
-        if (_vCtrl == null || !_videoReady) return;
-        info.visibleFraction > 0.5 ? _vCtrl!.play() : _vCtrl!.pause();
+        if (info.visibleFraction > 0.5) {
+          if (!_adInitStarted) _initAdVideo();
+          if (_vCtrl != null && _videoReady) _vCtrl!.play();
+        } else {
+          if (_vCtrl != null && _videoReady) _vCtrl!.pause();
+        }
       },
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
@@ -1324,7 +1329,6 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (_isVideo) _initVideo();
   }
 
   @override
@@ -1359,7 +1363,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
   void _onVisibilityChanged(VisibilityInfo info) {
     final wasVisible = _visible;
-    _visible = info.visibleFraction > 0.8;
+    _visible = info.visibleFraction > 0.4;
     if (_visible && !wasVisible) {
       if (_ready && !_paused) _engine.activate(_videoUrl);
       else if (!_ready) _initVideo();
