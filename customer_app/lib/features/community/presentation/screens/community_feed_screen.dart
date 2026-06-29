@@ -460,24 +460,26 @@ class _AdCard extends ConsumerStatefulWidget {
 class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   VideoPlayerController? _vCtrl;
   bool _videoReady = false;
-  bool _muted = false;
-
-  bool _adInitStarted = false;
+  bool _muted = true;
+  bool _visible = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (widget.post.adType == 'video' && widget.post.adMediaUrl != null) {
+      _initAdVideo();
+    }
   }
 
   void _initAdVideo() {
-    if (_adInitStarted || widget.post.adType != 'video' || widget.post.adMediaUrl == null) return;
-    _adInitStarted = true;
     final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.post.adMediaUrl!),
       httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'});
     ctrl.initialize().then((_) {
       if (!mounted) { ctrl.dispose(); return; }
-      ctrl.setLooping(true); ctrl.setVolume(1); ctrl.pause();
+      ctrl.setLooping(true);
+      ctrl.setVolume(0);
+      ctrl.pause();
       setState(() { _vCtrl = ctrl; _videoReady = true; });
     }).catchError((_) { ctrl.dispose(); });
   }
@@ -504,94 +506,90 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final p = widget.post;
     return VisibilityDetector(
-      key: ValueKey('ad_${p.id}'),
+      key: ValueKey('ad_${p.id}_${p.hashCode}'),
       onVisibilityChanged: (info) {
-        if (info.visibleFraction > 0.5) {
-          if (!_adInitStarted) _initAdVideo();
-          if (_vCtrl != null && _videoReady) _vCtrl!.play();
+        _visible = info.visibleFraction > 0.5;
+        if (_visible) {
+          if (_vCtrl != null && _videoReady && !_vCtrl!.value.isPlaying) _vCtrl!.play();
         } else {
-          if (_vCtrl != null && _videoReady) _vCtrl!.pause();
+          if (_vCtrl != null && _vCtrl!.value.isPlaying) _vCtrl!.pause();
         }
       },
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         color: Colors.white,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // â”€â”€ Header (Facebook style) â”€â”€
+          // Header
           Padding(padding: const EdgeInsets.fromLTRB(14, 12, 14, 10), child: Row(children: [
-            Container(
-              decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: kOrange.withValues(alpha: 0.3), width: 2)),
-              child: p.adPage?['avatar'] != null
-                  ? CircleNetImage(url: p.adPage!['avatar'], size: 40, fallbackText: p.adPage?['name'] ?? '')
-                  : Container(width: 40, height: 40, decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
-                      child: const Icon(Icons.storefront_rounded, color: kOrange, size: 20))),
+            p.adPage?['avatar'] != null
+                ? CircleNetImage(url: p.adPage!['avatar'], size: 40, fallbackText: p.adPage?['name'] ?? '')
+                : Container(width: 40, height: 40, decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
+                    child: const Icon(Icons.storefront_rounded, color: kOrange, size: 20)),
             const SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                Flexible(child: Text(p.adPage?['name'] ?? 'Sponsored', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF1A1B2E)))),
+                Flexible(child: Text(p.adPage?['name'] ?? 'Sponsored', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1A1B2E)))),
                 const SizedBox(width: 6),
                 Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                   decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(3)),
                   child: const Text('Sponsored', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800))),
               ]),
               const SizedBox(height: 2),
-              Row(children: [
-                Icon(Icons.public_rounded, size: 11, color: Colors.grey[400]),
-                const SizedBox(width: 3),
-                Text('Promoted', style: TextStyle(color: Colors.grey[400], fontSize: 11)),
-              ]),
+              Text('Promoted', style: TextStyle(color: Colors.grey[400], fontSize: 11)),
             ])),
-            GestureDetector(onTap: () {},
-              child: Icon(Icons.more_horiz_rounded, color: Colors.grey[400], size: 22)),
           ])),
 
-          // â”€â”€ Content text â”€â”€
-          if (p.adTitle != null) Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 4),
-            child: Text(p.adTitle!, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E), height: 1.25))),
-          if (p.content != null && p.content!.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-            child: Text(p.content!, style: const TextStyle(color: Color(0xFF4B5563), fontSize: 14, height: 1.35))),
+          // Content
+          if (p.content != null && p.content!.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+            child: Text(p.content!, style: const TextStyle(color: Color(0xFF4B5563), fontSize: 14))),
 
-          // â”€â”€ Media â”€â”€
+          // Media
           GestureDetector(
             onTap: _onAdTap,
             child: p.adType == 'video'
-                ? Stack(children: [
-                    _videoReady && _vCtrl != null
-                        ? AspectRatio(aspectRatio: _vCtrl!.value.aspectRatio.clamp(0.5, 2.0), child: VideoPlayer(_vCtrl!))
-                        : const SizedBox.shrink(),
-                    // Mute button
-                    if (_videoReady) Positioned(bottom: 12, right: 12,
-                      child: GestureDetector(
-                        onTap: () { setState(() { _muted = !_muted; _vCtrl?.setVolume(_muted ? 0 : 1); }); },
-                        child: Container(width: 32, height: 32,
-                          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
-                          child: Icon(_muted ? Icons.volume_off_rounded : Icons.volume_up_rounded, color: Colors.white, size: 16)))),
-                  ])
-                : (p.adMediaUrl != null ? NetImage(url: p.adMediaUrl, fit: BoxFit.cover, width: double.infinity) : const SizedBox.shrink())),
+                ? Container(
+                    color: const Color(0xFF1A1B2E),
+                    width: double.infinity,
+                    height: 250,
+                    child: Stack(children: [
+                      if (_videoReady && _vCtrl != null)
+                        Center(child: AspectRatio(
+                          aspectRatio: _vCtrl!.value.aspectRatio.clamp(0.5, 2.5),
+                          child: VideoPlayer(_vCtrl!)))
+                      else if (p.adThumbnailUrl != null)
+                        Center(child: NetImage(url: p.adThumbnailUrl!, fit: BoxFit.contain))
+                      else
+                        const Center(child: CircularProgressIndicator(color: kOrange, strokeWidth: 2)),
+                      // Mute toggle
+                      Positioned(bottom: 10, right: 10,
+                        child: GestureDetector(
+                          onTap: () { setState(() { _muted = !_muted; _vCtrl?.setVolume(_muted ? 0 : 1); }); },
+                          child: Container(width: 30, height: 30,
+                            decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                            child: Icon(_muted ? Icons.volume_off_rounded : Icons.volume_up_rounded, color: Colors.white, size: 15)))),
+                    ]))
+                : (p.adMediaUrl != null
+                    ? NetImage(url: p.adMediaUrl!, fit: BoxFit.cover, width: double.infinity)
+                    : const SizedBox(height: 200))),
 
-          // â”€â”€ CTA bar (Instagram style) â”€â”€
-          if (p.adCtaText != null || p.adCtaUrl != null) GestureDetector(
+          // CTA bar
+          if (p.adCtaText != null) GestureDetector(
             onTap: _onAdTap,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(color: const Color(0xFFF8F9FA),
-                border: Border(top: BorderSide(color: Colors.grey[200]!))),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              color: const Color(0xFFF8F9FA),
               child: Row(children: [
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  if (p.adCtaUrl != null) Text(p.adCtaUrl!.replaceAll(RegExp(r'https?://'), ''),
-                    style: TextStyle(color: Colors.grey[500], fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  if (p.adTitle != null) Text(p.adTitle!, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E)),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                ])),
+                Expanded(child: Text(p.adTitle ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E)),
+                  maxLines: 1, overflow: TextOverflow.ellipsis)),
                 const SizedBox(width: 10),
                 Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(6)),
-                  child: Text(p.adCtaText ?? 'Learn More', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13))),
+                  child: Text(p.adCtaText!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13))),
               ]),
             ),
           ),
 
-          // â”€â”€ Engagement bar (like regular posts) â”€â”€
+          // Action bar
           Padding(padding: const EdgeInsets.symmetric(vertical: 2),
             child: Row(children: [
               Expanded(child: TextButton.icon(onPressed: () {}, icon: const Icon(Icons.thumb_up_alt_outlined, size: 18), label: const Text('Like'),
