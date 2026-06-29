@@ -1380,75 +1380,76 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   bool _ready = false;
   bool _paused = false;
   bool _visible = false;
-  double? _aspectRatio;
   final _key = UniqueKey();
-  final _engine = VideoEngine.instance;
 
   bool get _isVideo => widget.m.type == 'video';
   bool get _isAudio => widget.m.type == 'audio';
   bool get _isDocument => widget.m.type == 'document';
 
-  String get _videoUrl => widget.m.hlsUrl ?? widget.m.url;
+  bool _initStarted = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _aspectRatio = widget.m.aspectRatio;
+    if (_isVideo) { _initStarted = true; _initVideo(); }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_ctrl == null || !_ready) return;
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      _engine.pause(_videoUrl);
+      _ctrl!.pause();
     }
   }
 
-  void _onVideoUpdate() { if (mounted) setState(() {}); }
-
   Future<void> _initVideo() async {
-    final cached = _engine.getController(_videoUrl);
-    if (cached != null && cached.value.isInitialized) {
-      cached.addListener(_onVideoUpdate);
-      _aspectRatio ??= cached.value.aspectRatio;
-      if (mounted) setState(() { _ctrl = cached; _ready = true; });
-      if (_visible && !_paused) _engine.activate(_videoUrl);
-      return;
-    }
-    final ctrl = await _engine.preload(_videoUrl);
-    if (ctrl != null && mounted) {
-      ctrl.addListener(_onVideoUpdate);
-      _aspectRatio ??= ctrl.value.aspectRatio;
-      setState(() { _ctrl = ctrl; _ready = true; });
-      if (_visible && !_paused) _engine.activate(_videoUrl);
+    final url = widget.m.url;
+    if (url.isEmpty) return;
+    final ctrl = VideoPlayerController.networkUrl(Uri.parse(url),
+      httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'});
+    try {
+      await ctrl.initialize();
+      ctrl.setLooping(true);
+      ctrl.setVolume(1);
+      if (mounted) {
+        setState(() { _ctrl = ctrl; _ready = true; });
+        if (_visible && !_paused) ctrl.play();
+      }
+    } catch (_) {
+      ctrl.dispose();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _ctrl?.removeListener(_onVideoUpdate);
+    _ctrl?.pause();
+    _ctrl?.dispose();
     super.dispose();
   }
 
   void _onVisibilityChanged(VisibilityInfo info) {
-    final wasVisible = _visible;
-    _visible = info.visibleFraction > 0.4;
-    if (_visible && !wasVisible) {
-      if (_ready && !_paused) _engine.activate(_videoUrl);
-      else if (!_ready) _initVideo();
-    } else if (!_visible && wasVisible) {
-      _engine.pause(_videoUrl);
+    _visible = info.visibleFraction > 0.5;
+    if (_visible) {
+      if (_isVideo && !_initStarted) { _initStarted = true; _initVideo(); }
+      if (_ready && _ctrl != null && !_paused && !_ctrl!.value.isPlaying) _ctrl!.play();
+    } else {
+      if (_ctrl != null && _ctrl!.value.isPlaying) _ctrl!.pause();
     }
   }
 
   void _togglePause() {
     if (!_ready || _ctrl == null) return;
     setState(() => _paused = !_paused);
-    _paused ? _engine.pause(_videoUrl) : _engine.activate(_videoUrl);
+    _paused ? _ctrl!.pause() : _ctrl!.play();
   }
 
-  String _fmtD(Duration d) => '${d.inMinutes.toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+  String _formatDuration(Duration d) {
+    final m = d.inMinutes;
+    final s = d.inSeconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1467,56 +1468,73 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
           errorWidget: Container(color: const Color(0xFFE5E7EB), child: const Icon(Icons.broken_image_rounded, color: Color(0xFF9CA3AF), size: 32))));
     }
 
+    final screenW = MediaQuery.of(context).size.width;
+    final serverAr = widget.m.aspectRatio;
+    double videoH;
+    if (_ready && _ctrl != null) {
+      final ar = _ctrl!.value.aspectRatio;
+      videoH = (screenW / ar).clamp(200.0, screenW * 1.6);
+    } else if (serverAr != null) {
+      videoH = (screenW / serverAr).clamp(200.0, screenW * 1.6);
+    } else {
+      videoH = 300;
+    }
+
+    final videoContent = GestureDetector(
+        onTap: _ready ? _togglePause : null,
+        onDoubleTap: _ready && _ctrl != null ? () {
+          _ctrl!.pause();
+          Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: widget.m.url)));
+        } : null,
+        child: Stack(
+          children: [
+            Container(
+              color: const Color(0xFF1A1B2E),
+              width: double.infinity,
+              height: videoH,
+              child: _ready && _ctrl != null
+                  ? FittedBox(fit: BoxFit.contain, child: SizedBox(
+                      width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))
+                  : widget.m.thumbnail != null
+                      ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.contain,
+                          placeholder: Container(color: const Color(0xFF1A1B2E)),
+                          errorWidget: Container(color: const Color(0xFF1A1B2E)))
+                      : const SizedBox(),
+            ),
+            if (!_ready)
+              Positioned.fill(child: Center(child: CircularProgressIndicator(color: kOrange.withValues(alpha: 0.7), strokeWidth: 2))),
+            if (_paused && _ready)
+              Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
+                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 40)))),
+            if (_ready && _ctrl != null) Positioned(bottom: 0, left: 0, right: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(10, 20, 10, 8),
+                decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)])),
+                child: Row(children: [
+                  GestureDetector(onTap: _togglePause,
+                    child: Icon(_paused ? Icons.play_arrow_rounded : Icons.pause_rounded, color: Colors.white, size: 22)),
+                  const SizedBox(width: 8),
+                  Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(2),
+                    child: VideoProgressIndicator(_ctrl!, allowScrubbing: true, colors: const VideoProgressColors(
+                      playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12)))),
+                  const SizedBox(width: 8),
+                  Text(_formatDuration(_ctrl!.value.duration), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 6),
+                  GestureDetector(onTap: () { setState(() { _ctrl!.setVolume(_ctrl!.value.volume > 0 ? 0 : 1); }); },
+                    child: Icon(_ctrl!.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 18)),
+                ]))),
+          ],
+        ),
+      );
+
     return VisibilityDetector(
       key: _key,
       onVisibilityChanged: _onVisibilityChanged,
-      child: GestureDetector(
-        onTap: _ready ? _togglePause : null,
-        onDoubleTap: _ready ? () {
-          _engine.pause(_videoUrl);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: _videoUrl)));
-        } : null,
-        child: Stack(children: [
-          Container(
-            color: const Color(0xFF1A1B2E),
-            width: double.infinity,
-            constraints: const BoxConstraints(maxHeight: 400),
-            child: AspectRatio(
-              aspectRatio: (_aspectRatio ?? 16 / 9).clamp(0.75, 2.0),
-              child: _ready && _ctrl != null
-                ? FittedBox(fit: BoxFit.contain, child: SizedBox(
-                    width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))
-                : widget.m.thumbnail != null
-                  ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.contain)
-                  : const SizedBox(),
-            ),
-          ),
-          // Pause overlay
-          if (_paused && _ready)
-            Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
-              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 40)))),
-          // Controls bar
-          if (_ready && _ctrl != null) Positioned(bottom: 0, left: 0, right: 0,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(10, 20, 10, 8),
-              decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)])),
-              child: Row(children: [
-                GestureDetector(onTap: _togglePause,
-                  child: Icon(_paused ? Icons.play_arrow_rounded : Icons.pause_rounded, color: Colors.white, size: 22)),
-                const SizedBox(width: 8),
-                Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(2),
-                  child: VideoProgressIndicator(_ctrl!, allowScrubbing: true, colors: const VideoProgressColors(
-                    playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12)))),
-                const SizedBox(width: 8),
-                Text(_fmtD(_ctrl!.value.duration), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-                const SizedBox(width: 6),
-                GestureDetector(onTap: () { setState(() { _ctrl!.setVolume(_ctrl!.value.volume > 0 ? 0 : 1); }); },
-                  child: Icon(_ctrl!.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 18)),
-              ]))),
-        ]),
-      ),
+      child: _ready && _ctrl != null
+          ? VideoAdOverlay(mainController: _ctrl!, child: videoContent)
+          : videoContent,
     );
   }
 }
