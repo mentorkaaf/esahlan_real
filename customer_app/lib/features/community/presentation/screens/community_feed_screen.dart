@@ -1316,6 +1316,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   bool _ready = false;
   bool _paused = false;
   bool _visible = false;
+  double? _aspectRatio;
   final _key = UniqueKey();
   final _engine = VideoEngine.instance;
 
@@ -1344,6 +1345,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     final cached = _engine.getController(_videoUrl);
     if (cached != null && cached.value.isInitialized) {
       cached.addListener(_onVideoUpdate);
+      _aspectRatio ??= cached.value.aspectRatio;
       if (mounted) setState(() { _ctrl = cached; _ready = true; });
       if (_visible && !_paused) _engine.activate(_videoUrl);
       return;
@@ -1351,6 +1353,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     final ctrl = await _engine.preload(_videoUrl);
     if (ctrl != null && mounted) {
       ctrl.addListener(_onVideoUpdate);
+      _aspectRatio ??= ctrl.value.aspectRatio;
       setState(() { _ctrl = ctrl; _ready = true; });
       if (_visible && !_paused) _engine.activate(_videoUrl);
     }
@@ -1412,15 +1415,14 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
           Container(
             color: const Color(0xFF1A1B2E),
             width: double.infinity,
-            child: _ready && _ctrl != null
-              ? AspectRatio(
-                  aspectRatio: _ctrl!.value.aspectRatio.clamp(0.5, 2.0),
-                  child: VideoPlayer(_ctrl!))
-              : AspectRatio(
-                  aspectRatio: 9 / 16,
-                  child: widget.m.thumbnail != null
-                    ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.cover)
-                    : const SizedBox()),
+            child: AspectRatio(
+              aspectRatio: (_aspectRatio ?? 9 / 16).clamp(0.5, 2.0),
+              child: _ready && _ctrl != null
+                ? VideoPlayer(_ctrl!)
+                : widget.m.thumbnail != null
+                  ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.cover)
+                  : const SizedBox(),
+            ),
           ),
           // Pause overlay
           if (_paused && _ready)
