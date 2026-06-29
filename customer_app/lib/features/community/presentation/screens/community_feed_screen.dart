@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../../../core/widgets/app_shimmer.dart';
 import 'package:video_player/video_player.dart';
-import 'package:better_player_plus/better_player_plus.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -23,6 +22,7 @@ import '../widgets/comments_sheet.dart';
 import '../widgets/video_ad_overlay.dart';
 import '../services/ad_preloader.dart';
 import '../services/video_preloader.dart';
+import '../services/video_engine.dart';
 import 'business_page_detail_screen.dart';
 import 'community_search_screen.dart';
 
@@ -157,7 +157,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
           ],
         ),
       ),
-      // "New posts" pill — Twitter-style
+      // "New posts" pill â€” Twitter-style
       if (_hasNewPosts) Positioned(top: MediaQuery.of(context).padding.top + 56, left: 0, right: 0,
         child: Center(child: GestureDetector(
           onTap: () {
@@ -251,7 +251,10 @@ class _FeedTab extends ConsumerWidget {
           feedState.when(
             data: (posts) {
               if (posts.isEmpty) return const _EmptyFeed();
-              // Videos init lazily on visibility
+              // Predictive preload: first 2 video posts
+              final videoUrls = posts.where((p) => p.media.any((m) => m.type == 'video'))
+                .take(2).map((p) { final m = p.media.firstWhere((m) => m.type == 'video'); return m.hlsUrl ?? m.url; }).toList();
+              if (videoUrls.isNotEmpty) VideoEngine.instance.preloadBatch(videoUrls);
               return Column(
                 children: [
                   ...posts.map((p) => _PostCard(post: p,
@@ -426,7 +429,7 @@ class _PersonTileState extends ConsumerState<_PersonTile> {
             const SizedBox(height: 4),
             Row(children: [
               Text('${u.followersCount} followers', style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF), fontWeight: FontWeight.w600)),
-              const Text('  ·  ', style: TextStyle(color: Color(0xFFD1D5DB))),
+              const Text('  Â·  ', style: TextStyle(color: Color(0xFFD1D5DB))),
               Text('${u.postsCount} posts', style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF), fontWeight: FontWeight.w600)),
             ]),
           ])),
@@ -450,7 +453,7 @@ class _PersonTileState extends ConsumerState<_PersonTile> {
   }
 }
 
-// ── Ad Card — video auto-plays, image loads instantly ────────────────────────
+// â”€â”€ Ad Card â€” video auto-plays, image loads instantly â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _AdCard extends ConsumerStatefulWidget {
   final CommunityPost post;
   const _AdCard({required this.post});
@@ -509,7 +512,7 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
         margin: const EdgeInsets.symmetric(vertical: 4),
         color: Colors.white,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // ── Header (Facebook style) ──
+          // â”€â”€ Header (Facebook style) â”€â”€
           Padding(padding: const EdgeInsets.fromLTRB(14, 12, 14, 10), child: Row(children: [
             Container(
               decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: kOrange.withValues(alpha: 0.3), width: 2)),
@@ -537,13 +540,13 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
               child: Icon(Icons.more_horiz_rounded, color: Colors.grey[400], size: 22)),
           ])),
 
-          // ── Content text ──
+          // â”€â”€ Content text â”€â”€
           if (p.adTitle != null) Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 4),
             child: Text(p.adTitle!, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E), height: 1.25))),
           if (p.content != null && p.content!.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: Text(p.content!, style: const TextStyle(color: Color(0xFF4B5563), fontSize: 14, height: 1.35))),
 
-          // ── Media ──
+          // â”€â”€ Media â”€â”€
           GestureDetector(
             onTap: _onAdTap,
             child: p.adType == 'video'
@@ -561,7 +564,7 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
                   ])
                 : (p.adMediaUrl != null ? NetImage(url: p.adMediaUrl, fit: BoxFit.cover, width: double.infinity) : const SizedBox.shrink())),
 
-          // ── CTA bar (Instagram style) ──
+          // â”€â”€ CTA bar (Instagram style) â”€â”€
           if (p.adCtaText != null || p.adCtaUrl != null) GestureDetector(
             onTap: _onAdTap,
             child: Container(
@@ -583,7 +586,7 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
             ),
           ),
 
-          // ── Engagement bar (like regular posts) ──
+          // â”€â”€ Engagement bar (like regular posts) â”€â”€
           Padding(padding: const EdgeInsets.symmetric(vertical: 2),
             child: Row(children: [
               Expanded(child: TextButton.icon(onPressed: () {}, icon: const Icon(Icons.thumb_up_alt_outlined, size: 18), label: const Text('Like'),
@@ -721,7 +724,7 @@ class _EmptyFeed extends ConsumerWidget {
   }
 }
 
-// ── Post Card ──────────────────────────────────────────────────────────────────
+// â”€â”€ Post Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _PostCard extends ConsumerStatefulWidget {
   final CommunityPost post;
@@ -737,12 +740,12 @@ class _PostCardState extends ConsumerState<_PostCard> {
   String? _myReaction;
 
   static const _reactions = [
-    {'type': 'like', 'emoji': '👍', 'color': Color(0xFF1877F2)},
-    {'type': 'love', 'emoji': '❤️', 'color': Color(0xFFE41E3F)},
-    {'type': 'haha', 'emoji': '😂', 'color': Color(0xFFF7B928)},
-    {'type': 'wow', 'emoji': '😮', 'color': Color(0xFFF7B928)},
-    {'type': 'sad', 'emoji': '😢', 'color': Color(0xFFF7B928)},
-    {'type': 'angry', 'emoji': '😡', 'color': Color(0xFFE47820)},
+    {'type': 'like', 'emoji': 'ðŸ‘', 'color': Color(0xFF1877F2)},
+    {'type': 'love', 'emoji': 'â¤ï¸', 'color': Color(0xFFE41E3F)},
+    {'type': 'haha', 'emoji': 'ðŸ˜‚', 'color': Color(0xFFF7B928)},
+    {'type': 'wow', 'emoji': 'ðŸ˜®', 'color': Color(0xFFF7B928)},
+    {'type': 'sad', 'emoji': 'ðŸ˜¢', 'color': Color(0xFFF7B928)},
+    {'type': 'angry', 'emoji': 'ðŸ˜¡', 'color': Color(0xFFE47820)},
   ];
 
   @override
@@ -769,7 +772,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
     ));
   }
 
-  String _reactionEmoji(String type) => {'like': '👍', 'love': '❤️', 'haha': '😂', 'wow': '😮', 'sad': '😢', 'angry': '😡'}[type] ?? 'Like';
+  String _reactionEmoji(String type) => {'like': 'ðŸ‘', 'love': 'â¤ï¸', 'haha': 'ðŸ˜‚', 'wow': 'ðŸ˜®', 'sad': 'ðŸ˜¢', 'angry': 'ðŸ˜¡'}[type] ?? 'Like';
 
   void _react(String type) async {
     setState(() {
@@ -785,7 +788,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
   Widget build(BuildContext context) {
     final p = widget.post;
 
-    // ── Ad Card ──
+    // â”€â”€ Ad Card â”€â”€
     if (p.isAd) return _AdCard(post: p);
 
     return Container(
@@ -821,7 +824,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
                     const SizedBox(width: 3),
                     Text(timeago.format(p.createdAt), style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
                     if (p.location != null) ...[
-                      const Text(' · ', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
+                      const Text(' Â· ', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
                       const Icon(Icons.location_on_rounded, size: 12, color: Color(0xFF9CA3AF)),
                       Text(p.location!, style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
                     ],
@@ -876,7 +879,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
                     if (mType == 'video') {
                       return GestureDetector(
                         onTap: () => Navigator.push(context, MaterialPageRoute(
-                          builder: (_) => _VideoPlayerScreen(url: mUrl))),
+                          builder: (_) => _SimpleVideoPlayer(url: mUrl))),
                         child: Stack(children: [
                           NetImage(url: mThumb ?? mUrl, fit: BoxFit.cover, width: double.infinity, height: 200),
                           const Positioned.fill(child: Center(child: Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 56))),
@@ -922,7 +925,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
             }).toList()),
           ),
 
-        // Engagement counts — Facebook style
+        // Engagement counts â€” Facebook style
         if (p.likesCount > 0 || p.commentsCount > 0 || p.sharesCount > 0 || p.viewsCount > 0)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -979,7 +982,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
           ]),
         ),
 
-        // Reaction picker — shown above action buttons
+        // Reaction picker â€” shown above action buttons
         if (_showReactions)
           Container(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
@@ -1160,7 +1163,7 @@ class _AnimatedReactionEmojiState extends State<_AnimatedReactionEmoji> with Sin
   }
 }
 
-// ── Businesses Tab ─────────────────────────────────────────────────────────────
+// â”€â”€ Businesses Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _BusinessesTab extends StatelessWidget {
   const _BusinessesTab();
@@ -1248,19 +1251,26 @@ class _SimpleVideoPlayerState extends State<_SimpleVideoPlayer> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(backgroundColor: Colors.transparent, foregroundColor: Colors.white, elevation: 0),
-      body: _ready
-        ? GestureDetector(
-            onTap: () { _ctrl.value.isPlaying ? _ctrl.pause() : _ctrl.play(); setState(() {}); },
-            child: Stack(children: [
+      extendBodyBehindAppBar: true,
+      body: GestureDetector(
+        onTap: _ready ? () { _ctrl.value.isPlaying ? _ctrl.pause() : _ctrl.play(); setState(() {}); } : null,
+        onVerticalDragEnd: (d) { if (d.primaryVelocity != null && d.primaryVelocity! > 300) Navigator.pop(context); },
+        child: _ready
+          ? Stack(fit: StackFit.expand, children: [
               Center(child: AspectRatio(aspectRatio: _ctrl.value.aspectRatio, child: VideoPlayer(_ctrl))),
               if (!_ctrl.value.isPlaying)
                 const Center(child: Icon(Icons.play_circle_fill_rounded, color: Colors.white70, size: 64)),
-              Positioned(bottom: 20, left: 16, right: 16,
+              Positioned(bottom: 30, left: 16, right: 16,
                 child: VideoProgressIndicator(_ctrl, allowScrubbing: true,
                   colors: const VideoProgressColors(playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12))),
-            ]))
-        : const Center(child: CircularProgressIndicator(color: kOrange)),
+              Positioned(top: MediaQuery.of(context).padding.top + 8, left: 8,
+                child: GestureDetector(onTap: () => Navigator.pop(context),
+                  child: Container(padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
+                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 22)))),
+            ])
+          : const Center(child: CircularProgressIndicator(color: kOrange)),
+      ),
     );
   }
 }
@@ -1297,123 +1307,74 @@ class _MediaItem extends ConsumerStatefulWidget {
 }
 
 class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObserver {
-  // HLS via BetterPlayer
-  BetterPlayerController? _betterCtrl;
-  // Fallback mp4 via video_player
   VideoPlayerController? _ctrl;
   bool _ready = false;
   bool _paused = false;
   bool _visible = false;
   final _key = UniqueKey();
-  bool _useHls = false;
+  final _engine = VideoEngine.instance;
 
   bool get _isVideo => widget.m.type == 'video';
   bool get _isAudio => widget.m.type == 'audio';
   bool get _isDocument => widget.m.type == 'document';
 
-  bool _initStarted = false;
+  String get _videoUrl => widget.m.hlsUrl ?? widget.m.url;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (_isVideo) { _initStarted = true; _initVideo(); }
+    if (_isVideo) _initVideo();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      _betterCtrl?.pause();
-      _ctrl?.pause();
+      _engine.pause(_videoUrl);
     }
   }
 
   Future<void> _initVideo() async {
-    final hlsUrl = widget.m.hlsUrl;
-    if (hlsUrl != null && hlsUrl.isNotEmpty) {
-      _useHls = true;
-      final dataSource = BetterPlayerDataSource(
-        BetterPlayerDataSourceType.network,
-        hlsUrl,
-        videoFormat: BetterPlayerVideoFormat.hls,
-      );
-      final config = BetterPlayerConfiguration(
-        autoPlay: false,
-        looping: true,
-        controlsConfiguration: const BetterPlayerControlsConfiguration(
-          showControls: false,
-        ),
-        aspectRatio: 16 / 9,
-        fit: BoxFit.contain,
-        handleLifecycle: false,
-      );
-      _betterCtrl = BetterPlayerController(config, betterPlayerDataSource: dataSource);
-      _betterCtrl!.addEventsListener((event) {
-        if (event.betterPlayerEventType == BetterPlayerEventType.initialized) {
-          if (mounted) {
-            setState(() => _ready = true);
-            if (_visible && !_paused) _betterCtrl!.play();
-          }
-        }
-      });
-      if (mounted) setState(() {});
-    } else {
-      final url = widget.m.url;
-      if (url.isEmpty) return;
-      final ctrl = VideoPlayerController.networkUrl(Uri.parse(url),
-        httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'});
-      try {
-        await ctrl.initialize();
-        ctrl.setLooping(true);
-        ctrl.setVolume(1);
-        if (mounted) {
-          setState(() { _ctrl = ctrl; _ready = true; });
-          if (_visible && !_paused) ctrl.play();
-        }
-      } catch (_) {
-        ctrl.dispose();
-      }
+    // Check if engine already has it cached
+    final cached = _engine.getController(_videoUrl);
+    if (cached != null && cached.value.isInitialized) {
+      if (mounted) setState(() { _ctrl = cached; _ready = true; });
+      if (_visible && !_paused) _engine.activate(_videoUrl);
+      return;
+    }
+    // Preload via engine
+    final ctrl = await _engine.preload(_videoUrl);
+    if (ctrl != null && mounted) {
+      setState(() { _ctrl = ctrl; _ready = true; });
+      if (_visible && !_paused) _engine.activate(_videoUrl);
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _betterCtrl?.dispose();
-    _ctrl?.pause();
-    _ctrl?.dispose();
+    // Don't dispose â€” engine manages the controller lifecycle
     super.dispose();
   }
 
   void _onVisibilityChanged(VisibilityInfo info) {
-    _visible = info.visibleFraction > 0.5;
-    if (_visible) {
-      if (_isVideo && !_initStarted) { _initStarted = true; _initVideo(); }
-      if (_ready && !_paused) {
-        if (_useHls) { _betterCtrl?.play(); }
-        else if (_ctrl != null && !_ctrl!.value.isPlaying) { _ctrl!.play(); }
-      }
-    } else {
-      if (_useHls) { _betterCtrl?.pause(); }
-      else if (_ctrl != null && _ctrl!.value.isPlaying) { _ctrl!.pause(); }
+    final wasVisible = _visible;
+    _visible = info.visibleFraction > 0.8;
+    if (_visible && !wasVisible) {
+      if (_ready && !_paused) _engine.activate(_videoUrl);
+      else if (!_ready) _initVideo();
+    } else if (!_visible && wasVisible) {
+      _engine.pause(_videoUrl);
     }
   }
 
   void _togglePause() {
-    if (!_ready) return;
+    if (!_ready || _ctrl == null) return;
     setState(() => _paused = !_paused);
-    if (_useHls) {
-      _paused ? _betterCtrl?.pause() : _betterCtrl?.play();
-    } else {
-      _paused ? _ctrl!.pause() : _ctrl!.play();
-    }
+    _paused ? _engine.pause(_videoUrl) : _engine.activate(_videoUrl);
   }
 
-  String _formatDuration(Duration d) {
-    final m = d.inMinutes;
-    final s = d.inSeconds % 60;
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
+  String _fmtD(Duration d) => '${d.inMinutes.toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
@@ -1434,38 +1395,40 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
     final screenW = MediaQuery.of(context).size.width;
     double videoH = widget.height > 0 ? widget.height : 300;
+    if (_ready && _ctrl != null && _ctrl!.value.isInitialized) {
+      final ar = _ctrl!.value.aspectRatio;
+      videoH = (screenW / ar).clamp(200.0, screenW * 1.6);
+    }
 
-    // HLS via BetterPlayer
-    if (_useHls && _betterCtrl != null) {
-      if (_ready) {
-        final vp = _betterCtrl!.videoPlayerController;
-        if (vp != null && (vp.value.duration ?? Duration.zero) > Duration.zero) {
-          final ar = vp.value.aspectRatio ?? 16 / 9;
-          videoH = (screenW / ar).clamp(200.0, screenW * 1.6);
-        }
-      }
-
-      final vp = _betterCtrl!.videoPlayerController;
-      final videoContent = GestureDetector(
+    return VisibilityDetector(
+      key: _key,
+      onVisibilityChanged: _onVisibilityChanged,
+      child: GestureDetector(
         onTap: _ready ? _togglePause : null,
         onDoubleTap: _ready ? () {
-          _betterCtrl?.pause();
-          Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: widget.m.hlsUrl ?? widget.m.url)));
+          _engine.pause(_videoUrl);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: _videoUrl)));
         } : null,
         child: Stack(children: [
           Container(
             color: const Color(0xFF1A1B2E),
             width: double.infinity,
             height: videoH,
-            child: BetterPlayer(controller: _betterCtrl!),
+            // Show thumbnail immediately, then swap to video when ready
+            child: _ready && _ctrl != null
+              ? FittedBox(fit: BoxFit.contain, child: SizedBox(
+                  width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))
+              : widget.m.thumbnail != null
+                ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.contain)
+                : const SizedBox(),
           ),
-          if (!_ready)
-            Positioned.fill(child: Center(child: CircularProgressIndicator(color: kOrange.withValues(alpha: 0.7), strokeWidth: 2))),
+          // Pause overlay
           if (_paused && _ready)
             Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
               child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 40)))),
-          if (_ready && vp != null) Positioned(bottom: 0, left: 0, right: 0,
+          // Controls bar
+          if (_ready && _ctrl != null) Positioned(bottom: 0, left: 0, right: 0,
             child: Container(
               padding: const EdgeInsets.fromLTRB(10, 20, 10, 8),
               decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
@@ -1475,353 +1438,22 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                   child: Icon(_paused ? Icons.play_arrow_rounded : Icons.pause_rounded, color: Colors.white, size: 22)),
                 const SizedBox(width: 8),
                 Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(2),
-                  child: _HlsProgressBar(controller: _betterCtrl!))),
+                  child: VideoProgressIndicator(_ctrl!, allowScrubbing: true, colors: const VideoProgressColors(
+                    playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12)))),
                 const SizedBox(width: 8),
-                Text(_formatDuration(vp.value.duration ?? Duration.zero), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                Text(_fmtD(_ctrl!.value.duration), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
                 const SizedBox(width: 6),
-                GestureDetector(onTap: () { setState(() { _betterCtrl!.setVolume(vp.value.volume > 0 ? 0 : 1); }); },
-                  child: Icon(vp.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 18)),
+                GestureDetector(onTap: () { setState(() { _ctrl!.setVolume(_ctrl!.value.volume > 0 ? 0 : 1); }); },
+                  child: Icon(_ctrl!.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 18)),
               ]))),
         ]),
-      );
-
-      return VisibilityDetector(key: _key, onVisibilityChanged: _onVisibilityChanged, child: videoContent);
-    }
-
-    // Fallback: mp4 via video_player
-    if (_ready && _ctrl != null) {
-      final ar = _ctrl!.value.aspectRatio;
-      videoH = (screenW / ar).clamp(200.0, screenW * 1.6);
-    }
-
-    final videoContent = GestureDetector(
-        onTap: _ready ? _togglePause : null,
-        onDoubleTap: _ready && _ctrl != null ? () {
-          _ctrl!.pause();
-          Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: widget.m.url)));
-        } : null,
-        child: Stack(
-          children: [
-            Container(
-              color: const Color(0xFF1A1B2E),
-              width: double.infinity,
-              height: videoH,
-              child: _ready && _ctrl != null
-                  ? FittedBox(fit: BoxFit.contain, child: SizedBox(
-                      width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))
-                  : widget.m.thumbnail != null
-                      ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.contain,
-                          placeholder: Container(color: const Color(0xFF1A1B2E)),
-                          errorWidget: Container(color: const Color(0xFF1A1B2E)))
-                      : const SizedBox(),
-            ),
-            if (!_ready)
-              Positioned.fill(child: Center(child: CircularProgressIndicator(color: kOrange.withValues(alpha: 0.7), strokeWidth: 2))),
-            if (_paused && _ready)
-              Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
-                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 40)))),
-            if (_ready && _ctrl != null) Positioned(bottom: 0, left: 0, right: 0,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(10, 20, 10, 8),
-                decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)])),
-                child: Row(children: [
-                  GestureDetector(onTap: _togglePause,
-                    child: Icon(_paused ? Icons.play_arrow_rounded : Icons.pause_rounded, color: Colors.white, size: 22)),
-                  const SizedBox(width: 8),
-                  Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(2),
-                    child: VideoProgressIndicator(_ctrl!, allowScrubbing: true, colors: const VideoProgressColors(
-                      playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12)))),
-                  const SizedBox(width: 8),
-                  Text(_formatDuration(_ctrl!.value.duration), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 6),
-                  GestureDetector(onTap: () { setState(() { _ctrl!.setVolume(_ctrl!.value.volume > 0 ? 0 : 1); }); },
-                    child: Icon(_ctrl!.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 18)),
-                ]))),
-          ],
-        ),
-      );
-
-    return VisibilityDetector(
-      key: _key,
-      onVisibilityChanged: _onVisibilityChanged,
-      child: _ready && _ctrl != null
-          ? VideoAdOverlay(mainController: _ctrl!, child: videoContent)
-          : videoContent,
-    );
-  }
-}
-
-class _VideoPlayerScreen extends ConsumerStatefulWidget {
-  final String url;
-  final bool isHls;
-  const _VideoPlayerScreen({required this.url, this.isHls = false});
-  @override
-  ConsumerState<_VideoPlayerScreen> createState() => _VideoPlayerScreenState();
-}
-
-class _VideoPlayerScreenState extends ConsumerState<_VideoPlayerScreen> {
-  VideoPlayerController? _mainCtrl;
-  BetterPlayerController? _mainBetterCtrl;
-  VideoPlayerController? _adCtrl;
-  bool _mainReady = false;
-  bool _adReady = false;
-  bool _showingAd = true;
-  int _skipCountdown = 5;
-  bool _canSkip = false;
-  Map<String, dynamic>? _adData;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.isHls) {
-      final ds = BetterPlayerDataSource(BetterPlayerDataSourceType.network, widget.url, videoFormat: BetterPlayerVideoFormat.hls);
-      _mainBetterCtrl = BetterPlayerController(
-        const BetterPlayerConfiguration(autoPlay: false, looping: false, fit: BoxFit.contain,
-          controlsConfiguration: BetterPlayerControlsConfiguration(showControls: true, enableProgressBar: true, enablePlayPause: true)),
-        betterPlayerDataSource: ds,
-      );
-      _mainBetterCtrl!.addEventsListener((e) {
-        if (e.betterPlayerEventType == BetterPlayerEventType.initialized && mounted) setState(() => _mainReady = true);
-      });
-    } else {
-      _mainCtrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
-        ..initialize().then((_) { if (mounted) setState(() => _mainReady = true); }).catchError((_) {});
-    }
-    _loadPrerollAd();
-  }
-
-  Future<void> _loadPrerollAd() async {
-    try {
-      final ad = await ref.read(communityRepoProvider).getPrerollAd();
-      if (ad == null || ad['media_url'] == null) { _startMainVideo(); return; }
-      setState(() => _adData = ad);
-      final ctrl = VideoPlayerController.networkUrl(Uri.parse(ad['media_url']));
-      await ctrl.initialize();
-      ctrl.setLooping(false);
-      ctrl.setVolume(1);
-      if (!mounted) { ctrl.dispose(); return; }
-      setState(() { _adCtrl = ctrl; _adReady = true; });
-      ctrl.play();
-      ctrl.addListener(_onAdProgress);
-      _startSkipTimer();
-    } catch (_) { _startMainVideo(); }
-  }
-
-  void _onAdProgress() {
-    if (_adCtrl == null) return;
-    if (_adCtrl!.value.position >= _adCtrl!.value.duration && _adCtrl!.value.duration > Duration.zero) {
-      _skipAd();
-    }
-    if (mounted) setState(() {});
-  }
-
-  void _startSkipTimer() async {
-    for (var i = 5; i > 0; i--) {
-      await Future.delayed(const Duration(seconds: 1));
-      if (!mounted || !_showingAd) return;
-      setState(() => _skipCountdown = i - 1);
-    }
-    if (mounted) setState(() => _canSkip = true);
-  }
-
-  void _skipAd() {
-    _adCtrl?.removeListener(_onAdProgress);
-    _adCtrl?.pause();
-    _adCtrl?.dispose();
-    _adCtrl = null;
-    setState(() { _showingAd = false; _adReady = false; });
-    _startMainVideo();
-  }
-
-  void _startMainVideo() {
-    setState(() => _showingAd = false);
-    if (_mainReady) {
-      if (widget.isHls) { _mainBetterCtrl?.play(); }
-      else { _mainCtrl?.play(); }
-    }
-  }
-
-  @override
-  void dispose() { _mainCtrl?.dispose(); _mainBetterCtrl?.dispose(); _adCtrl?.removeListener(_onAdProgress); _adCtrl?.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      extendBodyBehindAppBar: true,
-      appBar: _showingAd ? null : AppBar(backgroundColor: Colors.transparent, elevation: 0, iconTheme: const IconThemeData(color: Colors.white)),
-      body: _showingAd ? _buildAdPlayer() : _buildMainPlayer(),
-    );
-  }
-
-  // ── Pre-roll Ad Player ──
-  Widget _buildAdPlayer() {
-    return Stack(children: [
-      // Ad video
-      Center(child: _adReady && _adCtrl != null
-          ? AspectRatio(aspectRatio: _adCtrl!.value.aspectRatio.clamp(0.5, 2.5), child: VideoPlayer(_adCtrl!))
-          : const CircularProgressIndicator(color: kOrange)),
-
-      // "Ad" badge top-left
-      Positioned(top: MediaQuery.of(context).padding.top + 12, left: 16,
-        child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(6)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.campaign_rounded, color: kOrange, size: 14),
-            const SizedBox(width: 4),
-            Text(_adData?['page']?['name'] ?? 'Ad', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-          ]))),
-
-      // Ad progress bar at top
-      if (_adReady && _adCtrl != null) Positioned(top: 0, left: 0, right: 0,
-        child: VideoProgressIndicator(_adCtrl!, allowScrubbing: false,
-          colors: const VideoProgressColors(playedColor: kOrange, backgroundColor: Colors.white24))),
-
-      // Skip button bottom-right
-      Positioned(bottom: 60, right: 16,
-        child: GestureDetector(
-          onTap: _canSkip ? _skipAd : null,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: _canSkip ? Colors.white : Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(
-                _canSkip ? 'Skip Ad' : 'Skip in $_skipCountdown',
-                style: TextStyle(color: _canSkip ? const Color(0xFF1A1B2E) : Colors.white70,
-                  fontWeight: FontWeight.w700, fontSize: 14)),
-              if (_canSkip) ...[const SizedBox(width: 4), const Icon(Icons.skip_next_rounded, size: 18, color: Color(0xFF1A1B2E))],
-            ]),
-          ),
-        )),
-
-      // CTA button bottom-left
-      if (_adData?['cta_text'] != null) Positioned(bottom: 60, left: 16,
-        child: GestureDetector(
-          onTap: () { if (_adData?['id'] != null) ref.read(communityRepoProvider).trackAdClick(_adData!['id']); },
-          child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(8)),
-            child: Text(_adData!['cta_text'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14))))),
-
-      // Close button
-      Positioned(top: MediaQuery.of(context).padding.top + 12, right: 16,
-        child: GestureDetector(onTap: () => Navigator.pop(context),
-          child: Container(padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
-            child: const Icon(Icons.close_rounded, color: Colors.white, size: 20)))),
-    ]);
-  }
-
-  // ── Main Video Player ──
-  Widget _buildMainPlayer() {
-    if (!_mainReady) return const Center(child: CircularProgressIndicator(color: kOrange));
-
-    // HLS via BetterPlayer (has built-in controls)
-    if (widget.isHls && _mainBetterCtrl != null) {
-      return Stack(children: [
-        Center(child: BetterPlayer(controller: _mainBetterCtrl!)),
-        Positioned(top: MediaQuery.of(context).padding.top + 8, left: 8,
-          child: GestureDetector(onTap: () => Navigator.pop(context),
-            child: Container(padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
-              child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20)))),
-      ]);
-    }
-
-    return GestureDetector(
-      onTap: () { _mainCtrl!.value.isPlaying ? _mainCtrl!.pause() : _mainCtrl!.play(); setState(() {}); },
-      child: Stack(children: [
-        Center(child: AspectRatio(aspectRatio: _mainCtrl!.value.aspectRatio.clamp(0.5, 2.5), child: VideoPlayer(_mainCtrl!))),
-        if (!_mainCtrl!.value.isPlaying)
-          Center(child: Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
-            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 48))),
-        Positioned(bottom: 0, left: 0, right: 0, child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 24, 12, 30),
-          decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-            colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)])),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            VideoProgressIndicator(_mainCtrl!, allowScrubbing: true, colors: const VideoProgressColors(
-              playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12)),
-            const SizedBox(height: 8),
-            Row(children: [
-              GestureDetector(onTap: () { _mainCtrl!.value.isPlaying ? _mainCtrl!.pause() : _mainCtrl!.play(); setState(() {}); },
-                child: Icon(_mainCtrl!.value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 28)),
-              const SizedBox(width: 12),
-              ValueListenableBuilder(valueListenable: _mainCtrl!, builder: (_, v, __) =>
-                Text('${_fmtD(v.position)} / ${_fmtD(v.duration)}', style: const TextStyle(color: Colors.white70, fontSize: 12))),
-              const Spacer(),
-              GestureDetector(onTap: () { _mainCtrl!.setVolume(_mainCtrl!.value.volume > 0 ? 0 : 1); setState(() {}); },
-                child: Icon(_mainCtrl!.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 22)),
-            ]),
-          ]),
-        )),
-      ]),
-    );
-  }
-
-  String _fmtD(Duration d) => '${d.inMinutes.toString().padLeft(2,'0')}:${(d.inSeconds%60).toString().padLeft(2,'0')}';
-}
-
-// ══════════════════════════════════════════════════════════════════
-// HLS PROGRESS BAR (BetterPlayer compatible)
-// ══════════════════════════════════════════════════════════════════
-
-class _HlsProgressBar extends StatefulWidget {
-  final BetterPlayerController controller;
-  const _HlsProgressBar({required this.controller});
-  @override
-  State<_HlsProgressBar> createState() => _HlsProgressBarState();
-}
-
-class _HlsProgressBarState extends State<_HlsProgressBar> {
-  @override
-  void initState() {
-    super.initState();
-    widget.controller.videoPlayerController?.addListener(_update);
-  }
-
-  void _update() { if (mounted) setState(() {}); }
-
-  @override
-  void dispose() {
-    widget.controller.videoPlayerController?.removeListener(_update);
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final vp = widget.controller.videoPlayerController;
-    if (vp == null) return const SizedBox(height: 4);
-    final dur = vp.value.duration ?? Duration.zero;
-    final pos = vp.value.position ?? Duration.zero;
-    final progress = dur.inMilliseconds > 0 ? pos.inMilliseconds / dur.inMilliseconds : 0.0;
-    return GestureDetector(
-      onHorizontalDragUpdate: (d) {
-        final box = context.findRenderObject() as RenderBox;
-        final fraction = (d.localPosition.dx / box.size.width).clamp(0.0, 1.0);
-        final seekTo = Duration(milliseconds: (dur.inMilliseconds * fraction).toInt());
-        widget.controller.seekTo(seekTo);
-      },
-      child: Container(
-        height: 4,
-        decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(2)),
-        child: FractionallySizedBox(
-          alignment: Alignment.centerLeft,
-          widthFactor: progress.clamp(0.0, 1.0),
-          child: Container(decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(2))),
-        ),
       ),
     );
   }
 }
 
-// ══════════════════════════════════════════════════════════════════
 // AUDIO PLAYER CARD
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class _AudioPlayerCard extends StatefulWidget {
   final String url;
@@ -1915,9 +1547,9 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // DOCUMENT CARD
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class _DocumentCard extends StatelessWidget {
   final String url;

@@ -4,7 +4,7 @@ import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
-import 'package:better_player_plus/better_player_plus.dart';
+import '../services/video_engine.dart';
 import '../../data/models/community_models.dart';
 import '../../../../features/modules/erent/erent_screen.dart';
 import '../providers/community_provider.dart';
@@ -150,6 +150,17 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                 if (i >= combined.length - 3) {
                   ref.read(communityReelsProvider.notifier).load();
                 }
+                // Predictive preload: next 2 reels
+                final engine = VideoEngine.instance;
+                final preloadUrls = <String>[];
+                for (var j = i + 1; j <= i + 2 && j < combined.length; j++) {
+                  final item = combined[j];
+                  if (item.communityPost != null) {
+                    final m = item.communityPost!.media.where((m) => m.type == 'video').firstOrNull;
+                    if (m != null) preloadUrls.add(m.hlsUrl ?? m.url);
+                  }
+                }
+                if (preloadUrls.isNotEmpty) engine.preloadBatch(preloadUrls);
               },
               itemBuilder: (_, i) {
                 final item = combined[i];
@@ -188,7 +199,6 @@ class _CommunityReelCard extends ConsumerStatefulWidget {
 
 class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   VideoPlayerController? _videoCtrl;
-  BetterPlayerController? _betterCtrl;
   bool _videoReady = false;
   bool _muted = false;
   bool _paused = false;
@@ -196,7 +206,8 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   bool _saved = false;
   bool _showHeart = false;
   int _likesCount = 0;
-  bool _useHls = false;
+  final _engine = VideoEngine.instance;
+  String _videoUrl = '';
 
   @override
   void initState() {
@@ -207,54 +218,33 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     _initVideo();
   }
 
-  void _initVideo() {
+  void _initVideo() async {
     final media = widget.reel.media.where((m) => m.type == 'video').firstOrNull ??
         (widget.reel.media.isNotEmpty ? widget.reel.media.first : null);
     if (media == null || media.type != 'video') return;
 
-    // HLS via BetterPlayer
-    if (media.hlsUrl != null && media.hlsUrl!.isNotEmpty) {
-      _useHls = true;
-      final ds = BetterPlayerDataSource(BetterPlayerDataSourceType.network, media.hlsUrl!, videoFormat: BetterPlayerVideoFormat.hls);
-      _betterCtrl = BetterPlayerController(
-        BetterPlayerConfiguration(autoPlay: false, looping: false, fit: BoxFit.contain, handleLifecycle: false,
-          controlsConfiguration: const BetterPlayerControlsConfiguration(showControls: false)),
-        betterPlayerDataSource: ds,
-      );
-      _betterCtrl!.addEventsListener((event) {
-        if (event.betterPlayerEventType == BetterPlayerEventType.initialized) {
-          if (mounted) {
-            setState(() => _videoReady = true);
-            if (widget.isActive && !_paused) _betterCtrl!.play();
-          }
-        } else if (event.betterPlayerEventType == BetterPlayerEventType.finished) {
-          widget.onVideoEnd?.call();
-        }
-      });
+    _videoUrl = media.hlsUrl ?? media.url;
+
+    // Try engine cache first
+    final cached = _engine.getController(_videoUrl);
+    if (cached != null && cached.value.isInitialized) {
+      _videoCtrl = cached;
+      _videoCtrl!.setLooping(false);
+      _videoCtrl!.addListener(_onVideoProgress);
+      if (mounted) setState(() => _videoReady = true);
+      if (widget.isActive && !_paused) _engine.activate(_videoUrl);
       return;
     }
 
-    // Fallback: mp4 via video_player
-    final preloaded = VideoPreloader().get(media.url);
-    if (preloaded != null && preloaded.value.isInitialized) {
-      _videoCtrl = preloaded;
-      _videoCtrl!.setVolume(_muted ? 0 : 1);
-      if (widget.isActive && !_paused) _videoCtrl!.play();
+    // Preload via engine
+    final ctrl = await _engine.preload(_videoUrl);
+    if (ctrl != null && mounted) {
+      _videoCtrl = ctrl;
+      ctrl.setLooping(false);
+      ctrl.addListener(_onVideoProgress);
       setState(() => _videoReady = true);
-      return;
+      if (widget.isActive && !_paused) _engine.activate(_videoUrl);
     }
-
-    _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(media.url),
-      httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'})
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() => _videoReady = true);
-          _videoCtrl!.setLooping(false);
-          _videoCtrl!.addListener(_onVideoProgress);
-          _videoCtrl!.setVolume(_muted ? 0 : 1);
-          if (widget.isActive && !_paused) _videoCtrl!.play();
-        }
-      }).catchError((_) {});
   }
 
   void _onVideoProgress() {
@@ -272,24 +262,20 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     super.didUpdateWidget(old);
     if (widget.isActive != old.isActive) {
       if (widget.isActive) {
-        if (!_paused) { _useHls ? _betterCtrl?.play() : _videoCtrl?.play(); }
+        if (!_paused && _videoUrl.isNotEmpty) _engine.activate(_videoUrl);
       } else {
-        _useHls ? _betterCtrl?.pause() : _videoCtrl?.pause();
+        if (_videoUrl.isNotEmpty) _engine.pause(_videoUrl);
       }
     }
   }
 
   @override
-  void dispose() { _videoCtrl?.dispose(); _betterCtrl?.dispose(); super.dispose(); }
+  void dispose() { super.dispose(); }
 
   void _togglePause() {
     if (!_videoReady) return;
     setState(() => _paused = !_paused);
-    if (_useHls) {
-      _paused ? _betterCtrl?.pause() : _betterCtrl?.play();
-    } else {
-      _paused ? _videoCtrl!.pause() : _videoCtrl!.play();
-    }
+    _paused ? _engine.pause(_videoUrl) : _engine.activate(_videoUrl);
   }
 
   void _onDoubleTap() {
@@ -307,9 +293,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
       onDoubleTap: _onDoubleTap,
       child: Stack(fit: StackFit.expand, children: [
         // Video or thumbnail
-        if (_videoReady && _useHls && _betterCtrl != null)
-          Center(child: BetterPlayer(controller: _betterCtrl!))
-        else if (_videoReady && _videoCtrl != null)
+        if (_videoReady && _videoCtrl != null)
           Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!)))
         else if (media?.thumbnail != null)
           NetImage(url: media!.thumbnail!, fit: BoxFit.cover)
@@ -337,7 +321,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
 
         // Mute
         Positioned(top: MediaQuery.of(context).padding.top + 64, right: 12,
-          child: GestureDetector(onTap: () { setState(() => _muted = !_muted); if (_useHls) { _betterCtrl?.setVolume(_muted ? 0 : 1); } else { _videoCtrl?.setVolume(_muted ? 0 : 1); } },
+          child: GestureDetector(onTap: () { setState(() => _muted = !_muted); _videoCtrl?.setVolume(_muted ? 0 : 1); },
             child: Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle), child: Icon(_muted ? Icons.volume_off : Icons.volume_up, color: Colors.white, size: 20)))),
 
         // Bottom info
