@@ -1025,6 +1025,64 @@ class _PostCardState extends ConsumerState<_PostCard> {
     ));
   }
 
+  void _showBoostDialog() {
+    double budget = 5;
+    int hours = 24;
+    showDialog(context: context, builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setD) => AlertDialog(
+        title: Row(children: [
+          const Icon(Icons.rocket_launch_rounded, color: kOrange, size: 22),
+          const SizedBox(width: 8),
+          const Text('Boost Post', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Promote your post to reach more people', style: TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
+          const SizedBox(height: 16),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            const Text('Budget', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text('\$${budget.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w800, color: kOrange, fontSize: 18)),
+          ]),
+          Slider(value: budget, min: 1, max: 100, divisions: 20, activeColor: kOrange,
+            onChanged: (v) => setD(() => budget = v)),
+          const SizedBox(height: 8),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            const Text('Duration', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text('${hours}h', style: const TextStyle(fontWeight: FontWeight.w800, color: kOrange)),
+          ]),
+          Slider(value: hours.toDouble(), min: 1, max: 168, divisions: 7, activeColor: kOrange,
+            onChanged: (v) => setD(() => hours = v.toInt())),
+          const SizedBox(height: 8),
+          Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(
+            color: kOrange.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
+            child: Row(children: [
+              const Icon(Icons.people_rounded, color: kOrange, size: 18),
+              const SizedBox(width: 8),
+              Text('Est. ${(budget * 50).toInt()} - ${(budget * 150).toInt()} people',
+                style: const TextStyle(fontSize: 13, color: Color(0xFF374151))),
+            ])),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: kOrange),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await ref.read(communityRepoProvider).boostPost(widget.post.id, budget: budget, durationHours: hours);
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Post boosted!'), backgroundColor: Color(0xFF10B981)));
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+              }
+            },
+            child: const Text('Boost Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    ));
+  }
+
   void _showOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -1042,6 +1100,12 @@ class _PostCardState extends ConsumerState<_PostCard> {
               Navigator.pop(context);
               widget.onDelete();
             },
+          ),
+          if (widget.post.user.isMe) ListTile(
+            leading: const Icon(Icons.rocket_launch_rounded, color: kOrange),
+            title: const Text('Boost Post'),
+            subtitle: const Text('Promote to more people', style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
+            onTap: () { Navigator.pop(context); _showBoostDialog(); },
           ),
           ListTile(
             leading: const Icon(Icons.flag_rounded),

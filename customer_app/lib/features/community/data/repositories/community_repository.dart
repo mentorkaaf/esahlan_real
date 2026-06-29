@@ -170,6 +170,17 @@ class CommunityRepository {
   }
 
   // ── Stories ────────────────────────────────────────────────────────────────
+  // Ads
+  Future<Map<String, dynamic>> boostPost(int postId, {required double budget, required int durationHours}) async {
+    final r = await _dio.post('/community/posts/$postId/boost', data: {'budget': budget, 'duration_hours': durationHours});
+    return r.data['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getAdAnalytics() async {
+    final r = await _dio.get('/community/ads/analytics');
+    return r.data['data'] as Map<String, dynamic>;
+  }
+
   Future<void> viewStory(int storyId) => _dio.post('/community/stories/$storyId/view');
   Future<void> reactToStory(int storyId, String emoji) => _dio.post('/community/stories/$storyId/react', data: {'emoji': emoji});
   Future<void> commentOnStory(int storyId, String content) => _dio.post('/community/stories/$storyId/comment', data: {'content': content});
