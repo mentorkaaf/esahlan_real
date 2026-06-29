@@ -1381,18 +1381,16 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   bool _paused = false;
   bool _visible = false;
   final _key = UniqueKey();
+  final _engine = VideoEngine.instance;
 
   bool get _isVideo => widget.m.type == 'video';
   bool get _isAudio => widget.m.type == 'audio';
   bool get _isDocument => widget.m.type == 'document';
 
-  bool _initStarted = false;
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (_isVideo) { _initStarted = true; _initVideo(); }
   }
 
   @override
@@ -1406,43 +1404,33 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   Future<void> _initVideo() async {
     final url = widget.m.url;
     if (url.isEmpty) return;
-    final ctrl = VideoPlayerController.networkUrl(Uri.parse(url),
-      httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'});
-    try {
-      await ctrl.initialize();
-      ctrl.setLooping(true);
-      ctrl.setVolume(1);
-      if (mounted) {
-        setState(() { _ctrl = ctrl; _ready = true; });
-        if (_visible && !_paused) ctrl.play();
-      }
-    } catch (_) {
-      ctrl.dispose();
+    final ctrl = await _engine.preload(url);
+    if (ctrl != null && mounted) {
+      setState(() { _ctrl = ctrl; _ready = true; });
+      if (_visible && !_paused) _engine.activate(url);
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _ctrl?.pause();
-    _ctrl?.dispose();
     super.dispose();
   }
 
   void _onVisibilityChanged(VisibilityInfo info) {
     _visible = info.visibleFraction > 0.5;
     if (_visible) {
-      if (_isVideo && !_initStarted) { _initStarted = true; _initVideo(); }
-      if (_ready && _ctrl != null && !_paused && !_ctrl!.value.isPlaying) _ctrl!.play();
+      if (_isVideo && !_ready) _initVideo();
+      if (_ready && _ctrl != null && !_paused) _engine.activate(widget.m.url);
     } else {
-      if (_ctrl != null && _ctrl!.value.isPlaying) _ctrl!.pause();
+      if (_ctrl != null && _ctrl!.value.isPlaying) _engine.pause(widget.m.url);
     }
   }
 
   void _togglePause() {
     if (!_ready || _ctrl == null) return;
     setState(() => _paused = !_paused);
-    _paused ? _ctrl!.pause() : _ctrl!.play();
+    _paused ? _engine.pause(widget.m.url) : _engine.activate(widget.m.url);
   }
 
   String _formatDuration(Duration d) {
@@ -1473,9 +1461,9 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     double videoH;
     if (_ready && _ctrl != null) {
       final ar = _ctrl!.value.aspectRatio;
-      videoH = (screenW / ar).clamp(200.0, screenW * 1.6);
+      videoH = (screenW / ar).clamp(200.0, 400.0);
     } else if (serverAr != null) {
-      videoH = (screenW / serverAr).clamp(200.0, screenW * 1.6);
+      videoH = (screenW / serverAr).clamp(200.0, 400.0);
     } else {
       videoH = 300;
     }
@@ -1483,7 +1471,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     final videoContent = GestureDetector(
         onTap: _ready ? _togglePause : null,
         onDoubleTap: _ready && _ctrl != null ? () {
-          _ctrl!.pause();
+          _engine.pause(widget.m.url);
           Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: widget.m.url)));
         } : null,
         child: Stack(
