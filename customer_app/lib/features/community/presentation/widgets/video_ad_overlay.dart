@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,10 +41,12 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
   int _nextTriggerIndex = 0;
   bool _settingsLoaded = false;
 
+  Timer? _progressTimer;
+
   @override
   void initState() {
     super.initState();
-    widget.mainController.addListener(_onProgress);
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 500), (_) => _onProgress());
     _loadSettingsAndPreload();
   }
 
@@ -165,7 +168,7 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
 
   @override
   void dispose() {
-    widget.mainController.removeListener(_onProgress);
+    _progressTimer?.cancel();
     _adCtrl?.removeListener(_onAdEnd);
     _adCtrl?.dispose();
     super.dispose();
