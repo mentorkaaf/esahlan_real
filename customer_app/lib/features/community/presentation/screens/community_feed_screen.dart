@@ -745,12 +745,12 @@ class _PostCardState extends ConsumerState<_PostCard> {
   String? _myReaction;
 
   static const _reactions = [
-    {'type': 'like', 'emoji': 'ðŸ‘', 'color': Color(0xFF1877F2)},
-    {'type': 'love', 'emoji': 'â¤ï¸', 'color': Color(0xFFE41E3F)},
-    {'type': 'haha', 'emoji': 'ðŸ˜‚', 'color': Color(0xFFF7B928)},
-    {'type': 'wow', 'emoji': 'ðŸ˜®', 'color': Color(0xFFF7B928)},
-    {'type': 'sad', 'emoji': 'ðŸ˜¢', 'color': Color(0xFFF7B928)},
-    {'type': 'angry', 'emoji': 'ðŸ˜¡', 'color': Color(0xFFE47820)},
+    {'type': 'like', 'emoji': '👍', 'color': Color(0xFF1877F2)},
+    {'type': 'love', 'emoji': '❤️', 'color': Color(0xFFE41E3F)},
+    {'type': 'haha', 'emoji': '😂', 'color': Color(0xFFF7B928)},
+    {'type': 'wow', 'emoji': '😮', 'color': Color(0xFFF7B928)},
+    {'type': 'sad', 'emoji': '😢', 'color': Color(0xFFF7B928)},
+    {'type': 'angry', 'emoji': '😡', 'color': Color(0xFFE47820)},
   ];
 
   @override
@@ -777,7 +777,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
     ));
   }
 
-  String _reactionEmoji(String type) => {'like': 'ðŸ‘', 'love': 'â¤ï¸', 'haha': 'ðŸ˜‚', 'wow': 'ðŸ˜®', 'sad': 'ðŸ˜¢', 'angry': 'ðŸ˜¡'}[type] ?? 'Like';
+  String _reactionEmoji(String type) => {'like': '👍', 'love': '❤️', 'haha': '😂', 'wow': '😮', 'sad': '😢', 'angry': '😡'}[type] ?? 'Like';
 
   void _react(String type) async {
     setState(() {
@@ -1338,17 +1338,19 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     }
   }
 
+  void _onVideoUpdate() { if (mounted) setState(() {}); }
+
   Future<void> _initVideo() async {
-    // Check if engine already has it cached
     final cached = _engine.getController(_videoUrl);
     if (cached != null && cached.value.isInitialized) {
+      cached.addListener(_onVideoUpdate);
       if (mounted) setState(() { _ctrl = cached; _ready = true; });
       if (_visible && !_paused) _engine.activate(_videoUrl);
       return;
     }
-    // Preload via engine
     final ctrl = await _engine.preload(_videoUrl);
     if (ctrl != null && mounted) {
+      ctrl.addListener(_onVideoUpdate);
       setState(() { _ctrl = ctrl; _ready = true; });
       if (_visible && !_paused) _engine.activate(_videoUrl);
     }
@@ -1357,7 +1359,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // Don't dispose â€” engine manages the controller lifecycle
+    _ctrl?.removeListener(_onVideoUpdate);
     super.dispose();
   }
 
@@ -1398,11 +1400,12 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     }
 
     final screenW = MediaQuery.of(context).size.width;
-    final defaultH = screenW * 0.75;
-    double videoH = widget.height > 0 ? widget.height : defaultH;
+    double videoH;
     if (_ready && _ctrl != null && _ctrl!.value.isInitialized) {
       final ar = _ctrl!.value.aspectRatio;
       videoH = (screenW / ar).clamp(200.0, screenW * 1.6);
+    } else {
+      videoH = widget.height > 0 ? widget.height : screenW * 0.56;
     }
 
     return VisibilityDetector(
@@ -1415,8 +1418,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
           Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: _videoUrl)));
         } : null,
         child: Stack(children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+          Container(
             color: const Color(0xFF1A1B2E),
             width: double.infinity,
             height: videoH,
@@ -1424,7 +1426,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
               ? FittedBox(fit: BoxFit.contain, child: SizedBox(
                   width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))
               : widget.m.thumbnail != null
-                ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.cover)
+                ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.contain)
                 : const SizedBox(),
           ),
           // Pause overlay
