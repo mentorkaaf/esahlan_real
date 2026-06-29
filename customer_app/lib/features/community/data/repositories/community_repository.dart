@@ -181,6 +181,12 @@ class CommunityRepository {
     return r.data['data'] as Map<String, dynamic>;
   }
 
+  // Admin
+  Future<Map<String, dynamic>> generateEngagement({required int postId, int likes = 0, int views = 0, int comments = 0}) async {
+    final r = await _dio.post('/admin/engagement/generate', data: {'post_id': postId, 'likes': likes, 'views': views, 'comments': comments});
+    return r.data['data'] as Map<String, dynamic>;
+  }
+
   Future<void> viewStory(int storyId) => _dio.post('/community/stories/$storyId/view');
   Future<void> reactToStory(int storyId, String emoji) => _dio.post('/community/stories/$storyId/react', data: {'emoji': emoji});
   Future<void> commentOnStory(int storyId, String content) => _dio.post('/community/stories/$storyId/comment', data: {'content': content});
