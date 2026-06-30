@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/realtime_client.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../community/presentation/providers/community_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -69,6 +71,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (!onboardingDone) {
       context.go('/onboarding');
     } else if (token != null) {
+      RealtimeClient.instance.connect();
+      // Set the "is this message mine" id source for chat as early as
+      // possible — without this, every chat bubble renders as "theirs"
+      // (wrong side, wrong color) until something else happens to populate it.
+      ref.read(communityMyProfileProvider.future).then(
+        (me) => MessagesNotifier.setMyId(me.id),
+        onError: (_) {},
+      );
       context.go('/home');
     } else {
       context.go('/auth/login');

@@ -8,6 +8,7 @@ use App\Models\CommunityPostReaction;
 use App\Models\User;
 use App\Models\CommunityProfile;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class EngagementGeneratorController extends Controller
@@ -186,5 +187,64 @@ class EngagementGeneratorController extends Controller
     {
         $users = User::where('email', 'like', '%@esahlan_bot.local')->get(['id', 'name', 'avatar']);
         return response()->json(['status' => 'success', 'count' => $users->count(), 'data' => $users]);
+    }
+
+    /**
+     * Strip bot-generated engagement off one post, leaving real-user
+     * engagement untouched. Recomputes counts from actual remaining rows
+     * (rather than decrementing) to avoid drift from any prior mismatch.
+     *
+     * Views have no per-row fake/real record at all — generateViews() just
+     * bumps a raw counter — so there's nothing to "delete" for views. Reset
+     * recomputes views_count from genuinely-tracked feed_interactions
+     * (view/watch events from real, non-bot users) instead of zeroing it,
+     * so organic impressions picked up via InteractionTracker survive a reset.
+     */
+    private function resetPostEngagement(int $postId): array
+    {
+        $botUserIds = User::where('email', 'like', '%@esahlan_bot.local')->pluck('id');
+
+        $likesRemoved = CommunityPostReaction::where('post_id', $postId)
+            ->whereIn('user_id', $botUserIds)->delete();
+        $commentsRemoved = CommunityComment::where('post_id', $postId)
+            ->whereIn('user_id', $botUserIds)->delete();
+
+        $post = CommunityPost::find($postId);
+        if (!$post) return ['likes_removed' => 0, 'comments_removed' => 0];
+
+        $post->likes_count = CommunityPostReaction::where('post_id', $postId)->count();
+        $post->comments_count = CommunityComment::where('post_id', $postId)->count();
+        $post->views_count = DB::table('feed_interactions')
+            ->where('post_id', $postId)
+            ->whereIn('type', ['view', 'watch'])
+            ->whereNotIn('user_id', $botUserIds)
+            ->distinct('user_id')
+            ->count('user_id');
+        $post->save();
+
+        return ['likes_removed' => $likesRemoved, 'comments_removed' => $commentsRemoved];
+    }
+
+    public function resetEngagement(Request $request)
+    {
+        $request->validate(['post_id' => 'required|exists:community_posts,id']);
+        $result = $this->resetPostEngagement((int) $request->post_id);
+        $post = CommunityPost::findOrFail($request->post_id);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "Removed {$result['likes_removed']} fake likes, {$result['comments_removed']} fake comments",
+            'post' => ['id' => $post->id, 'likes' => $post->likes_count, 'comments' => $post->comments_count, 'views' => $post->views_count],
+        ]);
+    }
+
+    public function resetAllEngagement()
+    {
+        $postIds = CommunityPost::pluck('id');
+        foreach ($postIds as $id) {
+            $this->resetPostEngagement($id);
+        }
+
+        return response()->json(['status' => 'success', 'message' => "Reset fake engagement on {$postIds->count()} posts"]);
     }
 }

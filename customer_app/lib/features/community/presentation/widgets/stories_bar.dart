@@ -116,8 +116,12 @@ class _StoryCard extends StatelessWidget {
     final hasUnviewed = !group.allViewed;
 
     String? previewUrl;
-    if (firstStory != null && firstStory.type == 'image') {
-      previewUrl = firstStory.mediaUrl;
+    if (firstStory != null) {
+      if (firstStory.type == 'image') {
+        previewUrl = firstStory.mediaUrl;
+      } else if (firstStory.type == 'video') {
+        previewUrl = firstStory.thumbnail ?? firstStory.mediaUrl;
+      }
     }
 
     return GestureDetector(
@@ -154,6 +158,13 @@ class _StoryCard extends StatelessWidget {
             colors: [Colors.black.withValues(alpha: 0.3), Colors.transparent, Colors.black.withValues(alpha: 0.6)],
             stops: const [0.0, 0.3, 1.0],
           ))),
+
+          // Video play icon
+          if (firstStory?.type == 'video')
+            Positioned(top: 8, right: 8,
+              child: Container(width: 24, height: 24,
+                decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16))),
 
           // User avatar at top-left with ring
           Positioned(top: 8, left: 8,

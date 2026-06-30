@@ -6,6 +6,8 @@ use App\Models\CommunityPost;
 use App\Models\CommunityNotification;
 use App\Models\User;
 use App\Services\FcmService;
+use App\Services\InteractionTracker;
+use App\Services\RealtimeService;
 use Illuminate\Http\Request;
 
 class CommunityCommentController extends Controller
@@ -62,7 +64,28 @@ class CommunityCommentController extends Controller
             }
         }
 
+        InteractionTracker::track(auth()->id(), $postId, 'comment');
         $comment->load('user.communityProfile');
+
+        // Lightweight realtime payload — not the full comment model, just
+        // what a feed/post card needs to render the new comment live.
+        RealtimeService::toPublic("community.post.{$postId}", 'post.comment_added', [
+            'post_id' => $postId,
+            'comments_count' => $post->fresh()->comments_count,
+            'comment' => [
+                'id' => $comment->id,
+                'content' => $comment->content,
+                'media_type' => $comment->media_type,
+                'parent_id' => $comment->parent_id,
+                'user' => [
+                    'id' => $comment->user->id,
+                    'name' => $comment->user->name,
+                    'avatar' => $comment->user->avatar,
+                ],
+                'created_at' => $comment->created_at,
+            ],
+        ]);
+
         return response()->json(['status'=>'success','data'=>$comment], 201);
     }
 
@@ -76,7 +99,15 @@ class CommunityCommentController extends Controller
     public function destroy(int $id)
     {
         $comment = CommunityComment::where('user_id',auth()->id())->findOrFail($id);
-        if ($post = CommunityPost::find($comment->post_id)) $post->decrement('comments_count');
+        $postId = $comment->post_id;
+        if ($post = CommunityPost::find($postId)) {
+            $post->decrement('comments_count');
+            RealtimeService::toPublic("community.post.{$postId}", 'post.comment_removed', [
+                'post_id' => $postId,
+                'comment_id' => $id,
+                'comments_count' => $post->fresh()->comments_count,
+            ]);
+        }
         $comment->delete();
         return response()->json(['status'=>'success','message'=>'Comment deleted']);
     }

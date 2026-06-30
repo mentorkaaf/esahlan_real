@@ -247,7 +247,28 @@ class AdminCommunityController extends Controller
         
         $result = $ctrl->generateAll($genReq);
         $data = json_decode($result->getContent(), true);
-        
+
         return back()->with('success', 'Generated: ' . json_encode($data['data'] ?? []));
+    }
+
+    public function resetEngagement(\Illuminate\Http\Request $request)
+    {
+        $request->validate(['post_id' => 'required|exists:community_posts,id']);
+
+        $ctrl = new \App\Http\Controllers\Api\Admin\EngagementGeneratorController();
+        $genReq = new \Illuminate\Http\Request(['post_id' => $request->post_id]);
+        $result = $ctrl->resetEngagement($genReq);
+        $data = json_decode($result->getContent(), true);
+
+        return back()->with('success', $data['message'] ?? 'Engagement reset.');
+    }
+
+    public function resetAllEngagement()
+    {
+        $ctrl = new \App\Http\Controllers\Api\Admin\EngagementGeneratorController();
+        $result = $ctrl->resetAllEngagement();
+        $data = json_decode($result->getContent(), true);
+
+        return back()->with('success', $data['message'] ?? 'All engagement reset.');
     }
 }

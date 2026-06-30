@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
+import '../../../../core/services/realtime_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../data/models/community_models.dart';
+import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
 import 'community_shell.dart';
 
@@ -20,14 +23,102 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
   final _msgCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   bool _sending = false;
+  bool _otherTyping = false;
+  Timer? _typingDebounce;
+  Timer? _typingClearTimer;
+  bool _amTyping = false;
 
   CommunityChat get chat => widget.chat;
   CommunityUser? get other => chat.otherUser;
+  String get _chatChannel => 'private-chat.${chat.id}';
+  String get _typingChannel => 'presence-chat-presence.${chat.id}';
+
+  void Function(dynamic)? _onMessageSent;
+  void Function(dynamic)? _onSeen;
+  void Function(dynamic)? _onTyping;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscribeRealtime();
+    CommunityRepository().markChatRead(chat.id);
+  }
+
+  Future<void> _subscribeRealtime() async {
+    // Must be the resolved id, not a possibly-still-loading synchronous
+    // read — capturing 0 here would make every message (including the
+    // sender's own) look like it belongs to someone else: wrong bubble
+    // side, wrong color, "seen"/"typing" filters never matching.
+    final me = await ref.read(communityMyProfileProvider.future);
+    final myId = me.id;
+    final hadStaleId = MessagesNotifier.myId != myId;
+    MessagesNotifier.setMyId(myId);
+    if (!mounted) return;
+    // The provider's initial REST fetch may have already run with a stale
+    // (possibly 0) id before this resolved — reload so isMe is correct on
+    // already-displayed messages, not just future ones.
+    if (hadStaleId) ref.read(communityMessagesProvider(chat.id).notifier).load();
+
+    _onMessageSent = (data) {
+      final msgJson = Map<String, dynamic>.from(data['message'] as Map);
+      msgJson['chat_id'] = data['chat_id'];
+      msgJson['user_id'] = (msgJson['user'] as Map)['id'];
+      final msg = CommunityMessage.fromJson(msgJson, myId);
+      ref.read(communityMessagesProvider(chat.id).notifier).appendIncoming(msg);
+      if (!msg.isMe) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollCtrl.hasClients) {
+            _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent,
+                duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+          }
+        });
+      }
+    };
+    RealtimeClient.instance.listen(_chatChannel, 'chat.message_sent', _onMessageSent!);
+
+    _onSeen = (data) {
+      if ((data['seen_by'] as int?) != myId) {
+        ref.read(communityMessagesProvider(chat.id).notifier).markAllReadLocally();
+      }
+    };
+    RealtimeClient.instance.listen(_chatChannel, 'chat.seen', _onSeen!);
+
+    _onTyping = (data) {
+      if ((data['user_id'] as int?) == myId) return;
+      if (mounted) {
+        setState(() => _otherTyping = data['is_typing'] == true);
+        _typingClearTimer?.cancel();
+        if (_otherTyping) {
+          _typingClearTimer = Timer(const Duration(seconds: 5), () {
+            if (mounted) setState(() => _otherTyping = false);
+          });
+        }
+      }
+    };
+    RealtimeClient.instance.listen(_typingChannel, 'chat.typing', _onTyping!);
+  }
+
+  void _onTextChanged(String _) {
+    if (!_amTyping) {
+      _amTyping = true;
+      CommunityRepository().sendTyping(chat.id, true);
+    }
+    _typingDebounce?.cancel();
+    _typingDebounce = Timer(const Duration(seconds: 2), () {
+      _amTyping = false;
+      CommunityRepository().sendTyping(chat.id, false);
+    });
+  }
 
   @override
   void dispose() {
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
+    _typingDebounce?.cancel();
+    _typingClearTimer?.cancel();
+    if (_onMessageSent != null) RealtimeClient.instance.removeListener(_chatChannel, 'chat.message_sent', _onMessageSent!);
+    if (_onSeen != null) RealtimeClient.instance.removeListener(_chatChannel, 'chat.seen', _onSeen!);
+    if (_onTyping != null) RealtimeClient.instance.removeListener(_typingChannel, 'chat.typing', _onTyping!);
     super.dispose();
   }
 
@@ -35,6 +126,11 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     final text = _msgCtrl.text.trim();
     if (text.isEmpty || _sending) return;
     _msgCtrl.clear();
+    _typingDebounce?.cancel();
+    if (_amTyping) {
+      _amTyping = false;
+      CommunityRepository().sendTyping(chat.id, false);
+    }
     setState(() => _sending = true);
     try {
       final myProfile = ref.read(communityMyProfileProvider).valueOrNull;
@@ -84,7 +180,8 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
                 const Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 14),
               ],
             ]),
-            const Text('Online', style: TextStyle(color: Color(0xFF45BD62), fontSize: 12, fontWeight: FontWeight.w500)),
+            Text(_otherTyping ? 'typing…' : 'Online',
+                style: TextStyle(color: _otherTyping ? kOrange : const Color(0xFF45BD62), fontSize: 12, fontWeight: FontWeight.w500)),
           ]),
         ]),
         actions: [
@@ -147,6 +244,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
                     hintText: 'Type a message...',
                     hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
                   ),
+                  onChanged: _onTextChanged,
                   onSubmitted: (_) => _send(),
                 ),
               ),

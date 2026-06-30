@@ -273,6 +273,13 @@ class CommunityComment {
         parentId: j['parent_id'] as int?,
         createdAt: DateTime.tryParse(j['created_at'] as String? ?? '') ?? DateTime.now(),
       );
+
+  CommunityComment copyWith({String? content}) => CommunityComment(
+    id: id, postId: postId, user: user, content: content ?? this.content,
+    mediaUrl: mediaUrl, mediaType: mediaType, likesCount: likesCount,
+    repliesCount: repliesCount, isPinned: isPinned, parentId: parentId,
+    createdAt: createdAt, isLiked: isLiked,
+  );
 }
 
 class CommunityStory {
@@ -280,6 +287,7 @@ class CommunityStory {
   final CommunityUser user;
   final String type; // image|video|text
   final String? mediaUrl;
+  final String? thumbnail;
   final String? textContent;
   final String? bgColor;
   final String? location;
@@ -293,6 +301,7 @@ class CommunityStory {
     required this.user,
     required this.type,
     this.mediaUrl,
+    this.thumbnail,
     this.textContent,
     this.bgColor,
     this.location,
@@ -309,6 +318,7 @@ class CommunityStory {
             : CommunityUser(id: 0, name: ''),
         type: j['type'] as String,
         mediaUrl: _fixUrlNullable(j['media_url'] as String?),
+        thumbnail: _fixUrlNullable(j['thumbnail'] as String?),
         textContent: j['text_content'] as String?,
         bgColor: j['bg_color'] as String?,
         location: j['location'] as String?,

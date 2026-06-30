@@ -159,6 +159,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                         final replies = repliesMap[root.id] ?? [];
                         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           _CommentTile(comment: root, onReply: () => _setReply(root), isReply: false,
+                            onEdit: root.user.isMe ? (newContent) async { await _repo.updateComment(root.id, newContent); setState(() { final idx = _comments.indexWhere((c) => c.id == root.id); if (idx >= 0) _comments[idx] = _comments[idx].copyWith(content: newContent); }); } : null,
                             onDelete: root.user.isMe ? () async { await _repo.deleteComment(root.id); setState(() => _comments.removeWhere((c) => c.id == root.id)); } : null),
                           // Threaded replies — indented
                           if (replies.isNotEmpty)
@@ -166,6 +167,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                               child: Column(children: [
                                 Container(width: 2, height: 8, color: const Color(0xFFE5E7EB)),
                                 ...replies.map((r) => _CommentTile(comment: r, onReply: () => _setReply(root), isReply: true,
+                                  onEdit: r.user.isMe ? (newContent) async { await _repo.updateComment(r.id, newContent); setState(() { final idx = _comments.indexWhere((c) => c.id == r.id); if (idx >= 0) _comments[idx] = _comments[idx].copyWith(content: newContent); }); } : null,
                                   onDelete: r.user.isMe ? () async { await _repo.deleteComment(r.id); setState(() => _comments.removeWhere((c) => c.id == r.id)); } : null)),
                               ])),
                         ]);
@@ -201,8 +203,14 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
               Text('Tap send to post', style: TextStyle(fontSize: 11, color: kOrange.withValues(alpha: 0.7))),
             ])),
             GestureDetector(onTap: () => setState(() { _mediaFile = null; _mediaType = null; }),
-              child: Container(width: 28, height: 28, decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), shape: BoxShape.circle),
+              child: Container(width: 28, height: 28, margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), shape: BoxShape.circle),
                 child: const Icon(Icons.close, size: 16, color: Colors.red))),
+            GestureDetector(onTap: _send,
+              child: Container(width: 40, height: 40,
+                decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
+                child: _sending ? const Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.send_rounded, color: Colors.white, size: 20))),
           ])),
         Padding(
           padding: EdgeInsets.only(left: 12, right: 12, top: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 12),
@@ -249,8 +257,9 @@ class _CommentTile extends StatelessWidget {
   final CommunityComment comment;
   final VoidCallback onReply;
   final VoidCallback? onDelete;
+  final void Function(String)? onEdit;
   final bool isReply;
-  const _CommentTile({required this.comment, required this.onReply, this.onDelete, required this.isReply});
+  const _CommentTile({required this.comment, required this.onReply, this.onDelete, this.onEdit, required this.isReply});
 
   @override
   Widget build(BuildContext context) {
@@ -285,6 +294,19 @@ class _CommentTile extends StatelessWidget {
             const SizedBox(width: 14),
             GestureDetector(onTap: onReply,
               child: const Text('Reply', style: TextStyle(color: Color(0xFF6B7280), fontSize: 11, fontWeight: FontWeight.w700))),
+            if (onEdit != null) ...[const SizedBox(width: 14),
+              GestureDetector(onTap: () {
+                final ctrl = TextEditingController(text: comment.content);
+                showDialog(context: context, builder: (ctx) => AlertDialog(
+                  title: const Text('Edit comment', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                  content: TextField(controller: ctrl, maxLines: 4, decoration: const InputDecoration(border: OutlineInputBorder())),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                    TextButton(onPressed: () { Navigator.pop(ctx); onEdit!(ctrl.text.trim()); },
+                      child: const Text('Save', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700))),
+                  ],
+                ));
+              }, child: const Text('Edit', style: TextStyle(color: kOrange, fontSize: 11, fontWeight: FontWeight.w600)))],
             if (onDelete != null) ...[const SizedBox(width: 14),
               GestureDetector(onTap: onDelete, child: const Text('Delete', style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w600)))],
             const SizedBox(width: 14),

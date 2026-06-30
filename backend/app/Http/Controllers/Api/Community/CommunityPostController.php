@@ -8,7 +8,10 @@ use App\Models\CommunityHashtag;
 use App\Models\CommunitySavedPost;
 use App\Models\CommunityNotification;
 use App\Models\CommunityPollVote;
+use App\Services\InteractionTracker;
 use App\Services\FcmService;
+use App\Services\RealtimeService;
+use App\Models\CommunityFollow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -126,6 +129,20 @@ class CommunityPostController extends Controller
         $userName = auth()->user()->name;
         send_followers_push(auth()->id(), $userName . " posted", $postPreview ?: "shared a new post", ["type"=>"post","post_id"=>$post->id]);
 
+        // Realtime "new posts available" hint. Public channel rather than
+        // fanning out to every follower's private channel — this is just a
+        // lightweight "tap to refresh" pill, not a content push, so there's
+        // nothing sensitive in it and no need to compute a recipient list
+        // per post. The feed itself still applies normal ranking/privacy
+        // when the user actually refreshes, so this never bypasses that.
+        if ($post->privacy === 'public') {
+            RealtimeService::toPublic('community.feed', 'feed.new_post', [
+                'post_id' => $post->id,
+                'author_id' => auth()->id(),
+                'author_name' => $userName,
+            ]);
+        }
+
         $post->load(['user.communityProfile','media','userReaction']);
         return response()->json(['status'=>'success','data'=>$this->feed->transformPost($post, auth()->id())], 201);
     }
@@ -166,7 +183,9 @@ class CommunityPostController extends Controller
             if ($existing->type === $request->type) {
                 $existing->delete();
                 $post->decrement('likes_count');
-                return response()->json(['status'=>'success','reacted'=>false,'likes_count'=>$post->fresh()->likes_count]);
+                $freshCount = $post->fresh()->likes_count;
+                RealtimeService::toPublic("community.post.{$id}", 'post.likes_changed', ['post_id' => $id, 'likes_count' => $freshCount]);
+                return response()->json(['status'=>'success','reacted'=>false,'likes_count'=>$freshCount]);
             }
             $existing->update(['type'=>$request->type]);
         } else {
@@ -183,7 +202,10 @@ class CommunityPostController extends Controller
             }
         }
 
-        return response()->json(['status'=>'success','reacted'=>true,'reaction'=>$request->type,'likes_count'=>$post->fresh()->likes_count]);
+        InteractionTracker::track($userId, $id, 'like');
+        $freshCount = $post->fresh()->likes_count;
+        RealtimeService::toPublic("community.post.{$id}", 'post.likes_changed', ['post_id' => $id, 'likes_count' => $freshCount]);
+        return response()->json(['status'=>'success','reacted'=>true,'reaction'=>$request->type,'likes_count'=>$freshCount]);
     }
 
     public function share(Request $request, int $id)
@@ -208,6 +230,8 @@ class CommunityPostController extends Controller
                 FcmService::sendToToken($owner->fcm_token, 'Post Shared', "{$actor->name} shared your post", ['type'=>'post_share','post_id'=>(string)$id]);
             }
         }
+        InteractionTracker::track($userId, $id, 'share');
+        RealtimeService::toPublic("community.post.{$id}", 'post.shares_changed', ['post_id' => $id, 'shares_count' => $original->fresh()->shares_count]);
         $share->load(['user.communityProfile','media','userReaction']);
         return response()->json(['status'=>'success','data'=>$this->feed->transformPost($share, auth()->id())], 201);
     }
@@ -219,10 +243,13 @@ class CommunityPostController extends Controller
         if ($existing) {
             $existing->delete();
             $post->decrement('saves_count');
+            RealtimeService::toPublic("community.post.{$id}", 'post.saves_changed', ['post_id' => $id, 'saves_count' => $post->fresh()->saves_count]);
             return response()->json(['status'=>'success','saved'=>false]);
         }
         CommunitySavedPost::create(['user_id'=>auth()->id(),'post_id'=>$id]);
         $post->increment('saves_count');
+        RealtimeService::toPublic("community.post.{$id}", 'post.saves_changed', ['post_id' => $id, 'saves_count' => $post->fresh()->saves_count]);
+        InteractionTracker::track(auth()->id(), $id, 'save');
         return response()->json(['status'=>'success','saved'=>true]);
     }
 

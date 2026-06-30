@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/services/firebase_service.dart';
+import '../../../../core/services/realtime_client.dart';
 import '../../../../core/storage/local_storage.dart';
+import '../../../community/presentation/providers/community_provider.dart';
 import '../models/user_model.dart';
 
 class AuthRepository {
@@ -21,6 +23,8 @@ class AuthRepository {
       await LocalStorage.saveToken(token);
       final user = await getMe();
       FirebaseService().registerTokenAfterLogin();
+      RealtimeClient.instance.connect();
+      MessagesNotifier.setMyId(user.id);
       return (user: user, token: token);
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
@@ -48,6 +52,8 @@ class AuthRepository {
       await LocalStorage.saveToken(token);
       final user = await getMe();
       FirebaseService().registerTokenAfterLogin();
+      RealtimeClient.instance.connect();
+      MessagesNotifier.setMyId(user.id);
       return (user: user, token: token);
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
@@ -109,6 +115,7 @@ class AuthRepository {
       await _dio.post('/auth/logout');
     } catch (_) {}
     await FirebaseService().deleteToken();
+    await RealtimeClient.instance.disconnect();
     await LocalStorage.clear();
   }
 

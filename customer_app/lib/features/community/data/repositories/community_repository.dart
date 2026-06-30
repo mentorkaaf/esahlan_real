@@ -12,6 +12,24 @@ class CommunityRepository {
     return _parsePosts(r.data['data']);
   }
 
+  // ── Feed interaction tracking ──────────────────────────────────────────
+  Future<void> trackInteraction(int postId, String type, {int? durationMs}) async {
+    try {
+      await _dio.post('/community/feed/track', data: {
+        'post_id': postId,
+        'type': type,
+        if (durationMs != null) 'duration_ms': durationMs,
+      });
+    } catch (_) {}
+  }
+
+  Future<void> trackImpressions(List<int> postIds) async {
+    if (postIds.isEmpty) return;
+    try {
+      await _dio.post('/community/feed/impressions', data: {'post_ids': postIds});
+    } catch (_) {}
+  }
+
   Future<List<CommunityPost>> getExploreFeed({int page = 1}) async {
     final r = await _dio.get('/community/explore', queryParameters: {'page': page});
     return _parsePosts(r.data['data']);
@@ -131,6 +149,9 @@ class CommunityRepository {
   }
 
   Future<void> deleteComment(int commentId) => _dio.delete('/community/comments/$commentId');
+
+  Future<void> updateComment(int commentId, String content) =>
+      _dio.put('/community/comments/$commentId', data: {'content': content});
 
   // ── Profile ────────────────────────────────────────────────────────────────
   Future<CommunityUser> getProfile(int userId) async {
@@ -303,6 +324,12 @@ class CommunityRepository {
 
   // ── Chat Extras ───────────────────────────────────────────────────────────
   Future<void> markChatRead(int chatId) => _dio.post('/community/chats/$chatId/read');
+
+  Future<void> sendTyping(int chatId, bool isTyping) async {
+    try {
+      await _dio.post('/community/chats/$chatId/typing', data: {'is_typing': isTyping});
+    } catch (_) {}
+  }
 
   Future<void> reactToMessage(int msgId, String emoji) =>
     _dio.post('/community/messages/$msgId/react', data: {'emoji': emoji});

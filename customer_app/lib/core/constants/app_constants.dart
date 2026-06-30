@@ -13,6 +13,15 @@ class AppConstants {
 
   static const String baseUrl = 'https://esahlan.com/api/v1';
 
+  // ── Realtime (Laravel Reverb) ────────────────────────────────────────────
+  // Public app key — safe to embed client-side (the secret stays server-only).
+  static const String reverbAppKey = 'eogm1qscup3wck2rwpkb';
+  static const String reverbHost   = 'esahlan.com';
+  static const int reverbPort      = 443;
+  static const bool reverbUseTLS   = true;
+  // Sanctum-protected channel auth endpoint (private/presence channels only).
+  static const String reverbAuthUrl = '$baseUrl/broadcasting/auth';
+
   static const int connectTimeout = 30000;
   static const int receiveTimeout = 30000;
 

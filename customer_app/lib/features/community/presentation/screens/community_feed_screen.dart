@@ -23,6 +23,8 @@ import '../widgets/video_ad_overlay.dart';
 import '../services/ad_preloader.dart';
 import '../services/video_preloader.dart';
 import '../services/video_engine.dart';
+import '../../../../core/services/realtime_client.dart';
+import '../../../../core/widgets/realtime_status_banner.dart';
 import 'business_page_detail_screen.dart';
 import 'community_search_screen.dart';
 
@@ -49,6 +51,9 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
   int _lastPostCount = 0;
   int _lastFirstPostId = 0;
   Timer? _pollTimer;
+  int? _myUserId;
+  void Function(dynamic)? _newPostListener;
+  void Function(dynamic)? _newStoryListener;
 
   @override
   void initState() {
@@ -62,8 +67,42 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
         setState(() => _hasNewPosts = false);
       }
     });
-    // Poll for new posts every 30s when scrolled down
-    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkNewPosts());
+    // Fallback poll (slow — realtime is the primary path, this just covers
+    // the rare case where the socket is down for an extended period).
+    _pollTimer = Timer.periodic(const Duration(seconds: 90), (_) => _checkNewPosts());
+    _subscribeNewPostFeed();
+  }
+
+  Future<void> _subscribeNewPostFeed() async {
+    // Public channel — every connected client sees the "new posts" hint,
+    // no auth/profile wait needed to start listening. The feed itself still
+    // applies normal ranking/privacy whenever the user actually refreshes —
+    // this listener never triggers that refresh automatically, it only
+    // ever shows a pill the user taps. Auto-refreshing here would blow away
+    // the locally-prepended feed state (including the poster's own just-
+    // created post and everyone else's posts already loaded) and replace it
+    // with a freshly re-ranked page 1, which is what made other people's
+    // posts appear to "vanish".
+    _newPostListener = (data) {
+      if (!mounted) return;
+      if (_myUserId != null && (data['author_id'] as int?) == _myUserId) return; // don't notify yourself about your own post
+      if (_scrollCtrl.hasClients && _scrollCtrl.offset > 200) {
+        setState(() => _hasNewPosts = true);
+      }
+      // Already at/near the top — nothing to do, they'll see it naturally
+      // next time they pull-to-refresh or reopen the tab.
+    };
+    RealtimeClient.instance.listen('community.feed', 'feed.new_post', _newPostListener!);
+
+    // Stories stay follower-scoped (private per-user channel).
+    try {
+      final me = await ref.read(communityMyProfileProvider.future);
+      _myUserId = me.id;
+      _newStoryListener = (data) {
+        if (mounted) ref.invalidate(communityStoriesProvider);
+      };
+      RealtimeClient.instance.listen('private-user.${me.id}', 'story.new', _newStoryListener!);
+    } catch (_) {}
   }
 
   Future<void> _checkNewPosts() async {
@@ -81,6 +120,12 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
   void dispose() {
     _pollTimer?.cancel();
     _tabCtrl.dispose();
+    if (_newPostListener != null) {
+      RealtimeClient.instance.removeListener('community.feed', 'feed.new_post', _newPostListener!);
+    }
+    if (_myUserId != null && _newStoryListener != null) {
+      RealtimeClient.instance.removeListener('private-user.$_myUserId', 'story.new', _newStoryListener!);
+    }
     super.dispose();
   }
 
@@ -176,6 +221,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
           ),
         )),
       ),
+      Positioned(top: 0, left: 0, right: 0, child: SafeArea(bottom: false, child: RealtimeStatusBanner())),
       ]),
     );
   }
@@ -251,14 +297,32 @@ class _FeedTab extends ConsumerWidget {
           feedState.when(
             data: (posts) {
               if (posts.isEmpty) return const _EmptyFeed();
-              return Column(
-                children: [
-                  ...posts.map((p) => _PostCard(post: p,
-                    onDelete: () { ref.read(communityRepoProvider).deletePost(p.id); ref.read(communityFeedProvider.notifier).removePost(p.id); },
-                  )),
-                  const SizedBox(height: 80),
-                ],
-              );
+              final suggestions = ref.watch(communitySuggestionsProvider).valueOrNull ?? [];
+              final reels = ref.watch(communityReelsProvider).valueOrNull ?? [];
+              final widgets = <Widget>[];
+              for (var i = 0; i < posts.length; i++) {
+                widgets.add(_PostCard(post: posts[i],
+                  onDelete: () { ref.read(communityRepoProvider).deletePost(posts[i].id); ref.read(communityFeedProvider.notifier).removePost(posts[i].id); },
+                ));
+                if (i == 4 && suggestions.where((u) => !u.isMe && !u.isFollowing).isNotEmpty) {
+                  widgets.add(_PeopleYouMayKnow(users: suggestions.where((u) => !u.isMe && !u.isFollowing).take(10).toList()));
+                }
+                if (i == 8 && reels.isNotEmpty) {
+                  widgets.add(_ReelsCarousel(reels: reels.take(6).toList()));
+                }
+                if (i > 12 && (i - 12) % 10 == 0 && suggestions.where((u) => !u.isMe && !u.isFollowing).length > 10) {
+                  final offset = ((i - 12) ~/ 10) * 5;
+                  final batch = suggestions.where((u) => !u.isMe && !u.isFollowing).skip(offset).take(10).toList();
+                  if (batch.isNotEmpty) widgets.add(_PeopleYouMayKnow(users: batch));
+                }
+                if (i > 16 && (i - 16) % 12 == 0 && reels.length > 6) {
+                  final offset = ((i - 16) ~/ 12) * 4;
+                  final batch = reels.skip(offset).take(6).toList();
+                  if (batch.isNotEmpty) widgets.add(_ReelsCarousel(reels: batch));
+                }
+              }
+              widgets.add(const SizedBox(height: 80));
+              return Column(children: widgets);
             },
             loading: () => const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -741,6 +805,8 @@ class _PostCard extends ConsumerStatefulWidget {
 class _PostCardState extends ConsumerState<_PostCard> {
   bool _showReactions = false;
   String? _myReaction;
+  String get _postChannel => 'community.post.${widget.post.id}';
+  final Map<String, void Function(dynamic)> _realtimeListeners = {};
 
   static const _reactions = [
     {'type': 'like', 'emoji': '👍', 'color': Color(0xFF1877F2)},
@@ -755,6 +821,47 @@ class _PostCardState extends ConsumerState<_PostCard> {
   void initState() {
     super.initState();
     _myReaction = widget.post.userReaction;
+    if (!widget.post.isAd) _subscribeRealtime();
+  }
+
+  @override
+  void dispose() {
+    for (final entry in _realtimeListeners.entries) {
+      RealtimeClient.instance.removeListener(_postChannel, entry.key, entry.value);
+    }
+    super.dispose();
+  }
+
+  void _subscribeRealtime() {
+    void on(String event, void Function(dynamic) handler) {
+      _realtimeListeners[event] = handler;
+      RealtimeClient.instance.listen(_postChannel, event, handler);
+    }
+
+    on('post.likes_changed', (data) {
+      if (!mounted) return;
+      setState(() => widget.post.likesCount = data['likes_count'] as int);
+    });
+    on('post.views_changed', (data) {
+      if (!mounted) return;
+      setState(() => widget.post.viewsCount = data['views_count'] as int);
+    });
+    on('post.comment_added', (data) {
+      if (!mounted) return;
+      setState(() => widget.post.commentsCount = data['comments_count'] as int);
+    });
+    on('post.comment_removed', (data) {
+      if (!mounted) return;
+      setState(() => widget.post.commentsCount = data['comments_count'] as int);
+    });
+    on('post.shares_changed', (data) {
+      if (!mounted) return;
+      setState(() => widget.post.sharesCount = data['shares_count'] as int);
+    });
+    on('post.saves_changed', (data) {
+      if (!mounted) return;
+      setState(() => widget.post.savesCount = data['saves_count'] as int);
+    });
   }
 
   void _showEditDialog() {
@@ -849,12 +956,9 @@ class _PostCardState extends ConsumerState<_PostCard> {
             child: Text('is feeling ${p.feeling}', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
           ),
 
-        // Content
+        // Content with "See more"
         if (p.content != null && p.content!.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            child: Text(p.content!, style: const TextStyle(color: Color(0xFF1A1B2E), fontSize: 15, height: 1.4)),
-          ),
+          _ExpandableText(text: p.content!),
 
         // Shared post preview
         if (p.type == 'share' && p.sharedPost != null)
@@ -895,7 +999,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
           ),
 
         // Media
-        if (p.media.isNotEmpty) _MediaGrid(media: p.media),
+        if (p.media.isNotEmpty) _MediaGrid(media: p.media, postId: p.id),
 
         // Poll
         if (p.type == 'poll' && p.pollOptions.isNotEmpty)
@@ -1105,6 +1209,16 @@ class _PostCardState extends ConsumerState<_PostCard> {
             subtitle: const Text('Promote to more people', style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
             onTap: () { Navigator.pop(context); _showBoostDialog(); },
           ),
+          if (!widget.post.user.isMe) ListTile(
+            leading: const Icon(Icons.visibility_off_rounded, color: Color(0xFF6B7280)),
+            title: const Text('Not interested'),
+            subtitle: const Text('See fewer posts like this', style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
+            onTap: () {
+              Navigator.pop(context);
+              ref.read(communityRepoProvider).trackInteraction(widget.post.id, 'skip');
+              ref.read(communityFeedProvider.notifier).removePost(widget.post.id);
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.flag_rounded),
             title: const Text('Report Post'),
@@ -1113,6 +1227,47 @@ class _PostCardState extends ConsumerState<_PostCard> {
         ]),
       ),
     );
+  }
+}
+
+class _ExpandableText extends StatefulWidget {
+  final String text;
+  const _ExpandableText({required this.text});
+  @override
+  State<_ExpandableText> createState() => _ExpandableTextState();
+}
+
+class _ExpandableTextState extends State<_ExpandableText> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(widget.text,
+          style: const TextStyle(color: Color(0xFF1A1B2E), fontSize: 15, height: 1.4),
+          maxLines: _expanded ? null : 3,
+          overflow: _expanded ? null : TextOverflow.ellipsis),
+        if (!_expanded && _isLongText())
+          GestureDetector(
+            onTap: () => setState(() => _expanded = true),
+            child: const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text('See more', style: TextStyle(color: Color(0xFF6B7280), fontWeight: FontWeight.w700, fontSize: 14)),
+            ),
+          ),
+      ]),
+    );
+  }
+
+  bool _isLongText() {
+    final tp = TextPainter(
+      text: TextSpan(text: widget.text, style: const TextStyle(fontSize: 15, height: 1.4)),
+      maxLines: 3,
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: MediaQuery.of(context).size.width - 24);
+    return tp.didExceedMaxLines;
   }
 }
 
@@ -1239,9 +1394,175 @@ class _BusinessesTab extends StatelessWidget {
   Widget build(BuildContext context) => const BusinessPagesListWidget();
 }
 
+// People you may know — Facebook-style horizontal cards
+class _PeopleYouMayKnow extends ConsumerWidget {
+  final List<CommunityUser> users;
+  const _PeopleYouMayKnow({required this.users});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (users.isEmpty) return const SizedBox.shrink();
+    return Container(
+      color: Colors.white,
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+          child: Row(children: [
+            const Icon(Icons.people_alt_rounded, color: kOrange, size: 20),
+            const SizedBox(width: 8),
+            const Text('People you may know', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1A1B2E))),
+          ])),
+        SizedBox(height: 220,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            itemCount: users.length,
+            itemBuilder: (_, i) => _SuggestionCard(user: users[i]),
+          )),
+        const SizedBox(height: 8),
+      ]),
+    );
+  }
+}
+
+class _SuggestionCard extends ConsumerStatefulWidget {
+  final CommunityUser user;
+  const _SuggestionCard({required this.user});
+  @override
+  ConsumerState<_SuggestionCard> createState() => _SuggestionCardState();
+}
+
+class _SuggestionCardState extends ConsumerState<_SuggestionCard> {
+  late bool _following;
+  bool _removed = false;
+
+  @override
+  void initState() { super.initState(); _following = widget.user.isFollowing; }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_removed) return const SizedBox.shrink();
+    final u = widget.user;
+    return Container(
+      width: 160, margin: const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB))),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: [
+        // Cover/avatar area
+        Stack(children: [
+          GestureDetector(
+            onTap: () => context.push('/community/profile/${u.id}'),
+            child: SizedBox(height: 100, width: double.infinity,
+              child: u.avatar != null
+                ? NetImage(url: u.avatar!, fit: BoxFit.cover)
+                : Container(color: kOrange.withValues(alpha: 0.1),
+                    child: Center(child: Text(u.name[0].toUpperCase(),
+                      style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: kOrange)))))),
+          Positioned(top: 4, right: 4,
+            child: GestureDetector(onTap: () => setState(() => _removed = true),
+              child: Container(width: 24, height: 24,
+                decoration: BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
+                child: const Icon(Icons.close, size: 14, color: Colors.white)))),
+        ]),
+        Padding(padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+          child: Text(u.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E)),
+            maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center)),
+        Text('${u.followersCount} followers', style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+        const Spacer(),
+        Padding(padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+          child: SizedBox(width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () async {
+                setState(() => _following = !_following);
+                try { await ref.read(communityRepoProvider).toggleFollow(u.id); } catch (_) { setState(() => _following = !_following); }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _following ? const Color(0xFFF0F2F5) : kOrange,
+                foregroundColor: _following ? const Color(0xFF6B7280) : Colors.white,
+                elevation: 0, padding: const EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+              child: Text(_following ? 'Following' : 'Follow', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+            ))),
+      ]),
+    );
+  }
+}
+
+// Reels carousel — Facebook-style horizontal preview in feed
+class _ReelsCarousel extends ConsumerWidget {
+  final List<CommunityPost> reels;
+  const _ReelsCarousel({required this.reels});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (reels.isEmpty) return const SizedBox.shrink();
+    return Container(
+      color: Colors.white,
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+          child: Row(children: [
+            const Icon(Icons.play_circle_filled_rounded, color: kOrange, size: 20),
+            const SizedBox(width: 8),
+            const Text('Reels', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1A1B2E))),
+            const Spacer(),
+            GestureDetector(
+              onTap: () {
+                ref.read(communityNavIndexProvider.notifier).state = 1;
+              },
+              child: const Text('See all', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700, fontSize: 13))),
+          ])),
+        SizedBox(height: 200,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            itemCount: reels.length,
+            itemBuilder: (_, i) {
+              final reel = reels[i];
+              final media = reel.media.isNotEmpty ? reel.media.first : null;
+              final thumb = media?.thumbnail ?? media?.url;
+              return GestureDetector(
+                onTap: () {
+                  ref.read(communityNavIndexProvider.notifier).state = 1;
+                },
+                child: Container(
+                  width: 120, margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), color: const Color(0xFF1A1B2E)),
+                  clipBehavior: Clip.antiAlias,
+                  child: Stack(fit: StackFit.expand, children: [
+                    if (thumb != null) NetImage(url: thumb, fit: BoxFit.cover),
+                    Container(decoration: BoxDecoration(gradient: LinearGradient(
+                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)]))),
+                    const Center(child: Icon(Icons.play_circle_outline_rounded, color: Colors.white70, size: 36)),
+                    Positioned(bottom: 8, left: 8, right: 8,
+                      child: Row(children: [
+                        CircleNetImage(url: reel.user.avatar, size: 22, fallbackText: reel.user.name),
+                        const SizedBox(width: 6),
+                        Expanded(child: Text(reel.user.name, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                          maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      ])),
+                    if (reel.viewsCount > 0) Positioned(top: 6, right: 6,
+                      child: Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(4)),
+                        child: Text(reel.viewsCount >= 1000 ? '${(reel.viewsCount / 1000).toStringAsFixed(1)}K' : '${reel.viewsCount}',
+                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)))),
+                  ]),
+                ),
+              );
+            },
+          )),
+        const SizedBox(height: 8),
+      ]),
+    );
+  }
+}
+
 class _MediaGrid extends StatelessWidget {
   final List<CommunityPostMedia> media;
-  const _MediaGrid({required this.media});
+  final int? postId;
+  const _MediaGrid({required this.media, this.postId});
 
   void _openGallery(BuildContext context, int index) {
     final images = media.where((m) => m.type == 'image').toList();
@@ -1255,7 +1576,7 @@ class _MediaGrid extends StatelessWidget {
       final m = media[0];
       return GestureDetector(
         onTap: m.type == 'image' ? () => _openGallery(context, 0) : null,
-        child: _MediaItem(m: m, height: m.type == 'video' ? 0 : 0));
+        child: _MediaItem(m: m, height: m.type == 'video' ? 0 : 0, postId: postId));
     }
     if (media.length == 2) {
       return SizedBox(height: 200, child: Row(children: [
@@ -1263,24 +1584,24 @@ class _MediaGrid extends StatelessWidget {
           Expanded(child: Padding(padding: EdgeInsets.only(right: i == 0 ? 2 : 0),
             child: GestureDetector(
               onTap: media[i].type == 'image' ? () => _openGallery(context, i) : null,
-              child: _MediaItem(m: media[i], height: 200)))),
+              child: _MediaItem(m: media[i], height: 200, postId: postId)))),
       ]));
     }
     final extra = media.length - 3;
     return Column(children: [
       GestureDetector(
         onTap: media[0].type == 'image' ? () => _openGallery(context, 0) : null,
-        child: _MediaItem(m: media[0], height: 220)),
+        child: _MediaItem(m: media[0], height: 220, postId: postId)),
       const SizedBox(height: 2),
       SizedBox(height: 120, child: Row(children: [
         Expanded(child: GestureDetector(
           onTap: media[1].type == 'image' ? () => _openGallery(context, 1) : null,
-          child: _MediaItem(m: media[1], height: 120))),
+          child: _MediaItem(m: media[1], height: 120, postId: postId))),
         const SizedBox(width: 2),
         Expanded(child: GestureDetector(
           onTap: () => _openGallery(context, 2),
           child: Stack(children: [
-            _MediaItem(m: media[2], height: 120),
+            _MediaItem(m: media[2], height: 120, postId: postId),
             if (extra > 0) Positioned.fill(child: Container(
               color: Colors.black45,
               child: Center(child: Text('+$extra', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800))),
@@ -1367,7 +1688,8 @@ class _ImageGalleryScreen extends StatelessWidget {
 class _MediaItem extends ConsumerStatefulWidget {
   final CommunityPostMedia m;
   final double height;
-  const _MediaItem({required this.m, required this.height});
+  final int? postId;
+  const _MediaItem({required this.m, required this.height, this.postId});
 
   @override
   ConsumerState<_MediaItem> createState() => _MediaItemState();
@@ -1380,6 +1702,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   bool _visible = false;
   final _key = UniqueKey();
   final _engine = VideoEngine.instance;
+  DateTime? _watchStart;
 
   bool get _isVideo => widget.m.type == 'video';
   bool get _isAudio => widget.m.type == 'audio';
@@ -1421,9 +1744,20 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     _visible = info.visibleFraction > 0.5;
     if (_visible) {
       if (_isVideo && !_ready) _initVideo();
-      if (_ready && _ctrl != null && !_paused) _engine.activate(_videoUrl);
+      if (_ready && _ctrl != null && !_paused) {
+        _engine.activate(_videoUrl);
+        _watchStart ??= DateTime.now();
+      }
     } else {
       if (_ctrl != null && _ctrl!.value.isPlaying) _engine.pause(_videoUrl);
+      if (_watchStart != null && _isVideo) {
+        final ms = DateTime.now().difference(_watchStart!).inMilliseconds;
+        if (ms > 1000 && widget.postId != null) {
+          ref.read(communityRepoProvider).trackInteraction(
+            widget.postId!, 'watch', durationMs: ms);
+        }
+        _watchStart = null;
+      }
     }
   }
 

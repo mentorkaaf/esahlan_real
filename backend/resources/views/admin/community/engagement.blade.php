@@ -12,6 +12,16 @@
 @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
 
+<div style="margin-bottom:16px;">
+    <form method="POST" action="{{ route('admin.community.engagement.reset-all') }}"
+          onsubmit="return confirm('Reset ALL fake engagement on every post? This removes bot likes/comments and recomputes views from real tracked activity. This cannot be undone.');">
+        @csrf
+        <button type="submit" class="btn btn-sm" style="background:#FEE2E2;color:#DC2626;border:1px solid #FCA5A5;font-weight:700;padding:8px 16px;">
+            <i class="fas fa-trash-alt"></i> Reset ALL Fake Engagement
+        </button>
+    </form>
+</div>
+
 <div class="row" style="gap:16px;">
     {{-- Generate Form --}}
     <div class="col-lg-5">
@@ -81,10 +91,18 @@
                     <td style="padding:8px;font-weight:600;">{{ $post->likes_count }}</td>
                     <td style="padding:8px;font-weight:600;">{{ $post->comments_count }}</td>
                     <td style="padding:8px;font-weight:600;">{{ $post->views_count }}</td>
-                    <td style="padding:8px;">
+                    <td style="padding:8px;white-space:nowrap;">
                         <button onclick="document.querySelector('[name=post_id]').value={{ $post->id }};window.scrollTo(0,0)" class="btn btn-sm" style="background:#8B5CF6;color:#fff;font-size:11px;padding:3px 10px;">
                             <i class="fas fa-magic"></i> Generate
                         </button>
+                        <form method="POST" action="{{ route('admin.community.engagement.reset') }}" style="display:inline;"
+                              onsubmit="return confirm('Reset fake engagement on post #{{ $post->id }}? Removes bot likes/comments and recomputes views from real activity.');">
+                            @csrf
+                            <input type="hidden" name="post_id" value="{{ $post->id }}">
+                            <button type="submit" class="btn btn-sm" style="background:#FEE2E2;color:#DC2626;font-size:11px;padding:3px 10px;">
+                                <i class="fas fa-undo"></i> Reset
+                            </button>
+                        </form>
                     </td>
                 </tr>
                 @endforeach

@@ -51,7 +51,14 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<CommunityPost>>> {
       final posts = await _fetchPage(_page);
       if (posts.isEmpty) _hasMore = false;
       final current = refresh ? <CommunityPost>[] : (state.valueOrNull ?? []);
-      state = AsyncValue.data([...current, ...posts]);
+      // Dedup real posts by id — the ranking algorithm can occasionally
+      // resurface a post across adjacent pages (scores shift between
+      // requests). Ads are excluded from this check: their id comes from a
+      // separate community_ads sequence that can collide with a real post's
+      // id, so comparing them as the same "id space" would wrongly drop one.
+      final existingIds = current.where((p) => !p.isAd).map((p) => p.id).toSet();
+      final newPosts = posts.where((p) => p.isAd || !existingIds.contains(p.id)).toList();
+      state = AsyncValue.data([...current, ...newPosts]);
       if (posts.isNotEmpty) _page++;
     } catch (e, s) {
       if (!refresh) state = AsyncValue.error(e, s);
@@ -173,6 +180,7 @@ class MessagesNotifier
 
   final int _chatId;
   static int _myId = 0;
+  static int get myId => _myId;
   static void setMyId(int id) => _myId = id;
 
   Future<void> load() async {
@@ -187,6 +195,26 @@ class MessagesNotifier
   Future<void> send({String? content, String type = 'text'}) async {
     final msg = await _repo.sendMessage(_chatId, _myId, content: content, type: type);
     state = state.whenData((msgs) => [...msgs, msg]);
+  }
+
+  /// Append a message received over the realtime channel. Skips it if we
+  /// already have this id (covers the sender's own optimistic `send()` echo
+  /// arriving back over the socket).
+  void appendIncoming(CommunityMessage msg) {
+    state = state.whenData((msgs) {
+      if (msgs.any((m) => m.id == msg.id)) return msgs;
+      return [...msgs, msg];
+    });
+  }
+
+  void markAllReadLocally() {
+    state = state.whenData((msgs) => msgs
+        .map((m) => m.isRead ? m : CommunityMessage(
+              id: m.id, chatId: m.chatId, user: m.user, type: m.type,
+              content: m.content, mediaUrl: m.mediaUrl, duration: m.duration,
+              isDeleted: m.isDeleted, isMe: m.isMe, isRead: true, createdAt: m.createdAt,
+            ))
+        .toList());
   }
 }
 

@@ -11,6 +11,7 @@ import '../providers/community_provider.dart';
 import '../widgets/comments_sheet.dart';
 import '../widgets/video_ad_overlay.dart';
 import '../services/video_preloader.dart';
+import '../../../../core/services/realtime_client.dart';
 import 'community_shell.dart';
 
 // Unified reel item — community post, eRent reel, or ad
@@ -38,10 +39,18 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
   final PageController _pageCtrl = PageController();
   int _currentIndex = 0;
   List<_ReelItem>? _cachedItems;
-  int _lastInputHash = 0;
 
   @override
-  void initState() { super.initState(); _loadReelAds(); }
+  void initState() {
+    super.initState();
+    _loadReelAds();
+    _pageCtrl.addListener(() {
+      final page = _pageCtrl.page?.round() ?? 0;
+      if (page != _currentIndex && mounted) {
+        setState(() => _currentIndex = page);
+      }
+    });
+  }
 
   void _autoScrollNext(int current, int total) {
     if (current + 1 < total) {
@@ -57,11 +66,19 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
 
   List<Map<String, dynamic>> _reelAds = [];
 
+  // Tracks how much of each source list has already been folded into
+  // _cachedItems, so a pagination append only processes the NEW slice
+  // instead of rebuilding (and reshuffling) everything already on screen —
+  // reshuffling the whole list on every page load was remapping
+  // _currentIndex to a different reel out from under the user mid-scroll.
+  int _foldedCommunityCount = 0;
+  int _foldedRentCount = 0;
+  int _adInterleaveCounter = 0;
+
   List<_ReelItem> _buildCombinedList(
       List<CommunityPost> communityReels, List<Map<String, dynamic>> rentReels) {
     final items = <_ReelItem>[];
     int ci = 0, ri = 0, ai = 0;
-    int count = 0;
 
     // Shuffle community reels for random order
     final shuffled = List<CommunityPost>.from(communityReels)..shuffle();
@@ -69,8 +86,8 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
     while (ci < shuffled.length || ri < rentReels.length) {
       for (int i = 0; i < 2 && ci < shuffled.length; i++, ci++) {
         items.add(_ReelItem.community(shuffled[ci]));
-        count++;
-        if (count % 4 == 0 && ai < _reelAds.length) {
+        _adInterleaveCounter++;
+        if (_adInterleaveCounter % 4 == 0 && ai < _reelAds.length) {
           items.add(_ReelItem.ad(_reelAds[ai++]));
         }
       }
@@ -101,10 +118,39 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
 
     final communityReels = reelsAsync.valueOrNull ?? [];
     final rentReels = rentAsync.valueOrNull ?? [];
-    final inputHash = Object.hashAll([communityReels.length, rentReels.length, _reelAds.length]);
-    if (_cachedItems == null || inputHash != _lastInputHash) {
+
+    if (_cachedItems == null) {
+      // First load — build and shuffle the whole thing once. If preroll ads
+      // (loaded async, usually arrive within the first second) haven't come
+      // back yet, they'll simply get folded in on the next pagination append
+      // instead of immediately — a minor delay, not a correctness issue.
       _cachedItems = _buildCombinedList(communityReels, rentReels);
-      _lastInputHash = inputHash;
+      _foldedCommunityCount = communityReels.length;
+      _foldedRentCount = rentReels.length;
+    } else if (communityReels.length < _foldedCommunityCount || rentReels.length < _foldedRentCount) {
+      // Source list actually shrank — a genuine reset (e.g. pull-to-refresh
+      // reloaded from page 1), not a pagination append. Rebuild from scratch
+      // and snap back to the top since the old indices no longer mean anything.
+      _cachedItems = _buildCombinedList(communityReels, rentReels);
+      _foldedCommunityCount = communityReels.length;
+      _foldedRentCount = rentReels.length;
+      _adInterleaveCounter = 0;
+      if (_currentIndex > 0 && _pageCtrl.hasClients) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_pageCtrl.hasClients) _pageCtrl.jumpToPage(0);
+          setState(() => _currentIndex = 0);
+        });
+      }
+    } else if (communityReels.length > _foldedCommunityCount || rentReels.length > _foldedRentCount) {
+      // Pagination appended more reels — fold in only the new slice, shuffled
+      // on its own, appended after the existing (stable) order. Never touch
+      // what's already in _cachedItems so _currentIndex keeps pointing at the
+      // same reel the user is currently watching.
+      final newCommunity = communityReels.sublist(_foldedCommunityCount);
+      final newRent = rentReels.sublist(_foldedRentCount);
+      _cachedItems!.addAll(_buildCombinedList(newCommunity, newRent));
+      _foldedCommunityCount = communityReels.length;
+      _foldedRentCount = rentReels.length;
     }
     final combined = _cachedItems!;
 
@@ -177,6 +223,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
                   reel: item.communityPost!,
                   isActive: isPageActive,
                   onVideoEnd: () => _autoScrollNext(i, combined.length),
+                  onSkip: () => _autoScrollNext(i, combined.length),
                   key: ValueKey('comm_${item.communityPost!.id}'),
                 );
               },
@@ -191,7 +238,8 @@ class _CommunityReelCard extends ConsumerStatefulWidget {
   final CommunityPost reel;
   final bool isActive;
   final VoidCallback? onVideoEnd;
-  const _CommunityReelCard({super.key, required this.reel, required this.isActive, this.onVideoEnd});
+  final VoidCallback? onSkip;
+  const _CommunityReelCard({super.key, required this.reel, required this.isActive, this.onVideoEnd, this.onSkip});
 
   @override
   ConsumerState<_CommunityReelCard> createState() => _CommunityReelCardState();
@@ -208,6 +256,8 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   int _likesCount = 0;
   final _engine = VideoEngine.instance;
   String _videoUrl = '';
+  String get _postChannel => 'community.post.${widget.reel.id}';
+  final Map<String, void Function(dynamic)> _realtimeListeners = {};
 
   @override
   void initState() {
@@ -216,6 +266,41 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     _saved = widget.reel.isSaved;
     _likesCount = widget.reel.likesCount;
     _initVideo();
+    if (widget.isActive) _trackView();
+    if (!widget.reel.isAd) _subscribeRealtime();
+  }
+
+  void _subscribeRealtime() {
+    void on(String event, void Function(dynamic) handler) {
+      _realtimeListeners[event] = handler;
+      RealtimeClient.instance.listen(_postChannel, event, handler);
+    }
+
+    on('post.views_changed', (data) {
+      if (!mounted) return;
+      setState(() => widget.reel.viewsCount = data['views_count'] as int);
+    });
+    on('post.likes_changed', (data) {
+      if (!mounted) return;
+      setState(() {
+        widget.reel.likesCount = data['likes_count'] as int;
+        _likesCount = widget.reel.likesCount;
+      });
+    });
+    on('post.comment_added', (data) {
+      if (!mounted) return;
+      setState(() => widget.reel.commentsCount = data['comments_count'] as int);
+    });
+    on('post.shares_changed', (data) {
+      if (!mounted) return;
+      setState(() => widget.reel.sharesCount = data['shares_count'] as int);
+    });
+  }
+
+  void _trackView() {
+    if (widget.reel.id > 0) {
+      ref.read(communityRepoProvider).trackImpressions([widget.reel.id]);
+    }
   }
 
   void _initVideo() async {
@@ -263,6 +348,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     if (widget.isActive != old.isActive) {
       if (widget.isActive) {
         if (!_paused && _videoUrl.isNotEmpty) _engine.activate(_videoUrl);
+        _trackView();
       } else {
         if (_videoUrl.isNotEmpty) _engine.pause(_videoUrl);
       }
@@ -270,7 +356,12 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   }
 
   @override
-  void dispose() { super.dispose(); }
+  void dispose() {
+    for (final entry in _realtimeListeners.entries) {
+      RealtimeClient.instance.removeListener(_postChannel, entry.key, entry.value);
+    }
+    super.dispose();
+  }
 
   void _togglePause() {
     if (!_videoReady) return;
@@ -281,6 +372,32 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   void _onDoubleTap() {
     setState(() { _showHeart = true; if (!_liked) { _liked = true; _likesCount++; ref.read(communityRepoProvider).reactToPost(widget.reel.id, 'like'); } });
     Future.delayed(const Duration(milliseconds: 800), () { if (mounted) setState(() => _showHeart = false); });
+  }
+
+  void _showOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1B2E),
+      builder: (_) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            leading: const Icon(Icons.visibility_off_rounded, color: Colors.white70),
+            title: const Text('Not interested', style: TextStyle(color: Colors.white)),
+            subtitle: const Text('See fewer reels like this', style: TextStyle(fontSize: 12, color: Colors.white54)),
+            onTap: () {
+              Navigator.pop(context);
+              ref.read(communityRepoProvider).trackInteraction(widget.reel.id, 'skip');
+              widget.onSkip?.call();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.flag_rounded, color: Colors.white70),
+            title: const Text('Report', style: TextStyle(color: Colors.white)),
+            onTap: () => Navigator.pop(context),
+          ),
+        ]),
+      ),
+    );
   }
 
   @override
@@ -323,6 +440,12 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         Positioned(top: MediaQuery.of(context).padding.top + 64, right: 12,
           child: GestureDetector(onTap: () { setState(() => _muted = !_muted); _videoCtrl?.setVolume(_muted ? 0 : 1); },
             child: Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle), child: Icon(_muted ? Icons.volume_off : Icons.volume_up, color: Colors.white, size: 20)))),
+
+        // Options (not interested)
+        if (!reel.user.isMe)
+          Positioned(top: MediaQuery.of(context).padding.top + 16, right: 12,
+            child: GestureDetector(onTap: _showOptions,
+              child: Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle), child: const Icon(Icons.more_vert_rounded, color: Colors.white, size: 20)))),
 
         // Bottom info
         Positioned(bottom: 80, left: 16, right: 80,

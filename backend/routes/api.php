@@ -243,6 +243,16 @@ Route::prefix('v1')->group(function () {
     // ═══════════════════════════════════════════════════════════════
     Route::middleware('auth:sanctum')->group(function () {
 
+    // Reverb private/presence channel authorization for mobile clients.
+    // The framework auto-registers broadcasting/auth under the "web"
+    // (session-cookie) middleware group, which Bearer-token mobile clients
+    // can't use — this Sanctum-protected duplicate is what Flutter/Echo
+    // actually points at. Shared by every module's private/presence channels,
+    // not just Community.
+    Route::post('broadcasting/auth', function (\Illuminate\Http\Request $request) {
+        return \Illuminate\Support\Facades\Broadcast::auth($request);
+    });
+
     // ── Community Module ──────────────────────────────────────────────────────
     Route::prefix('community')->group(function () {
         // Feed
@@ -254,6 +264,10 @@ Route::prefix('v1')->group(function () {
         Route::get('search', [CommunityFeedController::class, 'search']);
         Route::get('suggestions', [CommunityFeedController::class, 'suggestions']);
 
+        // Feed interaction tracking
+        Route::post('feed/track', [CommunityFeedController::class, 'trackInteraction']);
+        Route::post('feed/impressions', [CommunityFeedController::class, 'trackImpressions']);
+
         // Posts
         Route::get('posts/saved', [CommunityPostController::class, 'saved']);
         Route::apiResource('posts', CommunityPostController::class)->except(['index']);
@@ -261,6 +275,10 @@ Route::prefix('v1')->group(function () {
         Route::post('posts/{id}/share', [CommunityPostController::class, 'share']);
         Route::post('posts/{id}/save', [CommunityPostController::class, 'save']);
         Route::post('posts/{id}/vote', [CommunityPostController::class, 'votePoll']);
+
+        // Promoted posts (boost)
+        Route::get('ads/analytics', [CommunityAdController::class, 'analytics']);
+        Route::post('posts/{id}/boost', [CommunityAdController::class, 'boostPost']);
 
         // Comments
         Route::get('posts/{postId}/comments', [CommunityCommentController::class, 'index']);
@@ -308,6 +326,7 @@ Route::prefix('v1')->group(function () {
         Route::get('chats/{chatId}/messages', [CommunityChatController::class, 'messages']);
         Route::post('chats/{chatId}/messages', [CommunityChatController::class, 'send']);
         Route::post('chats/{chatId}/read', [CommunityChatController::class, 'markRead']);
+        Route::post('chats/{chatId}/typing', [CommunityChatController::class, 'typing']);
         Route::post('messages/{msgId}/react', [CommunityChatController::class, 'reactToMessage']);
         Route::delete('messages/{msgId}', [CommunityChatController::class, 'deleteMessage']);
 
@@ -552,11 +571,6 @@ Route::prefix('v1/elearning')->group(function () {
         });
     });
 });
-
-        // Promoted posts (boost)
-        Route::get('ads/analytics', [CommunityAdController::class, 'analytics']);
-        Route::post('posts/{id}/boost', [CommunityAdController::class, 'boostPost']);
-        Route::get('ads/analytics', [CommunityAdController::class, 'analytics']);
 
     // Admin engagement generator
     Route::prefix('admin')->middleware('auth:sanctum')->group(function () {

@@ -4,6 +4,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CommunityStory;
 use App\Models\CommunityStoryView;
 use App\Services\FcmService;
+use App\Services\RealtimeService;
 use Illuminate\Http\Request;
 
 class CommunityStoryController extends Controller
@@ -57,6 +58,16 @@ class CommunityStoryController extends Controller
             'expires_at' => now()->addHours(24),
         ]);
 
+        // Realtime "new story" hint — followers only, so the stories bar
+        // can refresh without waiting for the user to reopen the app.
+        $followerIds = \App\Models\CommunityFollow::where('following_id', auth()->id())->pluck('follower_id')->toArray();
+        if (!empty($followerIds)) {
+            RealtimeService::toUsers($followerIds, 'story.new', [
+                'story_id' => $story->id,
+                'author_id' => auth()->id(),
+            ]);
+        }
+
         return response()->json(['status'=>'success','data'=>$story], 201);
     }
 
@@ -66,6 +77,14 @@ class CommunityStoryController extends Controller
         if (!CommunityStoryView::where('story_id',$id)->where('user_id',auth()->id())->exists()) {
             CommunityStoryView::create(['story_id'=>$id,'user_id'=>auth()->id()]);
             $story->increment('views_count');
+
+            if ($story->user_id !== auth()->id()) {
+                RealtimeService::toOwner('community', 'story', $id, 'story.viewed', [
+                    'story_id' => $id,
+                    'views_count' => $story->fresh()->views_count,
+                    'viewer' => ['id' => auth()->id(), 'name' => auth()->user()->name],
+                ]);
+            }
         }
         return response()->json(['status'=>'success']);
     }
@@ -105,6 +124,11 @@ class CommunityStoryController extends Controller
                 $actor = auth()->user();
                 FcmService::sendToToken($owner->fcm_token, 'Story Reaction', "{$actor->name} reacted {$request->emoji} to your story", ['type'=>'story_reaction','story_id'=>(string)$id]);
             }
+            RealtimeService::toOwner('community', 'story', $id, 'story.reacted', [
+                'story_id' => $id,
+                'emoji' => $request->emoji,
+                'user' => ['id' => $userId, 'name' => auth()->user()->name],
+            ]);
         }
 
         return response()->json(['status'=>'success']);

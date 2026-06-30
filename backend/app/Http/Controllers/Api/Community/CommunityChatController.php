@@ -6,6 +6,7 @@ use App\Models\CommunityChatMember;
 use App\Models\CommunityMessage;
 use App\Models\User;
 use App\Services\FcmService;
+use App\Services\RealtimeService;
 use Illuminate\Http\Request;
 
 class CommunityChatController extends Controller
@@ -90,6 +91,20 @@ class CommunityChatController extends Controller
             }
         }
 
+        // Realtime delivery to chat members who currently have the app open
+        RealtimeService::toChat($chatId, 'chat.message_sent', [
+            'chat_id' => $chatId,
+            'message' => [
+                'id' => $msg->id,
+                'type' => $msg->type,
+                'content' => $msg->content,
+                'media_url' => $msg->media_url,
+                'reply_to_id' => $msg->reply_to_id,
+                'user' => ['id' => $msg->user->id, 'name' => $msg->user->name, 'avatar' => $msg->user->avatar],
+                'created_at' => $msg->created_at,
+            ],
+        ]);
+
         return response()->json(['status'=>'success','data'=>$msg], 201);
     }
 
@@ -98,6 +113,28 @@ class CommunityChatController extends Controller
         $userId = auth()->id();
         CommunityChatMember::where('chat_id', $chatId)->where('user_id', $userId)->update(['last_read_at' => now()]);
         CommunityMessage::where('chat_id', $chatId)->where('user_id', '!=', $userId)->whereNull('read_at')->update(['read_at' => now()]);
+
+        RealtimeService::toChat($chatId, 'chat.seen', [
+            'chat_id' => $chatId,
+            'seen_by' => $userId,
+            'seen_at' => now()->toIso8601String(),
+        ]);
+
+        return response()->json(['status' => 'success']);
+    }
+
+    /** Ephemeral typing indicator — not persisted, just relayed over the chat presence channel. */
+    public function typing(Request $request, int $chatId)
+    {
+        $userId = auth()->id();
+        CommunityChatMember::where('chat_id', $chatId)->where('user_id', $userId)->firstOrFail();
+
+        RealtimeService::toChatPresence($chatId, 'chat.typing', [
+            'chat_id' => $chatId,
+            'user_id' => $userId,
+            'is_typing' => (bool) $request->boolean('is_typing', true),
+        ]);
+
         return response()->json(['status' => 'success']);
     }
 
