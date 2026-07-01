@@ -1,8 +1,9 @@
 String _fixUrl(String? url) {
   if (url == null || url.isEmpty) return '';
+  // Legacy: old clients stored /storage/ URLs; normalise to the media proxy.
   return url
-      .replaceAll('https://esahlan.com/storage/', 'https://esahlan.com/api/img/')
-      .replaceAll('http://esahlan.com/storage/', 'https://esahlan.com/api/img/');
+      .replaceAll('https://esahlan.com/storage/', 'https://esahlan.com/api/v1/media?f=')
+      .replaceAll('http://esahlan.com/storage/', 'https://esahlan.com/api/v1/media?f=');
 }
 
 String? _fixUrlNullable(String? url) {
