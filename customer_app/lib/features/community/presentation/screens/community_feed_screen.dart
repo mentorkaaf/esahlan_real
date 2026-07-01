@@ -1663,8 +1663,22 @@ class _TranscodingPlaceholderState extends ConsumerState<_TranscodingPlaceholder
       if (status == 'ready' || status == 'failed') {
         _done = true;
         _pollTimer?.cancel();
-        // Refresh the feed so the updated media (with hls_url) loads properly
         ref.invalidate(communityFeedProvider);
+        if (!mounted) return;
+        final isReady = status == 'ready';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Row(children: [
+            Icon(isReady ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+                color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Text(isReady ? 'Muuqaalkaagu waa diyaar!' : 'Processing-ku wuu fashilmay',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+          ]),
+          backgroundColor: isReady ? Colors.green.shade700 : Colors.red.shade700,
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ));
       } else {
         setState(() => _progress = pct);
       }
@@ -1921,16 +1935,17 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (_isAudio) return _AudioPlayerCard(url: widget.m.url);
     if (_isDocument) return _DocumentCard(url: widget.m.url);
 
-    // Video is still being transcoded — show processing overlay instead of blank.
-    // Only the post owner sees this (others never receive transcoding posts in feed).
+    // Video is still being transcoded.
+    // Non-owners never receive transcoding posts (video_ready=false filters them).
+    // As an extra safety layer, render nothing for non-owners.
     if (_isVideo && widget.m.isTranscoding) {
+      if (!widget.isOwner) return const SizedBox.shrink();
       return _TranscodingPlaceholder(
         mediaId: widget.m.id,
         progress: widget.m.transcodingProgress,
         thumbnail: widget.m.thumbnail,
-        isOwner: widget.isOwner,
+        isOwner: true,
       );
-
     }
     if (_isVideo && widget.m.transcodingFailed) {
       return Container(
