@@ -44,7 +44,8 @@ class ReelsScreen extends ConsumerStatefulWidget {
   ConsumerState<ReelsScreen> createState() => _ReelsScreenState();
 }
 
-class _ReelsScreenState extends ConsumerState<ReelsScreen> {
+class _ReelsScreenState extends ConsumerState<ReelsScreen>
+    with WidgetsBindingObserver {
   final PageController _pageCtrl = PageController();
   int _currentIndex = 0;
   List<_ReelItem>? _cachedItems;
@@ -59,8 +60,34 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadReelAds();
     _pageCtrl.addListener(_onPageScroll);
+  }
+
+  bool _lifecyclePaused = false;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _lifecyclePaused = true;
+      _engine.pauseAll();
+    } else if (state == AppLifecycleState.inactive) {
+      // 'inactive' fires both when going to background (after resumed) AND
+      // when returning on iOS (before resumed). Only pause on the way OUT.
+      if (!_lifecyclePaused) {
+        _lifecyclePaused = true;
+        _engine.pauseAll();
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      _lifecyclePaused = false;
+      // Re-activate the current reel. Uses seekTo internally so ExoPlayer/
+      // AVPlayer re-buffers after the OS may have released codec resources.
+      final items = _cachedItems;
+      if (items == null || _currentIndex >= items.length) return;
+      final url = items[_currentIndex].videoUrl;
+      if (url.isNotEmpty) _engine.reactivate(url);
+    }
   }
 
   void _onPageScroll() {
@@ -86,6 +113,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _engine.pauseAll();
     _pageCtrl.removeListener(_onPageScroll);
     _pageCtrl.dispose();
@@ -166,8 +194,12 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
           _engine.preloadFromIndex(0, urls);
         }
       });
-    } else if (communityReels.length < _foldedCommunityCount ||
-        rentReels.length < _foldedRentCount) {
+    } else if (!reelsAsync.isLoading && !rentAsync.isLoading &&
+        (communityReels.length < _foldedCommunityCount ||
+        rentReels.length < _foldedRentCount)) {
+      // Guard: only shrink the list when providers are NOT loading.
+      // A refresh (e.g. triggered by resume) temporarily sets valueOrNull=null
+      // (empty list) which would wipe _cachedItems and dispose all reel cards.
       _cachedItems = _buildCombinedList(communityReels, rentReels);
       _foldedCommunityCount = communityReels.length;
       _foldedRentCount = rentReels.length;
@@ -535,11 +567,19 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
           ),
         ),
 
-        // Loading spinner — only shown when no thumbnail and video not ready
-        if (!_videoReady && thumbnail == null && media?.type == 'video')
-          const Center(
-              child: CircularProgressIndicator(
-                  color: Colors.white38, strokeWidth: 2)),
+        // Play icon overlay on thumbnail while video is loading
+        if (!_videoReady && media?.type == 'video')
+          Center(child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 48),
+          )),
+
+        // Buffering spinner — corner indicator while loading or re-buffering
+        if (!_videoReady || (_videoCtrl != null && _videoCtrl!.value.isBuffering))
+          Positioned(bottom: 120, right: 14,
+            child: SizedBox(width: 24, height: 24,
+              child: CircularProgressIndicator(color: Colors.white70, strokeWidth: 2.5))),
 
         // Pause overlay
         if (_paused && _videoReady)
@@ -1097,11 +1137,19 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
           ),
         ),
 
-        // Loading — only when no thumbnail
-        if (!_videoReady && thumbnail == null)
-          const Center(
-              child: CircularProgressIndicator(
-                  color: Colors.white54, strokeWidth: 2)),
+        // Play icon overlay on thumbnail while loading
+        if (!_videoReady)
+          Center(child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 48),
+          )),
+
+        // Buffering spinner
+        if (!_videoReady || (_videoCtrl != null && _videoCtrl!.value.isBuffering))
+          Positioned(bottom: 120, right: 14,
+            child: SizedBox(width: 24, height: 24,
+              child: CircularProgressIndicator(color: Colors.white70, strokeWidth: 2.5))),
 
         // Pause overlay
         if (_paused && _videoReady)

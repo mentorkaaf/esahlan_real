@@ -1856,11 +1856,28 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     // controller floods that blocked the main thread (ANR).
   }
 
+  bool _lifecyclePaused = false;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_ctrl == null || !_ready) return;
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      _ctrl!.pause();
+    if (state == AppLifecycleState.paused) {
+      if (!_lifecyclePaused) {
+        _lifecyclePaused = true;
+        if (_ctrl != null && _ready) _engine.pause(_videoUrl);
+      }
+    } else if (state == AppLifecycleState.inactive) {
+      // 'inactive' fires when going to background AND when returning on iOS.
+      // Only pause on the way OUT (i.e. not already paused by lifecycle).
+      if (!_lifecyclePaused) {
+        _lifecyclePaused = true;
+        if (_ctrl != null && _ready) _engine.pause(_videoUrl);
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      _lifecyclePaused = false;
+      // Use reactivate so ExoPlayer/AVPlayer re-buffers via seekTo before play.
+      if (_visible && !_paused && _ctrl != null && _ready) {
+        _engine.reactivate(_videoUrl);
+      }
     }
   }
 
@@ -1874,6 +1891,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     final cached = _engine.getController(url);
     if (cached != null && cached.value.isInitialized && mounted) {
       setState(() { _ctrl = cached; _ready = true; });
+      cached.addListener(_onControllerUpdate);
       if (_visible && !_paused) _engine.activate(url);
       return;
     }
@@ -1881,12 +1899,18 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     final ctrl = await _engine.preload(url);
     if (ctrl != null && mounted) {
       setState(() { _ctrl = ctrl; _ready = true; });
+      ctrl.addListener(_onControllerUpdate);
       if (_visible && !_paused) _engine.activate(url);
     }
   }
 
+  void _onControllerUpdate() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _ctrl?.removeListener(_onControllerUpdate);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -1894,8 +1918,9 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void _onVisibilityChanged(VisibilityInfo info) {
     final fraction = info.visibleFraction;
 
-    // Start loading at 15% visible — well before the video reaches viewport
-    if (fraction > 0.15 && _isVideo && !_ready) {
+    // Start loading as soon as any part of the card is visible (5%) —
+    // gives the HLS stream ~1-2s head start before the user reaches it.
+    if (fraction > 0.05 && _isVideo && !_ready) {
       _initVideo();
     }
 
@@ -2011,9 +2036,18 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                           errorWidget: Container(color: const Color(0xFF1A1B2E)))
                       : const SizedBox(),
             ),
-            // Spinner only when no thumbnail and video not yet ready
-            if (!_ready && widget.m.thumbnail == null)
-              Positioned.fill(child: Center(child: CircularProgressIndicator(color: kOrange.withValues(alpha: 0.7), strokeWidth: 2))),
+            // Play icon overlay while video is loading (thumbnail visible)
+            if (!_ready)
+              Positioned.fill(child: Center(child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.45), shape: BoxShape.circle),
+                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 40)))),
+            // Buffering spinner — shown while loading OR while player is re-buffering
+            if (!_ready || (_ctrl != null && _ctrl!.value.isBuffering))
+              Positioned(bottom: 50, right: 12,
+                child: SizedBox(width: 22, height: 22,
+                  child: CircularProgressIndicator(color: kOrange, strokeWidth: 2.5))),
+            // Paused icon when user manually paused
             if (_paused && _ready)
               Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),

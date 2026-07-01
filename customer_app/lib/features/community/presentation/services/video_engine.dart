@@ -44,15 +44,36 @@ class VideoEngineMetrics {
 // ── Pool entry ────────────────────────────────────────────────────────────────
 
 class _PoolEntry {
-  final CachedVideoPlayerPlus player;
+  final CachedVideoPlayerPlus? cachedPlayer;
+  final VideoPlayerController? directController; // used for HLS streams
   bool initialized;
   DateTime lastAccess;
-  int feedIndex; // position in the current feed list (-1 = unknown)
+  int feedIndex;
 
-  _PoolEntry({required this.player, this.initialized = false, this.feedIndex = -1})
-      : lastAccess = DateTime.now();
+  _PoolEntry.cached(CachedVideoPlayerPlus player, {this.initialized = false, this.feedIndex = -1})
+      : cachedPlayer = player,
+        directController = null,
+        lastAccess = DateTime.now();
 
-  VideoPlayerController? get vpController => initialized ? player.controller : null;
+  _PoolEntry.direct(VideoPlayerController ctrl, {this.initialized = false, this.feedIndex = -1})
+      : directController = ctrl,
+        cachedPlayer = null,
+        lastAccess = DateTime.now();
+
+  VideoPlayerController? get vpController {
+    if (!initialized) return null;
+    return directController ?? cachedPlayer?.controller;
+  }
+
+  void dispose() {
+    if (directController != null) {
+      directController!.pause();
+      directController!.dispose();
+    } else {
+      cachedPlayer?.controller.pause();
+      cachedPlayer?.dispose();
+    }
+  }
 }
 
 // ── VideoEngine ───────────────────────────────────────────────────────────────
@@ -69,10 +90,11 @@ class VideoEngine {
   VideoEngine._();
   static final instance = VideoEngine._();
 
-  // Pool capacity: current(1) + ahead(2) + behind(1) + buffer(2) = 6
-  static const _maxControllers = 6;
-  static const _maxPreloadAhead = 2;
-  static const _maxPreloadBehind = 1;
+  // Pool capacity: current(1) + ahead(3) + behind(2) + buffer(4) = 10
+  // Larger pool means more videos survive scroll-back without re-buffering.
+  static const _maxControllers = 10;
+  static const _maxPreloadAhead = 3;
+  static const _maxPreloadBehind = 2;
 
   final _pool = LinkedHashMap<String, _PoolEntry>();
   final _preloading = <String, Completer<VideoPlayerController?>>{};
@@ -160,6 +182,13 @@ class VideoEngine {
 
     final sw = Stopwatch()..start();
     try {
+      late _PoolEntry entry;
+      late VideoPlayerController ctrl;
+
+      // All URLs — including HLS — go through CachedVideoPlayerPlus.
+      // HLS manifests now use absolute https:// segment URLs so the local
+      // proxy can intercept and cache every .ts segment correctly.
+      // Second play (and app-resume) is instant from the on-device cache.
       final player = CachedVideoPlayerPlus.networkUrl(
         Uri.parse(url),
         httpHeaders: const {
@@ -168,12 +197,10 @@ class VideoEngine {
         },
         invalidateCacheIfOlderThan: const Duration(days: 7),
       );
-
-      final entry = _PoolEntry(player: player, feedIndex: feedIndex);
+      entry = _PoolEntry.cached(player, feedIndex: feedIndex);
       _pool[url] = entry;
-
       await player.initialize();
-      final ctrl = player.controller;
+      ctrl = player.controller;
       ctrl.setLooping(true);
       ctrl.setVolume(0);
       // Seek to start to warm up decoder and buffer first segment
@@ -290,12 +317,50 @@ class VideoEngine {
     _activeUrl = null;
   }
 
+  /// Called on app resume — seeks to current position first to force
+  /// ExoPlayer/AVPlayer to re-buffer (avoids silent play() failure after
+  /// the OS releases media resources in the background), then plays.
+  /// Falls back to re-preloading if the controller was evicted from the pool.
+  Future<void> reactivate(String url) async {
+    if (url.isEmpty) return;
+
+    final entry = _pool[url];
+    if (entry == null || !entry.initialized) {
+      // Controller was evicted — preload from scratch then play
+      final ctrl = await preload(url);
+      if (ctrl != null) activate(url);
+      return;
+    }
+
+    final ctrl = entry.vpController;
+    if (ctrl == null) return;
+
+    _activeUrl = url;
+
+    // Pause and silence all other controllers
+    for (final e in _pool.entries) {
+      if (e.key != url) {
+        if (e.value.vpController?.value.isPlaying == true) {
+          e.value.vpController?.pause();
+        }
+        e.value.vpController?.setVolume(0);
+      }
+    }
+
+    // Play directly — segments are cached locally by CachedVideoPlayerPlus
+    // so there is no network re-fetch on resume. seekTo would invalidate
+    // the buffer unnecessarily.
+    ctrl.setVolume(1);
+    try {
+      ctrl.play();
+    } catch (_) {}
+  }
+
   void release(String url) {
-    if (_preloading.containsKey(url)) return; // Never interrupt an in-flight load
+    if (_preloading.containsKey(url)) return;
     final entry = _pool.remove(url);
     if (entry != null) {
-      entry.vpController?.pause();
-      entry.player.dispose();
+      entry.dispose();
       metrics.disposals++;
     }
     if (_activeUrl == url) _activeUrl = null;
@@ -349,7 +414,7 @@ class VideoEngine {
   /// to be needed in the near future.
   void _evictDistantControllers() {
     if (_orderedUrls.isEmpty || _currentIndex < 0) return;
-    final safeRadius = _maxPreloadAhead + _maxPreloadBehind + 2;
+    final safeRadius = _maxPreloadAhead + _maxPreloadBehind + 3;
 
     final toEvict = <String>[];
     for (final url in _pool.keys) {
@@ -366,8 +431,7 @@ class VideoEngine {
   void disposeAll() {
     _velocityDecayTimer?.cancel();
     for (final e in _pool.values) {
-      e.vpController?.pause();
-      e.player.dispose();
+      e.dispose();
     }
     _pool.clear();
     _preloading.clear();

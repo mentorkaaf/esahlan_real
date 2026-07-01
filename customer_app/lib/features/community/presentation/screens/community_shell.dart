@@ -12,6 +12,7 @@ import '../../data/repositories/community_repository.dart';
 import '../../data/models/community_models.dart';
 import '../widgets/upload_progress_banner.dart';
 import '../services/background_upload_service.dart';
+import '../services/video_engine.dart';
 
 final communityNavIndexProvider = StateProvider<int>((ref) => 0);
 
@@ -31,12 +32,43 @@ class CommunityShell extends ConsumerStatefulWidget {
 class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBindingObserver {
   bool? _onboardingDone;
   DateTime? _backgroundedAt;
+  bool _feedPreloaded = false;
+  bool _reelsPreloaded = false;
 
   @override
   void initState() {
     super.initState();
     _checkOnboarding();
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// Extract video URLs from feed posts and prime VideoEngine silently.
+  void _silentPreloadFeed(List<CommunityPost> posts) {
+    if (_feedPreloaded) return;
+    _feedPreloaded = true;
+    final urls = posts
+        .expand((p) => p.media)
+        .where((m) => m.type == 'video')
+        .map((m) => m.hlsUrl ?? m.url)
+        .where((u) => u.isNotEmpty)
+        .take(6)
+        .toList();
+    if (urls.isEmpty) return;
+    VideoEngine.instance.setFeedContext(urls, 0);
+    VideoEngine.instance.preloadFromIndex(0, urls);
+  }
+
+  /// Extract video URLs from reels and prime VideoEngine silently.
+  void _silentPreloadReels(List<CommunityPost> reels) {
+    if (_reelsPreloaded) return;
+    _reelsPreloaded = true;
+    final urls = reels
+        .map((r) => r.media.isNotEmpty ? (r.media.first.hlsUrl ?? r.media.first.url) : '')
+        .where((u) => u.isNotEmpty)
+        .take(4)
+        .toList();
+    if (urls.isEmpty) return;
+    VideoEngine.instance.preloadFromIndex(0, urls);
   }
 
   @override
@@ -59,8 +91,11 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
       final awayFor = _backgroundedAt == null ? Duration.zero : DateTime.now().difference(_backgroundedAt!);
       _backgroundedAt = null;
       if (awayFor > const Duration(minutes: 2)) {
+        _feedPreloaded = false; // allow re-preload for the refreshed feed
         ref.read(communityFeedProvider.notifier).load(refresh: true);
-        ref.read(communityReelsProvider.notifier).load(refresh: true);
+        // Do NOT refresh reels on resume — it resets the provider to loading,
+        // which wipes _cachedItems in ReelsScreen and disposes all reel cards.
+        // Reels are loaded once and survive background/resume correctly.
         ref.invalidate(communityStoriesProvider);
       }
     }
@@ -84,6 +119,16 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
     }
 
     final idx = ref.watch(communityNavIndexProvider);
+
+    // Silent background preload — fires once when feed/reels data first arrives.
+    // VideoEngine starts buffering the first few video URLs before the user
+    // scrolls to them, so playback begins instantly on first view.
+    ref.listen<AsyncValue<List<CommunityPost>>>(communityFeedProvider, (_, next) {
+      next.whenData((posts) => _silentPreloadFeed(posts));
+    });
+    ref.listen<AsyncValue<List<CommunityPost>>>(communityReelsProvider, (_, next) {
+      next.whenData((reels) => _silentPreloadReels(reels));
+    });
 
     // Listen for background upload success → pin post to feed top
     ref.listen<UploadState>(backgroundUploadProvider, (prev, next) {
