@@ -159,7 +159,7 @@ class ERentController extends Controller
     private function resolveStorageUrl(string $stored, string $folder): string
     {
         $filename = basename(parse_url($stored, PHP_URL_PATH) ?: $stored);
-        return url('/storage/' . $folder . '/' . $filename);
+        return url('/api/v1/media?f=' . $folder . '/' . $filename);
     }
 
     /**
