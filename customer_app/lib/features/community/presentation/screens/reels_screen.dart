@@ -10,7 +10,6 @@ import '../../../../features/modules/erent/erent_screen.dart';
 import '../providers/community_provider.dart';
 import '../widgets/comments_sheet.dart';
 import '../widgets/video_ad_overlay.dart';
-import '../services/video_preloader.dart';
 import '../../../../core/services/realtime_client.dart';
 import 'community_shell.dart';
 
@@ -26,6 +25,16 @@ class _ReelItem {
 
   bool get isRent => rentReel != null;
   bool get isAd => adData != null;
+
+  String get videoUrl {
+    if (communityPost != null) {
+      final m = communityPost!.media.where((m) => m.type == 'video').firstOrNull;
+      return m?.hlsUrl ?? m?.url ?? '';
+    }
+    if (rentReel != null) return rentReel!['video_url'] as String? ?? '';
+    if (adData != null) return adData!['media_url'] as String? ?? '';
+    return '';
+  }
 }
 
 class ReelsScreen extends ConsumerStatefulWidget {
@@ -40,47 +49,64 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
   int _currentIndex = 0;
   List<_ReelItem>? _cachedItems;
 
+  int _foldedCommunityCount = 0;
+  int _foldedRentCount = 0;
+  int _adInterleaveCounter = 0;
+  List<Map<String, dynamic>> _reelAds = [];
+
+  final _engine = VideoEngine.instance;
+
   @override
   void initState() {
     super.initState();
     _loadReelAds();
-    _pageCtrl.addListener(() {
-      final page = _pageCtrl.page?.round() ?? 0;
-      if (page != _currentIndex && mounted) {
-        setState(() => _currentIndex = page);
-      }
-    });
+    _pageCtrl.addListener(_onPageScroll);
+  }
+
+  void _onPageScroll() {
+    // Report scroll velocity — no setState here, onPageChanged handles index updates.
+    // Calling setState on every scroll frame caused ANR (continuous rebuilds).
+    if (!_pageCtrl.hasClients) return;
+    try {
+      final velocity = _pageCtrl.position.activity?.velocity ?? 0.0;
+      _engine.notifyScrollVelocity(velocity.abs());
+    } catch (_) {}
   }
 
   void _autoScrollNext(int current, int total) {
+    if (!mounted || !_pageCtrl.hasClients) return;
     if (current + 1 < total) {
-      _pageCtrl.animateToPage(current + 1, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+      _pageCtrl.animateToPage(
+        current + 1,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
     }
   }
 
   @override
   void dispose() {
+    _engine.pauseAll();
+    _pageCtrl.removeListener(_onPageScroll);
     _pageCtrl.dispose();
     super.dispose();
   }
 
-  List<Map<String, dynamic>> _reelAds = [];
-
-  // Tracks how much of each source list has already been folded into
-  // _cachedItems, so a pagination append only processes the NEW slice
-  // instead of rebuilding (and reshuffling) everything already on screen —
-  // reshuffling the whole list on every page load was remapping
-  // _currentIndex to a different reel out from under the user mid-scroll.
-  int _foldedCommunityCount = 0;
-  int _foldedRentCount = 0;
-  int _adInterleaveCounter = 0;
+  void _loadReelAds() async {
+    try {
+      final repo = ref.read(communityRepoProvider);
+      for (var i = 0; i < 3; i++) {
+        final ad = await repo.getPrerollAd();
+        if (ad != null && ad['media_url'] != null) _reelAds.add(ad);
+      }
+      if (mounted) setState(() {});
+    } catch (_) {}
+  }
 
   List<_ReelItem> _buildCombinedList(
       List<CommunityPost> communityReels, List<Map<String, dynamic>> rentReels) {
     final items = <_ReelItem>[];
     int ci = 0, ri = 0, ai = 0;
-
-    // Shuffle community reels for random order
     final shuffled = List<CommunityPost>.from(communityReels)..shuffle();
 
     while (ci < shuffled.length || ri < rentReels.length) {
@@ -98,39 +124,50 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
     return items;
   }
 
-  void _loadReelAds() async {
-    try {
-      final repo = ref.read(communityRepoProvider);
-      for (var i = 0; i < 3; i++) {
-        final ad = await repo.getPrerollAd();
-        if (ad != null && ad['media_url'] != null) _reelAds.add(ad);
-      }
-      if (mounted) setState(() {});
-    } catch (_) {}
+  /// Flat list of all video URLs in current feed order — fed to the engine
+  /// so it can do position-aware eviction and predictive preloading.
+  List<String> _extractVideoUrls(List<_ReelItem> items) =>
+      items.map((e) => e.videoUrl).toList();
+
+  void _onPageChanged(int i, List<_ReelItem> combined) {
+    setState(() => _currentIndex = i);
+
+    // Pagination: load more when 3 from end
+    if (i >= combined.length - 3) {
+      ref.read(communityReelsProvider.notifier).load();
+    }
+
+    // Update engine position context — enables distance-based eviction
+    final urls = _extractVideoUrls(combined);
+    _engine.setFeedContext(urls, i);
+
+    // Predictive preload — velocity-adaptive
+    _engine.preloadFromIndex(i, urls);
   }
 
   @override
   Widget build(BuildContext context) {
     final reelsAsync = ref.watch(communityReelsProvider);
     final rentAsync = ref.watch(erentReelsProvider);
-    // Only play video when this tab (index 1) is active
     final tabActive = ref.watch(communityNavIndexProvider) == 1;
 
     final communityReels = reelsAsync.valueOrNull ?? [];
     final rentReels = rentAsync.valueOrNull ?? [];
 
     if (_cachedItems == null) {
-      // First load — build and shuffle the whole thing once. If preroll ads
-      // (loaded async, usually arrive within the first second) haven't come
-      // back yet, they'll simply get folded in on the next pagination append
-      // instead of immediately — a minor delay, not a correctness issue.
       _cachedItems = _buildCombinedList(communityReels, rentReels);
       _foldedCommunityCount = communityReels.length;
       _foldedRentCount = rentReels.length;
-    } else if (communityReels.length < _foldedCommunityCount || rentReels.length < _foldedRentCount) {
-      // Source list actually shrank — a genuine reset (e.g. pull-to-refresh
-      // reloaded from page 1), not a pagination append. Rebuild from scratch
-      // and snap back to the top since the old indices no longer mean anything.
+      // Prime the engine with the initial feed context
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_cachedItems != null && mounted) {
+          final urls = _extractVideoUrls(_cachedItems!);
+          _engine.setFeedContext(urls, 0);
+          _engine.preloadFromIndex(0, urls);
+        }
+      });
+    } else if (communityReels.length < _foldedCommunityCount ||
+        rentReels.length < _foldedRentCount) {
       _cachedItems = _buildCombinedList(communityReels, rentReels);
       _foldedCommunityCount = communityReels.length;
       _foldedRentCount = rentReels.length;
@@ -141,22 +178,16 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
           setState(() => _currentIndex = 0);
         });
       }
-    } else if (communityReels.length > _foldedCommunityCount || rentReels.length > _foldedRentCount) {
-      // Pagination appended more reels — fold in only the new slice, shuffled
-      // on its own, appended after the existing (stable) order. Never touch
-      // what's already in _cachedItems so _currentIndex keeps pointing at the
-      // same reel the user is currently watching.
+    } else if (communityReels.length > _foldedCommunityCount ||
+        rentReels.length > _foldedRentCount) {
       final newCommunity = communityReels.sublist(_foldedCommunityCount);
       final newRent = rentReels.sublist(_foldedRentCount);
       _cachedItems!.addAll(_buildCombinedList(newCommunity, newRent));
       _foldedCommunityCount = communityReels.length;
       _foldedRentCount = rentReels.length;
     }
-    final combined = _cachedItems!;
 
-    // Preload next few reel videos silently
-    final reelUrls = communityReels.where((r) => r.media.isNotEmpty).take(3).map((r) => r.media.first.url).toList();
-    if (reelUrls.isNotEmpty) VideoPreloader().preloadUrls(reelUrls);
+    final combined = _cachedItems!;
 
     if (reelsAsync.isLoading && rentAsync.isLoading) {
       return const Scaffold(
@@ -171,7 +202,8 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Reels', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        title: const Text('Reels',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         actions: [
           IconButton(
             icon: const Icon(Icons.videocam_outlined, color: Colors.white),
@@ -180,51 +212,73 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
         ],
       ),
       body: combined.isEmpty
-          ? const Center(
+          ? Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.videocam_off, size: 64, color: Colors.white54),
-                SizedBox(height: 16),
-                Text('No reels yet', style: TextStyle(color: Colors.white54, fontSize: 16)),
+                Icon(
+                    reelsAsync.hasError
+                        ? Icons.wifi_off_rounded
+                        : Icons.videocam_off,
+                    size: 64,
+                    color: Colors.white54),
+                const SizedBox(height: 16),
+                Text(
+                  reelsAsync.hasError ? 'Couldn\'t load reels' : 'No reels yet',
+                  style: const TextStyle(color: Colors.white54, fontSize: 16),
+                ),
+                if (reelsAsync.hasError) ...[
+                  const SizedBox(height: 6),
+                  Text('${reelsAsync.error}',
+                      style: const TextStyle(color: Colors.white30, fontSize: 12),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () =>
+                        ref.read(communityReelsProvider.notifier).refresh(),
+                    child: const Text('Retry',
+                        style: TextStyle(
+                            color: kOrange, fontWeight: FontWeight.w700)),
+                  ),
+                ],
               ]),
             )
           : PageView.builder(
               controller: _pageCtrl,
               scrollDirection: Axis.vertical,
               itemCount: combined.length,
-              onPageChanged: (i) {
-                setState(() => _currentIndex = i);
-                if (i >= combined.length - 3) {
-                  ref.read(communityReelsProvider.notifier).load();
-                }
-                // Predictive preload: next 2 reels
-                final engine = VideoEngine.instance;
-                final preloadUrls = <String>[];
-                for (var j = i + 1; j <= i + 2 && j < combined.length; j++) {
-                  final item = combined[j];
-                  if (item.communityPost != null) {
-                    final m = item.communityPost!.media.where((m) => m.type == 'video').firstOrNull;
-                    if (m != null) preloadUrls.add(m.hlsUrl ?? m.url);
-                  }
-                }
-                if (preloadUrls.isNotEmpty) engine.preloadNext(preloadUrls);
-              },
+              onPageChanged: (i) => _onPageChanged(i, combined),
               itemBuilder: (_, i) {
                 final item = combined[i];
                 final isPageActive = i == _currentIndex && tabActive;
-                if (item.isAd) return _ReelAdCard(ad: item.adData!, key: ValueKey('reelad_$i'));
-                if (item.isRent) {
-                  return _RentReelCard(
-                    reel: item.rentReel!,
-                    isActive: isPageActive,
-                    key: ValueKey('rent_${item.rentReel!['property_id']}_${item.rentReel!['video_url']}'),
+
+                if (item.isAd) {
+                  return RepaintBoundary(
+                    child: _ReelAdCard(
+                      ad: item.adData!,
+                      isActive: isPageActive,
+                      key: ValueKey('reelad_$i'),
+                    ),
                   );
                 }
-                return _CommunityReelCard(
-                  reel: item.communityPost!,
-                  isActive: isPageActive,
-                  onVideoEnd: () => _autoScrollNext(i, combined.length),
-                  onSkip: () => _autoScrollNext(i, combined.length),
-                  key: ValueKey('comm_${item.communityPost!.id}'),
+                if (item.isRent) {
+                  return RepaintBoundary(
+                    child: _RentReelCard(
+                      reel: item.rentReel!,
+                      isActive: isPageActive,
+                      key: ValueKey(
+                          'rent_${item.rentReel!['property_id']}_${item.rentReel!['video_url']}'),
+                    ),
+                  );
+                }
+                return RepaintBoundary(
+                  child: _CommunityReelCard(
+                    reel: item.communityPost!,
+                    isActive: isPageActive,
+                    onVideoEnd: () => _autoScrollNext(i, combined.length),
+                    onSkip: () => _autoScrollNext(i, combined.length),
+                    key: ValueKey('comm_${item.communityPost!.id}'),
+                  ),
                 );
               },
             ),
@@ -239,7 +293,12 @@ class _CommunityReelCard extends ConsumerStatefulWidget {
   final bool isActive;
   final VoidCallback? onVideoEnd;
   final VoidCallback? onSkip;
-  const _CommunityReelCard({super.key, required this.reel, required this.isActive, this.onVideoEnd, this.onSkip});
+  const _CommunityReelCard(
+      {super.key,
+      required this.reel,
+      required this.isActive,
+      this.onVideoEnd,
+      this.onSkip});
 
   @override
   ConsumerState<_CommunityReelCard> createState() => _CommunityReelCardState();
@@ -310,41 +369,63 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
 
     _videoUrl = media.hlsUrl ?? media.url;
 
-    // Try engine cache first
+    // Fast path: engine already has this controller (from predictive preload)
     final cached = _engine.getController(_videoUrl);
     if (cached != null && cached.value.isInitialized) {
       _videoCtrl = cached;
       _videoCtrl!.setLooping(false);
-      _videoCtrl!.addListener(_onVideoProgress);
-      if (mounted) setState(() => _videoReady = true);
-      if (widget.isActive && !_paused) _engine.activate(_videoUrl);
+      try {
+        _videoCtrl!.addListener(_onVideoProgress);
+      } catch (_) {}
+      if (mounted) {
+        _videoCtrl = cached;
+        _videoCtrl!.setLooping(false);
+        try { _videoCtrl!.addListener(_onVideoProgress); } catch (_) {}
+        setState(() => _videoReady = true);
+        if (widget.isActive && !_paused) _engine.activate(_videoUrl);
+      }
       return;
     }
 
-    // Preload via engine
+    // Slow path: preload now (engine queues and deduplicates)
     final ctrl = await _engine.preload(_videoUrl);
     if (ctrl != null && mounted) {
       _videoCtrl = ctrl;
       ctrl.setLooping(false);
-      ctrl.addListener(_onVideoProgress);
+      try {
+        ctrl.addListener(_onVideoProgress);
+      } catch (_) {
+        _videoCtrl = null;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _initVideo();
+        });
+        return;
+      }
       setState(() => _videoReady = true);
       if (widget.isActive && !_paused) _engine.activate(_videoUrl);
     }
   }
 
   void _onVideoProgress() {
-    if (_videoCtrl == null || !_videoReady) return;
-    final pos = _videoCtrl!.value.position;
-    final dur = _videoCtrl!.value.duration;
-    if (dur > Duration.zero && pos >= dur - const Duration(milliseconds: 500)) {
-      _videoCtrl!.removeListener(_onVideoProgress);
-      widget.onVideoEnd?.call();
+    if (!mounted || _videoCtrl == null || !_videoReady) return;
+    try {
+      final pos = _videoCtrl!.value.position;
+      final dur = _videoCtrl!.value.duration;
+      if (dur > Duration.zero && pos >= dur - const Duration(milliseconds: 500)) {
+        try {
+          _videoCtrl!.removeListener(_onVideoProgress);
+        } catch (_) {}
+        if (mounted) widget.onVideoEnd?.call();
+      }
+    } catch (_) {
+      if (mounted) setState(() => _videoReady = false);
     }
   }
 
   @override
   void didUpdateWidget(_CommunityReelCard old) {
     super.didUpdateWidget(old);
+    if (!mounted) return;
     if (widget.isActive != old.isActive) {
       if (widget.isActive) {
         if (!_paused && _videoUrl.isNotEmpty) _engine.activate(_videoUrl);
@@ -357,6 +438,9 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
 
   @override
   void dispose() {
+    try {
+      _videoCtrl?.removeListener(_onVideoProgress);
+    } catch (_) {}
     for (final entry in _realtimeListeners.entries) {
       RealtimeClient.instance.removeListener(_postChannel, entry.key, entry.value);
     }
@@ -370,8 +454,17 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   }
 
   void _onDoubleTap() {
-    setState(() { _showHeart = true; if (!_liked) { _liked = true; _likesCount++; ref.read(communityRepoProvider).reactToPost(widget.reel.id, 'like'); } });
-    Future.delayed(const Duration(milliseconds: 800), () { if (mounted) setState(() => _showHeart = false); });
+    setState(() {
+      _showHeart = true;
+      if (!_liked) {
+        _liked = true;
+        _likesCount++;
+        ref.read(communityRepoProvider).reactToPost(widget.reel.id, 'like');
+      }
+    });
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) setState(() => _showHeart = false);
+    });
   }
 
   void _showOptions() {
@@ -381,12 +474,17 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
       builder: (_) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(
-            leading: const Icon(Icons.visibility_off_rounded, color: Colors.white70),
-            title: const Text('Not interested', style: TextStyle(color: Colors.white)),
-            subtitle: const Text('See fewer reels like this', style: TextStyle(fontSize: 12, color: Colors.white54)),
+            leading:
+                const Icon(Icons.visibility_off_rounded, color: Colors.white70),
+            title:
+                const Text('Not interested', style: TextStyle(color: Colors.white)),
+            subtitle: const Text('See fewer reels like this',
+                style: TextStyle(fontSize: 12, color: Colors.white54)),
             onTap: () {
               Navigator.pop(context);
-              ref.read(communityRepoProvider).trackInteraction(widget.reel.id, 'skip');
+              ref
+                  .read(communityRepoProvider)
+                  .trackInteraction(widget.reel.id, 'skip');
               widget.onSkip?.call();
             },
           ),
@@ -404,79 +502,219 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   Widget build(BuildContext context) {
     final reel = widget.reel;
     final media = reel.media.isNotEmpty ? reel.media.first : null;
+    final thumbnail = media?.thumbnail;
 
     final reelContent = GestureDetector(
       onTap: _togglePause,
       onDoubleTap: _onDoubleTap,
       child: Stack(fit: StackFit.expand, children: [
-        // Video or thumbnail
+        // Video or thumbnail/placeholder
         if (_videoReady && _videoCtrl != null)
           Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!)))
-        else if (media?.thumbnail != null)
-          NetImage(url: media!.thumbnail!, fit: BoxFit.cover)
+        else if (thumbnail != null)
+          NetImage(url: thumbnail, fit: BoxFit.cover)
         else if (media != null && media.type == 'image')
           NetImage(url: media.url, fit: BoxFit.cover)
         else
           Container(color: const Color(0xFF1A1A2E)),
 
-        // Gradient
-        Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black45, Colors.transparent, Colors.transparent, Colors.black87], stops: [0, 0.2, 0.5, 1.0]))),
+        // Gradient overlay
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black45,
+                Colors.transparent,
+                Colors.transparent,
+                Colors.black87
+              ],
+              stops: [0, 0.2, 0.5, 1.0],
+            ),
+          ),
+        ),
 
-        if (!_videoReady && media?.type == 'video')
-          const Center(child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)),
+        // Loading spinner — only shown when no thumbnail and video not ready
+        if (!_videoReady && thumbnail == null && media?.type == 'video')
+          const Center(
+              child: CircularProgressIndicator(
+                  color: Colors.white38, strokeWidth: 2)),
 
-        // Pause icon overlay
+        // Pause overlay
         if (_paused && _videoReady)
-          Center(child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 48),
-          )),
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration:
+                  BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+              child: const Icon(Icons.play_arrow_rounded,
+                  color: Colors.white, size: 48),
+            ),
+          ),
 
         if (_showHeart)
-          Center(child: Icon(Icons.favorite, size: 100, color: Colors.red.withOpacity(0.85))),
+          Center(
+              child: Icon(Icons.favorite,
+                  size: 100, color: Colors.red.withOpacity(0.85))),
 
-        // Mute
-        Positioned(top: MediaQuery.of(context).padding.top + 64, right: 12,
-          child: GestureDetector(onTap: () { setState(() => _muted = !_muted); _videoCtrl?.setVolume(_muted ? 0 : 1); },
-            child: Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle), child: Icon(_muted ? Icons.volume_off : Icons.volume_up, color: Colors.white, size: 20)))),
-
-        // Options (not interested)
-        if (!reel.user.isMe)
-          Positioned(top: MediaQuery.of(context).padding.top + 16, right: 12,
-            child: GestureDetector(onTap: _showOptions,
-              child: Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle), child: const Icon(Icons.more_vert_rounded, color: Colors.white, size: 20)))),
-
-        // Bottom info
-        Positioned(bottom: 80, left: 16, right: 80,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            GestureDetector(
-              onTap: () {},
-              child: Row(children: [
-                CircleAvatar(radius: 18, backgroundColor: const Color(0xFFEEF0FF), backgroundImage: reel.user.avatar != null ? CachedNetworkImageProvider(reel.user.avatar!) : null, child: reel.user.avatar == null ? Text(reel.user.name[0], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)) : null),
-                const SizedBox(width: 8),
-                Text(reel.user.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
-                if (reel.user.isVerified) ...[const SizedBox(width: 4), const Icon(Icons.verified, size: 14, color: kOrange)],
-                const SizedBox(width: 10),
-                GestureDetector(onTap: () => ref.read(communityRepoProvider).toggleFollow(reel.user.id),
-                  child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), decoration: BoxDecoration(border: Border.all(color: Colors.white), borderRadius: BorderRadius.circular(20)), child: const Text('Follow', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)))),
-              ]),
+        // Mute button
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 64,
+          right: 12,
+          child: GestureDetector(
+            onTap: () {
+              setState(() => _muted = !_muted);
+              _videoCtrl?.setVolume(_muted ? 0 : 1);
+            },
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                  color: Colors.black45, shape: BoxShape.circle),
+              child: Icon(_muted ? Icons.volume_off : Icons.volume_up,
+                  color: Colors.white, size: 20),
             ),
-            if (reel.content != null && reel.content!.isNotEmpty) ...[const SizedBox(height: 8), Text(reel.content!, style: const TextStyle(color: Colors.white, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis)],
-          ])),
+          ),
+        ),
 
-        // Right actions
-        Positioned(right: 10, bottom: 100, child: Column(children: [
-          _sideAction(icon: _liked ? Icons.favorite : Icons.favorite_outline, label: '$_likesCount', color: _liked ? Colors.red : Colors.white, onTap: () { setState(() { _liked = !_liked; _likesCount += _liked ? 1 : -1; }); ref.read(communityRepoProvider).reactToPost(reel.id, 'like'); }),
-          const SizedBox(height: 20),
-          _sideAction(icon: Icons.chat_bubble_outline, label: '${reel.commentsCount}', color: Colors.white, onTap: () => showCommentsSheet(context, reel.id, initialCount: reel.commentsCount)),
-          const SizedBox(height: 20),
-          _sideAction(icon: Icons.send_outlined, label: 'Share', color: Colors.white, onTap: () => ref.read(communityRepoProvider).sharePost(reel.id)),
-          const SizedBox(height: 20),
-          _sideAction(icon: _saved ? Icons.bookmark : Icons.bookmark_outline, label: 'Save', color: _saved ? kOrange : Colors.white, onTap: () async { final s = await ref.read(communityRepoProvider).savePost(reel.id); setState(() => _saved = s); }),
-          const SizedBox(height: 20),
-          _sideAction(icon: Icons.visibility_outlined, label: '${reel.viewsCount}', color: Colors.white70, onTap: () {}),
-        ])),
+        // Options
+        if (!reel.user.isMe)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 16,
+            right: 12,
+            child: GestureDetector(
+              onTap: _showOptions,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                    color: Colors.black45, shape: BoxShape.circle),
+                child: const Icon(Icons.more_vert_rounded,
+                    color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+
+        // Bottom author info
+        Positioned(
+          bottom: 80,
+          left: 16,
+          right: 80,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () {},
+                child: Row(children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: const Color(0xFFEEF0FF),
+                    backgroundImage: reel.user.avatar != null
+                        ? CachedNetworkImageProvider(reel.user.avatar!)
+                        : null,
+                    child: reel.user.avatar == null
+                        ? Text(reel.user.name[0],
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14))
+                        : null,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(reel.user.name,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14)),
+                  if (reel.user.isVerified) ...[
+                    const SizedBox(width: 4),
+                    const Icon(Icons.verified, size: 14, color: kOrange),
+                  ],
+                  const SizedBox(width: 10),
+                  GestureDetector(
+                    onTap: () =>
+                        ref.read(communityRepoProvider).toggleFollow(reel.user.id),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white),
+                          borderRadius: BorderRadius.circular(20)),
+                      child: const Text('Follow',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ]),
+              ),
+              if (reel.content != null && reel.content!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(reel.content!,
+                    style:
+                        const TextStyle(color: Colors.white, fontSize: 13),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+              ],
+            ],
+          ),
+        ),
+
+        // Right action buttons
+        Positioned(
+          right: 10,
+          bottom: 100,
+          child: Column(children: [
+            _sideAction(
+              icon: _liked ? Icons.favorite : Icons.favorite_outline,
+              label: '$_likesCount',
+              color: _liked ? Colors.red : Colors.white,
+              onTap: () {
+                setState(() {
+                  _liked = !_liked;
+                  _likesCount += _liked ? 1 : -1;
+                });
+                ref
+                    .read(communityRepoProvider)
+                    .reactToPost(reel.id, 'like');
+              },
+            ),
+            const SizedBox(height: 20),
+            _sideAction(
+              icon: Icons.chat_bubble_outline,
+              label: '${reel.commentsCount}',
+              color: Colors.white,
+              onTap: () => showCommentsSheet(context, reel.id,
+                  initialCount: reel.commentsCount),
+            ),
+            const SizedBox(height: 20),
+            _sideAction(
+              icon: Icons.send_outlined,
+              label: 'Share',
+              color: Colors.white,
+              onTap: () =>
+                  ref.read(communityRepoProvider).sharePost(reel.id),
+            ),
+            const SizedBox(height: 20),
+            _sideAction(
+              icon: _saved ? Icons.bookmark : Icons.bookmark_outline,
+              label: 'Save',
+              color: _saved ? kOrange : Colors.white,
+              onTap: () async {
+                final s = await ref
+                    .read(communityRepoProvider)
+                    .savePost(reel.id);
+                setState(() => _saved = s);
+              },
+            ),
+            const SizedBox(height: 20),
+            _sideAction(
+              icon: Icons.visibility_outlined,
+              label: '${reel.viewsCount}',
+              color: Colors.white70,
+              onTap: () {},
+            ),
+          ]),
+        ),
       ]),
     );
 
@@ -485,15 +723,29 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         : reelContent;
   }
 
-  Widget _sideAction({required IconData icon, required String label, required Color color, required VoidCallback onTap}) =>
-      GestureDetector(onTap: onTap, child: Column(children: [Icon(icon, color: color, size: 28), const SizedBox(height: 2), Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600))]));
+  Widget _sideAction(
+          {required IconData icon,
+          required String label,
+          required Color color,
+          required VoidCallback onTap}) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Column(children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 2),
+          Text(label,
+              style: TextStyle(
+                  color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+        ]),
+      );
 }
 
-// ── Reel Ad Card (TikTok style fullscreen ad) ─────────────────────────────────
+// ── Reel Ad Card ──────────────────────────────────────────────────────────────
 
 class _ReelAdCard extends ConsumerStatefulWidget {
   final Map<String, dynamic> ad;
-  const _ReelAdCard({super.key, required this.ad});
+  final bool isActive;
+  const _ReelAdCard({super.key, required this.ad, required this.isActive});
   @override
   ConsumerState<_ReelAdCard> createState() => _ReelAdCardState();
 }
@@ -501,112 +753,233 @@ class _ReelAdCard extends ConsumerStatefulWidget {
 class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
   VideoPlayerController? _ctrl;
   bool _ready = false;
+  String _adUrl = '';
+  final _engine = VideoEngine.instance;
 
   @override
   void initState() {
     super.initState();
-    final url = widget.ad['media_url'] as String?;
-    if (url != null) {
-      _ctrl = VideoPlayerController.networkUrl(Uri.parse(url))
-        ..initialize().then((_) {
-          if (mounted) { setState(() => _ready = true); _ctrl!.setLooping(true); _ctrl!.setVolume(1); _ctrl!.play(); }
-        }).catchError((_) {});
+    _adUrl = widget.ad['media_url'] as String? ?? '';
+    if (_adUrl.isNotEmpty) _initVideo();
+  }
+
+  void _initVideo() async {
+    final cached = _engine.getController(_adUrl);
+    if (cached != null && cached.value.isInitialized) {
+      if (mounted) {
+        setState(() { _ctrl = cached; _ready = true; });
+        if (widget.isActive) _engine.activate(_adUrl);
+      }
+      return;
+    }
+
+    final ctrl = await _engine.preload(_adUrl);
+    if (ctrl != null && mounted) {
+      ctrl.setLooping(true);
+      setState(() { _ctrl = ctrl; _ready = true; });
+      if (widget.isActive) _engine.activate(_adUrl);
     }
   }
 
   @override
-  void dispose() { _ctrl?.dispose(); super.dispose(); }
+  void didUpdateWidget(_ReelAdCard old) {
+    super.didUpdateWidget(old);
+    if (widget.isActive != old.isActive && _adUrl.isNotEmpty) {
+      if (widget.isActive) {
+        _engine.activate(_adUrl);
+      } else {
+        _engine.pause(_adUrl);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    // Return to pool — don't dispose, engine manages lifetime
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final ad = widget.ad;
+    final thumbnail = ad['thumbnail'] as String?;
+
     return GestureDetector(
       onTap: () {
         if (ad['id'] != null) ref.read(communityRepoProvider).trackAdClick(ad['id']);
       },
       child: Stack(fit: StackFit.expand, children: [
-        // Video or image or gradient
+        // Video or thumbnail/gradient placeholder
         if (_ready && _ctrl != null)
           Center(child: AspectRatio(aspectRatio: _ctrl!.value.aspectRatio, child: VideoPlayer(_ctrl!)))
-        else if (ad['ad_type'] == 'image' && ad['media_url'] != null)
-          NetImage(url: ad['media_url'], fit: BoxFit.cover)
+        else if (thumbnail != null)
+          NetImage(url: thumbnail, fit: BoxFit.cover)
         else
-          Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-            colors: [Color(0xFF1A1B2E), Color(0xFF0D0E1A)]))),
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF1A1B2E), Color(0xFF0D0E1A)],
+              ),
+            ),
+          ),
 
         // Gradient overlays
-        Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-          colors: [Colors.black45, Colors.transparent, Colors.transparent, Colors.black87], stops: [0, 0.15, 0.6, 1.0]))),
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black45,
+                Colors.transparent,
+                Colors.transparent,
+                Colors.black87
+              ],
+              stops: [0, 0.15, 0.6, 1.0],
+            ),
+          ),
+        ),
 
-        // Sponsored badge top
-        Positioned(top: MediaQuery.of(context).padding.top + 60, left: 16,
-          child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(6)),
+        // Sponsored badge
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 60,
+          left: 16,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration:
+                BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(6)),
             child: const Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.campaign_rounded, color: Colors.white, size: 14),
               SizedBox(width: 4),
-              Text('Sponsored', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
-            ]))),
+              Text('Sponsored',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800)),
+            ]),
+          ),
+        ),
 
         // Bottom info
-        Positioned(bottom: 90, left: 16, right: 80,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        Positioned(
+          bottom: 90,
+          left: 16,
+          right: 80,
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
             Row(children: [
               if (ad['page']?['avatar'] != null)
-                CircleAvatar(radius: 18, backgroundImage: CachedNetworkImageProvider(ad['page']['avatar']))
-              else Container(width: 36, height: 36, decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
-                child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 18)),
+                CircleAvatar(
+                    radius: 18,
+                    backgroundImage:
+                        CachedNetworkImageProvider(ad['page']['avatar']))
+              else
+                Container(
+                    width: 36,
+                    height: 36,
+                    decoration: const BoxDecoration(
+                        color: Colors.white24, shape: BoxShape.circle),
+                    child: const Icon(Icons.storefront_rounded,
+                        color: Colors.white, size: 18)),
               const SizedBox(width: 10),
-              Text(ad['page']?['name'] ?? 'Sponsored', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+              Text(ad['page']?['name'] ?? 'Sponsored',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15)),
             ]),
-            if (ad['title'] != null) Padding(padding: const EdgeInsets.only(top: 10),
-              child: Text(ad['title'], style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600, height: 1.3))),
-          ])),
+            if (ad['title'] != null)
+              Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(ad['title'],
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3))),
+          ]),
+        ),
 
-        // Right side actions (like regular reels)
-        Positioned(right: 12, bottom: 120, child: Column(children: [
-          _sideBtn(Icons.favorite_outline, '0', Colors.white),
-          const SizedBox(height: 20),
-          _sideBtn(Icons.chat_bubble_outline, '0', Colors.white),
-          const SizedBox(height: 20),
-          _sideBtn(Icons.share_outlined, 'Share', Colors.white),
-        ])),
+        // Right side
+        Positioned(
+          right: 12,
+          bottom: 120,
+          child: Column(children: [
+            _sideBtn(Icons.favorite_outline, '0', Colors.white),
+            const SizedBox(height: 20),
+            _sideBtn(Icons.chat_bubble_outline, '0', Colors.white),
+            const SizedBox(height: 20),
+            _sideBtn(Icons.share_outlined, 'Share', Colors.white),
+          ]),
+        ),
 
-        // CTA button bottom
-        if (ad['cta_text'] != null) Positioned(bottom: 30, left: 16, right: 16,
-          child: GestureDetector(
-            onTap: () {
-              if (ad['id'] != null) ref.read(communityRepoProvider).trackAdClick(ad['id']);
-            },
-            child: Container(padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(10),
-                boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.4), blurRadius: 16)]),
-              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text(ad['cta_text'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
-                const SizedBox(width: 8),
-                const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 18),
-              ])))),
+        // CTA
+        if (ad['cta_text'] != null)
+          Positioned(
+            bottom: 30,
+            left: 16,
+            right: 16,
+            child: GestureDetector(
+              onTap: () {
+                if (ad['id'] != null)
+                  ref.read(communityRepoProvider).trackAdClick(ad['id']);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: kOrange,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                        color: kOrange.withValues(alpha: 0.4), blurRadius: 16)
+                  ],
+                ),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text(ad['cta_text'],
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16)),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.arrow_upward_rounded,
+                      color: Colors.white, size: 18),
+                ]),
+              ),
+            ),
+          ),
 
-        // "Swipe up" hint
-        Positioned(bottom: 10, left: 0, right: 0,
-          child: Center(child: Text('Swipe up for more', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11)))),
+        Positioned(
+          bottom: 10,
+          left: 0,
+          right: 0,
+          child: Center(
+              child: Text('Swipe up for more',
+                  style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.4), fontSize: 11))),
+        ),
       ]),
     );
   }
 
   Widget _sideBtn(IconData icon, String label, Color color) => Column(children: [
-    Icon(icon, color: color, size: 28),
-    const SizedBox(height: 2),
-    Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
-  ]);
+        Icon(icon, color: color, size: 28),
+        const SizedBox(height: 2),
+        Text(label,
+            style: TextStyle(
+                color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+      ]);
 }
 
 // ── eRent reel card ────────────────────────────────────────────────────────────
+// Now uses VideoEngine pool — no more raw VideoPlayerController creation.
 
 class _RentReelCard extends ConsumerStatefulWidget {
   final Map<String, dynamic> reel;
   final bool isActive;
-  const _RentReelCard({super.key, required this.reel, required this.isActive});
+  const _RentReelCard(
+      {super.key, required this.reel, required this.isActive});
 
   @override
   ConsumerState<_RentReelCard> createState() => _RentReelCardState();
@@ -616,55 +989,68 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
   VideoPlayerController? _videoCtrl;
   bool _videoReady = false;
   bool _muted = false;
-  bool _paused = false; // manual pause by user tap
+  bool _paused = false;
   bool _showHeart = false;
+  String _videoUrl = '';
+  final _engine = VideoEngine.instance;
 
   @override
   void initState() {
     super.initState();
-    _initVideo();
+    _videoUrl = widget.reel['video_url'] as String? ?? '';
+    if (_videoUrl.isNotEmpty) _initVideo();
   }
 
-  void _initVideo() {
-    final url = widget.reel['video_url'] as String? ?? '';
-    if (url.isEmpty) return;
-    _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(url))
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() => _videoReady = true);
-          _videoCtrl!.setLooping(true);
-          _videoCtrl!.setVolume(_muted ? 0 : 1);
-          if (widget.isActive && !_paused) _videoCtrl!.play();
-        }
-      }).catchError((_) {});
+  void _initVideo() async {
+    // Fast path — already in pool from predictive preload
+    final cached = _engine.getController(_videoUrl);
+    if (cached != null && cached.value.isInitialized) {
+      if (mounted) {
+        setState(() { _videoCtrl = cached; _videoReady = true; });
+        if (widget.isActive && !_paused) _engine.activate(_videoUrl);
+      }
+      return;
+    }
+
+    final ctrl = await _engine.preload(_videoUrl);
+    if (ctrl != null && mounted) {
+      ctrl.setLooping(true);
+      setState(() { _videoCtrl = ctrl; _videoReady = true; });
+      if (widget.isActive && !_paused) _engine.activate(_videoUrl);
+    }
   }
 
   @override
   void didUpdateWidget(_RentReelCard old) {
     super.didUpdateWidget(old);
-    if (widget.isActive != old.isActive) {
+    if (widget.isActive != old.isActive && _videoUrl.isNotEmpty) {
       if (widget.isActive) {
-        if (!_paused) _videoCtrl?.play();
+        if (!_paused) _engine.activate(_videoUrl);
       } else {
-        _videoCtrl?.pause();
+        _engine.pause(_videoUrl);
       }
     }
   }
 
   @override
-  void dispose() { _videoCtrl?.dispose(); super.dispose(); }
+  void dispose() {
+    // Engine manages controller lifetime — no dispose here
+    super.dispose();
+  }
 
   void _togglePause() {
-    if (_videoCtrl == null || !_videoReady) return;
+    if (!_videoReady) return;
     setState(() => _paused = !_paused);
-    _paused ? _videoCtrl!.pause() : _videoCtrl!.play();
+    _paused ? _engine.pause(_videoUrl) : _engine.activate(_videoUrl);
   }
 
   void _openProperty(BuildContext context) {
     final propertyId = widget.reel['property_id'];
     if (propertyId == null) return;
     Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(builder: (_) => PropertyDetailScreen(propertyId: int.parse(propertyId.toString()))),
+      MaterialPageRoute(
+          builder: (_) => PropertyDetailScreen(
+              propertyId: int.parse(propertyId.toString()))),
     );
   }
 
@@ -678,9 +1064,15 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
 
     return GestureDetector(
       onTap: _togglePause,
-      onDoubleTap: () { setState(() => _showHeart = true); Future.delayed(const Duration(milliseconds: 800), () { if (mounted) setState(() => _showHeart = false); }); },
+      onDoubleTap: () {
+        setState(() => _showHeart = true);
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (mounted) setState(() => _showHeart = false);
+        });
+      },
       child: Stack(fit: StackFit.expand, children: [
-        // Video or thumbnail
+        // Thumbnail always present — instant first frame
+        // Video or thumbnail placeholder
         if (_videoReady && _videoCtrl != null)
           Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!)))
         else if (thumbnail != null)
@@ -689,74 +1081,187 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
           Container(color: const Color(0xFF1A1B2E)),
 
         // Gradient
-        Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black45, Colors.transparent, Colors.transparent, Colors.black87], stops: [0, 0.2, 0.5, 1.0]))),
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black45,
+                Colors.transparent,
+                Colors.transparent,
+                Colors.black87
+              ],
+              stops: [0, 0.2, 0.5, 1.0],
+            ),
+          ),
+        ),
 
-        if (!_videoReady)
-          const Center(child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)),
+        // Loading — only when no thumbnail
+        if (!_videoReady && thumbnail == null)
+          const Center(
+              child: CircularProgressIndicator(
+                  color: Colors.white54, strokeWidth: 2)),
 
-        // Pause icon overlay
+        // Pause overlay
         if (_paused && _videoReady)
-          Center(child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 48),
-          )),
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration:
+                  BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+              child: const Icon(Icons.play_arrow_rounded,
+                  color: Colors.white, size: 48),
+            ),
+          ),
 
         if (_showHeart)
-          Center(child: Icon(Icons.favorite, size: 100, color: Colors.red.withOpacity(0.85))),
+          Center(
+              child: Icon(Icons.favorite,
+                  size: 100, color: Colors.red.withOpacity(0.85))),
 
-        // eRent badge top-left
-        Positioned(top: MediaQuery.of(context).padding.top + 64, left: 16,
+        // eRent badge
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 64,
+          left: 16,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(20)),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration:
+                BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(20)),
             child: const Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.home_rounded, color: Colors.white, size: 14),
               SizedBox(width: 5),
-              Text('eRent', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
+              Text('eRent',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12)),
             ]),
-          )),
+          ),
+        ),
 
         // Mute
-        Positioned(top: MediaQuery.of(context).padding.top + 64, right: 12,
-          child: GestureDetector(onTap: () { setState(() => _muted = !_muted); _videoCtrl?.setVolume(_muted ? 0 : 1); },
-            child: Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle), child: Icon(_muted ? Icons.volume_off : Icons.volume_up, color: Colors.white, size: 20)))),
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 64,
+          right: 12,
+          child: GestureDetector(
+            onTap: () {
+              setState(() => _muted = !_muted);
+              if (_videoCtrl != null) {
+                _engine.activate(_videoUrl); // ensure active
+                _videoCtrl!.setVolume(_muted ? 0 : 1);
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                  color: Colors.black45, shape: BoxShape.circle),
+              child: Icon(_muted ? Icons.volume_off : Icons.volume_up,
+                  color: Colors.white, size: 20),
+            ),
+          ),
+        ),
 
-        // Bottom info — tappable title navigates to property detail
-        Positioned(bottom: 80, left: 16, right: 80,
+        // Bottom property info
+        Positioned(
+          bottom: 80,
+          left: 16,
+          right: 80,
           child: GestureDetector(
             onTap: () => _openProperty(context),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Row(children: [
-                Container(width: 40, height: 40, decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.home_rounded, color: Colors.white, size: 22)),
-                const SizedBox(width: 10),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  if (district.isNotEmpty) Text(district, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                ])),
-                const Icon(Icons.chevron_right_rounded, color: Colors.white70, size: 20),
-              ]),
-              if (rent != null) ...[
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)),
-                  child: Text('\$$rent/mo', style: const TextStyle(color: kOrange, fontWeight: FontWeight.w800, fontSize: 14)),
-                ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                        color: kOrange,
+                        borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.home_rounded,
+                        color: Colors.white, size: 22),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                          if (district.isNotEmpty)
+                            Text(district,
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 12)),
+                        ]),
+                  ),
+                  const Icon(Icons.chevron_right_rounded,
+                      color: Colors.white70, size: 20),
+                ]),
+                if (rent != null) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Text('\$$rent/mo',
+                        style: const TextStyle(
+                            color: kOrange,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14)),
+                  ),
+                ],
               ],
-            ]),
-          )),
+            ),
+          ),
+        ),
 
         // Right actions
-        Positioned(right: 10, bottom: 100, child: Column(children: [
-          _sideAction(icon: Icons.home_work_outlined, label: 'View', color: Colors.white, onTap: () => _openProperty(context)),
-          const SizedBox(height: 20),
-          _sideAction(icon: Icons.send_outlined, label: 'Share', color: Colors.white, onTap: () {}),
-        ])),
+        Positioned(
+          right: 10,
+          bottom: 100,
+          child: Column(children: [
+            _sideAction(
+              icon: Icons.home_work_outlined,
+              label: 'View',
+              color: Colors.white,
+              onTap: () => _openProperty(context),
+            ),
+            const SizedBox(height: 20),
+            _sideAction(
+              icon: Icons.send_outlined,
+              label: 'Share',
+              color: Colors.white,
+              onTap: () {},
+            ),
+          ]),
+        ),
       ]),
     );
   }
 
-  Widget _sideAction({required IconData icon, required String label, required Color color, required VoidCallback onTap}) =>
-      GestureDetector(onTap: onTap, child: Column(children: [Icon(icon, color: color, size: 28), const SizedBox(height: 2), Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600))]));
+  Widget _sideAction(
+          {required IconData icon,
+          required String label,
+          required Color color,
+          required VoidCallback onTap}) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Column(children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 2),
+          Text(label,
+              style: TextStyle(
+                  color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+        ]),
+      );
 }

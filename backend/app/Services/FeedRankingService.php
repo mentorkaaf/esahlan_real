@@ -113,7 +113,10 @@ class FeedRankingService
             ->whereNull('group_id')
             ->where('privacy', '!=', 'private')
             ->whereNull('deleted_at')
-            ->where('created_at', '>', now()->subDays(14)); // 2 week window
+            ->where('created_at', '>', now()->subDays(14)) // 2 week window
+            // Hide posts whose video is still transcoding from other users' feeds.
+            // The post owner can always see their own post (they poll status themselves).
+            ->where(fn ($q) => $q->where('video_ready', true)->orWhere('user_id', $this->userId));
 
         // Exclude posts seen in the last 2 hours, on every page — not just
         // page 1. Originally page-1-only (page 1 fresh, deeper pages more
@@ -123,12 +126,22 @@ class FeedRankingService
         // when there aren't many alternatives). A 2-hour window still lets
         // content resurface across separate sessions, just not while
         // someone is actively scrolling through pages in one sitting.
+        //
+        // But on a small content pool this can over-exclude completely: if a
+        // user has already scrolled through everything available, the
+        // exclusion list covers every candidate and the feed comes back
+        // empty even though posts exist (same bug audited and fixed in
+        // reels() — one account had 17/17 reels marked seen and got zero
+        // back). An empty feed is worse than a repeat, so only apply the
+        // exclusion when enough OTHER content remains to still fill a page.
         if (!empty($this->seenPostIds)) {
             $recentSeen = DB::table('feed_seen_posts')
                 ->where('user_id', $this->userId)
                 ->where('seen_at', '>', now()->subHours(2))
                 ->pluck('post_id')->toArray();
-            if (!empty($recentSeen)) {
+            $totalAvailable = (clone $query)->count();
+            $unseenAvailable = $totalAvailable - count($recentSeen);
+            if (!empty($recentSeen) && $unseenAvailable >= $perPage) {
                 $query->whereNotIn('id', $recentSeen);
             }
         }

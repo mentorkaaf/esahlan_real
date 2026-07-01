@@ -135,20 +135,41 @@ class ERentController extends Controller
             $reels = is_string($p->reels) ? (json_decode($p->reels, true) ?? []) : ($p->reels ?? []);
             $images = is_string($p->images) ? (json_decode($p->images, true) ?? []) : ($p->images ?? []);
             if (!is_array($reels) || empty($reels)) continue;
-            foreach ($reels as $url) {
-                if (empty($url)) continue;
+            foreach ($reels as $rawUrl) {
+                if (empty($rawUrl)) continue;
                 $result[] = [
                     'property_id'    => $p->id,
                     'property_title' => $p->title,
                     'monthly_rent'   => $p->monthly_rent,
                     'district_name'  => $p->district_name ?? '',
-                    'thumbnail'      => !empty($images) ? $images[0] : null,
-                    'video_url'      => $url,
+                    'thumbnail'      => !empty($images) ? $this->resolveMediaUrl($images[0], 'properties') : null,
+                    'video_url'      => $this->resolveStorageUrl($rawUrl, 'property-reels'),
                 ];
             }
         }
 
         return response()->json(['status' => 'success', 'data' => $result]);
+    }
+
+    /**
+     * Convert any stored URL/path to the canonical /storage/ URL.
+     * Stored values may be full old URLs (esahlan.com/api/v1/img/folder/file.ext)
+     * or raw filenames. Extracts the basename and rebuilds with Storage::url().
+     */
+    private function resolveStorageUrl(string $stored, string $folder): string
+    {
+        $filename = basename(parse_url($stored, PHP_URL_PATH) ?: $stored);
+        return url('/storage/' . $folder . '/' . $filename);
+    }
+
+    /**
+     * Same as resolveStorageUrl but routes through the media proxy
+     * so CORS headers are present for Flutter Web.
+     */
+    private function resolveMediaUrl(string $stored, string $folder): string
+    {
+        $filename = basename(parse_url($stored, PHP_URL_PATH) ?: $stored);
+        return url('/api/v1/media?f=' . $folder . '/' . $filename);
     }
     public function book(Request $request)
     {

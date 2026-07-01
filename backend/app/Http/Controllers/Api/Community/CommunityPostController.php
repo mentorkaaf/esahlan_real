@@ -11,6 +11,7 @@ use App\Models\CommunityPollVote;
 use App\Services\InteractionTracker;
 use App\Services\FcmService;
 use App\Services\RealtimeService;
+use App\Jobs\TranscodeVideoJob;
 use App\Models\CommunityFollow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -96,25 +97,20 @@ class CommunityPostController extends Controller
                     'sort_order' => $i,
                 ];
 
-                // Process video: generate multi-quality + thumbnail
+                // Video: dispatch background transcoding. Post is hidden from other
+                // users (video_ready=false) until the job marks it ready.
                 if ($type === 'video') {
-                    try {
-                        $processed = \App\Services\VideoProcessingService::process($path);
-                        if (!empty($processed['thumbnail'])) {
-                            $mediaData['thumbnail'] = cdn_url($processed['thumbnail']);
-                        }
-                        if (!empty($processed['qualities'])) {
-                            // Use 480p as default URL for faster streaming
-                            $optimal = \App\Services\VideoProcessingService::getOptimalQuality($processed['qualities']);
-                            if ($optimal) $mediaData["url"] = $optimal;
-                            if (!empty($processed["qualities"]["hls"]["url"])) $mediaData["hls_url"] = $processed["qualities"]["hls"]["url"];
-                        }
-                    } catch (\Throwable $e) {
-                        \Log::warning('Video processing failed: ' . $e->getMessage());
-                    }
+                    $mediaData['transcoding_status'] = 'pending';
+                    // Hide from public feed while transcoding
+                    $post->update(['video_ready' => false]);
                 }
 
-                CommunityPostMedia::create($mediaData);
+                $media = CommunityPostMedia::create($mediaData);
+
+                if ($type === 'video') {
+                    TranscodeVideoJob::dispatch($media->id, $path, auth()->id());
+                    continue; // media record already created above
+                }
             }
         }
 
@@ -145,6 +141,22 @@ class CommunityPostController extends Controller
 
         $post->load(['user.communityProfile','media','userReaction']);
         return response()->json(['status'=>'success','data'=>$this->feed->transformPost($post, auth()->id())], 201);
+    }
+
+    /** GET /community/media/{mediaId}/transcoding-status */
+    public function transcodingStatus(int $mediaId)
+    {
+        $media = CommunityPostMedia::findOrFail($mediaId);
+
+        return response()->json([
+            'status'   => 'success',
+            'media_id' => $mediaId,
+            'transcoding_status'   => $media->getRawOriginal('transcoding_status') ?? 'none',
+            'transcoding_progress' => $media->transcoding_progress ?? 0,
+            'hls_url'   => $media->hls_url,
+            'thumbnail' => $media->thumbnail,
+            'url'       => $media->url,
+        ]);
     }
 
     public function show(int $id)

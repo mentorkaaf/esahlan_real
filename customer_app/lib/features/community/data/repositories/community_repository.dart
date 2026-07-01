@@ -434,6 +434,13 @@ class CommunityRepository {
     return r.data['data'] as Map<String, dynamic>?;
   }
 
+  /// Poll transcoding status for a single media item.
+  /// Returns map with transcoding_status, transcoding_progress, hls_url, thumbnail.
+  Future<Map<String, dynamic>> getTranscodingStatus(int mediaId) async {
+    final r = await _dio.get('/community/media/$mediaId/transcoding-status');
+    return r.data as Map<String, dynamic>;
+  }
+
   // ── Helper ─────────────────────────────────────────────────────────────────
   List<CommunityPost> _parsePosts(dynamic data) {
     List raw;

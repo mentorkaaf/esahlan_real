@@ -275,6 +275,7 @@ Route::prefix('v1')->group(function () {
         Route::post('posts/{id}/share', [CommunityPostController::class, 'share']);
         Route::post('posts/{id}/save', [CommunityPostController::class, 'save']);
         Route::post('posts/{id}/vote', [CommunityPostController::class, 'votePoll']);
+        Route::get('media/{mediaId}/transcoding-status', [CommunityPostController::class, 'transcodingStatus']);
 
         // Promoted posts (boost)
         Route::get('ads/analytics', [CommunityAdController::class, 'analytics']);

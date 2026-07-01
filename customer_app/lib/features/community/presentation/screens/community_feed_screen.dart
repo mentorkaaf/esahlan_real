@@ -66,6 +66,11 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
       if (_scrollCtrl.offset < 100 && _hasNewPosts) {
         setState(() => _hasNewPosts = false);
       }
+      // Report scroll velocity so VideoEngine adjusts preload aggressiveness
+      try {
+        final velocity = _scrollCtrl.position.activity?.velocity ?? 0.0;
+        VideoEngine.instance.notifyScrollVelocity(velocity.abs());
+      } catch (_) {}
     });
     // Fallback poll (slow — realtime is the primary path, this just covers
     // the rare case where the socket is down for an extended period).
@@ -999,7 +1004,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
           ),
 
         // Media
-        if (p.media.isNotEmpty) _MediaGrid(media: p.media, postId: p.id),
+        if (p.media.isNotEmpty) _MediaGrid(media: p.media, postId: p.id, isOwner: p.user.isMe),
 
         // Poll
         if (p.type == 'poll' && p.pollOptions.isNotEmpty)
@@ -1562,7 +1567,8 @@ class _ReelsCarousel extends ConsumerWidget {
 class _MediaGrid extends StatelessWidget {
   final List<CommunityPostMedia> media;
   final int? postId;
-  const _MediaGrid({required this.media, this.postId});
+  final bool isOwner;
+  const _MediaGrid({required this.media, this.postId, this.isOwner = false});
 
   void _openGallery(BuildContext context, int index) {
     final images = media.where((m) => m.type == 'image').toList();
@@ -1576,7 +1582,7 @@ class _MediaGrid extends StatelessWidget {
       final m = media[0];
       return GestureDetector(
         onTap: m.type == 'image' ? () => _openGallery(context, 0) : null,
-        child: _MediaItem(m: m, height: m.type == 'video' ? 0 : 0, postId: postId));
+        child: _MediaItem(m: m, height: m.type == 'video' ? 0 : 0, postId: postId, isOwner: isOwner));
     }
     if (media.length == 2) {
       return SizedBox(height: 200, child: Row(children: [
@@ -1584,7 +1590,7 @@ class _MediaGrid extends StatelessWidget {
           Expanded(child: Padding(padding: EdgeInsets.only(right: i == 0 ? 2 : 0),
             child: GestureDetector(
               onTap: media[i].type == 'image' ? () => _openGallery(context, i) : null,
-              child: _MediaItem(m: media[i], height: 200, postId: postId)))),
+              child: _MediaItem(m: media[i], height: 200, postId: postId, isOwner: isOwner)))),
       ]));
     }
     final extra = media.length - 3;
@@ -1596,17 +1602,116 @@ class _MediaGrid extends StatelessWidget {
       SizedBox(height: 120, child: Row(children: [
         Expanded(child: GestureDetector(
           onTap: media[1].type == 'image' ? () => _openGallery(context, 1) : null,
-          child: _MediaItem(m: media[1], height: 120, postId: postId))),
+          child: _MediaItem(m: media[1], height: 120, postId: postId, isOwner: isOwner))),
         const SizedBox(width: 2),
         Expanded(child: GestureDetector(
           onTap: () => _openGallery(context, 2),
           child: Stack(children: [
-            _MediaItem(m: media[2], height: 120, postId: postId),
+            _MediaItem(m: media[2], height: 120, postId: postId, isOwner: isOwner),
             if (extra > 0) Positioned.fill(child: Container(
               color: Colors.black45,
               child: Center(child: Text('+$extra', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800))),
             )),
           ]))),
+      ])),
+    ]);
+  }
+}
+
+// ── Transcoding placeholder ────────────────────────────────────────────────────
+// Shown while the backend is transcoding a freshly-uploaded video.
+// Polls /community/media/{id}/transcoding-status every 8 seconds until ready.
+// Also listens for the realtime post.media_ready event to avoid polling lag.
+
+class _TranscodingPlaceholder extends ConsumerStatefulWidget {
+  final int mediaId;
+  final int progress;
+  final String? thumbnail;
+  final bool isOwner;
+  const _TranscodingPlaceholder({required this.mediaId, required this.progress, this.thumbnail, this.isOwner = false});
+  @override
+  ConsumerState<_TranscodingPlaceholder> createState() => _TranscodingPlaceholderState();
+}
+
+class _TranscodingPlaceholderState extends ConsumerState<_TranscodingPlaceholder> {
+  int _progress = 0;
+  bool _done = false;
+  Timer? _pollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _progress = widget.progress;
+    // Only the post owner polls for status — other users never see the post
+    // while it's transcoding (video_ready=false filters it from their feed).
+    if (widget.isOwner) _startPolling();
+  }
+
+  void _startPolling() {
+    _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) => _poll());
+    // Also fire immediately after a short delay (don't block initState)
+    Future.delayed(const Duration(seconds: 2), _poll);
+  }
+
+  Future<void> _poll() async {
+    if (!mounted || _done) return;
+    try {
+      final data = await ref.read(communityRepoProvider).getTranscodingStatus(widget.mediaId);
+      if (!mounted) return;
+      final status = data['transcoding_status'] as String? ?? 'pending';
+      final pct    = data['transcoding_progress'] as int? ?? _progress;
+      if (status == 'ready' || status == 'failed') {
+        _done = true;
+        _pollTimer?.cancel();
+        // Refresh the feed so the updated media (with hls_url) loads properly
+        ref.invalidate(communityFeedProvider);
+      } else {
+        setState(() => _progress = pct);
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(children: [
+      // Show thumbnail if available while processing
+      if (widget.thumbnail != null)
+        SizedBox(
+          height: 220, width: double.infinity,
+          child: NetImage(url: widget.thumbnail!, fit: BoxFit.cover,
+            placeholder: Container(color: const Color(0xFF1A1B2E)),
+            errorWidget: Container(color: const Color(0xFF1A1B2E))),
+        )
+      else
+        Container(height: 220, color: const Color(0xFF1A1B2E)),
+
+      // Dark overlay
+      Positioned.fill(child: Container(color: Colors.black.withValues(alpha: 0.55))),
+
+      // Processing indicator
+      Positioned.fill(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        SizedBox(
+          width: 56, height: 56,
+          child: CircularProgressIndicator(
+            value: _progress > 0 ? _progress / 100 : null,
+            strokeWidth: 3,
+            color: kOrange,
+            backgroundColor: Colors.white24,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          _progress > 0 ? 'Processing... $_progress%' : 'Processing video...',
+          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 4),
+        const Text('Will be ready shortly', style: TextStyle(color: Colors.white60, fontSize: 11)),
       ])),
     ]);
   }
@@ -1620,20 +1725,39 @@ class _SimpleVideoPlayer extends StatefulWidget {
 }
 
 class _SimpleVideoPlayerState extends State<_SimpleVideoPlayer> {
-  late VideoPlayerController _ctrl;
+  VideoPlayerController? _ctrl;
   bool _ready = false;
+  final _engine = VideoEngine.instance;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
-      ..initialize().then((_) {
-        if (mounted) { setState(() => _ready = true); _ctrl.play(); }
-      });
+    _initFromEngine();
+  }
+
+  void _initFromEngine() async {
+    // Reuse pooled controller — likely already buffered
+    final cached = _engine.getController(widget.url);
+    if (cached != null && cached.value.isInitialized) {
+      if (mounted) {
+        setState(() { _ctrl = cached; _ready = true; });
+        _engine.activate(widget.url);
+      }
+      return;
+    }
+    final ctrl = await _engine.preload(widget.url);
+    if (ctrl != null && mounted) {
+      setState(() { _ctrl = ctrl; _ready = true; });
+      _engine.activate(widget.url);
+    }
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    // Engine owns the controller lifetime — just pause on exit
+    if (widget.url.isNotEmpty) _engine.pause(widget.url);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1641,15 +1765,15 @@ class _SimpleVideoPlayerState extends State<_SimpleVideoPlayer> {
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
       body: GestureDetector(
-        onTap: _ready ? () { _ctrl.value.isPlaying ? _ctrl.pause() : _ctrl.play(); setState(() {}); } : null,
+        onTap: _ready && _ctrl != null ? () { _ctrl!.value.isPlaying ? _ctrl!.pause() : _ctrl!.play(); setState(() {}); } : null,
         onVerticalDragEnd: (d) { if (d.primaryVelocity != null && d.primaryVelocity! > 300) Navigator.pop(context); },
-        child: _ready
+        child: _ready && _ctrl != null
           ? Stack(fit: StackFit.expand, children: [
-              Center(child: AspectRatio(aspectRatio: _ctrl.value.aspectRatio, child: VideoPlayer(_ctrl))),
-              if (!_ctrl.value.isPlaying)
+              Center(child: AspectRatio(aspectRatio: _ctrl!.value.aspectRatio, child: VideoPlayer(_ctrl!))),
+              if (!_ctrl!.value.isPlaying)
                 const Center(child: Icon(Icons.play_circle_fill_rounded, color: Colors.white70, size: 64)),
               Positioned(bottom: 30, left: 16, right: 16,
-                child: VideoProgressIndicator(_ctrl, allowScrubbing: true,
+                child: VideoProgressIndicator(_ctrl!, allowScrubbing: true,
                   colors: const VideoProgressColors(playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12))),
               Positioned(top: MediaQuery.of(context).padding.top + 8, left: 8,
                 child: GestureDetector(onTap: () => Navigator.pop(context),
@@ -1689,7 +1813,8 @@ class _MediaItem extends ConsumerStatefulWidget {
   final CommunityPostMedia m;
   final double height;
   final int? postId;
-  const _MediaItem({required this.m, required this.height, this.postId});
+  final bool isOwner;
+  const _MediaItem({required this.m, required this.height, this.postId, this.isOwner = false});
 
   @override
   ConsumerState<_MediaItem> createState() => _MediaItemState();
@@ -1712,6 +1837,9 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Preload is triggered by visibility (15% threshold) — not here.
+    // Starting preload for every item in initState caused concurrent
+    // controller floods that blocked the main thread (ANR).
   }
 
   @override
@@ -1727,6 +1855,15 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   Future<void> _initVideo() async {
     final url = _videoUrl;
     if (url.isEmpty) return;
+
+    // Fast path — engine already has it from predictive preload
+    final cached = _engine.getController(url);
+    if (cached != null && cached.value.isInitialized && mounted) {
+      setState(() { _ctrl = cached; _ready = true; });
+      if (_visible && !_paused) _engine.activate(url);
+      return;
+    }
+
     final ctrl = await _engine.preload(url);
     if (ctrl != null && mounted) {
       setState(() { _ctrl = ctrl; _ready = true; });
@@ -1741,9 +1878,15 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   }
 
   void _onVisibilityChanged(VisibilityInfo info) {
-    _visible = info.visibleFraction > 0.5;
+    final fraction = info.visibleFraction;
+
+    // Start loading at 15% visible — well before the video reaches viewport
+    if (fraction > 0.15 && _isVideo && !_ready) {
+      _initVideo();
+    }
+
+    _visible = fraction > 0.5;
     if (_visible) {
-      if (_isVideo && !_ready) _initVideo();
       if (_ready && _ctrl != null && !_paused) {
         _engine.activate(_videoUrl);
         _watchStart ??= DateTime.now();
@@ -1778,6 +1921,28 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (_isAudio) return _AudioPlayerCard(url: widget.m.url);
     if (_isDocument) return _DocumentCard(url: widget.m.url);
 
+    // Video is still being transcoded — show processing overlay instead of blank.
+    // Only the post owner sees this (others never receive transcoding posts in feed).
+    if (_isVideo && widget.m.isTranscoding) {
+      return _TranscodingPlaceholder(
+        mediaId: widget.m.id,
+        progress: widget.m.transcodingProgress,
+        thumbnail: widget.m.thumbnail,
+        isOwner: widget.isOwner,
+      );
+
+    }
+    if (_isVideo && widget.m.transcodingFailed) {
+      return Container(
+        height: 220, color: const Color(0xFF1A1B2E),
+        child: const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.error_outline_rounded, color: Colors.white54, size: 36),
+          SizedBox(height: 8),
+          Text('Video processing failed', style: TextStyle(color: Colors.white54, fontSize: 13)),
+        ])),
+      );
+    }
+
     if (!_isVideo) {
       if (widget.height == 0) {
         return NetImage(url: widget.m.url, fit: BoxFit.fitWidth, width: double.infinity,
@@ -1810,20 +1975,29 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
         } : null,
         child: Stack(
           children: [
+            // Video or thumbnail — simple stack, no complex crossfade layers
             Container(
               color: const Color(0xFF1A1B2E),
               width: double.infinity,
               height: videoH,
               child: _ready && _ctrl != null
-                  ? FittedBox(fit: BoxFit.contain, child: SizedBox(
-                      width: _ctrl!.value.size.width, height: _ctrl!.value.size.height, child: VideoPlayer(_ctrl!)))
+                  ? FittedBox(
+                      fit: BoxFit.contain,
+                      child: SizedBox(
+                        width: _ctrl!.value.size.width,
+                        height: _ctrl!.value.size.height,
+                        child: VideoPlayer(_ctrl!),
+                      ))
                   : widget.m.thumbnail != null
-                      ? NetImage(url: widget.m.thumbnail!, fit: BoxFit.contain,
+                      ? NetImage(
+                          url: widget.m.thumbnail!,
+                          fit: BoxFit.contain,
                           placeholder: Container(color: const Color(0xFF1A1B2E)),
                           errorWidget: Container(color: const Color(0xFF1A1B2E)))
                       : const SizedBox(),
             ),
-            if (!_ready)
+            // Spinner only when no thumbnail and video not yet ready
+            if (!_ready && widget.m.thumbnail == null)
               Positioned.fill(child: Center(child: CircularProgressIndicator(color: kOrange.withValues(alpha: 0.7), strokeWidth: 2))),
             if (_paused && _ready)
               Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(14),

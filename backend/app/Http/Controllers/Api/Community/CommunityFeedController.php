@@ -69,7 +69,8 @@ class CommunityFeedController extends Controller
 
         $query = CommunityPost::with(['user.communityProfile', 'media', 'userReaction', 'page'])
             ->whereNull('group_id')
-            ->where('privacy', '!=', 'private');
+            ->where('privacy', '!=', 'private')
+            ->where(fn ($q) => $q->where('video_ready', true)->orWhere('user_id', $userId));
 
         if ($followingIds->isNotEmpty()) {
             // Mix: 70% following, 30% popular
@@ -180,6 +181,7 @@ class CommunityFeedController extends Controller
                 ->where('community_posts.privacy', 'public')
                 ->whereNull('community_posts.group_id')
                 ->whereNull('community_posts.deleted_at')
+                ->where('community_posts.video_ready', true)
                 ->where('community_posts.created_at', '>', now()->subDays(7));
 
             if ($hashtag) {
@@ -208,6 +210,7 @@ class CommunityFeedController extends Controller
             $fallbackQuery = CommunityPost::with(['user.communityProfile', 'media', 'userReaction', 'page'])
                 ->where('privacy', 'public')
                 ->whereNull('group_id')
+                ->where('video_ready', true)
                 ->whereRaw('(likes_count + comments_count + views_count + shares_count) >= 20');
 
             if ($hashtag) {
@@ -276,16 +279,29 @@ class CommunityFeedController extends Controller
         $interestedCreators = array_keys($interests);
 
         // Exclude reels seen in the last 2 hours so scrolling doesn't repeat
-        // the same clips — mirrors FeedRankingService's approach for the main feed.
+        // the same clips — mirrors FeedRankingService's approach for the main
+        // feed. But on a small/young content pool this can over-exclude: if
+        // someone has already scrolled through everything available, the
+        // exclusion list covers 100% of candidates and the page comes back
+        // empty even though content technically exists (audited: 17/17 reels
+        // marked seen for one real account, reels() returned zero). Showing
+        // nothing is worse than showing a repeat, so the exclusion only
+        // applies when there's enough OTHER content left to still fill a
+        // page — otherwise it's dropped entirely for this request.
         $recentlySeen = \DB::table('feed_seen_posts')
             ->where('user_id', $userId)
             ->where('seen_at', '>', now()->subHours(2))
             ->pluck('post_id')->toArray();
 
+        $totalAvailable = CommunityPost::whereIn('type', ['reel', 'video'])->where('privacy', 'public')->count();
+        $unseenAvailable = $totalAvailable - count($recentlySeen);
+        $applySeenExclusion = !empty($recentlySeen) && $unseenAvailable >= $perPage;
+
         $baseQuery = fn () => CommunityPost::with(['user.communityProfile', 'media', 'userReaction'])
             ->whereIn('type', ['reel', 'video'])
             ->where('privacy', 'public')
-            ->when(!empty($recentlySeen), fn ($q) => $q->whereNotIn('id', $recentlySeen));
+            ->where('video_ready', true)
+            ->when($applySeenExclusion, fn ($q) => $q->whereNotIn('id', $recentlySeen));
 
         // Same fix as the main feed: when following/recommended pools have
         // nothing to draw from (fresh user, or just thin interest history),
@@ -498,17 +514,41 @@ class CommunityFeedController extends Controller
             ->limit(10)
             ->pluck('value');
 
-        // Combine: mutual suggestions + popular users + random discovery
+        // Combine: mutual suggestions + popular users + random discovery.
+        // "Popular" used to require >10 followers, which is realistic for a
+        // mature platform but starves a young one — audited: 0 users on this
+        // platform currently have more than 10 followers, so that filter
+        // alone made suggestions() return nothing for every single user,
+        // mutuals or not. Same class of bug as the feed/reels cold-start
+        // issue fixed earlier today. Order by followers_count instead of
+        // gating on it, and always backfill with a no-criteria pool of
+        // not-yet-followed users so this is never empty as long as anyone
+        // else exists on the platform.
         $suggestedIds = $mutualSuggestions->keys()->toArray();
         $popularIds = \App\Models\User::with('communityProfile')
             ->whereNotIn('id', $followingIds)
-            ->whereHas('communityProfile', fn ($q) => $q->where('followers_count', '>', 10))
-            ->orderByDesc('id')
+            ->whereHas('communityProfile')
+            ->orderByDesc(
+                \App\Models\CommunityProfile::select('followers_count')
+                    ->whereColumn('user_id', 'users.id')
+            )
             ->limit(20)
             ->pluck('id')->toArray();
 
         $allIds = array_unique(array_merge($suggestedIds, $interactedCreators->toArray(), $popularIds));
         $allIds = array_diff($allIds, $followingIds);
+
+        // Backfill: brand-new platform / brand-new user — no mutuals, no
+        // interaction history, and few-to-no profiles yet. Fall back to any
+        // other user at all rather than showing an empty People tab.
+        if (count($allIds) < 10) {
+            $fallbackIds = \App\Models\User::whereNotIn('id', $followingIds)
+                ->whereNotIn('id', $allIds)
+                ->orderByDesc('id')
+                ->limit(20)
+                ->pluck('id')->toArray();
+            $allIds = array_unique(array_merge($allIds, $fallbackIds));
+        }
 
         $users = \App\Models\User::with('communityProfile')
             ->whereIn('id', $allIds)
@@ -570,7 +610,18 @@ class CommunityFeedController extends Controller
             'saves_count'       => $post->saves_count,
             'poll_options'      => $post->poll_options,
             'created_at'        => $post->created_at,
-            'media'             => $post->media->map(fn ($m) => ['id' => $m->id, 'type' => $m->type, 'url' => cdn_url($m->url), 'thumbnail' => cdn_url($m->thumbnail), 'duration' => $m->duration])->toArray(),
+            'media'             => $post->media->map(fn ($m) => [
+                'id'                   => $m->id,
+                'type'                 => $m->type,
+                'url'                  => cdn_url($m->getRawOriginal('url')),
+                'hls_url'              => $m->getRawOriginal('hls_url') ? cdn_url($m->getRawOriginal('hls_url')) : null,
+                'thumbnail'            => cdn_url($m->getRawOriginal('thumbnail')),
+                'duration'             => $m->duration,
+                'width'                => $m->width,
+                'height'               => $m->height,
+                'transcoding_status'   => $m->getRawOriginal('transcoding_status') ?? 'none',
+                'transcoding_progress' => $m->transcoding_progress ?? 0,
+            ])->toArray(),
             'user'              => $displayUser,
             'user_reaction'     => $post->userReaction?->type,
             'is_saved'          => \App\Models\CommunitySavedPost::where('user_id', $userId)->where('post_id', $post->id)->exists(),

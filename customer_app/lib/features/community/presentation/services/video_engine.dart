@@ -4,89 +4,266 @@ import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 
+// ── Metrics ──────────────────────────────────────────────────────────────────
+
+class VideoEngineMetrics {
+  int cacheHits = 0;
+  int cacheMisses = 0;
+  int preloadSuccesses = 0;
+  int preloadFailures = 0;
+  int disposals = 0;
+  int bufferEvents = 0;
+  final List<int> _startupTimesMs = [];
+
+  double get cacheHitRatio =>
+      (cacheHits + cacheMisses) == 0 ? 0 : cacheHits / (cacheHits + cacheMisses);
+
+  int get avgStartupMs => _startupTimesMs.isEmpty
+      ? 0
+      : _startupTimesMs.reduce((a, b) => a + b) ~/ _startupTimesMs.length;
+
+  int get p95StartupMs {
+    if (_startupTimesMs.length < 2) return avgStartupMs;
+    final sorted = List<int>.from(_startupTimesMs)..sort();
+    return sorted[(sorted.length * 0.95).floor().clamp(0, sorted.length - 1)];
+  }
+
+  void recordStartup(int ms) {
+    _startupTimesMs.add(ms);
+    if (_startupTimesMs.length > 200) _startupTimesMs.removeAt(0);
+  }
+
+  @override
+  String toString() =>
+      '[VideoEngine] hits=$cacheHits misses=$cacheMisses '
+      'hitRatio=${(cacheHitRatio * 100).toStringAsFixed(1)}% '
+      'avgStartup=${avgStartupMs}ms p95=${p95StartupMs}ms '
+      'buffers=$bufferEvents disposals=$disposals';
+}
+
+// ── Pool entry ────────────────────────────────────────────────────────────────
+
+class _PoolEntry {
+  final CachedVideoPlayerPlus player;
+  bool initialized;
+  DateTime lastAccess;
+  int feedIndex; // position in the current feed list (-1 = unknown)
+
+  _PoolEntry({required this.player, this.initialized = false, this.feedIndex = -1})
+      : lastAccess = DateTime.now();
+
+  VideoPlayerController? get vpController => initialized ? player.controller : null;
+}
+
+// ── VideoEngine ───────────────────────────────────────────────────────────────
+
+/// Ultra-low-latency video playback engine.
+///
+/// Design pillars:
+///   1. Position-aware pool — evicts videos farthest from current playback position.
+///   2. Velocity-adaptive preloading — fast scroll → fewer preloads to save bandwidth.
+///   3. Priority queue — videos closest to current position initialise first.
+///   4. Metrics — startup latency, cache hit ratio, buffer events for debugging.
+///   5. Silent failover — auto-retry with back-off, never freezes UI.
 class VideoEngine {
   VideoEngine._();
   static final instance = VideoEngine._();
 
-  static const _maxControllers = 4;
+  // Pool capacity: current(1) + ahead(2) + behind(1) + buffer(2) = 6
+  static const _maxControllers = 6;
+  static const _maxPreloadAhead = 2;
+  static const _maxPreloadBehind = 1;
+
   final _pool = LinkedHashMap<String, _PoolEntry>();
-  final _preloading = <String, Future<void>>{};
+  final _preloading = <String, Completer<VideoPlayerController?>>{};
   final _retryCount = <String, int>{};
+
+  // Feed position context — enables distance-based eviction
+  List<String> _orderedUrls = [];
+  int _currentIndex = -1;
+  String? _activeUrl;
+
+  // Scroll velocity (absolute px/s) — controls preload aggressiveness
+  double _scrollVelocity = 0;
+  Timer? _velocityDecayTimer;
+
+  final metrics = VideoEngineMetrics();
+
+  // ── Position context ────────────────────────────────────────────────────────
+
+  /// Inform the engine of the current feed order and active position.
+  /// Call this on every page/index change in reels and feed.
+  void setFeedContext(List<String> urls, int currentIndex) {
+    _orderedUrls = urls;
+    _currentIndex = currentIndex;
+    // Update cached feed indices for existing entries
+    for (final e in _pool.entries) {
+      e.value.feedIndex = _orderedUrls.indexOf(e.key);
+    }
+    _evictDistantControllers();
+  }
+
+  /// Inform the engine of the current scroll speed (absolute value).
+  /// Call from ScrollController.addListener or PageController.addListener.
+  void notifyScrollVelocity(double pixelsPerSecond) {
+    _scrollVelocity = pixelsPerSecond.abs();
+    _velocityDecayTimer?.cancel();
+    _velocityDecayTimer = Timer(const Duration(milliseconds: 600), () {
+      _scrollVelocity = 0;
+    });
+  }
+
+  int get _dynamicPreloadCount {
+    if (_scrollVelocity > 4000) return 1; // very fast — save bandwidth
+    if (_scrollVelocity > 2000) return 2; // medium
+    return _maxPreloadAhead; // slow / stopped — preload fully
+  }
+
+  // ── Controller access ────────────────────────────────────────────────────────
 
   VideoPlayerController? getController(String url) {
     final entry = _pool[url];
-    if (entry != null) {
+    if (entry != null && entry.initialized) {
       entry.lastAccess = DateTime.now();
       return entry.vpController;
     }
     return null;
   }
 
-  Future<VideoPlayerController?> preload(String url) async {
+  bool isReady(String url) => _pool[url]?.initialized == true;
+  bool isPreloading(String url) => _preloading.containsKey(url);
+
+  // ── Preloading ───────────────────────────────────────────────────────────────
+
+  /// Preload a single video in the background.
+  /// Returns immediately if already cached; otherwise initialises the decoder.
+  Future<VideoPlayerController?> preload(String url, {int feedIndex = -1}) async {
     if (url.isEmpty) return null;
 
     final existing = _pool[url];
     if (existing != null && existing.initialized) {
       existing.lastAccess = DateTime.now();
+      metrics.cacheHits++;
       return existing.vpController;
     }
 
+    // Deduplicate concurrent preload requests for the same URL
     if (_preloading.containsKey(url)) {
-      await _preloading[url];
-      return _pool[url]?.vpController;
+      return _preloading[url]!.future;
     }
 
-    _evictIfNeeded();
+    metrics.cacheMisses++;
+    _evictIfNeeded(preferKeep: url);
 
-    final completer = Completer<void>();
-    _preloading[url] = completer.future;
+    final completer = Completer<VideoPlayerController?>();
+    _preloading[url] = completer;
 
+    final sw = Stopwatch()..start();
     try {
       final player = CachedVideoPlayerPlus.networkUrl(
         Uri.parse(url),
-        httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'},
+        httpHeaders: const {
+          'Connection': 'keep-alive',
+          'Accept-Encoding': 'identity',
+        },
         invalidateCacheIfOlderThan: const Duration(days: 7),
       );
 
-      final entry = _PoolEntry(player: player);
+      final entry = _PoolEntry(player: player, feedIndex: feedIndex);
       _pool[url] = entry;
 
       await player.initialize();
       final ctrl = player.controller;
       ctrl.setLooping(true);
       ctrl.setVolume(0);
+      // Seek to start to warm up decoder and buffer first segment
+      await ctrl.seekTo(Duration.zero);
+
       entry.initialized = true;
       entry.lastAccess = DateTime.now();
       _retryCount.remove(url);
 
-      completer.complete();
+      sw.stop();
+      metrics.recordStartup(sw.elapsedMilliseconds);
+      metrics.preloadSuccesses++;
+      debugPrint('[VideoEngine] Preloaded in ${sw.elapsedMilliseconds}ms: $url');
+
+      completer.complete(ctrl);
       _preloading.remove(url);
       return ctrl;
     } catch (e) {
+      sw.stop();
       _pool.remove(url);
-      if (!completer.isCompleted) completer.complete();
+      metrics.preloadFailures++;
+
+      if (!completer.isCompleted) completer.complete(null);
       _preloading.remove(url);
 
       final retries = _retryCount[url] ?? 0;
       if (retries < 2) {
         _retryCount[url] = retries + 1;
-        await Future.delayed(Duration(seconds: 2 + retries * 2));
-        return preload(url);
+        final delay = Duration(seconds: 2 + retries * 2);
+        debugPrint('[VideoEngine] Retry ${retries + 1} for $url in ${delay.inSeconds}s');
+        await Future.delayed(delay);
+        return preload(url, feedIndex: feedIndex);
       }
-      debugPrint('[VideoEngine] Failed after retries: $url');
+      debugPrint('[VideoEngine] Gave up after retries: $url');
       return null;
     }
   }
 
+  /// Predictive bulk preload centred on [currentIndex] in [urls].
+  /// Preloads [_dynamicPreloadCount] ahead and [_maxPreloadBehind] behind,
+  /// skipping already-cached or in-flight URLs.
+  void preloadFromIndex(int currentIndex, List<String> urls) {
+    final count = _dynamicPreloadCount;
+    final candidates = <int, String>{};
+
+    // Ahead (highest priority)
+    for (var i = currentIndex + 1; i <= currentIndex + count && i < urls.length; i++) {
+      candidates[i] = urls[i];
+    }
+    // Behind (lower priority — user might scroll back)
+    for (var i = currentIndex - 1; i >= currentIndex - _maxPreloadBehind && i >= 0; i--) {
+      candidates[i] = urls[i];
+    }
+
+    // Sort by distance so closest fires first
+    final sorted = candidates.entries.toList()
+      ..sort((a, b) => (a.key - currentIndex).abs().compareTo((b.key - currentIndex).abs()));
+
+    for (final e in sorted) {
+      final url = e.value;
+      if (url.isNotEmpty && !isReady(url) && !isPreloading(url)) {
+        preload(url, feedIndex: e.key);
+      }
+    }
+  }
+
+  /// Legacy shim — used by existing reels onPageChanged code.
   void preloadNext(List<String> urls) {
-    for (final url in urls.take(2)) {
-      if (url.isNotEmpty && !_pool.containsKey(url) && !_preloading.containsKey(url)) {
+    final count = _dynamicPreloadCount;
+    for (final url in urls.take(count)) {
+      if (url.isNotEmpty && !isReady(url) && !isPreloading(url)) {
         preload(url);
       }
     }
   }
 
+  // ── Activation ───────────────────────────────────────────────────────────────
+
+  /// Make [url] the active (playing) video; pause and silence everything else.
   void activate(String url) {
+    if (_activeUrl == url) {
+      final entry = _pool[url];
+      final ctrl = entry?.vpController;
+      if (ctrl != null && entry!.initialized && !ctrl.value.isPlaying) {
+        ctrl.setVolume(1);
+        ctrl.play();
+      }
+      return;
+    }
+    _activeUrl = url;
     for (final e in _pool.entries) {
       final ctrl = e.value.vpController;
       if (ctrl == null) continue;
@@ -103,40 +280,91 @@ class VideoEngine {
 
   void pause(String url) {
     _pool[url]?.vpController?.pause();
+    if (_activeUrl == url) _activeUrl = null;
   }
 
   void pauseAll() {
     for (final e in _pool.values) {
       if (e.vpController?.value.isPlaying == true) e.vpController?.pause();
     }
+    _activeUrl = null;
   }
 
   void release(String url) {
+    if (_preloading.containsKey(url)) return; // Never interrupt an in-flight load
     final entry = _pool.remove(url);
     if (entry != null) {
       entry.vpController?.pause();
       entry.player.dispose();
+      metrics.disposals++;
+    }
+    if (_activeUrl == url) _activeUrl = null;
+  }
+
+  // ── Eviction ─────────────────────────────────────────────────────────────────
+
+  void _evictIfNeeded({String? preferKeep}) {
+    while (_pool.length >= _maxControllers) {
+      final candidate = _chooseEvictionCandidate(protect: preferKeep);
+      if (candidate != null) {
+        release(candidate);
+      } else {
+        break; // All remaining controllers are protected
+      }
     }
   }
 
-  void _evictIfNeeded() {
-    while (_pool.length >= _maxControllers) {
-      String? evictKey;
-      DateTime? oldest;
-      for (final e in _pool.entries) {
-        if (e.value.vpController?.value.isPlaying != true) {
-          if (oldest == null || e.value.lastAccess.isBefore(oldest)) {
-            oldest = e.value.lastAccess;
-            evictKey = e.key;
-          }
-        }
+  /// Distance-based eviction: the controller farthest from the current
+  /// playback position is evicted first. Never evicts the active video.
+  String? _chooseEvictionCandidate({String? protect}) {
+    String? best;
+    int bestDist = -1;
+
+    for (final e in _pool.entries) {
+      if (e.key == _activeUrl) continue;
+      if (e.key == protect) continue;
+      if (e.value.vpController?.value.isPlaying == true) continue;
+
+      final dist = _distanceFromCurrent(e.key);
+      if (dist > bestDist) {
+        bestDist = dist;
+        best = e.key;
       }
-      if (evictKey != null) release(evictKey);
-      else release(_pool.keys.first);
+    }
+    return best;
+  }
+
+  int _distanceFromCurrent(String url) {
+    if (_orderedUrls.isEmpty || _currentIndex < 0) {
+      // No feed context — fall back to LRU distance via timestamp
+      final entry = _pool[url];
+      if (entry == null) return 999;
+      return DateTime.now().difference(entry.lastAccess).inSeconds;
+    }
+    final idx = _orderedUrls.indexOf(url);
+    return idx < 0 ? 999 : (idx - _currentIndex).abs();
+  }
+
+  /// Proactively release controllers that are too far from the current position
+  /// to be needed in the near future.
+  void _evictDistantControllers() {
+    if (_orderedUrls.isEmpty || _currentIndex < 0) return;
+    final safeRadius = _maxPreloadAhead + _maxPreloadBehind + 2;
+
+    final toEvict = <String>[];
+    for (final url in _pool.keys) {
+      if (url == _activeUrl) continue;
+      if (_distanceFromCurrent(url) > safeRadius) toEvict.add(url);
+    }
+    for (final url in toEvict) {
+      release(url);
     }
   }
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
   void disposeAll() {
+    _velocityDecayTimer?.cancel();
     for (final e in _pool.values) {
       e.vpController?.pause();
       e.player.dispose();
@@ -144,16 +372,16 @@ class VideoEngine {
     _pool.clear();
     _preloading.clear();
     _retryCount.clear();
+    _orderedUrls = [];
+    _currentIndex = -1;
+    _activeUrl = null;
   }
-}
 
-class _PoolEntry {
-  final CachedVideoPlayerPlus player;
-  bool initialized;
-  DateTime lastAccess;
+  // ── Debug ─────────────────────────────────────────────────────────────────────
 
-  _PoolEntry({required this.player, this.initialized = false})
-      : lastAccess = DateTime.now();
-
-  VideoPlayerController? get vpController => initialized ? player.controller : null;
+  void logStatus() {
+    debugPrint('[VideoEngine] pool=${_pool.length}/$_maxControllers '
+        'active=$_activeUrl velocity=${_scrollVelocity.toStringAsFixed(0)}px/s');
+    debugPrint(metrics.toString());
+  }
 }

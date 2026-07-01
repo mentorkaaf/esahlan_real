@@ -28,13 +28,42 @@ class CommunityShell extends ConsumerStatefulWidget {
   ConsumerState<CommunityShell> createState() => _CommunityShellState();
 }
 
-class _CommunityShellState extends ConsumerState<CommunityShell> {
+class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBindingObserver {
   bool? _onboardingDone;
+  DateTime? _backgroundedAt;
 
   @override
   void initState() {
     super.initState();
     _checkOnboarding();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Android "back"/home doesn't kill the process — it just backgrounds it,
+    // so Riverpod provider state (already-loaded feed/reels) survives
+    // untouched. Returning to the app resumes that exact in-memory state with
+    // no new network call, which looked like "the feed never changes even
+    // after closing and reopening the app". Match Facebook/Instagram-style
+    // behavior instead: if the app was away for a while, refresh on resume.
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _backgroundedAt ??= DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      final awayFor = _backgroundedAt == null ? Duration.zero : DateTime.now().difference(_backgroundedAt!);
+      _backgroundedAt = null;
+      if (awayFor > const Duration(minutes: 2)) {
+        ref.read(communityFeedProvider.notifier).load(refresh: true);
+        ref.read(communityReelsProvider.notifier).load(refresh: true);
+        ref.invalidate(communityStoriesProvider);
+      }
+    }
   }
 
   void _checkOnboarding() async {

@@ -11,6 +11,8 @@ use App\Models\CommunityStory;
 use App\Models\CommunityMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class AdminCommunityController extends Controller
 {
@@ -63,27 +65,88 @@ class AdminCommunityController extends Controller
 
     public function deletePost($id)
     {
-        $post = CommunityPost::findOrFail($id);
-        $post->media()->delete();
-        $post->reactions()->delete();
-        $post->comments()->delete();
-        $post->reports()->delete();
-        $post->delete();
+        $post = CommunityPost::with('media')->findOrFail($id);
+        $this->permanentlyDeletePost($post);
 
-        return back()->with('success', 'Post deleted successfully.');
+        return back()->with('success', 'Post permanently deleted.');
     }
 
     public function bulkDeletePosts(Request $request)
     {
         $ids = $request->input('ids', []);
         if (empty($ids)) return back()->with('success', 'No posts selected.');
-        CommunityPost::whereIn('id', $ids)->each(function ($post) {
-            $post->media()->delete();
-            $post->reactions()->delete();
-            $post->comments()->delete();
-            $post->delete();
-        });
-        return back()->with('success', count($ids) . ' posts deleted.');
+        CommunityPost::with('media')->whereIn('id', $ids)->get()->each(
+            fn ($post) => $this->permanentlyDeletePost($post)
+        );
+        return back()->with('success', count($ids) . ' posts permanently deleted.');
+    }
+
+    /**
+     * Hard-delete a post and everything attached to it — DB rows and the
+     * actual files on disk. Admin deletes must not leave anything recoverable
+     * or lingering: not a soft-deleted row, not an orphaned upload.
+     *
+     * Most child rows (media, reactions, comments + their replies/reactions,
+     * saved_posts, hashtag pivot, poll_votes, feed_interactions,
+     * feed_seen_posts, post_scores) are cleaned up automatically by the
+     * cascadeOnDelete() foreign keys already defined on those tables — but
+     * only on a REAL delete. CommunityPost/CommunityComment use SoftDeletes,
+     * so the cascade only fires here because we call forceDelete(), not
+     * delete() (a soft-delete is just an UPDATE setting deleted_at — no FK
+     * cascade ever fires for it, and the row never actually leaves the table).
+     *
+     * Reports are polymorphic (reportable_type/reportable_id) and can't have
+     * a real foreign key, so they're cleaned up explicitly. Files have no
+     * database representation at all, so cascades never touch them — handled
+     * explicitly here too, best-effort (a missing/already-gone file never
+     * blocks the actual deletion).
+     */
+    private function permanentlyDeletePost(CommunityPost $post): void
+    {
+        foreach ($post->media as $m) {
+            $this->deleteFileIfLocal($m->getRawOriginal('url'));
+            $this->deleteFileIfLocal($m->getRawOriginal('thumbnail'));
+            $this->deleteFileIfLocal($m->getRawOriginal('hls_url'));
+        }
+        foreach ($post->comments()->withTrashed()->get() as $c) {
+            $this->deleteFileIfLocal($c->getRawOriginal('media_url'));
+        }
+
+        $post->reports()->delete();
+        $post->forceDelete();
+    }
+
+    /**
+     * Delete a file from the public disk given a stored media value — which
+     * isn't stored consistently across models. CommunityPostMedia stores the
+     * raw relative path and only wraps it into a proxy URL via a read-time
+     * accessor (cdn_url() never touches what's written to the DB there), but
+     * CommunityComment stores the already-cdn_url()-wrapped proxy URL
+     * directly (`{APP_URL}/api/v1/media?f={encoded path}`). This handles
+     * both: a bare relative path is used as-is; a proxy URL has its `f`
+     * query param decoded back to the relative path; any other external URL
+     * (YouTube, third-party CDNs) is left alone. Any failure (missing file,
+     * bad path, disk error) is logged and swallowed — file cleanup is
+     * best-effort and must never be the reason a database deletion fails.
+     */
+    private function deleteFileIfLocal(?string $value): void
+    {
+        if (!$value) return;
+        try {
+            $path = $value;
+            if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
+                $query = parse_url($value, PHP_URL_QUERY);
+                if (!$query) return; // external URL with no ?f= — not one of ours
+                parse_str($query, $params);
+                $path = $params['f'] ?? null;
+                if (!$path) return;
+            }
+            if (Storage::disk('public')->exists($path)) {
+                Storage::disk('public')->delete($path);
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Admin delete: failed to remove file {$value} — " . $e->getMessage());
+        }
     }
 
     // ── Reports ────────────────────────────────────────────────────────────────
@@ -136,10 +199,12 @@ class AdminCommunityController extends Controller
     {
         $group = CommunityGroup::findOrFail($id);
         $group->members()->delete();
-        $group->posts()->delete();
+        $group->posts()->with('media')->get()->each(
+            fn ($post) => $this->permanentlyDeletePost($post)
+        );
         $group->delete();
 
-        return back()->with('success', 'Group deleted.');
+        return back()->with('success', 'Group permanently deleted.');
     }
 
     // ── Users ──────────────────────────────────────────────────────────────────
@@ -220,10 +285,19 @@ class AdminCommunityController extends Controller
     {
         $report = CommunityReport::findOrFail($id);
         $report->update(['status' => 'resolved', 'reviewed_at' => now()]);
-        if ($report->reportable) {
-            $report->reportable->delete();
+
+        // Reportable is polymorphic — a reported post or a reported comment —
+        // route each to a real permanent delete instead of the soft-delete
+        // that ->delete() would otherwise leave behind.
+        if ($report->reportable instanceof CommunityPost) {
+            $report->reportable->load('media');
+            $this->permanentlyDeletePost($report->reportable);
+        } elseif ($report->reportable) {
+            $this->deleteFileIfLocal($report->reportable->getRawOriginal('media_url'));
+            $report->reportable->forceDelete();
         }
-        return back()->with('success', 'Post removed.');
+
+        return back()->with('success', 'Content permanently removed.');
     }
 
     public function engagement()

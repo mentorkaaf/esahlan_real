@@ -29,7 +29,7 @@ class RetranscodeVideosCommand extends Command
         $onlyId = $this->option('id');
 
         $query = CommunityPostMedia::where('type', 'video')
-            ->where('transcoding_status', 'ready')
+            ->whereIn('transcoding_status', ['ready', 'none'])
             ->whereNotNull('hls_url');
 
         if ($onlyId) {

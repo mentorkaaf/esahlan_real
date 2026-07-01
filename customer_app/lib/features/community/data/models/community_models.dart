@@ -73,6 +73,9 @@ class CommunityPostMedia {
   final int? duration;
   final int? width;
   final int? height;
+  // Transcoding pipeline state — set by backend, polled by Flutter
+  final String transcodingStatus; // none | pending | processing | ready | failed
+  final int transcodingProgress;  // 0-100
 
   const CommunityPostMedia({
     required this.id,
@@ -83,7 +86,12 @@ class CommunityPostMedia {
     this.duration,
     this.width,
     this.height,
+    this.transcodingStatus = 'none',
+    this.transcodingProgress = 0,
   });
+
+  bool get isTranscoding => transcodingStatus == 'pending' || transcodingStatus == 'processing';
+  bool get transcodingFailed => transcodingStatus == 'failed';
 
   double? get aspectRatio => width != null && height != null && height! > 0 ? width! / height! : null;
 
@@ -97,6 +105,8 @@ class CommunityPostMedia {
         duration: j['duration'] as int?,
         width: j['width'] as int?,
         height: j['height'] as int?,
+        transcodingStatus: j['transcoding_status'] as String? ?? 'none',
+        transcodingProgress: j['transcoding_progress'] as int? ?? 0,
       );
 }
 
