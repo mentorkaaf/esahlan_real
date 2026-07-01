@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Log;
  */
 class VideoProcessingService
 {
-    private const HLS_SEGMENT = 4;            // segment length in seconds
+    private const HLS_SEGMENT = 2;            // segment length in seconds
     private const NICE        = 'nice -n 15 ionice -c 3';
 
     public static function process(string $storagePath, ?callable $progressFn = null): array
@@ -76,12 +76,15 @@ class VideoProcessingService
         $masterLines  = ['#EXTM3U', '#EXT-X-VERSION:3'];
         $successCount = 0;
         $total        = count($renditions);
+        // Absolute base URL for .ts references inside each quality playlist.
+        // This lets CachedVideoPlayerPlus intercept and cache every segment.
+        $hlsBaseUrl   = url("/hls/{$dir}/{$name}/hls") . '/';
 
         foreach ($renditions as $idx => $r) {
-            $code = self::transcodeHls($inputPath, $hlsDir, $r);
+            $code = self::transcodeHls($inputPath, $hlsDir, $r, $hlsBaseUrl);
             if ($code === 0) {
                 $masterLines[] = "#EXT-X-STREAM-INF:BANDWIDTH={$r['bandwidth']},RESOLUTION={$r['resolution']},NAME=\"{$r['name']}\"";
-                $masterLines[] = "{$r['name']}.m3u8";
+                $masterLines[] = url("/hls/{$dir}/{$name}/hls/{$r['name']}.m3u8");
                 $successCount++;
             }
             $pct = 12 + (int)(($idx + 1) / $total * 72);
@@ -165,25 +168,28 @@ class VideoProcessingService
         return array_values(array_filter($all, fn($r) => $maxDim >= $r['minDim']));
     }
 
-    private static function transcodeHls(string $input, string $hlsDir, array $r): int
+    private static function transcodeHls(string $input, string $hlsDir, array $r, string $hlsBaseUrl = ''): int
     {
-        $gop     = self::HLS_SEGMENT * 30; // keyframe interval (assuming ≤30fps)
-        $segPat  = escapeshellarg("{$hlsDir}/{$r['name']}_%04d.ts");
-        $m3u8    = escapeshellarg("{$hlsDir}/{$r['name']}.m3u8");
+        $gop      = self::HLS_SEGMENT * 30; // keyframe interval (assuming ≤30fps)
+        $segPat   = escapeshellarg("{$hlsDir}/{$r['name']}_%04d.ts");
+        $m3u8     = escapeshellarg("{$hlsDir}/{$r['name']}.m3u8");
+        // Absolute base URL makes each .ts line in the quality playlist a full https://
+        // URL so CachedVideoPlayerPlus can intercept and cache every segment.
+        $baseFlag = $hlsBaseUrl ? ' -hls_base_url ' . escapeshellarg($hlsBaseUrl) : '';
 
         $cmd = sprintf(
             '%s ffmpeg -i %s -vf %s -c:v libx264 -preset fast -crf %d '
             . '-sc_threshold 0 -g %d -keyint_min %d '
             . '-c:a aac -b:a %s '
-            . '-hls_time %d -hls_list_size 0 -hls_segment_type mpegts '
-            . '-hls_segment_filename %s -y %s 2>/dev/null',
+            . '-hls_time %d -hls_list_size 0 -hls_segment_type mpegts'
+            . '%s -hls_segment_filename %s -y %s 2>/dev/null',
             self::NICE,
             escapeshellarg($input),
             $r['scale'], $r['crf'],
             $gop, $gop,
             $r['audiobr'],
             self::HLS_SEGMENT,
-            $segPat, $m3u8
+            $baseFlag, $segPat, $m3u8
         );
         exec($cmd, $_, $code);
         return (int) $code;
@@ -237,12 +243,13 @@ class VideoProcessingService
         $renditions   = self::buildRenditions($width, $height, $maxDim);
         $masterLines  = ['#EXTM3U', '#EXT-X-VERSION:3'];
         $successCount = 0;
+        $hlsBaseUrl   = url("/hls/{$baseDir}/hls") . '/';
 
         foreach ($renditions as $r) {
-            $code = self::transcodeHls($inputPath, $hlsFullDir, $r);
+            $code = self::transcodeHls($inputPath, $hlsFullDir, $r, $hlsBaseUrl);
             if ($code === 0) {
                 $masterLines[] = "#EXT-X-STREAM-INF:BANDWIDTH={$r['bandwidth']},RESOLUTION={$r['resolution']},NAME=\"{$r['name']}\"";
-                $masterLines[] = "{$r['name']}.m3u8";
+                $masterLines[] = url("/hls/{$baseDir}/hls/{$r['name']}.m3u8");
                 $successCount++;
             }
         }
