@@ -2048,17 +2048,11 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                           errorWidget: Container(color: const Color(0xFF1A1B2E)))
                       : const SizedBox(),
             ),
-            // Play icon overlay while video is loading (thumbnail visible)
-            if (!_ready)
-              Positioned.fill(child: Center(child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.45), shape: BoxShape.circle),
-                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 40)))),
-            // Buffering spinner — shown while loading OR while player is re-buffering
-            if (!_ready || (_ctrl != null && _ctrl!.value.isBuffering))
+            // Tiny corner spinner only during actual re-buffering (not initial load)
+            if (_ready && _ctrl != null && _ctrl!.value.isBuffering)
               Positioned(bottom: 50, right: 12,
-                child: SizedBox(width: 22, height: 22,
-                  child: CircularProgressIndicator(color: kOrange, strokeWidth: 2.5))),
+                child: SizedBox(width: 18, height: 18,
+                  child: CircularProgressIndicator(color: kOrange, strokeWidth: 2))),
             // Paused icon when user manually paused
             if (_paused && _ready)
               Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(14),

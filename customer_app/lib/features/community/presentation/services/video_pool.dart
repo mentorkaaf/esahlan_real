@@ -9,10 +9,10 @@ import 'package:video_player/video_player.dart';
 ///   VideoPool.feed  — for the scrollable feed
 ///
 /// Key design:
-///   • play(url) before the controller is ready registers a "pending play" intent.
-///     As soon as preload completes for that URL, playback starts automatically.
-///   • Retries keep the Completer alive — callers always get the final result,
-///     not a premature null.
+///   • Fail fast (no retries) — callers handle fallback URLs themselves.
+///   • play(url) before controller ready → stored as _pendingPlay, fired
+///     automatically the moment preload() completes.
+///   • setWindow preloads ±2 so the next/prev 2 reels are always buffered.
 class VideoPool {
   VideoPool._();
 
@@ -28,7 +28,7 @@ class VideoPool {
   List<String> _window      = [];
   int          _windowIndex = -1;
   String?      _activeUrl;
-  String?      _pendingPlay; // URL to auto-play as soon as its preload finishes
+  String?      _pendingPlay;
 
   // ─── Read ─────────────────────────────────────────────────────────────────
 
@@ -41,20 +41,22 @@ class VideoPool {
   // ─── Window (for paged views like Reels) ──────────────────────────────────
 
   /// Shift the preload window to [index] within [urls].
-  /// Evicts controllers outside ±2 of [index]; preloads {index-1, index, index+1}.
+  /// Evicts controllers outside ±3 of [index]; preloads {index-2 … index+2}.
   void setWindow(List<String> urls, int index) {
     _window      = urls;
     _windowIndex = index;
 
+    // Evict controllers that are far away
     final toEvict = _controllers.keys.where((url) {
       final i = urls.indexOf(url);
-      return i >= 0 && (i - index).abs() > 2;
+      return i >= 0 && (i - index).abs() > 3;
     }).toList();
     for (final u in toEvict) _evict(u);
 
-    for (var i = (index - 1).clamp(0, urls.length - 1);
-         i <= (index + 1).clamp(0, urls.length - 1);
-         i++) {
+    // Preload current ± 2 (5 slots total)
+    final from = (index - 2).clamp(0, urls.length - 1);
+    final to   = (index + 2).clamp(0, urls.length - 1);
+    for (var i = from; i <= to; i++) {
       final u = urls[i];
       if (u.isNotEmpty && !isReady(u) && !isLoading(u)) preload(u);
     }
@@ -62,9 +64,8 @@ class VideoPool {
 
   // ─── Preloading ───────────────────────────────────────────────────────────
 
-  /// Ensure [url] is loaded. Deduplicates concurrent calls.
-  /// Retries up to 2 times — callers wait for the final result, never get
-  /// a premature null.
+  /// Ensure [url] is loaded. Fail-fast (single attempt) so callers can
+  /// switch to a fallback URL immediately without multi-second retry delays.
   Future<VideoPlayerController?> preload(String url) async {
     if (url.isEmpty) return null;
     if (_ready[url] == true) return _controllers[url];
@@ -76,34 +77,26 @@ class VideoPool {
     _loading[url] = c;
 
     VideoPlayerController? result;
-
-    for (var attempt = 0; attempt <= 2; attempt++) {
-      try {
-        final ctrl = VideoPlayerController.networkUrl(
-          Uri.parse(url),
-          httpHeaders: const {'Connection': 'keep-alive'},
-        );
-        await ctrl.initialize();
-        ctrl.setLooping(true);
-        ctrl.setVolume(0);
-
-        _controllers[url] = ctrl;
-        _ready[url]       = true;
-        result = ctrl;
-        debugPrint('[VideoPool] ready (attempt $attempt): $url');
-        break;
-      } catch (e) {
-        debugPrint('[VideoPool] attempt $attempt failed: $url — $e');
-        if (attempt < 2) {
-          await Future.delayed(Duration(seconds: 2 + attempt * 2));
-        }
-      }
+    try {
+      final ctrl = VideoPlayerController.networkUrl(
+        Uri.parse(url),
+        httpHeaders: const {'Connection': 'keep-alive'},
+      );
+      await ctrl.initialize();
+      ctrl.setLooping(true);
+      ctrl.setVolume(0);
+      _controllers[url] = ctrl;
+      _ready[url]       = true;
+      result = ctrl;
+      debugPrint('[VideoPool] ready: $url');
+    } catch (e) {
+      debugPrint('[VideoPool] failed: $url — $e');
     }
 
     _loading.remove(url);
     c.complete(result);
 
-    // If play() was called while we were loading, start playback now.
+    // Auto-play if this URL was queued while still loading.
     if (result != null && _pendingPlay == url) {
       _pendingPlay = null;
       result.setVolume(1);
@@ -116,18 +109,17 @@ class VideoPool {
   // ─── Playback ─────────────────────────────────────────────────────────────
 
   /// Play [url] and silence all other controllers.
-  ///
-  /// If the controller isn't ready yet, the intent is remembered and playback
-  /// starts automatically the moment preload finishes.
+  /// If the controller isn't ready yet, the intent is stored in [_pendingPlay]
+  /// and triggered automatically when preload completes.
   void play(String url) {
     if (url.isEmpty) return;
     _activeUrl   = url;
-    _pendingPlay = url; // remembered even if not ready yet
+    _pendingPlay = url;
 
     for (final entry in _controllers.entries) {
       if (entry.key == url) {
         if (_ready[url] == true) {
-          _pendingPlay = null; // controller already here — clear the pending flag
+          _pendingPlay = null;
           if (!entry.value.value.isPlaying) {
             entry.value.setVolume(1);
             entry.value.play();
@@ -154,7 +146,6 @@ class VideoPool {
     _activeUrl = null;
   }
 
-  /// Re-acquire playback after app resume.
   Future<void> reactivate(String url) async {
     if (url.isEmpty) return;
     final ctrl = controller(url);
@@ -201,18 +192,12 @@ class VideoPool {
   String? _chooseLRU({String? protect}) {
     String? best;
     int     bestDist = -1;
-
     for (final url in _controllers.keys) {
       if (url == _activeUrl || url == protect) continue;
       if (_controllers[url]?.value.isPlaying == true) continue;
-
       final i    = _window.isEmpty ? -1 : _window.indexOf(url);
       final dist = i < 0 ? 999 : (i - _windowIndex).abs();
-
-      if (dist > bestDist) {
-        bestDist = dist;
-        best     = url;
-      }
+      if (dist > bestDist) { bestDist = dist; best = url; }
     }
     return best;
   }

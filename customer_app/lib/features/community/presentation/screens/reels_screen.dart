@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
@@ -547,16 +546,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         if (_videoReady && _videoCtrl != null)
           Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!))),
 
-        // Blur overlay while buffering — fades out instantly when video starts
-        if (!_videoReady)
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-              child: Container(color: Colors.black.withValues(alpha: 0.15)),
-            ),
-          ),
-
-        // Gradient overlay
+        // Gradient overlay (always present for text legibility)
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -573,19 +563,12 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
           ),
         ),
 
-        // Play icon overlay on thumbnail while video is loading
-        if (!_videoReady && media?.type == 'video')
-          Center(child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 48),
-          )),
-
-        // Buffering spinner — corner indicator while loading or re-buffering
-        if (!_videoReady || (_videoCtrl != null && _videoCtrl!.value.isBuffering))
+        // Tiny corner spinner only while the video is actively re-buffering
+        // (not during initial load — thumbnail is clear enough)
+        if (_videoReady && _videoCtrl != null && _videoCtrl!.value.isBuffering)
           Positioned(bottom: 120, right: 14,
-            child: SizedBox(width: 24, height: 24,
-              child: CircularProgressIndicator(color: Colors.white70, strokeWidth: 2.5))),
+            child: SizedBox(width: 20, height: 20,
+              child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2))),
 
         // Pause overlay
         if (_paused && _videoReady)
@@ -1126,16 +1109,7 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
         if (_videoReady && _videoCtrl != null)
           Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!))),
 
-        // Blur overlay while buffering
-        if (!_videoReady)
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-              child: Container(color: Colors.black.withValues(alpha: 0.15)),
-            ),
-          ),
-
-        // Gradient
+        // Gradient (always present for text legibility)
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -1152,19 +1126,11 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
           ),
         ),
 
-        // Play icon overlay on thumbnail while loading
-        if (!_videoReady)
-          Center(child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 48),
-          )),
-
-        // Buffering spinner
-        if (!_videoReady || (_videoCtrl != null && _videoCtrl!.value.isBuffering))
+        // Corner spinner only during actual re-buffering, not initial load
+        if (_videoReady && _videoCtrl != null && _videoCtrl!.value.isBuffering)
           Positioned(bottom: 120, right: 14,
-            child: SizedBox(width: 24, height: 24,
-              child: CircularProgressIndicator(color: Colors.white70, strokeWidth: 2.5))),
+            child: SizedBox(width: 20, height: 20,
+              child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2))),
 
         // Pause overlay
         if (_paused && _videoReady)
