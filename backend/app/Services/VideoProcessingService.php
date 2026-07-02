@@ -73,7 +73,7 @@ class VideoProcessingService
         $hlsDir     = "{$outDir}/hls";
         @mkdir($hlsDir, 0755, true);
 
-        $masterLines  = ['#EXTM3U', '#EXT-X-VERSION:3'];
+        $masterLines  = ['#EXTM3U', '#EXT-X-VERSION:3', '#EXT-X-INDEPENDENT-SEGMENTS'];
         $successCount = 0;
         $total        = count($renditions);
         // Absolute base URL for .ts references inside each quality playlist.
@@ -170,25 +170,26 @@ class VideoProcessingService
 
     private static function transcodeHls(string $input, string $hlsDir, array $r, string $hlsBaseUrl = ''): int
     {
-        $gop      = self::HLS_SEGMENT * 30; // keyframe interval (assuming ≤30fps)
+        $seg      = self::HLS_SEGMENT;
         $segPat   = escapeshellarg("{$hlsDir}/{$r['name']}_%04d.ts");
         $m3u8     = escapeshellarg("{$hlsDir}/{$r['name']}.m3u8");
-        // Absolute base URL makes each .ts line in the quality playlist a full https://
-        // URL so CachedVideoPlayerPlus can intercept and cache every segment.
         $baseFlag = $hlsBaseUrl ? ' -hls_base_url ' . escapeshellarg($hlsBaseUrl) : '';
 
+        // force_key_frames places IDR frames at exactly 0, 2, 4 … seconds
+        // regardless of source fps, so -hls_time can split cleanly every time.
+        // -sc_threshold 0 prevents scene-change keyframes from adding extra splits.
         $cmd = sprintf(
             '%s ffmpeg -i %s -vf %s -c:v libx264 -preset fast -crf %d '
-            . '-sc_threshold 0 -g %d -keyint_min %d '
+            . '-sc_threshold 0 -force_key_frames "expr:gte(t,n_forced*%d)" '
             . '-c:a aac -b:a %s '
             . '-hls_time %d -hls_list_size 0 -hls_segment_type mpegts'
             . '%s -hls_segment_filename %s -y %s 2>/dev/null',
             self::NICE,
             escapeshellarg($input),
             $r['scale'], $r['crf'],
-            $gop, $gop,
+            $seg,
             $r['audiobr'],
-            self::HLS_SEGMENT,
+            $seg,
             $baseFlag, $segPat, $m3u8
         );
         exec($cmd, $_, $code);
@@ -241,7 +242,7 @@ class VideoProcessingService
         $maxDim = max($width, $height);
 
         $renditions   = self::buildRenditions($width, $height, $maxDim);
-        $masterLines  = ['#EXTM3U', '#EXT-X-VERSION:3'];
+        $masterLines  = ['#EXTM3U', '#EXT-X-VERSION:3', '#EXT-X-INDEPENDENT-SEGMENTS'];
         $successCount = 0;
         $hlsBaseUrl   = url("/hls/{$baseDir}/hls") . '/';
 
