@@ -5,8 +5,7 @@ import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
-import '../services/video_engine.dart';
-import '../services/reel_pool.dart';
+import '../services/video_pool.dart';
 import '../../data/models/community_models.dart';
 import '../../../../features/modules/erent/erent_screen.dart';
 import '../providers/community_provider.dart';
@@ -60,30 +59,26 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
   int _adInterleaveCounter = 0;
   List<Map<String, dynamic>> _reelAds = [];
 
-  final _engine = VideoEngine.instance;
-  final _pool = ReelPool.instance;
+  final _pool = VideoPool.reels;
+
+  bool _lifecyclePaused = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadReelAds();
-    _pageCtrl.addListener(_onPageScroll);
   }
-
-  bool _lifecyclePaused = false;
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
       _lifecyclePaused = true;
-      _engine.pauseAll();
+      _pool.pauseAll();
     } else if (state == AppLifecycleState.inactive) {
-      // 'inactive' fires both when going to background (after resumed) AND
-      // when returning on iOS (before resumed). Only pause on the way OUT.
       if (!_lifecyclePaused) {
         _lifecyclePaused = true;
-        _engine.pauseAll();
+        _pool.pauseAll();
       }
     } else if (state == AppLifecycleState.resumed) {
       _lifecyclePaused = false;
@@ -92,16 +87,6 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
       final url = items[_currentIndex].videoUrl;
       if (url.isNotEmpty) _pool.reactivate(url);
     }
-  }
-
-  void _onPageScroll() {
-    // Report scroll velocity — no setState here, onPageChanged handles index updates.
-    // Calling setState on every scroll frame caused ANR (continuous rebuilds).
-    if (!_pageCtrl.hasClients) return;
-    try {
-      final velocity = _pageCtrl.position.activity?.velocity ?? 0.0;
-      _engine.notifyScrollVelocity(velocity.abs());
-    } catch (_) {}
   }
 
   void _autoScrollNext(int current, int total) {
@@ -119,7 +104,6 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _pool.disposeAll();
-    _pageCtrl.removeListener(_onPageScroll);
     _pageCtrl.dispose();
     super.dispose();
   }
@@ -170,15 +154,8 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
     }
 
     final urls = _extractVideoUrls(combined);
-
-    // Shift the 3-slot pool window: evicts old prev-prev, preloads new next
-    _pool.setUrls(urls);
-    _pool.setCurrentIndex(i).then((ctrl) {
-      if (ctrl != null && mounted) _pool.play(urls[i]);
-    });
-
-    // Keep VideoEngine updated for ad cards (they still use VideoEngine)
-    _engine.setFeedContext(urls, i);
+    _pool.setWindow(urls, i);
+    if (urls[i].isNotEmpty) _pool.play(urls[i]);
   }
 
   @override
@@ -198,12 +175,8 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_cachedItems != null && mounted) {
           final urls = _extractVideoUrls(_cachedItems!);
-          _pool.setUrls(urls);
-          _pool.setCurrentIndex(0).then((ctrl) {
-            if (ctrl != null && mounted && urls.isNotEmpty) _pool.play(urls[0]);
-          });
-          // Keep VideoEngine context for ad cards
-          _engine.setFeedContext(urls, 0);
+          _pool.setWindow(urls, 0);
+          if (urls.isNotEmpty) _pool.play(urls[0]);
         }
       });
     } else if (!reelsAsync.isLoading && !rentAsync.isLoading &&
@@ -357,7 +330,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   bool _saved = false;
   bool _showHeart = false;
   int _likesCount = 0;
-  final _pool = ReelPool.instance;
+  final _pool = VideoPool.reels;
   String _videoUrl = '';
   String get _postChannel => 'community.post.${widget.reel.id}';
   final Map<String, void Function(dynamic)> _realtimeListeners = {};
@@ -414,9 +387,9 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     // Use direct nginx MP4 URL (1 RTT) instead of HLS (3 RTTs)
     _videoUrl = media.mp4DirectUrl;
 
-    // Fast path: ReelPool already has this controller (preloaded by parent)
-    final poolCtrl = _pool.getByUrl(_videoUrl);
-    if (poolCtrl != null && poolCtrl.value.isInitialized) {
+    // Fast path: pool already has this controller (preloaded by parent)
+    final poolCtrl = _pool.controller(_videoUrl);
+    if (poolCtrl != null) {
       _videoCtrl = poolCtrl;
       _videoCtrl!.setLooping(false);
       try { _videoCtrl!.addListener(_onVideoProgress); } catch (_) {}
@@ -428,7 +401,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     }
 
     // Slow path: ask the pool to load it
-    final ctrl = await _pool.ensureLoaded(_videoUrl);
+    final ctrl = await _pool.preload(_videoUrl);
     if (ctrl != null && mounted) {
       _videoCtrl = ctrl;
       ctrl.setLooping(false);
@@ -814,7 +787,7 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
   VideoPlayerController? _ctrl;
   bool _ready = false;
   String _adUrl = '';
-  final _engine = VideoEngine.instance;
+  final _pool = VideoPool.reels;
 
   @override
   void initState() {
@@ -824,20 +797,20 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
   }
 
   void _initVideo() async {
-    final cached = _engine.getController(_adUrl);
-    if (cached != null && cached.value.isInitialized) {
+    final cached = _pool.controller(_adUrl);
+    if (cached != null) {
       if (mounted) {
         setState(() { _ctrl = cached; _ready = true; });
-        if (widget.isActive) _engine.activate(_adUrl);
+        if (widget.isActive) _pool.play(_adUrl);
       }
       return;
     }
 
-    final ctrl = await _engine.preload(_adUrl);
+    final ctrl = await _pool.preload(_adUrl);
     if (ctrl != null && mounted) {
       ctrl.setLooping(true);
       setState(() { _ctrl = ctrl; _ready = true; });
-      if (widget.isActive) _engine.activate(_adUrl);
+      if (widget.isActive) _pool.play(_adUrl);
     }
   }
 
@@ -846,9 +819,9 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
     super.didUpdateWidget(old);
     if (widget.isActive != old.isActive && _adUrl.isNotEmpty) {
       if (widget.isActive) {
-        _engine.activate(_adUrl);
+        _pool.play(_adUrl);
       } else {
-        _engine.pause(_adUrl);
+        _pool.pause(_adUrl);
       }
     }
   }
@@ -1033,7 +1006,6 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
 }
 
 // ── eRent reel card ────────────────────────────────────────────────────────────
-// Now uses VideoEngine pool — no more raw VideoPlayerController creation.
 
 class _RentReelCard extends ConsumerStatefulWidget {
   final Map<String, dynamic> reel;
@@ -1052,7 +1024,7 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
   bool _paused = false;
   bool _showHeart = false;
   String _videoUrl = '';
-  final _pool = ReelPool.instance;
+  final _pool = VideoPool.reels;
 
   @override
   void initState() {
@@ -1062,9 +1034,9 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
   }
 
   void _initVideo() async {
-    // Fast path — ReelPool already preloaded this controller
-    final cached = _pool.getByUrl(_videoUrl);
-    if (cached != null && cached.value.isInitialized) {
+    // Fast path — pool already preloaded this controller
+    final cached = _pool.controller(_videoUrl);
+    if (cached != null) {
       if (mounted) {
         setState(() { _videoCtrl = cached; _videoReady = true; });
         if (widget.isActive && !_paused) _pool.play(_videoUrl);
@@ -1072,7 +1044,7 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
       return;
     }
 
-    final ctrl = await _pool.ensureLoaded(_videoUrl);
+    final ctrl = await _pool.preload(_videoUrl);
     if (ctrl != null && mounted) {
       ctrl.setLooping(true);
       setState(() { _videoCtrl = ctrl; _videoReady = true; });

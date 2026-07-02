@@ -21,8 +21,7 @@ import 'create_post_screen.dart';
 import '../widgets/comments_sheet.dart';
 import '../widgets/video_ad_overlay.dart';
 import '../services/ad_preloader.dart';
-import '../services/video_preloader.dart';
-import '../services/video_engine.dart';
+import '../services/video_pool.dart';
 import '../../../../core/services/realtime_client.dart';
 import '../../../../core/widgets/realtime_status_banner.dart';
 import 'business_page_detail_screen.dart';
@@ -66,11 +65,6 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
       if (_scrollCtrl.offset < 100 && _hasNewPosts) {
         setState(() => _hasNewPosts = false);
       }
-      // Report scroll velocity so VideoEngine adjusts preload aggressiveness
-      try {
-        final velocity = _scrollCtrl.position.activity?.velocity ?? 0.0;
-        VideoEngine.instance.notifyScrollVelocity(velocity.abs());
-      } catch (_) {}
     });
     // Fallback poll (slow — realtime is the primary path, this just covers
     // the rare case where the socket is down for an extended period).
@@ -1741,35 +1735,33 @@ class _SimpleVideoPlayer extends StatefulWidget {
 class _SimpleVideoPlayerState extends State<_SimpleVideoPlayer> {
   VideoPlayerController? _ctrl;
   bool _ready = false;
-  final _engine = VideoEngine.instance;
+  final _pool = VideoPool.feed;
 
   @override
   void initState() {
     super.initState();
-    _initFromEngine();
+    _initFromPool();
   }
 
-  void _initFromEngine() async {
-    // Reuse pooled controller — likely already buffered
-    final cached = _engine.getController(widget.url);
-    if (cached != null && cached.value.isInitialized) {
+  void _initFromPool() async {
+    final cached = _pool.controller(widget.url);
+    if (cached != null) {
       if (mounted) {
         setState(() { _ctrl = cached; _ready = true; });
-        _engine.activate(widget.url);
+        _pool.play(widget.url);
       }
       return;
     }
-    final ctrl = await _engine.preload(widget.url);
+    final ctrl = await _pool.preload(widget.url);
     if (ctrl != null && mounted) {
       setState(() { _ctrl = ctrl; _ready = true; });
-      _engine.activate(widget.url);
+      _pool.play(widget.url);
     }
   }
 
   @override
   void dispose() {
-    // Engine owns the controller lifetime — just pause on exit
-    if (widget.url.isNotEmpty) _engine.pause(widget.url);
+    if (widget.url.isNotEmpty) _pool.pause(widget.url);
     super.dispose();
   }
 
@@ -1840,7 +1832,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   bool _paused = false;
   bool _visible = false;
   final _key = UniqueKey();
-  final _engine = VideoEngine.instance;
+  final _pool = VideoPool.feed;
   DateTime? _watchStart;
 
   bool get _isVideo => widget.m.type == 'video';
@@ -1863,44 +1855,42 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (state == AppLifecycleState.paused) {
       if (!_lifecyclePaused) {
         _lifecyclePaused = true;
-        if (_ctrl != null && _ready) _engine.pause(_videoUrl);
+        if (_ctrl != null && _ready) _pool.pause(_videoUrl);
       }
     } else if (state == AppLifecycleState.inactive) {
-      // 'inactive' fires when going to background AND when returning on iOS.
-      // Only pause on the way OUT (i.e. not already paused by lifecycle).
       if (!_lifecyclePaused) {
         _lifecyclePaused = true;
-        if (_ctrl != null && _ready) _engine.pause(_videoUrl);
+        if (_ctrl != null && _ready) _pool.pause(_videoUrl);
       }
     } else if (state == AppLifecycleState.resumed) {
       _lifecyclePaused = false;
-      // Use reactivate so ExoPlayer/AVPlayer re-buffers via seekTo before play.
       if (_visible && !_paused && _ctrl != null && _ready) {
-        _engine.reactivate(_videoUrl);
+        _pool.reactivate(_videoUrl);
       }
     }
   }
 
-  String get _videoUrl => widget.m.hlsUrl ?? widget.m.url;
+  // MP4 via direct nginx URL: 1 RTT to start vs HLS 3 RTTs.
+  String get _videoUrl => widget.m.mp4DirectUrl;
 
   Future<void> _initVideo() async {
     final url = _videoUrl;
     if (url.isEmpty) return;
 
-    // Fast path — engine already has it from predictive preload
-    final cached = _engine.getController(url);
-    if (cached != null && cached.value.isInitialized && mounted) {
+    // Fast path — pool already has it
+    final cached = _pool.controller(url);
+    if (cached != null && mounted) {
       setState(() { _ctrl = cached; _ready = true; });
       cached.addListener(_onControllerUpdate);
-      if (_visible && !_paused) _engine.activate(url);
+      if (_visible && !_paused) _pool.play(url);
       return;
     }
 
-    final ctrl = await _engine.preload(url);
+    final ctrl = await _pool.preload(url);
     if (ctrl != null && mounted) {
       setState(() { _ctrl = ctrl; _ready = true; });
       ctrl.addListener(_onControllerUpdate);
-      if (_visible && !_paused) _engine.activate(url);
+      if (_visible && !_paused) _pool.play(url);
     }
   }
 
@@ -1927,11 +1917,11 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     _visible = fraction > 0.5;
     if (_visible) {
       if (_ready && _ctrl != null && !_paused) {
-        _engine.activate(_videoUrl);
+        _pool.play(_videoUrl);
         _watchStart ??= DateTime.now();
       }
     } else {
-      if (_ctrl != null && _ctrl!.value.isPlaying) _engine.pause(_videoUrl);
+      if (_ctrl != null && _ctrl!.value.isPlaying) _pool.pause(_videoUrl);
       if (_watchStart != null && _isVideo) {
         final ms = DateTime.now().difference(_watchStart!).inMilliseconds;
         if (ms > 1000 && widget.postId != null) {
@@ -1946,7 +1936,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void _togglePause() {
     if (!_ready || _ctrl == null) return;
     setState(() => _paused = !_paused);
-    _paused ? _engine.pause(_videoUrl) : _engine.activate(_videoUrl);
+    _paused ? _pool.pause(_videoUrl) : _pool.play(_videoUrl);
   }
 
   String _formatDuration(Duration d) {
@@ -2010,7 +2000,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     final videoContent = GestureDetector(
         onTap: _ready ? _togglePause : null,
         onDoubleTap: _ready && _ctrl != null ? () {
-          _engine.pause(_videoUrl);
+          _pool.pause(_videoUrl);
           Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: _videoUrl)));
         } : null,
         child: Stack(

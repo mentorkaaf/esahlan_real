@@ -13,8 +13,7 @@ import '../../data/repositories/community_repository.dart';
 import '../../data/models/community_models.dart';
 import '../widgets/upload_progress_banner.dart';
 import '../services/background_upload_service.dart';
-import '../services/video_engine.dart';
-import '../services/reel_pool.dart';
+import '../services/video_pool.dart';
 
 final communityNavIndexProvider = StateProvider<int>((ref) => 0);
 
@@ -32,7 +31,7 @@ class CommunityShell extends ConsumerStatefulWidget {
 }
 
 class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBindingObserver {
-  static const _kCachedReelUrls = 'reel_pool_cached_urls_v1';
+  static const _kCachedReelUrls = 'video_pool_reel_urls_v1';
   static const _kCachedFeedUrls = 'feed_engine_cached_urls_v1';
 
   bool? _onboardingDone;
@@ -56,13 +55,12 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
       final prefs = await SharedPreferences.getInstance();
       final reelUrls = prefs.getStringList(_kCachedReelUrls) ?? [];
       final feedUrls = prefs.getStringList(_kCachedFeedUrls) ?? [];
-      if (reelUrls.isNotEmpty) {
-        ReelPool.instance.setUrls(reelUrls);
-        ReelPool.instance.setCurrentIndex(0);
+      // Preload first URLs before the API responds — both pools in parallel.
+      for (final u in reelUrls.take(2).where((u) => u.isNotEmpty)) {
+        VideoPool.reels.preload(u);
       }
-      if (feedUrls.isNotEmpty) {
-        VideoEngine.instance.setFeedContext(feedUrls, 0);
-        VideoEngine.instance.preloadFromIndex(0, feedUrls);
+      for (final u in feedUrls.take(2).where((u) => u.isNotEmpty)) {
+        VideoPool.feed.preload(u);
       }
     } catch (_) {}
   }
@@ -81,36 +79,31 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
     } catch (_) {}
   }
 
-  /// Extract video URLs from feed posts and prime VideoEngine silently.
   void _silentPreloadFeed(List<CommunityPost> posts) {
     if (_feedPreloaded) return;
     _feedPreloaded = true;
     final urls = posts
         .expand((p) => p.media)
         .where((m) => m.type == 'video')
-        .map((m) => m.hlsUrl ?? m.url) // feed keeps HLS for ABR
+        .map((m) => m.mp4DirectUrl)
         .where((u) => u.isNotEmpty)
         .take(6)
         .toList();
     if (urls.isEmpty) return;
-    VideoEngine.instance.setFeedContext(urls, 0);
-    VideoEngine.instance.preloadFromIndex(0, urls);
+    for (final u in urls.take(2)) VideoPool.feed.preload(u);
     _saveFeedUrlsToCache(urls);
   }
 
-  /// Extract video URLs from reels and prime ReelPool silently.
   void _silentPreloadReels(List<CommunityPost> reels) {
     if (_reelsPreloaded) return;
     _reelsPreloaded = true;
-    // mp4DirectUrl = /hls/.../optimized.mp4 via nginx (1 RTT, faststart)
     final urls = reels
         .map((r) => r.media.isNotEmpty ? r.media.first.mp4DirectUrl : '')
         .where((u) => u.isNotEmpty)
         .take(6)
         .toList();
     if (urls.isEmpty) return;
-    ReelPool.instance.setUrls(urls);
-    ReelPool.instance.setCurrentIndex(0);
+    VideoPool.reels.setWindow(urls, 0);
     _saveReelUrlsToCache(urls);
   }
 
@@ -164,7 +157,7 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
     final idx = ref.watch(communityNavIndexProvider);
 
     // Silent background preload — fires once when feed/reels data first arrives.
-    // VideoEngine starts buffering the first few video URLs before the user
+    // VideoPool starts buffering the first few video URLs before the user
     // scrolls to them, so playback begins instantly on first view.
     ref.listen<AsyncValue<List<CommunityPost>>>(communityFeedProvider, (_, next) {
       next.whenData((posts) => _silentPreloadFeed(posts));
