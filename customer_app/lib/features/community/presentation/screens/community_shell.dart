@@ -13,6 +13,7 @@ import '../../data/models/community_models.dart';
 import '../widgets/upload_progress_banner.dart';
 import '../services/background_upload_service.dart';
 import '../services/video_engine.dart';
+import '../services/reel_pool.dart';
 
 final communityNavIndexProvider = StateProvider<int>((ref) => 0);
 
@@ -58,7 +59,7 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
     VideoEngine.instance.preloadFromIndex(0, urls);
   }
 
-  /// Extract video URLs from reels and prime VideoEngine silently.
+  /// Extract video URLs from reels and prime ReelPool silently.
   void _silentPreloadReels(List<CommunityPost> reels) {
     if (_reelsPreloaded) return;
     _reelsPreloaded = true;
@@ -68,7 +69,8 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
         .take(4)
         .toList();
     if (urls.isEmpty) return;
-    VideoEngine.instance.preloadFromIndex(0, urls);
+    ReelPool.instance.setUrls(urls);
+    ReelPool.instance.setCurrentIndex(0);
   }
 
   @override

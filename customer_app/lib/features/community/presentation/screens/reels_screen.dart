@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import '../services/video_engine.dart';
+import '../services/reel_pool.dart';
 import '../../data/models/community_models.dart';
 import '../../../../features/modules/erent/erent_screen.dart';
 import '../providers/community_provider.dart';
@@ -56,6 +57,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
   List<Map<String, dynamic>> _reelAds = [];
 
   final _engine = VideoEngine.instance;
+  final _pool = ReelPool.instance;
 
   @override
   void initState() {
@@ -81,12 +83,10 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
       }
     } else if (state == AppLifecycleState.resumed) {
       _lifecyclePaused = false;
-      // Re-activate the current reel. Uses seekTo internally so ExoPlayer/
-      // AVPlayer re-buffers after the OS may have released codec resources.
       final items = _cachedItems;
       if (items == null || _currentIndex >= items.length) return;
       final url = items[_currentIndex].videoUrl;
-      if (url.isNotEmpty) _engine.reactivate(url);
+      if (url.isNotEmpty) _pool.reactivate(url);
     }
   }
 
@@ -114,7 +114,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _engine.pauseAll();
+    _pool.disposeAll();
     _pageCtrl.removeListener(_onPageScroll);
     _pageCtrl.dispose();
     super.dispose();
@@ -165,12 +165,16 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
       ref.read(communityReelsProvider.notifier).load();
     }
 
-    // Update engine position context — enables distance-based eviction
     final urls = _extractVideoUrls(combined);
-    _engine.setFeedContext(urls, i);
 
-    // Predictive preload — velocity-adaptive
-    _engine.preloadFromIndex(i, urls);
+    // Shift the 3-slot pool window: evicts old prev-prev, preloads new next
+    _pool.setUrls(urls);
+    _pool.setCurrentIndex(i).then((ctrl) {
+      if (ctrl != null && mounted) _pool.play(urls[i]);
+    });
+
+    // Keep VideoEngine updated for ad cards (they still use VideoEngine)
+    _engine.setFeedContext(urls, i);
   }
 
   @override
@@ -186,12 +190,16 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
       _cachedItems = _buildCombinedList(communityReels, rentReels);
       _foldedCommunityCount = communityReels.length;
       _foldedRentCount = rentReels.length;
-      // Prime the engine with the initial feed context
+      // Prime the pool with the initial feed context
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_cachedItems != null && mounted) {
           final urls = _extractVideoUrls(_cachedItems!);
+          _pool.setUrls(urls);
+          _pool.setCurrentIndex(0).then((ctrl) {
+            if (ctrl != null && mounted && urls.isNotEmpty) _pool.play(urls[0]);
+          });
+          // Keep VideoEngine context for ad cards
           _engine.setFeedContext(urls, 0);
-          _engine.preloadFromIndex(0, urls);
         }
       });
     } else if (!reelsAsync.isLoading && !rentAsync.isLoading &&
@@ -345,7 +353,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   bool _saved = false;
   bool _showHeart = false;
   int _likesCount = 0;
-  final _engine = VideoEngine.instance;
+  final _pool = ReelPool.instance;
   String _videoUrl = '';
   String get _postChannel => 'community.post.${widget.reel.id}';
   final Map<String, void Function(dynamic)> _realtimeListeners = {};
@@ -401,26 +409,21 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
 
     _videoUrl = media.hlsUrl ?? media.url;
 
-    // Fast path: engine already has this controller (from predictive preload)
-    final cached = _engine.getController(_videoUrl);
-    if (cached != null && cached.value.isInitialized) {
-      _videoCtrl = cached;
+    // Fast path: ReelPool already has this controller (preloaded by parent)
+    final poolCtrl = _pool.getByUrl(_videoUrl);
+    if (poolCtrl != null && poolCtrl.value.isInitialized) {
+      _videoCtrl = poolCtrl;
       _videoCtrl!.setLooping(false);
-      try {
-        _videoCtrl!.addListener(_onVideoProgress);
-      } catch (_) {}
+      try { _videoCtrl!.addListener(_onVideoProgress); } catch (_) {}
       if (mounted) {
-        _videoCtrl = cached;
-        _videoCtrl!.setLooping(false);
-        try { _videoCtrl!.addListener(_onVideoProgress); } catch (_) {}
         setState(() => _videoReady = true);
-        if (widget.isActive && !_paused) _engine.activate(_videoUrl);
+        if (widget.isActive && !_paused) _pool.play(_videoUrl);
       }
       return;
     }
 
-    // Slow path: preload now (engine queues and deduplicates)
-    final ctrl = await _engine.preload(_videoUrl);
+    // Slow path: ask the pool to load it
+    final ctrl = await _pool.ensureLoaded(_videoUrl);
     if (ctrl != null && mounted) {
       _videoCtrl = ctrl;
       ctrl.setLooping(false);
@@ -434,7 +437,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         return;
       }
       setState(() => _videoReady = true);
-      if (widget.isActive && !_paused) _engine.activate(_videoUrl);
+      if (widget.isActive && !_paused) _pool.play(_videoUrl);
     }
   }
 
@@ -460,10 +463,10 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     if (!mounted) return;
     if (widget.isActive != old.isActive) {
       if (widget.isActive) {
-        if (!_paused && _videoUrl.isNotEmpty) _engine.activate(_videoUrl);
+        if (!_paused && _videoUrl.isNotEmpty) _pool.play(_videoUrl);
         _trackView();
       } else {
-        if (_videoUrl.isNotEmpty) _engine.pause(_videoUrl);
+        if (_videoUrl.isNotEmpty) _pool.pause(_videoUrl);
       }
     }
   }
@@ -476,13 +479,14 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     for (final entry in _realtimeListeners.entries) {
       RealtimeClient.instance.removeListener(_postChannel, entry.key, entry.value);
     }
+    // Pool manages controller lifetime — do not dispose here
     super.dispose();
   }
 
   void _togglePause() {
     if (!_videoReady) return;
     setState(() => _paused = !_paused);
-    _paused ? _engine.pause(_videoUrl) : _engine.activate(_videoUrl);
+    _paused ? _pool.pause(_videoUrl) : _pool.play(_videoUrl);
   }
 
   void _onDoubleTap() {
@@ -1032,7 +1036,7 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
   bool _paused = false;
   bool _showHeart = false;
   String _videoUrl = '';
-  final _engine = VideoEngine.instance;
+  final _pool = ReelPool.instance;
 
   @override
   void initState() {
@@ -1042,21 +1046,21 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
   }
 
   void _initVideo() async {
-    // Fast path — already in pool from predictive preload
-    final cached = _engine.getController(_videoUrl);
+    // Fast path — ReelPool already preloaded this controller
+    final cached = _pool.getByUrl(_videoUrl);
     if (cached != null && cached.value.isInitialized) {
       if (mounted) {
         setState(() { _videoCtrl = cached; _videoReady = true; });
-        if (widget.isActive && !_paused) _engine.activate(_videoUrl);
+        if (widget.isActive && !_paused) _pool.play(_videoUrl);
       }
       return;
     }
 
-    final ctrl = await _engine.preload(_videoUrl);
+    final ctrl = await _pool.ensureLoaded(_videoUrl);
     if (ctrl != null && mounted) {
       ctrl.setLooping(true);
       setState(() { _videoCtrl = ctrl; _videoReady = true; });
-      if (widget.isActive && !_paused) _engine.activate(_videoUrl);
+      if (widget.isActive && !_paused) _pool.play(_videoUrl);
     }
   }
 
@@ -1065,23 +1069,23 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
     super.didUpdateWidget(old);
     if (widget.isActive != old.isActive && _videoUrl.isNotEmpty) {
       if (widget.isActive) {
-        if (!_paused) _engine.activate(_videoUrl);
+        if (!_paused) _pool.play(_videoUrl);
       } else {
-        _engine.pause(_videoUrl);
+        _pool.pause(_videoUrl);
       }
     }
   }
 
   @override
   void dispose() {
-    // Engine manages controller lifetime — no dispose here
+    // Pool manages controller lifetime — do not dispose here
     super.dispose();
   }
 
   void _togglePause() {
     if (!_videoReady) return;
     setState(() => _paused = !_paused);
-    _paused ? _engine.pause(_videoUrl) : _engine.activate(_videoUrl);
+    _paused ? _pool.pause(_videoUrl) : _pool.play(_videoUrl);
   }
 
   void _openProperty(BuildContext context) {
@@ -1197,7 +1201,6 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
             onTap: () {
               setState(() => _muted = !_muted);
               if (_videoCtrl != null) {
-                _engine.activate(_videoUrl); // ensure active
                 _videoCtrl!.setVolume(_muted ? 0 : 1);
               }
             },
