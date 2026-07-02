@@ -1870,26 +1870,48 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     }
   }
 
-  // MP4 via direct nginx URL: 1 RTT to start vs HLS 3 RTTs.
-  String get _videoUrl => widget.m.mp4DirectUrl;
+  // Prefer direct nginx MP4 (1 RTT). Fall back to HLS if MP4 fails.
+  String get _mp4Url => widget.m.mp4DirectUrl;
+  String? get _hlsUrl => widget.m.hlsUrl;
+
+  // Tracks whichever URL actually loaded successfully.
+  String _resolvedUrl = '';
+  String get _videoUrl => _resolvedUrl.isNotEmpty ? _resolvedUrl : _mp4Url;
 
   Future<void> _initVideo() async {
-    final url = _videoUrl;
-    if (url.isEmpty) return;
+    final mp4 = _mp4Url;
+    if (mp4.isEmpty) return;
 
-    // Fast path — pool already has it
-    final cached = _pool.controller(url);
+    // Fast path — pool already has it (either MP4 or HLS)
+    var cached = _pool.controller(mp4);
+    String url = mp4;
+    if (cached == null && _hlsUrl != null && _hlsUrl != mp4) {
+      cached = _pool.controller(_hlsUrl!);
+      if (cached != null) url = _hlsUrl!;
+    }
     if (cached != null && mounted) {
-      setState(() { _ctrl = cached; _ready = true; });
-      cached.addListener(_onControllerUpdate);
+      final c = cached;
+      _resolvedUrl = url;
+      setState(() { _ctrl = c; _ready = true; });
+      c.addListener(_onControllerUpdate);
       if (_visible && !_paused) _pool.play(url);
       return;
     }
 
-    final ctrl = await _pool.preload(url);
+    // Slow path: load from network
+    var ctrl = await _pool.preload(mp4);
+    url = mp4;
+    if (ctrl == null && _hlsUrl != null && _hlsUrl != mp4) {
+      debugPrint('[Feed] MP4 failed, trying HLS: ${_hlsUrl!}');
+      url = _hlsUrl!;
+      ctrl = await _pool.preload(url);
+    }
+
     if (ctrl != null && mounted) {
-      setState(() { _ctrl = ctrl; _ready = true; });
-      ctrl.addListener(_onControllerUpdate);
+      final c = ctrl;
+      _resolvedUrl = url;
+      setState(() { _ctrl = c; _ready = true; });
+      c.addListener(_onControllerUpdate);
       if (_visible && !_paused) _pool.play(url);
     }
   }

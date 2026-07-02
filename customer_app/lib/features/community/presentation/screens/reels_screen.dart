@@ -384,11 +384,18 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         (widget.reel.media.isNotEmpty ? widget.reel.media.first : null);
     if (media == null || media.type != 'video') return;
 
-    // Use direct nginx MP4 URL (1 RTT) instead of HLS (3 RTTs)
-    _videoUrl = media.mp4DirectUrl;
+    // Prefer direct nginx MP4 (1 RTT, faststart). Fall back to HLS if MP4 fails.
+    final mp4Url = media.mp4DirectUrl;
+    final hlsFallback = media.hlsUrl;
 
     // Fast path: pool already has this controller (preloaded by parent)
-    final poolCtrl = _pool.controller(_videoUrl);
+    var poolCtrl = _pool.controller(mp4Url);
+    if (poolCtrl == null && hlsFallback != null && hlsFallback != mp4Url) {
+      poolCtrl = _pool.controller(hlsFallback);
+      if (poolCtrl != null) _videoUrl = hlsFallback;
+    }
+    if (poolCtrl == null) _videoUrl = mp4Url;
+
     if (poolCtrl != null) {
       _videoCtrl = poolCtrl;
       _videoCtrl!.setLooping(false);
@@ -400,8 +407,14 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
       return;
     }
 
-    // Slow path: ask the pool to load it
-    final ctrl = await _pool.preload(_videoUrl);
+    // Slow path: load from network. Try MP4 first, fall back to HLS on failure.
+    var ctrl = await _pool.preload(mp4Url);
+    if (ctrl == null && hlsFallback != null && hlsFallback != mp4Url) {
+      debugPrint('[Reel] MP4 failed, trying HLS: $hlsFallback');
+      _videoUrl = hlsFallback;
+      ctrl = await _pool.preload(hlsFallback);
+    }
+
     if (ctrl != null && mounted) {
       _videoCtrl = ctrl;
       ctrl.setLooping(false);
