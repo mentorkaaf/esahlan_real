@@ -31,7 +31,10 @@ class _ReelItem {
   String get videoUrl {
     if (communityPost != null) {
       final m = communityPost!.media.where((m) => m.type == 'video').firstOrNull;
-      return m?.hlsUrl ?? m?.url ?? '';
+      // MP4 via direct nginx URL: 1 RTT to start vs HLS 3 RTTs.
+      // mp4DirectUrl derives /hls/.../optimized.mp4 from the HLS URL —
+      // served by nginx sendfile, Range-aware, Cloudflare-cacheable.
+      return m?.mp4DirectUrl ?? m?.url ?? '';
     }
     if (rentReel != null) return rentReel!['video_url'] as String? ?? '';
     if (adData != null) return adData!['media_url'] as String? ?? '';
@@ -408,7 +411,8 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         (widget.reel.media.isNotEmpty ? widget.reel.media.first : null);
     if (media == null || media.type != 'video') return;
 
-    _videoUrl = media.hlsUrl ?? media.url;
+    // Use direct nginx MP4 URL (1 RTT) instead of HLS (3 RTTs)
+    _videoUrl = media.mp4DirectUrl;
 
     // Fast path: ReelPool already has this controller (preloaded by parent)
     final poolCtrl = _pool.getByUrl(_videoUrl);

@@ -96,6 +96,22 @@ class CommunityPostMedia {
 
   double? get aspectRatio => width != null && height != null && height! > 0 ? width! / height! : null;
 
+  /// Direct nginx URL for the optimized MP4, derived from the HLS URL.
+  ///
+  /// HLS:  https://esahlan.com/hls/{dir}/hls/master.m3u8
+  /// MP4:  https://esahlan.com/hls/{dir}/optimized.mp4
+  ///
+  /// Uses the /hls/ nginx location directly (no PHP proxy, sendfile, Cloudflare-
+  /// cacheable, Range-request support built-in). MP4+faststart needs only 1 network
+  /// round-trip to start playing vs HLS's 3 round-trips (master → quality → segment).
+  String get mp4DirectUrl {
+    final hls = hlsUrl;
+    if (hls != null && hls.contains('/hls/master.m3u8')) {
+      return hls.replaceFirst(RegExp(r'/hls/master\.m3u8$'), '/optimized.mp4');
+    }
+    return url; // fallback to stored url (PHP proxy, still works)
+  }
+
   factory CommunityPostMedia.fromJson(Map<String, dynamic> j) =>
       CommunityPostMedia(
         id: j['id'] as int,
