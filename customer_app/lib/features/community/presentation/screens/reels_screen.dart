@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
@@ -544,15 +545,26 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
       onTap: _togglePause,
       onDoubleTap: _onDoubleTap,
       child: Stack(fit: StackFit.expand, children: [
-        // Video or thumbnail/placeholder
-        if (_videoReady && _videoCtrl != null)
-          Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!)))
-        else if (thumbnail != null)
+        // Thumbnail always present as background for instant color context
+        if (thumbnail != null)
           NetImage(url: thumbnail, fit: BoxFit.cover)
         else if (media != null && media.type == 'image')
           NetImage(url: media.url, fit: BoxFit.cover)
         else
           Container(color: const Color(0xFF1A1A2E)),
+
+        // Video replaces thumbnail once ready
+        if (_videoReady && _videoCtrl != null)
+          Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!))),
+
+        // Blur overlay while buffering — fades out instantly when video starts
+        if (!_videoReady)
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: Container(color: Colors.black.withValues(alpha: 0.15)),
+            ),
+          ),
 
         // Gradient overlay
         Container(
@@ -1115,14 +1127,24 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
         });
       },
       child: Stack(fit: StackFit.expand, children: [
-        // Thumbnail always present — instant first frame
-        // Video or thumbnail placeholder
-        if (_videoReady && _videoCtrl != null)
-          Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!)))
-        else if (thumbnail != null)
+        // Thumbnail always present as instant background
+        if (thumbnail != null)
           NetImage(url: thumbnail, fit: BoxFit.cover)
         else
           Container(color: const Color(0xFF1A1B2E)),
+
+        // Video replaces thumbnail once ready
+        if (_videoReady && _videoCtrl != null)
+          Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!))),
+
+        // Blur overlay while buffering
+        if (!_videoReady)
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: Container(color: Colors.black.withValues(alpha: 0.15)),
+            ),
+          ),
 
         // Gradient
         Container(
