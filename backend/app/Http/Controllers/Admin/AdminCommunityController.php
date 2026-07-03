@@ -353,32 +353,65 @@ class AdminCommunityController extends Controller
 
     public function algorithmData()
     {
+        $totalPosts = \App\Models\CommunityPost::whereNull('deleted_at')
+            ->where('created_at', '>', now()->subDays(90))->count();
+
+        $scoreStats = \DB::table('post_scores')
+            ->selectRaw('COUNT(*) as posts_with_score, AVG(final_score) as avg_score, MAX(final_score) as max_score')
+            ->first();
+
+        $scoreDist = \DB::table('post_scores')
+            ->selectRaw("
+                SUM(CASE WHEN final_score >= 80 THEN 1 ELSE 0 END) as hot,
+                SUM(CASE WHEN final_score >= 50 AND final_score < 80 THEN 1 ELSE 0 END) as warm,
+                SUM(CASE WHEN final_score >= 20 AND final_score < 50 THEN 1 ELSE 0 END) as cool,
+                SUM(CASE WHEN final_score < 20 THEN 1 ELSE 0 END) as cold
+            ")->first();
+
+        $topPosts = \DB::table('post_scores')
+            ->join('community_posts', 'post_scores.post_id', '=', 'community_posts.id')
+            ->join('users', 'community_posts.user_id', '=', 'users.id')
+            ->select(
+                'post_scores.post_id', 'post_scores.final_score', 'post_scores.engagement_score',
+                'post_scores.velocity_score', 'post_scores.viral_score', 'post_scores.quality_score',
+                'community_posts.content', 'community_posts.type',
+                'community_posts.likes_count', 'community_posts.comments_count',
+                'community_posts.shares_count', 'community_posts.views_count',
+                'users.name as author'
+            )
+            ->whereNull('community_posts.deleted_at')
+            ->orderByDesc('post_scores.final_score')
+            ->limit(20)
+            ->get();
+
+        $interactions = \DB::table('feed_interactions')
+            ->where('created_at', '>', now()->subDay())
+            ->selectRaw('type as interaction_type, COUNT(*) as count')
+            ->groupBy('type')
+            ->pluck('count', 'interaction_type');
+
+        $topHashtags = \DB::table('community_hashtags')
+            ->orderByDesc('post_count')->limit(10)->get(['name', 'post_count']);
+
         $activeUsers = \DB::table('feed_seen_posts')
             ->where('seen_at', '>', now()->subMinutes(30))
             ->distinct('user_id')->count('user_id');
 
-        $cacheHits = 0; $cacheMisses = 0;
-        try {
-            $info = \Illuminate\Support\Facades\Redis::info('stats');
-            $cacheHits   = $info['keyspace_hits']   ?? 0;
-            $cacheMisses = $info['keyspace_misses']  ?? 0;
-        } catch (\Throwable $_) {}
-
-        $total        = $cacheHits + $cacheMisses;
-        $cacheHitRate = $total > 0 ? round($cacheHits / $total * 100, 1) : 0;
-
-        $postCount     = \App\Models\CommunityPost::whereNull('deleted_at')->count();
-        $postsToday    = \App\Models\CommunityPost::whereNull('deleted_at')->whereDate('created_at', today())->count();
-        $feedsBuilt    = \DB::table('feed_seen_posts')->where('seen_at', '>', now()->subHour())->count();
-        $precomputed   = \Illuminate\Support\Facades\Redis::keys('feed:v2:*:p2');
-
         return response()->json([
-            'active_users'   => $activeUsers,
-            'cache_hit_rate' => $cacheHitRate,
-            'post_count'     => $postCount,
-            'posts_today'    => $postsToday,
-            'feeds_built_1h' => $feedsBuilt,
-            'precomputed'    => count($precomputed ?? []),
+            'total_posts'        => $totalPosts,
+            'posts_with_score'   => $scoreStats->posts_with_score ?? 0,
+            'avg_score'          => round($scoreStats->avg_score ?? 0, 1),
+            'max_score'          => round($scoreStats->max_score ?? 0, 1),
+            'score_distribution' => [
+                'hot'  => $scoreDist->hot  ?? 0,
+                'warm' => $scoreDist->warm ?? 0,
+                'cool' => $scoreDist->cool ?? 0,
+                'cold' => $scoreDist->cold ?? 0,
+            ],
+            'top_posts'          => $topPosts,
+            'interactions_24h'   => $interactions,
+            'top_hashtags'       => $topHashtags,
+            'active_users'       => $activeUsers,
         ]);
     }
 }
