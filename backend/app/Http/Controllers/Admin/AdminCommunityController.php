@@ -374,6 +374,7 @@ class AdminCommunityController extends Controller
             ->select(
                 'post_scores.post_id', 'post_scores.final_score', 'post_scores.engagement_score',
                 'post_scores.velocity_score', 'post_scores.viral_score', 'post_scores.quality_score',
+                'post_scores.impression_count', 'post_scores.engaged_count', 'post_scores.engagement_rate',
                 'community_posts.content', 'community_posts.type',
                 'community_posts.likes_count', 'community_posts.comments_count',
                 'community_posts.shares_count', 'community_posts.views_count',
@@ -398,6 +399,30 @@ class AdminCommunityController extends Controller
         \Illuminate\Support\Facades\Redis::zremrangebyscore('feed:online', '-inf', $now - 90);
         $activeUsers = (int) \Illuminate\Support\Facades\Redis::zcard('feed:online');
 
+        // Most active users: top by interaction count (last 7 days)
+        $topUsers = \DB::table('feed_interactions')
+            ->join('users', 'feed_interactions.user_id', '=', 'users.id')
+            ->leftJoin('community_profiles', 'community_profiles.user_id', '=', 'users.id')
+            ->where('feed_interactions.created_at', '>', now()->subDays(7))
+            ->selectRaw('
+                users.id, users.name, users.email,
+                COALESCE(community_profiles.followers_count, 0) as followers_count,
+                COALESCE(community_profiles.posts_count, 0) as post_count,
+                COUNT(feed_interactions.id) as interactions_7d,
+                COUNT(feed_interactions.id) as total_score
+            ')
+            ->groupBy('users.id', 'users.name', 'users.email',
+                      'community_profiles.followers_count', 'community_profiles.posts_count')
+            ->orderByDesc('interactions_7d')
+            ->limit(10)
+            ->get();
+
+        // Posts by type
+        $postsByType = \App\Models\CommunityPost::whereNull('deleted_at')
+            ->selectRaw('type, COUNT(*) as count')
+            ->groupBy('type')
+            ->pluck('count', 'type');
+
         return response()->json([
             'total_posts'        => $totalPosts,
             'posts_with_score'   => $scoreStats->posts_with_score ?? 0,
@@ -413,6 +438,8 @@ class AdminCommunityController extends Controller
             'interactions_24h'   => $interactions,
             'top_hashtags'       => $topHashtags,
             'active_users'       => $activeUsers,
+            'top_users'          => $topUsers,
+            'posts_by_type'      => $postsByType,
         ]);
     }
 }
