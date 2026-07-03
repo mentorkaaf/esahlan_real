@@ -61,17 +61,11 @@ class FeedRankingService
      * Build a personalized feed page.
      * Returns post IDs in ranked order.
      */
-    public function buildFeed(int $page = 1, int $perPage = 30): array
+    public function buildFeed(int $page = 1, int $perPage = 15): array
     {
-        // Page 1 is never cached — it must always compute fresh so that posts
-        // the user has already seen (written to feed_seen_posts by markSeen)
-        // are excluded on every open. Deeper pages are cached because users
-        // rarely re-fetch them and the seen-exclusion matters less mid-scroll.
         $cacheKey = "feed:v2:{$this->userId}:p{$page}";
-        if ($page > 1) {
-            $cached = Cache::get($cacheKey);
-            if ($cached) return $cached;
-        }
+        $cached = Cache::get($cacheKey);
+        if ($cached && $page > 1) return $cached;
 
         // Gather candidate posts from different pools
         $candidates = $this->gatherCandidates($page, $perPage);
@@ -85,13 +79,11 @@ class FeedRankingService
         // Take the page's worth
         $result = array_slice($diversified, 0, $perPage);
 
-        // Mark as seen so they won't appear again for 24 hours
+        // Mark as seen
         $this->markSeen(array_column($result, 'post_id'));
 
-        // Only cache pages 2+ (page 1 always recomputed for freshness)
-        if ($page > 1) {
-            Cache::put($cacheKey, $result, 480);
-        }
+        // Cache for 2 minutes (short TTL since feed is dynamic)
+        Cache::put($cacheKey, $result, 120);
 
         return $result;
     }
@@ -121,12 +113,10 @@ class FeedRankingService
             ->whereNull('group_id')
             ->where('privacy', '!=', 'private')
             ->whereNull('deleted_at')
-            ->where('created_at', '>', now()->subDays(90)) // 3 month window
+            ->where('created_at', '>', now()->subDays(14)) // 2 week window
             // Hide posts whose video is still transcoding from other users' feeds.
             // The post owner can always see their own post (they poll status themselves).
-            ->where(fn ($q) => $q->where('video_ready', true)->orWhere('user_id', $this->userId))
-            // Hide posts pending moderation or blocked — except from the post owner
-            ->where(fn ($q) => $q->where('moderation_status', 'approved')->orWhere('user_id', $this->userId));
+            ->where(fn ($q) => $q->where('video_ready', true)->orWhere('user_id', $this->userId));
 
         // Exclude posts seen in the last 2 hours, on every page — not just
         // page 1. Originally page-1-only (page 1 fresh, deeper pages more
@@ -147,7 +137,7 @@ class FeedRankingService
         if (!empty($this->seenPostIds)) {
             $recentSeen = DB::table('feed_seen_posts')
                 ->where('user_id', $this->userId)
-                ->where('seen_at', '>', now()->subHours(24))
+                ->where('seen_at', '>', now()->subHours(2))
                 ->pluck('post_id')->toArray();
             $totalAvailable = (clone $query)->count();
             $unseenAvailable = $totalAvailable - count($recentSeen);
@@ -193,11 +183,10 @@ class FeedRankingService
                    'views_count', 'likes_count', 'comments_count',
                    'shares_count', 'saves_count', 'created_at']);
 
-        // Pool 4: New creators — fast random via RAND(seed) which MySQL can
-        // index-scan rather than sort the full table (unlike inRandomOrder()).
-        // Seed changes every 10 minutes so users see different results across
-        // sessions without a full re-sort on every request.
-        $seed4 = (int) (time() / 600);
+        // Pool 4: New creators (users with < 100 followers, posted recently).
+        // Include users with no community_profile row yet — they're new by definition.
+        // No offset here — deliberately re-sampled (inRandomOrder) each page so
+        // discovery content stays fresh rather than paginating predictably.
         $newCreatorPosts = (clone $query)
             ->whereNotIn('user_id', $this->followingIds)
             ->where('created_at', '>', now()->subDays(2))
@@ -205,18 +194,17 @@ class FeedRankingService
                 $q->whereHas('user.communityProfile', fn ($p) => $p->where('followers_count', '<', 100))
                   ->orWhereDoesntHave('user.communityProfile');
             })
-            ->orderByRaw("RAND({$seed4})")
+            ->inRandomOrder()
             ->limit((int) round($candidateCount * 0.1 * $discoveryBoost))
             ->get(['id', 'user_id', 'type', 'content', 'location',
                    'views_count', 'likes_count', 'comments_count',
                    'shares_count', 'saves_count', 'created_at']);
 
-        // Pool 5: Serendipity — same seeded approach, 15-minute rotation.
-        $seed5 = (int) (time() / 900) + $this->userId % 97;
+        // Pool 5: Random discovery (serendipity) — same reasoning, no offset.
         $randomPosts = (clone $query)
             ->whereNotIn('user_id', $this->followingIds)
             ->where('created_at', '>', now()->subDays(7))
-            ->orderByRaw("RAND({$seed5})")
+            ->inRandomOrder()
             ->limit((int) round($candidateCount * 0.05 * $discoveryBoost))
             ->get(['id', 'user_id', 'type', 'content', 'location',
                    'views_count', 'likes_count', 'comments_count',
@@ -477,11 +465,6 @@ class FeedRankingService
         $engScore = $post->likes_count + $post->comments_count * 2 + $post->shares_count * 3;
         if ($engScore > 10 && $hoursOld < 72) return 'trending';
 
-        // Match pool-4 criteria: recent post from a low-follower creator
-        if ($hoursOld < 48 && isset($post->followers_count) && $post->followers_count < 100) {
-            return 'new_creator';
-        }
-
         return 'random';
     }
 
@@ -513,9 +496,7 @@ class FeedRankingService
     {
         return DB::table('feed_seen_posts')
             ->where('user_id', $this->userId)
-            ->where('seen_at', '>', now()->subHours(24))
-            ->orderByDesc('seen_at')
-            ->limit(500)           // cap: beyond 500 seen posts deduplication has diminishing returns
+            ->where('seen_at', '>', now()->subHours(6))
             ->pluck('post_id')->toArray();
     }
 
@@ -737,15 +718,6 @@ class FeedRankingService
 
         $interests = [];
 
-        // Batch-load all hashtags for all interacted posts in ONE query (was N+1).
-        $allPostIds = $interactions->pluck('post_id')->unique()->toArray();
-        $tagsByPost = DB::table('community_post_hashtags')
-            ->join('community_hashtags', 'community_hashtags.id', '=', 'community_post_hashtags.hashtag_id')
-            ->whereIn('post_id', $allPostIds)
-            ->get(['post_id', 'community_hashtags.name'])
-            ->groupBy('post_id')
-            ->map(fn ($rows) => $rows->pluck('name')->toArray());
-
         foreach ($interactions as $i) {
             // Weight by action type
             $weight = match ($i->action) {
@@ -771,8 +743,12 @@ class FeedRankingService
             $key = "type:{$i->type}";
             $interests[$key] = ($interests[$key] ?? 0) + $weight;
 
-            // Hashtag interests — from batch-loaded map, no extra queries
-            foreach ($tagsByPost[$i->post_id] ?? [] as $tag) {
+            // Hashtag interests
+            $tags = DB::table('community_post_hashtags')
+                ->join('community_hashtags', 'community_hashtags.id', '=', 'community_post_hashtags.hashtag_id')
+                ->where('post_id', $i->post_id)
+                ->pluck('community_hashtags.name');
+            foreach ($tags as $tag) {
                 $key = "hashtag:{$tag}";
                 $interests[$key] = ($interests[$key] ?? 0) + $weight;
             }

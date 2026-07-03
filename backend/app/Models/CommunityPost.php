@@ -5,8 +5,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CommunityPost extends Model {
     use SoftDeletes;
-    protected $fillable = ['user_id','group_id','page_id','shared_post_id','type','content','location','feeling','privacy','is_pinned','comments_disabled','views_count','likes_count','comments_count','shares_count','saves_count','poll_options','published_at','video_ready','moderation_status','moderation_score'];
-    protected $casts = ['poll_options'=>'array','is_pinned'=>'boolean','comments_disabled'=>'boolean','video_ready'=>'boolean','published_at'=>'datetime','moderation_score'=>'float'];
+    protected $fillable = ['user_id','group_id','page_id','shared_post_id','type','content','location','feeling','privacy','is_pinned','comments_disabled','views_count','likes_count','comments_count','shares_count','saves_count','poll_options','published_at','video_ready'];
+    protected $casts = ['poll_options'=>'array','is_pinned'=>'boolean','comments_disabled'=>'boolean','video_ready'=>'boolean','published_at'=>'datetime'];
 
     public function user() { return $this->belongsTo(User::class); }
     public function group() { return $this->belongsTo(CommunityGroup::class, 'group_id'); }
