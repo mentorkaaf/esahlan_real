@@ -274,7 +274,9 @@ class _FeedTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return RefreshIndicator(
+    return ColoredBox(
+      color: const Color(0xFFF0F4F8),
+      child: RefreshIndicator(
       color: kOrange,
       onRefresh: () => ref.read(communityFeedProvider.notifier).refresh(),
       child: ListView(
@@ -290,7 +292,7 @@ class _FeedTab extends ConsumerWidget {
           // Create post bar
           const _CreatePostBar(),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
 
           // Feed posts
           feedState.when(
@@ -298,6 +300,20 @@ class _FeedTab extends ConsumerWidget {
               if (posts.isEmpty) return const _EmptyFeed();
               final suggestions = ref.watch(communitySuggestionsProvider).valueOrNull ?? [];
               final reels = ref.watch(communityReelsProvider).valueOrNull ?? [];
+
+              // Register all video URLs (feed order) so VideoPool can preload ahead.
+              // Also eagerly kick off the first 4 — they're above the fold and need
+              // to be ready before the user even starts scrolling.
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final videoUrls = posts
+                  .expand((p) => p.media.where((m) => m.type == 'video').map((m) => m.mp4DirectUrl))
+                  .where((u) => u.isNotEmpty)
+                  .toList();
+                VideoPool.feed.setFeedUrls(videoUrls);
+                // Prime the first window immediately (index 0, preloads 0..3)
+                if (videoUrls.isNotEmpty) VideoPool.feed.setWindow(videoUrls, 0);
+              });
+
               final widgets = <Widget>[];
               for (var i = 0; i < posts.length; i++) {
                 widgets.add(_PostCard(post: posts[i],
@@ -336,6 +352,7 @@ class _FeedTab extends ConsumerWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }
@@ -525,36 +542,45 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   bool _videoReady = false;
   bool _muted = false;
   bool _visible = false;
+  final _pool = VideoPool.feed;
+
+  String? get _adUrl => widget.post.adMediaUrl;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (widget.post.adType == 'video' && widget.post.adMediaUrl != null) {
+    if (widget.post.adType == 'video' && _adUrl != null) {
       _initAdVideo();
     }
   }
 
   void _initAdVideo() {
-    final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.post.adMediaUrl!),
-      httpHeaders: const {'Connection': 'keep-alive', 'Accept-Encoding': 'identity'});
-    ctrl.initialize().then((_) {
-      if (!mounted) { ctrl.dispose(); return; }
+    _pool.preload(_adUrl!).then((ctrl) {
+      if (ctrl == null || !mounted) return;
       ctrl.setLooping(true);
-      ctrl.setVolume(1);
-      ctrl.pause();
       setState(() { _vCtrl = ctrl; _videoReady = true; });
-    }).catchError((_) { ctrl.dispose(); });
+      if (_visible) {
+        ctrl.setVolume(_muted ? 0 : 1);
+        ctrl.play();
+      }
+    });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_vCtrl == null) return;
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) _vCtrl!.pause();
+    if (_vCtrl == null || _adUrl == null) return;
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _pool.pause(_adUrl!);
+    }
   }
 
   @override
-  void dispose() { WidgetsBinding.instance.removeObserver(this); _vCtrl?.pause(); _vCtrl?.dispose(); super.dispose(); }
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (_adUrl != null) _pool.pause(_adUrl!);
+    super.dispose();
+  }
 
   void _onAdTap() {
     if (widget.post.id > 0) ref.read(communityRepoProvider).trackAdClick(widget.post.id);
@@ -572,10 +598,14 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
       key: ValueKey('ad_${p.id}_${p.hashCode}'),
       onVisibilityChanged: (info) {
         _visible = info.visibleFraction > 0.5;
+        if (_adUrl == null) return;
         if (_visible) {
-          if (_vCtrl != null && _videoReady && !_vCtrl!.value.isPlaying) _vCtrl!.play();
+          if (_vCtrl != null && _videoReady) {
+            _vCtrl!.setVolume(_muted ? 0 : 1);
+            if (!_vCtrl!.value.isPlaying) _vCtrl!.play();
+          }
         } else {
-          if (_vCtrl != null && _vCtrl!.value.isPlaying) _vCtrl!.pause();
+          if (_vCtrl != null && _vCtrl!.value.isPlaying) _pool.pause(_adUrl!);
         }
       },
       child: Container(
@@ -626,7 +656,7 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
                       // Mute toggle
                       Positioned(bottom: 10, right: 10,
                         child: GestureDetector(
-                          onTap: () { setState(() { _muted = !_muted; _vCtrl?.setVolume(_muted ? 0 : 1); }); },
+                          onTap: () { setState(() { _muted = !_muted; }); _vCtrl?.setVolume(_muted ? 0 : 1); },
                           child: Container(width: 30, height: 30,
                             decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
                             child: Icon(_muted ? Icons.volume_off_rounded : Icons.volume_up_rounded, color: Colors.white, size: 15)))),
@@ -677,48 +707,62 @@ class _CreatePostBar extends ConsumerWidget {
     final avatar = myProfile.valueOrNull?.avatar;
 
     return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 14, offset: const Offset(0, 3))],
+      ),
       child: Column(
         children: [
-          Row(
-            children: [
-              CircleNetImage(url: avatar, size: 40),
-              const SizedBox(width: 10),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () async {
-                    final post = await Navigator.push<CommunityPost>(
-                      context,
-                      MaterialPageRoute(builder: (_) => CreatePostScreen()),
-                    );
-                    if (post != null) ref.read(communityFeedProvider.notifier).prependPost(post);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0F2F5),
-                      borderRadius: BorderRadius.circular(24),
+          // Left orange accent bar
+          Container(
+            height: 3,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(colors: [kOrange, Color(0xFFFFB347)]),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+            child: Row(
+              children: [
+                CircleNetImage(url: avatar, size: 42),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () async {
+                      final post = await Navigator.push<CommunityPost>(
+                        context,
+                        MaterialPageRoute(builder: (_) => CreatePostScreen()),
+                      );
+                      if (post != null) ref.read(communityFeedProvider.notifier).prependPost(post);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7F8FA),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: const Color(0xFFE8ECF0), width: 1),
+                      ),
+                      child: const Text('Share something...',
+                          style: TextStyle(color: Color(0xFFADB5BD), fontSize: 14, fontWeight: FontWeight.w400)),
                     ),
-                    child: const Text("What's on your mind?",
-                        style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const Divider(height: 16, color: Color(0xFFF0F2F5)),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _PostTypeBtn(icon: Icons.photo_library_rounded, label: 'Photo', color: const Color(0xFF45BD62), type: 'image'),
-              Container(width: 1, height: 18, color: const Color(0xFFE5E7EB)),
-              _PostTypeBtn(icon: Icons.videocam_rounded, label: 'Video', color: const Color(0xFFF97316), type: 'video'),
-              Container(width: 1, height: 18, color: const Color(0xFFE5E7EB)),
-              _PostTypeBtn(icon: Icons.bar_chart_rounded, label: 'Poll', color: const Color(0xFF8B5CF6), type: 'poll'),
-              Container(width: 1, height: 18, color: const Color(0xFFE5E7EB)),
-              _PostTypeBtn(icon: Icons.emoji_emotions_rounded, label: 'Feeling', color: const Color(0xFFF59E0B), type: 'text'),
-            ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 10),
+            child: Row(
+              children: [
+                _PostTypeBtn(icon: Icons.photo_library_rounded, label: 'Photo', color: const Color(0xFF34C759), type: 'image'),
+                _PostTypeBtn(icon: Icons.videocam_rounded, label: 'Video', color: kOrange, type: 'video'),
+                _PostTypeBtn(icon: Icons.bar_chart_rounded, label: 'Poll', color: const Color(0xFF8B5CF6), type: 'poll'),
+                _PostTypeBtn(icon: Icons.emoji_emotions_rounded, label: 'Feeling', color: const Color(0xFFF59E0B), type: 'text'),
+              ],
+            ),
           ),
         ],
       ),
@@ -767,8 +811,12 @@ class _EmptyFeed extends ConsumerWidget {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(
           width: 80, height: 80,
-          decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
-          child: const Icon(Icons.dynamic_feed_rounded, size: 40, color: Color(0xFFD1D5DB)),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [Color(0xFFFFEDD5), Color(0xFFFFF7ED)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+            shape: BoxShape.circle,
+            boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.15), blurRadius: 20, spreadRadius: 2)],
+          ),
+          child: const Icon(Icons.dynamic_feed_rounded, size: 40, color: kOrange),
         ),
         const SizedBox(height: 16),
         const Text('Your feed is empty', style: TextStyle(color: Color(0xFF1A1B2E), fontSize: 18, fontWeight: FontWeight.w700)),
@@ -901,8 +949,13 @@ class _PostCardState extends ConsumerState<_PostCard> {
     if (p.isAd) return _AdCard(post: p);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: Colors.white,
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 2))],
+      ),
+      clipBehavior: Clip.hardEdge,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // Header
         Padding(
@@ -925,7 +978,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
                     Text(p.user.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1A1B2E))),
                     if (p.user.isVerified) ...[
                       const SizedBox(width: 4),
-                      const Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 14),
+                      const Icon(Icons.verified_rounded, color: kOrange, size: 14),
                     ],
                   ]),
                   Row(children: [
@@ -1031,60 +1084,34 @@ class _PostCardState extends ConsumerState<_PostCard> {
             }).toList()),
           ),
 
-        // Engagement counts â€” Facebook style
+        // Engagement counts — compact pill style
         if (p.likesCount > 0 || p.commentsCount > 0 || p.sharesCount > 0 || p.viewsCount > 0)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 2),
             child: Row(children: [
-              if (p.likesCount > 0) Expanded(child: Row(children: [
-                // Reaction icons (stacked)
-                SizedBox(width: 36, height: 20, child: Stack(children: [
-                  Container(width: 20, height: 20, decoration: const BoxDecoration(
-                    color: Color(0xFF1877F2), shape: BoxShape.circle,
-                    border: Border.fromBorderSide(BorderSide(color: Colors.white, width: 1.5))),
-                    child: const Icon(Icons.thumb_up_rounded, size: 11, color: Colors.white)),
-                  if (p.likesCount > 1) Positioned(left: 14, child: Container(width: 20, height: 20,
-                    decoration: const BoxDecoration(color: Color(0xFFED4956), shape: BoxShape.circle,
-                      border: Border.fromBorderSide(BorderSide(color: Colors.white, width: 1.5))),
-                    child: const Icon(Icons.favorite_rounded, size: 11, color: Colors.white))),
-                ])),
-                const SizedBox(width: 4),
-                Flexible(child: Text(
-                  p.likesCount >= 1000 ? '${(p.likesCount / 1000).toStringAsFixed(1)}K' : '${p.likesCount}',
-                  style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
-                  overflow: TextOverflow.ellipsis)),
-              ])),
-              if (p.likesCount == 0) const Spacer(),
-              if (p.commentsCount > 0)
-                Padding(padding: const EdgeInsets.only(left: 8),
-                  child: Text('${p.commentsCount} ${p.commentsCount == 1 ? 'comment' : 'comments'}',
-                    style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13))),
-              if (p.sharesCount > 0)
-                Padding(padding: const EdgeInsets.only(left: 8),
-                  child: Text('${p.sharesCount} ${p.sharesCount == 1 ? 'share' : 'shares'}',
-                    style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13))),
-              if (p.viewsCount > 0)
-                Padding(padding: const EdgeInsets.only(left: 8),
-                  child: Text('${p.viewsCount >= 1000 ? '${(p.viewsCount / 1000).toStringAsFixed(1)}K' : p.viewsCount} ${p.viewsCount == 1 ? 'view' : 'views'}',
-                    style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13))),
+              if (p.likesCount > 0) _EngagementChip(emoji: '👍', count: p.likesCount),
+              if (p.commentsCount > 0) _EngagementChip(emoji: '💬', count: p.commentsCount),
+              if (p.sharesCount > 0) _EngagementChip(emoji: '↗', count: p.sharesCount),
+              if (p.viewsCount > 0) _EngagementChip(emoji: '👁', count: p.viewsCount),
             ]),
           ),
 
-        const Divider(height: 1, color: Color(0xFFF0F2F5)),
+        const Divider(height: 1, thickness: 1, color: Color(0xFFF2F4F7)),
 
         // Action buttons
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.fromLTRB(6, 4, 6, 6),
           child: Row(children: [
             _ActionBtn(
               icon: _myReaction != null ? Icons.thumb_up_rounded : Icons.thumb_up_alt_outlined,
               label: _myReaction != null ? _reactionEmoji(_myReaction!) : 'Like',
-              color: _myReaction != null ? kOrange : const Color(0xFF6B7280),
+              color: _myReaction != null ? kOrange : const Color(0xFF8A94A6),
+              active: _myReaction != null,
               onTap: () => setState(() => _showReactions = !_showReactions),
               onLongPress: () => _react('like'),
             ),
-            _ActionBtn(icon: Icons.chat_bubble_outline_rounded, label: 'Comment', color: const Color(0xFF6B7280), onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount)),
-            _ActionBtn(icon: Icons.share_outlined, label: 'Share', color: const Color(0xFF6B7280), onTap: () => _showShareDialog()),
+            _ActionBtn(icon: Icons.mode_comment_outlined, label: 'Comment', color: const Color(0xFF8A94A6), onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount)),
+            _ActionBtn(icon: Icons.reply_rounded, label: 'Share', color: const Color(0xFF8A94A6), onTap: () => _showShareDialog()),
           ]),
         ),
 
@@ -1270,13 +1297,33 @@ class _ExpandableTextState extends State<_ExpandableText> {
   }
 }
 
+class _EngagementChip extends StatelessWidget {
+  final String emoji;
+  final int count;
+  const _EngagementChip({required this.emoji, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = count >= 1000 ? '${(count / 1000).toStringAsFixed(1)}K' : '$count';
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(emoji, style: const TextStyle(fontSize: 13)),
+        const SizedBox(width: 3),
+        Text(label, style: const TextStyle(color: Color(0xFF8A94A6), fontSize: 12, fontWeight: FontWeight.w600)),
+      ]),
+    );
+  }
+}
+
 class _ActionBtn extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
+  final bool active;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
-  const _ActionBtn({required this.icon, required this.label, required this.color, required this.onTap, this.onLongPress});
+  const _ActionBtn({required this.icon, required this.label, required this.color, required this.onTap, this.active = false, this.onLongPress});
 
   @override
   Widget build(BuildContext context) {
@@ -1284,8 +1331,12 @@ class _ActionBtn extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         onLongPress: onLongPress,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+          padding: const EdgeInsets.symmetric(vertical: 7),
+          decoration: active
+              ? BoxDecoration(color: kOrange.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(10))
+              : null,
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(icon, color: color, size: 20),
             const SizedBox(width: 5),
@@ -1843,9 +1894,15 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Preload is triggered by visibility (15% threshold) — not here.
-    // Starting preload for every item in initState caused concurrent
-    // controller floods that blocked the main thread (ANR).
+    // Start preloading immediately on widget build.
+    // VideoPool caps at 12 slots and evicts by distance-from-active,
+    // so this is safe even when many video widgets are built at once.
+    if (_isVideo) {
+      final mp4 = _mp4Url;
+      if (mp4.isNotEmpty && !_pool.isReady(mp4) && !_pool.isLoading(mp4)) {
+        _pool.preload(mp4);
+      }
+    }
   }
 
   bool _lifecyclePaused = false;
@@ -1942,6 +1999,8 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
         _pool.play(_videoUrl);
         _watchStart ??= DateTime.now();
       }
+      // Shift preload window to ±2 around this video in the feed.
+      _pool.setActiveUrl(_videoUrl);
     } else {
       if (_ctrl != null && _ctrl!.value.isPlaying) _pool.pause(_videoUrl);
       if (_watchStart != null && _isVideo) {
