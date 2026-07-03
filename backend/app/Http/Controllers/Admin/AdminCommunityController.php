@@ -391,7 +391,7 @@ class AdminCommunityController extends Controller
             ->pluck('count', 'interaction_type');
 
         $topHashtags = \DB::table('community_hashtags')
-            ->orderByDesc('post_count')->limit(10)->get(['name', 'post_count']);
+            ->orderByDesc('posts_count')->limit(10)->get(['name', 'posts_count']);
 
         $activeUsers = \DB::table('feed_seen_posts')
             ->where('seen_at', '>', now()->subMinutes(30))
