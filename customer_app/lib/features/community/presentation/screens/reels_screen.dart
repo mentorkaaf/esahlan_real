@@ -139,10 +139,11 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
     return items;
   }
 
-  /// Flat list of all video URLs in current feed order — fed to the engine
-  /// so it can do position-aware eviction and predictive preloading.
+  /// Flat list of video URLs in feed order — ads get '' so pool skips them.
+  /// Ads use their own plain VideoPlayerController; excluding them from the
+  /// window prevents wasted pool slots and wrong eviction distances.
   List<String> _extractVideoUrls(List<_ReelItem> items) =>
-      items.map((e) => e.videoUrl).toList();
+      items.map((e) => e.isAd ? '' : e.videoUrl).toList();
 
   void _onPageChanged(int i, List<_ReelItem> combined) {
     setState(() => _currentIndex = i);
@@ -154,7 +155,8 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
 
     final urls = _extractVideoUrls(combined);
     _pool.setWindow(urls, i);
-    if (urls[i].isNotEmpty) _pool.play(urls[i]);
+    final url = i < urls.length ? urls[i] : '';
+    if (url.isNotEmpty) _pool.play(url);
   }
 
   @override
@@ -201,6 +203,15 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
       _cachedItems!.addAll(_buildCombinedList(newCommunity, newRent));
       _foldedCommunityCount = communityReels.length;
       _foldedRentCount = rentReels.length;
+      // Start preloading from current position now that URLs are available.
+      // Without this the pool never gets the URL list on first data arrival.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _cachedItems == null) return;
+        final urls = _extractVideoUrls(_cachedItems!);
+        _pool.setWindow(urls, _currentIndex);
+        final activeUrl = _currentIndex < urls.length ? urls[_currentIndex] : '';
+        if (activeUrl.isNotEmpty) _pool.play(activeUrl);
+      });
     }
 
     final combined = _cachedItems!;
@@ -782,49 +793,46 @@ class _ReelAdCard extends ConsumerStatefulWidget {
 class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
   VideoPlayerController? _ctrl;
   bool _ready = false;
-  String _adUrl = '';
-  final _pool = VideoPool.reels;
 
   @override
   void initState() {
     super.initState();
-    _adUrl = widget.ad['media_url'] as String? ?? '';
-    if (_adUrl.isNotEmpty) _initVideo();
+    final url = widget.ad['media_url'] as String? ?? '';
+    if (url.isNotEmpty) _initVideo(url);
   }
 
-  void _initVideo() async {
-    final cached = _pool.controller(_adUrl);
-    if (cached != null) {
-      if (mounted) {
-        setState(() { _ctrl = cached; _ready = true; });
-        if (widget.isActive) _pool.play(_adUrl);
-      }
-      return;
-    }
-
-    final ctrl = await _pool.preload(_adUrl);
-    if (ctrl != null && mounted) {
+  void _initVideo(String url) async {
+    try {
+      final ctrl = VideoPlayerController.networkUrl(
+        Uri.parse(url),
+        httpHeaders: const {'Connection': 'keep-alive'},
+      );
+      await ctrl.initialize();
       ctrl.setLooping(true);
+      ctrl.setVolume(widget.isActive ? 1 : 0);
+      if (!mounted) { ctrl.dispose(); return; }
       setState(() { _ctrl = ctrl; _ready = true; });
-      if (widget.isActive) _pool.play(_adUrl);
-    }
+      if (widget.isActive) ctrl.play();
+    } catch (_) {}
   }
 
   @override
   void didUpdateWidget(_ReelAdCard old) {
     super.didUpdateWidget(old);
-    if (widget.isActive != old.isActive && _adUrl.isNotEmpty) {
+    if (widget.isActive != old.isActive && _ctrl != null) {
       if (widget.isActive) {
-        _pool.play(_adUrl);
+        _ctrl!.setVolume(1);
+        _ctrl!.play();
       } else {
-        _pool.pause(_adUrl);
+        _ctrl!.pause();
       }
     }
   }
 
   @override
   void dispose() {
-    // Return to pool — don't dispose, engine manages lifetime
+    _ctrl?.pause();
+    _ctrl?.dispose();
     super.dispose();
   }
 

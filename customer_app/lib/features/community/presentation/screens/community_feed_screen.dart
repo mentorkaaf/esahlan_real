@@ -548,7 +548,6 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   bool _videoReady = false;
   bool _muted = false;
   bool _visible = false;
-  final _pool = VideoPool.feed;
 
   String? get _adUrl => widget.post.adMediaUrl;
 
@@ -561,30 +560,37 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
     }
   }
 
-  void _initAdVideo() {
-    _pool.preload(_adUrl!).then((ctrl) {
-      if (ctrl == null || !mounted) return;
+  void _initAdVideo() async {
+    try {
+      final ctrl = VideoPlayerController.networkUrl(
+        Uri.parse(_adUrl!),
+        httpHeaders: const {'Connection': 'keep-alive'},
+      );
+      await ctrl.initialize();
       ctrl.setLooping(true);
+      ctrl.setVolume(0);
+      if (!mounted) { ctrl.dispose(); return; }
       setState(() { _vCtrl = ctrl; _videoReady = true; });
       if (_visible) {
         ctrl.setVolume(_muted ? 0 : 1);
         ctrl.play();
       }
-    });
+    } catch (_) {}
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_vCtrl == null || _adUrl == null) return;
+    if (_vCtrl == null) return;
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      _pool.pause(_adUrl!);
+      _vCtrl!.pause();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    if (_adUrl != null) _pool.pause(_adUrl!);
+    _vCtrl?.pause();
+    _vCtrl?.dispose();
     super.dispose();
   }
 
@@ -611,7 +617,7 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
             if (!_vCtrl!.value.isPlaying) _vCtrl!.play();
           }
         } else {
-          if (_vCtrl != null && _vCtrl!.value.isPlaying) _pool.pause(_adUrl!);
+          if (_vCtrl != null && _vCtrl!.value.isPlaying) _vCtrl!.pause();
         }
       },
       child: Container(
