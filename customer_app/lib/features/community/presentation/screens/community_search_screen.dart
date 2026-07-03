@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
@@ -51,7 +52,7 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> w
               hintText: 'Search community...', hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
               prefixIcon: const Icon(Icons.search_rounded, size: 20, color: Color(0xFF9CA3AF)),
               suffixIcon: _query.isNotEmpty ? IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () { _ctrl.clear(); setState(() { _query = ''; _results = null; }); }) : null,
-              filled: true, fillColor: const Color(0xFFF0F2F5),
+              filled: true, fillColor: context.colors.searchBarBg,
               contentPadding: const EdgeInsets.symmetric(vertical: 8),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
             ),
@@ -79,15 +80,15 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> w
       data: (tags) {
         if (tags.isEmpty) return const Center(child: Text('Start typing to search', style: TextStyle(color: Color(0xFF9CA3AF))));
         return ListView(padding: const EdgeInsets.all(16), children: [
-          const Text('Trending', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF1A1B2E))),
+          Text('Trending', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: context.colors.navyText)),
           const SizedBox(height: 12),
           ...tags.asMap().entries.map((e) {
             final tag = e.value;
             return ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFFF0F2F5), borderRadius: BorderRadius.circular(10)),
+              leading: Container(width: 40, height: 40, decoration: BoxDecoration(color: context.colors.chipBg, borderRadius: BorderRadius.circular(10)),
                 child: Center(child: Text('#', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: kOrange)))),
-              title: Text('#${tag['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF1A1B2E))),
+              title: Text('#${tag['name'] ?? ''}', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.navyText)),
               subtitle: Text('${tag['posts_count'] ?? 0} posts', style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
               trailing: Text('#${e.key + 1}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFFD1D5DB))),
               onTap: () { _ctrl.text = '#${tag['name']}'; setState(() => _query = '#${tag['name']}'); _search('posts'); },
@@ -145,7 +146,7 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> w
 
   Widget _hashtagTile(Map<String, dynamic> h) => ListTile(
     contentPadding: const EdgeInsets.symmetric(vertical: 4),
-    leading: Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFFF0F2F5), borderRadius: BorderRadius.circular(12)),
+    leading: Container(width: 44, height: 44, decoration: BoxDecoration(color: context.colors.chipBg, borderRadius: BorderRadius.circular(12)),
       child: const Center(child: Text('#', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: kOrange)))),
     title: Text('#${h['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
     subtitle: Text('${h['posts_count'] ?? 0} posts', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
@@ -156,7 +157,7 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> w
     final user = p['user'] as Map<String, dynamic>? ?? {};
     return Container(
       margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
+      decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(12),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -165,7 +166,7 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> w
           Expanded(child: Text(user['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13))),
         ]),
         if (p['content'] != null) Padding(padding: const EdgeInsets.only(top: 8),
-          child: Text(p['content'], style: const TextStyle(fontSize: 14, color: Color(0xFF374151)), maxLines: 3, overflow: TextOverflow.ellipsis)),
+          child: Text(p['content'], style: TextStyle(fontSize: 14, color: context.colors.bodyText), maxLines: 3, overflow: TextOverflow.ellipsis)),
         Padding(padding: const EdgeInsets.only(top: 8), child: Row(children: [
           const Icon(Icons.favorite_rounded, size: 14, color: Color(0xFF9CA3AF)),
           Text(' ${p['likes_count'] ?? 0}', style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),

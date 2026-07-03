@@ -246,12 +246,12 @@ class _AppBarBtn extends StatelessWidget {
         width: 36, height: 36,
         margin: const EdgeInsets.only(right: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFFF0F2F5),
+          color: context.colors.chipBg,
           shape: BoxShape.circle,
         ),
         child: Stack(
           children: [
-            Center(child: Icon(icon, color: const Color(0xFF1A1B2E), size: 20)),
+            Center(child: Icon(icon, color: context.colors.navyText, size: 20)),
             if (badge != null)
               Positioned(
                 right: 4, top: 4,
@@ -281,7 +281,7 @@ class _FeedTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ColoredBox(
-      color: const Color(0xFFF0F4F8),
+      color: context.colors.scaffoldBg,
       child: RefreshIndicator(
       color: kOrange,
       onRefresh: () => ref.read(communityFeedProvider.notifier).refresh(),
@@ -522,8 +522,8 @@ class _PersonTileState extends ConsumerState<_PersonTile> {
               try { await ref.read(communityRepoProvider).toggleFollow(u.id); } catch (_) { setState(() => _following = !_following); }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: _following ? const Color(0xFFF0F2F5) : kOrange,
-              foregroundColor: _following ? const Color(0xFF6B7280) : Colors.white,
+              backgroundColor: _following ? context.colors.chipBg : kOrange,
+              foregroundColor: _following ? context.colors.mutedText : Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               padding: const EdgeInsets.symmetric(vertical: 8)),
@@ -622,13 +622,13 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
       },
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
-        color: Colors.white,
+        color: context.colors.cardBg,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // Header
           Padding(padding: const EdgeInsets.fromLTRB(14, 12, 14, 10), child: Row(children: [
             p.adPage?['avatar'] != null
                 ? CircleNetImage(url: p.adPage!['avatar'], size: 40, fallbackText: p.adPage?['name'] ?? '')
-                : Container(width: 40, height: 40, decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
+                : Container(width: 40, height: 40, decoration: BoxDecoration(color: context.colors.chipBg, shape: BoxShape.circle),
                     child: const Icon(Icons.storefront_rounded, color: kOrange, size: 20)),
             const SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -682,7 +682,7 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
             onTap: _onAdTap,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              color: const Color(0xFFF8F9FA),
+              color: context.colors.surfaceBg,
               child: Row(children: [
                 Expanded(child: Text(p.adTitle ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E)),
                   maxLines: 1, overflow: TextOverflow.ellipsis)),
@@ -718,10 +718,11 @@ class _CreatePostBar extends ConsumerWidget {
     final myProfile = ref.watch(communityMyProfileProvider);
     final avatar = myProfile.valueOrNull?.avatar;
 
+    final c = context.colors;
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: c.cardBg,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 14, offset: const Offset(0, 3))],
       ),
@@ -753,12 +754,12 @@ class _CreatePostBar extends ConsumerWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF7F8FA),
+                        color: c.surfaceBg,
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: const Color(0xFFE8ECF0), width: 1),
+                        border: Border.all(color: c.borderColor, width: 1),
                       ),
-                      child: const Text('Share something...',
-                          style: TextStyle(color: Color(0xFFADB5BD), fontSize: 14, fontWeight: FontWeight.w400)),
+                      child: Text('Share something...',
+                          style: TextStyle(color: c.subtleText, fontSize: 14, fontWeight: FontWeight.w400)),
                     ),
                   ),
                 ),
@@ -805,7 +806,7 @@ class _PostTypeBtn extends ConsumerWidget {
           children: [
             Icon(icon, color: color, size: 20),
             const SizedBox(width: 5),
-            Text(label, style: const TextStyle(color: Color(0xFF374151), fontSize: 12, fontWeight: FontWeight.w600)),
+            Text(label, style: TextStyle(color: context.colors.bodyText, fontSize: 12, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -960,10 +961,11 @@ class _PostCardState extends ConsumerState<_PostCard> {
     // â”€â”€ Ad Card â”€â”€
     if (p.isAd) return _AdCard(post: p);
 
+    final c = context.colors;
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: c.cardBg,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 2))],
       ),
@@ -1028,7 +1030,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
         if (p.type == 'share' && p.sharedPost != null)
           Container(
             margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-            decoration: BoxDecoration(border: Border.all(color: const Color(0xFFE5E7EB)), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(border: Border.all(color: c.borderColor), borderRadius: BorderRadius.circular(12)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 6), child: Row(children: [
                 CircleNetImage(url: (p.sharedPost!['user'] as Map?)?['avatar'], size: 28, fallbackText: (p.sharedPost!['user'] as Map?)?['name'] ?? '?'),
@@ -1081,7 +1083,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
                 },
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFE5E7EB))),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: c.borderColor)),
                   child: Stack(children: [
                     FractionallySizedBox(widthFactor: pct / 100, child: Container(
                       height: 44, decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(9)))),
@@ -1142,7 +1144,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
     showDialog(context: context, builder: (ctx) => AlertDialog(
       title: const Text('Share post', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(8)),
+        Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(8)),
           child: Row(children: [
             CircleNetImage(url: widget.post.user.avatar, size: 28, fallbackText: widget.post.user.name),
             const SizedBox(width: 8),
@@ -1391,7 +1393,7 @@ class _ReactionPickerState extends State<_ReactionPicker> with SingleTickerProvi
       alignment: Alignment.bottomLeft,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30),
+        decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(30),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 16, offset: const Offset(0, 4))]),
         child: Row(mainAxisSize: MainAxisSize.min,
           children: widget.reactions.asMap().entries.map((e) {
@@ -1465,7 +1467,7 @@ class _PeopleYouMayKnow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (users.isEmpty) return const SizedBox.shrink();
     return Container(
-      color: Colors.white,
+      color: context.colors.cardBg,
       margin: const EdgeInsets.only(bottom: 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
@@ -1507,8 +1509,8 @@ class _SuggestionCardState extends ConsumerState<_SuggestionCard> {
     final u = widget.user;
     return Container(
       width: 160, margin: const EdgeInsets.only(right: 8),
-      decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB))),
+      decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.colors.borderColor)),
       clipBehavior: Clip.antiAlias,
       child: Column(children: [
         // Cover/avatar area
@@ -1540,8 +1542,8 @@ class _SuggestionCardState extends ConsumerState<_SuggestionCard> {
                 try { await ref.read(communityRepoProvider).toggleFollow(u.id); } catch (_) { setState(() => _following = !_following); }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: _following ? const Color(0xFFF0F2F5) : kOrange,
-                foregroundColor: _following ? const Color(0xFF6B7280) : Colors.white,
+                backgroundColor: _following ? context.colors.chipBg : kOrange,
+                foregroundColor: _following ? context.colors.mutedText : Colors.white,
                 elevation: 0, padding: const EdgeInsets.symmetric(vertical: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
               child: Text(_following ? 'Following' : 'Follow', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
@@ -1560,7 +1562,7 @@ class _ReelsCarousel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (reels.isEmpty) return const SizedBox.shrink();
     return Container(
-      color: Colors.white,
+      color: context.colors.cardBg,
       margin: const EdgeInsets.only(bottom: 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
@@ -2069,13 +2071,13 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (!_isVideo) {
       if (widget.height == 0) {
         return NetImage(url: widget.m.url, fit: BoxFit.fitWidth, width: double.infinity,
-          placeholder: Container(color: const Color(0xFFE5E7EB), height: 200),
-          errorWidget: Container(color: const Color(0xFFE5E7EB), height: 200, child: const Icon(Icons.broken_image_rounded, color: Color(0xFF9CA3AF), size: 32)));
+          placeholder: Container(color: context.colors.borderColor, height: 200),
+          errorWidget: Container(color: context.colors.borderColor, height: 200, child: const Icon(Icons.broken_image_rounded, color: Color(0xFF9CA3AF), size: 32)));
       }
       return SizedBox(height: widget.height, width: double.infinity,
         child: NetImage(url: widget.m.url, fit: BoxFit.cover,
-          placeholder: Container(color: const Color(0xFFE5E7EB)),
-          errorWidget: Container(color: const Color(0xFFE5E7EB), child: const Icon(Icons.broken_image_rounded, color: Color(0xFF9CA3AF), size: 32))));
+          placeholder: Container(color: context.colors.borderColor),
+          errorWidget: Container(color: context.colors.borderColor, child: const Icon(Icons.broken_image_rounded, color: Color(0xFF9CA3AF), size: 32))));
     }
 
     final screenW = MediaQuery.of(context).size.width;
@@ -2299,8 +2301,8 @@ class _DocumentCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB))),
+      decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.colors.borderColor)),
       child: Row(children: [
         Container(width: 52, height: 52,
           decoration: BoxDecoration(color: _color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),

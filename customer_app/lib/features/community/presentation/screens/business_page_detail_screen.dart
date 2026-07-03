@@ -116,7 +116,7 @@ class _PageCardState extends ConsumerState<_PageCard> {
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BusinessPageDetailScreen(pageId: p['id']))),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
+        decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10)]),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // Cover
@@ -156,7 +156,7 @@ class _PageCardState extends ConsumerState<_PageCard> {
                   },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: _following ? const Color(0xFF6B7280) : kOrange,
-                    side: BorderSide(color: _following ? const Color(0xFFD1D5DB) : kOrange),
+                    side: BorderSide(color: _following ? context.colors.subtleText : kOrange),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     padding: const EdgeInsets.symmetric(vertical: 10)),
                   child: Text(_following ? 'Following' : 'Follow', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
@@ -208,12 +208,12 @@ class _BusinessPageDetailScreenState extends ConsumerState<BusinessPageDetailScr
               ])),
             ),
 
-            SliverToBoxAdapter(child: Container(color: Colors.white, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SliverToBoxAdapter(child: Container(color: context.colors.cardBg, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               // Avatar row — fully below cover
               Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
                 child: Row(children: [
                   Container(
-                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3),
+                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: context.colors.cardBg, width: 3),
                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 6)]),
                     child: CircleNetImage(url: page['avatar'], size: 76, fallbackText: page['name'] ?? '?')),
                   const Spacer(),
@@ -230,8 +230,8 @@ class _BusinessPageDetailScreenState extends ConsumerState<BusinessPageDetailScr
                         try { await ref.read(communityRepoProvider).togglePageFollow(widget.pageId); } catch (_) { setState(() => _following = !_following); }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _following ? const Color(0xFFF0F2F5) : kOrange,
-                        foregroundColor: _following ? const Color(0xFF1A1B2E) : Colors.white,
+                        backgroundColor: _following ? context.colors.chipBg : kOrange,
+                        foregroundColor: _following ? context.colors.navyText : Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                       child: Text(_following ? 'Following' : 'Follow', style: const TextStyle(fontWeight: FontWeight.w700)),
                     ),
@@ -419,9 +419,9 @@ class _CreatePageScreenState extends ConsumerState<_CreatePageScreen> {
   Widget _field(String label, TextEditingController ctrl, IconData icon, {int maxLines = 1, TextInputType? inputType}) =>
     TextField(controller: ctrl, maxLines: maxLines, keyboardType: inputType, onChanged: (_) => setState(() {}),
       decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon, color: kOrange, size: 20),
-        filled: true, fillColor: const Color(0xFFF9FAFB),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB)))));
+        filled: true, fillColor: context.colors.surfaceBg,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.colors.borderColor)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.colors.borderColor))));
 }
 
 // ── Simple Post Card for Page Detail ──────────────────────────────
@@ -435,7 +435,7 @@ class _SimplePostCard extends StatelessWidget {
     final p = post;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
-      color: Colors.white,
+      color: context.colors.cardBg,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // Header
         Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),

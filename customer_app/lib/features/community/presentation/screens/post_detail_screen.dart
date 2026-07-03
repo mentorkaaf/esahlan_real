@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
@@ -50,7 +51,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
     final p = _post!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Post'), backgroundColor: Colors.white, foregroundColor: const Color(0xFF1A1B2E)),
+      appBar: AppBar(title: const Text('Post'), backgroundColor: context.colors.cardBg, foregroundColor: context.colors.navyText),
       body: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(padding: const EdgeInsets.all(12), child: Row(children: [

@@ -134,8 +134,9 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       repliesMap.putIfAbsent(c.parentId!, () => []).add(c);
     }
 
+    final c = context.colors;
     return Container(
-      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      decoration: BoxDecoration(color: c.cardBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
       child: Column(children: [
         const SizedBox(height: 8),
         Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
@@ -165,7 +166,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                           if (replies.isNotEmpty)
                             Padding(padding: const EdgeInsets.only(left: 44),
                               child: Column(children: [
-                                Container(width: 2, height: 8, color: const Color(0xFFE5E7EB)),
+                                Container(width: 2, height: 8, color: context.colors.dividerColor),
                                 ...replies.map((r) => _CommentTile(comment: r, onReply: () => _setReply(root), isReply: true,
                                   onEdit: r.user.isMe ? (newContent) async { await _repo.updateComment(r.id, newContent); setState(() { final idx = _comments.indexWhere((c) => c.id == r.id); if (idx >= 0) _comments[idx] = _comments[idx].copyWith(content: newContent); }); } : null,
                                   onDelete: r.user.isMe ? () async { await _repo.deleteComment(r.id); setState(() => _comments.removeWhere((c) => c.id == r.id)); } : null)),
@@ -175,7 +176,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
         ),
         const Divider(height: 1),
         if (_replyToName != null) Container(
-          color: const Color(0xFFF0F2F5), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          color: c.inputFill, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Row(children: [
             const Icon(Icons.reply_rounded, size: 16, color: kOrange),
             const SizedBox(width: 6),
@@ -217,11 +218,11 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
           child: Row(children: [
             GestureDetector(onTap: _pickImage,
               child: Container(width: 34, height: 34, margin: const EdgeInsets.only(right: 4),
-                decoration: BoxDecoration(color: const Color(0xFFF0F2F5), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: c.inputFill, shape: BoxShape.circle),
                 child: const Icon(Icons.image_rounded, color: kOrange, size: 16))),
             GestureDetector(onTap: _toggleRecording,
               child: Container(width: 34, height: 34, margin: const EdgeInsets.only(right: 4),
-                decoration: BoxDecoration(color: _recording ? Colors.red : const Color(0xFFF0F2F5), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: _recording ? Colors.red : c.inputFill, shape: BoxShape.circle),
                 child: _recording
                     ? Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
                         const Icon(Icons.stop_rounded, color: Colors.white, size: 14),
@@ -231,7 +232,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
               child: Text('${(_recordSeconds ~/ 60).toString().padLeft(2,'0')}:${(_recordSeconds % 60).toString().padLeft(2,'0')}',
                 style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w700))),
             Expanded(child: Container(
-              decoration: BoxDecoration(color: const Color(0xFFF0F2F5), borderRadius: BorderRadius.circular(24)),
+              decoration: BoxDecoration(color: c.inputFill, borderRadius: BorderRadius.circular(24)),
               child: TextField(controller: _textCtrl, focusNode: _focusNode, minLines: 1, maxLines: 4,
                 textInputAction: TextInputAction.send, onSubmitted: (_) => _send(),
                 decoration: InputDecoration(hintText: _replyToName != null ? 'Reply to $_replyToName...' : 'Write a comment...',
@@ -263,6 +264,7 @@ class _CommentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Padding(
       padding: EdgeInsets.fromLTRB(isReply ? 0 : 12, isReply ? 2 : 6, 12, isReply ? 2 : 6),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -271,7 +273,7 @@ class _CommentTile extends StatelessWidget {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(color: isReply ? const Color(0xFFF9FAFB) : const Color(0xFFF0F2F5), borderRadius: BorderRadius.circular(16)),
+            decoration: BoxDecoration(color: isReply ? c.surfaceBg : c.inputFill, borderRadius: BorderRadius.circular(16)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 Text(comment.user.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: isReply ? 12 : 13, color: const Color(0xFF1A1B2E))),

@@ -181,7 +181,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
 
           SliverToBoxAdapter(
             child: Container(
-              color: Colors.white,
+              color: context.colors.cardBg,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 // Avatar row — avatar sits fully below cover
                 Padding(
@@ -193,7 +193,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                         Container(
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 3),
+                            border: Border.all(color: context.colors.cardBg, width: 3),
                             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 6)],
                           ),
                           child: CircleNetImage(
@@ -207,7 +207,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                             child: Container(
                               padding: const EdgeInsets.all(5),
                               decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2)),
+                                border: Border.all(color: context.colors.cardBg, width: 2)),
                               child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 12))),
                       ]),
                     ),
@@ -361,15 +361,15 @@ class _OutlineBtn extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: filled ? kOrange : Colors.transparent,
-          border: filled ? null : Border.all(color: const Color(0xFFE5E7EB), width: 1.5),
+          border: filled ? null : Border.all(color: context.colors.borderColor, width: 1.5),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 16, color: filled ? Colors.white : const Color(0xFF374151)),
+          Icon(icon, size: 16, color: filled ? Colors.white : context.colors.bodyText),
           const SizedBox(width: 5),
           Text(label,
               style: TextStyle(
-                color: filled ? Colors.white : const Color(0xFF374151),
+                color: filled ? Colors.white : context.colors.bodyText,
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               )),
@@ -399,7 +399,7 @@ class _QuickAction extends StatelessWidget {
           child: Icon(icon, color: kOrange, size: 24),
         ),
         const SizedBox(height: 5),
-        Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF374151), fontWeight: FontWeight.w500)),
+        Text(label, style: TextStyle(fontSize: 12, color: context.colors.bodyText, fontWeight: FontWeight.w500)),
       ]),
     );
   }
@@ -455,7 +455,7 @@ class _PostsGrid extends ConsumerWidget {
               onTap: () => Navigator.push(ctx, MaterialPageRoute(
                 builder: (_) => _PostDetailScreen(post: p))),
               child: Container(
-                color: const Color(0xFFE5E7EB),
+                color: context.colors.borderColor,
                 child: Stack(children: [
                   if (imgUrl != null)
                     Positioned.fill(child: NetImage(url: imgUrl, fit: BoxFit.cover))
@@ -489,7 +489,7 @@ class _PostDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Post'), backgroundColor: Colors.white, foregroundColor: const Color(0xFF1A1B2E)),
+      appBar: AppBar(title: const Text('Post'), backgroundColor: context.colors.cardBg, foregroundColor: context.colors.navyText),
       body: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // User header

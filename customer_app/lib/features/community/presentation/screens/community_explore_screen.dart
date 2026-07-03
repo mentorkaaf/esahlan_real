@@ -37,23 +37,23 @@ class _State extends ConsumerState<CommunityExploreScreen> {
         
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1A1B2E)),
+          icon: Icon(Icons.arrow_back_rounded, color: context.colors.navyText),
           onPressed: () => Navigator.pop(context),
         ),
         title: Container(
           height: 40,
           decoration: BoxDecoration(
-            color: const Color(0xFFF0F2F5),
+            color: context.colors.searchBarBg,
             borderRadius: BorderRadius.circular(20),
           ),
           child: TextField(
             controller: _searchCtrl,
             onChanged: (v) => setState(() => _query = v),
-            style: const TextStyle(fontSize: 14, color: Color(0xFF1A1B2E)),
-            decoration: const InputDecoration(
+            style: TextStyle(fontSize: 14, color: context.colors.navyText),
+            decoration: InputDecoration(
               hintText: 'Search eSahlan Community...',
-              hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-              prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF9CA3AF), size: 20),
+              hintStyle: TextStyle(color: context.colors.mutedText, fontSize: 14),
+              prefixIcon: Icon(Icons.search_rounded, color: context.colors.mutedText, size: 20),
               border: InputBorder.none,
               contentPadding: EdgeInsets.symmetric(vertical: 10),
             ),
@@ -117,7 +117,7 @@ class _State extends ConsumerState<CommunityExploreScreen> {
 
   Widget _section(String title) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-    child: Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E))),
+    child: Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
   );
 }
 
@@ -147,7 +147,7 @@ class _PersonCard extends ConsumerWidget {
           ),
           const SizedBox(height: 6),
           Text(user.name.split(' ')[0],
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1A1B2E)),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.colors.navyText),
               maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
         ]),
       ),
@@ -163,7 +163,7 @@ class _MiniPostCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      color: Colors.white,
+      color: context.colors.cardBg,
       padding: const EdgeInsets.all(12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -171,7 +171,7 @@ class _MiniPostCard extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(post.user.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E))),
+              Text(post.user.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
               if (post.user.isVerified)
                 const Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 12),
             ]),
@@ -187,7 +187,7 @@ class _MiniPostCard extends StatelessWidget {
           Text(post.content!,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Color(0xFF374151), fontSize: 14)),
+              style: TextStyle(color: context.colors.bodyText, fontSize: 14)),
         ],
         if (post.media.isNotEmpty) ...[
           const SizedBox(height: 8),
