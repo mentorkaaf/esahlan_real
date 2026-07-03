@@ -15,6 +15,13 @@ Schedule::call(fn () => FeedRankingService::decayAllUserInterests())
     ->name('feed:decay-interests')
     ->withoutOverlapping();
 
+// Pre-compute feeds for recently-active users every 5 minutes
+Schedule::command('feed:precompute --limit=500')
+    ->everyFiveMinutes()
+    ->name('feed:precompute')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Clean up old seen-posts data daily
 Schedule::call(fn () => FeedRankingService::cleanupSeenPosts())
     ->daily()

@@ -1,9 +1,7 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:video_compress/video_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -111,90 +109,51 @@ class BackgroundUploadNotifier extends StateNotifier<UploadState> {
     required List<XFile> mediaFiles,
     required bool hasVideo,
   }) async {
-    state = const UploadState(status: UploadStatus.compressing, progress: 0, message: 'Preparing...');
-    _showProgressNotification(0, 'Preparing your post...');
+    state = const UploadState(status: UploadStatus.uploading, progress: 0, message: 'Uploading...');
+    _showProgressNotification(0, 'Uploading...');
 
     try {
       final resolvedType = type != 'text' ? type : (hasVideo ? 'video' : (mediaFiles.isNotEmpty ? 'image' : 'text'));
-
-      // Phase 1: Compress (0% → 40%)
-      List<MultipartFile>? files;
-      if (mediaFiles.isNotEmpty) {
-        files = [];
-        for (var i = 0; i < mediaFiles.length; i++) {
-          final f = mediaFiles[i];
-          final mime = f.mimeType ?? '';
-          final fileProgress = i / mediaFiles.length;
-
-          if (mime.startsWith('video/')) {
-            state = state.copyWith(
-              message: 'Compressing video${mediaFiles.length > 1 ? ' ${i + 1}/${mediaFiles.length}' : ''}...',
-              progress: fileProgress * 0.4,
-            );
-            _showProgressNotification((fileProgress * 40).toInt(), 'Compressing video...');
-
-            final subscription = VideoCompress.compressProgress$.subscribe((p) {
-              final compressP = (fileProgress + (p / 100) / mediaFiles.length) * 0.4;
-              state = state.copyWith(progress: compressP, message: 'Compressing ${p.toInt()}%');
-              _showProgressNotification((compressP * 100).toInt(), 'Compressing ${p.toInt()}%');
-            });
-
-            final compressed = await VideoCompress.compressVideo(
-              f.path,
-              quality: VideoQuality.MediumQuality,
-              deleteOrigin: false,
-              includeAudio: true,
-            );
-            subscription.unsubscribe();
-
-            if (compressed?.file != null) {
-              final bytes = await compressed!.file!.readAsBytes();
-              files.add(MultipartFile.fromBytes(bytes, filename: f.name));
-              continue;
-            }
-          }
-
-          final bytes = await f.readAsBytes();
-          files.add(MultipartFile.fromBytes(bytes, filename: f.name));
-        }
-      }
-
-      // Phase 2: Upload (40% → 90%)
-      state = state.copyWith(status: UploadStatus.uploading, progress: 0.4, message: 'Uploading...');
-      _showProgressNotification(40, 'Uploading...');
-
-      final form = FormData.fromMap({
-        'type': resolvedType,
-        if (content != null) 'content': content,
-        if (privacy != null) 'privacy': privacy,
-        if (location != null) 'location': location,
-        if (feeling != null) 'feeling': feeling,
-        if (pageId != null) 'page_id': pageId,
-        if (groupId != null) 'group_id': groupId,
-        if (pollOptions != null) ...{for (var i = 0; i < pollOptions.length; i++) 'poll_options[$i]': pollOptions[i]},
-      });
-
-      if (files != null) {
-        for (final file in files) {
-          form.files.add(MapEntry('media[]', file));
-        }
-      }
-
       final dio = CommunityRepository.dioInstance;
+
+      final formData = FormData();
+
+      formData.fields.add(MapEntry('type', resolvedType));
+      if (content != null) formData.fields.add(MapEntry('content', content));
+      if (privacy != null) formData.fields.add(MapEntry('privacy', privacy));
+      if (location != null) formData.fields.add(MapEntry('location', location));
+      if (feeling != null) formData.fields.add(MapEntry('feeling', feeling));
+      if (pageId != null) formData.fields.add(MapEntry('page_id', pageId.toString()));
+      if (groupId != null) formData.fields.add(MapEntry('group_id', groupId.toString()));
+      if (pollOptions != null) {
+        for (var i = 0; i < pollOptions.length; i++) {
+          formData.fields.add(MapEntry('poll_options[$i]', pollOptions[i]));
+        }
+      }
+
+      for (final f in mediaFiles) {
+        formData.files.add(MapEntry(
+          'media[]',
+          await MultipartFile.fromFile(f.path, filename: f.name),
+        ));
+      }
+
       final r = await dio.post(
         '/community/posts',
-        data: form,
+        data: formData,
         onSendProgress: (sent, total) {
           if (total > 0) {
-            final p = 0.4 + (sent / total) * 0.5;
-            final pct = (p * 100).toInt();
-            state = state.copyWith(progress: p, message: 'Uploading $pct%');
+            final pct = ((sent / total) * 90).toInt();
+            state = state.copyWith(progress: sent / total * 0.9, message: 'Uploading $pct%');
             _showProgressNotification(pct, 'Uploading $pct%');
           }
         },
+        options: Options(
+          sendTimeout: const Duration(minutes: 30),
+          receiveTimeout: const Duration(minutes: 5),
+        ),
       );
 
-      // Phase 3: Processing on server (90% → 100%)
       state = state.copyWith(status: UploadStatus.processing, progress: 0.95, message: 'Processing...');
       _showProgressNotification(95, 'Processing on server...');
 
@@ -205,16 +164,12 @@ class BackgroundUploadNotifier extends StateNotifier<UploadState> {
       _playSuccessSound();
 
       await Future.delayed(const Duration(seconds: 4));
-      if (state.status == UploadStatus.success) {
-        state = const UploadState();
-      }
+      if (state.status == UploadStatus.success) state = const UploadState();
     } catch (e) {
       state = UploadState(status: UploadStatus.error, progress: 0, message: 'Upload failed');
       _notifications.cancel(42);
       await Future.delayed(const Duration(seconds: 5));
-      if (state.status == UploadStatus.error) {
-        state = const UploadState();
-      }
+      if (state.status == UploadStatus.error) state = const UploadState();
     }
   }
 

@@ -8,18 +8,30 @@ use App\Services\FeedRankingService;
 use App\Services\InteractionTracker;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\Community\CommunityAdController;
+use Illuminate\Support\Facades\Redis;
 
 class CommunityFeedController extends Controller
 {
+    private function trackActiveFeedUser(): void
+    {
+        $userId = auth()->id();
+        if (!$userId) return;
+        $now = now()->timestamp;
+        Redis::zadd('feed:active_users', $now, $userId);
+        // Remove users older than 2 minutes
+        Redis::zremrangebyscore('feed:active_users', '-inf', now()->subMinutes(2)->timestamp);
+    }
+
     // ─── Personalized For You feed ─────────────────────────────────────
     public function following(Request $request)
     {
+        $this->trackActiveFeedUser();
         $userId = auth()->id();
         $page = (int) $request->get('page', 1);
 
         // Build personalized feed using ranking algorithm
         $ranker = new FeedRankingService($userId);
-        $ranked = $ranker->buildFeed($page, 15);
+        $ranked = $ranker->buildFeed($page, 30);
 
         if (empty($ranked)) {
             // Fallback: if no ranked results (new user / cold start), use chronological
@@ -48,7 +60,7 @@ class CommunityFeedController extends Controller
 
         $total = CommunityPost::whereNull('group_id')
             ->where('privacy', '!=', 'private')
-            ->where('created_at', '>', now()->subDays(14))
+            ->where('created_at', '>', now()->subDays(90))
             ->count();
 
         return response()->json([
@@ -56,7 +68,7 @@ class CommunityFeedController extends Controller
             'data'   => $transformed,
             'meta'   => [
                 'current_page' => $page,
-                'last_page'    => max(1, ceil($total / 15)),
+                'last_page'    => max(1, ceil($total / 30)),
                 'total'        => $total,
             ],
         ]);
@@ -115,23 +127,36 @@ class CommunityFeedController extends Controller
     {
         $adSettings = json_decode(\DB::table('settings')->where('key', 'ad_display_settings')->value('value') ?? '{}', true) ?? [];
         $feedEnabled = $adSettings['feed_ads_enabled'] ?? true;
-        $frequency = $adSettings['feed_ad_frequency'] ?? 5;
-        $maxAds = $adSettings['feed_max_ads'] ?? 3;
+        $frequency   = max(3, (int) ($adSettings['feed_ad_frequency'] ?? 5));
+        $maxAds      = min(10, (int) ($adSettings['feed_max_ads'] ?? 3));
 
         if (!$feedEnabled) return $transformed;
 
         $ads = CommunityAdController::getAdsForPlacement('feed', $userId, $maxAds);
         $totalPosts = count($transformed);
-        if ($totalPosts <= 0 || empty($ads)) return $transformed;
+        if ($totalPosts < $frequency || empty($ads)) return $transformed;
 
-        $maxSlots = max(1, floor($totalPosts / $frequency));
-        $ads = array_slice($ads, 0, $maxSlots);
-        $inserted = 0;
-        foreach ($ads as $ad) {
-            $pos = ($inserted + 1) * $frequency + $inserted;
-            if ($pos > count($transformed)) break;
+        // Calculate insertion positions BEFORE touching the array so the math
+        // never drifts as items are spliced in. Positions are based on the
+        // original post count, ensuring:
+        //   • First ad appears after `$frequency` real posts (not at the top).
+        //   • Last ad appears at most at (totalPosts - frequency) so the
+        //     final screen of posts is always ad-free (no bunching at the end).
+        //   • Minimum gap of `$frequency` posts between every two ads.
+        $positions = [];
+        for ($i = 1; $i <= $maxAds; $i++) {
+            $pos = $i * $frequency;
+            if ($pos > $totalPosts - $frequency) break; // ad-free zone at end
+            $positions[] = $pos;
+        }
+
+        $ads = array_slice($ads, 0, count($positions));
+
+        // Insert ads back-to-front so earlier offsets stay valid.
+        $pairs = array_reverse(array_map(null, $positions, $ads));
+        foreach ($pairs as [$pos, $ad]) {
+            if ($ad === null) continue;
             array_splice($transformed, $pos, 0, [$ad]);
-            $inserted++;
         }
 
         return $transformed;

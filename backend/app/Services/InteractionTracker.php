@@ -2,6 +2,7 @@
 namespace App\Services;
 
 use App\Jobs\UpdateUserInterestsJob;
+use App\Services\RealtimeService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
@@ -112,14 +113,25 @@ class InteractionTracker
         // call was dropped when the personalized feed replaced it with
         // impression tracking, but nothing else picked up updating this
         // column, so displayed view counts silently stopped moving.
-        DB::table('community_posts')
+        // Only count views for fully-ready posts — processing videos must not
+        // accumulate view counts before the owner has even published them.
+        $readyIds = DB::table('community_posts')
             ->whereIn('id', $postIds)
-            ->increment('views_count');
+            ->where('video_ready', true)
+            ->pluck('id')
+            ->toArray();
+
+        if (!empty($readyIds)) {
+            DB::table('community_posts')
+                ->whereIn('id', $readyIds)
+                ->increment('views_count');
+        }
 
         // Broadcast live counts so feed/reels update without a refresh —
         // one lightweight public event per post, just the new count.
         $freshCounts = DB::table('community_posts')
             ->whereIn('id', $postIds)
+            ->where('video_ready', true)
             ->pluck('views_count', 'id');
         foreach ($freshCounts as $postId => $count) {
             RealtimeService::toPublic("community.post.{$postId}", 'post.views_changed', [

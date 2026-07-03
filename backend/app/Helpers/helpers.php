@@ -271,6 +271,10 @@ if (!function_exists('cdn_url')) {
         $val = trim($pathOrUrl);
 
         if (str_starts_with($val, 'http://') || str_starts_with($val, 'https://')) {
+            // Normalize api.esahlan.com → esahlan.com so old records stored
+            // with the wrong subdomain resolve correctly.
+            $val = str_replace('://api.esahlan.com/', '://esahlan.com/', $val);
+
             // Already one of our proxy URLs (old /api/img or /api/v1/img form).
             if (preg_match('#/api/(?:v1/)?img/(.+)$#', $val, $m)) {
                 return media_proxy_url($m[1]);
@@ -278,6 +282,10 @@ if (!function_exists('cdn_url')) {
             // Our own /storage/ file → route through the proxy.
             if (preg_match('#/storage/(.+)$#', $val, $m)) {
                 return media_proxy_url($m[1]);
+            }
+            // Already a correct proxy URL — return as-is (already https).
+            if (str_contains($val, '/api/v1/media')) {
+                return $val;
             }
             // External URL (YouTube, etc.) — just force https.
             return str_replace('http://', 'https://', $val);
