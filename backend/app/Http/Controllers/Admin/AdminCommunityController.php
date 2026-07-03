@@ -345,4 +345,40 @@ class AdminCommunityController extends Controller
 
         return back()->with('success', $data['message'] ?? 'All engagement reset.');
     }
+
+    public function algorithm()
+    {
+        return view('admin.community.algorithm');
+    }
+
+    public function algorithmData()
+    {
+        $activeUsers = \DB::table('feed_seen_posts')
+            ->where('seen_at', '>', now()->subMinutes(30))
+            ->distinct('user_id')->count('user_id');
+
+        $cacheHits = 0; $cacheMisses = 0;
+        try {
+            $info = \Illuminate\Support\Facades\Redis::info('stats');
+            $cacheHits   = $info['keyspace_hits']   ?? 0;
+            $cacheMisses = $info['keyspace_misses']  ?? 0;
+        } catch (\Throwable $_) {}
+
+        $total        = $cacheHits + $cacheMisses;
+        $cacheHitRate = $total > 0 ? round($cacheHits / $total * 100, 1) : 0;
+
+        $postCount     = \App\Models\CommunityPost::whereNull('deleted_at')->count();
+        $postsToday    = \App\Models\CommunityPost::whereNull('deleted_at')->whereDate('created_at', today())->count();
+        $feedsBuilt    = \DB::table('feed_seen_posts')->where('seen_at', '>', now()->subHour())->count();
+        $precomputed   = \Illuminate\Support\Facades\Redis::keys('feed:v2:*:p2');
+
+        return response()->json([
+            'active_users'   => $activeUsers,
+            'cache_hit_rate' => $cacheHitRate,
+            'post_count'     => $postCount,
+            'posts_today'    => $postsToday,
+            'feeds_built_1h' => $feedsBuilt,
+            'precomputed'    => count($precomputed ?? []),
+        ]);
+    }
 }
