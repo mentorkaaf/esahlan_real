@@ -14,7 +14,7 @@ import 'package:video_player/video_player.dart';
 ///
 /// Instant-playback design:
 ///   • Pool holds 12 in-memory controllers (1 screen + 3-ahead buffer).
-///   • setWindow(urls, i) → preloads i-1…i+3 (1 behind, 3 ahead).
+///   • setWindow(urls, i) → preloads i-1…i+3 (1 behind, 3 ahead) — lightweight.
 ///   • setActiveUrl(url) → used by feed scroll to slide the window.
 ///   • play(url) before ready → _pendingPlay fires the moment init completes.
 ///   • Eviction: drops in-memory controllers outside ±5 of current index (disk
@@ -26,20 +26,20 @@ class VideoPool {
   static final reels = VideoPool._();
   static final feed  = VideoPool._();
 
-  // 16 in-memory slots = current + 5 ahead + 2 behind + extras for ads/overlap
-  static const _maxSlots      = 16;
+  // 8 in-memory slots = current + 3 ahead + 1 behind + extras
+  static const _maxSlots      = 8;
   // Evict in-memory controller if further than this from current index
-  static const _evictDistance = 6;
-  // Preload: 2 behind, 5 ahead of current index
-  static const _preloadBehind = 2;
-  static const _preloadAhead  = 5;
+  static const _evictDistance = 4;
+  // Preload: 1 behind, 3 ahead of current index
+  static const _preloadBehind = 1;
+  static const _preloadAhead  = 3;
 
-  /// Shared disk cache: 30 videos max (~20 MB each ≈ 600 MB), stale after 7 days.
+  /// Shared disk cache: 15 videos max, stale after 3 days.
   static final _diskCache = CacheManager(
     Config(
       'esahlan_video_cache',
-      maxNrOfCacheObjects: 30,
-      stalePeriod: const Duration(days: 7),
+      maxNrOfCacheObjects: 15,
+      stalePeriod: const Duration(days: 3),
     ),
   );
 
