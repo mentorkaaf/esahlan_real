@@ -12,6 +12,7 @@ use App\Services\InteractionTracker;
 use App\Services\FcmService;
 use App\Services\RealtimeService;
 use App\Jobs\TranscodeVideoJob;
+use App\Jobs\ModeratePostMediaJob;
 use App\Models\CommunityFollow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -33,7 +34,7 @@ class CommunityPostController extends Controller
             'page_id' => 'nullable|exists:community_business_pages,id',
             'poll_options' => 'nullable|array|min:2|max:6',
             'poll_options.*' => 'string|max:100',
-            'media.*' => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mov,mp3,m4a,ogg,wav,aac,pdf,doc,docx|max:51200',
+            'media.*' => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mov,mp3,m4a,ogg,wav,aac,pdf,doc,docx|max:512000',
         ]);
 
         // ── Content Moderation ──────────────────────────────────────
@@ -50,35 +51,26 @@ class CommunityPostController extends Controller
             ], 422);
         }
 
-        $needsReview = $moderation['action'] === 'review';
+        $hasMedia       = $request->hasFile('media');
+        $mediaPending   = $moderation['action'] === 'media_pending';
+
+        // Posts with media start as 'pending' — ModeratePostMediaJob approves/blocks after scanning
+        $moderationStatus = ($hasMedia && $mediaPending) ? 'pending' : 'approved';
 
         $post = CommunityPost::create([
-            'user_id' => auth()->id(),
-            'type' => $request->type,
-            'content' => $request->content,
-            'privacy' => $request->privacy ?? 'public',
-            'location' => $request->location,
-            'feeling' => $request->feeling,
-            'group_id' => $request->group_id,
-            'page_id' => $request->page_id,
-            'poll_options' => $request->type === 'poll' ? array_map(fn($o) => ['text'=>$o,'votes'=>0], $request->poll_options ?? []) : null,
-            'published_at' => now(),
-            'is_pinned' => false,
+            'user_id'           => auth()->id(),
+            'type'              => $request->type,
+            'content'           => $request->content,
+            'privacy'           => $request->privacy ?? 'public',
+            'location'          => $request->location,
+            'feeling'           => $request->feeling,
+            'group_id'          => $request->group_id,
+            'page_id'           => $request->page_id,
+            'poll_options'      => $request->type === 'poll' ? array_map(fn($o) => ['text'=>$o,'votes'=>0], $request->poll_options ?? []) : null,
+            'published_at'      => now(),
+            'is_pinned'         => false,
+            'moderation_status' => $moderationStatus,
         ]);
-
-        // Flag for review
-        if ($needsReview) {
-            \DB::table('community_reports')->insert([
-                'reportable_type' => 'App\\Models\\CommunityPost',
-                'reportable_id' => $post->id,
-                'reporter_id' => auth()->id(),
-                'reason' => 'auto_moderation',
-                'description' => 'Auto-flagged: ' . $moderation['reason'] . ' (score: ' . $moderation['score'] . ')',
-                'status' => 'pending',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
 
         // Handle media uploads
         if ($request->hasFile('media')) {
@@ -112,6 +104,11 @@ class CommunityPostController extends Controller
                     continue; // media record already created above
                 }
             }
+        }
+
+        // Dispatch async media moderation (images + videos scanned for explicit content)
+        if ($hasMedia && $mediaPending) {
+            ModeratePostMediaJob::dispatch($post->id)->onQueue('default');
         }
 
         // Extract & save hashtags
@@ -162,7 +159,9 @@ class CommunityPostController extends Controller
     public function show(int $id)
     {
         $post = CommunityPost::with(['user.communityProfile','media','userReaction'])->findOrFail($id);
-        $post->increment('views_count');
+        if ($post->video_ready) {
+            $post->increment('views_count');
+        }
         return response()->json(['status'=>'success','data'=>$this->feed->transformPost($post, auth()->id())]);
     }
 

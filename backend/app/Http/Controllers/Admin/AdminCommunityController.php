@@ -11,7 +11,9 @@ use App\Models\CommunityStory;
 use App\Models\CommunityMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 
 class AdminCommunityController extends Controller
@@ -254,13 +256,15 @@ class AdminCommunityController extends Controller
     public function updateModeration(Request $request)
     {
         $settings = [
-            'enabled'          => $request->boolean('enabled'),
-            'keyword_filter'   => $request->boolean('keyword_filter'),
-            'image_scan'       => $request->boolean('image_scan'),
-            'auto_block'       => $request->boolean('auto_block'),
-            'review_all_media' => $request->boolean('review_all_media'),
-            'block_threshold'  => (float) ($request->block_threshold ?? 0.85),
-            'review_threshold' => (float) ($request->review_threshold ?? 0.60),
+            'enabled'             => $request->boolean('enabled'),
+            'keyword_filter'      => $request->boolean('keyword_filter'),
+            'image_scan'          => $request->boolean('image_scan'),
+            'auto_block'          => $request->boolean('auto_block'),
+            'review_all_media'    => $request->boolean('review_all_media'),
+            'block_threshold'     => (float) ($request->block_threshold ?? 0.85),
+            'review_threshold'    => (float) ($request->review_threshold ?? 0.60),
+            'sightengine_user'    => $request->sightengine_user   ?? '',
+            'sightengine_secret'  => $request->sightengine_secret ?? '',
         ];
         \App\Services\ContentModerationService::saveSettings($settings);
 
@@ -276,7 +280,10 @@ class AdminCommunityController extends Controller
         $report = CommunityReport::findOrFail($id);
         $report->update(['status' => 'resolved', 'reviewed_at' => now()]);
         if ($report->reportable) {
-            $report->reportable->update(['privacy' => 'public']);
+            $report->reportable->update([
+                'moderation_status' => 'approved',
+                'privacy'           => 'public',
+            ]);
         }
         return back()->with('success', 'Post approved.');
     }
@@ -344,5 +351,124 @@ class AdminCommunityController extends Controller
         $data = json_decode($result->getContent(), true);
 
         return back()->with('success', $data['message'] ?? 'All engagement reset.');
+    }
+
+    // ── Algorithm Dashboard ────────────────────────────────────────────────────
+
+    public function algorithm()
+    {
+        return view('admin.community.algorithm');
+    }
+
+    public function algorithmData()
+    {
+        // ── Top scored posts ──────────────────────────────────────────────────
+        $topPosts = DB::table('community_posts')
+            ->leftJoin('post_scores', 'community_posts.id', '=', 'post_scores.post_id')
+            ->leftJoin('users', 'community_posts.user_id', '=', 'users.id')
+            ->where('community_posts.privacy', '!=', 'private')
+            ->whereNull('community_posts.deleted_at')
+            ->where('community_posts.video_ready', true)
+            ->orderByDesc(DB::raw('COALESCE(post_scores.final_score, 0)'))
+            ->limit(20)
+            ->get([
+                'community_posts.id',
+                'community_posts.type',
+                'community_posts.content',
+                'community_posts.views_count',
+                'community_posts.likes_count',
+                'community_posts.comments_count',
+                'community_posts.shares_count',
+                'community_posts.created_at',
+                'users.name as author',
+                DB::raw('COALESCE(post_scores.final_score, 0) as final_score'),
+                DB::raw('COALESCE(post_scores.engagement_score, 0) as engagement_score'),
+                DB::raw('COALESCE(post_scores.velocity_score, 0) as velocity_score'),
+                DB::raw('COALESCE(post_scores.quality_score, 0) as quality_score'),
+                DB::raw('COALESCE(post_scores.viral_score, 0) as viral_score'),
+                DB::raw('COALESCE(post_scores.engagement_rate, 0) as engagement_rate'),
+                DB::raw('COALESCE(post_scores.impression_count, 0) as impression_count'),
+                DB::raw('COALESCE(post_scores.engaged_count, 0) as engaged_count'),
+            ]);
+
+        // ── Top users by activity ─────────────────────────────────────────────
+        $topUsers = DB::table('users')
+            ->leftJoin('community_profiles', 'users.id', '=', 'community_profiles.user_id')
+            ->leftJoin(DB::raw('(SELECT user_id, COUNT(*) as post_count, SUM(likes_count + comments_count * 2 + shares_count * 3) as total_engagement FROM community_posts WHERE deleted_at IS NULL GROUP BY user_id) as ps'), 'users.id', '=', 'ps.user_id')
+            ->leftJoin(DB::raw('(SELECT user_id, COUNT(*) as interaction_count FROM feed_interactions WHERE created_at > NOW() - INTERVAL 7 DAY GROUP BY user_id) as fi'), 'users.id', '=', 'fi.user_id')
+            ->orderByDesc(DB::raw('COALESCE(ps.total_engagement, 0) + COALESCE(fi.interaction_count, 0)'))
+            ->limit(15)
+            ->get([
+                'users.id',
+                'users.name',
+                'users.email',
+                DB::raw('COALESCE(community_profiles.followers_count, 0) as followers_count'),
+                DB::raw('COALESCE(community_profiles.posts_count, 0) as posts_count'),
+                DB::raw('COALESCE(ps.post_count, 0) as post_count'),
+                DB::raw('COALESCE(ps.total_engagement, 0) as total_engagement'),
+                DB::raw('COALESCE(fi.interaction_count, 0) as interactions_7d'),
+                DB::raw('COALESCE(ps.total_engagement, 0) + COALESCE(fi.interaction_count, 0) as total_score'),
+            ]);
+
+        // ── Feed composition stats ────────────────────────────────────────────
+        $totalPosts    = CommunityPost::where('video_ready', true)->whereNull('deleted_at')->count();
+        $postsWithScore = DB::table('post_scores')->count();
+        $avgScore      = DB::table('post_scores')->avg('final_score') ?? 0;
+        $maxScore      = DB::table('post_scores')->max('final_score') ?? 0;
+
+        // Interactions in last 24h
+        $interactions24h = DB::table('feed_interactions')
+            ->where('created_at', '>', now()->subHours(24))
+            ->selectRaw('type, COUNT(*) as count')
+            ->groupBy('type')
+            ->pluck('count', 'type');
+
+        // Posts by type
+        $postsByType = CommunityPost::whereNull('deleted_at')
+            ->where('video_ready', true)
+            ->selectRaw('type, COUNT(*) as count')
+            ->groupBy('type')
+            ->pluck('count', 'type');
+
+        // Seen posts in last hour (active sessions)
+        $seenLastHour = DB::table('feed_seen_posts')
+            ->where('seen_at', '>', now()->subHour())
+            ->distinct('user_id')
+            ->count('user_id');
+
+        // Score distribution buckets
+        $scoreDistribution = DB::table('post_scores')
+            ->selectRaw("
+                SUM(CASE WHEN final_score >= 80 THEN 1 ELSE 0 END) as hot,
+                SUM(CASE WHEN final_score >= 50 AND final_score < 80 THEN 1 ELSE 0 END) as warm,
+                SUM(CASE WHEN final_score >= 20 AND final_score < 50 THEN 1 ELSE 0 END) as cool,
+                SUM(CASE WHEN final_score < 20 THEN 1 ELSE 0 END) as cold
+            ")
+            ->first();
+
+        // Top hashtags
+        $topHashtags = DB::table('community_hashtags')
+            ->orderByDesc('posts_count')
+            ->limit(10)
+            ->get(['name', 'posts_count']);
+
+        // Real-time active feed users (Redis sorted set, 2-minute window)
+        $activeFeedUsers = Redis::zcount('feed:active_users', now()->subMinutes(2)->timestamp, '+inf');
+
+        return response()->json([
+            'top_posts'           => $topPosts,
+            'top_users'           => $topUsers,
+            'total_posts'         => $totalPosts,
+            'posts_with_score'    => $postsWithScore,
+            'avg_score'           => round($avgScore, 2),
+            'max_score'           => round($maxScore, 2),
+            'interactions_24h'    => $interactions24h,
+            'posts_by_type'       => $postsByType,
+            'seen_last_hour'      => $seenLastHour,
+            'score_distribution'  => $scoreDistribution,
+            'top_hashtags'        => $topHashtags,
+            'active_feed_users'   => $activeFeedUsers,
+            'generated_at'        => now()->toDateTimeString(),
+        ]);
     }
 }

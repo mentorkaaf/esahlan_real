@@ -30,7 +30,7 @@
             </label>
             <label style="display:flex;align-items:center;gap:8px;padding:12px;background:#f9fafb;border-radius:10px;cursor:pointer;">
                 <input type="checkbox" name="image_scan" value="1" {{ $settings['image_scan'] ? 'checked' : '' }}>
-                <div><strong>Image Scan</strong><br><small style="color:#8A8A9A;">Skin-tone analysis (may flag normal photos)</small></div>
+                <div><strong>Image Scan</strong><br><small style="color:#8A8A9A;">AI nudity detection (Sightengine or local fallback)</small></div>
             </label>
             <label style="display:flex;align-items:center;gap:8px;padding:12px;background:#f9fafb;border-radius:10px;cursor:pointer;">
                 <input type="checkbox" name="auto_block" value="1" {{ $settings['auto_block'] ? 'checked' : '' }}>
@@ -56,6 +56,22 @@
             </div>
         </div>
         @endif
+
+        {{-- Sightengine API --}}
+        <div style="background:#F8F9FF;border:1px solid #E5E7EB;border-radius:10px;padding:16px;margin-bottom:20px;">
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px;">🤖 Sightengine API <small style="font-weight:400;color:#8A8A9A;">(recommended — AI nudity detection, 2,000 free/month)</small></div>
+            <small style="color:#8A8A9A;">Get free API keys at <strong>sightengine.com</strong> → Dashboard → API Credentials. Leave blank to use local skin-tone analysis.</small>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+                <div class="form-group">
+                    <label class="form-label">API User</label>
+                    <input type="text" name="sightengine_user" value="{{ $settings['sightengine_user'] ?? '' }}" class="form-control" placeholder="e.g. 123456789">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">API Secret</label>
+                    <input type="password" name="sightengine_secret" value="{{ $settings['sightengine_secret'] ?? '' }}" class="form-control" placeholder="••••••••">
+                </div>
+            </div>
+        </div>
 
         <div class="form-group" style="margin-bottom:20px;">
             <label class="form-label">Blocked Keywords <small style="color:#8A8A9A;">(comma-separated)</small></label>
