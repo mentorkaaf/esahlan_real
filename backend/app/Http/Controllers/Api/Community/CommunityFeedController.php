@@ -181,6 +181,27 @@ class CommunityFeedController extends Controller
         return response()->json(['status' => 'success']);
     }
 
+    // ─── Feed presence: heartbeat (POST) and leave (DELETE) ───────────
+    // Flutter sends heartbeat every 30 s while feed screen is open.
+    // Key: feed:online — sorted set, score = Unix timestamp.
+    // Members older than 90 s are pruned on each heartbeat.
+    public function heartbeat()
+    {
+        $userId = auth()->id();
+        if (!$userId) return response()->json(['ok' => false], 401);
+        $now = now()->timestamp;
+        Redis::zadd('feed:online', $now, $userId);
+        Redis::zremrangebyscore('feed:online', '-inf', $now - 90);
+        return response()->json(['ok' => true, 'online' => Redis::zcard('feed:online')]);
+    }
+
+    public function leave()
+    {
+        $userId = auth()->id();
+        if ($userId) Redis::zrem('feed:online', $userId);
+        return response()->json(['ok' => true]);
+    }
+
     // ─── Batch track impressions ───────────────────────────────────────
     public function trackImpressions(Request $request)
     {

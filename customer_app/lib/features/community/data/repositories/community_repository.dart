@@ -30,6 +30,14 @@ class CommunityRepository {
     } catch (_) {}
   }
 
+  Future<void> feedHeartbeat() async {
+    try { await _dio.post('/community/feed/heartbeat'); } catch (_) {}
+  }
+
+  Future<void> feedLeave() async {
+    try { await _dio.delete('/community/feed/heartbeat'); } catch (_) {}
+  }
+
   Future<List<CommunityPost>> getExploreFeed({int page = 1}) async {
     final r = await _dio.get('/community/explore', queryParameters: {'page': page});
     return _parsePosts(r.data['data']);

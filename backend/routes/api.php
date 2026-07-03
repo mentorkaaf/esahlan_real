@@ -267,6 +267,8 @@ Route::prefix('v1')->group(function () {
         // Feed interaction tracking
         Route::post('feed/track', [CommunityFeedController::class, 'trackInteraction']);
         Route::post('feed/impressions', [CommunityFeedController::class, 'trackImpressions']);
+        Route::post('feed/heartbeat', [CommunityFeedController::class, 'heartbeat']);
+        Route::delete('feed/heartbeat', [CommunityFeedController::class, 'leave']);
 
         // Posts
         Route::get('posts/saved', [CommunityPostController::class, 'saved']);

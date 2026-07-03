@@ -393,9 +393,10 @@ class AdminCommunityController extends Controller
         $topHashtags = \DB::table('community_hashtags')
             ->orderByDesc('posts_count')->limit(10)->get(['name', 'posts_count']);
 
-        $activeUsers = \DB::table('feed_seen_posts')
-            ->where('seen_at', '>', now()->subMinutes(30))
-            ->distinct('user_id')->count('user_id');
+        // Real-time: users actively on the feed screen right now (heartbeat within 90s)
+        $now = now()->timestamp;
+        \Illuminate\Support\Facades\Redis::zremrangebyscore('feed:online', '-inf', $now - 90);
+        $activeUsers = (int) \Illuminate\Support\Facades\Redis::zcard('feed:online');
 
         return response()->json([
             'total_posts'        => $totalPosts,

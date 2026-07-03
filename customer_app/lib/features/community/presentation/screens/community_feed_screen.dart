@@ -50,6 +50,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
   int _lastPostCount = 0;
   int _lastFirstPostId = 0;
   Timer? _pollTimer;
+  Timer? _heartbeatTimer;
   int? _myUserId;
   void Function(dynamic)? _newPostListener;
   void Function(dynamic)? _newStoryListener;
@@ -69,6 +70,9 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     // Fallback poll (slow — realtime is the primary path, this just covers
     // the rare case where the socket is down for an extended period).
     _pollTimer = Timer.periodic(const Duration(seconds: 90), (_) => _checkNewPosts());
+    // Presence heartbeat — tells the admin dashboard this user is actively on the feed.
+    CommunityRepository().feedHeartbeat();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) => CommunityRepository().feedHeartbeat());
     _subscribeNewPostFeed();
   }
 
@@ -118,6 +122,8 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _heartbeatTimer?.cancel();
+    CommunityRepository().feedLeave();
     _tabCtrl.dispose();
     if (_newPostListener != null) {
       RealtimeClient.instance.removeListener('community.feed', 'feed.new_post', _newPostListener!);
