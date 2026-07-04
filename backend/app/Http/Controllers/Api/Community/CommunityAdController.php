@@ -50,7 +50,7 @@ class CommunityAdController extends Controller
             'media'          => 'required|file|max:51200',
             'thumbnail'      => 'nullable|image|max:5120',
             'cta_text'       => 'nullable|string|max:30',
-            'cta_url'        => 'nullable|string|max:500',
+            'cta_url'        => ['nullable', 'url', 'max:2000'],
             'placement'      => 'required|in:feed,reels,explore,stories',
             'budget'         => 'required|numeric|min:1',
             'payment_method' => 'required|in:wallet,waafi_pay',
@@ -159,18 +159,23 @@ class CommunityAdController extends Controller
 
         $result = [];
         foreach ($ads as $ad) {
-            // Record impression
-            CommunityAdInteraction::create([
-                'ad_id'   => $ad->id,
-                'user_id' => $userId,
-                'type'    => 'impression',
-            ]);
-            $ad->increment('impressions');
+            // Deduplicate impressions per user per 5 minutes — prevents budget fraud
+            $alreadyImpressed = CommunityAdInteraction::where('ad_id', $ad->id)
+                ->where('user_id', $userId)
+                ->where('type', 'impression')
+                ->where('created_at', '>', now()->subMinutes(5))
+                ->exists();
 
-            // Charge for impression
-            if ($ad->pricing) {
-                $cost = $ad->pricing->cost_per_impression;
-                $ad->increment('spent', $cost);
+            if (!$alreadyImpressed) {
+                CommunityAdInteraction::create([
+                    'ad_id'   => $ad->id,
+                    'user_id' => $userId,
+                    'type'    => 'impression',
+                ]);
+                $ad->increment('impressions');
+                if ($ad->pricing) {
+                    $ad->increment('spent', $ad->pricing->cost_per_impression ?? 0);
+                }
             }
 
             $result[] = [
@@ -182,7 +187,7 @@ class CommunityAdController extends Controller
                 'media_url'     => cdn_url($ad->media_url),
                 'thumbnail_url' => cdn_url($ad->thumbnail_url),
                 'cta_text'      => $ad->cta_text,
-                'cta_url'       => $ad->cta_url,
+                'cta_url'       => ($ad->cta_url && filter_var($ad->cta_url, FILTER_VALIDATE_URL)) ? $ad->cta_url : null,
                 'page'          => $ad->page ? [
                     'id'     => $ad->page->id,
                     'name'   => $ad->page->name,
@@ -207,9 +212,16 @@ class CommunityAdController extends Controller
 
         if (!$ad) return response()->json(['status' => 'success', 'data' => null]);
 
-        CommunityAdInteraction::create(['ad_id' => $ad->id, 'user_id' => $userId, 'type' => 'impression']);
-        $ad->increment('impressions');
-        if ($ad->pricing) $ad->increment('spent', $ad->pricing->cost_per_impression);
+        $alreadyImpressed = CommunityAdInteraction::where('ad_id', $ad->id)
+            ->where('user_id', $userId)
+            ->where('type', 'impression')
+            ->where('created_at', '>', now()->subMinutes(5))
+            ->exists();
+        if (!$alreadyImpressed) {
+            CommunityAdInteraction::create(['ad_id' => $ad->id, 'user_id' => $userId, 'type' => 'impression']);
+            $ad->increment('impressions');
+            if ($ad->pricing) $ad->increment('spent', $ad->pricing->cost_per_impression ?? 0);
+        }
 
         return response()->json(['status' => 'success', 'data' => [
             'id'          => $ad->id,
@@ -257,6 +269,10 @@ class CommunityAdController extends Controller
     public function trackClick($id)
     {
         $ad = CommunityAd::findOrFail($id);
+
+        if ($ad->status !== 'active') {
+            return response()->json(['status' => 'error', 'message' => 'Ad is not active'], 422);
+        }
         CommunityAdInteraction::create([
             'ad_id'   => $ad->id,
             'user_id' => auth()->id(),

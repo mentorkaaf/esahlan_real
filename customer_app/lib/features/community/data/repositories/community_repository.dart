@@ -430,7 +430,9 @@ class CommunityRepository {
     return r.data as Map<String, dynamic>;
   }
 
-  Future<void> trackAdClick(int adId) => _dio.post('/community/ads/$adId/click');
+  Future<void> trackAdClick(int adId) async {
+    try { await _dio.post('/community/ads/$adId/click'); } catch (_) {}
+  }
 
   Future<Map<String, dynamic>> getAdDisplaySettings() async {
     final r = await _dio.get('/community/ads/settings');

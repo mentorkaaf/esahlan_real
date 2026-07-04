@@ -4,8 +4,9 @@ import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/video_pool.dart';
-import '../services/ad_preloader.dart';
+import '../services/ad_video_manager.dart';
 import '../../data/models/community_models.dart';
 import '../../../../features/modules/erent/erent_screen.dart';
 import '../providers/community_provider.dart';
@@ -117,7 +118,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
           _reelAds.add(ad);
           // Eagerly preload the video so _ReelAdCard gets a ready controller
           final url = ad['media_url'] as String;
-          if (url.isNotEmpty) AdPreloader.instance.preload([url]);
+          if (url.isNotEmpty) AdVideoManager.instance.preload([url]);
         }
       }
       if (mounted) setState(() {});
@@ -171,6 +172,12 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
     final rentAsync = ref.watch(erentReelsProvider);
     final tabActive = ref.watch(communityNavIndexProvider) == 1;
 
+    // Pause all reels when navigating away from this tab.
+    // Resume is handled per-card so manual pauses are respected.
+    ref.listen<int>(communityNavIndexProvider, (prev, next) {
+      if (prev == 1 && next != 1) _pool.pauseAll();
+    });
+
     final communityReels = reelsAsync.valueOrNull ?? [];
     final rentReels = rentAsync.valueOrNull ?? [];
 
@@ -178,12 +185,12 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
       _cachedItems = _buildCombinedList(communityReels, rentReels);
       _foldedCommunityCount = communityReels.length;
       _foldedRentCount = rentReels.length;
-      // Prime the pool with the initial feed context
+      // Prime the pool with the initial feed context — only play if tab is active
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_cachedItems != null && mounted) {
           final urls = _extractVideoUrls(_cachedItems!);
           _pool.setWindow(urls, 0);
-          if (urls.isNotEmpty) _pool.play(urls[0]);
+          if (urls.isNotEmpty && tabActive) _pool.play(urls[0]);
         }
       });
     } else if (!reelsAsync.isLoading && !rentAsync.isLoading &&
@@ -216,7 +223,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
         final urls = _extractVideoUrls(_cachedItems!);
         _pool.setWindow(urls, _currentIndex);
         final activeUrl = _currentIndex < urls.length ? urls[_currentIndex] : '';
-        if (activeUrl.isNotEmpty) _pool.play(activeUrl);
+        if (activeUrl.isNotEmpty && tabActive) _pool.play(activeUrl);
       });
     }
 
@@ -491,9 +498,14 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   }
 
   void _togglePause() {
-    if (!_videoReady) return;
+    if (!_videoReady || _videoCtrl == null) return;
     setState(() => _paused = !_paused);
-    _paused ? _pool.pause(_videoUrl) : _pool.play(_videoUrl);
+    if (_paused) {
+      _videoCtrl!.pause();
+      _pool.pause(_videoUrl); // keep pool state in sync
+    } else {
+      _pool.play(_videoUrl); // updates pool _activeUrl + resumes playback
+    }
   }
 
   void _onDoubleTap() {
@@ -546,6 +558,13 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     final reel = widget.reel;
     final media = reel.media.isNotEmpty ? reel.media.first : null;
     final thumbnail = media?.thumbnail;
+
+    // Resume playback when returning to the reels tab, but respect manual pause
+    ref.listen<int>(communityNavIndexProvider, (prev, next) {
+      if (prev != 1 && next == 1 && widget.isActive && !_paused && _videoUrl.isNotEmpty) {
+        _pool.play(_videoUrl);
+      }
+    });
 
     final reelContent = GestureDetector(
       onTap: _togglePause,
@@ -798,7 +817,9 @@ class _ReelAdCard extends ConsumerStatefulWidget {
 
 class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
   VideoPlayerController? _ctrl;
-  bool _ready = false;
+  bool _ready  = false;
+  bool _paused = false;
+  bool _muted  = false;
 
   @override
   void initState() {
@@ -807,48 +828,51 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
     if (url.isNotEmpty) _initVideo(url);
   }
 
-  void _initVideo(String url) async {
-    // Use pre-initialized controller if available (avoids loading delay)
-    final preloaded = AdPreloader.instance.take(url);
-    if (preloaded != null) {
-      if (!mounted) { preloaded.dispose(); return; }
-      preloaded.setVolume(widget.isActive ? 1 : 0);
-      setState(() { _ctrl = preloaded; _ready = true; });
-      if (widget.isActive) preloaded.play();
-      return;
+  void _togglePause() {
+    if (!_ready || _ctrl == null) return;
+    setState(() => _paused = !_paused);
+    if (_paused) {
+      _ctrl!.pause();
+    } else {
+      _ctrl!.setVolume(_muted ? 0 : 1);
+      _ctrl!.play();
     }
-    // Fallback: init our own controller
-    try {
-      final ctrl = VideoPlayerController.networkUrl(
-        Uri.parse(url),
-        httpHeaders: const {'Connection': 'keep-alive'},
-      );
-      await ctrl.initialize();
-      ctrl.setLooping(true);
-      ctrl.setVolume(widget.isActive ? 1 : 0);
-      if (!mounted) { ctrl.dispose(); return; }
-      setState(() { _ctrl = ctrl; _ready = true; });
-      if (widget.isActive) ctrl.play();
-    } catch (_) {}
+  }
+
+  void _onCta() {
+    final ad = widget.ad;
+    if (ad['id'] != null) ref.read(communityRepoProvider).trackAdClick(ad['id']);
+    final raw = ad['cta_url'] as String?;
+    if (raw != null && raw.isNotEmpty) {
+      launchUrl(Uri.parse(raw.startsWith('http') ? raw : 'https://$raw'),
+          mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _initVideo(String url) async {
+    final ctrl = await AdVideoManager.instance.awaitController(url);
+    if (ctrl == null || !mounted) return;
+    ctrl.setLooping(true);
+    ctrl.setVolume(widget.isActive ? 1 : 0);
+    setState(() { _ctrl = ctrl; _ready = true; });
+    if (widget.isActive && !_paused) ctrl.play();
   }
 
   @override
   void didUpdateWidget(_ReelAdCard old) {
     super.didUpdateWidget(old);
-    if (widget.isActive != old.isActive && _ctrl != null) {
-      if (widget.isActive) {
-        _ctrl!.setVolume(1);
-        _ctrl!.play();
-      } else {
-        _ctrl!.pause();
-      }
+    if (widget.isActive == old.isActive || _ctrl == null) return;
+    if (widget.isActive) {
+      if (!_paused) { _ctrl!.setVolume(_muted ? 0 : 1); _ctrl!.play(); }
+    } else {
+      _ctrl!.pause();
     }
   }
 
   @override
   void dispose() {
     _ctrl?.pause();
-    _ctrl?.dispose();
+    // AdVideoManager owns controller lifetime — do not dispose here
     super.dispose();
   }
 
@@ -857,15 +881,19 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
     final ad = widget.ad;
     final thumbnail = ad['thumbnail'] as String?;
 
+    // Resume when returning to reels tab — respect manual pause and mute state
+    ref.listen<int>(communityNavIndexProvider, (prev, next) {
+      if (prev != 1 && next == 1 && widget.isActive && !_paused && _ctrl != null) {
+        _ctrl!.setVolume(_muted ? 0 : 1);
+        _ctrl!.play();
+      }
+    });
+
     return GestureDetector(
-      onTap: () {
-        if (ad['id'] != null) ref.read(communityRepoProvider).trackAdClick(ad['id']);
-      },
+      onTap: _togglePause,
       child: Stack(fit: StackFit.expand, children: [
-        // Video or thumbnail/gradient placeholder
-        if (_ready && _ctrl != null)
-          Center(child: AspectRatio(aspectRatio: _ctrl!.value.aspectRatio, child: VideoPlayer(_ctrl!)))
-        else if (thumbnail != null)
+        // Thumbnail always as background — instant display
+        if (thumbnail != null)
           NetImage(url: thumbnail, fit: BoxFit.cover)
         else
           Container(
@@ -877,6 +905,13 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
               ),
             ),
           ),
+        // Video overlays thumbnail once ready
+        if (_ready && _ctrl != null)
+          Center(child: AspectRatio(aspectRatio: _ctrl!.value.aspectRatio, child: VideoPlayer(_ctrl!))),
+        // Slim loading bar at bottom while video initializes
+        if (!_ready)
+          Positioned(bottom: 0, left: 0, right: 0,
+            child: LinearProgressIndicator(color: kOrange, backgroundColor: Colors.transparent, minHeight: 2)),
 
         // Gradient overlays
         Container(
@@ -895,6 +930,16 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
           ),
         ),
 
+        // Pause overlay
+        if (_paused && _ready)
+          Center(
+            child: Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+              child: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 48),
+            ),
+          ),
+
         // Sponsored badge
         Positioned(
           top: MediaQuery.of(context).padding.top + 60,
@@ -912,6 +957,24 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
                       fontSize: 12,
                       fontWeight: FontWeight.w800)),
             ]),
+          ),
+        ),
+
+        // Mute button
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 60,
+          right: 16,
+          child: GestureDetector(
+            onTap: () {
+              setState(() => _muted = !_muted);
+              _ctrl?.setVolume(_muted ? 0 : 1);
+            },
+            child: Container(
+              width: 36, height: 36,
+              decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+              child: Icon(
+                _muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                color: Colors.white, size: 18)),
           ),
         ),
 
@@ -975,10 +1038,7 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
             left: 16,
             right: 16,
             child: GestureDetector(
-              onTap: () {
-                if (ad['id'] != null)
-                  ref.read(communityRepoProvider).trackAdClick(ad['id']);
-              },
+              onTap: _onCta,
               child: Container(
                 padding: EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
@@ -1091,9 +1151,14 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
   }
 
   void _togglePause() {
-    if (!_videoReady) return;
+    if (!_videoReady || _videoCtrl == null) return;
     setState(() => _paused = !_paused);
-    _paused ? _pool.pause(_videoUrl) : _pool.play(_videoUrl);
+    if (_paused) {
+      _videoCtrl!.pause();
+      _pool.pause(_videoUrl);
+    } else {
+      _pool.play(_videoUrl); // updates pool _activeUrl + resumes playback
+    }
   }
 
   void _openProperty(BuildContext context) {
@@ -1113,6 +1178,13 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
     final title = r['property_title'] as String? ?? 'Property';
     final district = r['district_name'] as String? ?? '';
     final rent = r['monthly_rent'];
+
+    // Resume playback when returning to the reels tab, but respect manual pause
+    ref.listen<int>(communityNavIndexProvider, (prev, next) {
+      if (prev != 1 && next == 1 && widget.isActive && !_paused && _videoUrl.isNotEmpty) {
+        _pool.play(_videoUrl);
+      }
+    });
 
     return GestureDetector(
       onTap: _togglePause,

@@ -73,7 +73,7 @@ class CommunityStoryController extends Controller
 
     public function view(int $id)
     {
-        $story = CommunityStory::findOrFail($id);
+        $story = CommunityStory::where('expires_at', '>', now())->findOrFail($id);
         if (!CommunityStoryView::where('story_id',$id)->where('user_id',auth()->id())->exists()) {
             CommunityStoryView::create(['story_id'=>$id,'user_id'=>auth()->id()]);
             $story->increment('views_count');

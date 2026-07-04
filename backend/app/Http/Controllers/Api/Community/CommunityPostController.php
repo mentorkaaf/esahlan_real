@@ -55,7 +55,7 @@ class CommunityPostController extends Controller
         $post = CommunityPost::create([
             'user_id' => auth()->id(),
             'type' => $request->type,
-            'content' => $request->content,
+            'content' => $request->filled('content') ? strip_tags($request->input('content')) : null,
             'privacy' => $request->privacy ?? 'public',
             'location' => $request->location,
             'feeling' => $request->feeling,
@@ -148,6 +148,11 @@ class CommunityPostController extends Controller
     {
         $media = CommunityPostMedia::findOrFail($mediaId);
 
+        // Auto-fail stale pending jobs (stuck > 1 hour)
+        if ($media->getRawOriginal('transcoding_status') === 'pending' && $media->updated_at->lt(now()->subHour())) {
+            $media->update(['transcoding_status' => 'failed']);
+        }
+
         return response()->json([
             'status'   => 'success',
             'media_id' => $mediaId,
@@ -169,7 +174,12 @@ class CommunityPostController extends Controller
     public function update(Request $request, int $id)
     {
         $post = CommunityPost::where('user_id', auth()->id())->findOrFail($id);
-        $post->update($request->only(['content','privacy','location','feeling']));
+        $post->update([
+            'content'  => $request->filled('content') ? strip_tags($request->input('content')) : $post->content,
+            'privacy'  => $request->input('privacy', $post->privacy),
+            'location' => $request->input('location', $post->location),
+            'feeling'  => $request->input('feeling', $post->feeling),
+        ]);
         $this->extractHashtags($post);
         $post->load(['user.communityProfile','media','userReaction']);
         return response()->json(['status'=>'success','data'=>$this->feed->transformPost($post, auth()->id())]);
@@ -179,6 +189,17 @@ class CommunityPostController extends Controller
     {
         $post = CommunityPost::where('user_id', auth()->id())->findOrFail($id);
         auth()->user()->communityProfile?->decrement('posts_count');
+
+        // Decrement hashtag counts for each tag in the post
+        if ($post->content) {
+            preg_match_all('/#(\w+)/u', $post->content, $matches);
+            foreach (array_unique($matches[1]) as $tag) {
+                CommunityHashtag::where('name', strtolower($tag))
+                    ->where('posts_count', '>', 0)
+                    ->decrement('posts_count');
+            }
+        }
+
         $post->delete();
         return response()->json(['status'=>'success','message'=>'Post deleted']);
     }

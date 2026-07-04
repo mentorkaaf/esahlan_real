@@ -276,12 +276,12 @@ class _CommentTile extends StatelessWidget {
             decoration: BoxDecoration(color: isReply ? c.surfaceBg : c.inputFill, borderRadius: BorderRadius.circular(16)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                Text(comment.user.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: isReply ? 12 : 13, color: const Color(0xFF1A1B2E))),
+                Text(comment.user.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: isReply ? 12 : 13, color: c.bodyText)),
                 if (comment.user.isVerified) Padding(padding: EdgeInsets.only(left: 3), child: Icon(Icons.verified_rounded, size: 12, color: Color(0xFF1877F2))),
               ]),
               SizedBox(height: 2),
               if (comment.content.isNotEmpty && comment.content != 'Voice message' && comment.content != 'Image')
-                Text(comment.content, style: TextStyle(fontSize: isReply ? 13 : 14, color: const Color(0xFF374151), height: 1.3)),
+                Text(comment.content, style: TextStyle(fontSize: isReply ? 13 : 14, color: c.bodyText, height: 1.3)),
               if (comment.mediaUrl != null && comment.mediaType == 'image')
                 Padding(padding: EdgeInsets.only(top: 6),
                   child: ClipRRect(borderRadius: BorderRadius.circular(10),

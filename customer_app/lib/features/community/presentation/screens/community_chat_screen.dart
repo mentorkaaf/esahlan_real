@@ -220,7 +220,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
 
         // Input bar
         Container(
-          color: Colors.white,
+          color: context.colors.cardBg,
           padding: EdgeInsets.only(
             left: 12, right: 12,
             top: 8,
@@ -232,7 +232,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0F2F5),
+                  color: context.colors.inputFill,
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: TextField(
@@ -296,7 +296,7 @@ class _MessageBubble extends StatelessWidget {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isMe ? kOrange : Colors.white,
+                    color: isMe ? kOrange : context.colors.inputFill,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(18),
                       topRight: const Radius.circular(18),
@@ -310,7 +310,7 @@ class _MessageBubble extends StatelessWidget {
                   child: Text(
                     msg.content ?? '',
                     style: TextStyle(
-                      color: isMe ? Colors.white : const Color(0xFF1A1B2E),
+                      color: isMe ? Colors.white : context.colors.bodyText,
                       fontSize: 15,
                     ),
                   ),

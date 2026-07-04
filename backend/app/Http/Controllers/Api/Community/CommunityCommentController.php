@@ -33,6 +33,10 @@ class CommunityCommentController extends Controller
         ]);
         $post = CommunityPost::findOrFail($postId);
 
+        if ($post->comments_disabled) {
+            return response()->json(['status' => 'error', 'message' => 'Comments are disabled on this post'], 403);
+        }
+
         $mediaUrl = null;
         $commentType = $request->type ?? 'text';
         if ($request->hasFile('media')) {
@@ -99,12 +103,18 @@ class CommunityCommentController extends Controller
     public function destroy(int $id)
     {
         $comment = CommunityComment::where('user_id',auth()->id())->findOrFail($id);
-        $postId = $comment->post_id;
+        $postId  = $comment->post_id;
+
+        // Decrement parent's replies_count if this is a reply
+        if ($comment->parent_id) {
+            CommunityComment::where('id', $comment->parent_id)->decrement('replies_count');
+        }
+
         if ($post = CommunityPost::find($postId)) {
             $post->decrement('comments_count');
             RealtimeService::toPublic("community.post.{$postId}", 'post.comment_removed', [
-                'post_id' => $postId,
-                'comment_id' => $id,
+                'post_id'        => $postId,
+                'comment_id'     => $id,
                 'comments_count' => $post->fresh()->comments_count,
             ]);
         }

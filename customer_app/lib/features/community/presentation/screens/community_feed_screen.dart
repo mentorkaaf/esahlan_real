@@ -20,8 +20,8 @@ import 'community_notifications_screen.dart';
 import 'create_post_screen.dart';
 import '../widgets/comments_sheet.dart';
 import '../widgets/video_ad_overlay.dart';
-import '../services/ad_preloader.dart';
 import '../services/video_pool.dart';
+import '../services/ad_video_manager.dart';
 import '../../../../core/services/realtime_client.dart';
 import '../../../../core/widgets/realtime_status_banner.dart';
 import 'business_page_detail_screen.dart';
@@ -150,13 +150,6 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
       }
       _lastFirstPostId = firstId;
       _lastPostCount = posts.length;
-
-      // Eagerly preload all ad video URLs so _AdCard gets a ready controller
-      final adUrls = posts
-          .where((p) => p.isAd && p.adType == 'video' && p.adMediaUrl != null)
-          .map((p) => p.adMediaUrl!)
-          .toList();
-      if (adUrls.isNotEmpty) AdPreloader.instance.preload(adUrls);
     });
 
     return Scaffold(
@@ -314,21 +307,33 @@ class _FeedTab extends ConsumerWidget {
               final suggestions = ref.watch(communitySuggestionsProvider).valueOrNull ?? [];
               final reels = ref.watch(communityReelsProvider).valueOrNull ?? [];
 
-              // Register all video URLs (feed order) so VideoPool can preload ahead.
-              // Also eagerly kick off the first 4 — they're above the fold and need
-              // to be ready before the user even starts scrolling.
+              // Register regular post video URLs in the pool (ads are separate).
+              // Preload ad videos via AdPreloader so they don't compete for pool slots.
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                final videoUrls = posts
-                  .expand((p) => p.media.where((m) => m.type == 'video').map((m) => m.mp4DirectUrl))
-                  .where((u) => u.isNotEmpty)
-                  .toList();
+                final videoUrls = posts.expand((p) {
+                  if (p.isAd) return <String>[];
+                  return p.media
+                      .where((m) => m.type == 'video')
+                      .map((m) => m.mp4DirectUrl)
+                      .where((u) => u.isNotEmpty);
+                }).toList();
                 VideoPool.feed.setFeedUrls(videoUrls);
-                // Prime the first window immediately (index 0, preloads 0..3)
                 if (videoUrls.isNotEmpty) VideoPool.feed.setWindow(videoUrls, 0);
+
+                final adUrls = posts
+                    .where((p) => p.isAd && p.adType == 'video' && p.adMediaUrl != null)
+                    .map((p) => p.adMediaUrl!)
+                    .toList();
+                if (adUrls.isNotEmpty) AdVideoManager.instance.preload(adUrls);
               });
 
+              // Enforce minimum 3-post gap between ads (fixes page-boundary consecutive ads)
+              int _postsSinceLastAd = 999;
               final widgets = <Widget>[];
               for (var i = 0; i < posts.length; i++) {
+                final post = posts[i];
+                if (post.isAd && _postsSinceLastAd < 3) continue; // skip ad that's too close
+                if (post.isAd) { _postsSinceLastAd = 0; } else { _postsSinceLastAd++; }
                 widgets.add(_PostCard(post: posts[i],
                   onDelete: () { ref.read(communityRepoProvider).deletePost(posts[i].id); ref.read(communityFeedProvider.notifier).removePost(posts[i].id); },
                 ));
@@ -542,7 +547,9 @@ class _PersonTileState extends ConsumerState<_PersonTile> {
   }
 }
 
-// â”€â”€ Ad Card â€” video auto-plays, image loads instantly â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Ad Card ───────────────────────────────────────────────────────────────────
+// Architecture: AdVideoManager owns and caches controllers per URL.
+// Card just plays/pauses; VideoPool is never touched → content videos unaffected.
 class _AdCard extends ConsumerStatefulWidget {
   final CommunityPost post;
   const _AdCard({required this.post});
@@ -551,181 +558,203 @@ class _AdCard extends ConsumerStatefulWidget {
 }
 
 class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
-  VideoPlayerController? _vCtrl;
-  bool _videoReady = false;
-  bool _muted = false;
+  VideoPlayerController? _ctrl;
+  bool _ready   = false;
+  bool _muted   = true;  // muted by default — user taps to unmute
   bool _visible = false;
 
-  String? get _adUrl => widget.post.adMediaUrl;
+  String? get _url => widget.post.adMediaUrl;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (widget.post.adType == 'video' && _adUrl != null) {
-      _initAdVideo();
-    }
+    if (widget.post.adType == 'video' && _url != null) _init();
   }
 
-  void _initAdVideo() async {
-    final url = _adUrl!;
-    // Use pre-initialized controller if available
-    final preloaded = AdPreloader.instance.take(url);
-    if (preloaded != null) {
-      if (!mounted) { preloaded.dispose(); return; }
-      setState(() { _vCtrl = preloaded; _videoReady = true; });
-      if (_visible) {
-        _vCtrl!.setVolume(_muted ? 0 : 1);
-        _vCtrl!.play();
-      }
-      return;
-    }
-    // Fallback: init our own controller
-    try {
-      final ctrl = VideoPlayerController.networkUrl(
-        Uri.parse(url),
-        httpHeaders: const {'Connection': 'keep-alive'},
-      );
-      await ctrl.initialize();
-      ctrl.setLooping(true);
-      ctrl.setVolume(0);
-      if (!mounted) { ctrl.dispose(); return; }
-      setState(() { _vCtrl = ctrl; _videoReady = true; });
-      if (_visible) {
-        ctrl.setVolume(_muted ? 0 : 1);
-        ctrl.play();
-      }
-    } catch (_) {}
+  void _init() async {
+    final ctrl = await AdVideoManager.instance.awaitController(_url!);
+    if (ctrl == null || !mounted) return;
+    ctrl.setLooping(true);
+    ctrl.setVolume(0); // always start muted
+    setState(() { _ctrl = ctrl; _ready = true; });
+    if (_visible) ctrl.play();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_vCtrl == null) return;
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      _vCtrl!.pause();
+      _ctrl?.pause();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _vCtrl?.pause();
-    _vCtrl?.dispose();
+    _ctrl?.pause();
+    // AdVideoManager owns the controller lifetime — do not dispose here
     super.dispose();
   }
 
-  void _onAdTap() {
+  void _onTap() {
     if (widget.post.id > 0) ref.read(communityRepoProvider).trackAdClick(widget.post.id);
-    final url = widget.post.adCtaUrl;
-    if (url != null && url.isNotEmpty) {
-      final uri = url.startsWith('http') ? url : 'https://$url';
-      launchUrl(Uri.parse(uri), mode: LaunchMode.externalApplication);
+    final raw = widget.post.adCtaUrl;
+    if (raw != null && raw.isNotEmpty) {
+      launchUrl(Uri.parse(raw.startsWith('http') ? raw : 'https://$raw'),
+          mode: LaunchMode.externalApplication);
     }
+  }
+
+  void _toggleMute() {
+    setState(() => _muted = !_muted);
+    _ctrl?.setVolume(_muted ? 0 : 1);
   }
 
   @override
   Widget build(BuildContext context) {
     final p = widget.post;
+    final c = context.colors;
+
     return VisibilityDetector(
-      key: ValueKey('ad_${p.id}_${p.hashCode}'),
+      key: ValueKey('ad_${p.id}'),
       onVisibilityChanged: (info) {
-        _visible = info.visibleFraction > 0.5;
-        if (_adUrl == null) return;
+        final nowVisible = info.visibleFraction > 0.5;
+        if (nowVisible == _visible) return;
+        _visible = nowVisible;
+        if (p.adType != 'video') return;
         if (_visible) {
-          if (_vCtrl != null && _videoReady) {
-            _vCtrl!.setVolume(_muted ? 0 : 1);
-            if (!_vCtrl!.value.isPlaying) _vCtrl!.play();
-          }
+          if (_ctrl != null && _ready) _ctrl!.play();
         } else {
-          if (_vCtrl != null && _vCtrl!.value.isPlaying) _vCtrl!.pause();
+          _ctrl?.pause();
         }
       },
       child: Container(
-        margin: EdgeInsets.symmetric(vertical: 4),
-        color: context.colors.cardBg,
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        color: c.cardBg,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Header
-          Padding(padding: EdgeInsets.fromLTRB(14, 12, 14, 10), child: Row(children: [
-            p.adPage?['avatar'] != null
-                ? CircleNetImage(url: p.adPage!['avatar'], size: 40, fallbackText: p.adPage?['name'] ?? '')
-                : Container(width: 40, height: 40, decoration: BoxDecoration(color: context.colors.chipBg, shape: BoxShape.circle),
+
+          // ── Sponsor header ─────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+            child: Row(children: [
+              p.adPage?['avatar'] != null
+                ? CircleNetImage(url: p.adPage!['avatar'], size: 40,
+                    fallbackText: p.adPage?['name'] ?? '')
+                : Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(color: c.chipBg, shape: BoxShape.circle),
                     child: Icon(Icons.storefront_rounded, color: kOrange, size: 20)),
-            SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Flexible(child: Text(p.adPage?['name'] ?? 'Sponsored', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.bodyText))),
-                SizedBox(width: 6),
-                Container(padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(3)),
-                  child: Text('Sponsored', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800))),
-              ]),
-              SizedBox(height: 2),
-              Text('Promoted', style: TextStyle(color: Colors.grey[400], fontSize: 11)),
-            ])),
-          ])),
-
-          // Content
-          if (p.content != null && p.content!.isNotEmpty) Padding(padding: EdgeInsets.fromLTRB(14, 0, 14, 8),
-            child: Text(p.content!, style: TextStyle(color: context.colors.mutedText, fontSize: 14))),
-
-          // Media
-          GestureDetector(
-            onTap: _onAdTap,
-            child: p.adType == 'video'
-                ? Container(
-                    color: const Color(0xFF1A1B2E),
-                    width: double.infinity,
-                    height: 250,
-                    child: Stack(children: [
-                      if (_videoReady && _vCtrl != null)
-                        Center(child: AspectRatio(
-                          aspectRatio: _vCtrl!.value.aspectRatio.clamp(0.5, 2.5),
-                          child: VideoPlayer(_vCtrl!)))
-                      else if (p.adThumbnailUrl != null)
-                        Center(child: NetImage(url: p.adThumbnailUrl!, fit: BoxFit.contain))
-                      else
-                        Center(child: CircularProgressIndicator(color: kOrange, strokeWidth: 2)),
-                      // Mute toggle
-                      Positioned(bottom: 10, right: 10,
-                        child: GestureDetector(
-                          onTap: () { setState(() { _muted = !_muted; }); _vCtrl?.setVolume(_muted ? 0 : 1); },
-                          child: Container(width: 30, height: 30,
-                            decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-                            child: Icon(_muted ? Icons.volume_off_rounded : Icons.volume_up_rounded, color: Colors.white, size: 15)))),
-                    ]))
-                : (p.adMediaUrl != null
-                    ? NetImage(url: p.adMediaUrl!, fit: BoxFit.cover, width: double.infinity)
-                    : SizedBox(height: 200))),
-
-          // CTA bar
-          if (p.adCtaText != null) GestureDetector(
-            onTap: _onAdTap,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              color: context.colors.surfaceBg,
-              child: Row(children: [
-                Expanded(child: Text(p.adTitle ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.bodyText),
-                  maxLines: 1, overflow: TextOverflow.ellipsis)),
-                SizedBox(width: 10),
-                Container(padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(6)),
-                  child: Text(p.adCtaText!, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13))),
-              ]),
-            ),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Flexible(child: Text(
+                    p.adPage?['name'] ?? 'Sponsored',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: c.bodyText))),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(3)),
+                    child: const Text('Sponsored',
+                        style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800))),
+                ]),
+                const SizedBox(height: 2),
+                Text('Promoted', style: TextStyle(color: Colors.grey[400], fontSize: 11)),
+              ])),
+            ]),
           ),
 
-          // Action bar
-          Padding(padding: EdgeInsets.symmetric(vertical: 2),
+          // ── Body text ──────────────────────────────────────────────────────
+          if (p.content != null && p.content!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+              child: Text(p.content!, style: TextStyle(color: c.mutedText, fontSize: 14))),
+
+          // ── Media ──────────────────────────────────────────────────────────
+          GestureDetector(
+            onTap: _onTap,
+            child: p.adType == 'video'
+              ? _AdVideoPlayer(ctrl: _ctrl, ready: _ready, muted: _muted, onMute: _toggleMute)
+              : (p.adMediaUrl != null
+                  ? NetImage(url: p.adMediaUrl!, fit: BoxFit.cover, width: double.infinity)
+                  : const SizedBox(height: 200))),
+
+          // ── CTA bar ────────────────────────────────────────────────────────
+          if (p.adCtaText != null)
+            GestureDetector(
+              onTap: _onTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                color: c.surfaceBg,
+                child: Row(children: [
+                  Expanded(child: Text(p.adTitle ?? '',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: c.bodyText),
+                    maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(6)),
+                    child: Text(p.adCtaText!,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13))),
+                ]),
+              ),
+            ),
+
+          // ── Action row ─────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
             child: Row(children: [
-              Expanded(child: TextButton.icon(onPressed: () {}, icon: Icon(Icons.thumb_up_alt_outlined, size: 18), label: Text('Like'),
+              Expanded(child: TextButton.icon(onPressed: () {},
+                icon: const Icon(Icons.thumb_up_alt_outlined, size: 18), label: const Text('Like'),
                 style: TextButton.styleFrom(foregroundColor: const Color(0xFF6B7280)))),
-              Expanded(child: TextButton.icon(onPressed: () {}, icon: Icon(Icons.chat_bubble_outline_rounded, size: 18), label: Text('Comment'),
+              Expanded(child: TextButton.icon(onPressed: () {},
+                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18), label: const Text('Comment'),
                 style: TextButton.styleFrom(foregroundColor: const Color(0xFF6B7280)))),
-              Expanded(child: TextButton.icon(onPressed: _onAdTap, icon: Icon(Icons.share_outlined, size: 18), label: Text('Share'),
+              Expanded(child: TextButton.icon(onPressed: _onTap,
+                icon: const Icon(Icons.share_outlined, size: 18), label: const Text('Share'),
                 style: TextButton.styleFrom(foregroundColor: const Color(0xFF6B7280)))),
-            ])),
+            ]),
+          ),
         ]),
       ),
+    );
+  }
+}
+
+// Pure display widget — black until controller is ready, then video fills frame.
+class _AdVideoPlayer extends StatelessWidget {
+  final VideoPlayerController? ctrl;
+  final bool ready;
+  final bool muted;
+  final VoidCallback onMute;
+  const _AdVideoPlayer({required this.ctrl, required this.ready, required this.muted, required this.onMute});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 260,
+      child: Stack(fit: StackFit.expand, children: [
+        // Black while loading, video once ready
+        if (ready && ctrl != null)
+          Center(child: AspectRatio(
+            aspectRatio: ctrl!.value.aspectRatio.clamp(0.5, 2.5),
+            child: VideoPlayer(ctrl!)))
+        else
+          const ColoredBox(color: Colors.black),
+
+        // Mute toggle — bottom-right, always present for video ads
+        Positioned(
+          bottom: 10, right: 10,
+          child: GestureDetector(
+            onTap: onMute,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: 32, height: 32,
+              decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+              child: Icon(
+                muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                color: Colors.white, size: 16)))),
+      ]),
     );
   }
 }
