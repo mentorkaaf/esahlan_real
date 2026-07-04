@@ -1,4 +1,5 @@
 ﻿import 'package:dio/dio.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -80,7 +81,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         SizedBox(height: 16),
         _field('Username', _usernameCtrl, Icons.alternate_email_rounded, 'Unique @handle'),
         SizedBox(height: 16),
-        _field('Bio', _bioCtrl, Icons.info_outline_rounded, 'Tell people about yourself', maxLines: 4, maxLength: 500),
+        _field('Bio', _bioCtrl, Icons.info_outline_rounded, 'Tell people about yourself', maxLines: 4, maxLength: AppConstants.profileBioMaxLength),
         SizedBox(height: 16),
         _field('Website', _websiteCtrl, Icons.language_rounded, 'https://your-website.com'),
         SizedBox(height: 16),

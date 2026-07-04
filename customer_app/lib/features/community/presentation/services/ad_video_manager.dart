@@ -1,5 +1,6 @@
 import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:flutter/foundation.dart';
+import '../../../../core/constants/app_constants.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:video_player/video_player.dart';
 
@@ -21,7 +22,7 @@ class AdVideoManager {
   static final _cache = CacheManager(Config(
     'esahlan_ads_v2',
     maxNrOfCacheObjects: 20,
-    stalePeriod: const Duration(days: 14),
+    stalePeriod: AppConstants.adVideoCacheStalePeriod,
   ));
 
   final _controllers = <String, VideoPlayerController>{};

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../../core/constants/app_assets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
@@ -140,7 +141,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                       ),
                     ),
                     const Spacer(),
-                    Image.asset('assets/images/logo.png', height: 36, fit: BoxFit.contain),
+                    Image.asset(AppAssets.appLogo, height: 36, fit: BoxFit.contain),
                     const Spacer(),
                     const SizedBox(width: 40),
                   ]),

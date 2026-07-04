@@ -1,4 +1,5 @@
 ﻿import 'package:dio/dio.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -93,7 +94,7 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
     final picker = ImagePicker();
     XFile? file;
     if (_adType == 'video') {
-      file = await picker.pickVideo(source: ImageSource.gallery, maxDuration: const Duration(minutes: 2));
+      file = await picker.pickVideo(source: ImageSource.gallery, maxDuration: AppConstants.adVideoMaxDuration);
     } else {
       file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     }

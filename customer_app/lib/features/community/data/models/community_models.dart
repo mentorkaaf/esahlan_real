@@ -1,12 +1,15 @@
+import 'package:customer_app/core/constants/app_constants.dart';
+
 String _fixUrl(String? url) {
   if (url == null || url.isEmpty) return '';
+  final canonical = 'https://${AppConstants.baseDomain}';
+  final api       = 'https://${AppConstants.apiDomain}';
+  final mediaProxy = '$canonical/api/v1/media?f=';
   return url
-      // Normalize api.esahlan.com subdomain to canonical domain.
-      .replaceAll('https://api.esahlan.com/', 'https://esahlan.com/')
-      .replaceAll('http://api.esahlan.com/', 'https://esahlan.com/')
-      // Legacy: old clients stored /storage/ URLs; normalise to the media proxy.
-      .replaceAll('https://esahlan.com/storage/', 'https://esahlan.com/api/v1/media?f=')
-      .replaceAll('http://esahlan.com/storage/', 'https://esahlan.com/api/v1/media?f=');
+      .replaceAll('$api/', '$canonical/')
+      .replaceAll('http://${AppConstants.apiDomain}/', '$canonical/')
+      .replaceAll('$canonical/storage/', mediaProxy)
+      .replaceAll('http://${AppConstants.baseDomain}/storage/', mediaProxy);
 }
 
 String? _fixUrlNullable(String? url) {

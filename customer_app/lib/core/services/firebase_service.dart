@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import '../api/api_client.dart';
 import '../constants/app_constants.dart';
 import '../storage/local_storage.dart';
+import '../theme/app_theme.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BACKGROUND HANDLER — must be top-level, called in native isolate
@@ -166,7 +167,7 @@ class FirebaseService {
           importance: Importance.max,
           priority: Priority.high,
           icon: 'ic_notification',
-          color: const Color(0xFF140465),
+          color: AppColors.secondary,
           enableVibration: true,
           playSound: true,
           largeIcon: FilePathAndroidBitmap(imageFile.path),
@@ -189,7 +190,7 @@ class FirebaseService {
           importance: Importance.max,
           priority: Priority.high,
           icon: 'ic_notification',
-          color: const Color(0xFF140465),
+          color: AppColors.secondary,
           enableVibration: true,
           playSound: true,
         );

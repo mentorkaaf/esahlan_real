@@ -1,58 +1,96 @@
 class AppConstants {
   // ── API Base URL ──────────────────────────────────────────────────────────
-  // Switch comment to change environment:
-  //
-  // LOCAL (Flutter Web / Chrome):
-  //   static const String baseUrl = 'http://backend.test/api/v1';
-  // LOCAL (Android emulator):
-  //   static const String baseUrl = 'http://10.0.2.2:8000/api/v1';
-  // LOCAL (iOS simulator):
-  //   static const String baseUrl = 'http://127.0.0.1:8000/api/v1';
-  // PRODUCTION (Hostinger):
-  //   static const String baseUrl = 'https://yourdomain.com/api/v1';
-
   static const String baseUrl = 'https://esahlan.com/api/v1';
+
+  // Derived domain — used wherever a raw host is needed (e.g. media URL rewriting)
+  static const String baseDomain = 'esahlan.com';
+  static const String apiDomain  = 'api.esahlan.com';
 
   // ── Realtime (Laravel Reverb) ────────────────────────────────────────────
   // Public app key — safe to embed client-side (the secret stays server-only).
-  static const String reverbAppKey = 'eogm1qscup3wck2rwpkb';
-  static const String reverbHost   = 'esahlan.com';
-  static const int reverbPort      = 443;
-  static const bool reverbUseTLS   = true;
-  // Sanctum-protected channel auth endpoint (private/presence channels only).
+  static const String reverbAppKey  = 'eogm1qscup3wck2rwpkb';
+  static const String reverbHost    = 'esahlan.com';
+  static const int    reverbPort    = 443;
+  static const bool   reverbUseTLS  = true;
   static const String reverbAuthUrl = '$baseUrl/broadcasting/auth';
 
-  static const int connectTimeout = 30000;
-  static const int receiveTimeout = 30000;
+  // ── API Timeouts ─────────────────────────────────────────────────────────
+  static const Duration apiConnectTimeout = Duration(minutes: 2);
+  static const Duration apiReceiveTimeout = Duration(minutes: 30);
+  static const Duration apiSendTimeout    = Duration(minutes: 30);
 
-  // Storage Keys
-  static const String tokenKey       = 'auth_token';
-  static const String userKey        = 'user_data';
-  static const String languageKey    = 'app_language';
-  static const String onboardingKey  = 'onboarding_done';
-  static const String fcmTokenKey    = 'fcm_token';
+  // ── Storage Keys ─────────────────────────────────────────────────────────
+  static const String tokenKey      = 'auth_token';
+  static const String userKey       = 'user_data';
+  static const String languageKey   = 'app_language';
+  static const String onboardingKey = 'onboarding_done';
+  static const String fcmTokenKey   = 'fcm_token';
 
-  // App Info
-  static const String appName       = 'eSahlan';
-  static const String appTagline    = 'Everything You Need, Simplified';
-  static const String currency      = 'USD';
+  // ── App Info ─────────────────────────────────────────────────────────────
+  static const String appName        = 'eSahlan';
+  static const String appTagline     = 'Everything You Need, Simplified';
+  static const String currency       = 'USD';
   static const String currencySymbol = '\$';
 
-  // Pagination
+  // ── Pagination ───────────────────────────────────────────────────────────
   static const int pageSize = 20;
 
   // ── Google Maps ──────────────────────────────────────────────────────────
-  // Replace with your real Google Maps API key from:
-  // https://console.cloud.google.com/google/maps-apis/credentials
   static const String googleMapsApiKey = 'AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A';
-
-  // Default map center (Mogadishu, Somalia)
   static const double defaultLat = 2.0469;
   static const double defaultLng = 45.3182;
 
   // ── Firebase ─────────────────────────────────────────────────────────────
-  // FCM Notification channel
   static const String fcmChannelId   = 'esahlan_high_v3';
   static const String fcmChannelName = 'eSahlan Notifications';
   static const String fcmChannelDesc = 'Order updates, promotions and delivery notifications';
+
+  // ── Delivery Fees ────────────────────────────────────────────────────────
+  static const double eshopDeliveryFee   = 2.00;
+  static const double groceryDeliveryFee = 1.50;
+  static const double foodDeliveryFee    = 1.99;
+
+  // ── Wallet ───────────────────────────────────────────────────────────────
+  static const double        walletMinTopup      = 1.0;
+  static const double        walletMinSend       = 0.01;
+  static const double        walletMinWithdrawal = 1.0;
+  static const List<int>     walletTopupPresets  = [5, 10, 20, 50];
+
+  // ── OTP ──────────────────────────────────────────────────────────────────
+  static const int otpResendSeconds = 60;
+
+  // ── Ads ──────────────────────────────────────────────────────────────────
+  static const int      adSkipCountdownSeconds  = 10;
+  static const Duration adDisplayDelay          = Duration(seconds: 5);
+  static const Duration adBannerScrollInterval  = Duration(seconds: 5);
+  static const Duration adRequestTimeout        = Duration(seconds: 8);
+  static const Duration adVideoMaxDuration      = Duration(minutes: 2);
+
+  // ── Community ────────────────────────────────────────────────────────────
+  static const Duration storyVideoDuration      = Duration(seconds: 15);
+  static const Duration storyImageDuration      = Duration(seconds: 5);
+  static const Duration feedPollInterval        = Duration(seconds: 90);
+  static const Duration feedHeartbeatInterval   = Duration(seconds: 30);
+  static const Duration presenceAwayThreshold   = Duration(minutes: 2);
+  static const Duration postVideoMaxDuration    = Duration(minutes: 5);
+  static const int      profileBioMaxLength     = 500;
+
+  // ── Video Cache ──────────────────────────────────────────────────────────
+  static const Duration videoCacheStalePeriod      = Duration(days: 3);
+  static const Duration adVideoCacheStalePeriod    = Duration(days: 14);
+  static const Duration adPreloadCacheStalePeriod  = Duration(days: 7);
+
+  // ── Realtime / Network ───────────────────────────────────────────────────
+  static const Duration realtimePingInterval   = Duration(seconds: 25);
+  static const Duration locationTimeout        = Duration(seconds: 20);
+  static const Duration locationPostInterval   = Duration(minutes: 5);
+  static const Duration uploadSendTimeout      = Duration(minutes: 30);
+  static const Duration paymentPollInterval    = Duration(seconds: 3);
+  static const Duration orderRefreshInterval   = Duration(seconds: 30);
+  static const Duration bannerScrollInterval   = Duration(seconds: 4);
+
+  // ── External URLs ────────────────────────────────────────────────────────
+  static const String tiktokOembedUrl = 'https://www.tiktok.com/oembed';
+  static String tiktokPlayerUrl(String videoId) =>
+      'https://www.tiktok.com/player/v1/$videoId?autoplay=1&loop=0&rel=0';
 }

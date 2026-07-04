@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/constants/app_assets.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/realtime_client.dart';
 import '../../../../core/storage/local_storage.dart';
@@ -133,7 +134,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     child: ScaleTransition(
                       scale: _logoScale,
                       child: Image.asset(
-                        'assets/images/splashlogo.png',
+                        AppAssets.splashLogo,
                         width: 140,
                         height: 140,
                         fit: BoxFit.contain,

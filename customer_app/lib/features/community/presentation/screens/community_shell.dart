@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -126,7 +127,7 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
     } else if (state == AppLifecycleState.resumed) {
       final awayFor = _backgroundedAt == null ? Duration.zero : DateTime.now().difference(_backgroundedAt!);
       _backgroundedAt = null;
-      if (awayFor > const Duration(minutes: 2)) {
+      if (awayFor > AppConstants.presenceAwayThreshold) {
         _feedPreloaded = false; // allow re-preload for the refreshed feed
         ref.read(communityFeedProvider.notifier).load(refresh: true);
         // Do NOT refresh reels on resume — it resets the provider to loading,

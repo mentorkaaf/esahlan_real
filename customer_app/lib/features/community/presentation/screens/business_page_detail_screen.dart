@@ -1,5 +1,6 @@
 ﻿import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../../../core/constants/app_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
@@ -519,7 +520,7 @@ class _PageCreatePostScreenState extends ConsumerState<_PageCreatePostScreen> {
 
   Future<void> _pickVideo() async {
     final picker = ImagePicker();
-    final file = await picker.pickVideo(source: ImageSource.gallery, maxDuration: const Duration(minutes: 5));
+    final file = await picker.pickVideo(source: ImageSource.gallery, maxDuration: AppConstants.postVideoMaxDuration);
     if (file != null) setState(() { _mediaFiles = [file]; _postType = 'video'; });
   }
 

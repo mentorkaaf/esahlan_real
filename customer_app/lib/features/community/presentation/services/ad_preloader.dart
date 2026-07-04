@@ -1,5 +1,6 @@
 import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import '../../../../core/constants/app_constants.dart';
 import 'package:video_player/video_player.dart';
 
 /// Preloads ad video controllers by URL as soon as feed/reel data arrives.
@@ -12,7 +13,7 @@ class AdPreloader {
   static final _diskCache = CacheManager(Config(
     'esahlan_ad_cache',
     maxNrOfCacheObjects: 10,
-    stalePeriod: const Duration(days: 7),
+    stalePeriod: AppConstants.adPreloadCacheStalePeriod,
   ));
 
   final _ready    = <String, VideoPlayerController>{};

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/api/module_api_service.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/storage/local_storage.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -2224,7 +2225,7 @@ class _CartPageState extends ConsumerState<_CartPage> {
     final cart = ref.watch(_cartProvider);
     final notifier = ref.read(_cartProvider.notifier);
     final subtotal = notifier.subtotal;
-    const deliveryFee = 1.99;
+    const deliveryFee = AppConstants.foodDeliveryFee;
     const tax = 0.90;
     final total = subtotal + deliveryFee + tax - _discount;
 

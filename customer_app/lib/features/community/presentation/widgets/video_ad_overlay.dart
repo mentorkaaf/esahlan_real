@@ -1,6 +1,7 @@
 ﻿import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../../../../core/constants/app_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -21,7 +22,7 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
   bool _showingAd = false;
   bool _adReady = false;
   bool _canSkip = false;
-  int _countdown = 10;
+  int _countdown = AppConstants.adSkipCountdownSeconds;
   Map<String, dynamic>? _ad;
   bool _preloadStarted = false;
   bool _preloadDone = false;

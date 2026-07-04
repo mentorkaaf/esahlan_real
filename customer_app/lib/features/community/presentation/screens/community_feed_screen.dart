@@ -1,4 +1,5 @@
 ﻿import 'dart:async';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
@@ -69,10 +70,10 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     });
     // Fallback poll (slow — realtime is the primary path, this just covers
     // the rare case where the socket is down for an extended period).
-    _pollTimer = Timer.periodic(const Duration(seconds: 90), (_) => _checkNewPosts());
+    _pollTimer = Timer.periodic(AppConstants.feedPollInterval, (_) => _checkNewPosts());
     // Presence heartbeat — tells the admin dashboard this user is actively on the feed.
     CommunityRepository().feedHeartbeat();
-    _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) => CommunityRepository().feedHeartbeat());
+    _heartbeatTimer = Timer.periodic(AppConstants.feedHeartbeatInterval, (_) => CommunityRepository().feedHeartbeat());
     _subscribeNewPostFeed();
   }
 

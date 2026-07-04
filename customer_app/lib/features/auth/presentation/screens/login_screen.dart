@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../../core/constants/app_assets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -80,7 +81,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                   child: Center(
-                    child: Image.asset('assets/images/logo.png', height: 36, fit: BoxFit.contain),
+                    child: Image.asset(AppAssets.appLogo, height: 36, fit: BoxFit.contain),
                   ),
                 ),
                 Padding(

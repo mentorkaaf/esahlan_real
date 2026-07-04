@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -581,7 +582,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
     final cart = ref.read(_cartProvider);
     if (cart.isEmpty) return;
     final subtotal = ref.read(_cartProvider.notifier).subtotal;
-    final total = subtotal + 1.50;
+    final total = subtotal + AppConstants.groceryDeliveryFee;
 
     if (_payment == 'waafi_pay') {
       final result = await showWaafiPaySheet(context, amount: total, type: 'order', description: 'eGrocery Order');
@@ -621,7 +622,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
     ref.listen(authStateProvider, (_, __) { if (!_districtInit) _initDistrict(); });
     final cart = ref.watch(_cartProvider);
     final subtotal = ref.read(_cartProvider.notifier).subtotal;
-    const deliveryFee = 1.50; // Will be calculated by backend with zone pricing
+    const deliveryFee = AppConstants.groceryDeliveryFee;
     final total = subtotal + deliveryFee;
 
     return Scaffold(

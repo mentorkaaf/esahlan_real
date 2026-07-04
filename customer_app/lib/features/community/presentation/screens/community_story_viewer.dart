@@ -1,4 +1,5 @@
 ﻿import 'dart:async';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/widgets/network_image_widget.dart';
@@ -112,7 +113,7 @@ class _StoryViewerState extends State<StoryViewer> {
                   child: _ProgressBar(
                     active: i == _storyIndex,
                     done: i < _storyIndex,
-                    duration: story.type == 'video' ? const Duration(seconds: 15) : const Duration(seconds: 5),
+                    duration: story.type == 'video' ? AppConstants.storyVideoDuration : AppConstants.storyImageDuration,
                     key: ValueKey('bar_${_groupIndex}_${_storyIndex}_$i'),
                     onDone: i == _storyIndex ? _nextStory : null,
                   ),

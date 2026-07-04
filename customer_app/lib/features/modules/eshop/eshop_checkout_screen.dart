@@ -3,6 +3,7 @@ import '../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -34,7 +35,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
   bool _placing = false;
   bool _districtInitialized = false;
 
-  static const double _deliveryFee = 2.00;
+  static const double _deliveryFee = AppConstants.eshopDeliveryFee;
   final _svc = ModuleApiService.create();
 
   @override

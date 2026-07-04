@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/error_handler.dart';
 import '../../../../shared/widgets/app_button.dart';
@@ -22,7 +23,7 @@ class OtpScreen extends ConsumerStatefulWidget {
 class _OtpScreenState extends ConsumerState<OtpScreen> {
   final List<TextEditingController> _ctrs = List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _nodes = List.generate(6, (_) => FocusNode());
-  int _secondsLeft = 60;
+  int _secondsLeft = AppConstants.otpResendSeconds;
   Timer? _timer;
   String? _devCode;
 
@@ -43,7 +44,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
   void _startTimer() {
     _timer?.cancel();
-    setState(() => _secondsLeft = 60);
+    setState(() => _secondsLeft = AppConstants.otpResendSeconds);
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_secondsLeft <= 0) { t.cancel(); return; }
       setState(() => _secondsLeft--);

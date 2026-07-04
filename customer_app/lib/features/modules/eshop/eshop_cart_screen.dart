@@ -2,6 +2,7 @@
 import '../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -17,7 +18,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
   final _couponCtrl = TextEditingController();
   bool _validatingCoupon = false;
 
-  static const double _deliveryFee = 2.00;
+  static const double _deliveryFee = AppConstants.eshopDeliveryFee;
 
   @override
   void dispose() { _couponCtrl.dispose(); super.dispose(); }

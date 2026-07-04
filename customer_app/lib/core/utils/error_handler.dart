@@ -116,7 +116,7 @@ class AppErrorHandler {
         title: 'No Internet Connection',
         message: 'Please check your network and try again.',
         icon: Icons.wifi_off_rounded,
-        color: const Color(0xFF374151),
+        color: AppColors.textDark,
         type: _ErrorType.network,
       );
     }
@@ -130,7 +130,7 @@ class AppErrorHandler {
         title: 'Request Timed Out',
         message: 'The server took too long to respond. Please try again.',
         icon: Icons.timer_off_rounded,
-        color: const Color(0xFF374151),
+        color: AppColors.textDark,
         type: _ErrorType.network,
       );
     }
@@ -143,7 +143,7 @@ class AppErrorHandler {
         title: 'Insufficient Balance',
         message: msg,
         icon: Icons.account_balance_wallet_rounded,
-        color: const Color(0xFFC62828),
+        color: AppColors.error,
         type: _ErrorType.balance,
       );
     }
@@ -157,7 +157,7 @@ class AppErrorHandler {
         title: 'Session Expired',
         message: 'Please sign in again to continue.',
         icon: Icons.lock_outline_rounded,
-        color: const Color(0xFF7B1FA2),
+        color: AppColors.secondary,
         type: _ErrorType.auth,
       );
     }
@@ -168,7 +168,7 @@ class AppErrorHandler {
         title: 'Access Denied',
         message: msg,
         icon: Icons.block_rounded,
-        color: const Color(0xFF7B1FA2),
+        color: AppColors.secondary,
         type: _ErrorType.auth,
       );
     }
@@ -179,7 +179,7 @@ class AppErrorHandler {
         title: 'Invalid Request',
         message: msg,
         icon: Icons.info_outline_rounded,
-        color: const Color(0xFFF59E0B),
+        color: AppColors.warning,
         type: _ErrorType.validation,
       );
     }
@@ -190,7 +190,7 @@ class AppErrorHandler {
         title: 'Server Error',
         message: 'Something went wrong on our end. Please try again later.',
         icon: Icons.cloud_off_rounded,
-        color: const Color(0xFF374151),
+        color: AppColors.textDark,
         type: _ErrorType.server,
       );
     }
@@ -201,7 +201,7 @@ class AppErrorHandler {
         title: 'Not Found',
         message: msg,
         icon: Icons.search_off_rounded,
-        color: const Color(0xFF374151),
+        color: AppColors.textDark,
         type: _ErrorType.general,
       );
     }
@@ -269,7 +269,7 @@ class _ErrorSheet extends StatelessWidget {
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF1F2937),
+            color: AppColors.textDark,
             letterSpacing: -0.3,
           ),
           textAlign: TextAlign.center,
@@ -282,7 +282,7 @@ class _ErrorSheet extends StatelessWidget {
           message,
           style: const TextStyle(
             fontSize: 14,
-            color: Color(0xFF6B7280),
+            color: AppColors.textGrey,
             height: 1.5,
           ),
           textAlign: TextAlign.center,
@@ -323,7 +323,7 @@ class _ErrorSheet extends StatelessWidget {
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFF6B7280),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              backgroundColor: const Color(0xFFF3F4F6),
+              backgroundColor: AppColors.background,
             ),
             child: const Text('OK, Got It',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),

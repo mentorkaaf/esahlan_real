@@ -1,6 +1,7 @@
 import 'package:chewie/chewie.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_constants.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -58,7 +59,7 @@ Future<String?> _resolveTikTokId(String url) async {
   if (direct != null && direct.isNotEmpty) return direct;
   try {
     final resp = await Dio().get(
-      'https://www.tiktok.com/oembed',
+      AppConstants.tiktokOembedUrl,
       queryParameters: {'url': url},
       options: Options(
         receiveTimeout: const Duration(seconds: 8),
@@ -211,7 +212,7 @@ class _PopupAdSheetState extends State<_PopupAdSheet> {
 
     if (videoId != null && videoId.isNotEmpty) {
       await ctrl.loadRequest(Uri.parse(
-        'https://www.tiktok.com/player/v1/$videoId?autoplay=1&loop=0&rel=0',
+        AppConstants.tiktokPlayerUrl(videoId),
       ));
     } else {
       await ctrl.loadRequest(Uri.parse(url));
