@@ -1,4 +1,4 @@
-import 'package:customer_app/core/constants/app_constants.dart';
+import '../../../../core/constants/app_constants.dart';
 
 String _fixUrl(String? url) {
   if (url == null || url.isEmpty) return '';
