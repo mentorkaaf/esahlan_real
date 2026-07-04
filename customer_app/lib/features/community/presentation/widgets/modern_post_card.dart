@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
@@ -62,7 +62,7 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
     final post = widget.post;
     return Container(
       color: const Color(0xFF242526),
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: 8),
       child: Stack(
         children: [
           Column(
@@ -86,7 +86,7 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
 
   Widget _buildHeader(CommunityPost post) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 8, 8),
+      padding: EdgeInsets.fromLTRB(12, 12, 8, 8),
       child: Row(
         children: [
           GestureDetector(
@@ -99,11 +99,11 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
                   : null,
               child: post.user.avatar == null
                   ? Text(post.user.name[0].toUpperCase(),
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
                   : null,
             ),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,21 +113,21 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
                     GestureDetector(
                       onTap: () => context.push('/community/profile/${post.user.id}'),
                       child: Text(post.user.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14.5)),
                     ),
                     if (post.user.isVerified) ...[
-                      const SizedBox(width: 4),
-                      const Icon(Icons.verified_rounded, size: 14, color: Color(0xFF1877F2)),
+                      SizedBox(width: 4),
+                      Icon(Icons.verified_rounded, size: 14, color: Color(0xFF1877F2)),
                     ],
                   ],
                 ),
-                const SizedBox(height: 1),
+                SizedBox(height: 1),
                 Row(
                   children: [
                     Text(timeago.format(post.createdAt),
-                        style: const TextStyle(color: Color(0xFF8A8D91), fontSize: 11.5)),
-                    const SizedBox(width: 4),
+                        style: TextStyle(color: Color(0xFF8A8D91), fontSize: 11.5)),
+                    SizedBox(width: 4),
                     Icon(_privacyIcon(post.privacy), size: 11, color: const Color(0xFF8A8D91)),
                   ],
                 ),
@@ -135,7 +135,7 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
             ),
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_horiz, color: Color(0xFF8A8D91)),
+            icon: Icon(Icons.more_horiz, color: Color(0xFF8A8D91)),
             color: const Color(0xFF3A3B3C),
             onSelected: (v) => _handleMenu(v, post),
             itemBuilder: (_) => [
@@ -155,8 +155,8 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
       value: value,
       child: Row(children: [
         Icon(icon, size: 18, color: Colors.white70),
-        const SizedBox(width: 10),
-        Text(label, style: const TextStyle(color: Colors.white, fontSize: 14)),
+        SizedBox(width: 10),
+        Text(label, style: TextStyle(color: Colors.white, fontSize: 14)),
       ]),
     );
   }
@@ -166,18 +166,18 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
       value: value,
       child: Row(children: [
         Icon(icon, size: 18, color: Colors.redAccent),
-        const SizedBox(width: 10),
-        Text(label, style: const TextStyle(color: Colors.redAccent, fontSize: 14)),
+        SizedBox(width: 10),
+        Text(label, style: TextStyle(color: Colors.redAccent, fontSize: 14)),
       ]),
     );
   }
 
   Widget _buildContent(CommunityPost post) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      padding: EdgeInsets.fromLTRB(12, 0, 12, 10),
       child: RichText(
         text: TextSpan(
-          style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.45),
+          style: TextStyle(color: Colors.white, fontSize: 15, height: 1.45),
           children: _parseText(post.content!),
         ),
       ),
@@ -194,7 +194,7 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
       }
       spans.add(TextSpan(
         text: m.group(0),
-        style: const TextStyle(color: Color(0xFF1877F2), fontWeight: FontWeight.w600),
+        style: TextStyle(color: Color(0xFF1877F2), fontWeight: FontWeight.w600),
       ));
       last = m.end;
     }
@@ -217,9 +217,9 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
             Container(color: Colors.black26),
             Center(
               child: Container(
-                padding: const EdgeInsets.all(14),
+                padding: EdgeInsets.all(14),
                 decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                child: const Icon(Icons.play_arrow_rounded, size: 42, color: Colors.white),
+                child: Icon(Icons.play_arrow_rounded, size: 42, color: Colors.white),
               ),
             ),
           ]),
@@ -238,7 +238,7 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
           child: AspectRatio(
             aspectRatio: 1,
             child: Padding(
-              padding: const EdgeInsets.all(1),
+              padding: EdgeInsets.all(1),
               child: NetImage(url: m.url, fit: BoxFit.cover),
             ),
           ),
@@ -253,7 +253,7 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
           Expanded(
             flex: 2,
             child: Padding(
-              padding: const EdgeInsets.only(right: 1),
+              padding: EdgeInsets.only(right: 1),
               child: NetImage(url: media[0].url, fit: BoxFit.cover, height: double.infinity),
             ),
           ),
@@ -263,7 +263,7 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
                 for (var i = 1; i < media.length && i < 4; i++)
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.only(bottom: 1),
+                      padding: EdgeInsets.only(bottom: 1),
                       child: i == 3 && media.length > 4
                           ? Stack(fit: StackFit.expand, children: [
                               NetImage(url: media[3].url, fit: BoxFit.cover),
@@ -271,7 +271,7 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
                                 color: Colors.black54,
                                 child: Center(
                                   child: Text('+${media.length - 3}',
-                                      style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                                      style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                                 ),
                               ),
                             ])
@@ -289,12 +289,12 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
   Widget _buildPoll(CommunityPost post) {
     final total = post.pollOptions.fold(0, (s, o) => s + o.votes);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      padding: EdgeInsets.fromLTRB(12, 0, 12, 12),
       child: Column(
         children: post.pollOptions.asMap().entries.map((e) {
           final pct = total > 0 ? e.value.votes / total : 0.0;
           return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: EdgeInsets.only(bottom: 8),
             child: GestureDetector(
               onTap: () async {
                 try {
@@ -319,12 +319,12 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
                     child: Container(height: 42, color: const Color(0xFF1877F2).withOpacity(0.3)),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 11),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(e.value.text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13.5)),
-                        Text('${(pct * 100).round()}%', style: const TextStyle(color: Color(0xFF1877F2), fontWeight: FontWeight.w700, fontSize: 13.5)),
+                        Text(e.value.text, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13.5)),
+                        Text('${(pct * 100).round()}%', style: TextStyle(color: Color(0xFF1877F2), fontWeight: FontWeight.w700, fontSize: 13.5)),
                       ],
                     ),
                   ),
@@ -340,36 +340,36 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
   Widget _buildReactionSummary(CommunityPost post) {
     if (post.likesCount == 0 && post.commentsCount == 0 && post.viewsCount == 0) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+      padding: EdgeInsets.fromLTRB(12, 8, 12, 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(children: [
             if (post.likesCount > 0) ...[
               Container(
-                padding: const EdgeInsets.all(3),
-                decoration: const BoxDecoration(color: Color(0xFF1877F2), shape: BoxShape.circle),
-                child: const Text('👍', style: TextStyle(fontSize: 10)),
+                padding: EdgeInsets.all(3),
+                decoration: BoxDecoration(color: Color(0xFF1877F2), shape: BoxShape.circle),
+                child: Text('👍', style: TextStyle(fontSize: 10)),
               ),
-              const SizedBox(width: 5),
-              Text('${post.likesCount}', style: const TextStyle(color: Color(0xFF8A8D91), fontSize: 13.5)),
-              const SizedBox(width: 10),
+              SizedBox(width: 5),
+              Text('${post.likesCount}', style: TextStyle(color: Color(0xFF8A8D91), fontSize: 13.5)),
+              SizedBox(width: 10),
             ],
             if (post.viewsCount > 0) ...[
-              const Icon(Icons.visibility_outlined, color: Color(0xFF8A8D91), size: 14),
-              const SizedBox(width: 3),
-              Text('${post.viewsCount}', style: const TextStyle(color: Color(0xFF8A8D91), fontSize: 13.5)),
+              Icon(Icons.visibility_outlined, color: Color(0xFF8A8D91), size: 14),
+              SizedBox(width: 3),
+              Text('${post.viewsCount}', style: TextStyle(color: Color(0xFF8A8D91), fontSize: 13.5)),
             ],
           ]),
           if (post.commentsCount > 0)
             Text('${post.commentsCount} comments',
-                style: const TextStyle(color: Color(0xFF8A8D91), fontSize: 13.5)),
+                style: TextStyle(color: Color(0xFF8A8D91), fontSize: 13.5)),
         ],
       ),
     );
   }
 
-  Widget _buildDivider() => const Divider(height: 1, color: Color(0xFF3A3B3C));
+  Widget _buildDivider() => Divider(height: 1, color: Color(0xFF3A3B3C));
 
   Widget _buildActionRow(CommunityPost post) {
     final reacted = post.userReaction != null;
@@ -378,7 +378,7 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
         : null;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
           Expanded(
@@ -410,15 +410,15 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
     return GestureDetector(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: EdgeInsets.symmetric(vertical: 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (emoji != null)
-              Text(emoji, style: const TextStyle(fontSize: 18))
+              Text(emoji, style: TextStyle(fontSize: 18))
             else if (icon != null)
               Icon(icon, size: 20, color: color),
-            const SizedBox(width: 6),
+            SizedBox(width: 6),
             Text(label, style: TextStyle(color: color, fontSize: 13.5, fontWeight: FontWeight.w600)),
           ],
         ),
@@ -435,7 +435,7 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
         child: GestureDetector(
           onTap: () {},
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
               color: const Color(0xFF3A3B3C),
               borderRadius: BorderRadius.circular(30),
@@ -446,8 +446,8 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
               children: _reactions.map((r) => GestureDetector(
                 onTap: () => _react(r['type'] as String),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(r['emoji'] as String, style: const TextStyle(fontSize: 28)),
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(r['emoji'] as String, style: TextStyle(fontSize: 28)),
                 ),
               )).toList(),
             ),
@@ -474,12 +474,12 @@ class _ModernPostCardState extends ConsumerState<ModernPostCard>
         showModalBottomSheet(
           context: context,
           backgroundColor: const Color(0xFF3A3B3C),
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
           builder: (_) => Column(
             mainAxisSize: MainAxisSize.min,
             children: ['spam', 'hate', 'violence', 'nudity', 'misinformation', 'other'].map((reason) =>
               ListTile(
-                title: Text(reason[0].toUpperCase() + reason.substring(1), style: const TextStyle(color: Colors.white)),
+                title: Text(reason[0].toUpperCase() + reason.substring(1), style: TextStyle(color: Colors.white)),
                 onTap: () { Navigator.pop(context); _repo.report('post', post.id, reason); },
               )).toList(),
           ),

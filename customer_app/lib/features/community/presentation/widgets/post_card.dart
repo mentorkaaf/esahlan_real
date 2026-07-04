@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
@@ -80,7 +80,7 @@ class _PostCardState extends ConsumerState<PostCard>
             if (post.type == 'poll') _buildPoll(post),
             _buildReactionBar(post),
             _buildActionBar(post),
-            const Divider(height: 1, thickness: 8, color: Color(0xFFF4F5F8)),
+            Divider(height: 1, thickness: 8, color: Color(0xFFF4F5F8)),
           ],
         ),
       ),
@@ -89,7 +89,7 @@ class _PostCardState extends ConsumerState<PostCard>
 
   Widget _buildHeader(CommunityPost post) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+      padding: EdgeInsets.fromLTRB(16, 12, 8, 8),
       child: Row(
         children: [
           GestureDetector(
@@ -102,11 +102,11 @@ class _PostCardState extends ConsumerState<PostCard>
                   : null,
               child: post.user.avatar == null
                   ? Text(post.user.name[0].toUpperCase(),
-                      style: const TextStyle(color: Color(0xFF140465), fontWeight: FontWeight.bold))
+                      style: TextStyle(color: Color(0xFF140465), fontWeight: FontWeight.bold))
                   : null,
             ),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -116,24 +116,24 @@ class _PostCardState extends ConsumerState<PostCard>
                     GestureDetector(
                       onTap: () => _openProfile(post.user.id),
                       child: Text(post.user.name,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF140465))),
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF140465))),
                     ),
                     if (post.user.isVerified) ...[
-                      const SizedBox(width: 4),
-                      const Icon(Icons.verified, size: 15, color: Color(0xFFFF6B35)),
+                      SizedBox(width: 4),
+                      Icon(Icons.verified, size: 15, color: Color(0xFFFF6B35)),
                     ],
                   ],
                 ),
                 Row(
                   children: [
                     Text(timeago.format(post.createdAt),
-                        style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                        style: TextStyle(color: Colors.grey, fontSize: 11)),
                     if (post.location != null) ...[
-                      const Text(' · ', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                      const Icon(Icons.location_on, size: 11, color: Colors.grey),
-                      Text(post.location!, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                      Text(' · ', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                      Icon(Icons.location_on, size: 11, color: Colors.grey),
+                      Text(post.location!, style: TextStyle(color: Colors.grey, fontSize: 11)),
                     ],
-                    const Text(' · ', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                    Text(' · ', style: TextStyle(color: Colors.grey, fontSize: 11)),
                     Icon(_privacyIcon(post.privacy), size: 11, color: Colors.grey),
                   ],
                 ),
@@ -141,7 +141,7 @@ class _PostCardState extends ConsumerState<PostCard>
             ),
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_horiz, color: Colors.grey),
+            icon: Icon(Icons.more_horiz, color: Colors.grey),
             onSelected: (v) => _handlePostMenu(v, post),
             itemBuilder: (_) => [
               const PopupMenuItem(value: 'save', child: Text('Save Post')),
@@ -158,10 +158,10 @@ class _PostCardState extends ConsumerState<PostCard>
   Widget _buildContent(CommunityPost post) {
     final text = post.content!;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
       child: RichText(
         text: TextSpan(
-          style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 14.5, height: 1.45),
+          style: TextStyle(color: context.colors.bodyText, fontSize: 14.5, height: 1.45),
           children: _parseContent(text),
         ),
       ),
@@ -176,7 +176,7 @@ class _PostCardState extends ConsumerState<PostCard>
       if (m.start > last) spans.add(TextSpan(text: text.substring(last, m.start)));
       spans.add(TextSpan(
         text: m.group(0),
-        style: const TextStyle(color: Color(0xFFFF6B35), fontWeight: FontWeight.w600),
+        style: TextStyle(color: Color(0xFFFF6B35), fontWeight: FontWeight.w600),
       ));
       last = m.end;
     }
@@ -194,7 +194,7 @@ class _PostCardState extends ConsumerState<PostCard>
             ? Stack(fit: StackFit.expand, children: [
                 if (m.thumbnail != null)
                   NetImage(url: m.thumbnail!, fit: BoxFit.cover),
-                const Center(child: Icon(Icons.play_circle_fill, size: 64, color: Colors.white)),
+                Center(child: Icon(Icons.play_circle_fill, size: 64, color: Colors.white)),
               ])
             : NetImage(url: m.url, fit: BoxFit.cover),
       );
@@ -211,7 +211,7 @@ class _PostCardState extends ConsumerState<PostCard>
             NetImage(url: media[3].url, fit: BoxFit.cover),
             Container(color: Colors.black54,
                 child: Center(child: Text('+${media.length - 3}',
-                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)))),
+                    style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)))),
           ]);
         }
         return NetImage(url: media[i].url, fit: BoxFit.cover);
@@ -222,12 +222,12 @@ class _PostCardState extends ConsumerState<PostCard>
   Widget _buildPoll(CommunityPost post) {
     final total = post.pollOptions.fold(0, (s, o) => s + o.votes);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Column(
         children: post.pollOptions.asMap().entries.map((entry) {
           final pct = total > 0 ? entry.value.votes / total : 0.0;
           return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: EdgeInsets.only(bottom: 8),
             child: InkWell(
               onTap: () async {
                 try {
@@ -261,12 +261,12 @@ class _PostCardState extends ConsumerState<PostCard>
                         )),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(entry.value.text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                        Text('${(pct * 100).round()}%', style: const TextStyle(color: Color(0xFF140465), fontWeight: FontWeight.w700, fontSize: 13)),
+                        Text(entry.value.text, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        Text('${(pct * 100).round()}%', style: TextStyle(color: Color(0xFF140465), fontWeight: FontWeight.w700, fontSize: 13)),
                       ],
                     ),
                   ),
@@ -282,18 +282,18 @@ class _PostCardState extends ConsumerState<PostCard>
   Widget _buildReactionBar(CommunityPost post) {
     if (post.likesCount == 0 && post.commentsCount == 0) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      padding: EdgeInsets.fromLTRB(16, 4, 16, 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           if (post.likesCount > 0)
             Row(children: [
               _reactionEmoji('like'),
-              const SizedBox(width: 4),
-              Text('${post.likesCount}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+              SizedBox(width: 4),
+              Text('${post.likesCount}', style: TextStyle(color: Colors.grey, fontSize: 13)),
             ]),
           if (post.commentsCount > 0)
-            Text('${post.commentsCount} comments', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+            Text('${post.commentsCount} comments', style: TextStyle(color: Colors.grey, fontSize: 13)),
         ],
       ),
     );
@@ -301,7 +301,7 @@ class _PostCardState extends ConsumerState<PostCard>
 
   Widget _buildActionBar(CommunityPost post) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Row(
         children: [
           Expanded(child: _actionBtn(
@@ -339,11 +339,11 @@ class _PostCardState extends ConsumerState<PostCard>
       onTap: onTap,
       onLongPress: onLongPress,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: EdgeInsets.symmetric(vertical: 8),
         child: Column(
           children: [
             Icon(icon, size: 22, color: color),
-            const SizedBox(height: 2),
+            SizedBox(height: 2),
             Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500)),
           ],
         ),
@@ -353,7 +353,7 @@ class _PostCardState extends ConsumerState<PostCard>
 
   Widget _reactionEmoji(String type) {
     const emojis = {'like': '👍', 'love': '❤️', 'wow': '😮', 'haha': '😄', 'sad': '😢', 'angry': '😠'};
-    return Text(emojis[type] ?? '👍', style: const TextStyle(fontSize: 14));
+    return Text(emojis[type] ?? '👍', style: TextStyle(fontSize: 14));
   }
 
   IconData _reactionIcon(String type) {

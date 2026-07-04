@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/background_upload_service.dart';
 import '../screens/community_shell.dart';
@@ -15,8 +15,8 @@ class UploadProgressBanner extends ConsumerWidget {
     final isSuccess = upload.status == UploadStatus.success;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      padding: const EdgeInsets.all(12),
+      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isError ? const Color(0xFFFEE2E2) : isSuccess ? const Color(0xFFD1FAE5) : Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -28,10 +28,10 @@ class UploadProgressBanner extends ConsumerWidget {
             value: upload.status == UploadStatus.uploading ? upload.progress : null,
             strokeWidth: 2.5, color: kOrange)),
         if (isSuccess)
-          const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 22),
+          Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 22),
         if (isError)
-          const Icon(Icons.error_rounded, color: Color(0xFFEF4444), size: 22),
-        const SizedBox(width: 10),
+          Icon(Icons.error_rounded, color: Color(0xFFEF4444), size: 22),
+        SizedBox(width: 10),
         Expanded(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -43,18 +43,18 @@ class UploadProgressBanner extends ConsumerWidget {
                 color: isError ? const Color(0xFFEF4444) : isSuccess ? const Color(0xFF10B981) : const Color(0xFF1F2937)),
             ),
             if (upload.message != null && !isSuccess)
-              Text(upload.message!, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+              Text(upload.message!, style: TextStyle(fontSize: 11, color: context.colors.mutedText)),
           ],
         )),
         if (!isSuccess && !isError && upload.status == UploadStatus.uploading)
           Text('${(upload.progress * 100).toInt()}%',
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: kOrange)),
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: kOrange)),
         if (isError)
           GestureDetector(
             onTap: () => ref.read(backgroundUploadProvider.notifier).dismiss(),
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.all(4),
-              child: Icon(Icons.close_rounded, size: 18, color: Color(0xFF9CA3AF)),
+              child: Icon(Icons.close_rounded, size: 18, color: context.colors.mutedText),
             ),
           ),
       ]),

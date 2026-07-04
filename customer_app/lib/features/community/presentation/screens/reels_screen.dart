@@ -1,10 +1,11 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import '../services/video_pool.dart';
+import '../services/ad_preloader.dart';
 import '../../data/models/community_models.dart';
 import '../../../../features/modules/erent/erent_screen.dart';
 import '../providers/community_provider.dart';
@@ -112,7 +113,12 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
       final repo = ref.read(communityRepoProvider);
       for (var i = 0; i < 3; i++) {
         final ad = await repo.getPrerollAd();
-        if (ad != null && ad['media_url'] != null) _reelAds.add(ad);
+        if (ad != null && ad['media_url'] != null) {
+          _reelAds.add(ad);
+          // Eagerly preload the video so _ReelAdCard gets a ready controller
+          final url = ad['media_url'] as String;
+          if (url.isNotEmpty) AdPreloader.instance.preload([url]);
+        }
       }
       if (mounted) setState(() {});
     } catch (_) {}
@@ -229,11 +235,11 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Reels',
+        title: Text('Reels',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.videocam_outlined, color: Colors.white),
+            icon: Icon(Icons.videocam_outlined, color: Colors.white),
             onPressed: () {},
           ),
         ],
@@ -247,23 +253,23 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
                         : Icons.videocam_off,
                     size: 64,
                     color: Colors.white54),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text(
                   reelsAsync.hasError ? 'Couldn\'t load reels' : 'No reels yet',
-                  style: const TextStyle(color: Colors.white54, fontSize: 16),
+                  style: TextStyle(color: Colors.white54, fontSize: 16),
                 ),
                 if (reelsAsync.hasError) ...[
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   Text('${reelsAsync.error}',
-                      style: const TextStyle(color: Colors.white30, fontSize: 12),
+                      style: TextStyle(color: Colors.white30, fontSize: 12),
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   TextButton(
                     onPressed: () =>
                         ref.read(communityReelsProvider.notifier).refresh(),
-                    child: const Text('Retry',
+                    child: Text('Retry',
                         style: TextStyle(
                             color: kOrange, fontWeight: FontWeight.w700)),
                   ),
@@ -512,10 +518,10 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(
             leading:
-                const Icon(Icons.visibility_off_rounded, color: Colors.white70),
+                Icon(Icons.visibility_off_rounded, color: Colors.white70),
             title:
-                const Text('Not interested', style: TextStyle(color: Colors.white)),
-            subtitle: const Text('See fewer reels like this',
+                Text('Not interested', style: TextStyle(color: Colors.white)),
+            subtitle: Text('See fewer reels like this',
                 style: TextStyle(fontSize: 12, color: Colors.white54)),
             onTap: () {
               Navigator.pop(context);
@@ -526,8 +532,8 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.flag_rounded, color: Colors.white70),
-            title: const Text('Report', style: TextStyle(color: Colors.white)),
+            leading: Icon(Icons.flag_rounded, color: Colors.white70),
+            title: Text('Report', style: TextStyle(color: Colors.white)),
             onTap: () => Navigator.pop(context),
           ),
         ]),
@@ -559,7 +565,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
 
         // Gradient overlay (always present for text legibility)
         Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -585,10 +591,10 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         if (_paused && _videoReady)
           Center(
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               decoration:
                   BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-              child: const Icon(Icons.play_arrow_rounded,
+              child: Icon(Icons.play_arrow_rounded,
                   color: Colors.white, size: 48),
             ),
           ),
@@ -608,8 +614,8 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
               _videoCtrl?.setVolume(_muted ? 0 : 1);
             },
             child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
                   color: Colors.black45, shape: BoxShape.circle),
               child: Icon(_muted ? Icons.volume_off : Icons.volume_up,
                   color: Colors.white, size: 20),
@@ -625,10 +631,10 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
             child: GestureDetector(
               onTap: _showOptions,
               child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
                     color: Colors.black45, shape: BoxShape.circle),
-                child: const Icon(Icons.more_vert_rounded,
+                child: Icon(Icons.more_vert_rounded,
                     color: Colors.white, size: 20),
               ),
             ),
@@ -654,31 +660,31 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
                         : null,
                     child: reel.user.avatar == null
                         ? Text(reel.user.name[0],
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 14))
                         : null,
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Text(reel.user.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
                           fontSize: 14)),
                   if (reel.user.isVerified) ...[
-                    const SizedBox(width: 4),
-                    const Icon(Icons.verified, size: 14, color: kOrange),
+                    SizedBox(width: 4),
+                    Icon(Icons.verified, size: 14, color: kOrange),
                   ],
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   GestureDetector(
                     onTap: () =>
                         ref.read(communityRepoProvider).toggleFollow(reel.user.id),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                           horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
                           border: Border.all(color: Colors.white),
                           borderRadius: BorderRadius.circular(20)),
-                      child: const Text('Follow',
+                      child: Text('Follow',
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 12,
@@ -688,10 +694,10 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
                 ]),
               ),
               if (reel.content != null && reel.content!.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text(reel.content!,
                     style:
-                        const TextStyle(color: Colors.white, fontSize: 13),
+                        TextStyle(color: Colors.white, fontSize: 13),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis),
               ],
@@ -718,7 +724,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
                     .reactToPost(reel.id, 'like');
               },
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             _sideAction(
               icon: Icons.chat_bubble_outline,
               label: '${reel.commentsCount}',
@@ -726,7 +732,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
               onTap: () => showCommentsSheet(context, reel.id,
                   initialCount: reel.commentsCount),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             _sideAction(
               icon: Icons.send_outlined,
               label: 'Share',
@@ -734,7 +740,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
               onTap: () =>
                   ref.read(communityRepoProvider).sharePost(reel.id),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             _sideAction(
               icon: _saved ? Icons.bookmark : Icons.bookmark_outline,
               label: 'Save',
@@ -746,7 +752,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
                 setState(() => _saved = s);
               },
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             _sideAction(
               icon: Icons.visibility_outlined,
               label: '${reel.viewsCount}',
@@ -772,7 +778,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         onTap: onTap,
         child: Column(children: [
           Icon(icon, color: color, size: 28),
-          const SizedBox(height: 2),
+          SizedBox(height: 2),
           Text(label,
               style: TextStyle(
                   color: color, fontSize: 11, fontWeight: FontWeight.w600)),
@@ -802,6 +808,16 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
   }
 
   void _initVideo(String url) async {
+    // Use pre-initialized controller if available (avoids loading delay)
+    final preloaded = AdPreloader.instance.take(url);
+    if (preloaded != null) {
+      if (!mounted) { preloaded.dispose(); return; }
+      preloaded.setVolume(widget.isActive ? 1 : 0);
+      setState(() { _ctrl = preloaded; _ready = true; });
+      if (widget.isActive) preloaded.play();
+      return;
+    }
+    // Fallback: init our own controller
     try {
       final ctrl = VideoPlayerController.networkUrl(
         Uri.parse(url),
@@ -853,7 +869,7 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
           NetImage(url: thumbnail, fit: BoxFit.cover)
         else
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
@@ -864,7 +880,7 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
 
         // Gradient overlays
         Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -884,10 +900,10 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
           top: MediaQuery.of(context).padding.top + 60,
           left: 16,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration:
                 BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(6)),
-            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.campaign_rounded, color: Colors.white, size: 14),
               SizedBox(width: 4),
               Text('Sponsored',
@@ -916,22 +932,22 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
                 Container(
                     width: 36,
                     height: 36,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                         color: Colors.white24, shape: BoxShape.circle),
-                    child: const Icon(Icons.storefront_rounded,
+                    child: Icon(Icons.storefront_rounded,
                         color: Colors.white, size: 18)),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               Text(ad['page']?['name'] ?? 'Sponsored',
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
                       fontSize: 15)),
             ]),
             if (ad['title'] != null)
               Padding(
-                  padding: const EdgeInsets.only(top: 10),
+                  padding: EdgeInsets.only(top: 10),
                   child: Text(ad['title'],
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: Colors.white,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -945,9 +961,9 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
           bottom: 120,
           child: Column(children: [
             _sideBtn(Icons.favorite_outline, '0', Colors.white),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             _sideBtn(Icons.chat_bubble_outline, '0', Colors.white),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             _sideBtn(Icons.share_outlined, 'Share', Colors.white),
           ]),
         ),
@@ -964,7 +980,7 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
                   ref.read(communityRepoProvider).trackAdClick(ad['id']);
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
                   color: kOrange,
                   borderRadius: BorderRadius.circular(10),
@@ -975,12 +991,12 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
                 ),
                 child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Text(ad['cta_text'],
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
                           fontSize: 16)),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_upward_rounded,
+                  SizedBox(width: 8),
+                  Icon(Icons.arrow_upward_rounded,
                       color: Colors.white, size: 18),
                 ]),
               ),
@@ -1002,7 +1018,7 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
 
   Widget _sideBtn(IconData icon, String label, Color color) => Column(children: [
         Icon(icon, color: color, size: 28),
-        const SizedBox(height: 2),
+        SizedBox(height: 2),
         Text(label,
             style: TextStyle(
                 color: color, fontSize: 11, fontWeight: FontWeight.w600)),
@@ -1119,7 +1135,7 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
 
         // Gradient (always present for text legibility)
         Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -1144,10 +1160,10 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
         if (_paused && _videoReady)
           Center(
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               decoration:
                   BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-              child: const Icon(Icons.play_arrow_rounded,
+              child: Icon(Icons.play_arrow_rounded,
                   color: Colors.white, size: 48),
             ),
           ),
@@ -1163,10 +1179,10 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
           left: 16,
           child: Container(
             padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration:
                 BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(20)),
-            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.home_rounded, color: Colors.white, size: 14),
               SizedBox(width: 5),
               Text('eRent',
@@ -1190,8 +1206,8 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
               }
             },
             child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
                   color: Colors.black45, shape: BoxShape.circle),
               child: Icon(_muted ? Icons.volume_off : Icons.volume_up,
                   color: Colors.white, size: 20),
@@ -1217,16 +1233,16 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
                     decoration: BoxDecoration(
                         color: kOrange,
                         borderRadius: BorderRadius.circular(10)),
-                    child: const Icon(Icons.home_rounded,
+                    child: Icon(Icons.home_rounded,
                         color: Colors.white, size: 22),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   Expanded(
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(title,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 14),
@@ -1234,23 +1250,23 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
                               overflow: TextOverflow.ellipsis),
                           if (district.isNotEmpty)
                             Text(district,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     color: Colors.white70, fontSize: 12)),
                         ]),
                   ),
-                  const Icon(Icons.chevron_right_rounded,
+                  Icon(Icons.chevron_right_rounded,
                       color: Colors.white70, size: 20),
                 ]),
                 if (rent != null) ...[
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(
+                    padding: EdgeInsets.symmetric(
                         horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                         color: Colors.black54,
                         borderRadius: BorderRadius.circular(12)),
                     child: Text('\$$rent/mo',
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: kOrange,
                             fontWeight: FontWeight.w800,
                             fontSize: 14)),
@@ -1272,7 +1288,7 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
               color: Colors.white,
               onTap: () => _openProperty(context),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             _sideAction(
               icon: Icons.send_outlined,
               label: 'Share',
@@ -1294,7 +1310,7 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
         onTap: onTap,
         child: Column(children: [
           Icon(icon, color: color, size: 28),
-          const SizedBox(height: 2),
+          SizedBox(height: 2),
           Text(label,
               style: TextStyle(
                   color: color, fontSize: 11, fontWeight: FontWeight.w600)),

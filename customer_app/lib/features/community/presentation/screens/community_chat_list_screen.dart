@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
@@ -22,15 +22,15 @@ class CommunityChatListScreen extends ConsumerWidget {
       appBar: AppBar(
         
         elevation: 0,
-        title: const Text('Chats',
-            style: TextStyle(color: Color(0xFF1A1B2E), fontWeight: FontWeight.w800, fontSize: 22)),
+        title: Text('Chats',
+            style: TextStyle(color: context.colors.bodyText, fontWeight: FontWeight.w800, fontSize: 22)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search_rounded, color: Color(0xFF1A1B2E)),
+            icon: Icon(Icons.search_rounded, color: context.colors.bodyText),
             onPressed: () {},
           ),
           IconButton(
-            icon: const Icon(Icons.edit_rounded, color: Color(0xFF1A1B2E)),
+            icon: Icon(Icons.edit_rounded, color: context.colors.bodyText),
             onPressed: () {},
           ),
         ],
@@ -38,43 +38,43 @@ class CommunityChatListScreen extends ConsumerWidget {
       body: Column(children: [
         // Search bar
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Container(
             height: 40,
             decoration: BoxDecoration(
               color: const Color(0xFFF0F2F5),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Row(children: [
+            child: Row(children: [
               SizedBox(width: 12),
-              Icon(Icons.search_rounded, color: Color(0xFF9CA3AF), size: 20),
+              Icon(Icons.search_rounded, color: context.colors.mutedText, size: 20),
               SizedBox(width: 8),
               Text('Search messages or users',
-                  style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
+                  style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
             ]),
           ),
         ),
 
         Expanded(
           child: chatsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
+            loading: () => Center(child: CircularProgressIndicator(color: kOrange)),
             error: (e, _) => Center(child: Text('Error: $e',
-                style: const TextStyle(color: Colors.red))),
+                style: TextStyle(color: Colors.red))),
             data: (chats) {
               if (chats.isEmpty) {
                 return Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Container(
                       width: 70, height: 70,
-                      decoration: const BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
-                      child: const Icon(Icons.chat_bubble_rounded, size: 35, color: Color(0xFFD1D5DB)),
+                      decoration: BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
+                      child: Icon(Icons.chat_bubble_rounded, size: 35, color: Color(0xFFD1D5DB)),
                     ),
-                    const SizedBox(height: 14),
-                    const Text('No messages yet',
-                        style: TextStyle(color: Color(0xFF1A1B2E), fontSize: 16, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 6),
-                    const Text('Start a conversation with someone',
-                        style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
+                    SizedBox(height: 14),
+                    Text('No messages yet',
+                        style: TextStyle(color: context.colors.bodyText, fontSize: 16, fontWeight: FontWeight.w700)),
+                    SizedBox(height: 6),
+                    Text('Start a conversation with someone',
+                        style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
                   ]),
                 );
               }
@@ -82,7 +82,7 @@ class CommunityChatListScreen extends ConsumerWidget {
                 color: kOrange,
                 onRefresh: () => ref.read(communityChatsProvider.notifier).load(),
                 child: ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 20),
+                  padding: EdgeInsets.only(bottom: 20),
                   itemCount: chats.length,
                   itemBuilder: (ctx, i) => _ChatTile(chat: chats[i]),
                 ),
@@ -106,7 +106,7 @@ class _ChatTile extends StatelessWidget {
     final hasUnread = (chat.unreadCount ?? 0) > 0;
 
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Stack(children: [
         CircleNetImage(url: other?.avatar, size: 52, fallbackText: other?.name),
         Positioned(
@@ -158,12 +158,12 @@ class _ChatTile extends StatelessWidget {
         ),
         if (hasUnread)
           Container(
-            margin: const EdgeInsets.only(left: 8),
+            margin: EdgeInsets.only(left: 8),
             width: 20, height: 20,
-            decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle),
             child: Center(
               child: Text('${chat.unreadCount}',
-                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                  style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
             ),
           ),
       ]),

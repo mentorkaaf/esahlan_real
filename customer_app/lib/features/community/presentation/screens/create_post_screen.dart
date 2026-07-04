@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 import '../../../../core/theme/theme_x.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/widgets/network_image_widget.dart';
@@ -129,28 +129,28 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded, color: Color(0xFF1A1B2E)),
+          icon: Icon(Icons.close_rounded, color: context.colors.bodyText),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Create Post',
-            style: TextStyle(color: Color(0xFF1A1B2E), fontWeight: FontWeight.w800, fontSize: 18)),
+        title: Text('Create Post',
+            style: TextStyle(color: context.colors.bodyText, fontWeight: FontWeight.w800, fontSize: 18)),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 12),
+            padding: EdgeInsets.only(right: 12),
             child: ElevatedButton(
               onPressed: _posting ? null : _post,
               style: ElevatedButton.styleFrom(
                 backgroundColor: kOrange,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: _posting
-                  ? const SizedBox(width: 16, height: 16,
+                  ? SizedBox(width: 16, height: 16,
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Post', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  : Text('Post', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             ),
           ),
         ],
@@ -158,7 +158,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       body: Column(children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               // User row
               Row(children: [
@@ -167,25 +167,25 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                   
                   backgroundImage: avatar != null ? CachedNetworkImageProvider(avatar) : null,
                   child: avatar == null ? Text(name[0].toUpperCase(),
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)) : null,
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)) : null,
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF1A1B2E))),
-                  const SizedBox(height: 4),
+                  Text(name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.bodyText)),
+                  SizedBox(height: 4),
                   GestureDetector(
                     onTap: () => _showPrivacyPicker(context),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF0F2F5),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.public_rounded, size: 13, color: Color(0xFF374151)),
-                        const SizedBox(width: 4),
-                        Text(_privacy, style: const TextStyle(color: Color(0xFF374151), fontSize: 12, fontWeight: FontWeight.w600)),
-                        const Icon(Icons.arrow_drop_down_rounded, size: 16, color: Color(0xFF374151)),
+                        Icon(Icons.public_rounded, size: 13, color: context.colors.bodyText),
+                        SizedBox(width: 4),
+                        Text(_privacy, style: TextStyle(color: context.colors.bodyText, fontSize: 12, fontWeight: FontWeight.w600)),
+                        Icon(Icons.arrow_drop_down_rounded, size: 16, color: context.colors.bodyText),
                       ]),
                     ),
                   ),
@@ -195,7 +195,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               // Feeling / Location chips
               if (_feeling != null || _location != null)
                 Padding(
-                  padding: const EdgeInsets.only(top: 10),
+                  padding: EdgeInsets.only(top: 10),
                   child: Wrap(spacing: 8, children: [
                     if (_feeling != null) _Chip(label: _feeling!, onRemove: () => setState(() => _feeling = null), color: const Color(0xFFFFF3E0)),
                     if (_location != null) _Chip(label: '📍 $_location', onRemove: () => setState(() => _location = null), color: const Color(0xFFFFF3E0)),
@@ -203,21 +203,21 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 ),
 
               // Text field
-              const SizedBox(height: 14),
+              SizedBox(height: 14),
               TextField(
                 controller: _textCtrl,
                 maxLines: null,
                 minLines: 4,
-                style: const TextStyle(fontSize: 16, color: Color(0xFF1A1B2E), height: 1.5),
-                decoration: const InputDecoration.collapsed(
+                style: TextStyle(fontSize: 16, color: context.colors.bodyText, height: 1.5),
+                decoration: InputDecoration.collapsed(
                   hintText: "What's on your mind?",
-                  hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 16),
+                  hintStyle: TextStyle(color: context.colors.mutedText, fontSize: 16),
                 ),
               ),
 
               // Media preview
               if (_mediaFiles.isNotEmpty) ...[
-                const SizedBox(height: 14),
+                SizedBox(height: 14),
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -234,9 +234,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                               width: double.infinity,
                               height: double.infinity,
                               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                const Icon(Icons.videocam_rounded, color: Colors.white54, size: 40),
-                                const SizedBox(height: 6),
-                                Text(_mediaFiles[i].name, style: const TextStyle(color: Colors.white54, fontSize: 10), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                Icon(Icons.videocam_rounded, color: Colors.white54, size: 40),
+                                SizedBox(height: 6),
+                                Text(_mediaFiles[i].name, style: TextStyle(color: Colors.white54, fontSize: 10), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
                               ]),
                             )
                           : _XFileImage(file: _mediaFiles[i]),
@@ -246,9 +246,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                       child: GestureDetector(
                         onTap: () => setState(() => _mediaFiles.removeAt(i)),
                         child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                          child: const Icon(Icons.close_rounded, size: 14, color: Colors.white),
+                          padding: EdgeInsets.all(4),
+                          decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                          child: Icon(Icons.close_rounded, size: 14, color: Colors.white),
                         ),
                       ),
                     ),
@@ -256,10 +256,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 ),
               ],
 
-              const SizedBox(height: 14),
+              SizedBox(height: 14),
               // Add to post row
               Row(children: [
-                const Text('Add to post: ', style: TextStyle(color: Color(0xFF6B7280), fontSize: 13, fontWeight: FontWeight.w600)),
+                Text('Add to post: ', style: TextStyle(color: context.colors.mutedText, fontSize: 13, fontWeight: FontWeight.w600)),
                 GestureDetector(
                   onTap: () => _showFeelingPicker(context),
                   child: const _AddBtn(emoji: '😊'),
@@ -279,7 +279,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
         // Bottom toolbar
         Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Colors.white,
             border: Border(top: BorderSide(color: Color(0xFFF0F2F5))),
           ),
@@ -306,23 +306,23 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     showModalBottomSheet(
       context: context,
       builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
-        const SizedBox(height: 12),
-        const Text('Who can see your post?',
+        SizedBox(height: 12),
+        Text('Who can see your post?',
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         ..._privacyOptions.map((p) => ListTile(
           leading: Icon(
             p == 'Public' ? Icons.public_rounded : p == 'Followers' ? Icons.people_rounded : Icons.lock_rounded,
             color: kOrange,
           ),
           title: Text(p),
-          trailing: _privacy == p ? const Icon(Icons.check_rounded, color: kOrange) : null,
+          trailing: _privacy == p ? Icon(Icons.check_rounded, color: kOrange) : null,
           onTap: () {
             setState(() => _privacy = p);
             Navigator.pop(context);
           },
         )),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
       ]),
     );
   }
@@ -331,7 +331,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     showModalBottomSheet(
       context: context,
       builder: (_) => GridView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 4, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 1.2,
         ),
@@ -347,7 +347,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Center(
-              child: Text(_feelings[i], style: const TextStyle(fontSize: 12), textAlign: TextAlign.center),
+              child: Text(_feelings[i], style: TextStyle(fontSize: 12), textAlign: TextAlign.center),
             ),
           ),
         ),
@@ -366,8 +366,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           bottom: MediaQuery.of(context).viewInsets.bottom + 20,
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Add Location', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-          const SizedBox(height: 12),
+          Text('Add Location', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          SizedBox(height: 12),
           TextField(
             controller: ctrl,
             autofocus: true,
@@ -376,10 +376,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               filled: true,
               fillColor: const Color(0xFFF0F2F5),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-              prefixIcon: const Icon(Icons.location_on_rounded, color: kOrange),
+              prefixIcon: Icon(Icons.location_on_rounded, color: kOrange),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -394,7 +394,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 }
                 Navigator.pop(context);
               },
-              child: const Text('Add'),
+              child: Text('Add'),
             ),
           ),
         ]),
@@ -412,14 +412,14 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(20)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-        const SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+        SizedBox(width: 4),
         GestureDetector(
           onTap: onRemove,
-          child: const Icon(Icons.close_rounded, size: 14, color: Color(0xFF6B7280)),
+          child: Icon(Icons.close_rounded, size: 14, color: context.colors.mutedText),
         ),
       ]),
     );
@@ -433,10 +433,10 @@ class _AddBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(right: 6),
+      margin: EdgeInsets.only(right: 6),
       width: 34, height: 34,
       decoration: BoxDecoration(color: const Color(0xFFF0F2F5), shape: BoxShape.circle),
-      child: Center(child: Text(emoji, style: const TextStyle(fontSize: 16))),
+      child: Center(child: Text(emoji, style: TextStyle(fontSize: 16))),
     );
   }
 }
@@ -488,8 +488,8 @@ class _ToolbarBtn extends StatelessWidget {
           decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
           child: Icon(icon, color: color, size: 22),
         ),
-        const SizedBox(height: 3),
-        Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280), fontWeight: FontWeight.w500)),
+        SizedBox(height: 3),
+        Text(label, style: TextStyle(fontSize: 10, color: context.colors.mutedText, fontWeight: FontWeight.w500)),
       ]),
     );
   }

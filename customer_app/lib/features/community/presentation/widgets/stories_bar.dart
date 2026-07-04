@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 import '../../../../core/theme/theme_x.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/widgets/network_image_widget.dart';
@@ -24,7 +24,7 @@ class StoriesBar extends ConsumerWidget {
       height: 200,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         itemCount: groups.length + 1,
         itemBuilder: (ctx, i) {
           if (i == 0) {
@@ -60,7 +60,7 @@ class _CreateStoryCard extends ConsumerWidget {
       },
       child: Container(
         width: 120,
-        margin: const EdgeInsets.only(right: 8),
+        margin: EdgeInsets.only(right: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           color: const Color(0xFFF3F4F6),
@@ -88,12 +88,12 @@ class _CreateStoryCard extends ConsumerWidget {
                 color: kOrange, shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 3),
               ),
-              child: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+              child: Icon(Icons.add_rounded, color: Colors.white, size: 20),
             )),
           ),
 
           // "Create story" text
-          const Positioned(left: 8, right: 8, bottom: 10,
+          Positioned(left: 8, right: 8, bottom: 10,
             child: Text('Create story',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
@@ -128,7 +128,7 @@ class _StoryCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: 120,
-        margin: const EdgeInsets.only(right: 8),
+        margin: EdgeInsets.only(right: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           color: const Color(0xFF1A1B2E),
@@ -143,10 +143,10 @@ class _StoryCard extends StatelessWidget {
           else if (firstStory?.type == 'text')
             Container(
               color: _parseColor(firstStory?.bgColor),
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(12),
               alignment: Alignment.center,
               child: Text(firstStory?.textContent ?? '',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11),
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11),
                 maxLines: 5, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
             )
           else
@@ -164,12 +164,12 @@ class _StoryCard extends StatelessWidget {
             Positioned(top: 8, right: 8,
               child: Container(width: 24, height: 24,
                 decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16))),
+                child: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16))),
 
           // User avatar at top-left with ring
           Positioned(top: 8, left: 8,
             child: Container(
-              padding: const EdgeInsets.all(2),
+              padding: EdgeInsets.all(2),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
@@ -182,7 +182,7 @@ class _StoryCard extends StatelessWidget {
                 backgroundColor: const Color(0xFF374151),
                 child: avatar == null
                   ? Text(group.user.name[0].toUpperCase(),
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))
                   : null,
               ),
             ),
@@ -191,7 +191,7 @@ class _StoryCard extends StatelessWidget {
           // User name at bottom
           Positioned(left: 8, right: 8, bottom: 10,
             child: Text(group.user.name,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12,
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12,
                 shadows: [Shadow(color: Colors.black54, blurRadius: 4)]),
               maxLines: 2, overflow: TextOverflow.ellipsis),
           ),
@@ -272,20 +272,20 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
       backgroundColor: _storyType == 'text' ? _bgColor : Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.transparent, elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.close_rounded, color: Colors.white), onPressed: () => Navigator.pop(context)),
-        title: const Text('Add Story', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        leading: IconButton(icon: Icon(Icons.close_rounded, color: Colors.white), onPressed: () => Navigator.pop(context)),
+        title: Text('Add Story', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         actions: [
-          Padding(padding: const EdgeInsets.only(right: 12),
+          Padding(padding: EdgeInsets.only(right: 12),
             child: ElevatedButton(
               onPressed: _posting ? null : _post,
               style: ElevatedButton.styleFrom(
                 backgroundColor: kOrange, foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
               child: _posting
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Text('Share', style: TextStyle(fontWeight: FontWeight.w700)),
+                ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : Text('Share', style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ),
         ],
@@ -293,19 +293,19 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
       body: Column(children: [
         Expanded(
           child: _storyType == 'text'
-            ? Center(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 32),
+            ? Center(child: Padding(padding: EdgeInsets.symmetric(horizontal: 32),
                 child: TextField(controller: _textCtrl, maxLines: null, textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
+                  style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
                   decoration: const InputDecoration.collapsed(hintText: 'Type something...', hintStyle: TextStyle(color: Colors.white54, fontSize: 22)))))
             : _mediaFile != null
               ? _storyType == 'video'
                 ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.videocam_rounded, color: Colors.white, size: 80), const SizedBox(height: 12),
-                    Text(_mediaFile!.name, style: const TextStyle(color: Colors.white70, fontSize: 13), textAlign: TextAlign.center)]))
+                    Icon(Icons.videocam_rounded, color: Colors.white, size: 80), SizedBox(height: 12),
+                    Text(_mediaFile!.name, style: TextStyle(color: Colors.white70, fontSize: 13), textAlign: TextAlign.center)]))
                 : _XFilePreview(file: _mediaFile!)
               : Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.add_photo_alternate_rounded, color: Colors.white54, size: 80), const SizedBox(height: 12),
-                  const Text('Pick a photo or video', style: TextStyle(color: Colors.white54, fontSize: 16))])),
+                  Icon(Icons.add_photo_alternate_rounded, color: Colors.white54, size: 80), SizedBox(height: 12),
+                  Text('Pick a photo or video', style: TextStyle(color: Colors.white54, fontSize: 16))])),
         ),
         Container(
           color: Colors.black87,
@@ -317,11 +317,11 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
               _TypeBtn(icon: Icons.videocam_rounded, label: 'Video', active: _storyType == 'video', onTap: _pickVideo),
             ]),
             if (_storyType == 'text') ...[
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               SingleChildScrollView(scrollDirection: Axis.horizontal,
                 child: Row(children: _bgColors.map((c) => GestureDetector(
                   onTap: () => setState(() => _bgColor = c),
-                  child: Container(width: 32, height: 32, margin: const EdgeInsets.only(right: 8),
+                  child: Container(width: 32, height: 32, margin: EdgeInsets.only(right: 8),
                     decoration: BoxDecoration(color: c, shape: BoxShape.circle,
                       border: _bgColor == c ? Border.all(color: Colors.white, width: 3) : null)),
                 )).toList())),
@@ -349,7 +349,7 @@ class _XFilePreviewState extends State<_XFilePreview> {
     future: _bytesFuture,
     builder: (ctx, snap) => snap.hasData
       ? Image.memory(snap.data!, fit: BoxFit.contain)
-      : const Center(child: CircularProgressIndicator(color: Colors.white)),
+      : Center(child: CircularProgressIndicator(color: Colors.white)),
   );
 }
 
@@ -363,10 +363,10 @@ class _TypeBtn extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
     child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Container(padding: const EdgeInsets.all(10),
+      Container(padding: EdgeInsets.all(10),
         decoration: BoxDecoration(color: active ? kOrange : Colors.white24, shape: BoxShape.circle),
         child: Icon(icon, color: Colors.white, size: 22)),
-      const SizedBox(height: 4),
+      SizedBox(height: 4),
       Text(label, style: TextStyle(color: active ? kOrange : Colors.white54, fontSize: 11, fontWeight: FontWeight.w600)),
     ]),
   );

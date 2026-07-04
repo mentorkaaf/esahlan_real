@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
@@ -41,15 +41,15 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen>
         
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1A1B2E)),
+          icon: Icon(Icons.arrow_back_rounded, color: context.colors.bodyText),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Groups',
-            style: TextStyle(color: Color(0xFF1A1B2E), fontWeight: FontWeight.w800, fontSize: 20)),
+        title: Text('Groups',
+            style: TextStyle(color: context.colors.bodyText, fontWeight: FontWeight.w800, fontSize: 20)),
         actions: [
-          IconButton(icon: const Icon(Icons.search_rounded, color: Color(0xFF1A1B2E)), onPressed: () {}),
+          IconButton(icon: Icon(Icons.search_rounded, color: context.colors.bodyText), onPressed: () {}),
           IconButton(
-            icon: const Icon(Icons.add_rounded, color: kOrange, size: 28),
+            icon: Icon(Icons.add_rounded, color: kOrange, size: 28),
             onPressed: () => _showCreateGroup(context),
           ),
         ],
@@ -59,7 +59,7 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen>
           indicatorWeight: 2.5,
           labelColor: kOrange,
           unselectedLabelColor: const Color(0xFF9CA3AF),
-          labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+          labelStyle: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
           tabs: const [
             Tab(text: 'Your Groups'),
             Tab(text: 'Discover'),
@@ -83,7 +83,7 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen>
       context: context,
       isScrollControlled: true,
       
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _CreateGroupSheet(),
     );
@@ -98,27 +98,27 @@ class _GroupsList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return groupsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
-      error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
+      loading: () => Center(child: CircularProgressIndicator(color: kOrange)),
+      error: (e, _) => Center(child: Text('Error: $e', style: TextStyle(color: Colors.red))),
       data: (groups) {
         if (groups.isEmpty) {
           return Center(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.group_rounded, size: 60, color: Color(0xFFD1D5DB)),
-              const SizedBox(height: 14),
-              const Text('No groups yet',
-                  style: TextStyle(color: Color(0xFF1A1B2E), fontSize: 16, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 16),
+              Icon(Icons.group_rounded, size: 60, color: Color(0xFFD1D5DB)),
+              SizedBox(height: 14),
+              Text('No groups yet',
+                  style: TextStyle(color: context.colors.bodyText, fontSize: 16, fontWeight: FontWeight.w700)),
+              SizedBox(height: 16),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kOrange,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   minimumSize: const Size(double.infinity, 48),
                 ),
                 onPressed: () {},
-                child: const Text('Create a Group', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                child: Text('Create a Group', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               ),
             ]),
           );
@@ -127,9 +127,9 @@ class _GroupsList extends ConsumerWidget {
           color: kOrange,
           onRefresh: () => ref.read(communityGroupsProvider.notifier).load(),
           child: ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16),
             itemCount: groups.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, __) => SizedBox(height: 12),
             itemBuilder: (ctx, i) => _GroupCard(group: groups[i]),
           ),
         );
@@ -156,7 +156,7 @@ class _GroupCard extends ConsumerWidget {
         child: Row(children: [
           // Cover image
           ClipRRect(
-            borderRadius: const BorderRadius.only(
+            borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)),
             child: group.coverPhoto != null
                 ? NetImage(
@@ -166,44 +166,44 @@ class _GroupCard extends ConsumerWidget {
                 : Container(
                     width: 80, height: 80,
                     color: kOrange.withOpacity(0.15),
-                    child: const Icon(Icons.group_rounded, color: kOrange, size: 36),
+                    child: Icon(Icons.group_rounded, color: kOrange, size: 36),
                   ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: EdgeInsets.symmetric(vertical: 12),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
                   Expanded(
                     child: Text(group.name,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF1A1B2E))),
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.bodyText)),
                   ),
                   if (group.privacy == 'private')
-                    const Icon(Icons.lock_rounded, size: 14, color: Color(0xFF9CA3AF)),
+                    Icon(Icons.lock_rounded, size: 14, color: context.colors.mutedText),
                 ]),
-                const SizedBox(height: 3),
+                SizedBox(height: 3),
                 Text('${_fmt(group.membersCount)} Members',
-                    style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
+                    style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
                 if (group.description != null && group.description!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(group.description!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+                      style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
                 ],
               ]),
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Padding(
-            padding: const EdgeInsets.only(right: 12),
+            padding: EdgeInsets.only(right: 12),
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: kOrange,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
@@ -218,7 +218,7 @@ class _GroupCard extends ConsumerWidget {
                     SnackBar(content: Text('Failed to join: $e'), backgroundColor: Colors.red));
                 }
               },
-              child: const Text('Join', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+              child: Text('Join', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
             ),
           ),
         ]),
@@ -247,7 +247,7 @@ class _CategoriesTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.6,
       ),
@@ -262,7 +262,7 @@ class _CategoriesTab extends StatelessWidget {
           ),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(cat['icon'] as IconData, color: cat['color'] as Color, size: 36),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(cat['label'] as String,
                 style: TextStyle(
                   color: cat['color'] as Color,
@@ -291,14 +291,14 @@ class GroupDetailScreen extends ConsumerWidget {
             pinned: true,
             backgroundColor: kOrange,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              icon: Icon(Icons.arrow_back_rounded, color: Colors.white),
               onPressed: () => Navigator.pop(context),
             ),
             flexibleSpace: FlexibleSpaceBar(
               background: group.coverPhoto != null
                   ? NetImage(url: group.coverPhoto!, fit: BoxFit.cover)
                   : Container(
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [kOrange, Color(0xFFFF8C42)],
                           begin: Alignment.topLeft,
@@ -311,18 +311,18 @@ class GroupDetailScreen extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Container(
               color: Colors.white,
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(group.name,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF1A1B2E))),
-                const SizedBox(height: 4),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: context.colors.bodyText)),
+                SizedBox(height: 4),
                 Text('${group.membersCount} Members · ${group.privacy == 'public' ? 'Public' : 'Private'} Group',
-                    style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
+                    style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
                 if (group.description != null) ...[
-                  const SizedBox(height: 10),
-                  Text(group.description!, style: const TextStyle(color: Color(0xFF374151), fontSize: 14)),
+                  SizedBox(height: 10),
+                  Text(group.description!, style: TextStyle(color: context.colors.bodyText, fontSize: 14)),
                 ],
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Row(children: [
                   Expanded(
                     child: ElevatedButton(
@@ -330,7 +330,7 @@ class GroupDetailScreen extends ConsumerWidget {
                         backgroundColor: kOrange,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: EdgeInsets.symmetric(vertical: 12),
                       ),
                       onPressed: () async {
                         try {
@@ -343,19 +343,19 @@ class GroupDetailScreen extends ConsumerWidget {
                             SnackBar(content: Text('Failed to join: $e'), backgroundColor: Colors.red));
                         }
                       },
-                      child: const Text('Join Group', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                      child: Text('Join Group', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: kOrange,
                       side: const BorderSide(color: kOrange),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 20),
                     ),
                     onPressed: () {},
-                    child: const Text('Share', style: TextStyle(fontWeight: FontWeight.w700)),
+                    child: Text('Share', style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ]),
               ]),
@@ -383,24 +383,24 @@ class _GroupPostsSliver extends ConsumerWidget {
       error: (e, _) => SliverFillRemaining(child: Center(child: Text('$e'))),
       data: (posts) {
         if (posts.isEmpty) {
-          return const SliverFillRemaining(
+          return SliverFillRemaining(
             child: Center(child: Text('No posts in this group yet',
-                style: TextStyle(color: Color(0xFF9CA3AF)))),
+                style: TextStyle(color: context.colors.mutedText))),
           );
         }
         return SliverList(
           delegate: SliverChildBuilderDelegate(
             (ctx, i) => Container(
-              margin: const EdgeInsets.only(bottom: 8),
+              margin: EdgeInsets.only(bottom: 8),
               color: Colors.white,
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(12),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(posts[i].user.name,
-                    style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF1A1B2E))),
+                    style: TextStyle(fontWeight: FontWeight.w700, color: context.colors.bodyText)),
                 if (posts[i].content != null)
                   Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(posts[i].content!, style: const TextStyle(color: Color(0xFF374151), fontSize: 14)),
+                    padding: EdgeInsets.only(top: 6),
+                    child: Text(posts[i].content!, style: TextStyle(color: context.colors.bodyText, fontSize: 14)),
                   ),
               ]),
             ),
@@ -459,9 +459,9 @@ class _CreateGroupSheetState extends ConsumerState<_CreateGroupSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Create Group',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1A1B2E))),
-        const SizedBox(height: 16),
+        Text('Create Group',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.bodyText)),
+        SizedBox(height: 16),
         TextField(
           controller: _nameCtrl,
           decoration: InputDecoration(
@@ -471,7 +471,7 @@ class _CreateGroupSheetState extends ConsumerState<_CreateGroupSheet> {
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
           ),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         TextField(
           controller: _descCtrl,
           maxLines: 2,
@@ -482,24 +482,24 @@ class _CreateGroupSheetState extends ConsumerState<_CreateGroupSheet> {
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
           ),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         Row(children: [
-          const Text('Privacy: ', style: TextStyle(fontWeight: FontWeight.w600)),
+          Text('Privacy: ', style: TextStyle(fontWeight: FontWeight.w600)),
           ChoiceChip(
-            label: const Text('Public'),
+            label: Text('Public'),
             selected: _privacy == 'public',
             selectedColor: kOrange,
             onSelected: (_) => setState(() => _privacy = 'public'),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           ChoiceChip(
-            label: const Text('Private'),
+            label: Text('Private'),
             selected: _privacy == 'private',
             selectedColor: kOrange,
             onSelected: (_) => setState(() => _privacy = 'private'),
           ),
         ]),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
@@ -507,13 +507,13 @@ class _CreateGroupSheetState extends ConsumerState<_CreateGroupSheet> {
               backgroundColor: kOrange,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: EdgeInsets.symmetric(vertical: 14),
             ),
             onPressed: _loading ? null : _create,
             child: _loading
-                ? const SizedBox(width: 20, height: 20,
+                ? SizedBox(width: 20, height: 20,
                     child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Text('Create', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                : Text('Create', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
           ),
         ),
       ]),

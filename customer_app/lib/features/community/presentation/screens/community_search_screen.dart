@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -43,24 +43,24 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> w
       appBar: AppBar(
         titleSpacing: 0,
         title: Container(
-          height: 40, margin: const EdgeInsets.only(right: 12),
+          height: 40, margin: EdgeInsets.only(right: 12),
           child: TextField(
             controller: _ctrl, autofocus: true,
             onChanged: (v) => setState(() => _query = v),
             onSubmitted: (_) => _search(['posts', 'users', 'groups', 'hashtags'][_tab.index]),
             decoration: InputDecoration(
-              hintText: 'Search community...', hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
-              prefixIcon: const Icon(Icons.search_rounded, size: 20, color: Color(0xFF9CA3AF)),
-              suffixIcon: _query.isNotEmpty ? IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () { _ctrl.clear(); setState(() { _query = ''; _results = null; }); }) : null,
+              hintText: 'Search community...', hintStyle: TextStyle(fontSize: 14, color: context.colors.mutedText),
+              prefixIcon: Icon(Icons.search_rounded, size: 20, color: context.colors.mutedText),
+              suffixIcon: _query.isNotEmpty ? IconButton(icon: Icon(Icons.close, size: 16), onPressed: () { _ctrl.clear(); setState(() { _query = ''; _results = null; }); }) : null,
               filled: true, fillColor: context.colors.searchBarBg,
-              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+              contentPadding: EdgeInsets.symmetric(vertical: 8),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
             ),
           ),
         ),
         bottom: TabBar(
           controller: _tab, indicatorColor: kOrange, labelColor: kOrange, unselectedLabelColor: const Color(0xFF9CA3AF),
-          labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+          labelStyle: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
           onTap: (i) => _search(['posts', 'users', 'groups', 'hashtags'][i]),
           tabs: const [Tab(text: 'Posts'), Tab(text: 'People'), Tab(text: 'Groups'), Tab(text: 'Tags')],
         ),
@@ -68,20 +68,20 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> w
       body: _query.isEmpty
           ? _buildTrending(trending)
           : _loading
-              ? const Center(child: CircularProgressIndicator(color: kOrange))
+              ? Center(child: CircularProgressIndicator(color: kOrange))
               : _buildResults(),
     );
   }
 
   Widget _buildTrending(AsyncValue<List<Map<String, dynamic>>> trending) {
     return trending.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
-      error: (_, __) => const SizedBox(),
+      loading: () => Center(child: CircularProgressIndicator(color: kOrange)),
+      error: (_, __) => SizedBox(),
       data: (tags) {
-        if (tags.isEmpty) return const Center(child: Text('Start typing to search', style: TextStyle(color: Color(0xFF9CA3AF))));
-        return ListView(padding: const EdgeInsets.all(16), children: [
+        if (tags.isEmpty) return Center(child: Text('Start typing to search', style: TextStyle(color: context.colors.mutedText)));
+        return ListView(padding: EdgeInsets.all(16), children: [
           Text('Trending', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: context.colors.navyText)),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           ...tags.asMap().entries.map((e) {
             final tag = e.value;
             return ListTile(
@@ -89,8 +89,8 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> w
               leading: Container(width: 40, height: 40, decoration: BoxDecoration(color: context.colors.chipBg, borderRadius: BorderRadius.circular(10)),
                 child: Center(child: Text('#', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: kOrange)))),
               title: Text('#${tag['name'] ?? ''}', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.navyText)),
-              subtitle: Text('${tag['posts_count'] ?? 0} posts', style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
-              trailing: Text('#${e.key + 1}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFFD1D5DB))),
+              subtitle: Text('${tag['posts_count'] ?? 0} posts', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
+              trailing: Text('#${e.key + 1}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFFD1D5DB))),
               onTap: () { _ctrl.text = '#${tag['name']}'; setState(() => _query = '#${tag['name']}'); _search('posts'); },
             );
           }),
@@ -103,9 +103,9 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> w
     final data = _results?['data'];
     if (data == null || (data is List && data.isEmpty)) {
       return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.search_off_rounded, size: 48, color: Color(0xFFD1D5DB)),
-        const SizedBox(height: 12),
-        Text('No results for "$_query"', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 15)),
+        Icon(Icons.search_off_rounded, size: 48, color: Color(0xFFD1D5DB)),
+        SizedBox(height: 12),
+        Text('No results for "$_query"', style: TextStyle(color: context.colors.mutedText, fontSize: 15)),
       ]));
     }
 
@@ -113,7 +113,7 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> w
     final type = ['posts', 'users', 'groups', 'hashtags'][_tab.index];
 
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       itemCount: list.length,
       itemBuilder: (_, i) {
         final item = list[i] as Map<String, dynamic>;
@@ -126,53 +126,53 @@ class _CommunitySearchScreenState extends ConsumerState<CommunitySearchScreen> w
   }
 
   Widget _userTile(Map<String, dynamic> u) => ListTile(
-    contentPadding: const EdgeInsets.symmetric(vertical: 4),
+    contentPadding: EdgeInsets.symmetric(vertical: 4),
     leading: CircleNetImage(url: u['avatar'], size: 44, fallbackText: u['name'] ?? '?'),
     title: Row(children: [
-      Flexible(child: Text(u['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14))),
-      if (u['is_verified'] == true) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 16)),
+      Flexible(child: Text(u['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14))),
+      if (u['is_verified'] == true) Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 16)),
     ]),
-    subtitle: Text(u['username'] != null ? '@${u['username']}' : '', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
+    subtitle: Text(u['username'] != null ? '@${u['username']}' : '', style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
     onTap: () => context.push('/community/profile/${u['id']}'),
   );
 
   Widget _groupTile(Map<String, dynamic> g) => ListTile(
-    contentPadding: const EdgeInsets.symmetric(vertical: 4),
+    contentPadding: EdgeInsets.symmetric(vertical: 4),
     leading: Container(width: 44, height: 44, decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-      child: const Icon(Icons.group_rounded, color: kOrange)),
-    title: Text(g['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-    subtitle: Text('${g['members_count'] ?? 0} members', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
+      child: Icon(Icons.group_rounded, color: kOrange)),
+    title: Text(g['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+    subtitle: Text('${g['members_count'] ?? 0} members', style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
   );
 
   Widget _hashtagTile(Map<String, dynamic> h) => ListTile(
-    contentPadding: const EdgeInsets.symmetric(vertical: 4),
+    contentPadding: EdgeInsets.symmetric(vertical: 4),
     leading: Container(width: 44, height: 44, decoration: BoxDecoration(color: context.colors.chipBg, borderRadius: BorderRadius.circular(12)),
-      child: const Center(child: Text('#', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: kOrange)))),
-    title: Text('#${h['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-    subtitle: Text('${h['posts_count'] ?? 0} posts', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
+      child: Center(child: Text('#', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: kOrange)))),
+    title: Text('#${h['name'] ?? ''}', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+    subtitle: Text('${h['posts_count'] ?? 0} posts', style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
     onTap: () { _ctrl.text = '#${h['name']}'; setState(() => _query = '#${h['name']}'); _tab.animateTo(0); _search('posts'); },
   );
 
   Widget _postTile(Map<String, dynamic> p) {
     final user = p['user'] as Map<String, dynamic>? ?? {};
     return Container(
-      margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.all(12),
+      margin: EdgeInsets.only(bottom: 10), padding: EdgeInsets.all(12),
       decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(12),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           CircleNetImage(url: user['avatar'], size: 32, fallbackText: user['name'] ?? '?'),
-          const SizedBox(width: 8),
-          Expanded(child: Text(user['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13))),
+          SizedBox(width: 8),
+          Expanded(child: Text(user['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13))),
         ]),
-        if (p['content'] != null) Padding(padding: const EdgeInsets.only(top: 8),
+        if (p['content'] != null) Padding(padding: EdgeInsets.only(top: 8),
           child: Text(p['content'], style: TextStyle(fontSize: 14, color: context.colors.bodyText), maxLines: 3, overflow: TextOverflow.ellipsis)),
-        Padding(padding: const EdgeInsets.only(top: 8), child: Row(children: [
-          const Icon(Icons.favorite_rounded, size: 14, color: Color(0xFF9CA3AF)),
-          Text(' ${p['likes_count'] ?? 0}', style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
-          const SizedBox(width: 12),
-          const Icon(Icons.chat_bubble_outline_rounded, size: 14, color: Color(0xFF9CA3AF)),
-          Text(' ${p['comments_count'] ?? 0}', style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
+        Padding(padding: EdgeInsets.only(top: 8), child: Row(children: [
+          Icon(Icons.favorite_rounded, size: 14, color: context.colors.mutedText),
+          Text(' ${p['likes_count'] ?? 0}', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
+          SizedBox(width: 12),
+          Icon(Icons.chat_bubble_outline_rounded, size: 14, color: context.colors.mutedText),
+          Text(' ${p['comments_count'] ?? 0}', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
         ])),
       ]),
     );

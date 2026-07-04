@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
@@ -75,7 +75,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.search, color: Color(0xFF140465)),
+                icon: Icon(Icons.search, color: Color(0xFF140465)),
                 onPressed: () => showSearch(context: context, delegate: _CommunitySearchDelegate()),
               ),
               Consumer(builder: (_, ref, __) {
@@ -83,16 +83,16 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
                 return Stack(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.notifications_outlined, color: Color(0xFF140465)),
+                      icon: Icon(Icons.notifications_outlined, color: Color(0xFF140465)),
                       onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityNotificationsScreen())),
                     ),
                     if (count > 0)
                       Positioned(
                         right: 8, top: 8,
                         child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(color: Color(0xFFFF6B35), shape: BoxShape.circle),
-                          child: Text('$count', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                          padding: EdgeInsets.all(4),
+                          decoration: BoxDecoration(color: Color(0xFFFF6B35), shape: BoxShape.circle),
+                          child: Text('$count', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                         ),
                       ),
                   ],
@@ -109,7 +109,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
               unselectedLabelColor: Colors.grey,
               indicatorColor: const Color(0xFFFF6B35),
               indicatorWeight: 3,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              labelStyle: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
               tabs: const [
                 Tab(text: 'Feed'),
                 Tab(text: 'Explore'),
@@ -140,7 +140,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
             ref.read(communityFeedProvider.notifier).prependPost(post);
           }
         },
-        child: const Icon(Icons.add, color: Colors.white),
+        child: Icon(Icons.add, color: Colors.white),
       ) : null,
     );
   }
@@ -166,7 +166,7 @@ class _FeedTab extends ConsumerWidget {
           SliverToBoxAdapter(
             child: storiesState.when(
               data: (groups) => _StoriesBar(groups: groups),
-              loading: () => const SizedBox(height: 110, child: Center(child: CircularProgressIndicator())),
+              loading: () => SizedBox(height: 110, child: Center(child: CircularProgressIndicator())),
               error: (_, __) => const SizedBox.shrink(),
             ),
           ),
@@ -180,8 +180,8 @@ class _FeedTab extends ConsumerWidget {
                     (ctx, i) {
                       if (i == posts.length) {
                         return ref.read(communityFeedProvider.notifier).hasMore
-                            ? const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()))
-                            : const Padding(padding: EdgeInsets.all(16), child: Center(child: Text('No more posts', style: TextStyle(color: Colors.grey))));
+                            ? Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()))
+                            : Padding(padding: EdgeInsets.all(16), child: Center(child: Text('No more posts', style: TextStyle(color: Colors.grey))));
                       }
                       return PostCard(
                         post: posts[i],
@@ -253,17 +253,17 @@ class _StoriesBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: EdgeInsets.symmetric(vertical: 12),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: EdgeInsets.symmetric(horizontal: 12),
         child: Row(
           children: [
             // Add story button
             _AddStoryButton(),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             ...groups.map((g) => Padding(
-                  padding: const EdgeInsets.only(right: 12),
+                  padding: EdgeInsets.only(right: 12),
                   child: _StoryAvatar(group: g),
                 )),
           ],
@@ -284,7 +284,7 @@ class _StoryAvatar extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(2.5),
+            padding: EdgeInsets.all(2.5),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: group.allViewed
@@ -293,8 +293,8 @@ class _StoryAvatar extends StatelessWidget {
               color: group.allViewed ? Colors.grey[300] : null,
             ),
             child: Container(
-              padding: const EdgeInsets.all(2),
-              decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+              padding: EdgeInsets.all(2),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white),
               child: CircleAvatar(
                 radius: 28,
                 backgroundColor: const Color(0xFFEEF0FF),
@@ -303,12 +303,12 @@ class _StoryAvatar extends StatelessWidget {
                     : null,
                 child: group.user.avatar == null
                     ? Text(group.user.name[0].toUpperCase(),
-                        style: const TextStyle(color: Color(0xFF140465), fontWeight: FontWeight.bold))
+                        style: TextStyle(color: Color(0xFF140465), fontWeight: FontWeight.bold))
                     : null,
               ),
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           SizedBox(
             width: 68,
             child: Text(
@@ -316,7 +316,7 @@ class _StoryAvatar extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF1A1A2E)),
+              style: TextStyle(fontSize: 11, color: context.colors.bodyText),
             ),
           ),
         ],
@@ -342,22 +342,22 @@ class _AddStoryButton extends StatelessWidget {
               Positioned(
                 bottom: 0, right: 0,
                 child: Container(
-                  padding: const EdgeInsets.all(2),
+                  padding: EdgeInsets.all(2),
                   decoration: BoxDecoration(color: context.colors.cardBg, shape: BoxShape.circle),
                   child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(color: Color(0xFFFF6B35), shape: BoxShape.circle),
-                    child: const Icon(Icons.add, size: 14, color: Colors.white),
+                    padding: EdgeInsets.all(2),
+                    decoration: BoxDecoration(color: Color(0xFFFF6B35), shape: BoxShape.circle),
+                    child: Icon(Icons.add, size: 14, color: Colors.white),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          const SizedBox(
+          SizedBox(height: 4),
+          SizedBox(
             width: 68,
             child: Text('Your Story', maxLines: 1, overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: Color(0xFF1A1A2E))),
+                textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: context.colors.bodyText)),
           ),
         ],
       ),
@@ -370,38 +370,38 @@ class _CreatePostBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6),
+      margin: EdgeInsets.symmetric(vertical: 6),
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
           const CircleAvatar(radius: 20, backgroundColor: Color(0xFFEEF0FF),
               child: Icon(Icons.person, color: Color(0xFF140465))),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: GestureDetector(
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreatePostScreen())),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF4F5F8),
                   borderRadius: BorderRadius.circular(24),
                 ),
-                child: const Text("What's on your mind?", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                child: Text("What's on your mind?", style: TextStyle(color: Colors.grey, fontSize: 14)),
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(
                 builder: (_) => const CreatePostScreen(initialType: 'image'))),
-            child: const Icon(Icons.photo, color: Color(0xFF4CAF50), size: 28),
+            child: Icon(Icons.photo, color: Color(0xFF4CAF50), size: 28),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(
                 builder: (_) => const CreatePostScreen(initialType: 'video'))),
-            child: const Icon(Icons.videocam, color: Color(0xFFFF6B35), size: 28),
+            child: Icon(Icons.videocam, color: Color(0xFFFF6B35), size: 28),
           ),
         ],
       ),
@@ -418,11 +418,11 @@ class _SuggestedUsers extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Colors.white,
-      margin: const EdgeInsets.only(bottom: 6),
+      margin: EdgeInsets.only(bottom: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Text('People you may know', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF140465))),
           ),
@@ -430,13 +430,13 @@ class _SuggestedUsers extends StatelessWidget {
             height: 130,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              separatorBuilder: (_, __) => SizedBox(width: 8),
               itemCount: users.length,
               itemBuilder: (_, i) => _SuggestedUserCard(user: users[i]),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
         ],
       ),
     );
@@ -473,19 +473,19 @@ class _SuggestedUserCardState extends State<_SuggestedUserCard> {
             backgroundColor: const Color(0xFFEEF0FF),
             backgroundImage: widget.user.avatar != null ? CachedNetworkImageProvider(widget.user.avatar!) : null,
             child: widget.user.avatar == null
-                ? Text(widget.user.name[0].toUpperCase(), style: const TextStyle(color: Color(0xFF140465), fontWeight: FontWeight.bold))
+                ? Text(widget.user.name[0].toUpperCase(), style: TextStyle(color: Color(0xFF140465), fontWeight: FontWeight.bold))
                 : null,
           ),
-          const SizedBox(height: 6),
-          Text(widget.user.name.split(' ').first, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Color(0xFF1A1A2E)), maxLines: 1, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
+          Text(widget.user.name.split(' ').first, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: context.colors.bodyText), maxLines: 1, overflow: TextOverflow.ellipsis),
+          SizedBox(height: 6),
           GestureDetector(
             onTap: () async {
               final f = await _repo.toggleFollow(widget.user.id);
               setState(() => _following = f);
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 5),
               decoration: BoxDecoration(
                 color: _following ? const Color(0xFFF4F5F8) : const Color(0xFF140465),
                 borderRadius: BorderRadius.circular(20),
@@ -508,16 +508,16 @@ class _EmptyFeed extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.people_alt_outlined, size: 72, color: Color(0xFFEEF0FF)),
-          const SizedBox(height: 16),
-          const Text('Your feed is empty', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF140465))),
-          const SizedBox(height: 8),
-          const Text('Follow people to see their posts here', style: TextStyle(color: Colors.grey)),
+          Icon(Icons.people_alt_outlined, size: 72, color: Color(0xFFEEF0FF)),
+          SizedBox(height: 16),
+          Text('Your feed is empty', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF140465))),
+          SizedBox(height: 8),
+          Text('Follow people to see their posts here', style: TextStyle(color: Colors.grey)),
           SizedBox(height: 20),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: context.colors.navyText, foregroundColor: Colors.white),
             onPressed: () {},
-            child: const Text('Discover People'),
+            child: Text('Discover People'),
           ),
         ],
       ),
@@ -534,19 +534,19 @@ class _CommunitySearchDelegate extends SearchDelegate {
 
   @override
   List<Widget> buildActions(BuildContext context) => [
-        IconButton(icon: const Icon(Icons.clear), onPressed: () => query = ''),
+        IconButton(icon: Icon(Icons.clear), onPressed: () => query = ''),
       ];
 
   @override
   Widget buildLeading(BuildContext context) =>
-      IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => close(context, null));
+      IconButton(icon: Icon(Icons.arrow_back), onPressed: () => close(context, null));
 
   @override
   Widget buildResults(BuildContext context) => _buildSearch(context);
 
   @override
   Widget buildSuggestions(BuildContext context) => query.isEmpty
-      ? const Center(child: Text('Search for posts, people, or groups'))
+      ? Center(child: Text('Search for posts, people, or groups'))
       : _buildSearch(context);
 
   Widget _buildSearch(BuildContext context) {
@@ -599,10 +599,10 @@ class _SearchResultsState extends State<_SearchResults> {
       future: _future,
       builder: (_, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(child: CircularProgressIndicator());
         }
         final data = snap.data?['data'] as List? ?? [];
-        if (data.isEmpty) return const Center(child: Text('No results found'));
+        if (data.isEmpty) return Center(child: Text('No results found'));
 
         if (widget.type == 'posts') {
           return ListView.builder(
@@ -625,8 +625,8 @@ class _SearchResultsState extends State<_SearchResults> {
                   child: user.avatar == null ? Text(user.name[0].toUpperCase()) : null,
                 ),
                 title: Row(children: [
-                  Text(user.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  if (user.isVerified) const Icon(Icons.verified, size: 14, color: Color(0xFFFF6B35)),
+                  Text(user.name, style: TextStyle(fontWeight: FontWeight.w600)),
+                  if (user.isVerified) Icon(Icons.verified, size: 14, color: Color(0xFFFF6B35)),
                 ]),
                 subtitle: Text(user.username != null ? '@${user.username}' : '${user.followersCount} followers'),
                 onTap: () => context.push('/community/profile/${user.id}'),
@@ -642,9 +642,9 @@ class _SearchResultsState extends State<_SearchResults> {
               leading: CircleAvatar(
                 backgroundColor: const Color(0xFFEEF0FF),
                 backgroundImage: group.avatar != null ? CachedNetworkImageProvider(group.avatar!) : null,
-                child: group.avatar == null ? const Icon(Icons.group, color: Color(0xFF140465)) : null,
+                child: group.avatar == null ? Icon(Icons.group, color: Color(0xFF140465)) : null,
               ),
-              title: Text(group.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+              title: Text(group.name, style: TextStyle(fontWeight: FontWeight.w600)),
               subtitle: Text('${group.membersCount} members · ${group.category}'),
             );
           },

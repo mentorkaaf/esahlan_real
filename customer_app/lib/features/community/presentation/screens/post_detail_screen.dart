@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
@@ -44,46 +44,46 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     }
     if (_error != null || _post == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Post')),
+        appBar: AppBar(title: Text('Post')),
         body: Center(child: Text(_error ?? 'Post not found')),
       );
     }
 
     final p = _post!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Post'), backgroundColor: context.colors.cardBg, foregroundColor: context.colors.navyText),
+      appBar: AppBar(title: Text('Post'), backgroundColor: context.colors.cardBg, foregroundColor: context.colors.navyText),
       body: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Padding(padding: const EdgeInsets.all(12), child: Row(children: [
+          Padding(padding: EdgeInsets.all(12), child: Row(children: [
             CircleNetImage(url: p.user.avatar, size: 44, fallbackText: p.user.name),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(p.user.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-              Text(p.createdAt.toString().substring(0, 16), style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
+              Text(p.user.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              Text(p.createdAt.toString().substring(0, 16), style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
             ])),
           ])),
           if (p.content != null && p.content!.isNotEmpty)
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: Text(p.content!, style: const TextStyle(fontSize: 15, height: 1.4))),
+            Padding(padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Text(p.content!, style: TextStyle(fontSize: 15, height: 1.4))),
           for (final m in p.media)
             if (m.type == 'image')
-              Padding(padding: const EdgeInsets.only(bottom: 2),
+              Padding(padding: EdgeInsets.only(bottom: 2),
                 child: NetImage(url: m.url, fit: BoxFit.fitWidth, width: double.infinity))
             else if (m.type == 'video')
               Container(height: 250, color: Colors.black,
-                child: const Center(child: Icon(Icons.play_circle_outline_rounded, color: Colors.white, size: 64))),
-          Padding(padding: const EdgeInsets.all(12), child: Row(children: [
-            const Icon(Icons.thumb_up_alt_rounded, size: 18, color: kOrange),
-            const SizedBox(width: 4),
-            Text('${p.likesCount}', style: const TextStyle(fontSize: 14)),
-            const SizedBox(width: 20),
-            const Icon(Icons.chat_bubble_outline_rounded, size: 18, color: Color(0xFF6B7280)),
-            const SizedBox(width: 4),
-            Text('${p.commentsCount}', style: const TextStyle(fontSize: 14)),
-            const SizedBox(width: 20),
-            const Icon(Icons.share_outlined, size: 18, color: Color(0xFF6B7280)),
-            const SizedBox(width: 4),
-            Text('${p.sharesCount}', style: const TextStyle(fontSize: 14)),
+                child: Center(child: Icon(Icons.play_circle_outline_rounded, color: Colors.white, size: 64))),
+          Padding(padding: EdgeInsets.all(12), child: Row(children: [
+            Icon(Icons.thumb_up_alt_rounded, size: 18, color: kOrange),
+            SizedBox(width: 4),
+            Text('${p.likesCount}', style: TextStyle(fontSize: 14)),
+            SizedBox(width: 20),
+            Icon(Icons.chat_bubble_outline_rounded, size: 18, color: context.colors.mutedText),
+            SizedBox(width: 4),
+            Text('${p.commentsCount}', style: TextStyle(fontSize: 14)),
+            SizedBox(width: 20),
+            Icon(Icons.share_outlined, size: 18, color: context.colors.mutedText),
+            SizedBox(width: 4),
+            Text('${p.sharesCount}', style: TextStyle(fontSize: 14)),
           ])),
         ]),
       ),

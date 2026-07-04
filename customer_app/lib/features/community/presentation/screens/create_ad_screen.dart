@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart';
+﻿import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -171,16 +171,16 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
   Widget build(BuildContext context) {
     final matched = _matchedPricing;
     return Scaffold(
-      appBar: AppBar(title: Text('Create Ad — ${widget.pageName}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
+      appBar: AppBar(title: Text('Create Ad — ${widget.pageName}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
+      body: ListView(padding: EdgeInsets.all(16), children: [
         // Ad Type
         _sectionLabel('Ad Type'),
         Row(children: [
           _chip('Image', Icons.image_rounded, _adType == 'image', () => setState(() { _adType = 'image'; _mediaFile = null; })),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           _chip('Video', Icons.videocam_rounded, _adType == 'video', () => setState(() { _adType = 'video'; _mediaFile = null; })),
         ]),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // Placement
         _sectionLabel('Placement'),
@@ -189,18 +189,18 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
           _chip('Reels', Icons.videocam_rounded, _placement == 'reels', () => setState(() => _placement = 'reels')),
           _chip('Explore', Icons.explore_rounded, _placement == 'explore', () => setState(() => _placement = 'explore')),
         ]),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // Pricing info
         if (matched != null) Container(
-          padding: const EdgeInsets.all(12), margin: const EdgeInsets.only(bottom: 16),
+          padding: EdgeInsets.all(12), margin: EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: kOrange.withValues(alpha: 0.3))),
           child: Row(children: [
-            const Icon(Icons.info_outline_rounded, color: kOrange, size: 20),
-            const SizedBox(width: 10),
+            Icon(Icons.info_outline_rounded, color: kOrange, size: 20),
+            SizedBox(width: 10),
             Expanded(child: Text(
               'Cost: \$${matched['cost_per_click']}/click · \$${matched['cost_per_1000']}/1K views · Min \$${matched['min_budget']}',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF374151), fontWeight: FontWeight.w600))),
+              style: TextStyle(fontSize: 12, color: context.colors.bodyText, fontWeight: FontWeight.w600))),
           ]),
         ),
 
@@ -218,29 +218,29 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
                         ? Image.file(File(_mediaFile!.path), fit: BoxFit.cover, width: double.infinity)
                         : Stack(alignment: Alignment.center, children: [
                             Container(color: Colors.black87),
-                            const Icon(Icons.videocam_rounded, color: Colors.white, size: 48),
-                            Positioned(bottom: 8, child: Text(_mediaFile!.name, style: const TextStyle(color: Colors.white70, fontSize: 11))),
+                            Icon(Icons.videocam_rounded, color: Colors.white, size: 48),
+                            Positioned(bottom: 8, child: Text(_mediaFile!.name, style: TextStyle(color: Colors.white70, fontSize: 11))),
                           ]))
                 : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Icon(_adType == 'video' ? Icons.videocam_rounded : Icons.add_photo_alternate_rounded, size: 40, color: const Color(0xFFD1D5DB)),
-                    const SizedBox(height: 8),
-                    Text('Tap to select ${_adType == 'video' ? 'video' : 'image'}', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
+                    SizedBox(height: 8),
+                    Text('Tap to select ${_adType == 'video' ? 'video' : 'image'}', style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
                   ]),
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // Title
         _sectionLabel('Ad Title *'),
         TextField(controller: _titleCtrl, decoration: _inputDeco('What\'s your ad about?')),
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
 
         // Description
         _sectionLabel('Description'),
         TextField(controller: _descCtrl, maxLines: 3, decoration: _inputDeco('Tell people more...')),
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
 
         // CTA
         Row(children: [
@@ -248,18 +248,18 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
             _sectionLabel('CTA Button'),
             TextField(controller: _ctaTextCtrl, decoration: _inputDeco('Learn More')),
           ])),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _sectionLabel('CTA Link'),
             TextField(controller: _ctaUrlCtrl, decoration: _inputDeco('https://...')),
           ])),
         ]),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // Budget
         _sectionLabel('Budget (\$)'),
         TextField(controller: _budgetCtrl, keyboardType: TextInputType.number, decoration: _inputDeco('10.00')),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // Dates
         Row(children: [
@@ -270,12 +270,12 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
                 final d = await showDatePicker(context: context, initialDate: _startDate, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)));
                 if (d != null) setState(() => _startDate = d);
               },
-              child: Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
-                child: Row(children: [const Icon(Icons.calendar_today_rounded, size: 16, color: kOrange), const SizedBox(width: 8),
-                  Text('${_startDate.day}/${_startDate.month}/${_startDate.year}', style: const TextStyle(fontSize: 14))])),
+              child: Container(padding: EdgeInsets.all(14), decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+                child: Row(children: [Icon(Icons.calendar_today_rounded, size: 16, color: kOrange), SizedBox(width: 8),
+                  Text('${_startDate.day}/${_startDate.month}/${_startDate.year}', style: TextStyle(fontSize: 14))])),
             ),
           ])),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _sectionLabel('End date'),
             GestureDetector(
@@ -283,38 +283,38 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
                 final d = await showDatePicker(context: context, initialDate: _endDate, firstDate: _startDate, lastDate: DateTime.now().add(const Duration(days: 365)));
                 if (d != null) setState(() => _endDate = d);
               },
-              child: Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
-                child: Row(children: [const Icon(Icons.calendar_today_rounded, size: 16, color: kOrange), const SizedBox(width: 8),
-                  Text('${_endDate.day}/${_endDate.month}/${_endDate.year}', style: const TextStyle(fontSize: 14))])),
+              child: Container(padding: EdgeInsets.all(14), decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+                child: Row(children: [Icon(Icons.calendar_today_rounded, size: 16, color: kOrange), SizedBox(width: 8),
+                  Text('${_endDate.day}/${_endDate.month}/${_endDate.year}', style: TextStyle(fontSize: 14))])),
             ),
           ])),
         ]),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // ── Audience Targeting ──
-        const Divider(height: 32),
+        Divider(height: 32),
         Row(children: [
-          const Icon(Icons.people_rounded, color: kOrange, size: 20),
-          const SizedBox(width: 8),
-          const Text('Audience Targeting', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E))),
-          const Spacer(),
+          Icon(Icons.people_rounded, color: kOrange, size: 20),
+          SizedBox(width: 8),
+          Text('Audience Targeting', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.bodyText)),
+          Spacer(),
           if (_estimatedAudience != null) Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-            child: Text('~$_estimatedAudience users', style: const TextStyle(color: kOrange, fontWeight: FontWeight.w700, fontSize: 12))),
+            child: Text('~$_estimatedAudience users', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700, fontSize: 12))),
         ]),
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
 
         // Gender
         _sectionLabel('Gender'),
         Row(children: [
           _chip('All', Icons.people_rounded, _targetGender == 'all', () => setState(() { _targetGender = 'all'; _estimate(); })),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           _chip('Male', Icons.male_rounded, _targetGender == 'male', () => setState(() { _targetGender = 'male'; _estimate(); })),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           _chip('Female', Icons.female_rounded, _targetGender == 'female', () => setState(() { _targetGender = 'female'; _estimate(); })),
         ]),
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
 
         // Country & City
         CountryCityPicker(
@@ -322,7 +322,7 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
           initialCity: _targetCity.isNotEmpty ? _targetCity : null,
           onChanged: (country, code, city) { setState(() { _targetCountry = country; _targetCity = city; }); _estimate(); },
         ),
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
 
         // Age Range
         Row(children: [
@@ -330,13 +330,13 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
             _sectionLabel('Min Age'),
             TextField(keyboardType: TextInputType.number, onChanged: (v) { _targetMinAge = v; _estimate(); }, decoration: _inputDeco('13')),
           ])),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _sectionLabel('Max Age'),
             TextField(keyboardType: TextInputType.number, onChanged: (v) { _targetMaxAge = v; _estimate(); }, decoration: _inputDeco('65')),
           ])),
         ]),
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
 
         // Interests
         _sectionLabel('Interests'),
@@ -344,53 +344,53 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
           final sel = _targetInterests.contains(i);
           return GestureDetector(
             onTap: () => setState(() { sel ? _targetInterests.remove(i) : _targetInterests.add(i); _estimate(); }),
-            child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            child: Container(padding: EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(color: sel ? kOrange : const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: sel ? kOrange : const Color(0xFFE5E7EB))),
               child: Text(i, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: sel ? Colors.white : const Color(0xFF6B7280)))),
           );
         }).toList()),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // Payment
         _sectionLabel('Payment Method'),
         Row(children: [
           _chip('Wallet', Icons.account_balance_wallet_rounded, _payment == 'wallet', () => setState(() => _payment = 'wallet')),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           _chip('Waafi Pay', Icons.phone_android_rounded, _payment == 'waafi_pay', () => setState(() => _payment = 'waafi_pay')),
         ]),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
 
         // Submit
         ElevatedButton(
           onPressed: _creating ? null : _submit,
           style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
+            padding: EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-          child: _creating ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Text('Submit Ad for Review', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          child: _creating ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              : Text('Submit Ad for Review', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
         ),
-        const SizedBox(height: 8),
-        const Text('Your ad will be reviewed by admin before going live.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
-        const SizedBox(height: 40),
+        SizedBox(height: 8),
+        Text('Your ad will be reviewed by admin before going live.', textAlign: TextAlign.center, style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
+        SizedBox(height: 40),
       ]),
     );
   }
 
-  Widget _sectionLabel(String text) => Padding(padding: const EdgeInsets.only(bottom: 8),
-    child: Text(text, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E))));
+  Widget _sectionLabel(String text) => Padding(padding: EdgeInsets.only(bottom: 8),
+    child: Text(text, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.bodyText)));
 
   Widget _chip(String label, IconData icon, bool selected, VoidCallback onTap) => GestureDetector(
     onTap: onTap,
     child: AnimatedContainer(duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: selected ? kOrange.withValues(alpha: 0.1) : const Color(0xFFF9FAFB),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: selected ? kOrange : const Color(0xFFE5E7EB), width: selected ? 2 : 1)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, size: 18, color: selected ? kOrange : const Color(0xFF9CA3AF)),
-        const SizedBox(width: 6),
+        SizedBox(width: 6),
         Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: selected ? kOrange : const Color(0xFF6B7280))),
       ]),
     ),
@@ -400,5 +400,5 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
     hintText: hint, filled: true, fillColor: const Color(0xFFF9FAFB),
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
     enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12));
+    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12));
 }

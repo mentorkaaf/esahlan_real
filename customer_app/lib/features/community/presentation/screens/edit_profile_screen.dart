@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart';
+﻿import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/community_repository.dart';
@@ -58,25 +58,25 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit profile', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        title: Text('Edit profile', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
             child: _saving
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: kOrange))
-                : const Text('Save', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700, fontSize: 15)),
+                ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: kOrange))
+                : Text('Save', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700, fontSize: 15)),
           ),
         ],
       ),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
+      body: ListView(padding: EdgeInsets.all(16), children: [
         _field('Display name', _nameCtrl, Icons.person_rounded, 'How others see you'),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         _field('Username', _usernameCtrl, Icons.alternate_email_rounded, 'Unique @handle'),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         _field('Bio', _bioCtrl, Icons.info_outline_rounded, 'Tell people about yourself', maxLines: 4, maxLength: 500),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         _field('Website', _websiteCtrl, Icons.language_rounded, 'https://your-website.com'),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         _field('Location', _locationCtrl, Icons.location_on_outlined, 'City, Country'),
       ]),
     );
@@ -84,18 +84,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Widget _field(String label, TextEditingController ctrl, IconData icon, String hint, {int maxLines = 1, int? maxLength}) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF374151))),
-      const SizedBox(height: 6),
+      Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.bodyText)),
+      SizedBox(height: 6),
       TextField(
         controller: ctrl, maxLines: maxLines, maxLength: maxLength,
         decoration: InputDecoration(
-          hintText: hint, hintStyle: const TextStyle(color: Color(0xFFD1D5DB), fontSize: 14),
+          hintText: hint, hintStyle: TextStyle(color: Color(0xFFD1D5DB), fontSize: 14),
           prefixIcon: Icon(icon, color: kOrange, size: 20),
           filled: true, fillColor: const Color(0xFFF9FAFB),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
           focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kOrange, width: 1.5)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         ),
       ),
     ]);

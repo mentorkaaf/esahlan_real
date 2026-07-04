@@ -150,6 +150,13 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
       }
       _lastFirstPostId = firstId;
       _lastPostCount = posts.length;
+
+      // Eagerly preload all ad video URLs so _AdCard gets a ready controller
+      final adUrls = posts
+          .where((p) => p.isAd && p.adType == 'video' && p.adMediaUrl != null)
+          .map((p) => p.adMediaUrl!)
+          .toList();
+      if (adUrls.isNotEmpty) AdPreloader.instance.preload(adUrls);
     });
 
     return Scaffold(
@@ -163,10 +170,10 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
             elevation: 0,
             
             title: RichText(
-              text: const TextSpan(
+              text: TextSpan(
                 children: [
                   TextSpan(text: 'e', style: TextStyle(color: kOrange, fontWeight: FontWeight.w900, fontSize: 22)),
-                  TextSpan(text: 'Sahlan.', style: TextStyle(color: Color(0xFF1A1B2E), fontWeight: FontWeight.w700, fontSize: 20)),
+                  TextSpan(text: 'Sahlan.', style: TextStyle(color: context.colors.bodyText, fontWeight: FontWeight.w700, fontSize: 20)),
                 ],
               ),
             ),
@@ -178,7 +185,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityNotificationsScreen())),
               ),
               _AppBarBtn(icon: Icons.home_rounded, onTap: () => context.go('/home')),
-              const SizedBox(width: 4),
+              SizedBox(width: 4),
             ],
             bottom: TabBar(
               controller: _tabCtrl,
@@ -186,8 +193,8 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
               indicatorWeight: 2.5,
               labelColor: kOrange,
               unselectedLabelColor: const Color(0xFF6B7280),
-              labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+              labelStyle: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
               tabs: const [
                 Tab(icon: Icon(Icons.home_rounded, size: 20), text: 'For You'),
                 Tab(icon: Icon(Icons.local_fire_department_rounded, size: 20), text: 'Trending'),
@@ -215,10 +222,10 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
             CommunityFeedScreen.scrollToTop();
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(20),
               boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 2))]),
-            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 16),
               SizedBox(width: 4),
               Text('New posts', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
@@ -244,7 +251,7 @@ class _AppBarBtn extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: 36, height: 36,
-        margin: const EdgeInsets.only(right: 6),
+        margin: EdgeInsets.only(right: 6),
         decoration: BoxDecoration(
           color: context.colors.chipBg,
           shape: BoxShape.circle,
@@ -257,11 +264,11 @@ class _AppBarBtn extends StatelessWidget {
                 right: 4, top: 4,
                 child: Container(
                   width: 14, height: 14,
-                  decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle),
                   child: Center(
                     child: Text(
                       badge! > 9 ? '9+' : '$badge',
-                      style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700),
+                      style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
@@ -291,14 +298,14 @@ class _FeedTab extends ConsumerWidget {
           // Stories
           storiesState.when(
             data: (groups) => StoriesBar(groups: groups),
-            loading: () => const SizedBox(height: 100),
+            loading: () => SizedBox(height: 100),
             error: (_, __) => const SizedBox.shrink(),
           ),
 
           // Create post bar
           const _CreatePostBar(),
 
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
 
           // Feed posts
           feedState.when(
@@ -342,17 +349,17 @@ class _FeedTab extends ConsumerWidget {
                   if (batch.isNotEmpty) widgets.add(_ReelsCarousel(reels: batch));
                 }
               }
-              widgets.add(const SizedBox(height: 80));
+              widgets.add(SizedBox(height: 80));
               return Column(children: widgets);
             },
-            loading: () => const Padding(
+            loading: () => Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ShimmerPostList(count: 3),
             ),
             error: (e, _) => Center(
               child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
+                padding: EdgeInsets.all(20),
+                child: Text('Error: $e', style: TextStyle(color: Colors.red)),
               ),
             ),
           ),
@@ -373,64 +380,64 @@ class _TrendingTab extends ConsumerWidget {
     return RefreshIndicator(
       color: kOrange,
       onRefresh: () async { ref.read(communityExploreProvider.notifier).refresh(); ref.invalidate(_trendingHashtagsProvider); },
-      child: ListView(padding: const EdgeInsets.only(bottom: 80), children: [
+      child: ListView(padding: EdgeInsets.only(bottom: 80), children: [
         // Trending Hashtags
         hashtagsAsync.when(
           data: (tags) {
-            if (tags.isEmpty) return const SizedBox();
+            if (tags.isEmpty) return SizedBox();
             return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+              Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
                 child: Row(children: [
                   Icon(Icons.tag_rounded, color: kOrange, size: 20),
                   SizedBox(width: 6),
-                  Text('Trending Hashtags', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E))),
+                  Text('Trending Hashtags', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.bodyText)),
                 ])),
               SizedBox(height: 40, child: ListView.builder(
-                scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 12),
+                scrollDirection: Axis.horizontal, padding: EdgeInsets.symmetric(horizontal: 12),
                 itemCount: tags.length,
                 itemBuilder: (_, i) => Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  margin: EdgeInsets.only(right: 8),
+                  padding: EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: kOrange.withValues(alpha: 0.2))),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Text('#${tags[i]['name']}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: kOrange)),
-                    const SizedBox(width: 6),
+                    Text('#${tags[i]['name']}', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: kOrange)),
+                    SizedBox(width: 6),
                     Text('${tags[i]['posts_count']}', style: TextStyle(fontSize: 11, color: kOrange.withValues(alpha: 0.6), fontWeight: FontWeight.w600)),
                   ]),
                 ),
               )),
-              const SizedBox(height: 8),
-              const Divider(height: 1),
+              SizedBox(height: 8),
+              Divider(height: 1),
             ]);
           },
-          loading: () => const SizedBox(),
-          error: (_, __) => const SizedBox(),
+          loading: () => SizedBox(),
+          error: (_, __) => SizedBox(),
         ),
 
         // Trending Posts (100+ engagement)
-        const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+        Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: Row(children: [
             Icon(Icons.local_fire_department_rounded, color: kOrange, size: 20),
             SizedBox(width: 6),
-            Text('Trending Posts', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1A1B2E))),
+            Text('Trending Posts', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.bodyText)),
             Spacer(),
-            Text('100+ engagement', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+            Text('100+ engagement', style: TextStyle(fontSize: 11, color: context.colors.mutedText)),
           ])),
 
         exploreState.when(
           data: (posts) {
-            if (posts.isEmpty) return const Padding(padding: EdgeInsets.all(40),
+            if (posts.isEmpty) return Padding(padding: EdgeInsets.all(40),
               child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.trending_up_rounded, size: 48, color: Color(0xFFD1D5DB)),
                 SizedBox(height: 8),
-                Text('No trending posts yet', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
+                Text('No trending posts yet', style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
                 SizedBox(height: 4),
                 Text('Posts need 100+ total likes, comments, views or shares', style: TextStyle(color: Color(0xFFD1D5DB), fontSize: 12), textAlign: TextAlign.center),
               ])));
             return Column(children: posts.map((p) => _PostCard(post: p, onDelete: () {})).toList());
           },
-          loading: () => const Padding(padding: EdgeInsets.all(16), child: ShimmerPostList(count: 3)),
+          loading: () => Padding(padding: EdgeInsets.all(16), child: ShimmerPostList(count: 3)),
           error: (e, _) => const _EmptyTab(message: 'Error loading trending', icon: Icons.error_outline_rounded),
         ),
       ]),
@@ -446,11 +453,11 @@ class _PeopleTab extends ConsumerWidget {
       color: kOrange,
       onRefresh: () async => ref.invalidate(communitySuggestionsProvider),
       child: suggestionsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
+        loading: () => Center(child: CircularProgressIndicator(color: kOrange)),
         data: (users) {
           if (users.isEmpty) return const _EmptyTab(message: 'No people found', icon: Icons.people_rounded);
           return ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: EdgeInsets.symmetric(vertical: 8),
             itemCount: users.length,
             itemBuilder: (_, i) => _PersonTile(user: users[i]),
           );
@@ -471,8 +478,8 @@ class _EmptyTab extends StatelessWidget {
     return Center(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, size: 50, color: const Color(0xFFD1D5DB)),
-        const SizedBox(height: 12),
-        Text(message, style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 15)),
+        SizedBox(height: 12),
+        Text(message, style: TextStyle(color: context.colors.mutedText, fontSize: 15)),
       ]),
     );
   }
@@ -497,25 +504,25 @@ class _PersonTileState extends ConsumerState<_PersonTile> {
     return InkWell(
       onTap: () => context.push('/community/profile/${u.id}'),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(children: [
           CircleNetImage(url: u.avatar, size: 52, fallbackText: u.name),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Flexible(child: Text(u.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF1A1B2E)), maxLines: 1, overflow: TextOverflow.ellipsis)),
-              if (u.isVerified) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 16)),
+              Flexible(child: Text(u.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.bodyText), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              if (u.isVerified) Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 16)),
             ]),
-            if (u.username != null) Text('@${u.username}', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
-            if (u.bio != null && u.bio!.isNotEmpty) Text(u.bio!, style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 4),
+            if (u.username != null) Text('@${u.username}', style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
+            if (u.bio != null && u.bio!.isNotEmpty) Text(u.bio!, style: TextStyle(color: context.colors.mutedText, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+            SizedBox(height: 4),
             Row(children: [
-              Text('${u.followersCount} followers', style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF), fontWeight: FontWeight.w600)),
-              const Text('  Â·  ', style: TextStyle(color: Color(0xFFD1D5DB))),
-              Text('${u.postsCount} posts', style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF), fontWeight: FontWeight.w600)),
+              Text('${u.followersCount} followers', style: TextStyle(fontSize: 12, color: context.colors.mutedText, fontWeight: FontWeight.w600)),
+              Text('  Â·  ', style: TextStyle(color: Color(0xFFD1D5DB))),
+              Text('${u.postsCount} posts', style: TextStyle(fontSize: 12, color: context.colors.mutedText, fontWeight: FontWeight.w600)),
             ]),
           ])),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           if (!u.isMe) SizedBox(width: 90, child: ElevatedButton(
             onPressed: () async {
               setState(() => _following = !_following);
@@ -526,8 +533,8 @@ class _PersonTileState extends ConsumerState<_PersonTile> {
               foregroundColor: _following ? context.colors.mutedText : Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              padding: const EdgeInsets.symmetric(vertical: 8)),
-            child: Text(_following ? 'Following' : 'Follow', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+              padding: EdgeInsets.symmetric(vertical: 8)),
+            child: Text(_following ? 'Following' : 'Follow', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
           )),
         ]),
       ),
@@ -561,9 +568,22 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   }
 
   void _initAdVideo() async {
+    final url = _adUrl!;
+    // Use pre-initialized controller if available
+    final preloaded = AdPreloader.instance.take(url);
+    if (preloaded != null) {
+      if (!mounted) { preloaded.dispose(); return; }
+      setState(() { _vCtrl = preloaded; _videoReady = true; });
+      if (_visible) {
+        _vCtrl!.setVolume(_muted ? 0 : 1);
+        _vCtrl!.play();
+      }
+      return;
+    }
+    // Fallback: init our own controller
     try {
       final ctrl = VideoPlayerController.networkUrl(
-        Uri.parse(_adUrl!),
+        Uri.parse(url),
         httpHeaders: const {'Connection': 'keep-alive'},
       );
       await ctrl.initialize();
@@ -621,32 +641,32 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
         }
       },
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
+        margin: EdgeInsets.symmetric(vertical: 4),
         color: context.colors.cardBg,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // Header
-          Padding(padding: const EdgeInsets.fromLTRB(14, 12, 14, 10), child: Row(children: [
+          Padding(padding: EdgeInsets.fromLTRB(14, 12, 14, 10), child: Row(children: [
             p.adPage?['avatar'] != null
                 ? CircleNetImage(url: p.adPage!['avatar'], size: 40, fallbackText: p.adPage?['name'] ?? '')
                 : Container(width: 40, height: 40, decoration: BoxDecoration(color: context.colors.chipBg, shape: BoxShape.circle),
-                    child: const Icon(Icons.storefront_rounded, color: kOrange, size: 20)),
-            const SizedBox(width: 10),
+                    child: Icon(Icons.storefront_rounded, color: kOrange, size: 20)),
+            SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                Flexible(child: Text(p.adPage?['name'] ?? 'Sponsored', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1A1B2E)))),
-                const SizedBox(width: 6),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                Flexible(child: Text(p.adPage?['name'] ?? 'Sponsored', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.bodyText))),
+                SizedBox(width: 6),
+                Container(padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                   decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(3)),
-                  child: const Text('Sponsored', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800))),
+                  child: Text('Sponsored', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800))),
               ]),
-              const SizedBox(height: 2),
+              SizedBox(height: 2),
               Text('Promoted', style: TextStyle(color: Colors.grey[400], fontSize: 11)),
             ])),
           ])),
 
           // Content
-          if (p.content != null && p.content!.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-            child: Text(p.content!, style: const TextStyle(color: Color(0xFF4B5563), fontSize: 14))),
+          if (p.content != null && p.content!.isNotEmpty) Padding(padding: EdgeInsets.fromLTRB(14, 0, 14, 8),
+            child: Text(p.content!, style: TextStyle(color: context.colors.mutedText, fontSize: 14))),
 
           // Media
           GestureDetector(
@@ -664,7 +684,7 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
                       else if (p.adThumbnailUrl != null)
                         Center(child: NetImage(url: p.adThumbnailUrl!, fit: BoxFit.contain))
                       else
-                        const Center(child: CircularProgressIndicator(color: kOrange, strokeWidth: 2)),
+                        Center(child: CircularProgressIndicator(color: kOrange, strokeWidth: 2)),
                       // Mute toggle
                       Positioned(bottom: 10, right: 10,
                         child: GestureDetector(
@@ -675,33 +695,33 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
                     ]))
                 : (p.adMediaUrl != null
                     ? NetImage(url: p.adMediaUrl!, fit: BoxFit.cover, width: double.infinity)
-                    : const SizedBox(height: 200))),
+                    : SizedBox(height: 200))),
 
           // CTA bar
           if (p.adCtaText != null) GestureDetector(
             onTap: _onAdTap,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               color: context.colors.surfaceBg,
               child: Row(children: [
-                Expanded(child: Text(p.adTitle ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E)),
+                Expanded(child: Text(p.adTitle ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.bodyText),
                   maxLines: 1, overflow: TextOverflow.ellipsis)),
-                const SizedBox(width: 10),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                SizedBox(width: 10),
+                Container(padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(6)),
-                  child: Text(p.adCtaText!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13))),
+                  child: Text(p.adCtaText!, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13))),
               ]),
             ),
           ),
 
           // Action bar
-          Padding(padding: const EdgeInsets.symmetric(vertical: 2),
+          Padding(padding: EdgeInsets.symmetric(vertical: 2),
             child: Row(children: [
-              Expanded(child: TextButton.icon(onPressed: () {}, icon: const Icon(Icons.thumb_up_alt_outlined, size: 18), label: const Text('Like'),
+              Expanded(child: TextButton.icon(onPressed: () {}, icon: Icon(Icons.thumb_up_alt_outlined, size: 18), label: Text('Like'),
                 style: TextButton.styleFrom(foregroundColor: const Color(0xFF6B7280)))),
-              Expanded(child: TextButton.icon(onPressed: () {}, icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18), label: const Text('Comment'),
+              Expanded(child: TextButton.icon(onPressed: () {}, icon: Icon(Icons.chat_bubble_outline_rounded, size: 18), label: Text('Comment'),
                 style: TextButton.styleFrom(foregroundColor: const Color(0xFF6B7280)))),
-              Expanded(child: TextButton.icon(onPressed: _onAdTap, icon: const Icon(Icons.share_outlined, size: 18), label: const Text('Share'),
+              Expanded(child: TextButton.icon(onPressed: _onAdTap, icon: Icon(Icons.share_outlined, size: 18), label: Text('Share'),
                 style: TextButton.styleFrom(foregroundColor: const Color(0xFF6B7280)))),
             ])),
         ]),
@@ -720,7 +740,7 @@ class _CreatePostBar extends ConsumerWidget {
 
     final c = context.colors;
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      margin: EdgeInsets.fromLTRB(12, 8, 12, 4),
       decoration: BoxDecoration(
         color: c.cardBg,
         borderRadius: BorderRadius.circular(18),
@@ -731,17 +751,17 @@ class _CreatePostBar extends ConsumerWidget {
           // Left orange accent bar
           Container(
             height: 3,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(colors: [kOrange, Color(0xFFFFB347)]),
               borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+            padding: EdgeInsets.fromLTRB(14, 12, 14, 4),
             child: Row(
               children: [
                 CircleNetImage(url: avatar, size: 42),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Expanded(
                   child: GestureDetector(
                     onTap: () async {
@@ -752,7 +772,7 @@ class _CreatePostBar extends ConsumerWidget {
                       if (post != null) ref.read(communityFeedProvider.notifier).prependPost(post);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                       decoration: BoxDecoration(
                         color: c.surfaceBg,
                         borderRadius: BorderRadius.circular(24),
@@ -767,7 +787,7 @@ class _CreatePostBar extends ConsumerWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 10),
+            padding: EdgeInsets.fromLTRB(8, 4, 8, 10),
             child: Row(
               children: [
                 _PostTypeBtn(icon: Icons.photo_library_rounded, label: 'Photo', color: const Color(0xFF34C759), type: 'image'),
@@ -805,7 +825,7 @@ class _PostTypeBtn extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, color: color, size: 20),
-            const SizedBox(width: 5),
+            SizedBox(width: 5),
             Text(label, style: TextStyle(color: context.colors.bodyText, fontSize: 12, fontWeight: FontWeight.w600)),
           ],
         ),
@@ -820,7 +840,7 @@ class _EmptyFeed extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
-      padding: const EdgeInsets.all(40),
+      padding: EdgeInsets.all(40),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(
           width: 80, height: 80,
@@ -829,22 +849,22 @@ class _EmptyFeed extends ConsumerWidget {
             shape: BoxShape.circle,
             boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.15), blurRadius: 20, spreadRadius: 2)],
           ),
-          child: const Icon(Icons.dynamic_feed_rounded, size: 40, color: kOrange),
+          child: Icon(Icons.dynamic_feed_rounded, size: 40, color: kOrange),
         ),
-        const SizedBox(height: 16),
-        const Text('Your feed is empty', style: TextStyle(color: Color(0xFF1A1B2E), fontSize: 18, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 6),
-        const Text('Follow people to see their posts', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
-        const SizedBox(height: 20),
+        SizedBox(height: 16),
+        Text('Your feed is empty', style: TextStyle(color: context.colors.bodyText, fontSize: 18, fontWeight: FontWeight.w700)),
+        SizedBox(height: 6),
+        Text('Follow people to see their posts', style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
+        SizedBox(height: 20),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: kOrange,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
           onPressed: () => context.push('/community/explore'),
-          child: const Text('Find People', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          child: Text('Find People', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
         ),
       ]),
     );
@@ -927,17 +947,17 @@ class _PostCardState extends ConsumerState<_PostCard> {
   void _showEditDialog() {
     final ctrl = TextEditingController(text: widget.post.content ?? '');
     showDialog(context: context, builder: (ctx) => AlertDialog(
-      title: const Text('Edit post', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-      content: TextField(controller: ctrl, maxLines: 5, decoration: const InputDecoration(hintText: 'Edit your post...', border: OutlineInputBorder())),
+      title: Text('Edit post', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+      content: TextField(controller: ctrl, maxLines: 5, decoration: InputDecoration(hintText: 'Edit your post...', border: OutlineInputBorder())),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
         TextButton(onPressed: () async {
           Navigator.pop(ctx);
           try {
             final updated = await ref.read(communityRepoProvider).updatePost(widget.post.id, content: ctrl.text.trim());
             ref.read(communityFeedProvider.notifier).updatePost(updated);
           } catch (_) {}
-        }, child: const Text('Save', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700))),
+        }, child: Text('Save', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700))),
       ],
     ));
   }
@@ -963,7 +983,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
 
     final c = context.colors;
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      margin: EdgeInsets.fromLTRB(12, 0, 12, 12),
       decoration: BoxDecoration(
         color: c.cardBg,
         borderRadius: BorderRadius.circular(18),
@@ -973,7 +993,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // Header
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          padding: EdgeInsets.fromLTRB(12, 12, 12, 0),
           child: Row(children: [
             GestureDetector(
               onTap: () => p.pageId != null
@@ -981,7 +1001,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
                   : context.push('/community/profile/${p.user.id}'),
               child: CircleNetImage(url: p.user.avatar, size: 40, fallbackText: p.user.name),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(
               child: GestureDetector(
                 onTap: () => p.pageId != null
@@ -989,20 +1009,20 @@ class _PostCardState extends ConsumerState<_PostCard> {
                     : context.push('/community/profile/${p.user.id}'),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(children: [
-                    Text(p.user.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1A1B2E))),
+                    Text(p.user.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.bodyText)),
                     if (p.user.isVerified) ...[
-                      const SizedBox(width: 4),
-                      const Icon(Icons.verified_rounded, color: kOrange, size: 14),
+                      SizedBox(width: 4),
+                      Icon(Icons.verified_rounded, color: kOrange, size: 14),
                     ],
                   ]),
                   Row(children: [
-                    const Icon(Icons.public_rounded, size: 12, color: Color(0xFF9CA3AF)),
-                    const SizedBox(width: 3),
-                    Text(timeago.format(p.createdAt), style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
+                    Icon(Icons.public_rounded, size: 12, color: context.colors.mutedText),
+                    SizedBox(width: 3),
+                    Text(timeago.format(p.createdAt), style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
                     if (p.location != null) ...[
-                      const Text(' Â· ', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
-                      const Icon(Icons.location_on_rounded, size: 12, color: Color(0xFF9CA3AF)),
-                      Text(p.location!, style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
+                      Text(' Â· ', style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
+                      Icon(Icons.location_on_rounded, size: 12, color: context.colors.mutedText),
+                      Text(p.location!, style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
                     ],
                   ]),
                 ]),
@@ -1010,7 +1030,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
             ),
             GestureDetector(
               onTap: () => _showOptions(context),
-              child: const Icon(Icons.more_horiz_rounded, color: Color(0xFF6B7280)),
+              child: Icon(Icons.more_horiz_rounded, color: context.colors.mutedText),
             ),
           ]),
         ),
@@ -1018,8 +1038,8 @@ class _PostCardState extends ConsumerState<_PostCard> {
         // Feeling
         if (p.feeling != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-            child: Text('is feeling ${p.feeling}', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
+            padding: EdgeInsets.fromLTRB(12, 6, 12, 0),
+            child: Text('is feeling ${p.feeling}', style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
           ),
 
         // Content with "See more"
@@ -1029,21 +1049,21 @@ class _PostCardState extends ConsumerState<_PostCard> {
         // Shared post preview
         if (p.type == 'share' && p.sharedPost != null)
           Container(
-            margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+            margin: EdgeInsets.fromLTRB(12, 4, 12, 8),
             decoration: BoxDecoration(border: Border.all(color: c.borderColor), borderRadius: BorderRadius.circular(12)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 6), child: Row(children: [
+              Padding(padding: EdgeInsets.fromLTRB(12, 10, 12, 6), child: Row(children: [
                 CircleNetImage(url: (p.sharedPost!['user'] as Map?)?['avatar'], size: 28, fallbackText: (p.sharedPost!['user'] as Map?)?['name'] ?? '?'),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text((p.sharedPost!['user'] as Map?)?['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E))),
-                  Text(p.sharedPost!['created_at'] != null ? timeago.format(DateTime.tryParse('${p.sharedPost!['created_at']}') ?? DateTime.now()) : '', style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+                  Text((p.sharedPost!['user'] as Map?)?['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.bodyText)),
+                  Text(p.sharedPost!['created_at'] != null ? timeago.format(DateTime.tryParse('${p.sharedPost!['created_at']}') ?? DateTime.now()) : '', style: TextStyle(fontSize: 11, color: context.colors.mutedText)),
                 ])),
               ])),
               if (p.sharedPost!['content'] != null)
-                Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 8), child: Text('${p.sharedPost!['content']}', style: const TextStyle(fontSize: 14, color: Color(0xFF374151)))),
+                Padding(padding: EdgeInsets.fromLTRB(12, 0, 12, 8), child: Text('${p.sharedPost!['content']}', style: TextStyle(fontSize: 14, color: context.colors.bodyText))),
               if (p.sharedPost!['media'] is List && (p.sharedPost!['media'] as List).isNotEmpty)
-                ClipRRect(borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                ClipRRect(borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
                   child: () {
                     final m = (p.sharedPost!['media'] as List).first;
                     final mType = m['type'] ?? 'image';
@@ -1069,7 +1089,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
 
         // Poll
         if (p.type == 'poll' && p.pollOptions.isNotEmpty)
-          Padding(padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+          Padding(padding: EdgeInsets.fromLTRB(12, 4, 12, 8),
             child: Column(children: p.pollOptions.asMap().entries.map((e) {
               final opt = e.value;
               final totalVotes = p.pollOptions.fold<int>(0, (s, o) => s + o.votes);
@@ -1082,15 +1102,15 @@ class _PostCardState extends ConsumerState<_PostCard> {
                   } catch (_) {}
                 },
                 child: Container(
-                  margin: const EdgeInsets.only(bottom: 8),
+                  margin: EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: c.borderColor)),
                   child: Stack(children: [
                     FractionallySizedBox(widthFactor: pct / 100, child: Container(
                       height: 44, decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(9)))),
-                    Container(height: 44, padding: const EdgeInsets.symmetric(horizontal: 14),
+                    Container(height: 44, padding: EdgeInsets.symmetric(horizontal: 14),
                       child: Row(children: [
-                        Expanded(child: Text(opt.text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1A1B2E)))),
-                        Text('$pct%', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: kOrange)),
+                        Expanded(child: Text(opt.text, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: context.colors.bodyText))),
+                        Text('$pct%', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: kOrange)),
                       ])),
                   ]),
                 ),
@@ -1101,7 +1121,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
         // Engagement counts — compact pill style
         if (p.likesCount > 0 || p.commentsCount > 0 || p.sharesCount > 0 || p.viewsCount > 0)
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 8, 14, 2),
+            padding: EdgeInsets.fromLTRB(14, 8, 14, 2),
             child: Row(children: [
               if (p.likesCount > 0) _EngagementChip(emoji: '👍', count: p.likesCount),
               if (p.commentsCount > 0) _EngagementChip(emoji: '💬', count: p.commentsCount),
@@ -1110,11 +1130,11 @@ class _PostCardState extends ConsumerState<_PostCard> {
             ]),
           ),
 
-        const Divider(height: 1, thickness: 1, color: Color(0xFFF2F4F7)),
+        Divider(height: 1, thickness: 1, color: Color(0xFFF2F4F7)),
 
         // Action buttons
         Padding(
-          padding: const EdgeInsets.fromLTRB(6, 4, 6, 6),
+          padding: EdgeInsets.fromLTRB(6, 4, 6, 6),
           child: Row(children: [
             _ActionBtn(
               icon: _myReaction != null ? Icons.thumb_up_rounded : Icons.thumb_up_alt_outlined,
@@ -1132,7 +1152,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
         // Reaction picker â€” shown above action buttons
         if (_showReactions)
           Container(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            padding: EdgeInsets.fromLTRB(12, 0, 12, 8),
             child: _ReactionPicker(reactions: _reactions, onPick: _react, onDismiss: () => setState(() => _showReactions = false)),
           ),
       ]),
@@ -1142,19 +1162,19 @@ class _PostCardState extends ConsumerState<_PostCard> {
   void _showShareDialog() {
     final ctrl = TextEditingController();
     showDialog(context: context, builder: (ctx) => AlertDialog(
-      title: const Text('Share post', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+      title: Text('Share post', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(8)),
+        Container(padding: EdgeInsets.all(10), decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(8)),
           child: Row(children: [
             CircleNetImage(url: widget.post.user.avatar, size: 28, fallbackText: widget.post.user.name),
-            const SizedBox(width: 8),
-            Expanded(child: Text(widget.post.content ?? 'Post by ${widget.post.user.name}', style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)), maxLines: 2, overflow: TextOverflow.ellipsis)),
+            SizedBox(width: 8),
+            Expanded(child: Text(widget.post.content ?? 'Post by ${widget.post.user.name}', style: TextStyle(fontSize: 12, color: context.colors.mutedText), maxLines: 2, overflow: TextOverflow.ellipsis)),
           ])),
-        const SizedBox(height: 12),
-        TextField(controller: ctrl, maxLines: 3, decoration: const InputDecoration(hintText: 'Add your thoughts...', border: OutlineInputBorder())),
+        SizedBox(height: 12),
+        TextField(controller: ctrl, maxLines: 3, decoration: InputDecoration(hintText: 'Add your thoughts...', border: OutlineInputBorder())),
       ]),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
         TextButton(onPressed: () async {
           Navigator.pop(ctx);
           try {
@@ -1162,7 +1182,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
             ref.read(communityFeedProvider.notifier).prependPost(shared);
             if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shared!'), backgroundColor: Color(0xFF10B981)));
           } catch (_) {}
-        }, child: const Text('Share', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700))),
+        }, child: Text('Share', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700))),
       ],
     ));
   }
@@ -1173,38 +1193,38 @@ class _PostCardState extends ConsumerState<_PostCard> {
     showDialog(context: context, builder: (ctx) => StatefulBuilder(
       builder: (ctx, setD) => AlertDialog(
         title: Row(children: [
-          const Icon(Icons.rocket_launch_rounded, color: kOrange, size: 22),
-          const SizedBox(width: 8),
-          const Text('Boost Post', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          Icon(Icons.rocket_launch_rounded, color: kOrange, size: 22),
+          SizedBox(width: 8),
+          Text('Boost Post', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
         ]),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Promote your post to reach more people', style: TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
-          const SizedBox(height: 16),
+          Text('Promote your post to reach more people', style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
+          SizedBox(height: 16),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('Budget', style: TextStyle(fontWeight: FontWeight.w600)),
-            Text('\$${budget.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w800, color: kOrange, fontSize: 18)),
+            Text('Budget', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text('\$${budget.toStringAsFixed(0)}', style: TextStyle(fontWeight: FontWeight.w800, color: kOrange, fontSize: 18)),
           ]),
           Slider(value: budget, min: 1, max: 100, divisions: 20, activeColor: kOrange,
             onChanged: (v) => setD(() => budget = v)),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('Duration', style: TextStyle(fontWeight: FontWeight.w600)),
-            Text('${hours}h', style: const TextStyle(fontWeight: FontWeight.w800, color: kOrange)),
+            Text('Duration', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text('${hours}h', style: TextStyle(fontWeight: FontWeight.w800, color: kOrange)),
           ]),
           Slider(value: hours.toDouble(), min: 1, max: 168, divisions: 7, activeColor: kOrange,
             onChanged: (v) => setD(() => hours = v.toInt())),
-          const SizedBox(height: 8),
-          Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(
+          SizedBox(height: 8),
+          Container(padding: EdgeInsets.all(10), decoration: BoxDecoration(
             color: kOrange.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
             child: Row(children: [
-              const Icon(Icons.people_rounded, color: kOrange, size: 18),
-              const SizedBox(width: 8),
+              Icon(Icons.people_rounded, color: kOrange, size: 18),
+              SizedBox(width: 8),
               Text('Est. ${(budget * 50).toInt()} - ${(budget * 150).toInt()} people',
-                style: const TextStyle(fontSize: 13, color: Color(0xFF374151))),
+                style: TextStyle(fontSize: 13, color: context.colors.bodyText)),
             ])),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: kOrange),
             onPressed: () async {
@@ -1218,7 +1238,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
                   SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
               }
             },
-            child: const Text('Boost Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            child: Text('Boost Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -1231,28 +1251,28 @@ class _PostCardState extends ConsumerState<_PostCard> {
       builder: (_) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           if (widget.post.user.isMe) ListTile(
-            leading: const Icon(Icons.edit_rounded, color: kOrange),
-            title: const Text('Edit Post'),
+            leading: Icon(Icons.edit_rounded, color: kOrange),
+            title: Text('Edit Post'),
             onTap: () { Navigator.pop(context); _showEditDialog(); },
           ),
           if (widget.post.user.isMe) ListTile(
-            leading: const Icon(Icons.delete_rounded, color: Colors.red),
-            title: const Text('Delete Post', style: TextStyle(color: Colors.red)),
+            leading: Icon(Icons.delete_rounded, color: Colors.red),
+            title: Text('Delete Post', style: TextStyle(color: Colors.red)),
             onTap: () {
               Navigator.pop(context);
               widget.onDelete();
             },
           ),
           if (widget.post.user.isMe) ListTile(
-            leading: const Icon(Icons.rocket_launch_rounded, color: kOrange),
-            title: const Text('Boost Post'),
-            subtitle: const Text('Promote to more people', style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
+            leading: Icon(Icons.rocket_launch_rounded, color: kOrange),
+            title: Text('Boost Post'),
+            subtitle: Text('Promote to more people', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
             onTap: () { Navigator.pop(context); _showBoostDialog(); },
           ),
           if (!widget.post.user.isMe) ListTile(
-            leading: const Icon(Icons.visibility_off_rounded, color: Color(0xFF6B7280)),
-            title: const Text('Not interested'),
-            subtitle: const Text('See fewer posts like this', style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
+            leading: Icon(Icons.visibility_off_rounded, color: context.colors.mutedText),
+            title: Text('Not interested'),
+            subtitle: Text('See fewer posts like this', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
             onTap: () {
               Navigator.pop(context);
               ref.read(communityRepoProvider).trackInteraction(widget.post.id, 'skip');
@@ -1260,8 +1280,8 @@ class _PostCardState extends ConsumerState<_PostCard> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.flag_rounded),
-            title: const Text('Report Post'),
+            leading: Icon(Icons.flag_rounded),
+            title: Text('Report Post'),
             onTap: () => Navigator.pop(context),
           ),
         ]),
@@ -1283,18 +1303,18 @@ class _ExpandableTextState extends State<_ExpandableText> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: EdgeInsets.fromLTRB(12, 8, 12, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(widget.text,
-          style: const TextStyle(color: Color(0xFF1A1B2E), fontSize: 15, height: 1.4),
+          style: TextStyle(color: context.colors.bodyText, fontSize: 15, height: 1.4),
           maxLines: _expanded ? null : 3,
           overflow: _expanded ? null : TextOverflow.ellipsis),
         if (!_expanded && _isLongText())
           GestureDetector(
             onTap: () => setState(() => _expanded = true),
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.only(top: 4),
-              child: Text('See more', style: TextStyle(color: Color(0xFF6B7280), fontWeight: FontWeight.w700, fontSize: 14)),
+              child: Text('See more', style: TextStyle(color: context.colors.mutedText, fontWeight: FontWeight.w700, fontSize: 14)),
             ),
           ),
       ]),
@@ -1303,7 +1323,7 @@ class _ExpandableTextState extends State<_ExpandableText> {
 
   bool _isLongText() {
     final tp = TextPainter(
-      text: TextSpan(text: widget.text, style: const TextStyle(fontSize: 15, height: 1.4)),
+      text: TextSpan(text: widget.text, style: TextStyle(fontSize: 15, height: 1.4)),
       maxLines: 3,
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: MediaQuery.of(context).size.width - 24);
@@ -1320,11 +1340,11 @@ class _EngagementChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = count >= 1000 ? '${(count / 1000).toStringAsFixed(1)}K' : '$count';
     return Padding(
-      padding: const EdgeInsets.only(right: 10),
+      padding: EdgeInsets.only(right: 10),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text(emoji, style: const TextStyle(fontSize: 13)),
-        const SizedBox(width: 3),
-        Text(label, style: const TextStyle(color: Color(0xFF8A94A6), fontSize: 12, fontWeight: FontWeight.w600)),
+        Text(emoji, style: TextStyle(fontSize: 13)),
+        SizedBox(width: 3),
+        Text(label, style: TextStyle(color: Color(0xFF8A94A6), fontSize: 12, fontWeight: FontWeight.w600)),
       ]),
     );
   }
@@ -1346,14 +1366,14 @@ class _ActionBtn extends StatelessWidget {
         onTap: onTap,
         onLongPress: onLongPress,
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
-          padding: const EdgeInsets.symmetric(vertical: 7),
+          margin: EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+          padding: EdgeInsets.symmetric(vertical: 7),
           decoration: active
               ? BoxDecoration(color: kOrange.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(10))
               : null,
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(icon, color: color, size: 20),
-            const SizedBox(width: 5),
+            SizedBox(width: 5),
             Text(label, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
           ]),
         ),
@@ -1392,7 +1412,7 @@ class _ReactionPickerState extends State<_ReactionPicker> with SingleTickerProvi
       scale: _scaleAnim,
       alignment: Alignment.bottomLeft,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(30),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 16, offset: const Offset(0, 4))]),
         child: Row(mainAxisSize: MainAxisSize.min,
@@ -1441,8 +1461,8 @@ class _AnimatedReactionEmojiState extends State<_AnimatedReactionEmoji> with Sin
           onTapUp: (_) { setState(() => _scale = 1.0); widget.onTap(); },
           onTapCancel: () => setState(() => _scale = 1.0),
           child: AnimatedScale(scale: _scale, duration: const Duration(milliseconds: 150), curve: Curves.elasticOut,
-            child: Padding(padding: const EdgeInsets.symmetric(horizontal: 5),
-              child: Text(widget.emoji, style: const TextStyle(fontSize: 30)))),
+            child: Padding(padding: EdgeInsets.symmetric(horizontal: 5),
+              child: Text(widget.emoji, style: TextStyle(fontSize: 30)))),
         ),
       ),
     );
@@ -1468,22 +1488,22 @@ class _PeopleYouMayKnow extends ConsumerWidget {
     if (users.isEmpty) return const SizedBox.shrink();
     return Container(
       color: context.colors.cardBg,
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+        Padding(padding: EdgeInsets.fromLTRB(14, 14, 14, 10),
           child: Row(children: [
-            const Icon(Icons.people_alt_rounded, color: kOrange, size: 20),
-            const SizedBox(width: 8),
-            const Text('People you may know', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1A1B2E))),
+            Icon(Icons.people_alt_rounded, color: kOrange, size: 20),
+            SizedBox(width: 8),
+            Text('People you may know', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.bodyText)),
           ])),
         SizedBox(height: 220,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding: EdgeInsets.symmetric(horizontal: 10),
             itemCount: users.length,
             itemBuilder: (_, i) => _SuggestionCard(user: users[i]),
           )),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
       ]),
     );
   }
@@ -1508,7 +1528,7 @@ class _SuggestionCardState extends ConsumerState<_SuggestionCard> {
     if (_removed) return const SizedBox.shrink();
     final u = widget.user;
     return Container(
-      width: 160, margin: const EdgeInsets.only(right: 8),
+      width: 160, margin: EdgeInsets.only(right: 8),
       decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(14),
         border: Border.all(color: context.colors.borderColor)),
       clipBehavior: Clip.antiAlias,
@@ -1522,19 +1542,19 @@ class _SuggestionCardState extends ConsumerState<_SuggestionCard> {
                 ? NetImage(url: u.avatar!, fit: BoxFit.cover)
                 : Container(color: kOrange.withValues(alpha: 0.1),
                     child: Center(child: Text(u.name[0].toUpperCase(),
-                      style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: kOrange)))))),
+                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: kOrange)))))),
           Positioned(top: 4, right: 4,
             child: GestureDetector(onTap: () => setState(() => _removed = true),
               child: Container(width: 24, height: 24,
                 decoration: BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
-                child: const Icon(Icons.close, size: 14, color: Colors.white)))),
+                child: Icon(Icons.close, size: 14, color: Colors.white)))),
         ]),
-        Padding(padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-          child: Text(u.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E)),
+        Padding(padding: EdgeInsets.fromLTRB(8, 8, 8, 4),
+          child: Text(u.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.bodyText),
             maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center)),
-        Text('${u.followersCount} followers', style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
-        const Spacer(),
-        Padding(padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+        Text('${u.followersCount} followers', style: TextStyle(fontSize: 11, color: context.colors.mutedText)),
+        Spacer(),
+        Padding(padding: EdgeInsets.fromLTRB(10, 0, 10, 10),
           child: SizedBox(width: double.infinity,
             child: ElevatedButton(
               onPressed: () async {
@@ -1544,9 +1564,9 @@ class _SuggestionCardState extends ConsumerState<_SuggestionCard> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: _following ? context.colors.chipBg : kOrange,
                 foregroundColor: _following ? context.colors.mutedText : Colors.white,
-                elevation: 0, padding: const EdgeInsets.symmetric(vertical: 8),
+                elevation: 0, padding: EdgeInsets.symmetric(vertical: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-              child: Text(_following ? 'Following' : 'Follow', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+              child: Text(_following ? 'Following' : 'Follow', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
             ))),
       ]),
     );
@@ -1563,24 +1583,24 @@ class _ReelsCarousel extends ConsumerWidget {
     if (reels.isEmpty) return const SizedBox.shrink();
     return Container(
       color: context.colors.cardBg,
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+        Padding(padding: EdgeInsets.fromLTRB(14, 14, 14, 10),
           child: Row(children: [
-            const Icon(Icons.play_circle_filled_rounded, color: kOrange, size: 20),
-            const SizedBox(width: 8),
-            const Text('Reels', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1A1B2E))),
-            const Spacer(),
+            Icon(Icons.play_circle_filled_rounded, color: kOrange, size: 20),
+            SizedBox(width: 8),
+            Text('Reels', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.bodyText)),
+            Spacer(),
             GestureDetector(
               onTap: () {
                 ref.read(communityNavIndexProvider.notifier).state = 1;
               },
-              child: const Text('See all', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700, fontSize: 13))),
+              child: Text('See all', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700, fontSize: 13))),
           ])),
         SizedBox(height: 200,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding: EdgeInsets.symmetric(horizontal: 10),
             itemCount: reels.length,
             itemBuilder: (_, i) {
               final reel = reels[i];
@@ -1591,7 +1611,7 @@ class _ReelsCarousel extends ConsumerWidget {
                   ref.read(communityNavIndexProvider.notifier).state = 1;
                 },
                 child: Container(
-                  width: 120, margin: const EdgeInsets.only(right: 8),
+                  width: 120, margin: EdgeInsets.only(right: 8),
                   decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), color: const Color(0xFF1A1B2E)),
                   clipBehavior: Clip.antiAlias,
                   child: Stack(fit: StackFit.expand, children: [
@@ -1599,25 +1619,25 @@ class _ReelsCarousel extends ConsumerWidget {
                     Container(decoration: BoxDecoration(gradient: LinearGradient(
                       begin: Alignment.topCenter, end: Alignment.bottomCenter,
                       colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)]))),
-                    const Center(child: Icon(Icons.play_circle_outline_rounded, color: Colors.white70, size: 36)),
+                    Center(child: Icon(Icons.play_circle_outline_rounded, color: Colors.white70, size: 36)),
                     Positioned(bottom: 8, left: 8, right: 8,
                       child: Row(children: [
                         CircleNetImage(url: reel.user.avatar, size: 22, fallbackText: reel.user.name),
-                        const SizedBox(width: 6),
-                        Expanded(child: Text(reel.user.name, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                        SizedBox(width: 6),
+                        Expanded(child: Text(reel.user.name, style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
                           maxLines: 1, overflow: TextOverflow.ellipsis)),
                       ])),
                     if (reel.viewsCount > 0) Positioned(top: 6, right: 6,
-                      child: Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      child: Container(padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                         decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(4)),
                         child: Text(reel.viewsCount >= 1000 ? '${(reel.viewsCount / 1000).toStringAsFixed(1)}K' : '${reel.viewsCount}',
-                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)))),
+                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)))),
                   ]),
                 ),
               );
             },
           )),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
       ]),
     );
   }
@@ -1657,19 +1677,19 @@ class _MediaGrid extends StatelessWidget {
       GestureDetector(
         onTap: media[0].type == 'image' ? () => _openGallery(context, 0) : null,
         child: _MediaItem(m: media[0], height: 220, postId: postId)),
-      const SizedBox(height: 2),
+      SizedBox(height: 2),
       SizedBox(height: 120, child: Row(children: [
         Expanded(child: GestureDetector(
           onTap: media[1].type == 'image' ? () => _openGallery(context, 1) : null,
           child: _MediaItem(m: media[1], height: 120, postId: postId, isOwner: isOwner))),
-        const SizedBox(width: 2),
+        SizedBox(width: 2),
         Expanded(child: GestureDetector(
           onTap: () => _openGallery(context, 2),
           child: Stack(children: [
             _MediaItem(m: media[2], height: 120, postId: postId, isOwner: isOwner),
             if (extra > 0) Positioned.fill(child: Container(
               color: Colors.black45,
-              child: Center(child: Text('+$extra', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800))),
+              child: Center(child: Text('+$extra', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800))),
             )),
           ]))),
       ])),
@@ -1729,9 +1749,9 @@ class _TranscodingPlaceholderState extends ConsumerState<_TranscodingPlaceholder
           content: Row(children: [
             Icon(isReady ? Icons.check_circle_rounded : Icons.error_outline_rounded,
                 color: Colors.white, size: 20),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Text(isReady ? 'Muuqaalkaagu waa diyaar!' : 'Processing-ku wuu fashilmay',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
           ]),
           backgroundColor: isReady ? Colors.green.shade700 : Colors.red.shade700,
           duration: const Duration(seconds: 4),
@@ -1778,13 +1798,13 @@ class _TranscodingPlaceholderState extends ConsumerState<_TranscodingPlaceholder
             backgroundColor: Colors.white24,
           ),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         Text(
           _progress > 0 ? 'Processing... $_progress%' : 'Processing video...',
-          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+          style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
         ),
-        const SizedBox(height: 4),
-        const Text('Will be ready shortly', style: TextStyle(color: Colors.white60, fontSize: 11)),
+        SizedBox(height: 4),
+        Text('Will be ready shortly', style: TextStyle(color: Colors.white60, fontSize: 11)),
       ])),
     ]);
   }
@@ -1842,17 +1862,17 @@ class _SimpleVideoPlayerState extends State<_SimpleVideoPlayer> {
           ? Stack(fit: StackFit.expand, children: [
               Center(child: AspectRatio(aspectRatio: _ctrl!.value.aspectRatio, child: VideoPlayer(_ctrl!))),
               if (!_ctrl!.value.isPlaying)
-                const Center(child: Icon(Icons.play_circle_fill_rounded, color: Colors.white70, size: 64)),
+                Center(child: Icon(Icons.play_circle_fill_rounded, color: Colors.white70, size: 64)),
               Positioned(bottom: 30, left: 16, right: 16,
                 child: VideoProgressIndicator(_ctrl!, allowScrubbing: true,
                   colors: const VideoProgressColors(playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12))),
               Positioned(top: MediaQuery.of(context).padding.top + 8, left: 8,
                 child: GestureDetector(onTap: () => Navigator.pop(context),
-                  child: Container(padding: const EdgeInsets.all(8),
+                  child: Container(padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
-                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 22)))),
+                    child: Icon(Icons.close_rounded, color: Colors.white, size: 22)))),
             ])
-          : const Center(child: CircularProgressIndicator(color: kOrange)),
+          : Center(child: CircularProgressIndicator(color: kOrange)),
       ),
     );
   }
@@ -1868,7 +1888,7 @@ class _ImageGalleryScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white,
-        title: Text('${initialIndex + 1} / ${images.length}', style: const TextStyle(fontSize: 16))),
+        title: Text('${initialIndex + 1} / ${images.length}', style: TextStyle(fontSize: 16))),
       body: PageView.builder(
         controller: PageController(initialPage: initialIndex),
         itemCount: images.length,
@@ -2060,7 +2080,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (_isVideo && widget.m.transcodingFailed) {
       return Container(
         height: 220, color: const Color(0xFF1A1B2E),
-        child: const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.error_outline_rounded, color: Colors.white54, size: 36),
           SizedBox(height: 8),
           Text('Video processing failed', style: TextStyle(color: Colors.white54, fontSize: 13)),
@@ -2072,12 +2092,12 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       if (widget.height == 0) {
         return NetImage(url: widget.m.url, fit: BoxFit.fitWidth, width: double.infinity,
           placeholder: Container(color: context.colors.borderColor, height: 200),
-          errorWidget: Container(color: context.colors.borderColor, height: 200, child: const Icon(Icons.broken_image_rounded, color: Color(0xFF9CA3AF), size: 32)));
+          errorWidget: Container(color: context.colors.borderColor, height: 200, child: Icon(Icons.broken_image_rounded, color: context.colors.mutedText, size: 32)));
       }
       return SizedBox(height: widget.height, width: double.infinity,
         child: NetImage(url: widget.m.url, fit: BoxFit.cover,
           placeholder: Container(color: context.colors.borderColor),
-          errorWidget: Container(color: context.colors.borderColor, child: const Icon(Icons.broken_image_rounded, color: Color(0xFF9CA3AF), size: 32))));
+          errorWidget: Container(color: context.colors.borderColor, child: Icon(Icons.broken_image_rounded, color: context.colors.mutedText, size: 32))));
     }
 
     final screenW = MediaQuery.of(context).size.width;
@@ -2119,7 +2139,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                           fit: BoxFit.contain,
                           placeholder: Container(color: const Color(0xFF1A1B2E)),
                           errorWidget: Container(color: const Color(0xFF1A1B2E)))
-                      : const SizedBox(),
+                      : SizedBox(),
             ),
             // Tiny corner spinner only during actual re-buffering (not initial load)
             if (_ready && _ctrl != null && _ctrl!.value.isBuffering)
@@ -2128,24 +2148,24 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                   child: CircularProgressIndicator(color: kOrange, strokeWidth: 2))),
             // Paused icon when user manually paused
             if (_paused && _ready)
-              Positioned.fill(child: Center(child: Container(padding: const EdgeInsets.all(14),
+              Positioned.fill(child: Center(child: Container(padding: EdgeInsets.all(14),
                 decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
-                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 40)))),
+                child: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 40)))),
             if (_ready && _ctrl != null) Positioned(bottom: 0, left: 0, right: 0,
               child: Container(
-                padding: const EdgeInsets.fromLTRB(10, 20, 10, 8),
+                padding: EdgeInsets.fromLTRB(10, 20, 10, 8),
                 decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
                   colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)])),
                 child: Row(children: [
                   GestureDetector(onTap: _togglePause,
                     child: Icon(_paused ? Icons.play_arrow_rounded : Icons.pause_rounded, color: Colors.white, size: 22)),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(2),
                     child: VideoProgressIndicator(_ctrl!, allowScrubbing: true, colors: const VideoProgressColors(
                       playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12)))),
-                  const SizedBox(width: 8),
-                  Text(_formatDuration(_ctrl!.value.duration), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 6),
+                  SizedBox(width: 8),
+                  Text(_formatDuration(_ctrl!.value.duration), style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                  SizedBox(width: 6),
                   GestureDetector(onTap: () { setState(() { _ctrl!.setVolume(_ctrl!.value.volume > 0 ? 0 : 1); }); },
                     child: Icon(_ctrl!.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 18)),
                 ]))),
@@ -2217,8 +2237,8 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> {
   Widget build(BuildContext context) {
     final progress = _duration.inMilliseconds > 0 ? _position.inMilliseconds / _duration.inMilliseconds : 0.0;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      padding: const EdgeInsets.all(14),
+      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: [kOrange.withValues(alpha: 0.08), kOrange.withValues(alpha: 0.02)]),
         borderRadius: BorderRadius.circular(16),
@@ -2230,7 +2250,7 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> {
             decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle,
               boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.3), blurRadius: 10)]),
             child: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 28))),
-        const SizedBox(width: 14),
+        SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // Waveform-style bars
           SizedBox(height: 28, child: Row(
@@ -2240,17 +2260,17 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> {
               final isActive = barProgress <= progress;
               final height = (8 + (i % 5) * 4.0 + (i % 3) * 3.0).clamp(6.0, 24.0);
               return Expanded(child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 0.5),
+                margin: EdgeInsets.symmetric(horizontal: 0.5),
                 height: height,
                 decoration: BoxDecoration(
                   color: isActive ? kOrange : kOrange.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(2))));
             }))),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Row(children: [
             Text(_fmt(_position), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kOrange)),
-            const Spacer(),
-            Text(_fmt(_duration), style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+            Spacer(),
+            Text(_fmt(_duration), style: TextStyle(fontSize: 11, color: context.colors.mutedText)),
           ]),
         ])),
       ]),
@@ -2299,38 +2319,38 @@ class _DocumentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(16),
         border: Border.all(color: context.colors.borderColor)),
       child: Row(children: [
         Container(width: 52, height: 52,
           decoration: BoxDecoration(color: _color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
           child: Icon(_icon, color: _color, size: 28)),
-        const SizedBox(width: 14),
+        SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(_fileName, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1A1B2E)), maxLines: 1, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 4),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          Text(_fileName, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.bodyText), maxLines: 1, overflow: TextOverflow.ellipsis),
+          SizedBox(height: 4),
+          Container(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(color: _color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
             child: Text(_ext, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _color))),
         ])),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Column(children: [
           GestureDetector(
             onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
             child: Container(width: 36, height: 36,
               decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.download_rounded, color: kOrange, size: 20))),
-          const SizedBox(height: 6),
+              child: Icon(Icons.download_rounded, color: kOrange, size: 20))),
+          SizedBox(height: 6),
           GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => Scaffold(
-                appBar: AppBar(title: Text(_fileName, style: const TextStyle(fontSize: 14))),
+                appBar: AppBar(title: Text(_fileName, style: TextStyle(fontSize: 14))),
                 body: WebViewWidget(controller: WebViewController()..loadRequest(Uri.parse(url)))))),
             child: Container(width: 36, height: 36,
               decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.visibility_rounded, color: Color(0xFF6B7280), size: 20))),
+              child: Icon(Icons.visibility_rounded, color: context.colors.mutedText, size: 20))),
         ]),
       ]),
     );

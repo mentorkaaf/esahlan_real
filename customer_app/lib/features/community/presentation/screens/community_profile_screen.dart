@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:dio/dio.dart';
@@ -141,13 +141,13 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
             
             leading: Navigator.canPop(context)
                 ? IconButton(
-                    icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                    icon: Icon(Icons.arrow_back_rounded, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
                   )
                 : null,
             actions: [
               IconButton(
-                icon: const Icon(Icons.more_horiz_rounded, color: Colors.white),
+                icon: Icon(Icons.more_horiz_rounded, color: Colors.white),
                 onPressed: () {},
               ),
             ],
@@ -159,7 +159,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   () {
                     final coverUrl = _localCover ?? u.coverPhoto;
                     if (coverUrl != null) return NetImage(url: coverUrl, fit: BoxFit.cover);
-                    return Container(decoration: const BoxDecoration(gradient: LinearGradient(colors: [kOrange, Color(0xFFFF8C42)], begin: Alignment.topLeft, end: Alignment.bottomRight)));
+                    return Container(decoration: BoxDecoration(gradient: LinearGradient(colors: [kOrange, Color(0xFFFF8C42)], begin: Alignment.topLeft, end: Alignment.bottomRight)));
                   }(),
                   // Gradient overlay
                   Container(
@@ -172,7 +172,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                     ),
                   ),
                   if (widget.isMe)
-                    const Positioned(bottom: 12, right: 12,
+                    Positioned(bottom: 12, right: 12,
                       child: CircleAvatar(radius: 14, backgroundColor: Colors.black54, child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16))),
                 ]),
               ),
@@ -185,7 +185,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 // Avatar row — avatar sits fully below cover
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                  padding: EdgeInsets.fromLTRB(16, 14, 16, 0),
                   child: Row(children: [
                     GestureDetector(
                       onTap: widget.isMe ? _pickAvatar : null,
@@ -205,13 +205,13 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                         if (widget.isMe)
                           Positioned(bottom: 0, right: 0,
                             child: Container(
-                              padding: const EdgeInsets.all(5),
+                              padding: EdgeInsets.all(5),
                               decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle,
                                 border: Border.all(color: context.colors.cardBg, width: 2)),
-                              child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 12))),
+                              child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: 12))),
                       ]),
                     ),
-                    const Spacer(),
+                    Spacer(),
                     if (widget.isMe)
                       _OutlineBtn(label: 'Edit Profile', icon: Icons.edit_rounded, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfileScreen(user: u))))
                     else ...[
@@ -221,7 +221,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                         onTap: _toggleFollow,
                         filled: !_following,
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       _OutlineBtn(label: 'Message', icon: Icons.chat_bubble_rounded, onTap: () async {
                         try {
                           final chat = await ref.read(communityChatsProvider.notifier).startOrGetChat(widget.user.id);
@@ -239,28 +239,28 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
 
                 // Name + verified + username
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 6),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
                       Text(u.name,
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF1A1B2E))),
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: context.colors.bodyText)),
                       if (u.isVerified) ...[
-                        const SizedBox(width: 6),
-                        const Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 18),
+                        SizedBox(width: 6),
+                        Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 18),
                       ],
                     ]),
                     if (u.username != null)
-                      Text('@${u.username}', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
+                      Text('@${u.username}', style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
                     if (u.bio != null && u.bio!.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(u.bio!, style: const TextStyle(color: Color(0xFF374151), fontSize: 14, height: 1.4)),
+                      SizedBox(height: 6),
+                      Text(u.bio!, style: TextStyle(color: context.colors.bodyText, fontSize: 14, height: 1.4)),
                     ],
                     if (u.location != null) ...[
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Row(children: [
-                        const Icon(Icons.location_on_rounded, size: 14, color: Color(0xFF9CA3AF)),
-                        const SizedBox(width: 3),
-                        Text(u.location!, style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
+                        Icon(Icons.location_on_rounded, size: 14, color: context.colors.mutedText),
+                        SizedBox(width: 3),
+                        Text(u.location!, style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
                       ]),
                     ],
                   ]),
@@ -268,12 +268,12 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
 
                 // Stats
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
                   child: Row(children: [
                     _Stat(value: '${u.postsCount}', label: 'Posts'),
-                    const SizedBox(width: 24),
+                    SizedBox(width: 24),
                     _Stat(value: _fmt(u.followersCount), label: 'Followers'),
-                    const SizedBox(width: 24),
+                    SizedBox(width: 24),
                     _Stat(value: _fmt(u.followingCount), label: 'Following'),
                   ]),
                 ),
@@ -281,7 +281,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                 // Quick action icons (only for me)
                 if (widget.isMe)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
@@ -340,8 +340,8 @@ class _Stat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1A1B2E))),
-      Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF))),
+      Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.bodyText)),
+      Text(label, style: TextStyle(fontSize: 13, color: context.colors.mutedText)),
     ]);
   }
 }
@@ -358,7 +358,7 @@ class _OutlineBtn extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: filled ? kOrange : Colors.transparent,
           border: filled ? null : Border.all(color: context.colors.borderColor, width: 1.5),
@@ -366,7 +366,7 @@ class _OutlineBtn extends StatelessWidget {
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 16, color: filled ? Colors.white : context.colors.bodyText),
-          const SizedBox(width: 5),
+          SizedBox(width: 5),
           Text(label,
               style: TextStyle(
                 color: filled ? Colors.white : context.colors.bodyText,
@@ -398,7 +398,7 @@ class _QuickAction extends StatelessWidget {
           ),
           child: Icon(icon, color: kOrange, size: 24),
         ),
-        const SizedBox(height: 5),
+        SizedBox(height: 5),
         Text(label, style: TextStyle(fontSize: 12, color: context.colors.bodyText, fontWeight: FontWeight.w500)),
       ]),
     );
@@ -416,8 +416,8 @@ class _PostsGrid extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final postsAsync = ref.watch(communityProfilePostsProvider(userId));
     return postsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
-      error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: Colors.red))),
+      loading: () => Center(child: CircularProgressIndicator(color: kOrange)),
+      error: (e, _) => Center(child: Text('$e', style: TextStyle(color: Colors.red))),
       data: (posts) {
         List<CommunityPost> filtered;
         if (videoOnly) {
@@ -430,16 +430,16 @@ class _PostsGrid extends ConsumerWidget {
           filtered = posts;
         }
         if (filtered.isEmpty) {
-          return const Center(
+          return Center(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.photo_library_outlined, size: 48, color: Color(0xFFD1D5DB)),
               SizedBox(height: 10),
-              Text('No posts yet', style: TextStyle(color: Color(0xFF9CA3AF))),
+              Text('No posts yet', style: TextStyle(color: context.colors.mutedText)),
             ]),
           );
         }
         return GridView.builder(
-          padding: const EdgeInsets.all(2),
+          padding: EdgeInsets.all(2),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2,
           ),
@@ -461,16 +461,16 @@ class _PostsGrid extends ConsumerWidget {
                     Positioned.fill(child: NetImage(url: imgUrl, fit: BoxFit.cover))
                   else
                     Center(child: Padding(
-                      padding: const EdgeInsets.all(6),
+                      padding: EdgeInsets.all(6),
                       child: Text(
                         p.content?.substring(0, p.content!.length.clamp(0, 50)) ?? '',
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                        style: TextStyle(fontSize: 11, color: context.colors.mutedText),
                         maxLines: 4, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis))),
                   if (isVideo)
-                    const Positioned(top: 4, right: 4,
+                    Positioned(top: 4, right: 4,
                       child: Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 22)),
                   if (p.media.length > 1)
-                    const Positioned(top: 4, right: 4,
+                    Positioned(top: 4, right: 4,
                       child: Icon(Icons.collections_rounded, color: Colors.white, size: 18)),
                 ]),
               ),
@@ -489,22 +489,22 @@ class _PostDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Post'), backgroundColor: context.colors.cardBg, foregroundColor: context.colors.navyText),
+      appBar: AppBar(title: Text('Post'), backgroundColor: context.colors.cardBg, foregroundColor: context.colors.navyText),
       body: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // User header
-          Padding(padding: const EdgeInsets.all(12), child: Row(children: [
+          Padding(padding: EdgeInsets.all(12), child: Row(children: [
             CircleNetImage(url: post.user.avatar, size: 40, fallbackText: post.user.name),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(post.user.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-              Text(post.createdAt.toString().substring(0, 16), style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
+              Text(post.user.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              Text(post.createdAt.toString().substring(0, 16), style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
             ])),
           ])),
           // Content
           if (post.content != null && post.content!.isNotEmpty)
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: Text(post.content!, style: const TextStyle(fontSize: 15, height: 1.4))),
+            Padding(padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Text(post.content!, style: TextStyle(fontSize: 15, height: 1.4))),
           // Media
           for (final m in post.media)
             if (m.type == 'image')
@@ -512,23 +512,23 @@ class _PostDetailScreen extends StatelessWidget {
             else if (m.type == 'video')
               Container(height: 300, color: Colors.black,
                 child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.play_circle_outline_rounded, color: Colors.white, size: 64),
-                  const SizedBox(height: 8),
-                  Text(m.url.split('/').last, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                  Icon(Icons.play_circle_outline_rounded, color: Colors.white, size: 64),
+                  SizedBox(height: 8),
+                  Text(m.url.split('/').last, style: TextStyle(color: Colors.white54, fontSize: 12)),
                 ]))),
           // Stats
-          Padding(padding: const EdgeInsets.all(12), child: Row(children: [
-            const Icon(Icons.thumb_up_alt_rounded, size: 16, color: Color(0xFF9CA3AF)),
-            const SizedBox(width: 4),
-            Text('${post.likesCount}', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
-            const SizedBox(width: 16),
-            const Icon(Icons.chat_bubble_outline_rounded, size: 16, color: Color(0xFF9CA3AF)),
-            const SizedBox(width: 4),
-            Text('${post.commentsCount}', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
-            const SizedBox(width: 16),
-            const Icon(Icons.remove_red_eye_rounded, size: 16, color: Color(0xFF9CA3AF)),
-            const SizedBox(width: 4),
-            Text('${post.viewsCount}', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
+          Padding(padding: EdgeInsets.all(12), child: Row(children: [
+            Icon(Icons.thumb_up_alt_rounded, size: 16, color: context.colors.mutedText),
+            SizedBox(width: 4),
+            Text('${post.likesCount}', style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
+            SizedBox(width: 16),
+            Icon(Icons.chat_bubble_outline_rounded, size: 16, color: context.colors.mutedText),
+            SizedBox(width: 4),
+            Text('${post.commentsCount}', style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
+            SizedBox(width: 16),
+            Icon(Icons.remove_red_eye_rounded, size: 16, color: context.colors.mutedText),
+            SizedBox(width: 4),
+            Text('${post.viewsCount}', style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
           ])),
         ]),
       ),

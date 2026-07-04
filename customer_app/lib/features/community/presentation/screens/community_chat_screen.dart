@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
@@ -165,19 +165,19 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
         
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1A1B2E)),
+          icon: Icon(Icons.arrow_back_rounded, color: context.colors.bodyText),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(children: [
           CircleNetImage(url: other?.avatar, size: 36, fallbackText: other?.name),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Text(other?.name ?? 'Chat',
-                  style: const TextStyle(color: Color(0xFF1A1B2E), fontWeight: FontWeight.w700, fontSize: 15)),
+                  style: TextStyle(color: context.colors.bodyText, fontWeight: FontWeight.w700, fontSize: 15)),
               if (other?.isVerified == true) ...[
-                const SizedBox(width: 4),
-                const Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 14),
+                SizedBox(width: 4),
+                Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 14),
               ],
             ]),
             Text(_otherTyping ? 'typing…' : 'Online',
@@ -185,32 +185,32 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
           ]),
         ]),
         actions: [
-          IconButton(icon: const Icon(Icons.call_rounded, color: Color(0xFF1A1B2E)), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.videocam_rounded, color: Color(0xFF1A1B2E)), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF1A1B2E)), onPressed: () {}),
+          IconButton(icon: Icon(Icons.call_rounded, color: context.colors.bodyText), onPressed: () {}),
+          IconButton(icon: Icon(Icons.videocam_rounded, color: context.colors.bodyText), onPressed: () {}),
+          IconButton(icon: Icon(Icons.more_vert_rounded, color: context.colors.bodyText), onPressed: () {}),
         ],
       ),
       body: Column(children: [
         Expanded(
           child: msgsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
-            error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: Colors.red))),
+            loading: () => Center(child: CircularProgressIndicator(color: kOrange)),
+            error: (e, _) => Center(child: Text('$e', style: TextStyle(color: Colors.red))),
             data: (msgs) {
               if (msgs.isEmpty) {
                 return Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     CircleNetImage(url: other?.avatar, size: 72, fallbackText: other?.name),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     Text(other?.name ?? '',
-                        style: const TextStyle(color: Color(0xFF1A1B2E), fontWeight: FontWeight.w700, fontSize: 16)),
-                    const SizedBox(height: 4),
-                    const Text('Say hi!', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
+                        style: TextStyle(color: context.colors.bodyText, fontWeight: FontWeight.w700, fontSize: 16)),
+                    SizedBox(height: 4),
+                    Text('Say hi!', style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
                   ]),
                 );
               }
               return ListView.builder(
                 controller: _scrollCtrl,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 itemCount: msgs.length,
                 itemBuilder: (ctx, i) => _MessageBubble(msg: msgs[i]),
               );
@@ -227,10 +227,10 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
             bottom: MediaQuery.of(context).padding.bottom + 8,
           ),
           child: Row(children: [
-            IconButton(icon: const Icon(Icons.add_circle_rounded, color: kOrange, size: 28), onPressed: () {}),
+            IconButton(icon: Icon(Icons.add_circle_rounded, color: kOrange, size: 28), onPressed: () {}),
             Expanded(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF0F2F5),
                   borderRadius: BorderRadius.circular(24),
@@ -239,30 +239,30 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
                   controller: _msgCtrl,
                   maxLines: null,
                   textCapitalization: TextCapitalization.sentences,
-                  style: const TextStyle(fontSize: 15, color: Color(0xFF1A1B2E)),
-                  decoration: const InputDecoration.collapsed(
+                  style: TextStyle(fontSize: 15, color: context.colors.bodyText),
+                  decoration: InputDecoration.collapsed(
                     hintText: 'Type a message...',
-                    hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
+                    hintStyle: TextStyle(color: context.colors.mutedText),
                   ),
                   onChanged: _onTextChanged,
                   onSubmitted: (_) => _send(),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             IconButton(
-              icon: const Icon(Icons.mic_rounded, color: Color(0xFF9CA3AF), size: 24),
+              icon: Icon(Icons.mic_rounded, color: context.colors.mutedText, size: 24),
               onPressed: () {},
             ),
             GestureDetector(
               onTap: _send,
               child: Container(
                 width: 40, height: 40,
-                decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
+                decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle),
                 child: _sending
-                    ? const Center(child: SizedBox(width: 18, height: 18,
+                    ? Center(child: SizedBox(width: 18, height: 18,
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)))
-                    : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                    : Icon(Icons.send_rounded, color: Colors.white, size: 20),
               ),
             ),
           ]),
@@ -280,21 +280,21 @@ class _MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final isMe = msg.isMe;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: EdgeInsets.only(bottom: 6),
       child: Row(
         mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
             CircleNetImage(url: msg.user?.avatar, size: 28, fallbackText: msg.user?.name),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
           ],
           Flexible(
             child: Column(
               crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
                     color: isMe ? kOrange : Colors.white,
                     borderRadius: BorderRadius.only(
@@ -315,16 +315,16 @@ class _MessageBubble extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 3),
+                SizedBox(height: 3),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       timeago.format(msg.createdAt, locale: 'en_short'),
-                      style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 11),
+                      style: TextStyle(color: context.colors.mutedText, fontSize: 11),
                     ),
                     if (isMe) ...[
-                      const SizedBox(width: 4),
+                      SizedBox(width: 4),
                       Icon(
                         msg.isRead ? Icons.done_all_rounded : Icons.done_rounded,
                         size: 14,

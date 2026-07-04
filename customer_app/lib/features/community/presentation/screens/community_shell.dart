@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -263,14 +263,14 @@ class _NavItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, color: active ? kOrange : kNavInactive, size: 24),
-            const SizedBox(height: 2),
+            SizedBox(height: 2),
             Text(label,
                 style: TextStyle(
                   color: active ? kOrange : kNavInactive,
                   fontSize: 10,
                   fontWeight: active ? FontWeight.w700 : FontWeight.w400,
                 )),
-            const SizedBox(height: 2),
+            SizedBox(height: 2),
             Container(
               width: 4, height: 4,
               decoration: BoxDecoration(
@@ -298,8 +298,8 @@ class _CenterAddBtn extends StatelessWidget {
           child: Container(
             width: 46,
             height: 46,
-            decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
-            child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+            decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle),
+            child: Icon(Icons.add_rounded, color: Colors.white, size: 28),
           ),
         ),
       ),

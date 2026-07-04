@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -194,14 +194,14 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
 
           // AD badge + timer
           Positioned(top: MediaQuery.of(context).padding.top + 8, left: 14,
-            child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Container(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                Container(padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(3)),
-                  child: const Text('AD', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900))),
-                const SizedBox(width: 6),
-                Text(_ad?['page']?['name'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                  child: Text('AD', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900))),
+                SizedBox(width: 6),
+                Text(_ad?['page']?['name'] ?? '', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
               ]))),
 
           // "Ad ends in Xs"
@@ -211,7 +211,7 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
 
           // Bottom bar
           Positioned(bottom: 0, left: 0, right: 0, child: Container(
-            padding: const EdgeInsets.fromLTRB(14, 16, 14, 24),
+            padding: EdgeInsets.fromLTRB(14, 16, 14, 24),
             decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter,
               colors: [Colors.black.withValues(alpha: 0.7), Colors.transparent])),
             child: Row(children: [
@@ -222,20 +222,20 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
                   final url = _ad?['cta_url']?.toString() ?? '';
                   if (url.isNotEmpty) launchUrl(Uri.parse(url.startsWith('http') ? url : 'https://$url'), mode: LaunchMode.externalApplication);
                 },
-                child: Container(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Container(padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(8),
                     boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.4), blurRadius: 12)]),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Text(_ad!['cta_text'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
-                    const SizedBox(width: 6),
-                    const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 16),
+                    Text(_ad!['cta_text'], style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+                    SizedBox(width: 6),
+                    Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 16),
                   ]))),
-              const Spacer(),
+              Spacer(),
               // Skip
               GestureDetector(
                 onTap: _canSkip ? _dismiss : null,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: _canSkip ? Colors.white : Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4)),
@@ -243,10 +243,10 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
                     if (!_canSkip) SizedBox(width: 18, height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2, value: (_skipSeconds - _countdown) / _skipSeconds,
                         color: Colors.white, backgroundColor: Colors.white24)),
-                    if (!_canSkip) const SizedBox(width: 8),
+                    if (!_canSkip) SizedBox(width: 8),
                     Text(_canSkip ? 'Skip Ad' : '$_countdown',
                       style: TextStyle(color: _canSkip ? Colors.black : Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
-                    if (_canSkip) const Icon(Icons.skip_next_rounded, size: 18, color: Colors.black),
+                    if (_canSkip) Icon(Icons.skip_next_rounded, size: 18, color: Colors.black),
                   ]))),
             ]))),
         ]),

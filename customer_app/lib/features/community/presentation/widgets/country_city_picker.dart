@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../../core/api/api_client.dart';
 import '../screens/community_shell.dart';
 
@@ -57,43 +57,43 @@ class _CountryCityPickerState extends State<CountryCityPicker> {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Country', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF374151))),
-      const SizedBox(height: 8),
+      Text('Country', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.bodyText)),
+      SizedBox(height: 8),
       GestureDetector(
         onTap: () => _showCountryPicker(),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _selectedCountryName != null ? kOrange : const Color(0xFFE5E7EB))),
           child: Row(children: [
             if (_selectedCountryCode != null) ...[
-              Text(_countries.firstWhere((c) => c['code'] == _selectedCountryCode, orElse: () => {'flag': ''})['flag'] ?? '', style: const TextStyle(fontSize: 20)),
-              const SizedBox(width: 10),
+              Text(_countries.firstWhere((c) => c['code'] == _selectedCountryCode, orElse: () => {'flag': ''})['flag'] ?? '', style: TextStyle(fontSize: 20)),
+              SizedBox(width: 10),
             ],
             Expanded(child: Text(_selectedCountryName ?? 'Select country',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _selectedCountryName != null ? const Color(0xFF1A1B2E) : const Color(0xFF9CA3AF)))),
-            const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF9CA3AF)),
+            Icon(Icons.keyboard_arrow_down_rounded, color: context.colors.mutedText),
           ]),
         ),
       ),
-      const SizedBox(height: 16),
+      SizedBox(height: 16),
 
-      const Text('City', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF374151))),
-      const SizedBox(height: 8),
+      Text('City', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.bodyText)),
+      SizedBox(height: 8),
       GestureDetector(
         onTap: _selectedCountryCode != null ? () => _showCityPicker() : null,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _selectedCity != null ? kOrange : const Color(0xFFE5E7EB))),
           child: Row(children: [
-            const Icon(Icons.location_city_rounded, size: 20, color: Color(0xFF9CA3AF)),
-            const SizedBox(width: 10),
+            Icon(Icons.location_city_rounded, size: 20, color: context.colors.mutedText),
+            SizedBox(width: 10),
             Expanded(child: Text(
               _loadingCities ? 'Loading cities...' : (_selectedCity ?? (_selectedCountryCode != null ? 'Select city' : 'Select country first')),
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600,
                 color: _selectedCity != null ? const Color(0xFF1A1B2E) : const Color(0xFF9CA3AF)))),
-            const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF9CA3AF)),
+            Icon(Icons.keyboard_arrow_down_rounded, color: context.colors.mutedText),
           ]),
         ),
       ),
@@ -145,22 +145,22 @@ class _SearchSheetState extends State<_SearchSheet> {
     final filtered = _search.isEmpty ? widget.items : widget.items.where((i) => (i['label'] ?? '').toLowerCase().contains(_search.toLowerCase())).toList();
     return Container(
       height: MediaQuery.of(context).size.height * 0.7,
-      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       child: Column(children: [
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(2))),
-        Padding(padding: const EdgeInsets.all(16), child: Text(widget.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18))),
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: TextField(
+        Padding(padding: EdgeInsets.all(16), child: Text(widget.title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18))),
+        Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: TextField(
           autofocus: true, onChanged: (v) => setState(() => _search = v),
-          decoration: InputDecoration(hintText: 'Search...', prefixIcon: const Icon(Icons.search, size: 20),
-            filled: true, fillColor: const Color(0xFFF9FAFB), contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: InputDecoration(hintText: 'Search...', prefixIcon: Icon(Icons.search, size: 20),
+            filled: true, fillColor: const Color(0xFFF9FAFB), contentPadding: EdgeInsets.symmetric(vertical: 10),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
         )),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Expanded(child: ListView.builder(
           itemCount: filtered.length,
           itemBuilder: (_, i) => ListTile(
-            title: Text(filtered[i]['label'] ?? '', style: const TextStyle(fontSize: 15)),
+            title: Text(filtered[i]['label'] ?? '', style: TextStyle(fontSize: 15)),
             onTap: () => widget.onSelected(filtered[i]),
           ),
         )),

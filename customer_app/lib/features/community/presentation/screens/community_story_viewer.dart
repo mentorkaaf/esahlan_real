@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import '../../../../core/theme/theme_x.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/widgets/network_image_widget.dart';
@@ -108,7 +108,7 @@ class _StoryViewerState extends State<StoryViewer> {
             child: Row(
               children: List.generate(totalStories, (i) => Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  padding: EdgeInsets.symmetric(horizontal: 2),
                   child: _ProgressBar(
                     active: i == _storyIndex,
                     done: i < _storyIndex,
@@ -130,19 +130,19 @@ class _StoryViewerState extends State<StoryViewer> {
                 
                 backgroundImage: group.user.avatar != null ? CachedNetworkImageProvider(group.user.avatar!) : null,
                 child: group.user.avatar == null
-                    ? Text(group.user.name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold))
+                    ? Text(group.user.name[0].toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold))
                     : null,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(group.user.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
-                  Text(_timeLabel(story.createdAt), style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text(group.user.name, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+                  Text(_timeLabel(story.createdAt), style: TextStyle(color: Colors.white70, fontSize: 12)),
                 ]),
               ),
               GestureDetector(
                 onTap: () => Navigator.pop(context),
-                child: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                child: Icon(Icons.close_rounded, color: Colors.white, size: 28),
               ),
             ]),
           ),
@@ -153,7 +153,7 @@ class _StoryViewerState extends State<StoryViewer> {
               left: 24, right: 24,
               child: Text(story.textContent!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700, height: 1.4)),
+                  style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700, height: 1.4)),
             ),
           // Location
           if (story.location != null)
@@ -161,9 +161,9 @@ class _StoryViewerState extends State<StoryViewer> {
               bottom: 60,
               left: 24,
               child: Row(children: [
-                const Icon(Icons.location_on_rounded, color: Colors.white70, size: 14),
-                const SizedBox(width: 4),
-                Text(story.location!, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                Icon(Icons.location_on_rounded, color: Colors.white70, size: 14),
+                SizedBox(width: 4),
+                Text(story.location!, style: TextStyle(color: Colors.white70, fontSize: 12)),
               ]),
             ),
           // Bottom bar — viewers for own stories, reactions for others
@@ -171,20 +171,20 @@ class _StoryViewerState extends State<StoryViewer> {
             bottom: 0, left: 0, right: 0,
             child: Container(
               padding: EdgeInsets.only(left: 12, right: 12, top: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 8),
-              decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Colors.black87, Colors.transparent])),
+              decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Colors.black87, Colors.transparent])),
               child: group.user.isMe
                   // Own story — show viewers
                   ? GestureDetector(
                       onTap: () => _showViewersSheet(context, story),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         child: Row(children: [
-                          const Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
-                          const SizedBox(width: 8),
+                          Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
+                          SizedBox(width: 8),
                           Text('${story.viewsCount} ${story.viewsCount == 1 ? 'viewer' : 'viewers'}',
-                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-                          const Spacer(),
-                          const Icon(Icons.keyboard_arrow_up_rounded, color: Colors.white70, size: 24),
+                            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                          Spacer(),
+                          Icon(Icons.keyboard_arrow_up_rounded, color: Colors.white70, size: 24),
                         ]),
                       ),
                     )
@@ -192,12 +192,12 @@ class _StoryViewerState extends State<StoryViewer> {
                   : _showCommentInput
                     ? Row(children: [
                         Expanded(child: TextField(controller: _commentCtrl, autofocus: true,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(hintText: 'Send message...', hintStyle: const TextStyle(color: Colors.white54),
-                            filled: true, fillColor: Colors.white24, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          style: TextStyle(color: Colors.white),
+                          decoration: InputDecoration(hintText: 'Send message...', hintStyle: TextStyle(color: Colors.white54),
+                            filled: true, fillColor: Colors.white24, contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none)),
                           onSubmitted: (_) => _sendComment())),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         GestureDetector(onTap: _sendComment,
                           child: const CircleAvatar(radius: 18, backgroundColor: kOrange, child: Icon(Icons.send_rounded, color: Colors.white, size: 16))),
                       ])
@@ -205,17 +205,17 @@ class _StoryViewerState extends State<StoryViewer> {
                         Expanded(child: GestureDetector(
                           onTap: () => setState(() => _showCommentInput = true),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(24)),
-                            child: const Text('Send message...', style: TextStyle(color: Colors.white54, fontSize: 14)),
+                            child: Text('Send message...', style: TextStyle(color: Colors.white54, fontSize: 14)),
                           ),
                         )),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         for (final emoji in ['❤️', '👍', '😂'])
                           GestureDetector(
                             onTap: () => _sendReaction(emoji),
-                            child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: Text(emoji, style: const TextStyle(fontSize: 26))),
+                            child: Padding(padding: EdgeInsets.symmetric(horizontal: 4),
+                              child: Text(emoji, style: TextStyle(fontSize: 26))),
                           ),
                       ]),
             ),
@@ -229,29 +229,29 @@ class _StoryViewerState extends State<StoryViewer> {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1A1B2E),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => FutureBuilder<List<Map<String, dynamic>>>(
         future: _repo.getStoryViewers(story.id),
         builder: (ctx, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
-            return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: kOrange)));
+            return SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: kOrange)));
           }
           final viewers = snap.data ?? [];
           return Container(
             color: const Color(0xFF1A1B2E),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
-              Padding(padding: const EdgeInsets.all(16),
+              Padding(padding: EdgeInsets.all(16),
                 child: Row(children: [
-                  const Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
-                  const SizedBox(width: 8),
+                  Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
                   Text('${viewers.length} ${viewers.length == 1 ? 'viewer' : 'viewers'}',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
                 ])),
-              const Divider(color: Colors.white12, height: 1),
+              Divider(color: Colors.white12, height: 1),
               if (viewers.isEmpty)
-                const Padding(padding: EdgeInsets.all(32), child: Text('No viewers yet', style: TextStyle(color: Colors.white54)))
+                Padding(padding: EdgeInsets.all(32), child: Text('No viewers yet', style: TextStyle(color: Colors.white54)))
               else
                 SizedBox(
                   height: (viewers.length * 64.0).clamp(64, 300),
@@ -265,9 +265,9 @@ class _StoryViewerState extends State<StoryViewer> {
                         color: const Color(0xFF1A1B2E),
                         child: ListTile(
                           leading: CircleNetImage(url: avatar, size: 44, fallbackText: name),
-                          title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
+                          title: Text(name, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
                           subtitle: v['username'] != null
-                            ? Text('@${v['username']}', style: const TextStyle(color: Colors.white54, fontSize: 12))
+                            ? Text('@${v['username']}', style: TextStyle(color: Colors.white54, fontSize: 12))
                             : null,
                         ),
                       );
@@ -351,11 +351,11 @@ class _StoryContentState extends State<_StoryContent> {
         color: story.bgColor != null ? Color(int.parse('0xFF${story.bgColor!.replaceFirst('#', '')}')) : kOrange,
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+            padding: EdgeInsets.symmetric(horizontal: 32),
             child: Text(
               story.textContent ?? '',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700, height: 1.4),
+              style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700, height: 1.4),
             ),
           ),
         ),
@@ -368,13 +368,13 @@ class _StoryContentState extends State<_StoryContent> {
           child: VideoPlayer(_videoCtrl!)));
       }
       if (_videoError) {
-        return const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.error_outline_rounded, color: Colors.white54, size: 48),
           SizedBox(height: 8),
           Text('Video failed to load', style: TextStyle(color: Colors.white54)),
         ]));
       }
-      return const Center(child: SizedBox(width: 28, height: 28,
+      return Center(child: SizedBox(width: 28, height: 28,
         child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)));
     }
 
@@ -382,8 +382,8 @@ class _StoryContentState extends State<_StoryContent> {
       return NetImage(
         url: story.mediaUrl!,
         fit: BoxFit.cover,
-        placeholder: const Center(child: CircularProgressIndicator(color: Colors.white)),
-        errorWidget: const Center(child: Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64)),
+        placeholder: Center(child: CircularProgressIndicator(color: Colors.white)),
+        errorWidget: Center(child: Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64)),
       );
     }
 

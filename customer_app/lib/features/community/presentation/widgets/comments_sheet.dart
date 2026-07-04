@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
@@ -136,24 +136,24 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
 
     final c = context.colors;
     return Container(
-      decoration: BoxDecoration(color: c.cardBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
+      decoration: BoxDecoration(color: c.cardBg, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       child: Column(children: [
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        Padding(padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(children: [
-            const Text('Comments', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-            const SizedBox(width: 8),
-            Text('(${_comments.length})', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
+            Text('Comments', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            SizedBox(width: 8),
+            Text('(${_comments.length})', style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
           ])),
-        const Divider(height: 1),
+        Divider(height: 1),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator(color: kOrange))
+              ? Center(child: CircularProgressIndicator(color: kOrange))
               : _comments.isEmpty
-                  ? const Center(child: Text('No comments yet.\nBe the first!', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF9CA3AF))))
+                  ? Center(child: Text('No comments yet.\nBe the first!', textAlign: TextAlign.center, style: TextStyle(color: context.colors.mutedText)))
                   : ListView.builder(
-                      padding: const EdgeInsets.only(top: 8, bottom: 8),
+                      padding: EdgeInsets.only(top: 8, bottom: 8),
                       itemCount: roots.length,
                       itemBuilder: (_, i) {
                         final root = roots[i];
@@ -164,7 +164,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                             onDelete: root.user.isMe ? () async { await _repo.deleteComment(root.id); setState(() => _comments.removeWhere((c) => c.id == root.id)); } : null),
                           // Threaded replies — indented
                           if (replies.isNotEmpty)
-                            Padding(padding: const EdgeInsets.only(left: 44),
+                            Padding(padding: EdgeInsets.only(left: 44),
                               child: Column(children: [
                                 Container(width: 2, height: 8, color: context.colors.dividerColor),
                                 ...replies.map((r) => _CommentTile(comment: r, onReply: () => _setReply(root), isReply: true,
@@ -174,20 +174,20 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                         ]);
                       }),
         ),
-        const Divider(height: 1),
+        Divider(height: 1),
         if (_replyToName != null) Container(
-          color: c.inputFill, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          color: c.inputFill, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Row(children: [
-            const Icon(Icons.reply_rounded, size: 16, color: kOrange),
-            const SizedBox(width: 6),
-            Text('Replying to $_replyToName', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13, fontWeight: FontWeight.w600)),
-            const Spacer(),
+            Icon(Icons.reply_rounded, size: 16, color: kOrange),
+            SizedBox(width: 6),
+            Text('Replying to $_replyToName', style: TextStyle(color: context.colors.mutedText, fontSize: 13, fontWeight: FontWeight.w600)),
+            Spacer(),
             GestureDetector(onTap: () => setState(() { _replyToId = null; _replyToName = null; }),
-              child: const Icon(Icons.close, size: 16, color: Color(0xFF9CA3AF))),
+              child: Icon(Icons.close, size: 16, color: context.colors.mutedText)),
           ])),
         if (_mediaFile != null) Container(
-          margin: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-          padding: const EdgeInsets.all(10),
+          margin: EdgeInsets.fromLTRB(12, 6, 12, 0),
+          padding: EdgeInsets.all(10),
           decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(12),
             border: Border.all(color: kOrange.withValues(alpha: 0.2))),
           child: Row(children: [
@@ -196,53 +196,53 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                 child: Image.file(File(_mediaFile!.path), width: 50, height: 50, fit: BoxFit.cover))
             else
               Container(width: 42, height: 42, decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.mic_rounded, color: Colors.white, size: 22)),
-            const SizedBox(width: 10),
+                child: Icon(Icons.mic_rounded, color: Colors.white, size: 22)),
+            SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(_mediaType == 'voice' ? 'Voice recorded' : 'Image attached',
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1A1B2E))),
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.bodyText)),
               Text('Tap send to post', style: TextStyle(fontSize: 11, color: kOrange.withValues(alpha: 0.7))),
             ])),
             GestureDetector(onTap: () => setState(() { _mediaFile = null; _mediaType = null; }),
-              child: Container(width: 28, height: 28, margin: const EdgeInsets.only(right: 8),
+              child: Container(width: 28, height: 28, margin: EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), shape: BoxShape.circle),
-                child: const Icon(Icons.close, size: 16, color: Colors.red))),
+                child: Icon(Icons.close, size: 16, color: Colors.red))),
             GestureDetector(onTap: _send,
               child: Container(width: 40, height: 40,
-                decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
-                child: _sending ? const Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.send_rounded, color: Colors.white, size: 20))),
+                decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle),
+                child: _sending ? Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Icon(Icons.send_rounded, color: Colors.white, size: 20))),
           ])),
         Padding(
           padding: EdgeInsets.only(left: 12, right: 12, top: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 12),
           child: Row(children: [
             GestureDetector(onTap: _pickImage,
-              child: Container(width: 34, height: 34, margin: const EdgeInsets.only(right: 4),
+              child: Container(width: 34, height: 34, margin: EdgeInsets.only(right: 4),
                 decoration: BoxDecoration(color: c.inputFill, shape: BoxShape.circle),
-                child: const Icon(Icons.image_rounded, color: kOrange, size: 16))),
+                child: Icon(Icons.image_rounded, color: kOrange, size: 16))),
             GestureDetector(onTap: _toggleRecording,
-              child: Container(width: 34, height: 34, margin: const EdgeInsets.only(right: 4),
+              child: Container(width: 34, height: 34, margin: EdgeInsets.only(right: 4),
                 decoration: BoxDecoration(color: _recording ? Colors.red : c.inputFill, shape: BoxShape.circle),
                 child: _recording
                     ? Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.stop_rounded, color: Colors.white, size: 14),
+                        Icon(Icons.stop_rounded, color: Colors.white, size: 14),
                       ])
-                    : const Icon(Icons.mic_rounded, color: kOrange, size: 16))),
-            if (_recording) Padding(padding: const EdgeInsets.only(right: 6),
+                    : Icon(Icons.mic_rounded, color: kOrange, size: 16))),
+            if (_recording) Padding(padding: EdgeInsets.only(right: 6),
               child: Text('${(_recordSeconds ~/ 60).toString().padLeft(2,'0')}:${(_recordSeconds % 60).toString().padLeft(2,'0')}',
-                style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w700))),
+                style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w700))),
             Expanded(child: Container(
               decoration: BoxDecoration(color: c.inputFill, borderRadius: BorderRadius.circular(24)),
               child: TextField(controller: _textCtrl, focusNode: _focusNode, minLines: 1, maxLines: 4,
                 textInputAction: TextInputAction.send, onSubmitted: (_) => _send(),
                 decoration: InputDecoration(hintText: _replyToName != null ? 'Reply to $_replyToName...' : 'Write a comment...',
-                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14), border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10))))),
-            const SizedBox(width: 8),
+                  hintStyle: TextStyle(color: context.colors.mutedText, fontSize: 14), border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10))))),
+            SizedBox(width: 8),
             GestureDetector(onTap: _send, child: Container(width: 40, height: 40,
-              decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
-              child: _sending ? const Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.send_rounded, color: Colors.white, size: 20))),
+              decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle),
+              child: _sending ? Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Icon(Icons.send_rounded, color: Colors.white, size: 20))),
           ])),
       ]),
     );
@@ -269,50 +269,50 @@ class _CommentTile extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(isReply ? 0 : 12, isReply ? 2 : 6, 12, isReply ? 2 : 6),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         CircleNetImage(url: comment.user.avatar, size: isReply ? 28 : 36, fallbackText: comment.user.name),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(color: isReply ? c.surfaceBg : c.inputFill, borderRadius: BorderRadius.circular(16)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 Text(comment.user.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: isReply ? 12 : 13, color: const Color(0xFF1A1B2E))),
-                if (comment.user.isVerified) const Padding(padding: EdgeInsets.only(left: 3), child: Icon(Icons.verified_rounded, size: 12, color: Color(0xFF1877F2))),
+                if (comment.user.isVerified) Padding(padding: EdgeInsets.only(left: 3), child: Icon(Icons.verified_rounded, size: 12, color: Color(0xFF1877F2))),
               ]),
-              const SizedBox(height: 2),
+              SizedBox(height: 2),
               if (comment.content.isNotEmpty && comment.content != 'Voice message' && comment.content != 'Image')
                 Text(comment.content, style: TextStyle(fontSize: isReply ? 13 : 14, color: const Color(0xFF374151), height: 1.3)),
               if (comment.mediaUrl != null && comment.mediaType == 'image')
-                Padding(padding: const EdgeInsets.only(top: 6),
+                Padding(padding: EdgeInsets.only(top: 6),
                   child: ClipRRect(borderRadius: BorderRadius.circular(10),
                     child: NetImage(url: comment.mediaUrl, width: 180, height: 120, fit: BoxFit.cover))),
               if (comment.mediaUrl != null && comment.mediaType == 'voice')
-                Padding(padding: const EdgeInsets.only(top: 6), child: _MiniAudioPlayer(url: comment.mediaUrl!)),
+                Padding(padding: EdgeInsets.only(top: 6), child: _MiniAudioPlayer(url: comment.mediaUrl!)),
             ]),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Row(children: [
-            Text(timeago.format(comment.createdAt), style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 11)),
-            const SizedBox(width: 14),
+            Text(timeago.format(comment.createdAt), style: TextStyle(color: context.colors.mutedText, fontSize: 11)),
+            SizedBox(width: 14),
             GestureDetector(onTap: onReply,
-              child: const Text('Reply', style: TextStyle(color: Color(0xFF6B7280), fontSize: 11, fontWeight: FontWeight.w700))),
-            if (onEdit != null) ...[const SizedBox(width: 14),
+              child: Text('Reply', style: TextStyle(color: context.colors.mutedText, fontSize: 11, fontWeight: FontWeight.w700))),
+            if (onEdit != null) ...[SizedBox(width: 14),
               GestureDetector(onTap: () {
                 final ctrl = TextEditingController(text: comment.content);
                 showDialog(context: context, builder: (ctx) => AlertDialog(
-                  title: const Text('Edit comment', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                  content: TextField(controller: ctrl, maxLines: 4, decoration: const InputDecoration(border: OutlineInputBorder())),
+                  title: Text('Edit comment', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                  content: TextField(controller: ctrl, maxLines: 4, decoration: InputDecoration(border: OutlineInputBorder())),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
                     TextButton(onPressed: () { Navigator.pop(ctx); onEdit!(ctrl.text.trim()); },
-                      child: const Text('Save', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700))),
+                      child: Text('Save', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700))),
                   ],
                 ));
-              }, child: const Text('Edit', style: TextStyle(color: kOrange, fontSize: 11, fontWeight: FontWeight.w600)))],
-            if (onDelete != null) ...[const SizedBox(width: 14),
-              GestureDetector(onTap: onDelete, child: const Text('Delete', style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w600)))],
-            const SizedBox(width: 14),
-            if (comment.likesCount > 0) Text('${comment.likesCount} likes', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 11)),
+              }, child: Text('Edit', style: TextStyle(color: kOrange, fontSize: 11, fontWeight: FontWeight.w600)))],
+            if (onDelete != null) ...[SizedBox(width: 14),
+              GestureDetector(onTap: onDelete, child: Text('Delete', style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w600)))],
+            SizedBox(width: 14),
+            if (comment.likesCount > 0) Text('${comment.likesCount} likes', style: TextStyle(color: context.colors.mutedText, fontSize: 11)),
           ]),
         ])),
       ]),
@@ -361,13 +361,13 @@ class _MiniAudioPlayerState extends State<_MiniAudioPlayer> {
         },
         child: Container(width: 30, height: 30, decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle),
           child: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 16))),
-      const SizedBox(width: 8),
+      SizedBox(width: 8),
       SizedBox(width: 100, child: LinearProgressIndicator(
         value: _duration.inMilliseconds > 0 ? _position.inMilliseconds / _duration.inMilliseconds : 0,
         backgroundColor: kOrange.withValues(alpha: 0.15), color: kOrange, minHeight: 3)),
-      const SizedBox(width: 6),
+      SizedBox(width: 6),
       Text('${(_position.inSeconds ~/ 60).toString().padLeft(2,'0')}:${(_position.inSeconds % 60).toString().padLeft(2,'0')}',
-        style: const TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+        style: TextStyle(fontSize: 10, color: context.colors.mutedText)),
     ]);
   }
 }
