@@ -305,7 +305,7 @@ class _BusinessPageDetailScreenState extends ConsumerState<BusinessPageDetailScr
                 error: (_, __) => const SliverToBoxAdapter(child: SizedBox()),
                 data: (posts) {
                   if (posts.isEmpty) {
-                    return const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(40),
+                    return SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(40),
                       child: Center(child: Text('No posts yet', style: TextStyle(color: context.colors.mutedText, fontSize: 14)))));
                   }
                   return SliverList(delegate: SliverChildBuilderDelegate(

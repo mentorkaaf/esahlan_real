@@ -1,15 +1,27 @@
 ﻿import 'package:dio/dio.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'dart:io';
+import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../data/repositories/community_repository.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../providers/community_provider.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../widgets/country_city_picker.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../../shared/widgets/wallet_pin_dialog.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'community_shell.dart';
+import '../../../../core/theme/theme_x.dart';
 
 class CreateAdScreen extends ConsumerStatefulWidget {
   final int pageId;

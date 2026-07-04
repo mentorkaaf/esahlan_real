@@ -1,10 +1,17 @@
 ﻿import 'package:dio/dio.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../data/repositories/community_repository.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../providers/community_provider.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../data/models/community_models.dart';
+import '../../../../core/theme/theme_x.dart';
 import 'community_shell.dart';
+import '../../../../core/theme/theme_x.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   final CommunityUser user;
