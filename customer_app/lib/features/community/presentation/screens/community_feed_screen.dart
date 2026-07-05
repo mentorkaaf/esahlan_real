@@ -61,9 +61,6 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     super.initState();
     _tabCtrl = TabController(length: 4, vsync: this);
     _scrollCtrl.addListener(() {
-      if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 300) {
-        ref.read(communityFeedProvider.notifier).load();
-      }
       if (_scrollCtrl.offset < 100 && _hasNewPosts) {
         setState(() => _hasNewPosts = false);
       }
@@ -283,6 +280,16 @@ class _FeedTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return ColoredBox(
       color: context.colors.scaffoldBg,
+      child: NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        if (n is ScrollUpdateNotification) {
+          final m = n.metrics;
+          if (m.pixels >= m.maxScrollExtent - 400) {
+            ref.read(communityFeedProvider.notifier).load();
+          }
+        }
+        return false;
+      },
       child: RefreshIndicator(
       color: kOrange,
       onRefresh: () => ref.read(communityFeedProvider.notifier).refresh(),
@@ -328,35 +335,41 @@ class _FeedTab extends ConsumerWidget {
                 if (adUrls.isNotEmpty) AdVideoManager.instance.preload(adUrls);
               });
 
-              // Enforce minimum 3-post gap between ads (fixes page-boundary consecutive ads)
+              // Build flat item list lazily — post cards + interspersed carousels
               int _postsSinceLastAd = 999;
-              final widgets = <Widget>[];
+              final items = <Widget>[];
               for (var i = 0; i < posts.length; i++) {
                 final post = posts[i];
-                if (post.isAd && _postsSinceLastAd < 3) continue; // skip ad that's too close
+                if (post.isAd && _postsSinceLastAd < 3) continue;
                 if (post.isAd) { _postsSinceLastAd = 0; } else { _postsSinceLastAd++; }
-                widgets.add(_PostCard(post: posts[i],
+                items.add(_PostCard(post: posts[i],
                   onDelete: () { ref.read(communityRepoProvider).deletePost(posts[i].id); ref.read(communityFeedProvider.notifier).removePost(posts[i].id); },
                 ));
                 if (i == 4 && suggestions.where((u) => !u.isMe && !u.isFollowing).isNotEmpty) {
-                  widgets.add(_PeopleYouMayKnow(users: suggestions.where((u) => !u.isMe && !u.isFollowing).take(10).toList()));
+                  items.add(_PeopleYouMayKnow(users: suggestions.where((u) => !u.isMe && !u.isFollowing).take(10).toList()));
                 }
                 if (i == 8 && reels.isNotEmpty) {
-                  widgets.add(_ReelsCarousel(reels: reels.take(6).toList()));
+                  items.add(_ReelsCarousel(reels: reels.take(6).toList()));
                 }
                 if (i > 12 && (i - 12) % 10 == 0 && suggestions.where((u) => !u.isMe && !u.isFollowing).length > 10) {
                   final offset = ((i - 12) ~/ 10) * 5;
                   final batch = suggestions.where((u) => !u.isMe && !u.isFollowing).skip(offset).take(10).toList();
-                  if (batch.isNotEmpty) widgets.add(_PeopleYouMayKnow(users: batch));
+                  if (batch.isNotEmpty) items.add(_PeopleYouMayKnow(users: batch));
                 }
                 if (i > 16 && (i - 16) % 12 == 0 && reels.length > 6) {
                   final offset = ((i - 16) ~/ 12) * 4;
                   final batch = reels.skip(offset).take(6).toList();
-                  if (batch.isNotEmpty) widgets.add(_ReelsCarousel(reels: batch));
+                  if (batch.isNotEmpty) items.add(_ReelsCarousel(reels: batch));
                 }
               }
-              widgets.add(SizedBox(height: 80));
-              return Column(children: widgets);
+              final hasMore = ref.watch(communityFeedProvider.notifier).hasMore;
+              items.add(_FeedLoadMore(hasMore: hasMore));
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: items.length,
+                itemBuilder: (_, i) => items[i],
+              );
             },
             loading: () => Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -372,6 +385,29 @@ class _FeedTab extends ConsumerWidget {
         ],
       ),
     ),
+    ),
+    );
+  }
+}
+
+class _FeedLoadMore extends StatelessWidget {
+  final bool hasMore;
+  const _FeedLoadMore({required this.hasMore});
+
+  @override
+  Widget build(BuildContext context) {
+    if (hasMore) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: CircularProgressIndicator(color: kOrange, strokeWidth: 2)),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: Text('Dhammaatay · Dib u eeg danbe',
+            style: TextStyle(color: Colors.grey, fontSize: 13)),
+      ),
     );
   }
 }
@@ -1944,6 +1980,7 @@ class _MediaItem extends ConsumerStatefulWidget {
 class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObserver {
   VideoPlayerController? _ctrl;
   bool _ready = false;
+  bool _initStarted = false; // guards against concurrent _initVideo calls
   bool _paused = false;
   bool _visible = false;
   final _key = UniqueKey();
@@ -1958,15 +1995,9 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Start preloading immediately on widget build.
-    // VideoPool caps at 12 slots and evicts by distance-from-active,
-    // so this is safe even when many video widgets are built at once.
-    if (_isVideo) {
-      final mp4 = _mp4Url;
-      if (mp4.isNotEmpty && !_pool.isReady(mp4) && !_pool.isLoading(mp4)) {
-        _pool.preload(mp4);
-      }
-    }
+    // Preloading is handled by setWindow() via setActiveUrl() as the user scrolls.
+    // Do NOT preload in initState — with shrinkWrap all items build simultaneously,
+    // causing 15+ concurrent network requests that starve new (uncached) videos.
   }
 
   bool _lifecyclePaused = false;
@@ -2034,6 +2065,9 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       setState(() { _ctrl = c; _ready = true; });
       c.addListener(_onControllerUpdate);
       if (_visible && !_paused) _pool.play(url);
+    } else {
+      // Both MP4 and HLS failed — allow retry on next visibility event
+      _initStarted = false;
     }
   }
 
@@ -2053,7 +2087,8 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
     // Start loading as soon as any part of the card is visible (5%) —
     // gives the HLS stream ~1-2s head start before the user reaches it.
-    if (fraction > 0.05 && _isVideo && !_ready) {
+    if (fraction > 0.05 && _isVideo && !_ready && !_initStarted) {
+      _initStarted = true;
       _initVideo();
     }
 

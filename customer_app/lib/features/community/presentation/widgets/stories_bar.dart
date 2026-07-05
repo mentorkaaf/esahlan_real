@@ -249,8 +249,10 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
     try {
       MultipartFile? mediaFile;
       if (_mediaFile != null) {
-        final bytes = await _mediaFile!.readAsBytes();
-        mediaFile = MultipartFile.fromBytes(bytes, filename: _mediaFile!.name);
+        mediaFile = await MultipartFile.fromFile(
+          _mediaFile!.path,
+          filename: _mediaFile!.name,
+        );
       }
       await _repo.createStory(
         type: _storyType,

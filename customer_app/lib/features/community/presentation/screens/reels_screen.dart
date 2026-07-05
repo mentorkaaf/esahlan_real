@@ -870,7 +870,11 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
     super.didUpdateWidget(old);
     if (widget.isActive == old.isActive || _ctrl == null) return;
     if (widget.isActive) {
-      if (!_paused) { _ctrl!.setVolume(_muted ? 0 : 1); _ctrl!.play(); }
+      // Always restart ad from beginning when it becomes active
+      _ctrl!.seekTo(Duration.zero);
+      _paused = false;
+      _ctrl!.setVolume(_muted ? 0 : 1);
+      _ctrl!.play();
     } else {
       _ctrl!.pause();
     }

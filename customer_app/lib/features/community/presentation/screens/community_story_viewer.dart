@@ -2,9 +2,11 @@
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:video_player/video_player.dart';
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
@@ -303,8 +305,15 @@ class _StoryContent extends StatefulWidget {
 
 class _StoryContentState extends State<_StoryContent> {
   VideoPlayerController? _videoCtrl;
+  CachedVideoPlayerPlus? _wrapper;
   bool _videoReady = false;
   bool _videoError = false;
+
+  static final _storyCache = CacheManager(Config(
+    'esahlan_story_cache',
+    maxNrOfCacheObjects: 20,
+    stalePeriod: const Duration(hours: 12),
+  ));
 
   @override
   void initState() {
@@ -316,14 +325,17 @@ class _StoryContentState extends State<_StoryContent> {
   }
 
   Future<void> _initVideo() async {
+    final url = widget.story.mediaUrl!;
     try {
-      final ctrl = VideoPlayerController.networkUrl(
-        Uri.parse(widget.story.mediaUrl!),
-        httpHeaders: const {'Connection': 'keep-alive'},
+      final wrapper = CachedVideoPlayerPlus.networkUrl(
+        Uri.parse(url),
+        httpHeaders: const {'Connection': 'keep-alive', 'Accept': '*/*'},
+        cacheManager: _storyCache,
       );
-      await ctrl.initialize();
-      if (!mounted) { ctrl.dispose(); return; }
-      _videoCtrl = ctrl;
+      await wrapper.initialize();
+      if (!mounted) { wrapper.dispose(); return; }
+      _wrapper = wrapper;
+      _videoCtrl = wrapper.controller;
       _videoCtrl!.setLooping(false);
       _videoCtrl!.play();
       _videoCtrl!.addListener(() {
@@ -332,14 +344,15 @@ class _StoryContentState extends State<_StoryContent> {
         }
       });
       setState(() => _videoReady = true);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[StoryVideo] failed: $url — $e');
       if (mounted) setState(() => _videoError = true);
     }
   }
 
   @override
   void dispose() {
-    _videoCtrl?.dispose();
+    _wrapper?.dispose();
     super.dispose();
   }
 

@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers\Api\Community;
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessStoryVideoJob;
 use App\Models\CommunityStory;
 use App\Models\CommunityStoryView;
 use App\Services\FcmService;
@@ -27,36 +28,26 @@ class CommunityStoryController extends Controller
         }
 
         $mediaUrl = null;
+        $rawPath  = null;
         if ($request->hasFile('media')) {
-            $path = $request->file('media')->store('community/stories','public');
-            
-            // Process video for fast playback
-            if ($request->type === 'video') {
-                try {
-                    $processed = \App\Services\VideoProcessingService::process($path);
-                    if (!empty($processed['qualities']['optimized']['url'])) {
-                        $mediaUrl = $processed['qualities']['optimized']['url'];
-                    } else {
-                        $mediaUrl = cdn_url($path);
-                    }
-                } catch (\Throwable $e) {
-                    \Log::warning('Story video processing failed: ' . $e->getMessage());
-                    $mediaUrl = cdn_url($path);
-                }
-            } else {
-                $mediaUrl = cdn_url($path);
-            }
+            $rawPath  = $request->file('media')->store('community/stories', 'public');
+            $mediaUrl = cdn_url($rawPath); // immediately usable; job will replace with optimized URL
         }
 
         $story = CommunityStory::create([
-            'user_id' => auth()->id(),
-            'type' => $request->type,
-            'media_url' => $mediaUrl,
+            'user_id'      => auth()->id(),
+            'type'         => $request->type,
+            'media_url'    => $mediaUrl,
             'text_content' => $request->text_content,
-            'bg_color' => $request->bg_color ?? '#140465',
-            'location' => $request->location,
-            'expires_at' => now()->addHours(24),
+            'bg_color'     => $request->bg_color ?? '#140465',
+            'location'     => $request->location,
+            'expires_at'   => now()->addHours(24),
         ]);
+
+        // Dispatch background compression for video stories (non-blocking)
+        if ($request->type === 'video' && $rawPath) {
+            ProcessStoryVideoJob::dispatch($story->id, $rawPath);
+        }
 
         // Realtime "new story" hint — followers only, so the stories bar
         // can refresh without waiting for the user to reopen the app.
