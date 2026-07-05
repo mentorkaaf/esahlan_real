@@ -2129,14 +2129,13 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     _lastFraction = fraction;
 
     // ── Stale-controller guard ─────────────────────────────────────────────
-    // The pool evicts far-away controllers from memory (disk cache kept).
-    // If our _ctrl was evicted, pool.isReady() returns false. Reset so the
-    // next visibility update can re-trigger _initVideo() cleanly.
+    // The pool evicts far-away controllers from memory. If our _ctrl was
+    // evicted, isReady() returns false. setState() ensures the widget stops
+    // rendering the disposed controller immediately (shows thumbnail instead).
     if (_ready && _ctrl != null && !_pool.isReady(_videoUrl)) {
       _ctrl!.removeListener(_onControllerUpdate);
-      _ctrl = null;
-      _ready = false;
       _initStarted = false;
+      setState(() { _ctrl = null; _ready = false; });
     }
 
     // ── Preload trigger (5%) ───────────────────────────────────────────────

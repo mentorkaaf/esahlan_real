@@ -417,13 +417,15 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     final mp4Url = media.mp4DirectUrl;
     final hlsFallback = media.hlsUrl;
 
+    // Default to mp4Url — overridden below if HLS is what the pool has loaded.
+    _videoUrl = mp4Url;
+
     // Fast path: pool already has this controller (preloaded by parent)
     var poolCtrl = _pool.controller(mp4Url);
     if (poolCtrl == null && hlsFallback != null && hlsFallback != mp4Url) {
       poolCtrl = _pool.controller(hlsFallback);
       if (poolCtrl != null) _videoUrl = hlsFallback;
     }
-    if (poolCtrl == null) _videoUrl = mp4Url;
 
     if (poolCtrl != null) {
       _videoCtrl = poolCtrl;
@@ -436,26 +438,25 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
       return;
     }
 
-    // Slow path: load from network. Try MP4 first, fall back to HLS on failure.
+    // Slow path: load from network. Try MP4 → HLS → PHP proxy.
     var ctrl = await _pool.preload(mp4Url);
     if (ctrl == null && hlsFallback != null && hlsFallback != mp4Url) {
       debugPrint('[Reel] MP4 failed, trying HLS: $hlsFallback');
       _videoUrl = hlsFallback;
       ctrl = await _pool.preload(hlsFallback);
     }
+    // Last resort: raw stored URL (PHP media proxy, works even if nginx 403)
+    final proxyUrl = media.url;
+    if (ctrl == null && proxyUrl.isNotEmpty && proxyUrl != mp4Url && proxyUrl != (hlsFallback ?? '')) {
+      debugPrint('[Reel] nginx failed, trying proxy: $proxyUrl');
+      _videoUrl = proxyUrl;
+      ctrl = await _pool.preload(proxyUrl);
+    }
 
     if (ctrl != null && mounted) {
       _videoCtrl = ctrl;
       ctrl.setLooping(false);
-      try {
-        ctrl.addListener(_onVideoProgress);
-      } catch (_) {
-        _videoCtrl = null;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _initVideo();
-        });
-        return;
-      }
+      ctrl.addListener(_onVideoProgress);
       setState(() => _videoReady = true);
       if (widget.isActive && !_paused) _pool.play(_videoUrl);
     }
