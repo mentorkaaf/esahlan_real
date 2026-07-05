@@ -716,6 +716,16 @@ class FeedRankingService
 
         if ($interactions->isEmpty()) return;
 
+        // Batch-fetch all hashtags for all post_ids in one query (avoids N+1)
+        $postIds = $interactions->pluck('post_id')->unique()->values();
+        $hashtagsByPost = DB::table('community_post_hashtags')
+            ->join('community_hashtags', 'community_hashtags.id', '=', 'community_post_hashtags.hashtag_id')
+            ->whereIn('post_id', $postIds)
+            ->select('post_id', 'community_hashtags.name')
+            ->get()
+            ->groupBy('post_id')
+            ->map(fn($rows) => $rows->pluck('name'));
+
         $interests = [];
 
         foreach ($interactions as $i) {
@@ -743,12 +753,8 @@ class FeedRankingService
             $key = "type:{$i->type}";
             $interests[$key] = ($interests[$key] ?? 0) + $weight;
 
-            // Hashtag interests
-            $tags = DB::table('community_post_hashtags')
-                ->join('community_hashtags', 'community_hashtags.id', '=', 'community_post_hashtags.hashtag_id')
-                ->where('post_id', $i->post_id)
-                ->pluck('community_hashtags.name');
-            foreach ($tags as $tag) {
+            // Hashtag interests (pre-fetched, no extra DB query per row)
+            foreach ($hashtagsByPost->get($i->post_id, collect()) as $tag) {
                 $key = "hashtag:{$tag}";
                 $interests[$key] = ($interests[$key] ?? 0) + $weight;
             }

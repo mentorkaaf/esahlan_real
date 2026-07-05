@@ -437,7 +437,7 @@ class AdminCommunityController extends Controller
             'top_posts'          => $topPosts,
             'interactions_24h'   => $interactions,
             'top_hashtags'       => $topHashtags,
-            'active_users'       => $activeUsers,
+            'active_feed_users'  => $activeUsers,
             'top_users'          => $topUsers,
             'posts_by_type'      => $postsByType,
         ]);

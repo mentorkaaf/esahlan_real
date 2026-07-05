@@ -75,7 +75,7 @@ class CommunityFeedController extends Controller
     }
 
     // ─── Cold start feed for new users with no interaction history ──────
-    private function coldStartFeed(int $userId, int $page): array|object
+    private function coldStartFeed(int $userId, int $page): \Illuminate\Http\JsonResponse
     {
         $followingIds = CommunityFollow::where('follower_id', $userId)->pluck('following_id');
 

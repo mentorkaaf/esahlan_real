@@ -348,7 +348,7 @@
         <span style="font-weight:700;font-size:14px;color:#1e293b">Engagement Score</span>
       </div>
       <p style="font-size:12px;color:#64748b;margin:0;line-height:1.6">
-        Likes ×1 + Comments ×2 + Shares ×3 + Saves ×1.5<br>
+        Likes ×1 + Comments ×3 + Shares ×4 + Saves ×3.5<br>
         Normalized against all posts in the pool.
       </p>
       <div style="margin-top:10px;display:inline-block;background:#f0f4ff;color:#667eea;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">engagement_score</div>
