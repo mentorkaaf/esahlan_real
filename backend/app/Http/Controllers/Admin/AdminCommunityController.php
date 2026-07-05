@@ -375,7 +375,7 @@ class AdminCommunityController extends Controller
                 'post_scores.post_id', 'post_scores.final_score', 'post_scores.engagement_score',
                 'post_scores.velocity_score', 'post_scores.viral_score', 'post_scores.quality_score',
                 'post_scores.impression_count', 'post_scores.engaged_count', 'post_scores.engagement_rate',
-                'community_posts.content', 'community_posts.type',
+                'community_posts.content', 'community_posts.type', 'community_posts.created_at',
                 'community_posts.likes_count', 'community_posts.comments_count',
                 'community_posts.shares_count', 'community_posts.views_count',
                 'users.name as author'
@@ -405,14 +405,17 @@ class AdminCommunityController extends Controller
             ->leftJoin('community_profiles', 'community_profiles.user_id', '=', 'users.id')
             ->where('feed_interactions.created_at', '>', now()->subDays(7))
             ->selectRaw('
-                users.id, users.name, users.email,
+                users.id, users.name,
+                COALESCE(users.avatar, "") as avatar,
+                COALESCE(community_profiles.username, "") as username,
                 COALESCE(community_profiles.followers_count, 0) as followers_count,
                 COALESCE(community_profiles.posts_count, 0) as post_count,
                 COUNT(feed_interactions.id) as interactions_7d,
                 COUNT(feed_interactions.id) as total_score
             ')
-            ->groupBy('users.id', 'users.name', 'users.email',
-                      'community_profiles.followers_count', 'community_profiles.posts_count')
+            ->groupBy('users.id', 'users.name', 'users.avatar',
+                      'community_profiles.username', 'community_profiles.followers_count',
+                      'community_profiles.posts_count')
             ->orderByDesc('interactions_7d')
             ->limit(10)
             ->get();

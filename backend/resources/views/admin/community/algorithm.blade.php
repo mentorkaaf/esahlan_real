@@ -594,7 +594,7 @@ function fetchData(manual = false) {
               <div class="rank-circle" style="background:${RANK_COLORS[i%10]};width:34px;height:34px;font-size:13px">${i+1}</div>
               <div style="flex:1;min-width:0">
                 <div style="font-weight:700;font-size:13px;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.name}</div>
-                <div style="font-size:11px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.email}</div>
+                <div style="font-size:11px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.username ? '@'+u.username : ''}</div>
                 <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap">
                   <span style="font-size:11px;color:#64748b"><i class="fas fa-users" style="margin-right:3px;color:#06b6d4"></i>${n(u.followers_count)}</span>
                   <span style="font-size:11px;color:#64748b"><i class="fas fa-file-alt" style="margin-right:3px;color:#8b5cf6"></i>${n(u.post_count)} posts</span>
