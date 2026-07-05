@@ -367,6 +367,12 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     _initVideo();
     if (widget.isActive) _trackView();
     if (!widget.reel.isAd) _subscribeRealtime();
+    // Retry play after first frame — covers race where pool wasn't ready at initState
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.isActive && !_paused && _videoReady && _videoUrl.isNotEmpty) {
+        _pool.play(_videoUrl);
+      }
+    });
   }
 
   void _subscribeRealtime() {
@@ -502,9 +508,10 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     setState(() => _paused = !_paused);
     if (_paused) {
       _videoCtrl!.pause();
-      _pool.pause(_videoUrl); // keep pool state in sync
+      _pool.pause(_videoUrl);
     } else {
-      _pool.play(_videoUrl); // updates pool _activeUrl + resumes playback
+      _videoCtrl!.play();    // direct — avoids pool isPlaying guard race
+      _pool.play(_videoUrl); // sync pool _activeUrl
     }
   }
 

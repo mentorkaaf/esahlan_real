@@ -7,14 +7,49 @@ import 'package:timeago/timeago.dart' as timeago;
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
+import '../../../../core/services/realtime_client.dart';
 import 'community_shell.dart';
 import 'community_chat_screen.dart';
 
-class CommunityChatListScreen extends ConsumerWidget {
+class CommunityChatListScreen extends ConsumerStatefulWidget {
   const CommunityChatListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CommunityChatListScreen> createState() => _CommunityChatListScreenState();
+}
+
+class _CommunityChatListScreenState extends ConsumerState<CommunityChatListScreen> {
+  void Function(dynamic)? _inboxListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscribeInbox();
+  }
+
+  Future<void> _subscribeInbox() async {
+    try {
+      final me = await ref.read(communityMyProfileProvider.future);
+      _inboxListener = (_) {
+        if (mounted) ref.invalidate(communityChatsProvider);
+      };
+      RealtimeClient.instance.listen('private-user.${me.id}', 'chat.inbox_update', _inboxListener!);
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    if (_inboxListener != null) {
+      // best-effort remove; channel/event may already be gone
+      try {
+        RealtimeClient.instance.removeListener('', 'chat.inbox_update', _inboxListener!);
+      } catch (_) {}
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final chatsAsync = ref.watch(communityChatsProvider);
 
     return Scaffold(

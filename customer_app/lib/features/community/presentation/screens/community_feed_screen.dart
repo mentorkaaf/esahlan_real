@@ -561,7 +561,7 @@ class _AdCard extends ConsumerStatefulWidget {
 class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   VideoPlayerController? _ctrl;
   bool _ready   = false;
-  bool _muted   = true;  // muted by default — user taps to unmute
+  bool _muted   = false;
   bool _visible = false;
 
   String? get _url => widget.post.adMediaUrl;
@@ -577,7 +577,7 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
     final ctrl = await AdVideoManager.instance.awaitController(_url!);
     if (ctrl == null || !mounted) return;
     ctrl.setLooping(true);
-    ctrl.setVolume(0); // always start muted
+    ctrl.setVolume(_muted ? 0 : 1);
     setState(() { _ctrl = ctrl; _ready = true; });
     if (_visible) ctrl.play();
   }
@@ -2062,6 +2062,9 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       if (_ready && _ctrl != null && !_paused) {
         _pool.play(_videoUrl);
         _watchStart ??= DateTime.now();
+      } else if (!_paused && _videoUrl.isNotEmpty) {
+        // Not ready yet — set pendingPlay so pool fires instantly when preload completes
+        _pool.play(_videoUrl);
       }
       // Shift preload window to ±2 around this video in the feed.
       _pool.setActiveUrl(_videoUrl);

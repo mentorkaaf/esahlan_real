@@ -137,7 +137,7 @@ class FeedRankingService
         if (!empty($this->seenPostIds)) {
             $recentSeen = DB::table('feed_seen_posts')
                 ->where('user_id', $this->userId)
-                ->where('seen_at', '>', now()->subHours(2))
+                ->where('seen_at', '>', now()->subHours(24))
                 ->pluck('post_id')->toArray();
             $totalAvailable = (clone $query)->count();
             $unseenAvailable = $totalAvailable - count($recentSeen);
@@ -496,7 +496,7 @@ class FeedRankingService
     {
         return DB::table('feed_seen_posts')
             ->where('user_id', $this->userId)
-            ->where('seen_at', '>', now()->subHours(6))
+            ->where('seen_at', '>', now()->subHours(24))
             ->pluck('post_id')->toArray();
     }
 

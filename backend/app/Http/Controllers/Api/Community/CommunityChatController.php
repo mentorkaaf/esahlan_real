@@ -92,7 +92,7 @@ class CommunityChatController extends Controller
         }
 
         // Realtime delivery to chat members who currently have the app open
-        RealtimeService::toChat($chatId, 'chat.message_sent', [
+        $msgPayload = [
             'chat_id' => $chatId,
             'message' => [
                 'id' => $msg->id,
@@ -103,7 +103,17 @@ class CommunityChatController extends Controller
                 'user' => ['id' => $msg->user->id, 'name' => $msg->user->name, 'avatar' => $msg->user->avatar],
                 'created_at' => $msg->created_at,
             ],
-        ]);
+        ];
+        RealtimeService::toChat($chatId, 'chat.message_sent', $msgPayload);
+
+        // Also notify each member's private channel so inbox updates without re-opening app
+        foreach ($otherMembers as $member) {
+            RealtimeService::toUser($member->user_id, 'chat.inbox_update', [
+                'chat_id'  => $chatId,
+                'preview'  => $msg->type === 'text' ? ($msg->content ?? '') : '📎 Media',
+                'sender'   => $msg->user->name,
+            ]);
+        }
 
         return response()->json(['status'=>'success','data'=>$msg], 201);
     }

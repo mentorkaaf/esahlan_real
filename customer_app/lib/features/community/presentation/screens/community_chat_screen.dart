@@ -24,8 +24,10 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
   final _scrollCtrl = ScrollController();
   bool _sending = false;
   bool _otherTyping = false;
+  bool _otherOnline = false;
   Timer? _typingDebounce;
   Timer? _typingClearTimer;
+  Timer? _onlineTimer;
   bool _amTyping = false;
 
   CommunityChat get chat => widget.chat;
@@ -86,13 +88,21 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     _onTyping = (data) {
       if ((data['user_id'] as int?) == myId) return;
       if (mounted) {
-        setState(() => _otherTyping = data['is_typing'] == true);
+        setState(() {
+          _otherTyping = data['is_typing'] == true;
+          _otherOnline = true; // typing means online
+        });
         _typingClearTimer?.cancel();
+        _onlineTimer?.cancel();
         if (_otherTyping) {
           _typingClearTimer = Timer(const Duration(seconds: 5), () {
             if (mounted) setState(() => _otherTyping = false);
           });
         }
+        // Stay "online" for 2 min after last typing event
+        _onlineTimer = Timer(const Duration(minutes: 2), () {
+          if (mounted) setState(() => _otherOnline = false);
+        });
       }
     };
     RealtimeClient.instance.listen(_typingChannel, 'chat.typing', _onTyping!);
@@ -116,6 +126,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     _scrollCtrl.dispose();
     _typingDebounce?.cancel();
     _typingClearTimer?.cancel();
+    _onlineTimer?.cancel();
     if (_onMessageSent != null) RealtimeClient.instance.removeListener(_chatChannel, 'chat.message_sent', _onMessageSent!);
     if (_onSeen != null) RealtimeClient.instance.removeListener(_chatChannel, 'chat.seen', _onSeen!);
     if (_onTyping != null) RealtimeClient.instance.removeListener(_typingChannel, 'chat.typing', _onTyping!);
@@ -180,8 +191,14 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
                 Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 14),
               ],
             ]),
-            Text(_otherTyping ? 'typing…' : 'Online',
-                style: TextStyle(color: _otherTyping ? kOrange : const Color(0xFF45BD62), fontSize: 12, fontWeight: FontWeight.w500)),
+            Text(
+              _otherTyping ? 'typing…' : (_otherOnline ? 'Online' : 'last seen recently'),
+              style: TextStyle(
+                color: _otherTyping ? kOrange : (_otherOnline ? const Color(0xFF45BD62) : Colors.grey),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ]),
         ]),
         actions: [
