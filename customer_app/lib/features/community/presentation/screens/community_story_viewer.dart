@@ -326,6 +326,7 @@ class _StoryContentState extends State<_StoryContent> {
 
   Future<void> _initVideo() async {
     final url = widget.story.mediaUrl!;
+    // Try 1: CachedVideoPlayerPlus (disk cache, faster on repeated view)
     try {
       final wrapper = CachedVideoPlayerPlus.networkUrl(
         Uri.parse(url),
@@ -338,21 +339,50 @@ class _StoryContentState extends State<_StoryContent> {
       _videoCtrl = wrapper.controller;
       _videoCtrl!.setLooping(false);
       _videoCtrl!.play();
-      _videoCtrl!.addListener(() {
-        if (_videoCtrl!.value.position >= _videoCtrl!.value.duration && _videoCtrl!.value.duration > Duration.zero) {
-          widget.onFinished();
-        }
-      });
+      _videoCtrl!.addListener(_onVideoTick);
+      setState(() => _videoReady = true);
+      return;
+    } catch (e) {
+      debugPrint('[StoryVideo] CachedVideoPlayerPlus failed: $url — $e');
+    }
+    // Try 2: Plain VideoPlayerController (direct stream, no disk cache)
+    // Handles cases where flutter_cache_manager can't process the URL
+    // (PHP proxy with query params, redirect, content-type issues).
+    try {
+      if (!mounted) return;
+      final ctrl = VideoPlayerController.networkUrl(
+        Uri.parse(url),
+        httpHeaders: const {'Connection': 'keep-alive'},
+      );
+      await ctrl.initialize();
+      if (!mounted) { ctrl.dispose(); return; }
+      _videoCtrl = ctrl;
+      _videoCtrl!.setLooping(false);
+      _videoCtrl!.play();
+      _videoCtrl!.addListener(_onVideoTick);
       setState(() => _videoReady = true);
     } catch (e) {
-      debugPrint('[StoryVideo] failed: $url — $e');
+      debugPrint('[StoryVideo] plain fallback also failed: $url — $e');
       if (mounted) setState(() => _videoError = true);
+    }
+  }
+
+  void _onVideoTick() {
+    if (_videoCtrl == null) return;
+    final v = _videoCtrl!.value;
+    if (v.position >= v.duration && v.duration > Duration.zero) {
+      widget.onFinished();
     }
   }
 
   @override
   void dispose() {
-    _wrapper?.dispose();
+    _videoCtrl?.removeListener(_onVideoTick);
+    if (_wrapper != null) {
+      _wrapper!.dispose(); // disposes its inner VideoPlayerController too
+    } else {
+      _videoCtrl?.dispose();
+    }
     super.dispose();
   }
 

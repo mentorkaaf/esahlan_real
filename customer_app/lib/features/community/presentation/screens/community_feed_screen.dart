@@ -1983,6 +1983,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   bool _initStarted = false; // guards against concurrent _initVideo calls
   bool _paused = false;
   bool _visible = false;
+  double _lastFraction = 0;
   final _key = UniqueKey();
   final _pool = VideoPool.feed;
   DateTime? _watchStart;
@@ -1998,6 +1999,21 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     // Preloading is handled by setWindow() via setActiveUrl() as the user scrolls.
     // Do NOT preload in initState — with shrinkWrap all items build simultaneously,
     // causing 15+ concurrent network requests that starve new (uncached) videos.
+  }
+
+  @override
+  void didUpdateWidget(_MediaItem old) {
+    super.didUpdateWidget(old);
+    // Handles: post.media_ready realtime event → hlsUrl just became available,
+    // or isTranscoding flipped to false. Reset so visibility can re-trigger init.
+    if (_isVideo && !_ready && !widget.m.isTranscoding &&
+        (old.m.hlsUrl != widget.m.hlsUrl || old.m.isTranscoding != widget.m.isTranscoding)) {
+      _initStarted = false;
+      if (_lastFraction > 0.05) {
+        _initStarted = true;
+        _initVideo();
+      }
+    }
   }
 
   bool _lifecyclePaused = false;
@@ -2032,7 +2048,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
   Future<void> _initVideo() async {
     final mp4 = _mp4Url;
-    if (mp4.isEmpty) return;
+    if (mp4.isEmpty) { _initStarted = false; return; }
 
     // Fast path — pool already has it (either MP4 or HLS)
     var cached = _pool.controller(mp4);
@@ -2050,12 +2066,19 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       return;
     }
 
-    // Slow path: load from network
+    // Slow path: MP4 → HLS → PHP proxy (in order of preference)
     var ctrl = await _pool.preload(mp4);
     url = mp4;
     if (ctrl == null && _hlsUrl != null && _hlsUrl != mp4) {
       debugPrint('[Feed] MP4 failed, trying HLS: ${_hlsUrl!}');
       url = _hlsUrl!;
+      ctrl = await _pool.preload(url);
+    }
+    // Last resort: PHP media proxy (works even if nginx has permission issues)
+    final proxyUrl = widget.m.url;
+    if (ctrl == null && proxyUrl.isNotEmpty && proxyUrl != mp4 && proxyUrl != (_hlsUrl ?? '')) {
+      debugPrint('[Feed] nginx failed, trying PHP proxy: $proxyUrl');
+      url = proxyUrl;
       ctrl = await _pool.preload(url);
     }
 
@@ -2064,9 +2087,18 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       _resolvedUrl = url;
       setState(() { _ctrl = c; _ready = true; });
       c.addListener(_onControllerUpdate);
-      if (_visible && !_paused) _pool.play(url);
+      if (_visible && !_paused) {
+        _pool.play(url);
+      } else {
+        // _visible may be stale from a timing race — check again next frame
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _lastFraction > 0.5 && !_paused && _ctrl != null) {
+            _pool.play(_videoUrl);
+          }
+        });
+      }
     } else {
-      // Both MP4 and HLS failed — allow retry on next visibility event
+      // All three URLs failed — allow retry on next visibility event
       _initStarted = false;
     }
   }
@@ -2084,12 +2116,18 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
   void _onVisibilityChanged(VisibilityInfo info) {
     final fraction = info.visibleFraction;
+    _lastFraction = fraction;
 
     // Start loading as soon as any part of the card is visible (5%) —
     // gives the HLS stream ~1-2s head start before the user reaches it.
     if (fraction > 0.05 && _isVideo && !_ready && !_initStarted) {
       _initStarted = true;
       _initVideo();
+    }
+
+    // If video is ready but not playing and becomes fully visible again, replay.
+    if (fraction > 0.5 && _isVideo && _ready && _ctrl != null && !_paused) {
+      if (!_ctrl!.value.isPlaying) _pool.play(_videoUrl);
     }
 
     _visible = fraction > 0.5;
