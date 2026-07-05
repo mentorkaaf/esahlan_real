@@ -67,6 +67,8 @@ class VideoPool {
   bool isReady(String url)   => _ready[url] == true;
   bool isLoading(String url) => _loading.containsKey(url);
   bool get hasRoom           => _controllers.length < _maxSlots;
+  /// -1 = not yet initialised (use to guard first setWindow call in feed).
+  int  get windowIndex       => _windowIndex;
 
   // ─── Feed URL registry ────────────────────────────────────────────────────
 
@@ -86,8 +88,11 @@ class VideoPool {
     _window      = urls;
     _windowIndex = index;
 
-    // Evict far-away in-memory controllers (disk cache kept intact)
+    // Evict far-away in-memory controllers (disk cache kept intact).
+    // Never evict _activeUrl — that is the currently-playing video;
+    // disposing it would kill the video mid-playback.
     final toEvict = _controllers.keys.where((url) {
+      if (url == _activeUrl) return false;
       final i = urls.indexOf(url);
       return i >= 0 && (i - index).abs() > _evictDistance;
     }).toList();

@@ -326,7 +326,14 @@ class _FeedTab extends ConsumerWidget {
                       .where((u) => u.isNotEmpty);
                 }).toList();
                 VideoPool.feed.setFeedUrls(videoUrls);
-                if (videoUrls.isNotEmpty) VideoPool.feed.setWindow(videoUrls, 0);
+                // Only initialise the window on first data arrival (windowIndex == -1).
+                // Subsequent calls (page 2, 3 …) must NOT reset to index 0 — that
+                // would evict the currently-visible controller mid-scroll and kill the
+                // playing video. After first init, setActiveUrl() called from
+                // _onVisibilityChanged keeps the window correctly centred.
+                if (VideoPool.feed.windowIndex < 0 && videoUrls.isNotEmpty) {
+                  VideoPool.feed.setWindow(videoUrls, 0);
+                }
 
                 final adUrls = posts
                     .where((p) => p.isAd && p.adType == 'video' && p.adMediaUrl != null)
@@ -2062,7 +2069,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       _resolvedUrl = url;
       setState(() { _ctrl = c; _ready = true; });
       c.addListener(_onControllerUpdate);
-      if (_visible && !_paused) _pool.play(url);
+      if (_lastFraction > 0.5 && !_paused) _pool.play(url);
       return;
     }
 
@@ -2087,10 +2094,13 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       _resolvedUrl = url;
       setState(() { _ctrl = c; _ready = true; });
       c.addListener(_onControllerUpdate);
-      if (_visible && !_paused) {
+      if (_lastFraction > 0.5 && !_paused) {
+        // Play immediately if visible. Use _lastFraction (raw) not _visible
+        // because _visible may not yet be set when this async method completes.
         _pool.play(url);
       } else {
-        // _visible may be stale from a timing race — check again next frame
+        // Schedule a next-frame check in case _lastFraction updates from a
+        // visibility callback that fired concurrently with this async completion.
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _lastFraction > 0.5 && !_paused && _ctrl != null) {
             _pool.play(_videoUrl);
@@ -2118,30 +2128,47 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     final fraction = info.visibleFraction;
     _lastFraction = fraction;
 
-    // Start loading as soon as any part of the card is visible (5%) —
-    // gives the HLS stream ~1-2s head start before the user reaches it.
+    // ── Stale-controller guard ─────────────────────────────────────────────
+    // The pool evicts far-away controllers from memory (disk cache kept).
+    // If our _ctrl was evicted, pool.isReady() returns false. Reset so the
+    // next visibility update can re-trigger _initVideo() cleanly.
+    if (_ready && _ctrl != null && !_pool.isReady(_videoUrl)) {
+      _ctrl!.removeListener(_onControllerUpdate);
+      _ctrl = null;
+      _ready = false;
+      _initStarted = false;
+    }
+
+    // ── Preload trigger (5%) ───────────────────────────────────────────────
+    // Start downloading as soon as the card is partially visible — gives the
+    // network download a head-start before the item is fully on screen.
     if (fraction > 0.05 && _isVideo && !_ready && !_initStarted) {
       _initStarted = true;
       _initVideo();
     }
 
-    // If video is ready but not playing and becomes fully visible again, replay.
-    if (fraction > 0.5 && _isVideo && _ready && _ctrl != null && !_paused) {
-      if (!_ctrl!.value.isPlaying) _pool.play(_videoUrl);
-    }
+    // ── Visibility / dominant thresholds ──────────────────────────────────
+    _visible = fraction > 0.5; // used for watch-time tracking & lifecycle
 
-    _visible = fraction > 0.5;
-    if (_visible) {
+    // "Dominant" (70%+): this item is the clear primary target on screen.
+    // Using 70% instead of 50% prevents two simultaneously-visible items
+    // from both calling play() — eliminating the _pendingPlay race where the
+    // LAST play() wins and the wrong video autoplays (especially after page-2
+    // loads where cached videos initialise faster than new ones).
+    final dominant = fraction > 0.7;
+
+    if (dominant) {
       if (_ready && _ctrl != null && !_paused) {
-        _pool.play(_videoUrl);
+        if (!_ctrl!.value.isPlaying) _pool.play(_videoUrl);
         _watchStart ??= DateTime.now();
       } else if (!_paused && _videoUrl.isNotEmpty) {
-        // Not ready yet — set pendingPlay so pool fires instantly when preload completes
+        // Not ready yet — set _pendingPlay; pool fires it when preload finishes
         _pool.play(_videoUrl);
       }
-      // Shift preload window to ±2 around this video in the feed.
+      // Slide the preload window around this video (±1 behind, ±3 ahead).
       _pool.setActiveUrl(_videoUrl);
-    } else {
+    } else if (!_visible) {
+      // Off screen — pause and record watch time.
       if (_ctrl != null && _ctrl!.value.isPlaying) _pool.pause(_videoUrl);
       if (_watchStart != null && _isVideo) {
         final ms = DateTime.now().difference(_watchStart!).inMilliseconds;
@@ -2152,6 +2179,8 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
         _watchStart = null;
       }
     }
+    // 50–70%: visible but not dominant → preload is running, do not call
+    // play() — avoids the simultaneous-play race with the item above it.
   }
 
   void _togglePause() {
