@@ -1,26 +1,19 @@
-﻿import 'dart:async';
-import 'package:cached_video_player_plus/cached_video_player_plus.dart';
-import '../../../../core/constants/app_constants.dart';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:video_player/video_player.dart';
 
-/// Disk-cached video controller pool — for reels (paged) and feed (scrollable).
+/// Streaming video controller pool — feed and reels.
 ///
-/// Caching design:
-///   • First play: downloads MP4, writes to disk via flutter_cache_manager.
-///   • Subsequent plays (same session OR after app restart): served from disk.
-///   • Cache limit: 30 videos on disk (~600 MB typical). LRU eviction by manager.
-///   • Stale period: 7 days (videos are re-fetched after a week).
+/// Uses VideoPlayerController.networkUrl() which leverages the platform's
+/// native player (ExoPlayer on Android, AVPlayer on iOS). This sends HTTP
+/// Range requests and starts playback after buffering ~2-5 s — regardless of
+/// whether the video was previously seen. CachedVideoPlayerPlus was removed
+/// because it downloads the ENTIRE file before initialising the controller,
+/// causing 30-second+ waits for new (non-cached) videos.
 ///
-/// Instant-playback design:
-///   • Pool holds 12 in-memory controllers (1 screen + 3-ahead buffer).
-///   • setWindow(urls, i) → preloads i-1…i+3 (1 behind, 3 ahead) — lightweight.
-///   • setActiveUrl(url) → used by feed scroll to slide the window.
-///   • play(url) before ready → _pendingPlay fires the moment init completes.
-///   • Eviction: drops in-memory controllers outside ±5 of current index (disk
-///     cache is kept — re-init from disk is instant, no network round-trip).
-///   • Fail-fast: single attempt per URL; callers supply fallback URLs.
+/// In-session caching: the _controllers map holds initialised controllers for
+/// the active window (8 slots). Scrolling back to a recently-seen video reuses
+/// the in-memory controller — no re-download within the same session.
 class VideoPool {
   VideoPool._();
 
@@ -35,19 +28,8 @@ class VideoPool {
   static const _preloadBehind = 1;
   static const _preloadAhead  = 3;
 
-  /// Shared disk cache: 15 videos max, stale after 3 days.
-  static final _diskCache = CacheManager(
-    Config(
-      'esahlan_video_cache',
-      maxNrOfCacheObjects: 15,
-      stalePeriod: AppConstants.videoCacheStalePeriod,
-    ),
-  );
-
-  // In-memory controller map (URL → inner VideoPlayerController for playback)
+  // In-memory controller map (URL → VideoPlayerController)
   final _controllers = <String, VideoPlayerController>{};
-  // CachedVideoPlayerPlus wrappers — needed for correct disposal
-  final _wrappers    = <String, CachedVideoPlayerPlus>{};
   final _ready       = <String, bool>{};
   final _loading     = <String, Completer<VideoPlayerController?>>{};
 
@@ -88,7 +70,7 @@ class VideoPool {
     _window      = urls;
     _windowIndex = index;
 
-    // Evict far-away in-memory controllers (disk cache kept intact).
+    // Evict far-away in-memory controllers.
     // Never evict _activeUrl — that is the currently-playing video;
     // disposing it would kill the video mid-playback.
     final toEvict = _controllers.keys.where((url) {
@@ -112,9 +94,9 @@ class VideoPool {
   /// Ensure [url] is initialised. Returns null on failure so callers can
   /// immediately try a fallback URL.
   ///
-  /// On first call: downloads the MP4 and writes it to disk cache.
-  /// On subsequent calls (same session or after restart): served from disk
-  /// via flutter_cache_manager — no network round-trip.
+  /// Uses VideoPlayerController.networkUrl() which streams via HTTP Range
+  /// requests — playback begins after 2-5 s of buffering, not after a full
+  /// file download. In-memory controller is reused within the same session.
   Future<VideoPlayerController?> preload(String url) async {
     if (url.isEmpty) return null;
     if (_ready[url] == true) return _controllers[url];
@@ -127,20 +109,17 @@ class VideoPool {
 
     VideoPlayerController? result;
     try {
-      final wrapper = CachedVideoPlayerPlus.networkUrl(
+      final ctrl = VideoPlayerController.networkUrl(
         Uri.parse(url),
-        httpHeaders: const {'Connection': 'keep-alive'},
-        cacheManager: _diskCache,
+        httpHeaders: const {'Connection': 'keep-alive', 'Accept-Ranges': 'bytes'},
       );
-      await wrapper.initialize();
-      final ctrl = wrapper.controller;
+      await ctrl.initialize();
       ctrl.setLooping(true);
       ctrl.setVolume(0);
-      _wrappers[url]    = wrapper;
       _controllers[url] = ctrl;
       _ready[url]       = true;
       result = ctrl;
-      debugPrint('[VideoPool] ready (disk-cached): $url');
+      debugPrint('[VideoPool] ready: $url');
     } catch (e) {
       debugPrint('[VideoPool] failed: $url — $e');
     }
@@ -215,12 +194,11 @@ class VideoPool {
     for (final c in _loading.values) {
       if (!c.isCompleted) c.complete(null);
     }
-    for (final entry in _wrappers.entries) {
-      _controllers[entry.key]?.pause();
-      entry.value.dispose();
+    for (final ctrl in _controllers.values) {
+      ctrl.pause();
+      ctrl.dispose();
     }
     _controllers.clear();
-    _wrappers.clear();
     _ready.clear();
     _loading.clear();
     _window      = [];
@@ -256,13 +234,12 @@ class VideoPool {
   }
 
   void _evict(String url) {
-    _loading.remove(url)?.future.then((c) { c?.pause(); });
+    _loading.remove(url)?.future.then((c) { c?.pause(); c?.dispose(); });
     final ctrl = _controllers.remove(url);
     _ready.remove(url);
     if (_pendingPlay == url) _pendingPlay = null;
     ctrl?.pause();
-    // Dispose via wrapper (keeps disk cache intact, just frees memory)
-    _wrappers.remove(url)?.dispose();
-    debugPrint('[VideoPool] evicted from memory (disk cache kept): $url');
+    ctrl?.dispose();
+    debugPrint('[VideoPool] evicted: $url');
   }
 }
