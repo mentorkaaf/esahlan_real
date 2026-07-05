@@ -371,12 +371,7 @@ class _FeedTab extends ConsumerWidget {
               }
               final hasMore = ref.watch(communityFeedProvider.notifier).hasMore;
               items.add(_FeedLoadMore(hasMore: hasMore));
-              return ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: items.length,
-                itemBuilder: (_, i) => items[i],
-              );
+              return Column(children: items);
             },
             loading: () => Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
