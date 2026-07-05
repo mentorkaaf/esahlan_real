@@ -21,7 +21,7 @@ class VideoPool {
   static const _evictDistance = 4;
   static const _preloadBehind = 1;
   static const _preloadAhead  = 3;
-  static const _dominantMin   = 0.5; // minimum fraction to be considered
+  static const _dominantMin   = 0.6; // minimum fraction to be considered (>60% visible)
 
   final _controllers = <String, VideoPlayerController>{};
   final _ready       = <String, bool>{};
@@ -47,6 +47,8 @@ class VideoPool {
   bool isLoading(String url) => _loading.containsKey(url);
   bool get hasRoom           => _controllers.length < _maxSlots;
   int  get windowIndex       => _windowIndex;
+  /// Number of live (initialized) controllers — must never exceed [_maxSlots].
+  int  get liveCount         => _controllers.length;
 
   // ─── Feed URL registry ────────────────────────────────────────────────────
 
@@ -246,6 +248,9 @@ class VideoPool {
   // ─── Private ──────────────────────────────────────────────────────────────
 
   void _evictIfNeeded({String? keep}) {
+    if (_controllers.length >= _maxSlots) {
+      debugPrint('[VideoPool] at capacity (${_controllers.length}/$_maxSlots) — evicting');
+    }
     while (_controllers.length >= _maxSlots) {
       final victim = _chooseLRU(protect: keep);
       if (victim != null) _evict(victim);

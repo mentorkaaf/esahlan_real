@@ -1,4 +1,5 @@
 ﻿import 'dart:async';
+import 'dart:ui' as ui;
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -48,7 +49,6 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
   ScrollController get _scrollCtrl => CommunityFeedScreen.scrollController;
   late TabController _tabCtrl;
   bool _hasNewPosts = false;
-  int _lastPostCount = 0;
   int _lastFirstPostId = 0;
   Timer? _pollTimer;
   Timer? _heartbeatTimer;
@@ -147,7 +147,6 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
         });
       }
       _lastFirstPostId = firstId;
-      _lastPostCount = posts.length;
     });
 
     return Scaffold(
@@ -1985,6 +1984,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   bool _initStarted = false; // guards against concurrent _initVideo calls
   bool _paused = false;
   bool _visible = false;
+  bool _loadFailed = false;  // true when preload fails after all retries
   double _lastFraction = 0;
   final _key = UniqueKey();
   final _pool = VideoPool.feed;
@@ -1998,19 +1998,30 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Preloading is handled by setWindow() via setActiveUrl() as the user scrolls.
-    // Do NOT preload in initState — with shrinkWrap all items build simultaneously,
-    // causing 15+ concurrent network requests that starve new (uncached) videos.
+    // Fast-path: if setWindow() already preloaded this video (because it was ±3
+    // ahead of the currently playing item), attach the controller immediately
+    // rather than waiting for the first VisibilityDetector tick (~250 ms lag).
+    if (_isVideo) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _initStarted) return;
+        if (_pool.isReady(widget.m.mp4DirectUrl)) {
+          _initStarted = true;
+          _initVideo();
+        }
+      });
+    }
   }
 
   @override
   void didUpdateWidget(_MediaItem old) {
     super.didUpdateWidget(old);
-    // Handles: post.media_ready realtime event → hlsUrl just became available,
-    // or isTranscoding flipped to false. Reset so visibility can re-trigger init.
+    // Handles: post.media_ready realtime event → mp4DirectUrl just became
+    // available (transcoding completed). Reset so visibility can re-trigger init.
     if (_isVideo && !_ready && !widget.m.isTranscoding &&
-        (old.m.hlsUrl != widget.m.hlsUrl || old.m.isTranscoding != widget.m.isTranscoding)) {
+        (old.m.mp4DirectUrl != widget.m.mp4DirectUrl ||
+         old.m.isTranscoding != widget.m.isTranscoding)) {
       _initStarted = false;
+      _loadFailed = false;
       if (_lastFraction > 0.05) {
         _initStarted = true;
         _initVideo();
@@ -2025,73 +2036,49 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (state == AppLifecycleState.paused) {
       if (!_lifecyclePaused) {
         _lifecyclePaused = true;
-        if (_ctrl != null && _ready) _pool.pause(_videoUrl);
+        if (_ctrl != null && _ready) _pool.pause(_previewUrl);
       }
     } else if (state == AppLifecycleState.inactive) {
       if (!_lifecyclePaused) {
         _lifecyclePaused = true;
-        if (_ctrl != null && _ready) _pool.pause(_videoUrl);
+        if (_ctrl != null && _ready) _pool.pause(_previewUrl);
       }
     } else if (state == AppLifecycleState.resumed) {
       _lifecyclePaused = false;
       if (_visible && !_paused && _ctrl != null && _ready) {
-        _pool.reactivate(_videoUrl);
+        _pool.reactivate(_previewUrl);
       }
     }
   }
 
-  // Prefer direct nginx MP4 (1 RTT). Fall back to HLS if MP4 fails.
-  String get _mp4Url => widget.m.mp4DirectUrl;
-  String? get _hlsUrl => widget.m.hlsUrl;
-
-  // Tracks whichever URL actually loaded successfully.
-  String _resolvedUrl = '';
-  String get _videoUrl => _resolvedUrl.isNotEmpty ? _resolvedUrl : _mp4Url;
+  // Feed always uses the direct nginx MP4 (preview.mp4 / optimized.mp4).
+  // One network round-trip, faststart, Cloudflare-cacheable. Never HLS.
+  String get _previewUrl => widget.m.mp4DirectUrl;
 
   Future<void> _initVideo() async {
-    final mp4 = _mp4Url;
-    if (mp4.isEmpty) { _initStarted = false; return; }
+    final url = _previewUrl;
+    if (url.isEmpty) { _initStarted = false; return; }
 
-    // Fast path — pool already has a ready controller
-    var cached = _pool.controller(mp4);
-    String url = mp4;
-    if (cached == null && _hlsUrl != null && _hlsUrl != mp4) {
-      cached = _pool.controller(_hlsUrl!);
-      if (cached != null) url = _hlsUrl!;
-    }
+    // Fast path — pool already has this controller (preloaded by setWindow).
+    final cached = _pool.controller(url);
     if (cached != null && mounted) {
-      _resolvedUrl = url;
-      setState(() { _ctrl = cached; _ready = true; });
+      setState(() { _ctrl = cached; _ready = true; _loadFailed = false; });
       cached.addListener(_onControllerUpdate);
-      // Pool's setFraction() will play it if it's the most visible item.
-      // Re-report fraction now that the controller is ready.
+      // Re-report fraction so pool plays it if it is still the dominant item.
       if (!_paused) _pool.setFraction(url, _lastFraction);
       return;
     }
 
-    // Slow path: MP4 → HLS → PHP proxy
-    var ctrl = await _pool.preload(mp4);
-    url = mp4;
-    if (ctrl == null && _hlsUrl != null && _hlsUrl != mp4) {
-      debugPrint('[Feed] MP4 failed, trying HLS: ${_hlsUrl!}');
-      url = _hlsUrl!;
-      ctrl = await _pool.preload(url);
-    }
-    final proxyUrl = widget.m.url;
-    if (ctrl == null && proxyUrl.isNotEmpty && proxyUrl != mp4 && proxyUrl != (_hlsUrl ?? '')) {
-      debugPrint('[Feed] nginx failed, trying PHP proxy: $proxyUrl');
-      url = proxyUrl;
-      ctrl = await _pool.preload(url);
-    }
-
+    // Slow path — ask pool to initialize the controller from the network.
+    final ctrl = await _pool.preload(url);
     if (ctrl != null && mounted) {
-      _resolvedUrl = url;
-      setState(() { _ctrl = ctrl; _ready = true; });
+      setState(() { _ctrl = ctrl; _ready = true; _loadFailed = false; });
       ctrl.addListener(_onControllerUpdate);
-      // Re-report fraction so pool can play this URL if it's still dominant.
       if (!_paused) _pool.setFraction(url, _lastFraction);
-    } else {
-      _initStarted = false; // allow retry on next visibility event
+    } else if (mounted) {
+      // Preload failed (network error / 404). Show thumbnail with error state.
+      setState(() { _loadFailed = true; });
+      _initStarted = false; // allow retry via _onVisibilityChanged
     }
   }
 
@@ -2111,25 +2098,30 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     _lastFraction = fraction;
 
     // ── Stale-controller guard ─────────────────────────────────────────────
-    if (_ready && _ctrl != null && !_pool.isReady(_videoUrl)) {
+    if (_ready && _ctrl != null && !_pool.isReady(_previewUrl)) {
       _ctrl!.removeListener(_onControllerUpdate);
       _initStarted = false;
       setState(() { _ctrl = null; _ready = false; });
     }
 
     // ── Preload trigger (5%) ───────────────────────────────────────────────
-    if (fraction > 0.05 && _isVideo && !_ready && !_initStarted) {
+    // Start loading when the item is just barely visible. The pool's setWindow
+    // already handles neighbors; this is a backup for items that weren't in the
+    // window yet. _loadFailed is reset after a short scroll-away cycle.
+    if (fraction > 0.05 && _isVideo && !_ready && !_initStarted && !_loadFailed) {
       _initStarted = true;
       _initVideo();
     }
+    // Reset error state when item scrolls away so the next scroll-back retries.
+    if (fraction <= 0.01 && _loadFailed) {
+      _loadFailed = false;
+      _initStarted = false;
+    }
 
-    // ── Report fraction to pool — pool picks the most-visible URL to play ──
-    // This replaces the old dominant-gate play() calls. The pool's
-    // setFraction() internally finds the URL with the highest fraction and
-    // plays it, so only ONE video plays even when multiple items are visible.
-    if (_isVideo && _videoUrl.isNotEmpty && !_paused) {
-      _pool.setFraction(_videoUrl, fraction);
-      if (fraction > 0.5) _pool.setActiveUrl(_videoUrl);
+    // ── Report fraction to pool — pool plays the most-visible URL (>60%) ───
+    if (_isVideo && _previewUrl.isNotEmpty && !_paused) {
+      _pool.setFraction(_previewUrl, fraction);
+      if (fraction > 0.5) _pool.setActiveUrl(_previewUrl);
     }
 
     // ── Watch-time tracking ────────────────────────────────────────────────
@@ -2151,7 +2143,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void _togglePause() {
     if (!_ready || _ctrl == null) return;
     setState(() => _paused = !_paused);
-    _paused ? _pool.pause(_videoUrl) : _pool.play(_videoUrl);
+    _paused ? _pool.pause(_previewUrl) : _pool.play(_previewUrl);
   }
 
   String _formatDuration(Duration d) {
@@ -2215,17 +2207,18 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     final videoContent = GestureDetector(
         onTap: _ready ? _togglePause : null,
         onDoubleTap: _ready && _ctrl != null ? () {
-          _pool.pause(_videoUrl);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: _videoUrl)));
+          _pool.pause(_previewUrl);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: _previewUrl)));
         } : null,
         child: Stack(
           children: [
-            // Video or thumbnail — simple stack, no complex crossfade layers
+            // Video or blurred thumbnail placeholder
             Container(
               color: const Color(0xFF1A1B2E),
               width: double.infinity,
               height: videoH,
               child: _ready && _ctrl != null
+                  // Video is ready — show it
                   ? FittedBox(
                       fit: BoxFit.contain,
                       child: SizedBox(
@@ -2233,13 +2226,22 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                         height: _ctrl!.value.size.height,
                         child: VideoPlayer(_ctrl!),
                       ))
+                  // Not ready — blurred thumbnail so user immediately sees content
                   : widget.m.thumbnail != null
-                      ? NetImage(
-                          url: widget.m.thumbnail!,
-                          fit: BoxFit.contain,
-                          placeholder: Container(color: const Color(0xFF1A1B2E)),
-                          errorWidget: Container(color: const Color(0xFF1A1B2E)))
-                      : SizedBox(),
+                      ? ClipRect(
+                          child: Stack(fit: StackFit.expand, children: [
+                            ImageFiltered(
+                              imageFilter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                              child: NetImage(
+                                url: widget.m.thumbnail!,
+                                fit: BoxFit.cover,
+                                placeholder: Container(color: const Color(0xFF1A1B2E)),
+                                errorWidget: Container(color: const Color(0xFF1A1B2E))),
+                            ),
+                            // Slight dark veil to reduce distraction
+                            Container(color: Colors.black.withValues(alpha: 0.25)),
+                          ]))
+                      : const SizedBox(),
             ),
             // Tiny corner spinner only during actual re-buffering (not initial load)
             if (_ready && _ctrl != null && _ctrl!.value.isBuffering)
