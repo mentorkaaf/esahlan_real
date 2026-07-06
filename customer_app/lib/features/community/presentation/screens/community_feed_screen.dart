@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../../../core/widgets/app_shimmer.dart';
+import 'package:media_kit/media_kit.dart' show Player;
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:video_player/video_player.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:webview_flutter/webview_flutter.dart';
@@ -277,12 +279,12 @@ class _FeedTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ColoredBox(
-      color: context.colors.scaffoldBg,
+      color: const Color(0xFFF0F2F5),
       child: NotificationListener<ScrollNotification>(
       onNotification: (n) {
         if (n is ScrollUpdateNotification) {
           final m = n.metrics;
-          if (m.pixels >= m.maxScrollExtent - 400) {
+          if (m.pixels >= m.maxScrollExtent - 800) {
             ref.read(communityFeedProvider.notifier).load();
           }
         }
@@ -396,12 +398,9 @@ class _FeedLoadMore extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (hasMore) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: CircularProgressIndicator(color: kOrange, strokeWidth: 2)),
-      );
-    }
+    // Facebook-style: no visible indicator while loading more.
+    // Only show end-of-feed message when there truly is nothing left.
+    if (hasMore) return const SizedBox(height: 60);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 24),
       child: Center(
@@ -1884,7 +1883,7 @@ class _SimpleVideoPlayer extends StatefulWidget {
 }
 
 class _SimpleVideoPlayerState extends State<_SimpleVideoPlayer> {
-  VideoPlayerController? _ctrl;
+  VideoController? _ctrl;
   bool _ready = false;
   final _pool = VideoPool.feed;
 
@@ -1922,16 +1921,29 @@ class _SimpleVideoPlayerState extends State<_SimpleVideoPlayer> {
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
       body: GestureDetector(
-        onTap: _ready && _ctrl != null ? () { _ctrl!.value.isPlaying ? _ctrl!.pause() : _ctrl!.play(); setState(() {}); } : null,
+        onTap: _ready && _ctrl != null ? () {
+          _ctrl!.player.state.playing ? _pool.pause(widget.url) : _pool.play(widget.url);
+          setState(() {});
+        } : null,
         onVerticalDragEnd: (d) { if (d.primaryVelocity != null && d.primaryVelocity! > 300) Navigator.pop(context); },
         child: _ready && _ctrl != null
           ? Stack(fit: StackFit.expand, children: [
-              Center(child: AspectRatio(aspectRatio: _ctrl!.value.aspectRatio, child: VideoPlayer(_ctrl!))),
-              if (!_ctrl!.value.isPlaying)
+              Video(controller: _ctrl!, fit: BoxFit.contain, controls: NoVideoControls),
+              if (!_ctrl!.player.state.playing)
                 Center(child: Icon(Icons.play_circle_fill_rounded, color: Colors.white70, size: 64)),
               Positioned(bottom: 30, left: 16, right: 16,
-                child: VideoProgressIndicator(_ctrl!, allowScrubbing: true,
-                  colors: const VideoProgressColors(playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12))),
+                child: StreamBuilder<Duration>(
+                  stream: _ctrl!.player.stream.position,
+                  builder: (ctx, snap) {
+                    final pos = snap.data ?? Duration.zero;
+                    final dur = _ctrl!.player.state.duration;
+                    final progress = dur.inMilliseconds > 0
+                        ? (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0)
+                        : 0.0;
+                    return LinearProgressIndicator(
+                      value: progress, color: kOrange,
+                      backgroundColor: Colors.white12, minHeight: 3);
+                  })),
               Positioned(top: MediaQuery.of(context).padding.top + 8, left: 8,
                 child: GestureDetector(onTap: () => Navigator.pop(context),
                   child: Container(padding: EdgeInsets.all(8),
@@ -1977,17 +1989,26 @@ class _MediaItem extends ConsumerStatefulWidget {
   ConsumerState<_MediaItem> createState() => _MediaItemState();
 }
 
+// Global mute state — like Facebook: unmuting one video unmutes all subsequent ones.
+bool _globalMuted = false;
+
 class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObserver {
-  VideoPlayerController? _ctrl;
+  VideoController? _controller;
   bool _ready = false;
-  bool _initStarted = false; // guards against concurrent _initVideo calls
+  bool _initStarted = false;
   bool _paused = false;
   bool _visible = false;
-  bool _loadFailed = false;  // true when preload fails after all retries
+  bool _loadFailed = false;
   double _lastFraction = 0;
   final _key = UniqueKey();
   final _pool = VideoPool.feed;
   DateTime? _watchStart;
+  StreamSubscription<dynamic>? _playerSub;
+  StreamSubscription<dynamic>? _bufferingSub;
+
+  // Controls auto-hide (Facebook-style: show on tap, hide after 3s)
+  bool _showControls = false;
+  Timer? _controlsTimer;
 
   bool get _isVideo => widget.m.type == 'video';
   bool get _isAudio => widget.m.type == 'audio';
@@ -2009,6 +2030,17 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
         }
       });
     }
+  }
+
+  void _attachPlayerListeners(VideoController ctrl) {
+    _playerSub?.cancel();
+    _bufferingSub?.cancel();
+    _playerSub = ctrl.player.stream.playing.listen((_) {
+      if (mounted) setState(() {});
+    });
+    _bufferingSub = ctrl.player.stream.buffering.listen((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -2035,23 +2067,22 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (state == AppLifecycleState.paused) {
       if (!_lifecyclePaused) {
         _lifecyclePaused = true;
-        if (_ctrl != null && _ready) _pool.pause(_previewUrl);
+        if (_controller != null && _ready) _pool.pause(_previewUrl);
       }
     } else if (state == AppLifecycleState.inactive) {
       if (!_lifecyclePaused) {
         _lifecyclePaused = true;
-        if (_ctrl != null && _ready) _pool.pause(_previewUrl);
+        if (_controller != null && _ready) _pool.pause(_previewUrl);
       }
     } else if (state == AppLifecycleState.resumed) {
       _lifecyclePaused = false;
-      if (_visible && !_paused && _ctrl != null && _ready) {
+      if (_visible && !_paused && _controller != null && _ready) {
         _pool.reactivate(_previewUrl);
       }
     }
   }
 
   // Feed always uses the direct nginx MP4 (preview.mp4 / optimized.mp4).
-  // One network round-trip, faststart, Cloudflare-cacheable. Never HLS.
   String get _previewUrl => widget.m.mp4DirectUrl;
 
   Future<void> _initVideo() async {
@@ -2061,9 +2092,9 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     // Fast path — pool already has this controller (preloaded by setWindow).
     final cached = _pool.controller(url);
     if (cached != null && mounted) {
-      setState(() { _ctrl = cached; _ready = true; _loadFailed = false; });
-      cached.addListener(_onControllerUpdate);
-      // Re-report fraction so pool plays it if it is still the dominant item.
+      cached.player.setVolume(_globalMuted ? 0 : 100);
+      setState(() { _controller = cached; _ready = true; _loadFailed = false; });
+      _attachPlayerListeners(cached);
       if (!_paused) _pool.setFraction(url, _lastFraction);
       return;
     }
@@ -2071,30 +2102,33 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     // Slow path — ask pool to initialize the controller from the network.
     final ctrl = await _pool.preload(url);
     if (ctrl != null && mounted && _pool.isReady(url)) {
-      // Success — controller is ready.
-      setState(() { _ctrl = ctrl; _ready = true; _loadFailed = false; });
-      ctrl.addListener(_onControllerUpdate);
+      ctrl.player.setVolume(_globalMuted ? 0 : 100);
+      setState(() { _controller = ctrl; _ready = true; _loadFailed = false; });
+      _attachPlayerListeners(ctrl);
       if (!_paused) _pool.setFraction(url, _lastFraction);
     } else if (ctrl != null && mounted) {
-      // Eviction race: preload succeeded but pool already evicted this slot.
-      // Allow retry on next visibility tick instead of permanently failing.
       _initStarted = false;
     } else if (mounted) {
-      // Genuine failure (network error, 404, timeout).
       setState(() { _loadFailed = true; });
       _initStarted = false;
     }
   }
 
-  void _onControllerUpdate() {
-    if (mounted) setState(() {});
-  }
-
   @override
   void dispose() {
-    _ctrl?.removeListener(_onControllerUpdate);
+    _controlsTimer?.cancel();
+    _playerSub?.cancel();
+    _bufferingSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _showControlsBriefly() {
+    setState(() => _showControls = true);
+    _controlsTimer?.cancel();
+    _controlsTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showControls = false);
+    });
   }
 
   void _onVisibilityChanged(VisibilityInfo info) {
@@ -2102,11 +2136,12 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     _lastFraction = fraction;
 
     // ── Stale-controller guard ─────────────────────────────────────────────
-    if (_ready && _ctrl != null && !_pool.isReady(_previewUrl)) {
-      _ctrl!.removeListener(_onControllerUpdate);
+    if (_ready && _controller != null && !_pool.isReady(_previewUrl)) {
+      _playerSub?.cancel();
+      _bufferingSub?.cancel();
       _initStarted = false;
-      _loadFailed = false;  // allow retry after pool eviction
-      setState(() { _ctrl = null; _ready = false; });
+      _loadFailed = false;
+      setState(() { _controller = null; _ready = false; });
     }
 
     // ── Preload trigger (>5%) ──────────────────────────────────────────────
@@ -2124,12 +2159,12 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     // ── Report fraction to pool — pool plays the most-visible URL (>60%) ───
     if (_isVideo && _previewUrl.isNotEmpty && !_paused) {
       _pool.setFraction(_previewUrl, fraction);
-      if (fraction > 0.5) _pool.setActiveUrl(_previewUrl);
+      if (fraction > 0.15) _pool.setActiveUrl(_previewUrl);
     }
 
     // ── Watch-time tracking ────────────────────────────────────────────────
     _visible = fraction > 0.5;
-    if (_visible && _ready && _ctrl != null) {
+    if (_visible && _ready && _controller != null) {
       _watchStart ??= DateTime.now();
     } else if (!_visible) {
       if (_watchStart != null && _isVideo) {
@@ -2144,7 +2179,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   }
 
   void _togglePause() {
-    if (!_ready || _ctrl == null) return;
+    if (!_ready || _controller == null) return;
     setState(() => _paused = !_paused);
     _paused ? _pool.pause(_previewUrl) : _pool.play(_previewUrl);
   }
@@ -2192,10 +2227,12 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
     final screenW = MediaQuery.of(context).size.width;
     final serverAr = widget.m.aspectRatio;
-    double videoH;
-    if (_ready && _ctrl != null) {
-      final ar = _ctrl!.value.aspectRatio;
-      videoH = (screenW / ar).clamp(200.0, 400.0);
+    double videoH = 300;
+    if (_ready && _controller != null) {
+      final w = _controller!.player.state.width?.toDouble();
+      final h = _controller!.player.state.height?.toDouble();
+      final ar = (w != null && h != null && h > 0) ? w / h : serverAr;
+      if (ar != null && ar > 0) videoH = (screenW / ar).clamp(200.0, 400.0);
     } else if (serverAr != null) {
       videoH = (screenW / serverAr).clamp(200.0, 400.0);
     } else {
@@ -2203,23 +2240,26 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     }
 
     final videoContent = GestureDetector(
-        onTap: _ready ? _togglePause : null,
-        onDoubleTap: _ready && _ctrl != null ? () {
+        // Tap: show controls (Facebook-style — controls hidden by default)
+        onTap: () {
+          if (!_ready) return;
+          if (_showControls) { _togglePause(); } else { _showControlsBriefly(); }
+        },
+        onDoubleTap: _ready && _controller != null ? () {
           _pool.pause(_previewUrl);
           Navigator.push(context, MaterialPageRoute(builder: (_) => _SimpleVideoPlayer(url: _previewUrl)));
         } : null,
         child: Stack(
           children: [
-            // Video player — fades in over thumbnail when ready
             Container(
-              color: const Color(0xFF1A1B2E),
+              color: const Color(0xFF0A0A0A),
               width: double.infinity,
               height: videoH,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Thumbnail — shows instantly (before video loads).
-                  // Fades out once video is playing.
+                  // Thumbnail — always visible until video is playing.
+                  // No spinner. Facebook shows thumbnail, video fades in on top.
                   if (widget.m.thumbnail != null && widget.m.thumbnail!.isNotEmpty)
                     Positioned.fill(
                       child: Image.network(
@@ -2230,24 +2270,24 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                             progress == null ? child : const SizedBox(),
                       ),
                     ),
-                  // Video fades in when ready
-                  AnimatedOpacity(
-                    opacity: (_ready && _ctrl != null) ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 200),
-                    child: (_ready && _ctrl != null)
-                        ? FittedBox(
-                            fit: BoxFit.contain,
-                            child: SizedBox(
-                              width: _ctrl!.value.size.width,
-                              height: _ctrl!.value.size.height,
-                              child: VideoPlayer(_ctrl!),
-                            ))
-                        : const SizedBox(),
-                  ),
+                  // Video fades in smoothly when ready
+                  if (_ready && _controller != null)
+                    Positioned.fill(
+                      child: AnimatedOpacity(
+                        opacity: 1.0,
+                        duration: const Duration(milliseconds: 150),
+                        child: Video(
+                          controller: _controller!,
+                          fit: BoxFit.contain,
+                          controls: NoVideoControls,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
-            // Processing badge for owner's own videos still being transcoded
+
+            // Processing badge (owner only)
             if (widget.m.isTranscoding)
               Positioned(top: 8, left: 8,
                 child: Container(
@@ -2265,34 +2305,92 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                         fontWeight: FontWeight.w500)),
                   ]),
                 )),
-            // Tiny corner spinner only during actual re-buffering (not initial load)
-            if (_ready && _ctrl != null && _ctrl!.value.isBuffering)
+
+            // Re-buffering indicator (only during actual stall, not initial load)
+            if (_ready && _controller != null && _controller!.player.state.buffering)
               Positioned(bottom: 50, right: 12,
                 child: SizedBox(width: 18, height: 18,
                   child: CircularProgressIndicator(color: kOrange, strokeWidth: 2))),
-            // Paused icon when user manually paused
-            if (_paused && _ready)
-              Positioned.fill(child: Center(child: Container(padding: EdgeInsets.all(14),
-                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), shape: BoxShape.circle),
-                child: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 40)))),
-            if (_ready && _ctrl != null) Positioned(bottom: 0, left: 0, right: 0,
-              child: Container(
-                padding: EdgeInsets.fromLTRB(10, 20, 10, 8),
-                decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)])),
-                child: Row(children: [
-                  GestureDetector(onTap: _togglePause,
-                    child: Icon(_paused ? Icons.play_arrow_rounded : Icons.pause_rounded, color: Colors.white, size: 22)),
-                  SizedBox(width: 8),
-                  Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(2),
-                    child: VideoProgressIndicator(_ctrl!, allowScrubbing: true, colors: const VideoProgressColors(
-                      playedColor: kOrange, bufferedColor: Colors.white30, backgroundColor: Colors.white12)))),
-                  SizedBox(width: 8),
-                  Text(_formatDuration(_ctrl!.value.duration), style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-                  SizedBox(width: 6),
-                  GestureDetector(onTap: () { setState(() { _ctrl!.setVolume(_ctrl!.value.volume > 0 ? 0 : 1); }); },
-                    child: Icon(_ctrl!.value.volume > 0 ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white, size: 18)),
-                ]))),
+
+            // Global mute button — always visible (top-right corner, like Facebook)
+            if (_ready && _controller != null)
+              Positioned(top: 8, right: 8,
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _globalMuted = !_globalMuted;
+                      _controller!.player.setVolume(_globalMuted ? 0 : 100);
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _globalMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                      color: Colors.white, size: 16,
+                    ),
+                  ),
+                )),
+
+            // Controls overlay — visible only on tap, auto-hides after 3s (Facebook-style)
+            if (_ready && _controller != null)
+              Positioned.fill(
+                child: AnimatedOpacity(
+                  opacity: _showControls ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Stack(children: [
+                    // Dim overlay
+                    Positioned.fill(child: Container(color: Colors.black.withValues(alpha: 0.25))),
+                    // Pause/play centre button
+                    Positioned.fill(child: Center(child: Container(
+                      padding: EdgeInsets.all(14),
+                      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.45), shape: BoxShape.circle),
+                      child: Icon(_paused ? Icons.play_arrow_rounded : Icons.pause_rounded, color: Colors.white, size: 40)))),
+                    // Bottom progress bar + duration
+                    Positioned(bottom: 0, left: 0, right: 0,
+                      child: Container(
+                        padding: EdgeInsets.fromLTRB(10, 20, 10, 8),
+                        decoration: BoxDecoration(gradient: LinearGradient(
+                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)])),
+                        child: Row(children: [
+                          Expanded(child: StreamBuilder<Duration>(
+                            stream: _controller!.player.stream.position,
+                            builder: (ctx, snap) {
+                              final pos = snap.data ?? Duration.zero;
+                              final dur = _controller!.player.state.duration;
+                              final progress = dur.inMilliseconds > 0
+                                  ? (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0)
+                                  : 0.0;
+                              return GestureDetector(
+                                onHorizontalDragUpdate: (details) {
+                                  final box = ctx.findRenderObject() as RenderBox?;
+                                  if (box == null || dur.inMilliseconds == 0) return;
+                                  final ratio = (details.localPosition.dx / box.size.width).clamp(0.0, 1.0);
+                                  _controller!.player.seek(Duration(milliseconds: (ratio * dur.inMilliseconds).round()));
+                                },
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(2),
+                                  child: LinearProgressIndicator(
+                                    value: progress,
+                                    color: kOrange,
+                                    backgroundColor: Colors.white12,
+                                    minHeight: 3,
+                                  ),
+                                ),
+                              );
+                            },
+                          )),
+                          SizedBox(width: 8),
+                          Text(_formatDuration(_controller!.player.state.duration),
+                            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                        ]))),
+                  ]),
+                ),
+              ),
           ],
         ),
       );
@@ -2300,8 +2398,12 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     return VisibilityDetector(
       key: _key,
       onVisibilityChanged: _onVisibilityChanged,
-      child: _ready && _ctrl != null
-          ? VideoAdOverlay(mainController: _ctrl!, child: videoContent)
+      child: _ready && _controller != null
+          ? VideoAdOverlay(
+              mainController: _controller!.player,
+              onAdStart: () => _pool.pause(_previewUrl),
+              onAdEnd:   () => _pool.reactivate(_previewUrl),
+              child: videoContent)
           : videoContent,
     );
   }

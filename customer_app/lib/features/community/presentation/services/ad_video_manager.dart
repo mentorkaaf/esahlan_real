@@ -1,7 +1,5 @@
-import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:flutter/foundation.dart';
 import '../../../../core/constants/app_constants.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:video_player/video_player.dart';
 
 /// Ad video controller manager — completely independent from VideoPool.
@@ -19,14 +17,8 @@ class AdVideoManager {
   AdVideoManager._();
   static final instance = AdVideoManager._();
 
-  static final _cache = CacheManager(Config(
-    'esahlan_ads_v2',
-    maxNrOfCacheObjects: 20,
-    stalePeriod: AppConstants.adVideoCacheStalePeriod,
-  ));
 
   final _controllers = <String, VideoPlayerController>{};
-  final _wrappers    = <String, CachedVideoPlayerPlus>{};
   // Keeps one Future per URL so concurrent calls share a single download.
   final _futures     = <String, Future<VideoPlayerController?>>{};
 
@@ -56,13 +48,9 @@ class AdVideoManager {
 
   void disposeAll() {
     for (final c in _controllers.values) {
-      try { c.pause(); } catch (_) {}
-    }
-    for (final w in _wrappers.values) {
-      try { w.dispose(); } catch (_) {}
+      try { c.pause(); c.dispose(); } catch (_) {}
     }
     _controllers.clear();
-    _wrappers.clear();
     _futures.clear();
   }
 
@@ -70,17 +58,14 @@ class AdVideoManager {
 
   Future<VideoPlayerController?> _init(String url) async {
     try {
-      final wrapper = CachedVideoPlayerPlus.networkUrl(
+      final ctrl = VideoPlayerController.networkUrl(
         Uri.parse(url),
         httpHeaders: const {'Connection': 'keep-alive'},
-        cacheManager: _cache,
       );
-      await wrapper.initialize();
-      final ctrl = wrapper.controller;
+      await ctrl.initialize();
       ctrl.setLooping(true);
       ctrl.setVolume(0);
-      _wrappers[url]     = wrapper;
-      _controllers[url]  = ctrl;
+      _controllers[url] = ctrl;
       debugPrint('[AdVideoManager] ready: $url');
       return ctrl;
     } catch (e) {

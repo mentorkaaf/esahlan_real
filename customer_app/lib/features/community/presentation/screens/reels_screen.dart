@@ -1,9 +1,12 @@
-﻿import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart' show Player;
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/video_pool.dart';
 import '../services/ad_video_manager.dart';
@@ -345,7 +348,8 @@ class _CommunityReelCard extends ConsumerStatefulWidget {
 }
 
 class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
-  VideoPlayerController? _videoCtrl;
+  VideoController? _videoCtrl;
+  StreamSubscription<bool>? _completedSub;
   bool _videoReady = false;
   bool _muted = false;
   bool _paused = false;
@@ -429,8 +433,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
 
     if (poolCtrl != null) {
       _videoCtrl = poolCtrl;
-      _videoCtrl!.setLooping(false);
-      try { _videoCtrl!.addListener(_onVideoProgress); } catch (_) {}
+      _attachCompletedListener(poolCtrl);
       if (mounted) {
         setState(() => _videoReady = true);
         if (widget.isActive && !_paused) _pool.play(_videoUrl);
@@ -455,27 +458,17 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
 
     if (ctrl != null && mounted) {
       _videoCtrl = ctrl;
-      ctrl.setLooping(false);
-      try { ctrl.addListener(_onVideoProgress); } catch (_) {}
+      _attachCompletedListener(ctrl);
       setState(() => _videoReady = true);
       if (widget.isActive && !_paused) _pool.play(_videoUrl);
     }
   }
 
-  void _onVideoProgress() {
-    if (!mounted || _videoCtrl == null || !_videoReady) return;
-    try {
-      final pos = _videoCtrl!.value.position;
-      final dur = _videoCtrl!.value.duration;
-      if (dur > Duration.zero && pos >= dur - const Duration(milliseconds: 500)) {
-        try {
-          _videoCtrl!.removeListener(_onVideoProgress);
-        } catch (_) {}
-        if (mounted) widget.onVideoEnd?.call();
-      }
-    } catch (_) {
-      if (mounted) setState(() => _videoReady = false);
-    }
+  void _attachCompletedListener(VideoController ctrl) {
+    _completedSub?.cancel();
+    _completedSub = ctrl.player.stream.completed.listen((completed) {
+      if (completed && mounted) widget.onVideoEnd?.call();
+    });
   }
 
   @override
@@ -484,7 +477,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     if (!mounted) return;
     if (widget.isActive != old.isActive) {
       if (widget.isActive) {
-        if (!_paused && _videoUrl.isNotEmpty) _pool.play(_videoUrl);
+        if (!_paused && _videoUrl.isNotEmpty) _pool.reactivate(_videoUrl);
         _trackView();
       } else {
         if (_videoUrl.isNotEmpty) _pool.pause(_videoUrl);
@@ -494,9 +487,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
 
   @override
   void dispose() {
-    try {
-      _videoCtrl?.removeListener(_onVideoProgress);
-    } catch (_) {}
+    _completedSub?.cancel();
     for (final entry in _realtimeListeners.entries) {
       RealtimeClient.instance.removeListener(_postChannel, entry.key, entry.value);
     }
@@ -508,11 +499,9 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     if (!_videoReady || _videoCtrl == null) return;
     setState(() => _paused = !_paused);
     if (_paused) {
-      _videoCtrl!.pause();
       _pool.pause(_videoUrl);
     } else {
-      _videoCtrl!.play();    // direct — avoids pool isPlaying guard race
-      _pool.play(_videoUrl); // sync pool _activeUrl
+      _pool.play(_videoUrl);
     }
   }
 
@@ -588,7 +577,11 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
 
         // Video replaces thumbnail once ready
         if (_videoReady && _videoCtrl != null)
-          Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!))),
+          Positioned.fill(child: Video(
+            controller: _videoCtrl!,
+            fit: BoxFit.cover,
+            controls: NoVideoControls,
+          )),
 
         // Gradient overlay (always present for text legibility)
         Container(
@@ -609,7 +602,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
 
         // Tiny corner spinner only while the video is actively re-buffering
         // (not during initial load — thumbnail is clear enough)
-        if (_videoReady && _videoCtrl != null && _videoCtrl!.value.isBuffering)
+        if (_videoReady && _videoCtrl != null && _videoCtrl!.player.state.buffering)
           Positioned(bottom: 120, right: 14,
             child: SizedBox(width: 20, height: 20,
               child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2))),
@@ -638,7 +631,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
           child: GestureDetector(
             onTap: () {
               setState(() => _muted = !_muted);
-              _videoCtrl?.setVolume(_muted ? 0 : 1);
+              _videoCtrl?.player.setVolume(_muted ? 0 : 100);
             },
             child: Container(
               padding: EdgeInsets.all(8),
@@ -792,7 +785,11 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     );
 
     return _videoReady && _videoCtrl != null
-        ? VideoAdOverlay(mainController: _videoCtrl!, child: reelContent)
+        ? VideoAdOverlay(
+            mainController: _videoCtrl!.player,
+            onAdStart: () => _pool.pause(_videoUrl),
+            onAdEnd:   () => _pool.reactivate(_videoUrl),
+            child: reelContent)
         : reelContent;
   }
 
@@ -1110,7 +1107,7 @@ class _RentReelCard extends ConsumerStatefulWidget {
 }
 
 class _RentReelCardState extends ConsumerState<_RentReelCard> {
-  VideoPlayerController? _videoCtrl;
+  VideoController? _videoCtrl;
   bool _videoReady = false;
   bool _muted = false;
   bool _paused = false;
@@ -1138,7 +1135,6 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
 
     final ctrl = await _pool.preload(_videoUrl);
     if (ctrl != null && mounted) {
-      ctrl.setLooping(true);
       setState(() { _videoCtrl = ctrl; _videoReady = true; });
       if (widget.isActive && !_paused) _pool.play(_videoUrl);
     }
@@ -1166,10 +1162,9 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
     if (!_videoReady || _videoCtrl == null) return;
     setState(() => _paused = !_paused);
     if (_paused) {
-      _videoCtrl!.pause();
       _pool.pause(_videoUrl);
     } else {
-      _pool.play(_videoUrl); // updates pool _activeUrl + resumes playback
+      _pool.play(_videoUrl);
     }
   }
 
@@ -1215,7 +1210,11 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
 
         // Video replaces thumbnail once ready
         if (_videoReady && _videoCtrl != null)
-          Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio, child: VideoPlayer(_videoCtrl!))),
+          Positioned.fill(child: Video(
+            controller: _videoCtrl!,
+            fit: BoxFit.cover,
+            controls: NoVideoControls,
+          )),
 
         // Gradient (always present for text legibility)
         Container(
@@ -1235,7 +1234,7 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
         ),
 
         // Corner spinner only during actual re-buffering, not initial load
-        if (_videoReady && _videoCtrl != null && _videoCtrl!.value.isBuffering)
+        if (_videoReady && _videoCtrl != null && _videoCtrl!.player.state.buffering)
           Positioned(bottom: 120, right: 14,
             child: SizedBox(width: 20, height: 20,
               child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2))),
@@ -1285,9 +1284,7 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
           child: GestureDetector(
             onTap: () {
               setState(() => _muted = !_muted);
-              if (_videoCtrl != null) {
-                _videoCtrl!.setVolume(_muted ? 0 : 1);
-              }
+              _videoCtrl?.player.setVolume(_muted ? 0 : 100);
             },
             child: Container(
               padding: EdgeInsets.all(8),

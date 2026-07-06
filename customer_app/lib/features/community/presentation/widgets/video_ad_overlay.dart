@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:video_player/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/repositories/community_repository.dart';
@@ -10,9 +11,11 @@ import '../providers/community_provider.dart';
 import '../screens/community_shell.dart';
 
 class VideoAdOverlay extends ConsumerStatefulWidget {
-  final VideoPlayerController mainController;
+  final Player mainController;
   final Widget child;
-  const VideoAdOverlay({super.key, required this.mainController, required this.child});
+  final VoidCallback? onAdStart;
+  final VoidCallback? onAdEnd;
+  const VideoAdOverlay({super.key, required this.mainController, required this.child, this.onAdStart, this.onAdEnd});
   @override
   ConsumerState<VideoAdOverlay> createState() => _VideoAdOverlayState();
 }
@@ -73,7 +76,7 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
 
   void _generateTriggerPoints() {
     if (_triggerPoints.isNotEmpty) return;
-    final dur = widget.mainController.value.duration;
+    final dur = widget.mainController.state.duration;
     if (dur <= Duration.zero) return;
     final totalSecs = dur.inSeconds;
 
@@ -110,16 +113,16 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
 
   void _onProgress() {
     if (!_settingsLoaded || !_overlayEnabled || _showingAd || !mounted) return;
-    if (!widget.mainController.value.isPlaying) return;
-    final dur = widget.mainController.value.duration;
+    if (!widget.mainController.state.playing) return;
+    final dur = widget.mainController.state.duration;
     if (dur <= Duration.zero) return;
 
     // Generate trigger points once we know duration
     if (_triggerPoints.isEmpty) _generateTriggerPoints();
     if (_nextTriggerIndex >= _triggerPoints.length) return;
 
-    final progress = widget.mainController.value.position.inMilliseconds / dur.inMilliseconds;
-    if (widget.mainController.value.position.inSeconds < 2) return;
+    final progress = widget.mainController.state.position.inMilliseconds / dur.inMilliseconds;
+    if (widget.mainController.state.position.inSeconds < 2) return;
 
     if (progress >= _triggerPoints[_nextTriggerIndex]) {
       _nextTriggerIndex++;
@@ -129,6 +132,7 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
 
   void _showAdNow() {
     if (!_preloadDone || _adCtrl == null || _ad == null) return;
+    widget.onAdStart?.call();
     widget.mainController.pause();
     _adCtrl!.play();
     _adCtrl!.addListener(_onAdEnd);
@@ -162,7 +166,8 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
     _preloadStarted = false;
     _preloadDone = false;
     setState(() { _showingAd = false; _adReady = false; });
-    if (widget.mainController.value.isInitialized) widget.mainController.play();
+    widget.onAdEnd?.call();
+    widget.mainController.play();
     // Preload next ad for next trigger
     if (_nextTriggerIndex < _triggerPoints.length) _preloadAd();
   }

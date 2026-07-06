@@ -1,290 +1,251 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 
-/// Streaming video controller pool — feed and reels.
-///
-/// Each feed item calls [setFraction] whenever the VisibilityDetector fires.
-/// The pool internally picks the URL with the highest fraction (above a
-/// minimum threshold) as the "dominant" URL and plays it, pausing all others.
-/// This eliminates the _pendingPlay race where multiple items simultaneously
-/// call play() and the last one always wins.
-///
-/// Reels use [play] directly (PageView — only one item active at a time).
+// ── VideoPool ─────────────────────────────────────────────────────────────────
+//
+// Two singletons: VideoPool.feed  (feed scroll)
+//                 VideoPool.reels (reels scroll)
+//
+// Uses media_kit Player (ExoPlayer on Android, AVPlayer on iOS) for native
+// hardware-accelerated decoding, consistent buffering, and smooth playback.
+
 class VideoPool {
-  VideoPool._();
+  VideoPool._({required String id, bool loop = true}) : _id = id, _loop = loop;
 
-  static final reels = VideoPool._();
-  static final feed  = VideoPool._();
+  static final feed  = VideoPool._(id: 'feed',  loop: true);
+  static final reels = VideoPool._(id: 'reels', loop: false);
 
-  static const _maxSlots      = 10;
-  static const _evictDistance = 5;
-  static const _preloadBehind = 1;
-  static const _preloadAhead  = 4;
-  static const _dominantMin   = 0.6; // minimum fraction to be considered (>60% visible)
+  final bool _loop;
 
-  final _controllers = <String, VideoPlayerController>{};
-  final _ready       = <String, bool>{};
-  final _loading     = <String, Completer<VideoPlayerController?>>{};
+  final String _id;
 
-  // Feed scroll tracking
-  List<String> _window    = [];
-  int  _windowIndex       = -1;
-  String? _activeUrl;
+  final _players     = <String, Player>{};
+  final _controllers = <String, VideoController>{};
+  final _loading     = <String, Future<VideoController?>>{};
+  final _fractions   = <String, double>{};
 
-  // Dominant selection (feed only)
-  final _fractions = <String, double>{};
-  String? _pendingUrl; // URL waiting to become active (preload in progress)
+  List<String> _urls        = [];
+  int          _windowIndex = -1;
+  String?      _activeUrl;
+  String?      _pendingPlay;
 
-  List<String> _feedUrls = [];
+  static const _maxSlots     = 6;
+  static const _evictDist    = 7;
+  static const _preloadAhead = 4;
+  static const _dominant     = 0.5;
 
-  // ─── Public state ─────────────────────────────────────────────────────────
+  // ── Public API ────────────────────────────────────────────────────────────
 
-  VideoPlayerController? controller(String url) =>
-      (_ready[url] == true) ? _controllers[url] : null;
+  VideoController? controller(String url) => _controllers[url];
+  Player?          player    (String url) => _players[url];
 
-  bool isReady(String url)   => _ready[url] == true;
+  bool isReady  (String url) => _controllers.containsKey(url) && !_loading.containsKey(url);
   bool isLoading(String url) => _loading.containsKey(url);
-  bool get hasRoom           => _controllers.length < _maxSlots;
-  int  get windowIndex       => _windowIndex;
-  /// Number of live (initialized) controllers — must never exceed [_maxSlots].
-  int  get liveCount         => _controllers.length;
+  int  get windowIndex => _windowIndex;
+  int  get liveCount   => _controllers.length + _loading.length;
 
-  // ─── Feed URL registry ────────────────────────────────────────────────────
-
+  // Called every time the feed state changes (page 1, 2, …).
   void setFeedUrls(List<String> urls) {
-    _feedUrls = urls;
+    _urls = urls;
+    if (urls.isEmpty) return;
+    int pivot = _windowIndex >= 0 ? _windowIndex : 0;
+    if (_activeUrl != null) {
+      final ai = urls.indexOf(_activeUrl!);
+      if (ai >= 0) pivot = ai;
+    }
+    _rebuild(pivot);
+  }
+
+  void setWindow(List<String> urls, int index) {
+    _urls = urls;
+    _rebuild(index);
   }
 
   void setActiveUrl(String url) {
     if (url.isEmpty) return;
-    final idx = _feedUrls.indexOf(url);
-    if (idx >= 0) setWindow(_feedUrls, idx);
+    final idx = _urls.indexOf(url);
+    if (idx >= 0) _rebuild(idx);
+    else if (!isReady(url) && !isLoading(url)) _preload(url);
   }
 
-  /// Report the visibility fraction for a URL (feed only).
-  /// The pool picks the URL with the highest fraction and plays it.
   void setFraction(String url, double fraction) {
     if (url.isEmpty) return;
-    if (fraction <= 0) {
-      _fractions.remove(url);
-    } else {
-      _fractions[url] = fraction;
-    }
-    _maybeChangeDominant();
+    if (fraction <= 0) _fractions.remove(url); else _fractions[url] = fraction;
+    _updateDominant();
   }
 
-  void _maybeChangeDominant() {
-    String? best;
-    double bestFraction = _dominantMin;
-    for (final e in _fractions.entries) {
-      if (e.value > bestFraction) {
-        best = e.key;
-        bestFraction = e.value;
-      }
-    }
+  Future<VideoController?> preload(String url) => _preload(url);
 
-    if (best == null) {
-      // Nothing dominant — pause whoever is playing
-      if (_activeUrl != null) {
-        _controllers[_activeUrl!]?.pause();
-        _controllers[_activeUrl!]?.setVolume(0);
-      }
-      _activeUrl = null;
-      _pendingUrl = null;
-      return;
-    }
-
-    if (best == _activeUrl) return; // already playing the right one
-
-    // Switch to best
-    _play(best);
-  }
-
-  // ─── Window ───────────────────────────────────────────────────────────────
-
-  void setWindow(List<String> urls, int index) {
-    _window      = urls;
-    _windowIndex = index;
-
-    final toEvict = _controllers.keys.where((url) {
-      if (url == _activeUrl) return false;
-      final i = urls.indexOf(url);
-      // i < 0 = URL no longer in window list (feed refresh / pagination) → evict
-      return i < 0 || (i - index).abs() > _evictDistance;
-    }).toList();
-    for (final u in toEvict) _evict(u);
-
-    final from = (index - _preloadBehind).clamp(0, urls.length - 1);
-    final to   = (index + _preloadAhead).clamp(0, urls.length - 1);
-    for (var i = from; i <= to; i++) {
-      final u = urls[i];
-      if (u.isNotEmpty && !isReady(u) && !isLoading(u)) preload(u);
-    }
-  }
-
-  // ─── Preloading ───────────────────────────────────────────────────────────
-
-  Future<VideoPlayerController?> preload(String url) async {
-    if (url.isEmpty) return null;
-    if (_ready[url] == true) return _controllers[url];
-    if (_loading.containsKey(url)) return _loading[url]!.future;
-
-    _evictIfNeeded(keep: url);
-
-    final c = Completer<VideoPlayerController?>();
-    _loading[url] = c;
-
-    VideoPlayerController? result;
-    try {
-      final ctrl = VideoPlayerController.networkUrl(
-        Uri.parse(url),
-        httpHeaders: const {'Connection': 'keep-alive', 'Accept-Ranges': 'bytes'},
-      );
-      await ctrl.initialize();
-      ctrl.setLooping(true);
-      ctrl.setVolume(0);
-      _controllers[url] = ctrl;
-      _ready[url]       = true;
-      result = ctrl;
-      debugPrint('[VideoPool] ready: $url');
-    } catch (e) {
-      debugPrint('[VideoPool] failed: $url — $e');
-    }
-
-    _loading.remove(url);
-    c.complete(result);
-
-    // Auto-play if this URL is still the intended dominant one
-    if (result != null && _pendingUrl == url) {
-      _pendingUrl = null;
-      _pauseOthers(url);
-      result.setVolume(1);
-      try { result.play(); } catch (_) {}
-    }
-
-    return result;
-  }
-
-  // ─── Playback (used by reels and by _maybeChangeDominant) ─────────────────
-
-  /// Direct play — used by reels (PageView, single active item).
-  /// Also called internally by [_maybeChangeDominant] for feed.
-  void play(String url) => _play(url);
-
-  void _play(String url) {
-    if (url.isEmpty) return;
-    _activeUrl  = url;
-    _pendingUrl = url;
-
-    final ctrl = _controllers[url];
-    if (ctrl != null && _ready[url] == true) {
-      _pendingUrl = null;
-      _pauseOthers(url);  // pause others only when we are about to actually play
-      ctrl.setVolume(1);  // always restore volume (fixes muted-loop bug)
-      if (!ctrl.value.isPlaying) {
-        try { ctrl.play(); } catch (_) {}
-      }
-    }
-    // If not ready: _pendingUrl stays set; preload() fires _pauseOthers + play
-    // when the controller finishes loading — avoids silencing the feed prematurely.
-  }
-
-  void _pauseOthers(String exceptUrl) {
-    for (final entry in _controllers.entries) {
-      if (entry.key == exceptUrl) continue;
-      if (entry.value.value.isPlaying) entry.value.pause();
-      entry.value.setVolume(0);
-    }
-  }
+  void play(String url) => _doPlay(url);
 
   void pause(String url) {
-    if (_pendingUrl == url) _pendingUrl = null;
-    _controllers[url]?.pause();
-    if (_activeUrl == url) _activeUrl = null;
+    _players[url]?.setVolume(0);
+    _players[url]?.pause();
+    if (_activeUrl   == url) _activeUrl   = null;
+    if (_pendingPlay == url) _pendingPlay = null;
   }
 
   void pauseAll() {
-    _pendingUrl = null;
-    for (final ctrl in _controllers.values) {
-      if (ctrl.value.isPlaying) ctrl.pause();
-    }
-    _activeUrl = null;
+    _activeUrl   = null;
+    _pendingPlay = null;
+    for (final p in _players.values) { p.setVolume(0); p.pause(); }
   }
 
   Future<void> reactivate(String url) async {
     if (url.isEmpty) return;
-    final ctrl = controller(url);
-    if (ctrl == null) {
-      final loaded = await preload(url);
-      if (loaded != null) _play(url);
-      return;
-    }
-    _activeUrl  = url;
-    _pendingUrl = null;
-    ctrl.setVolume(1);
-    try { ctrl.play(); } catch (_) {}
+    if (isReady(url)) { _doPlay(url); return; }
+    await _preload(url);
+    if (isReady(url)) _doPlay(url);
   }
-
-  // ─── Lifecycle ────────────────────────────────────────────────────────────
 
   void disposeAll() {
-    _pendingUrl = null;
-    for (final c in _loading.values) {
-      if (!c.isCompleted) c.complete(null);
-    }
-    for (final ctrl in _controllers.values) {
-      ctrl.pause();
-      ctrl.dispose();
-    }
-    _controllers.clear();
-    _ready.clear();
-    _loading.clear();
-    _fractions.clear();
-    _window      = [];
-    _windowIndex = -1;
     _activeUrl   = null;
-    _feedUrls    = [];
+    _pendingPlay = null;
+    _loading.clear();
+    for (final p in _players.values) { try { p.dispose(); } catch (_) {} }
+    _players.clear();
+    _controllers.clear();
+    _fractions.clear();
+    _urls        = [];
+    _windowIndex = -1;
   }
 
-  // ─── Private ──────────────────────────────────────────────────────────────
+  // ── Private — window ──────────────────────────────────────────────────────
 
-  void _evictIfNeeded({String? keep}) {
-    if (_controllers.length >= _maxSlots) {
-      debugPrint('[VideoPool] at capacity (${_controllers.length}/$_maxSlots) — evicting');
-    }
-    while (_controllers.length >= _maxSlots) {
-      final victim = _chooseLRU(protect: keep);
-      if (victim != null) _evict(victim);
-      else break;
+  void _rebuild(int pivot) {
+    _windowIndex = pivot;
+    _evictFar(pivot);
+    _preloadNearby(pivot);
+  }
+
+  void _evictFar(int pivot) {
+    final evict = _controllers.keys.where((url) {
+      if (url == _activeUrl || url == _pendingPlay) return false;
+      final i = _urls.indexOf(url);
+      return i < 0 || (i - pivot).abs() > _evictDist;
+    }).toList();
+    for (final url in evict) _evict(url);
+  }
+
+  void _preloadNearby(int pivot) {
+    if (_urls.isEmpty) return;
+    final from = (pivot - 1          ).clamp(0, _urls.length - 1);
+    final to   = (pivot + _preloadAhead).clamp(0, _urls.length - 1);
+    for (var i = from; i <= to; i++) {
+      final url = _urls[i];
+      if (url.isEmpty || isReady(url) || isLoading(url)) continue;
+      _preload(url);
     }
   }
 
-  String? _chooseLRU({String? protect}) {
-    String? best;
-    int     bestDist = -1;
+  // ── Private — preload ─────────────────────────────────────────────────────
+
+  Future<VideoController?> _preload(String url) {
+    if (url.isEmpty)    return Future.value(null);
+    if (isReady(url))   return Future.value(_controllers[url]);
+    if (isLoading(url)) return _loading[url]!;
+
+    final future = _doInit(url);
+    _loading[url] = future;
+    return future;
+  }
+
+  Future<VideoController?> _doInit(String url) async {
+    _makeRoom(protect: url);
+    try {
+      final player = Player(
+        configuration: const PlayerConfiguration(
+          bufferSize: 32 * 1024 * 1024, // 32 MB — ExoPlayer native buffer
+        ),
+      );
+      final controller = VideoController(player);
+
+      await player.open(Media(url), play: false);
+      await player.setVolume(0);
+      await player.setPlaylistMode(_loop ? PlaylistMode.single : PlaylistMode.none);
+
+      // Was this URL evicted while awaiting?
+      if (!_loading.containsKey(url)) {
+        player.dispose();
+        return null;
+      }
+
+      _players[url]     = player;
+      _controllers[url] = controller;
+      _loading.remove(url);
+      debugPrint('[$_id] ready ${url.split('/').last}');
+
+      if (_pendingPlay == url) {
+        _pendingPlay = null;
+        _doPlay(url);
+      }
+
+      return controller;
+    } catch (e) {
+      _loading.remove(url);
+      debugPrint('[$_id] failed ${url.split('/').last} — $e');
+      return null;
+    }
+  }
+
+  // ── Private — eviction ────────────────────────────────────────────────────
+
+  void _makeRoom({String? protect}) {
+    if (liveCount < _maxSlots) return;
+    String? victim;
+    int maxDist = -1;
     for (final url in _controllers.keys) {
-      if (url == _activeUrl || url == protect) continue;
-      if (_controllers[url]?.value.isPlaying == true) continue;
-      final orderList = _window.isNotEmpty ? _window : _feedUrls;
-      final pivot     = _windowIndex >= 0 ? _windowIndex
-          : (_feedUrls.isNotEmpty ? _feedUrls.indexOf(_activeUrl ?? '') : -1);
-      final i    = orderList.isEmpty ? -1 : orderList.indexOf(url);
-      final dist = (i < 0 || pivot < 0) ? 999 : (i - pivot).abs();
-      if (dist > bestDist) { bestDist = dist; best = url; }
+      if (url == _activeUrl || url == _pendingPlay || url == protect) continue;
+      final i    = _urls.isEmpty ? -1 : _urls.indexOf(url);
+      final dist = (i < 0 || _windowIndex < 0) ? 999 : (i - _windowIndex).abs();
+      if (dist > maxDist) { maxDist = dist; victim = url; }
     }
-    return best;
+    if (victim != null) _evict(victim);
   }
 
   void _evict(String url) {
-    _loading.remove(url)?.future.then((c) { c?.pause(); c?.dispose(); });
-    final ctrl = _controllers.remove(url);
-    _ready.remove(url);
+    _loading.remove(url);
+    _controllers.remove(url);
+    final p = _players.remove(url);
+    try { p?.dispose(); } catch (_) {}
     _fractions.remove(url);
-    if (_pendingUrl == url) _pendingUrl = null;
-    if (_activeUrl  == url) _activeUrl  = null;
-    ctrl?.pause();
-    ctrl?.dispose();
-    debugPrint('[VideoPool] evicted: $url');
+    debugPrint('[$_id] evicted ${url.split('/').last}');
+  }
+
+  // ── Private — playback ────────────────────────────────────────────────────
+
+  void _doPlay(String url) {
+    if (url.isEmpty) return;
+    _activeUrl   = url;
+    _pendingPlay = url;
+
+    final player = _players[url];
+    if (player != null) {
+      _pendingPlay = null;
+      _pauseOthers(url);
+      // Volume is controlled by the widget layer (_globalMuted) — pool just plays
+      player.play();
+    }
+    // Not ready → _pendingPlay set; _doInit completion will trigger play.
+  }
+
+  void _pauseOthers(String except) {
+    for (final e in _players.entries) {
+      if (e.key == except) continue;
+      e.value.setVolume(0);
+      e.value.pause();
+    }
+  }
+
+  void _updateDominant() {
+    String? best;
+    double  bestF = _dominant;
+    for (final e in _fractions.entries) {
+      if (e.value > bestF) { best = e.key; bestF = e.value; }
+    }
+    if (best == null || best == _activeUrl) return;
+    _doPlay(best);
   }
 }

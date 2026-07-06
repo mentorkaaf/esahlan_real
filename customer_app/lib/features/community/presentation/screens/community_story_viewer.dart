@@ -2,11 +2,9 @@
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:video_player/video_player.dart';
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
@@ -305,15 +303,9 @@ class _StoryContent extends StatefulWidget {
 
 class _StoryContentState extends State<_StoryContent> {
   VideoPlayerController? _videoCtrl;
-  CachedVideoPlayerPlus? _wrapper;
   bool _videoReady = false;
   bool _videoError = false;
 
-  static final _storyCache = CacheManager(Config(
-    'esahlan_story_cache',
-    maxNrOfCacheObjects: 20,
-    stalePeriod: const Duration(hours: 12),
-  ));
 
   @override
   void initState() {
@@ -326,28 +318,6 @@ class _StoryContentState extends State<_StoryContent> {
 
   Future<void> _initVideo() async {
     final url = widget.story.mediaUrl!;
-    // Try 1: CachedVideoPlayerPlus (disk cache, faster on repeated view)
-    try {
-      final wrapper = CachedVideoPlayerPlus.networkUrl(
-        Uri.parse(url),
-        httpHeaders: const {'Connection': 'keep-alive', 'Accept': '*/*'},
-        cacheManager: _storyCache,
-      );
-      await wrapper.initialize();
-      if (!mounted) { wrapper.dispose(); return; }
-      _wrapper = wrapper;
-      _videoCtrl = wrapper.controller;
-      _videoCtrl!.setLooping(false);
-      _videoCtrl!.play();
-      _videoCtrl!.addListener(_onVideoTick);
-      setState(() => _videoReady = true);
-      return;
-    } catch (e) {
-      debugPrint('[StoryVideo] CachedVideoPlayerPlus failed: $url — $e');
-    }
-    // Try 2: Plain VideoPlayerController (direct stream, no disk cache)
-    // Handles cases where flutter_cache_manager can't process the URL
-    // (PHP proxy with query params, redirect, content-type issues).
     try {
       if (!mounted) return;
       final ctrl = VideoPlayerController.networkUrl(
@@ -378,11 +348,7 @@ class _StoryContentState extends State<_StoryContent> {
   @override
   void dispose() {
     _videoCtrl?.removeListener(_onVideoTick);
-    if (_wrapper != null) {
-      _wrapper!.dispose(); // disposes its inner VideoPlayerController too
-    } else {
-      _videoCtrl?.dispose();
-    }
+    _videoCtrl?.dispose();
     super.dispose();
   }
 
