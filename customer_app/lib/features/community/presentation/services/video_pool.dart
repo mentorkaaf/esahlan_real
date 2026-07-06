@@ -17,10 +17,10 @@ class VideoPool {
   static final reels = VideoPool._();
   static final feed  = VideoPool._();
 
-  static const _maxSlots      = 8;
-  static const _evictDistance = 4;
+  static const _maxSlots      = 10;
+  static const _evictDistance = 5;
   static const _preloadBehind = 1;
-  static const _preloadAhead  = 3;
+  static const _preloadAhead  = 4;
   static const _dominantMin   = 0.6; // minimum fraction to be considered (>60% visible)
 
   final _controllers = <String, VideoPlayerController>{};

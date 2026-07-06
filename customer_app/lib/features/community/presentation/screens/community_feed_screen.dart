@@ -2070,13 +2070,17 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
     // Slow path — ask pool to initialize the controller from the network.
     final ctrl = await _pool.preload(url);
-    // isReady check guards against use-after-dispose: _evict() can dispose the
-    // controller between preload() returning and this line executing.
     if (ctrl != null && mounted && _pool.isReady(url)) {
+      // Success — controller is ready.
       setState(() { _ctrl = ctrl; _ready = true; _loadFailed = false; });
       ctrl.addListener(_onControllerUpdate);
       if (!_paused) _pool.setFraction(url, _lastFraction);
+    } else if (ctrl != null && mounted) {
+      // Eviction race: preload succeeded but pool already evicted this slot.
+      // Allow retry on next visibility tick instead of permanently failing.
+      _initStarted = false;
     } else if (mounted) {
+      // Genuine failure (network error, 404, timeout).
       setState(() { _loadFailed = true; });
       _initStarted = false;
     }
@@ -2206,23 +2210,42 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
         } : null,
         child: Stack(
           children: [
-            // Video or blurred thumbnail placeholder
+            // Video player — fades in over thumbnail when ready
             Container(
               color: const Color(0xFF1A1B2E),
               width: double.infinity,
               height: videoH,
-              child: _ready && _ctrl != null
-                  // Video is ready — show it
-                  ? FittedBox(
-                      fit: BoxFit.contain,
-                      child: SizedBox(
-                        width: _ctrl!.value.size.width,
-                        height: _ctrl!.value.size.height,
-                        child: VideoPlayer(_ctrl!),
-                      ))
-                  // Not ready yet — dark background (pool preloads ±3 ahead so
-                  // this state is brief; no blurred thumbnail needed).
-                  : const SizedBox(),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Thumbnail — shows instantly (before video loads).
+                  // Fades out once video is playing.
+                  if (widget.m.thumbnail != null && widget.m.thumbnail!.isNotEmpty)
+                    Positioned.fill(
+                      child: Image.network(
+                        widget.m.thumbnail!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const SizedBox(),
+                        loadingBuilder: (_, child, progress) =>
+                            progress == null ? child : const SizedBox(),
+                      ),
+                    ),
+                  // Video fades in when ready
+                  AnimatedOpacity(
+                    opacity: (_ready && _ctrl != null) ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: (_ready && _ctrl != null)
+                        ? FittedBox(
+                            fit: BoxFit.contain,
+                            child: SizedBox(
+                              width: _ctrl!.value.size.width,
+                              height: _ctrl!.value.size.height,
+                              child: VideoPlayer(_ctrl!),
+                            ))
+                        : const SizedBox(),
+                  ),
+                ],
+              ),
             ),
             // Processing badge for owner's own videos still being transcoded
             if (widget.m.isTranscoding)
