@@ -20,6 +20,7 @@ class CommunityChatListScreen extends ConsumerStatefulWidget {
 
 class _CommunityChatListScreenState extends ConsumerState<CommunityChatListScreen> {
   void Function(dynamic)? _inboxListener;
+  String? _inboxChannel;
 
   @override
   void initState() {
@@ -30,19 +31,19 @@ class _CommunityChatListScreenState extends ConsumerState<CommunityChatListScree
   Future<void> _subscribeInbox() async {
     try {
       final me = await ref.read(communityMyProfileProvider.future);
+      _inboxChannel = 'private-user.${me.id}';
       _inboxListener = (_) {
         if (mounted) ref.invalidate(communityChatsProvider);
       };
-      RealtimeClient.instance.listen('private-user.${me.id}', 'chat.inbox_update', _inboxListener!);
+      RealtimeClient.instance.listen(_inboxChannel!, 'chat.inbox_update', _inboxListener!);
     } catch (_) {}
   }
 
   @override
   void dispose() {
-    if (_inboxListener != null) {
-      // best-effort remove; channel/event may already be gone
+    if (_inboxListener != null && _inboxChannel != null) {
       try {
-        RealtimeClient.instance.removeListener('', 'chat.inbox_update', _inboxListener!);
+        RealtimeClient.instance.removeListener(_inboxChannel!, 'chat.inbox_update', _inboxListener!);
       } catch (_) {}
     }
     super.dispose();

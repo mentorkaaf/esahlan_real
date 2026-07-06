@@ -385,10 +385,6 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
       RealtimeClient.instance.listen(_postChannel, event, handler);
     }
 
-    on('post.views_changed', (data) {
-      if (!mounted) return;
-      setState(() => widget.reel.viewsCount = data['views_count'] as int);
-    });
     on('post.likes_changed', (data) {
       if (!mounted) return;
       setState(() {
