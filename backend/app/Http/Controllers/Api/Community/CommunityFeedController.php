@@ -45,10 +45,16 @@ class CommunityFeedController extends Controller
             ->get()
             ->keyBy('id');
 
+        // Batch-load follow + saved state once to avoid N+1 (one query each)
+        $followingIds = \DB::table('community_follows')
+            ->where('follower_id', $userId)->pluck('following_id')->toArray();
+        $savedPostIds = \DB::table('community_saved_posts')
+            ->where('user_id', $userId)->whereIn('post_id', $rankedIds)->pluck('post_id')->toArray();
+
         $transformed = [];
         foreach ($rankedIds as $pid) {
             if ($posts->has($pid)) {
-                $transformed[] = $this->transformPost($posts[$pid], $userId);
+                $transformed[] = $this->transformPost($posts[$pid], $userId, $followingIds, $savedPostIds);
             }
         }
 
@@ -109,7 +115,12 @@ class CommunityFeedController extends Controller
                 ->get();
         }
 
-        $transformed = $merged->map(fn ($p) => $this->transformPost($p, $userId))->toArray();
+        $postIds = $merged->pluck('id')->toArray();
+        $followingIdsArr = $followingIds->toArray();
+        $savedPostIds = \DB::table('community_saved_posts')
+            ->where('user_id', $userId)->whereIn('post_id', $postIds)->pluck('post_id')->toArray();
+
+        $transformed = $merged->map(fn ($p) => $this->transformPost($p, $userId, $followingIdsArr, $savedPostIds))->toArray();
         $transformed = $this->injectFeedAds($transformed, $userId);
 
         InteractionTracker::trackImpressions($userId, $merged->pluck('id')->toArray());
@@ -240,15 +251,21 @@ class CommunityFeedController extends Controller
                 ->orderByDesc('post_scores.final_score')
                 ->paginate(15, ['community_posts.id']);
 
+            $fetchedIds = $postIds->pluck('id')->toArray();
             $posts = CommunityPost::with(['user.communityProfile', 'media', 'userReaction', 'page'])
-                ->whereIn('id', $postIds->pluck('id'))
+                ->whereIn('id', $fetchedIds)
                 ->get()
                 ->keyBy('id');
+
+            $exploreFollowingIds = \DB::table('community_follows')
+                ->where('follower_id', $userId)->pluck('following_id')->toArray();
+            $exploreSavedIds = \DB::table('community_saved_posts')
+                ->where('user_id', $userId)->whereIn('post_id', $fetchedIds)->pluck('post_id')->toArray();
 
             $transformed = [];
             foreach ($postIds as $row) {
                 if ($posts->has($row->id)) {
-                    $transformed[] = $this->transformPost($posts[$row->id], $userId);
+                    $transformed[] = $this->transformPost($posts[$row->id], $userId, $exploreFollowingIds, $exploreSavedIds);
                 }
             }
             $meta = ['current_page' => $postIds->currentPage(), 'last_page' => $postIds->lastPage()];
@@ -266,7 +283,12 @@ class CommunityFeedController extends Controller
             $posts = $fallbackQuery
                 ->orderByRaw('(likes_count * 3 + comments_count * 2 + shares_count * 4 + views_count) DESC')
                 ->paginate(15);
-            $transformed = $this->transformPosts($posts, $userId);
+            $fallbackIds = $posts->pluck('id')->toArray();
+            $fbFollowingIds = \DB::table('community_follows')
+                ->where('follower_id', $userId)->pluck('following_id')->toArray();
+            $fbSavedIds = \DB::table('community_saved_posts')
+                ->where('user_id', $userId)->whereIn('post_id', $fallbackIds)->pluck('post_id')->toArray();
+            $transformed = $posts->map(fn ($p) => $this->transformPost($p, $userId, $fbFollowingIds, $fbSavedIds))->toArray();
             $meta = ['current_page' => $posts->currentPage(), 'last_page' => $posts->lastPage()];
         }
 
@@ -426,7 +448,13 @@ class CommunityFeedController extends Controller
 
         $diversified = $diversified->take($perPage);
 
-        $transformed = $diversified->map(fn ($p) => $this->transformPost($p, $userId))->values()->toArray();
+        $reelIds = $diversified->pluck('id')->toArray();
+        $reelFollowingIds = \DB::table('community_follows')
+            ->where('follower_id', $userId)->pluck('following_id')->toArray();
+        $reelSavedIds = \DB::table('community_saved_posts')
+            ->where('user_id', $userId)->whereIn('post_id', $reelIds)->pluck('post_id')->toArray();
+
+        $transformed = $diversified->map(fn ($p) => $this->transformPost($p, $userId, $reelFollowingIds, $reelSavedIds))->values()->toArray();
 
         InteractionTracker::trackImpressions($userId, $diversified->pluck('id')->toArray());
 
@@ -615,12 +643,17 @@ class CommunityFeedController extends Controller
 
     private function transformPosts($posts, int $userId): array
     {
-        return $posts->map(fn ($p) => $this->transformPost($p, $userId))->toArray();
+        $postIds = $posts->pluck('id')->toArray();
+        $followingIds = \DB::table('community_follows')
+            ->where('follower_id', $userId)->pluck('following_id')->toArray();
+        $savedIds = \DB::table('community_saved_posts')
+            ->where('user_id', $userId)->whereIn('post_id', $postIds)->pluck('post_id')->toArray();
+        return $posts->map(fn ($p) => $this->transformPost($p, $userId, $followingIds, $savedIds))->toArray();
     }
 
-    public function transformPost($post, int $userId): array
+    public function transformPost($post, int $userId, array $followingIds = [], array $savedPostIds = []): array
     {
-        $displayUser = $this->transformUser($post->user, $userId);
+        $displayUser = $this->transformUser($post->user, $userId, $followingIds);
         if ($post->page_id && $post->page) {
             $displayUser['name'] = $post->page->name;
             $displayUser['avatar'] = cdn_url($post->page->avatar) ?? $displayUser['avatar'];
@@ -635,7 +668,7 @@ class CommunityFeedController extends Controller
                 'content'    => $sp->content,
                 'type'       => $sp->type,
                 'media'      => $sp->media->map(fn ($m) => ['id' => $m->id, 'type' => $m->type, 'url' => $m->url, 'thumbnail' => $m->thumbnail])->toArray(),
-                'user'       => $this->transformUser($sp->user, $userId),
+                'user'       => $this->transformUser($sp->user, $userId, $followingIds),
                 'created_at' => $sp->created_at,
             ];
         }
@@ -670,14 +703,14 @@ class CommunityFeedController extends Controller
             ])->toArray(),
             'user'              => $displayUser,
             'user_reaction'     => $post->userReaction?->type,
-            'is_saved'          => \App\Models\CommunitySavedPost::where('user_id', $userId)->where('post_id', $post->id)->exists(),
+            'is_saved'          => in_array($post->id, $savedPostIds),
             'shared_post'       => $sharedPost,
             'page_id'           => $post->page_id,
             'page'              => $post->page_id ? ['id' => $post->page?->id, 'name' => $post->page?->name, 'avatar' => cdn_url($post->page?->avatar)] : null,
         ];
     }
 
-    public function transformUser($user, int $userId): array
+    public function transformUser($user, int $userId, array $followingIds = []): array
     {
         if (!$user) return ['id' => 0, 'name' => 'Unknown', 'username' => null, 'avatar' => null, 'bio' => null, 'is_verified' => false, 'is_business' => false, 'followers_count' => 0, 'following_count' => 0, 'posts_count' => 0, 'is_following' => false, 'is_me' => false, 'cover_photo' => null, 'location' => null, 'website' => null];
         $profile = $user->communityProfile;
@@ -695,7 +728,7 @@ class CommunityFeedController extends Controller
             'followers_count' => $profile?->followers_count ?? 0,
             'following_count' => $profile?->following_count ?? 0,
             'posts_count'     => $profile?->posts_count ?? 0,
-            'is_following'    => CommunityFollow::where('follower_id', $userId)->where('following_id', $user->id)->exists(),
+            'is_following'    => in_array($user->id, $followingIds),
             'is_me'           => $user->id === $userId,
         ];
     }
