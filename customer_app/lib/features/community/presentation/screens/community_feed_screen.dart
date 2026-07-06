@@ -2160,6 +2160,11 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (_isVideo && _previewUrl.isNotEmpty && !_paused) {
       _pool.setFraction(_previewUrl, fraction);
       if (fraction > 0.15) _pool.setActiveUrl(_previewUrl);
+      // Restore volume after pool pause/pauseOthers — pool sets vol=0 on pause
+      // but doesn't restore it when the video becomes dominant again.
+      if (_ready && _controller != null && fraction > 0.5) {
+        _controller!.player.setVolume(_globalMuted ? 0 : 100);
+      }
     }
 
     // ── Watch-time tracking ────────────────────────────────────────────────
@@ -2181,7 +2186,12 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void _togglePause() {
     if (!_ready || _controller == null) return;
     setState(() => _paused = !_paused);
-    _paused ? _pool.pause(_previewUrl) : _pool.play(_previewUrl);
+    if (_paused) {
+      _pool.pause(_previewUrl);
+    } else {
+      _pool.play(_previewUrl);
+      _controller!.player.setVolume(_globalMuted ? 0 : 100);
+    }
   }
 
   String _formatDuration(Duration d) {
