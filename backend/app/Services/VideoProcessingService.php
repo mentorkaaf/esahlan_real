@@ -6,26 +6,29 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Converts a raw upload into:
- *   • Thumbnail (JPEG, 640px wide)
- *   • Adaptive HLS master playlist — up to 3 renditions:
- *       360p  ~600 Kbps   ← slow mobile connections
- *       720p  ~2 Mbps     ← normal 4G
- *       1080p ~4.5 Mbps   ← WiFi / fast connection
- *   • Optimised MP4 fallback (for older video players)
+ *   • Thumbnail  (JPEG, 640px wide)
+ *   • Optimised MP4 — generated FIRST so video appears in feed quickly
+ *   • Adaptive HLS — up to 2 renditions (360p + 720p); generated after MP4
  *
- * FFmpeg runs with `nice -n 15 ionice -c 3` so transcoding never
- * starves the web server or queue workers of CPU/IO.
+ * Order: thumbnail → optimized MP4 → [mp4ReadyFn callback] → HLS 360p → HLS 720p
  *
- * The optional $progressFn callback receives int 0-100 so callers
- * can persist progress to the DB without polling FFmpeg.
+ * The optional $mp4ReadyFn callback fires right after the MP4 is ready,
+ * allowing the caller (TranscodeVideoJob) to mark video_ready=true and
+ * notify the user before HLS finishes — feed shows the video in ~2 min.
+ *
+ * FFmpeg runs with `nice -n 10 ionice -c 2 -n 5` — background priority
+ * but not idle-only, so transcoding completes in reasonable time.
  */
 class VideoProcessingService
 {
-    private const HLS_SEGMENT = 2;            // segment length in seconds
-    private const NICE        = 'nice -n 15 ionice -c 3';
+    private const HLS_SEGMENT = 2;
+    private const NICE        = 'nice -n 10 ionice -c 2 -n 5';
 
-    public static function process(string $storagePath, ?callable $progressFn = null): array
-    {
+    public static function process(
+        string $storagePath,
+        ?callable $progressFn = null,
+        ?callable $mp4ReadyFn = null   // fires right after MP4 is ready
+    ): array {
         $inputPath = storage_path('app/public/' . $storagePath);
         if (!file_exists($inputPath)) return ['error' => 'File not found'];
 
@@ -61,14 +64,40 @@ class VideoProcessingService
         $thumbFull = storage_path('app/public/' . $thumbPath);
         $seekAt    = $duration > 5 ? '00:00:03' : '00:00:01';
         exec(sprintf(
-            '%s ffmpeg -ss %s -i %s -vframes 1 -q:v 4 -vf scale=640:-2 -y %s 2>/dev/null',
+            '%s ffmpeg -threads 0 -ss %s -i %s -vframes 1 -q:v 4 -vf scale=640:-2 -y %s 2>/dev/null',
             self::NICE, $seekAt, escapeshellarg($inputPath), escapeshellarg($thumbFull)
         ));
         if (file_exists($thumbFull)) $results['thumbnail'] = $thumbPath;
 
         $progressFn && $progressFn(12);
 
-        // ── HLS renditions ──────────────────────────────────────────────
+        // ── Optimised MP4 — FIRST so feed can show the video quickly ───
+        // Generated before HLS; mp4ReadyFn fires here so video_ready=true
+        // is set before the slower HLS pass begins.
+        $optPath = "{$dir}/{$name}/optimized.mp4";
+        $optFull = storage_path('app/public/' . $optPath);
+        [$scaleFilter, $crf] = self::optimalMp4Params($maxDim, $width, $height);
+
+        exec(sprintf(
+            '%s ffmpeg -threads 0 -i %s %s -c:v libx264 -preset veryfast -crf %d -c:a aac -b:a 96k -movflags +faststart -y %s 2>/dev/null',
+            self::NICE, escapeshellarg($inputPath), $scaleFilter, $crf, escapeshellarg($optFull)
+        ), $_, $code);
+
+        if ($code === 0 && file_exists($optFull)) {
+            $results['qualities']['optimized'] = [
+                'path' => $optPath,
+                'url'  => url('/api/v1/media?f=' . $optPath),
+                'size' => filesize($optFull),
+            ];
+            $progressFn && $progressFn(50);
+
+            // Notify caller that MP4 is ready — video can now appear in feed.
+            $mp4ReadyFn && $mp4ReadyFn($results);
+        }
+
+        $progressFn && $progressFn(52);
+
+        // ── HLS renditions (360p + 720p only — 1080p not needed for mobile) ─
         $renditions = self::buildRenditions($width, $height, $maxDim);
         $hlsDir     = "{$outDir}/hls";
         @mkdir($hlsDir, 0755, true);
@@ -76,8 +105,6 @@ class VideoProcessingService
         $masterLines  = ['#EXTM3U', '#EXT-X-VERSION:3', '#EXT-X-INDEPENDENT-SEGMENTS'];
         $successCount = 0;
         $total        = count($renditions);
-        // Absolute base URL for .ts references inside each quality playlist.
-        // This lets CachedVideoPlayerPlus intercept and cache every segment.
         $hlsBaseUrl   = url("/hls/{$dir}/{$name}/hls") . '/';
 
         foreach ($renditions as $idx => $r) {
@@ -87,7 +114,7 @@ class VideoProcessingService
                 $masterLines[] = url("/hls/{$dir}/{$name}/hls/{$r['name']}.m3u8");
                 $successCount++;
             }
-            $pct = 12 + (int)(($idx + 1) / $total * 72);
+            $pct = 52 + (int)(($idx + 1) / $total * 43);
             $progressFn && $progressFn($pct);
         }
 
@@ -96,26 +123,6 @@ class VideoProcessingService
             $results['qualities']['hls'] = [
                 'path' => "{$dir}/{$name}/hls/master.m3u8",
                 'url'  => url("/hls/{$dir}/{$name}/hls/master.m3u8"),
-            ];
-        }
-
-        $progressFn && $progressFn(86);
-
-        // ── Optimised MP4 fallback ──────────────────────────────────────
-        $optPath = "{$dir}/{$name}/optimized.mp4";
-        $optFull = storage_path('app/public/' . $optPath);
-        [$scaleFilter, $crf] = self::optimalMp4Params($maxDim, $width, $height);
-
-        exec(sprintf(
-            '%s ffmpeg -i %s %s -c:v libx264 -preset fast -crf %d -c:a aac -b:a 96k -movflags +faststart -y %s 2>/dev/null',
-            self::NICE, escapeshellarg($inputPath), $scaleFilter, $crf, escapeshellarg($optFull)
-        ), $_, $code);
-
-        if ($code === 0 && file_exists($optFull)) {
-            $results['qualities']['optimized'] = [
-                'path' => $optPath,
-                'url'  => url('/api/v1/media?f=' . $optPath),
-                'size' => filesize($optFull),
             ];
         }
 
@@ -132,6 +139,10 @@ class VideoProcessingService
 
     // ── Private helpers ──────────────────────────────────────────────────────
 
+    /**
+     * Mobile-first: 360p always, 720p for anything >= 480p source.
+     * 1080p removed — unnecessary for social media on mobile.
+     */
     private static function buildRenditions(int $w, int $h, int $maxDim): array
     {
         $land = $w >= $h;
@@ -154,17 +165,7 @@ class VideoProcessingService
                 'resolution' => $land ? '1280x720' : '720x1280',
                 'minDim'     => 480,
             ],
-            [
-                'name'       => '1080p',
-                'scale'      => $land ? 'scale=1920:-2' : 'scale=-2:1920',
-                'crf'        => 23,
-                'audiobr'    => '192k',
-                'bandwidth'  => 4500000,
-                'resolution' => $land ? '1920x1080' : '1080x1920',
-                'minDim'     => 900,
-            ],
         ];
-        // Never upscale — only produce renditions the source can support
         return array_values(array_filter($all, fn($r) => $maxDim >= $r['minDim']));
     }
 
@@ -175,11 +176,8 @@ class VideoProcessingService
         $m3u8     = escapeshellarg("{$hlsDir}/{$r['name']}.m3u8");
         $baseFlag = $hlsBaseUrl ? ' -hls_base_url ' . escapeshellarg($hlsBaseUrl) : '';
 
-        // force_key_frames places IDR frames at exactly 0, 2, 4 … seconds
-        // regardless of source fps, so -hls_time can split cleanly every time.
-        // -sc_threshold 0 prevents scene-change keyframes from adding extra splits.
         $cmd = sprintf(
-            '%s ffmpeg -i %s -vf %s -c:v libx264 -preset fast -crf %d '
+            '%s ffmpeg -threads 0 -i %s -vf %s -c:v libx264 -preset veryfast -crf %d '
             . '-sc_threshold 0 -force_key_frames "expr:gte(t,n_forced*%d)" '
             . '-c:a aac -b:a %s '
             . '-hls_time %d -hls_list_size 0 -hls_segment_type mpegts'
@@ -207,8 +205,6 @@ class VideoProcessingService
 
     /**
      * Re-transcode HLS segments only from an already-optimized MP4.
-     * Used to re-segment existing videos after changing HLS_SEGMENT.
-     * Returns ['hls_url' => string] on success or ['error' => string] on failure.
      */
     public static function retranscodeHlsOnly(string $optimizedStoragePath): array
     {
@@ -217,22 +213,14 @@ class VideoProcessingService
             return ['error' => "File not found: {$optimizedStoragePath}"];
         }
 
-        $dir  = pathinfo($optimizedStoragePath, PATHINFO_DIRNAME);
-        $name = pathinfo($optimizedStoragePath, PATHINFO_FILENAME); // 'optimized'
-        // Output dir is the parent of the optimized.mp4 (e.g. community/abc/optimized → community/abc)
-        $baseDir  = dirname($optimizedStoragePath);                 // e.g. community/videos/abc
-        $baseName = basename($baseDir);                             // e.g. abc
-        $parentDir = dirname($baseDir);                             // e.g. community/videos
-
+        $baseDir  = dirname($optimizedStoragePath);
         $hlsStorageDir = "{$baseDir}/hls";
         $hlsFullDir    = storage_path("app/public/{$hlsStorageDir}");
         @mkdir($hlsFullDir, 0755, true);
 
-        // Remove old segments so stale 10s chunks don't linger
         foreach (glob("{$hlsFullDir}/*.ts") ?: [] as $old) @unlink($old);
         foreach (glob("{$hlsFullDir}/*.m3u8") ?: [] as $old) @unlink($old);
 
-        // Probe the optimized MP4 for dimensions
         $probe  = shell_exec('ffprobe -v quiet -print_format json -show_streams '
             . escapeshellarg($inputPath) . ' 2>/dev/null');
         $info   = json_decode($probe, true) ?? [];
@@ -255,15 +243,10 @@ class VideoProcessingService
             }
         }
 
-        if ($successCount === 0) {
-            return ['error' => 'All renditions failed'];
-        }
+        if ($successCount === 0) return ['error' => 'All renditions failed'];
 
         file_put_contents("{$hlsFullDir}/master.m3u8", implode("\n", $masterLines) . "\n");
-
-        return [
-            'hls_url' => url("/hls/{$baseDir}/hls/master.m3u8"),
-        ];
+        return ['hls_url' => url("/hls/{$baseDir}/hls/master.m3u8")];
     }
 
     public static function getOptimalUrl(array $qualities): ?string

@@ -36,50 +36,60 @@ class TranscodeVideoJob implements ShouldQueue
         $media->update(['transcoding_status' => 'processing', 'transcoding_progress' => 5]);
 
         try {
-            $result = VideoProcessingService::process($this->rawStoragePath, function (int $pct) use ($media) {
-                $media->update(['transcoding_progress' => $pct]);
-            });
+            $result = VideoProcessingService::process(
+                $this->rawStoragePath,
+                // Progress callback
+                function (int $pct) use ($media) {
+                    $media->update(['transcoding_progress' => $pct]);
+                },
+                // MP4 ready callback — fires BEFORE HLS starts.
+                // Mark video_ready=true immediately so it appears in the feed
+                // while HLS continues generating in the background.
+                function (array $partial) use ($media) {
+                    $earlyUpdates = ['transcoding_status' => 'processing', 'transcoding_progress' => 50];
+                    if (!empty($partial['qualities']['optimized']['url'])) {
+                        $earlyUpdates['url'] = $partial['qualities']['optimized']['url'];
+                    }
+                    if (!empty($partial['thumbnail'])) {
+                        $earlyUpdates['thumbnail'] = cdn_url($partial['thumbnail']);
+                    }
+                    if (!empty($partial['duration'])) $earlyUpdates['duration'] = (int) $partial['duration'];
+                    if (!empty($partial['width']))    $earlyUpdates['width']    = (int) $partial['width'];
+                    if (!empty($partial['height']))   $earlyUpdates['height']   = (int) $partial['height'];
+                    $media->update($earlyUpdates);
+
+                    \App\Models\CommunityPost::where('id', $media->post_id)->update(['video_ready' => true]);
+
+                    try {
+                        RealtimeService::toUser($this->postOwnerId, 'post.media_ready', [
+                            'media_id'  => $this->mediaId,
+                            'post_id'   => $media->post_id,
+                            'hls_url'   => null, // HLS not ready yet
+                            'thumbnail' => $earlyUpdates['thumbnail'] ?? null,
+                        ]);
+                        RealtimeService::toPublic('community.feed', 'feed.new_post', [
+                            'post_id' => $media->post_id,
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::warning("[TranscodeVideoJob] Early realtime notify failed: " . $e->getMessage());
+                    }
+                }
+            );
 
             if (!empty($result['error'])) {
                 $this->markFailed($media, $result['error']);
                 return;
             }
 
+            // Final update — adds HLS URL now that it is ready
             $updates = ['transcoding_status' => 'ready', 'transcoding_progress' => 100];
-
-            if (!empty($result['thumbnail'])) {
-                $updates['thumbnail'] = cdn_url($result['thumbnail']);
-            }
             if (!empty($result['qualities']['hls']['url'])) {
                 $updates['hls_url'] = $result['qualities']['hls']['url'];
             }
-            if (!empty($result['qualities']['optimized']['url'])) {
-                $updates['url'] = $result['qualities']['optimized']['url'];
-            }
-            if (!empty($result['duration']))  $updates['duration'] = (int) $result['duration'];
-            if (!empty($result['width']))     $updates['width']    = (int) $result['width'];
-            if (!empty($result['height']))    $updates['height']   = (int) $result['height'];
-
             $media->update($updates);
 
-            // Mark post visible to all users in the feed
+            // video_ready was already set in mp4ReadyFn; set again to be safe
             \App\Models\CommunityPost::where('id', $media->post_id)->update(['video_ready' => true]);
-
-            // Realtime notifications are best-effort — a Reverb/Redis outage must
-            // not roll back a successfully transcoded video (video_ready stays true).
-            try {
-                RealtimeService::toUser($this->postOwnerId, 'post.media_ready', [
-                    'media_id'  => $this->mediaId,
-                    'post_id'   => $media->post_id,
-                    'hls_url'   => $updates['hls_url'] ?? null,
-                    'thumbnail' => $updates['thumbnail'] ?? null,
-                ]);
-                RealtimeService::toPublic('community.feed', 'feed.new_post', [
-                    'post_id' => $media->post_id,
-                ]);
-            } catch (\Throwable $realtimeErr) {
-                Log::warning("[TranscodeVideoJob] Realtime notify failed (video IS ready): " . $realtimeErr->getMessage());
-            }
 
         } catch (\Throwable $e) {
             $this->markFailed($media, $e->getMessage());
