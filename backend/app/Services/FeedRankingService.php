@@ -622,16 +622,18 @@ class FeedRankingService
 
             // Batch the 4 metrics that used to run as one query PER post —
             // now 4 grouped queries cover the whole chunk regardless of size.
+            // DISTINCT user_id: one user repeatedly viewing the same post
+            // must not inflate the viral score as if many different users engaged.
             $recentCounts = DB::table('feed_interactions')
                 ->whereIn('post_id', $chunkIds)
                 ->where('created_at', '>', now()->subHours(2))
-                ->selectRaw('post_id, COUNT(*) as cnt')
+                ->selectRaw('post_id, COUNT(DISTINCT user_id) as cnt')
                 ->groupBy('post_id')->pluck('cnt', 'post_id');
 
             $olderCounts = DB::table('feed_interactions')
                 ->whereIn('post_id', $chunkIds)
                 ->whereBetween('created_at', [now()->subHours(4), now()->subHours(2)])
-                ->selectRaw('post_id, COUNT(*) as cnt')
+                ->selectRaw('post_id, COUNT(DISTINCT user_id) as cnt')
                 ->groupBy('post_id')->pluck('cnt', 'post_id');
 
             $impressionCounts = DB::table('feed_seen_posts')
