@@ -110,7 +110,8 @@ class VideoPool {
     final toEvict = _controllers.keys.where((url) {
       if (url == _activeUrl) return false;
       final i = urls.indexOf(url);
-      return i >= 0 && (i - index).abs() > _evictDistance;
+      // i < 0 = URL no longer in window list (feed refresh / pagination) → evict
+      return i < 0 || (i - index).abs() > _evictDistance;
     }).toList();
     for (final u in toEvict) _evict(u);
 
@@ -176,16 +177,17 @@ class VideoPool {
     _activeUrl  = url;
     _pendingUrl = url;
 
-    _pauseOthers(url);
-
     final ctrl = _controllers[url];
     if (ctrl != null && _ready[url] == true) {
       _pendingUrl = null;
+      _pauseOthers(url);  // pause others only when we are about to actually play
+      ctrl.setVolume(1);  // always restore volume (fixes muted-loop bug)
       if (!ctrl.value.isPlaying) {
-        ctrl.setVolume(1);
         try { ctrl.play(); } catch (_) {}
       }
     }
+    // If not ready: _pendingUrl stays set; preload() fires _pauseOthers + play
+    // when the controller finishes loading — avoids silencing the feed prematurely.
   }
 
   void _pauseOthers(String exceptUrl) {

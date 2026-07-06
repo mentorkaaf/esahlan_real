@@ -456,7 +456,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     if (ctrl != null && mounted) {
       _videoCtrl = ctrl;
       ctrl.setLooping(false);
-      ctrl.addListener(_onVideoProgress);
+      try { ctrl.addListener(_onVideoProgress); } catch (_) {}
       setState(() => _videoReady = true);
       if (widget.isActive && !_paused) _pool.play(_videoUrl);
     }

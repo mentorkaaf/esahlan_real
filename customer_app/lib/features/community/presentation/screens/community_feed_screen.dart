@@ -1,5 +1,4 @@
 ﻿import 'dart:async';
-import 'dart:ui' as ui;
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -2071,14 +2070,15 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
     // Slow path — ask pool to initialize the controller from the network.
     final ctrl = await _pool.preload(url);
-    if (ctrl != null && mounted) {
+    // isReady check guards against use-after-dispose: _evict() can dispose the
+    // controller between preload() returning and this line executing.
+    if (ctrl != null && mounted && _pool.isReady(url)) {
       setState(() { _ctrl = ctrl; _ready = true; _loadFailed = false; });
       ctrl.addListener(_onControllerUpdate);
       if (!_paused) _pool.setFraction(url, _lastFraction);
     } else if (mounted) {
-      // Preload failed (network error / 404). Show thumbnail with error state.
       setState(() { _loadFailed = true; });
-      _initStarted = false; // allow retry via _onVisibilityChanged
+      _initStarted = false;
     }
   }
 
@@ -2101,19 +2101,18 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (_ready && _ctrl != null && !_pool.isReady(_previewUrl)) {
       _ctrl!.removeListener(_onControllerUpdate);
       _initStarted = false;
+      _loadFailed = false;  // allow retry after pool eviction
       setState(() { _ctrl = null; _ready = false; });
     }
 
-    // ── Preload trigger (5%) ───────────────────────────────────────────────
-    // Start loading when the item is just barely visible. The pool's setWindow
-    // already handles neighbors; this is a backup for items that weren't in the
-    // window yet. _loadFailed is reset after a short scroll-away cycle.
+    // ── Preload trigger (>5%) ──────────────────────────────────────────────
     if (fraction > 0.05 && _isVideo && !_ready && !_initStarted && !_loadFailed) {
       _initStarted = true;
       _initVideo();
     }
-    // Reset error state when item scrolls away so the next scroll-back retries.
-    if (fraction <= 0.01 && _loadFailed) {
+    // Reset error state when item drops below trigger threshold — eliminates
+    // the 0.01–0.05 dead band where items were stuck permanently.
+    if (fraction < 0.05 && _loadFailed) {
       _loadFailed = false;
       _initStarted = false;
     }
@@ -2157,18 +2156,13 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (_isAudio) return _AudioPlayerCard(url: widget.m.url);
     if (_isDocument) return _DocumentCard(url: widget.m.url);
 
-    // Video is still being transcoded.
-    // Non-owners never receive transcoding posts (video_ready=false filters them).
-    // As an extra safety layer, render nothing for non-owners.
-    if (_isVideo && widget.m.isTranscoding) {
-      if (!widget.isOwner) return const SizedBox.shrink();
-      return _TranscodingPlaceholder(
-        mediaId: widget.m.id,
-        progress: widget.m.transcodingProgress,
-        thumbnail: widget.m.thumbnail,
-        isOwner: true,
-      );
+    // Non-owners never see transcoding posts (video_ready=false filters feed).
+    if (_isVideo && widget.m.isTranscoding && !widget.isOwner) {
+      return const SizedBox.shrink();
     }
+    // For owner: fall through to normal video player — plays raw upload via
+    // PHP proxy (mp4DirectUrl falls back to url when hlsUrl is null).
+    // A processing badge is shown as a Stack overlay below.
     if (_isVideo && widget.m.transcodingFailed) {
       return Container(
         height: 220, color: const Color(0xFF1A1B2E),
@@ -2226,23 +2220,28 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                         height: _ctrl!.value.size.height,
                         child: VideoPlayer(_ctrl!),
                       ))
-                  // Not ready — blurred thumbnail so user immediately sees content
-                  : widget.m.thumbnail != null
-                      ? ClipRect(
-                          child: Stack(fit: StackFit.expand, children: [
-                            ImageFiltered(
-                              imageFilter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                              child: NetImage(
-                                url: widget.m.thumbnail!,
-                                fit: BoxFit.cover,
-                                placeholder: Container(color: const Color(0xFF1A1B2E)),
-                                errorWidget: Container(color: const Color(0xFF1A1B2E))),
-                            ),
-                            // Slight dark veil to reduce distraction
-                            Container(color: Colors.black.withValues(alpha: 0.25)),
-                          ]))
-                      : const SizedBox(),
+                  // Not ready yet — dark background (pool preloads ±3 ahead so
+                  // this state is brief; no blurred thumbnail needed).
+                  : const SizedBox(),
             ),
+            // Processing badge for owner's own videos still being transcoded
+            if (widget.m.isTranscoding)
+              Positioned(top: 8, left: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.65),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    SizedBox(width: 10, height: 10,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: kOrange)),
+                    const SizedBox(width: 6),
+                    Text('Processing ${widget.m.transcodingProgress}%',
+                      style: const TextStyle(color: Colors.white, fontSize: 11,
+                        fontWeight: FontWeight.w500)),
+                  ]),
+                )),
             // Tiny corner spinner only during actual re-buffering (not initial load)
             if (_ready && _ctrl != null && _ctrl!.value.isBuffering)
               Positioned(bottom: 50, right: 12,

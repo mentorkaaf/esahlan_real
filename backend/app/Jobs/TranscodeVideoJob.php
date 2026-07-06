@@ -62,21 +62,24 @@ class TranscodeVideoJob implements ShouldQueue
 
             $media->update($updates);
 
-            // Mark post as public — now visible to all users in the feed
+            // Mark post visible to all users in the feed
             \App\Models\CommunityPost::where('id', $media->post_id)->update(['video_ready' => true]);
 
-            // Notify post owner (private) so Flutter can refresh their own post view
-            RealtimeService::toUser($this->postOwnerId, 'post.media_ready', [
-                'media_id'  => $this->mediaId,
-                'post_id'   => $media->post_id,
-                'hls_url'   => $updates['hls_url'] ?? null,
-                'thumbnail' => $updates['thumbnail'] ?? null,
-            ]);
-
-            // Broadcast to the public feed channel so followers get the "new post" pill
-            RealtimeService::toPublic('community.feed', 'feed.new_post', [
-                'post_id' => $media->post_id,
-            ]);
+            // Realtime notifications are best-effort — a Reverb/Redis outage must
+            // not roll back a successfully transcoded video (video_ready stays true).
+            try {
+                RealtimeService::toUser($this->postOwnerId, 'post.media_ready', [
+                    'media_id'  => $this->mediaId,
+                    'post_id'   => $media->post_id,
+                    'hls_url'   => $updates['hls_url'] ?? null,
+                    'thumbnail' => $updates['thumbnail'] ?? null,
+                ]);
+                RealtimeService::toPublic('community.feed', 'feed.new_post', [
+                    'post_id' => $media->post_id,
+                ]);
+            } catch (\Throwable $realtimeErr) {
+                Log::warning("[TranscodeVideoJob] Realtime notify failed (video IS ready): " . $realtimeErr->getMessage());
+            }
 
         } catch (\Throwable $e) {
             $this->markFailed($media, $e->getMessage());
