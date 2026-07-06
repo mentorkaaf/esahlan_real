@@ -2268,18 +2268,18 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Thumbnail — always visible until video is playing.
-                  // No spinner. Facebook shows thumbnail, video fades in on top.
-                  if (widget.m.thumbnail != null && widget.m.thumbnail!.isNotEmpty)
-                    Positioned.fill(
-                      child: Image.network(
-                        widget.m.thumbnail!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const SizedBox(),
-                        loadingBuilder: (_, child, progress) =>
-                            progress == null ? child : const SizedBox(),
-                      ),
-                    ),
+                  // Thumbnail — NetImage handles proxy auth + caching.
+                  // Always visible as background until video fades in on top.
+                  Positioned.fill(
+                    child: widget.m.thumbnail != null && widget.m.thumbnail!.isNotEmpty
+                        ? NetImage(
+                            url: widget.m.thumbnail!,
+                            fit: BoxFit.cover,
+                            placeholder: Container(color: const Color(0xFF1A1A2E)),
+                            errorWidget: Container(color: const Color(0xFF1A1A2E)),
+                          )
+                        : Container(color: const Color(0xFF1A1A2E)),
+                  ),
                   // Video fades in smoothly when ready
                   if (_ready && _controller != null)
                     Positioned.fill(

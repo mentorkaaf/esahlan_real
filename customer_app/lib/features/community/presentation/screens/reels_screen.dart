@@ -473,7 +473,15 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     if (!mounted) return;
     if (widget.isActive != old.isActive) {
       if (widget.isActive) {
-        if (!_paused && _videoUrl.isNotEmpty) _pool.reactivate(_videoUrl);
+        if (!_paused && _videoUrl.isNotEmpty) {
+          _pool.reactivate(_videoUrl).then((_) {
+            if (mounted && !_paused && _videoCtrl != null) {
+              _videoCtrl!.player.setVolume(_muted ? 0 : 100);
+            }
+          });
+        }
+        // Immediately restore volume if controller already ready
+        if (_videoCtrl != null) _videoCtrl!.player.setVolume(_muted ? 0 : 100);
         _trackView();
       } else {
         if (_videoUrl.isNotEmpty) _pool.pause(_videoUrl);
@@ -1141,7 +1149,14 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
     super.didUpdateWidget(old);
     if (widget.isActive != old.isActive && _videoUrl.isNotEmpty) {
       if (widget.isActive) {
-        if (!_paused) _pool.play(_videoUrl);
+        if (!_paused) {
+          _pool.reactivate(_videoUrl).then((_) {
+            if (mounted && !_paused && _videoCtrl != null) {
+              _videoCtrl!.player.setVolume(_muted ? 0 : 100);
+            }
+          });
+        }
+        if (_videoCtrl != null) _videoCtrl!.player.setVolume(_muted ? 0 : 100);
       } else {
         _pool.pause(_videoUrl);
       }
