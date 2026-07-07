@@ -1,21 +1,29 @@
 import '../../../../core/constants/app_constants.dart';
 
-String _fixUrl(String? url) {
+String _fixUrl(String? url, {int? w}) {
   if (url == null || url.isEmpty) return '';
-  final canonical = 'https://${AppConstants.baseDomain}';
-  final api       = 'https://${AppConstants.apiDomain}';
-  final mediaProxy = '$canonical/api/v1/media?f=';
-  return url
+  final canonical   = 'https://${AppConstants.baseDomain}';
+  final api         = 'https://${AppConstants.apiDomain}';
+  final mediaProxy  = '$canonical/api/v1/media?f=';
+  var result = url
       .replaceAll('$api/', '$canonical/')
       .replaceAll('http://${AppConstants.apiDomain}/', '$canonical/')
       .replaceAll('$canonical/storage/', mediaProxy)
       .replaceAll('http://${AppConstants.baseDomain}/storage/', mediaProxy);
+  // Append ?w= resize hint for images served through the media proxy.
+  if (w != null && w > 0 && result.contains('/api/v1/media?f=') && !result.contains('&w=')) {
+    result = '$result&w=$w';
+  }
+  return result;
 }
 
-String? _fixUrlNullable(String? url) {
+String? _fixUrlNullable(String? url, {int? w}) {
   if (url == null || url.isEmpty) return null;
-  return _fixUrl(url);
+  return _fixUrl(url, w: w);
 }
+
+// Avatar/thumbnail — auto-resize to 200px (saves ~80% bandwidth for small images).
+String? _fixUrlAvatar(String? url) => _fixUrlNullable(url, w: 200);
 
 class CommunityUser {
   final int id;
@@ -56,8 +64,8 @@ class CommunityUser {
         id: j['id'] as int,
         name: j['name'] as String,
         username: j['username'] as String?,
-        avatar: _fixUrlNullable(j['avatar'] as String?),
-        coverPhoto: _fixUrlNullable(j['cover_photo'] as String?),
+        avatar: _fixUrlAvatar(j['avatar'] as String?),
+        coverPhoto: _fixUrlNullable(j['cover_photo'] as String?, w: 800),
         bio: j['bio'] as String?,
         location: j['location'] as String?,
         website: j['website'] as String?,
@@ -124,7 +132,7 @@ class CommunityPostMedia {
         type: j['type'] as String,
         url: _fixUrl(j['url'] as String?),
         hlsUrl: _fixUrlNullable(j['hls_url'] as String?),
-        thumbnail: _fixUrlNullable(j['thumbnail'] as String?),
+        thumbnail: _fixUrlNullable(j['thumbnail'] as String?, w: 400),
         duration: j['duration'] as int?,
         width: j['width'] as int?,
         height: j['height'] as int?,
@@ -351,7 +359,7 @@ class CommunityStory {
             : CommunityUser(id: 0, name: ''),
         type: j['type'] as String,
         mediaUrl: _fixUrlNullable(j['media_url'] as String?),
-        thumbnail: _fixUrlNullable(j['thumbnail'] as String?),
+        thumbnail: _fixUrlNullable(j['thumbnail'] as String?, w: 400),
         textContent: j['text_content'] as String?,
         bgColor: j['bg_color'] as String?,
         location: j['location'] as String?,

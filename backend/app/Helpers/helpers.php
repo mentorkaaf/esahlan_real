@@ -134,19 +134,19 @@ if (!function_exists('resized_image_variant')) {
 
 if (!function_exists('proxy_storage_file')) {
     /**
-     * Stream a public-storage file through PHP with CORS headers.
+     * Serve a public-storage file via Nginx X-Accel-Redirect.
      *
-     * IMPORTANT: we deliberately stream the bytes via PHP instead of using
-     * response()->file(). On LiteSpeed/Hostinger, response()->file() triggers an
-     * internal sendfile that serves the file through the static handler and BYPASSES
-     * both PHP-set headers and .htaccess mod_headers — so the CORS header never
-     * reaches the browser on 200 responses (Flutter Web then blocks the image).
-     * Streaming keeps the response fully in PHP, so the headers are always sent.
+     * PHP validates the path (no traversal, file must exist) and optionally
+     * generates a resized image variant. Then it hands off to Nginx via
+     * X-Accel-Redirect — Nginx serves the bytes using kernel sendfile with zero
+     * PHP memory overhead. CORS and cache headers are set by the /x-storage/
+     * internal location in nginx.conf, so they always reach the client.
      *
-     * Supports HTTP Range requests so videos (trailers/lessons) still seek/stream.
+     * Falls back to PHP streaming only when running outside Nginx (e.g. artisan serve).
      */
-    function proxy_storage_file(string $path): \Symfony\Component\HttpFoundation\StreamedResponse
+    function proxy_storage_file(string $path): \Illuminate\Http\Response|\Symfony\Component\HttpFoundation\StreamedResponse
     {
+        $path     = ltrim(str_replace(['..', "\0"], '', $path), '/');
         $realPath = storage_path('app/public/' . $path);
         if (!is_file($realPath)) {
             abort(404);
@@ -154,82 +154,36 @@ if (!function_exists('proxy_storage_file')) {
 
         $ext = strtolower(pathinfo($realPath, PATHINFO_EXTENSION));
 
-        // On-the-fly downscale for raster images (?w=). Generates a smaller variant
-        // once, caches it on disk, and serves that — so a 1.7 MB banner becomes a
-        // ~50 KB thumbnail. Falls back to the original if GD is missing or the source
-        // is already small enough.
+        // On-the-fly downscale for raster images (?w=).
         $w = (int) request()->query('w', 0);
         if ($w > 0 && in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
             $variant = resized_image_variant($realPath, $path, $ext, $w);
             if ($variant !== null) {
-                $realPath = $variant;
+                // variant path is absolute; make it relative to storage/app/public/
+                $publicRoot = storage_path('app/public/');
+                $path       = ltrim(str_replace($publicRoot, '', $variant), '/');
             }
         }
 
-        $mime = match ($ext) {
-            'jpg', 'jpeg' => 'image/jpeg',
-            'png'         => 'image/png',
-            'gif'         => 'image/gif',
-            'webp'        => 'image/webp',
-            'svg'         => 'image/svg+xml',
-            'mp4'         => 'video/mp4',
-            'webm'        => 'video/webm',
-            'mov'         => 'video/quicktime',
-            'ogg'         => 'video/ogg',
-            'm3u8'        => 'application/vnd.apple.mpegurl',
-            'ts'          => 'video/mp2t',
-            'mp3'         => 'audio/mpeg',
-            'pdf'         => 'application/pdf',
-            default       => 'application/octet-stream',
-        };
-
-        $size    = filesize($realPath);
-        $headers = [
-            'Content-Type'                  => $mime,
-            'Access-Control-Allow-Origin'   => '*',
-            'Access-Control-Allow-Methods'  => 'GET, OPTIONS',
-            'Access-Control-Allow-Headers'  => 'Origin, Accept, Content-Type, Range',
-            'Access-Control-Expose-Headers' => 'Content-Length, Content-Range, Accept-Ranges',
-            'Cross-Origin-Resource-Policy'  => 'cross-origin',
-            'Accept-Ranges'                 => 'bytes',
-            // `private` keeps the Hostinger CDN (a shared cache) OUT — it must not
-            // cache+strip the per-origin CORS headers — while still letting the
-            // BROWSER cache the bytes for a week. That makes repeat image loads
-            // instant without the CDN ever touching CORS. (The /api/v1/media path has
-            // no file extension, so the CDN already treats it as DYNAMIC.)
-            'Cache-Control'                 => 'private, max-age=604800, immutable',
-        ];
-
-        $start  = 0;
-        $end    = $size - 1;
-        $status = 200;
-        $range  = request()->header('Range');
-        if ($range && preg_match('/bytes=(\d*)-(\d*)/', $range, $m)) {
-            if ($m[1] !== '') $start = (int) $m[1];
-            if ($m[2] !== '') $end   = (int) $m[2];
-            if ($start > $end || $end >= $size) $end = $size - 1;
-            if ($start < 0) $start = 0;
-            $status = 206;
-            $headers['Content-Range'] = "bytes $start-$end/$size";
-        }
-
-        $length = $end - $start + 1;
-        $headers['Content-Length'] = $length;
-
-        return response()->stream(function () use ($realPath, $start, $length) {
-            $fp = fopen($realPath, 'rb');
-            if ($fp === false) return;
-            if ($start > 0) fseek($fp, $start);
-            $remaining = $length;
-            while ($remaining > 0 && !feof($fp)) {
-                $chunk = fread($fp, (int) min(8192, $remaining));
-                if ($chunk === false) break;
-                echo $chunk;
-                $remaining -= strlen($chunk);
-                flush();
-            }
-            fclose($fp);
-        }, $status, $headers);
+        // Nginx X-Accel-Redirect — zero PHP memory for actual file bytes.
+        // /x-storage/ is an `internal` location in nginx.conf mapping to storage/app/public/.
+        return response('', 200, [
+            'X-Accel-Redirect'  => '/x-storage/' . $path,
+            'X-Accel-Buffering' => 'yes',
+            // Content-Type hint so Nginx picks the right MIME (it also detects from extension).
+            'Content-Type'      => match ($ext) {
+                'jpg', 'jpeg' => 'image/jpeg',
+                'png'         => 'image/png',
+                'gif'         => 'image/gif',
+                'webp'        => 'image/webp',
+                'svg'         => 'image/svg+xml',
+                'mp4'         => 'video/mp4',
+                'webm'        => 'video/webm',
+                'mp3'         => 'audio/mpeg',
+                'pdf'         => 'application/pdf',
+                default       => 'application/octet-stream',
+            },
+        ]);
     }
 }
 
