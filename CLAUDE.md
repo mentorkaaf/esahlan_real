@@ -124,10 +124,11 @@ features/community/
 - **`VideoPool.reels`** — reel videos
 - **`AdVideoManager.instance`** — ad videos (marnaba VideoPool la isku darin)
 - **Disk cache:** `esahlan_video_cache` — 15 videos, 3 days stale
-- **Pool size:** 8 in-memory slots (evict by distance from active index)
-- **Preload:** `setWindow(urls, index)` → loads ±1 behind, ±3 ahead
+- **Pool size:** 6 in-memory slots (`_maxSlots=6`), evict distance 7 (`_evictDist=7`)
+- **Preload:** `setWindow(urls, index)` → loads ±1 behind, ±4 ahead (`_preloadAhead=4`)
 - **`_initStarted` guard:** prevents multiple concurrent `_initVideo()` calls
 - **`initState` NO preload:** marnaba `initState` ka preload garaynin — `setWindow` ayaa masuul
+- **Volume rule:** Pool wuxuu dhammaan players-ka ku bilaabaa vol=0. Widget-ku waa in uu `setVolume(100)` ku wacaa marka dominant threshold (>0.5) la gaaro ama unpause marka. `reactivate(url)` isticmaal (maaha `play()`) marka widget active noqoto — wuxuu check gareeyaa isReady oo re-preload gareeyaa haddii evict la sameeyay.
 
 ### URL Fix Rules (`_fixUrl` in community_models.dart)
 ```dart
@@ -146,20 +147,51 @@ features/community/
 
 ## 4. Feed Algorithm (FeedRankingService)
 
-### Scoring Formula
+### Scoring Formula (dhabta ah — `scorePost()`)
 ```
-final_score = engagement×0.35 + velocity×0.25 + viral×0.20 + quality×0.10 + time_decay + relationship_multiplier
+score = relationship_bonus          # W_FOLLOW=5.0 + closeness×0.5 (max 5)
+      + log1p(engScore) × 2         # likes×1 + comments×2 + shares×3 + saves×2.5 + views×0.1
+      + log1p(velocity) × 3         # engScore / hoursOld
+      + interest_match               # hashtag×3.0 + type×1.5 + creator×2.0
+      + viral_score × 2             # from post_scores table (pre-computed)
+score *= time_decay                 # pow(0.5, hoursOld / 12)  — half-life 12h
+score *= 1.15 if video/reel/image
+score *= 0.1  if already seen
+score *= penalty if skipped/negative signals
 ```
 
-### 3 Pools
-- **Pool 1 (50%):** Following posts
-- **Pool 2 (30%):** Recommended (user_interests based)
-- **Pool 3 (20%):** Trending (viral globally)
+### 5 Pools (MIX percentages — `applyDiversity()`)
+| Pool | % | Source |
+|------|---|--------|
+| Following | 40% | Posts from users the viewer follows |
+| Recommended | 30% | Creators the user interacted with but doesn't follow |
+| Trending | 15% | High velocity posts < 3 days old |
+| New Creators | 10% | Users with < 100 followers, posted < 2 days ago |
+| Random | 5% | Serendipity — any public post < 7 days |
+
+**Cold-start boost:** haddii following=0 iyo interactions=0, trending/new-creator limits ×2.5 si page uu buuxsamo.
+
+### Viral Score (pre-computed, `recomputePostScores()`)
+```php
+// COUNT(DISTINCT user_id) — hal user multi-view kuma inflate gareeyo
+$viral = ($olderEngagement > 0)
+    ? ($recentEngagement / $olderEngagement) * min($recentEngagement, 20)
+    : $recentEngagement * 0.5;
+// recent = last 2h, older = 2-4h window
+```
+
+### Anti-flood / Diversity Rules
+- Max 2 posts per creator per page (backfill: 3, last-resort: unlimited)
+- Max 3 posts same hashtag per page
+- Max 2 consecutive same content-type
 
 ### Caching
 - Redis key: `feed:v2:{userId}:p{page}` — TTL 120s
 - Page 1: never cached (always fresh)
 - Page 2+: precomputed every 5 min (`PrecomputeUserFeeds` command)
+
+### N+1 Fix (muhiim — marnaba la dadin)
+`transformPost()` iyo `transformUser()` waxay `$followingIds` iyo `$savedPostIds` ku helaan batch arrays, COD DB query mid walba. Haddii transformPost cusub la daro, **waa in arrays-ka lagu gudbiyo** — kuma darin query cusub oo per-post ah.
 
 ### Per-Page: 30 posts (controller passes 30 explicitly)
 
