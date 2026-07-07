@@ -376,9 +376,15 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     _initVideo();
     if (widget.isActive) _trackView();
     if (!widget.reel.isAd) _subscribeRealtime();
-    // Retry play after first frame — covers race where pool wasn't ready at initState
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && widget.isActive && !_paused && _videoReady && _videoUrl.isNotEmpty) {
+      if (!mounted) return;
+      // Precache thumbnail so it appears instantly — no black-screen on swipe.
+      final thumb = widget.reel.media.firstOrNull?.thumbnail;
+      if (thumb != null && thumb.isNotEmpty) {
+        precacheImage(CachedNetworkImageProvider(thumb), context);
+      }
+      // Retry play after first frame — covers race where pool wasn't ready at initState.
+      if (widget.isActive && !_paused && _videoReady && _videoUrl.isNotEmpty) {
         _pool.play(_videoUrl);
       }
     });
@@ -475,6 +481,14 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
       if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) {
         setState(() => _hasFrame = true);
       }
+    });
+    // Re-check immediately: videoParams may have fired before we subscribed.
+    if (!_hasFrame && (ctrl.player.state.width ?? 0) > 0 && mounted) {
+      setState(() => _hasFrame = true);
+    }
+    // Fallback: reveal video within 500 ms even if videoParams never fires.
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted && _videoReady && !_hasFrame) setState(() => _hasFrame = true);
     });
   }
 
@@ -1152,6 +1166,12 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
       if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) {
         setState(() => _hasFrame = true);
       }
+    });
+    if (!_hasFrame && (ctrl.player.state.width ?? 0) > 0 && mounted) {
+      setState(() => _hasFrame = true);
+    }
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted && _videoReady && !_hasFrame) setState(() => _hasFrame = true);
     });
   }
 

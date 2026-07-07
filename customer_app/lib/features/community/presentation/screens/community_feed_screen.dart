@@ -1,4 +1,5 @@
 ﻿import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -2020,13 +2021,18 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Fast-path: if setWindow() already preloaded this video (because it was ±3
-    // ahead of the currently playing item), attach the controller immediately
-    // rather than waiting for the first VisibilityDetector tick (~250 ms lag).
     if (_isVideo) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _initStarted) return;
-        if (_pool.isReady(widget.m.mp4DirectUrl)) {
+        if (!mounted) return;
+        // Precache thumbnail immediately so it appears without any delay.
+        // By the time user scrolls to this item the thumbnail is already in
+        // Flutter's image cache → zero black-screen between scroll and thumbnail.
+        final thumb = widget.m.thumbnail;
+        if (thumb != null && thumb.isNotEmpty) {
+          precacheImage(CachedNetworkImageProvider(thumb), context);
+        }
+        // Fast-path: attach pool controller if already preloaded.
+        if (!_initStarted && _pool.isReady(widget.m.mp4DirectUrl)) {
           _initStarted = true;
           _initVideo();
         }
@@ -2048,6 +2054,16 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) {
         setState(() => _hasFrame = true);
       }
+    });
+    // Re-check immediately: videoParams may have fired before we subscribed
+    // (broadcast stream — missed events are not replayed).
+    if (!_hasFrame && (ctrl.player.state.width ?? 0) > 0 && mounted) {
+      setState(() => _hasFrame = true);
+    }
+    // Fallback: if videoParams never fires (codec quirk / platform edge case),
+    // reveal the video after 600 ms so we don't stay stuck on thumbnail forever.
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted && _ready && !_hasFrame) setState(() => _hasFrame = true);
     });
   }
 
