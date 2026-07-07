@@ -373,8 +373,14 @@ class AdminCommunityController extends Controller
             ->join('users', 'community_posts.user_id', '=', 'users.id')
             ->select(
                 'post_scores.post_id', 'post_scores.final_score', 'post_scores.engagement_score',
-                'post_scores.velocity_score', 'post_scores.viral_score', 'post_scores.quality_score',
+                'post_scores.velocity_score', 'post_scores.velocity_24h',
+                'post_scores.viral_score', 'post_scores.quality_score',
                 'post_scores.impression_count', 'post_scores.engaged_count', 'post_scores.engagement_rate',
+                'post_scores.like_rate', 'post_scores.comment_rate',
+                'post_scores.save_rate', 'post_scores.share_rate',
+                'post_scores.avg_dwell_ms', 'post_scores.rewatch_count',
+                'post_scores.distribution_stage', 'post_scores.distribution_cap',
+                'post_scores.negative_count', 'post_scores.watch_completion',
                 'community_posts.content', 'community_posts.type', 'community_posts.created_at',
                 'community_posts.likes_count', 'community_posts.comments_count',
                 'community_posts.shares_count', 'community_posts.views_count',

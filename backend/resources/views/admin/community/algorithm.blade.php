@@ -248,16 +248,19 @@
             <th>Type</th>
             <th>Final Score</th>
             <th>Engagement</th>
-            <th>Velocity</th>
+            <th>Velocity 24h</th>
             <th>Viral</th>
             <th>Quality</th>
+            <th>Dwell</th>
+            <th>Like Rate</th>
+            <th>Eng. Rate</th>
+            <th>Dist. Stage</th>
             <th>Views</th>
             <th>Impressions</th>
-            <th>Eng. Rate</th>
           </tr>
         </thead>
         <tbody id="posts-tbody">
-          <tr><td colspan="12" style="text-align:center;padding:40px;color:#94a3b8">
+          <tr><td colspan="15" style="text-align:center;padding:40px;color:#94a3b8">
             <i class="fas fa-circle-notch spin" style="margin-right:8px"></i>Loading posts…
           </td></tr>
         </tbody>
@@ -296,41 +299,21 @@
       <div style="border-top:1px solid #f1f5f9;margin-top:20px;padding-top:20px">
         <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:12px">Feed Pools · 15 posts/page</div>
         <div style="display:flex;flex-direction:column;gap:8px">
+          @foreach([
+            ['icon'=>'fa-user-friends','color'=>'#667eea','label'=>'Following',   'pct'=>40],
+            ['icon'=>'fa-thumbs-up',   'color'=>'#22c55e','label'=>'Recommended', 'pct'=>30],
+            ['icon'=>'fa-fire',        'color'=>'#f59e0b','label'=>'Trending',    'pct'=>15],
+            ['icon'=>'fa-seedling',    'color'=>'#06b6d4','label'=>'New Creators','pct'=>10],
+            ['icon'=>'fa-random',      'color'=>'#a855f7','label'=>'Random',      'pct'=>5],
+          ] as $pool)
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:12px;color:#475569"><i class="fas fa-user-friends" style="color:#667eea;margin-right:6px"></i>Following</span>
+            <span style="font-size:12px;color:#475569"><i class="fas {{ $pool['icon'] }}" style="color:{{ $pool['color'] }};margin-right:6px"></i>{{ $pool['label'] }}</span>
             <div style="display:flex;align-items:center;gap:8px">
-              <div style="width:80px;height:6px;background:#f1f5f9;border-radius:3px"><div style="width:50%;height:100%;background:#667eea;border-radius:3px"></div></div>
-              <span style="font-size:11px;font-weight:700;color:#667eea">50%</span>
+              <div style="width:80px;height:6px;background:#f1f5f9;border-radius:3px"><div style="width:{{ $pool['pct'] }}%;height:100%;background:{{ $pool['color'] }};border-radius:3px"></div></div>
+              <span style="font-size:11px;font-weight:700;color:{{ $pool['color'] }}">{{ $pool['pct'] }}%</span>
             </div>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:12px;color:#475569"><i class="fas fa-thumbs-up" style="color:#22c55e;margin-right:6px"></i>Recommended</span>
-            <div style="display:flex;align-items:center;gap:8px">
-              <div style="width:80px;height:6px;background:#f1f5f9;border-radius:3px"><div style="width:30%;height:100%;background:#22c55e;border-radius:3px"></div></div>
-              <span style="font-size:11px;font-weight:700;color:#22c55e">30%</span>
-            </div>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:12px;color:#475569"><i class="fas fa-fire" style="color:#f59e0b;margin-right:6px"></i>Trending</span>
-            <div style="display:flex;align-items:center;gap:8px">
-              <div style="width:80px;height:6px;background:#f1f5f9;border-radius:3px"><div style="width:20%;height:100%;background:#f59e0b;border-radius:3px"></div></div>
-              <span style="font-size:11px;font-weight:700;color:#f59e0b">20%</span>
-            </div>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:12px;color:#475569"><i class="fas fa-seedling" style="color:#06b6d4;margin-right:6px"></i>New Creators</span>
-            <div style="display:flex;align-items:center;gap:8px">
-              <div style="width:80px;height:6px;background:#f1f5f9;border-radius:3px"><div style="width:10%;height:100%;background:#06b6d4;border-radius:3px"></div></div>
-              <span style="font-size:11px;font-weight:700;color:#06b6d4">10%</span>
-            </div>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:12px;color:#475569"><i class="fas fa-random" style="color:#a855f7;margin-right:6px"></i>Random</span>
-            <div style="display:flex;align-items:center;gap:8px">
-              <div style="width:80px;height:6px;background:#f1f5f9;border-radius:3px"><div style="width:5%;height:100%;background:#a855f7;border-radius:3px"></div></div>
-              <span style="font-size:11px;font-weight:700;color:#a855f7">5%</span>
-            </div>
-          </div>
+          @endforeach
         </div>
       </div>
     </div>
@@ -338,7 +321,7 @@
   </div>
 
   {{-- ══ SCORE FORMULA CARDS ══ --}}
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px">
 
     <div class="glass" style="padding:20px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
@@ -349,9 +332,23 @@
       </div>
       <p style="font-size:12px;color:#64748b;margin:0;line-height:1.6">
         Likes ×1 + Comments ×3 + Shares ×4 + Saves ×3.5<br>
-        Normalized against all posts in the pool.
+        Per-hour velocity (not totals) — old posts penalized.
       </p>
       <div style="margin-top:10px;display:inline-block;background:#f0f4ff;color:#667eea;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">engagement_score</div>
+    </div>
+
+    <div class="glass" style="padding:20px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#06b6d4,#0083b0);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fas fa-mouse-pointer" style="color:white;font-size:14px"></i>
+        </div>
+        <span style="font-weight:700;font-size:14px;color:#1e293b">CTR Score</span>
+      </div>
+      <p style="font-size:12px;color:#64748b;margin:0;line-height:1.6">
+        Likes/Impressions, Saves/Impressions, etc.<br>
+        100 likes / 500 imp ≫ 100 likes / 50k imp.
+      </p>
+      <div style="margin-top:10px;display:inline-block;background:#f0faff;color:#06b6d4;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">like_rate · save_rate</div>
     </div>
 
     <div class="glass" style="padding:20px">
@@ -359,13 +356,41 @@
         <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#11998e,#38ef7d);display:flex;align-items:center;justify-content:center;flex-shrink:0">
           <i class="fas fa-bolt" style="color:white;font-size:14px"></i>
         </div>
-        <span style="font-weight:700;font-size:14px;color:#1e293b">Velocity Score</span>
+        <span style="font-weight:700;font-size:14px;color:#1e293b">Velocity 24h</span>
       </div>
       <p style="font-size:12px;color:#64748b;margin:0;line-height:1.6">
-        Interactions gained per hour since posting.<br>
-        Rewards fast-growing, freshly viral content.
+        Real interactions/hour over the last 24h.<br>
+        Adaptive: if still active, time decay slows.
       </p>
-      <div style="margin-top:10px;display:inline-block;background:#f0fff4;color:#11998e;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">velocity_score</div>
+      <div style="margin-top:10px;display:inline-block;background:#f0fff4;color:#11998e;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">velocity_24h</div>
+    </div>
+
+    <div class="glass" style="padding:20px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fas fa-clock" style="color:white;font-size:14px"></i>
+        </div>
+        <span style="font-weight:700;font-size:14px;color:#1e293b">Dwell Time</span>
+      </div>
+      <p style="font-size:12px;color:#64748b;margin:0;line-height:1.6">
+        Avg ms users spend viewing content.<br>
+        ≥10s → ×1.45 boost · &lt;0.8s → ×0.75 penalty.
+      </p>
+      <div style="margin-top:10px;display:inline-block;background:#f5f0ff;color:#6d28d9;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">avg_dwell_ms</div>
+    </div>
+
+    <div class="glass" style="padding:20px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#f953c6,#b91d73);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fas fa-rocket" style="color:white;font-size:14px"></i>
+        </div>
+        <span style="font-weight:700;font-size:14px;color:#1e293b">Viral / Trending</span>
+      </div>
+      <p style="font-size:12px;color:#64748b;margin:0;line-height:1.6">
+        Last-2h engagement vs prior-2h window.<br>
+        Accelerating posts get ×1.3→×2.0 boost.
+      </p>
+      <div style="margin-top:10px;display:inline-block;background:#fff0f8;color:#b91d73;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">viral_score</div>
     </div>
 
     <div class="glass" style="padding:20px">
@@ -376,24 +401,24 @@
         <span style="font-weight:700;font-size:14px;color:#1e293b">Quality Score</span>
       </div>
       <p style="font-size:12px;color:#64748b;margin:0;line-height:1.6">
-        Engagement-to-impression ratio.<br>
-        High quality = people interact when they see it.
+        Deep / shallow engagement ratio.<br>
+        Watch completion ≥80% → ×1.3 boost.
       </p>
-      <div style="margin-top:10px;display:inline-block;background:#fff8f0;color:#f7971e;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">quality_score</div>
+      <div style="margin-top:10px;display:inline-block;background:#fff8f0;color:#f7971e;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">quality_score · watch_completion</div>
     </div>
 
     <div class="glass" style="padding:20px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#f953c6,#b91d73);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <i class="fas fa-rocket" style="color:white;font-size:14px"></i>
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#22c55e,#15803d);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fas fa-expand-arrows-alt" style="color:white;font-size:14px"></i>
         </div>
-        <span style="font-weight:700;font-size:14px;color:#1e293b">Viral Score</span>
+        <span style="font-weight:700;font-size:14px;color:#1e293b">Distribution Stage</span>
       </div>
       <p style="font-size:12px;color:#64748b;margin:0;line-height:1.6">
-        Velocity + shares spike detector.<br>
-        Posts going viral get a temporary boost multiplier.
+        0=seed(100) → 1(1k) → 2(10k) → 3(100k) → 4=viral<br>
+        Promoted when eng. rate meets threshold.
       </p>
-      <div style="margin-top:10px;display:inline-block;background:#fff0f8;color:#b91d73;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">viral_score</div>
+      <div style="margin-top:10px;display:inline-block;background:#f0fdf4;color:#15803d;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">distribution_stage</div>
     </div>
 
     <div class="glass" style="padding:20px">
@@ -404,10 +429,10 @@
         <span style="font-weight:700;font-size:14px;color:#1e293b">Final Score</span>
       </div>
       <p style="font-size:12px;color:#64748b;margin:0;line-height:1.6">
-        Weighted combination of all 4 signals.<br>
-        Personal affinity +40% for followed creators.
+        CTR × Dwell × Trending × Quality × Personalization<br>
+        × Recency × Adaptive Decay × Distribution gate
       </p>
-      <div style="margin-top:10px;display:inline-block;background:#f0faff;color:#0083b0;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">final_score</div>
+      <div style="margin-top:10px;display:inline-block;background:#f0faff;color:#0083b0;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">final_score (dashboard only)</div>
     </div>
 
   </div>
@@ -431,9 +456,24 @@ const INTER_META  = {
 
 const RANK_COLORS = ['#667eea','#22c55e','#f59e0b','#f43f5e','#06b6d4','#8b5cf6','#f97316','#ec4899','#0083b0','#38ef7d'];
 
-function n(v)  { return Number(v||0).toLocaleString(); }
-function r(v)  { return Math.round(v||0); }
-function pct(v){ return Number(v||0).toFixed(1)+'%'; }
+function n(v)   { return Number(v||0).toLocaleString(); }
+function r(v)   { return Math.round(v||0); }
+function pct(v) { return Number(v||0).toFixed(1)+'%'; }
+function rate(v){ return (Number(v||0)*100).toFixed(2)+'%'; }
+function dwell(ms) {
+  if (!ms || ms <= 0) return '<span style="color:#cbd5e1">—</span>';
+  if (ms >= 10000) return `<span style="color:#22c55e;font-weight:700">${(ms/1000).toFixed(1)}s</span>`;
+  if (ms >= 4000)  return `<span style="color:#3b82f6;font-weight:600">${(ms/1000).toFixed(1)}s</span>`;
+  return `<span style="color:#f43f5e;font-weight:600">${(ms/1000).toFixed(1)}s</span>`;
+}
+const STAGE_LABELS = ['🌱 Seed','📢 Small','📣 Medium','📡 Large','🚀 Viral'];
+const STAGE_COLORS = ['#94a3b8','#3b82f6','#f59e0b','#f43f5e','#7c3aed'];
+function stageBadge(s) {
+  const stage = parseInt(s||0);
+  const label = STAGE_LABELS[stage] || 'Seed';
+  const color = STAGE_COLORS[stage] || '#94a3b8';
+  return `<span style="font-size:11px;font-weight:700;color:${color};background:${color}18;padding:3px 8px;border-radius:12px;white-space:nowrap">${label}</span>`;
+}
 
 function scoreColor(v) {
   if (v >= 80) return '#ef4444';
@@ -551,13 +591,16 @@ function fetchData(manual = false) {
       // ── Top Posts table ──
       const posts = d.top_posts || [];
       document.getElementById('posts-badge').textContent = posts.length + ' posts';
-      const maxScore = posts.reduce((m,p)=>Math.max(m,p.final_score),1);
+      const maxScore   = posts.reduce((m,p)=>Math.max(m,p.final_score),1);
+      const maxV24     = posts.reduce((m,p)=>Math.max(m,p.velocity_24h||0),1);
       document.getElementById('posts-tbody').innerHTML = posts.length
         ? posts.map((p, i) => {
             const txt  = (p.content||'').substring(0,40) + ((p.content||'').length>40?'…':'');
             const ic   = TYPE_ICONS[p.type] || '📄';
             const tc   = TYPE_COLORS[p.type] || '#94a3b8';
             const sc   = scoreColor(p.final_score);
+            const engR = (Number(p.engagement_rate||0)*100).toFixed(2);
+            const lR   = (Number(p.like_rate||0)*100).toFixed(2);
             return `<tr class="algo-row">
               <td style="padding-left:20px">
                 <div class="rank-circle" style="background:${RANK_COLORS[i%10]}">${i+1}</div>
@@ -574,17 +617,22 @@ function fetchData(manual = false) {
               </td>
               <td style="min-width:130px">${miniScoreBar(p.final_score, maxScore, sc)}</td>
               <td style="min-width:90px">${miniScoreBar(p.engagement_score, 100, '#667eea')}</td>
-              <td style="min-width:90px">${miniScoreBar(p.velocity_score, 100, '#22c55e')}</td>
-              <td style="min-width:90px">${miniScoreBar(p.viral_score, 100, '#f43f5e')}</td>
-              <td style="min-width:90px">${miniScoreBar(p.quality_score, 100, '#f59e0b')}</td>
+              <td style="min-width:90px">${miniScoreBar(p.velocity_24h||0, maxV24, '#22c55e')}</td>
+              <td style="min-width:90px">${miniScoreBar(p.viral_score, 20, '#f43f5e')}</td>
+              <td style="min-width:90px">${miniScoreBar(p.quality_score, 10, '#f59e0b')}</td>
+              <td style="text-align:center">${dwell(p.avg_dwell_ms)}</td>
+              <td style="text-align:center">
+                <span style="font-size:12px;font-weight:700;color:#06b6d4">${lR}%</span>
+              </td>
+              <td style="text-align:center">
+                <span style="font-size:12px;font-weight:700;color:#8b5cf6">${engR}%</span>
+              </td>
+              <td style="text-align:center">${stageBadge(p.distribution_stage)}</td>
               <td style="text-align:center;font-weight:600;color:#334155">${n(p.views_count)}</td>
               <td style="text-align:center;font-weight:600;color:#334155">${n(p.impression_count)}</td>
-              <td style="text-align:center">
-                <span style="font-size:12px;font-weight:700;color:#8b5cf6">${Number(p.engagement_rate||0).toFixed(2)}%</span>
-              </td>
             </tr>`;
           }).join('')
-        : `<tr><td colspan="12" style="text-align:center;padding:40px;color:#94a3b8">No scored posts yet</td></tr>`;
+        : `<tr><td colspan="15" style="text-align:center;padding:40px;color:#94a3b8">No scored posts yet</td></tr>`;
 
       // ── Top Users ──
       const users = d.top_users || [];
