@@ -9,6 +9,14 @@ Schedule::call(fn () => FeedRankingService::recomputePostScores())
     ->name('feed:recompute-scores')
     ->withoutOverlapping();
 
+// Feature 3: Advance posts through distribution stages every 5 minutes.
+// Posts that earned engagement get promoted (100 → 1k → 10k → 100k → viral);
+// posts that plateau are left at their current cap and stop spreading.
+Schedule::call(fn () => FeedRankingService::progressDistribution())
+    ->everyFiveMinutes()
+    ->name('feed:progress-distribution')
+    ->withoutOverlapping();
+
 // Decay stale interests for all users (independent of per-user activity)
 Schedule::call(fn () => FeedRankingService::decayAllUserInterests())
     ->daily()
