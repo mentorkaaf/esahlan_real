@@ -134,17 +134,13 @@ if (!function_exists('resized_image_variant')) {
 
 if (!function_exists('proxy_storage_file')) {
     /**
-     * Serve a public-storage file via Nginx X-Accel-Redirect.
+     * Serve a public-storage file with full Range-request support.
      *
-     * PHP validates the path (no traversal, file must exist) and optionally
-     * generates a resized image variant. Then it hands off to Nginx via
-     * X-Accel-Redirect — Nginx serves the bytes using kernel sendfile with zero
-     * PHP memory overhead. CORS and cache headers are set by the /x-storage/
-     * internal location in nginx.conf, so they always reach the client.
-     *
-     * Falls back to PHP streaming only when running outside Nginx (e.g. artisan serve).
+     * PHP validates the path (no traversal, file must exist), sets CORS +
+     * cache headers, and streams only the requested byte range. Range support
+     * is required for video seeking (video_player / ExoPlayer send Range headers).
      */
-    function proxy_storage_file(string $path): \Illuminate\Http\Response|\Symfony\Component\HttpFoundation\StreamedResponse
+    function proxy_storage_file(string $path): \Symfony\Component\HttpFoundation\Response
     {
         $path     = ltrim(str_replace(['..', "\0"], '', $path), '/');
         $realPath = storage_path('app/public/' . $path);
@@ -153,37 +149,66 @@ if (!function_exists('proxy_storage_file')) {
         }
 
         $ext = strtolower(pathinfo($realPath, PATHINFO_EXTENSION));
+        $mime = match ($ext) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png'         => 'image/png',
+            'gif'         => 'image/gif',
+            'webp'        => 'image/webp',
+            'svg'         => 'image/svg+xml',
+            'mp4'         => 'video/mp4',
+            'webm'        => 'video/webm',
+            'mp3'         => 'audio/mpeg',
+            'pdf'         => 'application/pdf',
+            default       => 'application/octet-stream',
+        };
 
-        // On-the-fly downscale for raster images (?w=).
-        $w = (int) request()->query('w', 0);
-        if ($w > 0 && in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
-            $variant = resized_image_variant($realPath, $path, $ext, $w);
-            if ($variant !== null) {
-                // variant path is absolute; make it relative to storage/app/public/
-                $publicRoot = storage_path('app/public/');
-                $path       = ltrim(str_replace($publicRoot, '', $variant), '/');
-            }
+        $size  = filesize($realPath);
+        $start = 0;
+        $end   = $size - 1;
+
+        $rangeHeader = request()->header('Range');
+        if ($rangeHeader && preg_match('/bytes=(\d*)-(\d*)/i', $rangeHeader, $m)) {
+            $start = $m[1] !== '' ? (int) $m[1] : 0;
+            $end   = $m[2] !== '' ? (int) $m[2] : $size - 1;
+            $end   = min($end, $size - 1);
+            $start = min($start, $end);
         }
 
-        // Nginx X-Accel-Redirect — zero PHP memory for actual file bytes.
-        // /x-storage/ is an `internal` location in nginx.conf mapping to storage/app/public/.
-        return response('', 200, [
-            'X-Accel-Redirect'  => '/x-storage/' . $path,
-            'X-Accel-Buffering' => 'yes',
-            // Content-Type hint so Nginx picks the right MIME (it also detects from extension).
-            'Content-Type'      => match ($ext) {
-                'jpg', 'jpeg' => 'image/jpeg',
-                'png'         => 'image/png',
-                'gif'         => 'image/gif',
-                'webp'        => 'image/webp',
-                'svg'         => 'image/svg+xml',
-                'mp4'         => 'video/mp4',
-                'webm'        => 'video/webm',
-                'mp3'         => 'audio/mpeg',
-                'pdf'         => 'application/pdf',
-                default       => 'application/octet-stream',
-            },
-        ]);
+        $length     = $end - $start + 1;
+        $isPartial  = ($rangeHeader !== null);
+        $statusCode = $isPartial ? 206 : 200;
+
+        $headers = [
+            'Content-Type'                        => $mime,
+            'Content-Length'                      => $length,
+            'Accept-Ranges'                       => 'bytes',
+            'Cache-Control'                       => 'public, max-age=604800',
+            'Access-Control-Allow-Origin'         => '*',
+            'Access-Control-Allow-Methods'        => 'GET, OPTIONS',
+            'Access-Control-Allow-Headers'        => 'Origin, Accept, Content-Type, Range',
+            'Access-Control-Expose-Headers'       => 'Content-Length, Content-Range, Accept-Ranges',
+            'Cross-Origin-Resource-Policy'        => 'cross-origin',
+        ];
+        if ($isPartial) {
+            $headers['Content-Range'] = "bytes {$start}-{$end}/{$size}";
+        }
+
+        $capturedStart = $start;
+        $capturedLength = $length;
+
+        return response()->stream(function () use ($realPath, $capturedStart, $capturedLength) {
+            $fp = fopen($realPath, 'rb');
+            fseek($fp, $capturedStart);
+            $remaining = $capturedLength;
+            while ($remaining > 0 && !feof($fp)) {
+                $chunk = fread($fp, min(65536, $remaining));
+                if ($chunk === false) break;
+                echo $chunk;
+                $remaining -= strlen($chunk);
+                if (connection_aborted()) break;
+            }
+            fclose($fp);
+        }, $statusCode, $headers);
     }
 }
 
