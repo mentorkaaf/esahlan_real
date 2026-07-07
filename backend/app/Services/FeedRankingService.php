@@ -187,11 +187,11 @@ class FeedRankingService
         $discoveryBoost  = (!$hasFollowing && !$hasInteractions) ? 2.0 : 1.0;
 
         $base = CommunityPost::query()
-            ->whereNull('group_id')
-            ->where('privacy', '!=', 'private')
-            ->whereNull('deleted_at')
-            ->where('created_at', '>', now()->subDays(14))
-            ->where(fn ($q) => $q->where('video_ready', true)->orWhere('user_id', $this->userId));
+            ->whereNull('community_posts.group_id')
+            ->where('community_posts.privacy', '!=', 'private')
+            ->whereNull('community_posts.deleted_at')
+            ->where('community_posts.created_at', '>', now()->subDays(14))
+            ->where(fn ($q) => $q->where('community_posts.video_ready', true)->orWhere('community_posts.user_id', $this->userId));
 
         if (!empty($this->seenPostIds)) {
             $recentSeen      = DB::table('feed_seen_posts')
@@ -201,7 +201,7 @@ class FeedRankingService
             $totalAvailable  = (clone $base)->count();
             $unseenAvailable = $totalAvailable - count($recentSeen);
             if (!empty($recentSeen) && $unseenAvailable >= $perPage) {
-                $base->whereNotIn('id', $recentSeen);
+                $base->whereNotIn('community_posts.id', $recentSeen);
             }
         }
 
@@ -211,39 +211,41 @@ class FeedRankingService
 
         // Pool 1: Following (no distribution cap — followers always see their feed)
         $followingPosts = (clone $base)
-            ->whereIn('user_id', $this->followingIds)
-            ->latest()->limit($candidateCount)->offset($offset)->get($cols);
+            ->whereIn('community_posts.user_id', $this->followingIds)
+            ->latest('community_posts.created_at')->limit($candidateCount)->offset($offset)->get($cols);
 
         // Pool 2: Recommended (interacted creators not followed)
         $interactedCreators = $this->getInteractedCreators();
         $recommendedPosts   = collect();
         if (!empty($interactedCreators)) {
             $recommendedPosts = (clone $base)
-                ->whereIn('user_id', $interactedCreators)
-                ->whereNotIn('user_id', $this->followingIds)
-                ->latest()->limit(round($candidateCount * 0.3))->offset(round($offset * 0.3))
+                ->whereIn('community_posts.user_id', $interactedCreators)
+                ->whereNotIn('community_posts.user_id', $this->followingIds)
+                ->latest('community_posts.created_at')->limit(round($candidateCount * 0.3))->offset(round($offset * 0.3))
                 ->get($cols);
         }
 
         // Feature 3: Pools 3/4/5 respect the distribution cap.
-        // A post whose impression_count has exceeded its cap won't spread further
-        // until progressDistribution() promotes it to the next stage.
+        // Uses whereNotExists subquery (not JOIN) to avoid ambiguous column names.
         $distributionFilter = function ($q) {
-            $q->leftJoin('post_scores as dist_ps', 'dist_ps.post_id', '=', 'community_posts.id')
-              ->where(function ($inner) {
-                  $inner->whereNull('dist_ps.post_id')                           // no score yet = new post
-                        ->orWhereRaw('dist_ps.impression_count <= dist_ps.distribution_cap')
-                        ->orWhere('community_posts.user_id', $this->userId);     // owner bypass
-              });
+            $q->where(function ($outer) {
+                $outer->whereNotExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('post_scores')
+                        ->whereColumn('post_scores.post_id', 'community_posts.id')
+                        ->whereRaw('post_scores.impression_count > post_scores.distribution_cap');
+                })
+                ->orWhere('community_posts.user_id', $this->userId);
+            });
         };
 
         // Pool 3: Trending
         $trendingPosts = (clone $base)
             ->whereNotIn('user_id', $this->followingIds)
-            ->where('created_at', '>', now()->subDays(3))
+            ->where('community_posts.created_at', '>', now()->subDays(3))
             ->whereRaw('(likes_count + comments_count * 2 + shares_count * 3) > ?', [10])
             ->tap($distributionFilter)
-            ->orderByRaw('(likes_count + comments_count * 2 + shares_count * 3) / GREATEST(1, TIMESTAMPDIFF(HOUR, created_at, NOW())) DESC')
+            ->orderByRaw('(likes_count + comments_count * 2 + shares_count * 3) / GREATEST(1, TIMESTAMPDIFF(HOUR, community_posts.created_at, NOW())) DESC')
             ->limit((int) round($candidateCount * 0.2 * $discoveryBoost))
             ->offset(round($offset * 0.2))
             ->get($cols);
@@ -251,7 +253,7 @@ class FeedRankingService
         // Pool 4: New creators
         $newCreatorPosts = (clone $base)
             ->whereNotIn('user_id', $this->followingIds)
-            ->where('created_at', '>', now()->subDays(2))
+            ->where('community_posts.created_at', '>', now()->subDays(2))
             ->where(function ($q) {
                 $q->whereHas('user.communityProfile', fn ($p) => $p->where('followers_count', '<', 100))
                   ->orWhereDoesntHave('user.communityProfile');
@@ -264,7 +266,7 @@ class FeedRankingService
         // Pool 5: Random discovery
         $randomPosts = (clone $base)
             ->whereNotIn('user_id', $this->followingIds)
-            ->where('created_at', '>', now()->subDays(7))
+            ->where('community_posts.created_at', '>', now()->subDays(7))
             ->tap($distributionFilter)
             ->inRandomOrder()
             ->limit((int) round($candidateCount * 0.05 * $discoveryBoost))
