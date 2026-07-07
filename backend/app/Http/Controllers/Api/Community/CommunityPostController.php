@@ -52,6 +52,10 @@ class CommunityPostController extends Controller
 
         $needsReview = $moderation['action'] === 'review';
 
+        // video/reel posts start hidden (video_ready=false) until transcoding
+        // completes. All other types are immediately visible (video_ready=true).
+        $isVideoPost = in_array($request->type, ['video', 'reel']);
+
         $post = CommunityPost::create([
             'user_id' => auth()->id(),
             'type' => $request->type,
@@ -64,6 +68,7 @@ class CommunityPostController extends Controller
             'poll_options' => $request->type === 'poll' ? array_map(fn($o) => ['text'=>$o,'votes'=>0], $request->poll_options ?? []) : null,
             'published_at' => now(),
             'is_pinned' => false,
+            'video_ready' => !$isVideoPost,
         ]);
 
         // Flag for review
@@ -97,12 +102,8 @@ class CommunityPostController extends Controller
                     'sort_order' => $i,
                 ];
 
-                // Video: dispatch background transcoding. Post is hidden from other
-                // users (video_ready=false) until the job marks it ready.
                 if ($type === 'video') {
                     $mediaData['transcoding_status'] = 'pending';
-                    // Hide from public feed while transcoding
-                    $post->update(['video_ready' => false]);
                 }
 
                 $media = CommunityPostMedia::create($mediaData);

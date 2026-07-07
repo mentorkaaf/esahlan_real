@@ -368,7 +368,8 @@ class CommunityFeedController extends Controller
         $baseQuery = fn () => CommunityPost::with(['user.communityProfile', 'media', 'userReaction'])
             ->whereIn('type', ['reel', 'video'])
             ->where('privacy', 'public')
-            ->where('video_ready', true)
+            // Mirror FeedRankingService: owner can see their own transcoding video in reels
+            ->where(fn ($q) => $q->where('video_ready', true)->orWhere('user_id', $userId))
             ->when($applySeenExclusion, fn ($q) => $q->whereNotIn('id', $recentlySeen));
 
         // Same fix as the main feed: when following/recommended pools have
