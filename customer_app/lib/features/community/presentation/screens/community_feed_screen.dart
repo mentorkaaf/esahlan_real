@@ -1995,6 +1995,7 @@ bool _globalMuted = false;
 class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObserver {
   VideoController? _controller;
   bool _ready = false;
+  bool _hasFrame = false;
   bool _initStarted = false;
   bool _paused = false;
   bool _visible = false;
@@ -2005,6 +2006,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   DateTime? _watchStart;
   StreamSubscription<dynamic>? _playerSub;
   StreamSubscription<dynamic>? _bufferingSub;
+  StreamSubscription<dynamic>? _videoParamsSub;
 
   // Controls auto-hide (Facebook-style: show on tap, hide after 3s)
   bool _showControls = false;
@@ -2035,11 +2037,17 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   void _attachPlayerListeners(VideoController ctrl) {
     _playerSub?.cancel();
     _bufferingSub?.cancel();
+    _videoParamsSub?.cancel();
     _playerSub = ctrl.player.stream.playing.listen((_) {
       if (mounted) setState(() {});
     });
     _bufferingSub = ctrl.player.stream.buffering.listen((_) {
       if (mounted) setState(() {});
+    });
+    _videoParamsSub = ctrl.player.stream.videoParams.listen((vp) {
+      if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) {
+        setState(() => _hasFrame = true);
+      }
     });
   }
 
@@ -2093,7 +2101,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     final cached = _pool.controller(url);
     if (cached != null && mounted) {
       cached.player.setVolume(_globalMuted ? 0 : 100);
-      setState(() { _controller = cached; _ready = true; _loadFailed = false; });
+      setState(() { _controller = cached; _ready = true; _loadFailed = false; _hasFrame = (cached.player.state.width ?? 0) > 0; });
       _attachPlayerListeners(cached);
       if (!_paused) _pool.setFraction(url, _lastFraction);
       return;
@@ -2103,7 +2111,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     final ctrl = await _pool.preload(url);
     if (ctrl != null && mounted && _pool.isReady(url)) {
       ctrl.player.setVolume(_globalMuted ? 0 : 100);
-      setState(() { _controller = ctrl; _ready = true; _loadFailed = false; });
+      setState(() { _controller = ctrl; _ready = true; _loadFailed = false; _hasFrame = (ctrl.player.state.width ?? 0) > 0; });
       _attachPlayerListeners(ctrl);
       if (!_paused) _pool.setFraction(url, _lastFraction);
     } else if (ctrl != null && mounted) {
@@ -2119,6 +2127,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     _controlsTimer?.cancel();
     _playerSub?.cancel();
     _bufferingSub?.cancel();
+    _videoParamsSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -2141,7 +2150,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       _bufferingSub?.cancel();
       _initStarted = false;
       _loadFailed = false;
-      setState(() { _controller = null; _ready = false; });
+      setState(() { _controller = null; _ready = false; _hasFrame = false; });
     }
 
     // ── Preload trigger (>5%) ──────────────────────────────────────────────
@@ -2280,12 +2289,12 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                           )
                         : Container(color: const Color(0xFF1A1A2E)),
                   ),
-                  // Video fades in smoothly when ready
+                  // Video fades in when the first frame is decoded (thumbnail stays visible until then)
                   if (_ready && _controller != null)
                     Positioned.fill(
                       child: AnimatedOpacity(
-                        opacity: 1.0,
-                        duration: const Duration(milliseconds: 150),
+                        opacity: _hasFrame ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 200),
                         child: Video(
                           controller: _controller!,
                           fit: BoxFit.contain,

@@ -49,7 +49,13 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<CommunityPost>>> {
     _loading = true;
     try {
       final posts = await _fetchPage(_page);
-      if (posts.isEmpty) _hasMore = false;
+      if (posts.isEmpty) {
+        if (_feedType == 'reels') {
+          _page = 1; // Cycle back to page 1 for endless reels
+        } else {
+          _hasMore = false;
+        }
+      }
       final current = refresh ? <CommunityPost>[] : (state.valueOrNull ?? []);
       // Dedup real posts by id — the ranking algorithm can occasionally
       // resurface a post across adjacent pages (scores shift between

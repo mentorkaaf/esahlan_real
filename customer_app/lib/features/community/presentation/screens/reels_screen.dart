@@ -66,6 +66,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
   final _pool = VideoPool.reels;
 
   bool _lifecyclePaused = false;
+  bool _tabActive = false;
 
   @override
   void initState() {
@@ -86,6 +87,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
       }
     } else if (state == AppLifecycleState.resumed) {
       _lifecyclePaused = false;
+      if (!_tabActive) return; // Don't resume if not on reels tab
       final items = _cachedItems;
       if (items == null || _currentIndex >= items.length) return;
       final url = items[_currentIndex].videoUrl;
@@ -166,7 +168,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
     final urls = _extractVideoUrls(combined);
     _pool.setWindow(urls, i);
     final url = i < urls.length ? urls[i] : '';
-    if (url.isNotEmpty) _pool.play(url);
+    if (url.isNotEmpty && _tabActive) _pool.play(url);
   }
 
   @override
@@ -174,6 +176,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
     final reelsAsync = ref.watch(communityReelsProvider);
     final rentAsync = ref.watch(erentReelsProvider);
     final tabActive = ref.watch(communityNavIndexProvider) == 1;
+    _tabActive = tabActive;
 
     // Pause all reels when navigating away from this tab.
     // Resume is handled per-card so manual pauses are respected.
@@ -350,7 +353,9 @@ class _CommunityReelCard extends ConsumerStatefulWidget {
 class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   VideoController? _videoCtrl;
   StreamSubscription<bool>? _completedSub;
+  StreamSubscription<dynamic>? _videoParamsSub;
   bool _videoReady = false;
+  bool _hasFrame = false;
   bool _muted = false;
   bool _paused = false;
   bool _liked = false;
@@ -431,7 +436,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
       _videoCtrl = poolCtrl;
       _attachCompletedListener(poolCtrl);
       if (mounted) {
-        setState(() => _videoReady = true);
+        setState(() { _videoReady = true; _hasFrame = (poolCtrl!.player.state.width ?? 0) > 0; });
         if (widget.isActive && !_paused) _pool.play(_videoUrl);
       }
       return;
@@ -455,15 +460,21 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     if (ctrl != null && mounted) {
       _videoCtrl = ctrl;
       _attachCompletedListener(ctrl);
-      setState(() => _videoReady = true);
+      setState(() { _videoReady = true; _hasFrame = (ctrl!.player.state.width ?? 0) > 0; });
       if (widget.isActive && !_paused) _pool.play(_videoUrl);
     }
   }
 
   void _attachCompletedListener(VideoController ctrl) {
     _completedSub?.cancel();
+    _videoParamsSub?.cancel();
     _completedSub = ctrl.player.stream.completed.listen((completed) {
       if (completed && mounted) widget.onVideoEnd?.call();
+    });
+    _videoParamsSub = ctrl.player.stream.videoParams.listen((vp) {
+      if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) {
+        setState(() => _hasFrame = true);
+      }
     });
   }
 
@@ -492,6 +503,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   @override
   void dispose() {
     _completedSub?.cancel();
+    _videoParamsSub?.cancel();
     for (final entry in _realtimeListeners.entries) {
       RealtimeClient.instance.removeListener(_postChannel, entry.key, entry.value);
     }
@@ -579,13 +591,19 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         else
           Container(color: const Color(0xFF1A1A2E)),
 
-        // Video replaces thumbnail once ready
+        // Video fades in once the first frame is decoded (thumbnail stays until then)
         if (_videoReady && _videoCtrl != null)
-          Positioned.fill(child: Video(
-            controller: _videoCtrl!,
-            fit: BoxFit.cover,
-            controls: NoVideoControls,
-          )),
+          Positioned.fill(
+            child: AnimatedOpacity(
+              opacity: _hasFrame ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 200),
+              child: Video(
+                controller: _videoCtrl!,
+                fit: BoxFit.cover,
+                controls: NoVideoControls,
+              ),
+            ),
+          ),
 
         // Gradient overlay (always present for text legibility)
         Container(
@@ -1112,7 +1130,9 @@ class _RentReelCard extends ConsumerStatefulWidget {
 
 class _RentReelCardState extends ConsumerState<_RentReelCard> {
   VideoController? _videoCtrl;
+  StreamSubscription<dynamic>? _videoParamsSub;
   bool _videoReady = false;
+  bool _hasFrame = false;
   bool _muted = false;
   bool _paused = false;
   bool _showHeart = false;
@@ -1126,12 +1146,22 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
     if (_videoUrl.isNotEmpty) _initVideo();
   }
 
+  void _attachVideoParamsListener(VideoController ctrl) {
+    _videoParamsSub?.cancel();
+    _videoParamsSub = ctrl.player.stream.videoParams.listen((vp) {
+      if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) {
+        setState(() => _hasFrame = true);
+      }
+    });
+  }
+
   void _initVideo() async {
     // Fast path — pool already preloaded this controller
     final cached = _pool.controller(_videoUrl);
     if (cached != null) {
       if (mounted) {
-        setState(() { _videoCtrl = cached; _videoReady = true; });
+        setState(() { _videoCtrl = cached; _videoReady = true; _hasFrame = (cached.player.state.width ?? 0) > 0; });
+        _attachVideoParamsListener(cached);
         if (widget.isActive && !_paused) _pool.play(_videoUrl);
       }
       return;
@@ -1139,7 +1169,8 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
 
     final ctrl = await _pool.preload(_videoUrl);
     if (ctrl != null && mounted) {
-      setState(() { _videoCtrl = ctrl; _videoReady = true; });
+      setState(() { _videoCtrl = ctrl; _videoReady = true; _hasFrame = (ctrl.player.state.width ?? 0) > 0; });
+      _attachVideoParamsListener(ctrl);
       if (widget.isActive && !_paused) _pool.play(_videoUrl);
     }
   }
@@ -1165,6 +1196,7 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
 
   @override
   void dispose() {
+    _videoParamsSub?.cancel();
     // Pool manages controller lifetime — do not dispose here
     super.dispose();
   }
@@ -1219,13 +1251,19 @@ class _RentReelCardState extends ConsumerState<_RentReelCard> {
         else
           Container(color: const Color(0xFF1A1B2E)),
 
-        // Video replaces thumbnail once ready
+        // Video fades in once the first frame is decoded (thumbnail stays until then)
         if (_videoReady && _videoCtrl != null)
-          Positioned.fill(child: Video(
-            controller: _videoCtrl!,
-            fit: BoxFit.cover,
-            controls: NoVideoControls,
-          )),
+          Positioned.fill(
+            child: AnimatedOpacity(
+              opacity: _hasFrame ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 200),
+              child: Video(
+                controller: _videoCtrl!,
+                fit: BoxFit.cover,
+                controls: NoVideoControls,
+              ),
+            ),
+          ),
 
         // Gradient (always present for text legibility)
         Container(

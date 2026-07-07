@@ -245,7 +245,16 @@ class VideoPool {
     for (final e in _fractions.entries) {
       if (e.value > bestF) { best = e.key; bestF = e.value; }
     }
-    if (best == null || best == _activeUrl) return;
+    if (best == null) {
+      // Nothing above dominance threshold — pause whatever is currently active
+      if (_activeUrl != null) {
+        _players[_activeUrl!]?.setVolume(0);
+        _players[_activeUrl!]?.pause();
+        _activeUrl = null;
+      }
+      return;
+    }
+    if (best == _activeUrl) return;
     _doPlay(best);
   }
 }
