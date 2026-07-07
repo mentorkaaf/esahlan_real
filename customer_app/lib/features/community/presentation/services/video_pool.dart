@@ -31,9 +31,10 @@ class VideoPool {
   String?      _activeUrl;
   String?      _pendingPlay;
 
-  static const _maxSlots     = 6;
-  static const _evictDist    = 7;
-  static const _preloadAhead = 4;
+  // Fewer concurrent preloads → current video gets more bandwidth on slow networks.
+  static const _maxSlots     = 4;
+  static const _evictDist    = 5;
+  static const _preloadAhead = 2;
   static const _dominant     = 0.5;
 
   // ── Public API ────────────────────────────────────────────────────────────
@@ -157,7 +158,9 @@ class VideoPool {
     try {
       final player = Player(
         configuration: const PlayerConfiguration(
-          bufferSize: 32 * 1024 * 1024, // 32 MB — ExoPlayer native buffer
+          // 8 MB — enough for ~5s of 1080p. Smaller = less bandwidth fighting
+          // between concurrent preloads on slow mobile networks.
+          bufferSize: 8 * 1024 * 1024,
         ),
       );
       final controller = VideoController(player);
