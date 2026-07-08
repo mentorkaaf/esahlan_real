@@ -1,11 +1,12 @@
-﻿import 'dart:async';
+import 'dart:async';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
 import '../screens/community_shell.dart';
@@ -25,7 +26,6 @@ class _StoryViewerState extends State<StoryViewer> {
   final _repo = CommunityRepository();
   final _commentCtrl = TextEditingController();
   bool _showCommentInput = false;
-  bool _isOwnStory = false;
 
   @override
   void dispose() {
@@ -35,9 +35,9 @@ class _StoryViewerState extends State<StoryViewer> {
   }
 
   void _sendReaction(String emoji) {
-    final storyId = _currentStory.id;
-    _repo.reactToStory(storyId, emoji);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reacted $emoji'), duration: const Duration(seconds: 1)));
+    _repo.reactToStory(_currentStory.id, emoji);
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Reacted $emoji'), duration: const Duration(seconds: 1)));
   }
 
   void _sendComment() {
@@ -47,7 +47,8 @@ class _StoryViewerState extends State<StoryViewer> {
     _commentCtrl.clear();
     FocusScope.of(context).unfocus();
     setState(() => _showCommentInput = false);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Comment sent'), duration: Duration(seconds: 1)));
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Comment sent'), duration: Duration(seconds: 1)));
   }
 
   @override
@@ -89,11 +90,8 @@ class _StoryViewerState extends State<StoryViewer> {
       body: GestureDetector(
         onTapDown: (d) {
           final w = MediaQuery.of(context).size.width;
-          if (d.globalPosition.dx < w * 0.35) {
-            _prevStory();
-          } else {
-            _nextStory();
-          }
+          if (d.globalPosition.dx < w * 0.35) _prevStory();
+          else _nextStory();
         },
         child: Stack(fit: StackFit.expand, children: [
           _StoryContent(
@@ -106,20 +104,20 @@ class _StoryViewerState extends State<StoryViewer> {
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 8, right: 8,
-            child: Row(
-              children: List.generate(totalStories, (i) => Expanded(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 2),
-                  child: _ProgressBar(
-                    active: i == _storyIndex,
-                    done: i < _storyIndex,
-                    duration: story.type == 'video' ? AppConstants.storyVideoDuration : AppConstants.storyImageDuration,
-                    key: ValueKey('bar_${_groupIndex}_${_storyIndex}_$i'),
-                    onDone: i == _storyIndex ? _nextStory : null,
-                  ),
+            child: Row(children: List.generate(totalStories, (i) => Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: _ProgressBar(
+                  active: i == _storyIndex,
+                  done: i < _storyIndex,
+                  duration: story.type == 'video'
+                      ? AppConstants.storyVideoDuration
+                      : AppConstants.storyImageDuration,
+                  key: ValueKey('bar_${_groupIndex}_${_storyIndex}_$i'),
+                  onDone: i == _storyIndex ? _nextStory : null,
                 ),
-              )),
-            ),
+              ),
+            ))),
           ),
           // Header
           Positioned(
@@ -128,99 +126,98 @@ class _StoryViewerState extends State<StoryViewer> {
             child: Row(children: [
               CircleAvatar(
                 radius: 18,
-                
-                backgroundImage: group.user.avatar != null ? CachedNetworkImageProvider(group.user.avatar!) : null,
+                backgroundImage: group.user.avatar != null
+                    ? CachedNetworkImageProvider(group.user.avatar!) : null,
                 child: group.user.avatar == null
-                    ? Text(group.user.name[0].toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold))
-                    : null,
+                    ? Text(group.user.name[0].toUpperCase(),
+                        style: const TextStyle(fontWeight: FontWeight.bold)) : null,
               ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(group.user.name, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
-                  Text(_timeLabel(story.createdAt), style: TextStyle(color: Colors.white70, fontSize: 12)),
-                ]),
-              ),
+              const SizedBox(width: 8),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(group.user.name,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+                Text(_timeLabel(story.createdAt),
+                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ])),
               GestureDetector(
                 onTap: () => Navigator.pop(context),
-                child: Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                child: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
               ),
             ]),
           ),
-          // Bottom text if text story
+          // Text story content
           if (story.textContent != null && story.textContent!.isNotEmpty && story.type == 'text')
-            Positioned(
-              bottom: 80,
-              left: 24, right: 24,
+            Positioned(bottom: 80, left: 24, right: 24,
               child: Text(story.textContent!,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700, height: 1.4)),
-            ),
+                  style: const TextStyle(color: Colors.white, fontSize: 22,
+                      fontWeight: FontWeight.w700, height: 1.4))),
           // Location
           if (story.location != null)
-            Positioned(
-              bottom: 60,
-              left: 24,
+            Positioned(bottom: 60, left: 24,
               child: Row(children: [
-                Icon(Icons.location_on_rounded, color: Colors.white70, size: 14),
-                SizedBox(width: 4),
-                Text(story.location!, style: TextStyle(color: Colors.white70, fontSize: 12)),
-              ]),
-            ),
-          // Bottom bar — viewers for own stories, reactions for others
-          Positioned(
-            bottom: 0, left: 0, right: 0,
+                const Icon(Icons.location_on_rounded, color: Colors.white70, size: 14),
+                const SizedBox(width: 4),
+                Text(story.location!, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ])),
+          // Bottom bar
+          Positioned(bottom: 0, left: 0, right: 0,
             child: Container(
-              padding: EdgeInsets.only(left: 12, right: 12, top: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 8),
-              decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Colors.black87, Colors.transparent])),
+              padding: EdgeInsets.only(
+                  left: 12, right: 12, top: 8,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 8),
+              decoration: const BoxDecoration(gradient: LinearGradient(
+                begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                colors: [Colors.black87, Colors.transparent])),
               child: group.user.isMe
-                  // Own story — show viewers
                   ? GestureDetector(
                       onTap: () => _showViewersSheet(context, story),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         child: Row(children: [
-                          Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
-                          SizedBox(width: 8),
+                          const Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
                           Text('${story.viewsCount} ${story.viewsCount == 1 ? 'viewer' : 'viewers'}',
-                            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-                          Spacer(),
-                          Icon(Icons.keyboard_arrow_up_rounded, color: Colors.white70, size: 24),
+                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                          const Spacer(),
+                          const Icon(Icons.keyboard_arrow_up_rounded, color: Colors.white70, size: 24),
                         ]),
                       ),
                     )
-                  // Others' story — reactions + comment
                   : _showCommentInput
                     ? Row(children: [
-                        Expanded(child: TextField(controller: _commentCtrl, autofocus: true,
-                          style: TextStyle(color: Colors.white),
-                          decoration: InputDecoration(hintText: 'Send message...', hintStyle: TextStyle(color: Colors.white54),
-                            filled: true, fillColor: Colors.white24, contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        Expanded(child: TextField(
+                          controller: _commentCtrl, autofocus: true,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Send message...', hintStyle: const TextStyle(color: Colors.white54),
+                            filled: true, fillColor: Colors.white24,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none)),
                           onSubmitted: (_) => _sendComment())),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         GestureDetector(onTap: _sendComment,
-                          child: const CircleAvatar(radius: 18, backgroundColor: kOrange, child: Icon(Icons.send_rounded, color: Colors.white, size: 16))),
+                          child: const CircleAvatar(radius: 18, backgroundColor: kOrange,
+                              child: Icon(Icons.send_rounded, color: Colors.white, size: 16))),
                       ])
                     : Row(children: [
                         Expanded(child: GestureDetector(
                           onTap: () => setState(() => _showCommentInput = true),
                           child: Container(
-                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(24)),
-                            child: Text('Send message...', style: TextStyle(color: Colors.white54, fontSize: 14)),
+                            child: const Text('Send message...', style: TextStyle(color: Colors.white54, fontSize: 14)),
                           ),
                         )),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         for (final emoji in ['❤️', '👍', '😂'])
                           GestureDetector(
                             onTap: () => _sendReaction(emoji),
-                            child: Padding(padding: EdgeInsets.symmetric(horizontal: 4),
-                              child: Text(emoji, style: TextStyle(fontSize: 26))),
+                            child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: Text(emoji, style: const TextStyle(fontSize: 26))),
                           ),
                       ]),
-            ),
-          ),
+            )),
         ]),
       ),
     );
@@ -230,29 +227,30 @@ class _StoryViewerState extends State<StoryViewer> {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1A1B2E),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => FutureBuilder<List<Map<String, dynamic>>>(
         future: _repo.getStoryViewers(story.id),
         builder: (ctx, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
-            return SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: kOrange)));
+            return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: kOrange)));
           }
           final viewers = snap.data ?? [];
           return Container(
             color: const Color(0xFF1A1B2E),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
-              Padding(padding: EdgeInsets.all(16),
+              Padding(padding: const EdgeInsets.all(16),
                 child: Row(children: [
-                  Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
-                  SizedBox(width: 8),
+                  const Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
                   Text('${viewers.length} ${viewers.length == 1 ? 'viewer' : 'viewers'}',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
                 ])),
-              Divider(color: Colors.white12, height: 1),
+              const Divider(color: Colors.white12, height: 1),
               if (viewers.isEmpty)
-                Padding(padding: EdgeInsets.all(32), child: Text('No viewers yet', style: TextStyle(color: Colors.white54)))
+                const Padding(padding: EdgeInsets.all(32),
+                    child: Text('No viewers yet', style: TextStyle(color: Colors.white54)))
               else
                 SizedBox(
                   height: (viewers.length * 64.0).clamp(64, 300),
@@ -266,10 +264,9 @@ class _StoryViewerState extends State<StoryViewer> {
                         color: const Color(0xFF1A1B2E),
                         child: ListTile(
                           leading: CircleNetImage(url: avatar, size: 44, fallbackText: name),
-                          title: Text(name, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
+                          title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
                           subtitle: v['username'] != null
-                            ? Text('@${v['username']}', style: TextStyle(color: Colors.white54, fontSize: 12))
-                            : null,
+                              ? Text('@${v['username']}', style: const TextStyle(color: Colors.white54, fontSize: 12)) : null,
                         ),
                       );
                     },
@@ -291,6 +288,8 @@ class _StoryViewerState extends State<StoryViewer> {
   }
 }
 
+// ── Story Content — media_kit for video, CachedNetworkImage for image ─────────
+
 class _StoryContent extends StatefulWidget {
   final CommunityStory story;
   final VoidCallback onFinished;
@@ -302,10 +301,13 @@ class _StoryContent extends StatefulWidget {
 }
 
 class _StoryContentState extends State<_StoryContent> {
-  VideoPlayerController? _videoCtrl;
-  bool _videoReady = false;
+  Player? _player;
+  VideoController? _videoCtrl;
+  bool _hasFrame = false;
   bool _videoError = false;
-
+  StreamSubscription? _completedSub;
+  StreamSubscription? _videoParamsSub;
+  StreamSubscription? _errorSub;
 
   @override
   void initState() {
@@ -317,38 +319,42 @@ class _StoryContentState extends State<_StoryContent> {
   }
 
   Future<void> _initVideo() async {
-    final url = widget.story.mediaUrl!;
     try {
-      if (!mounted) return;
-      final ctrl = VideoPlayerController.networkUrl(
-        Uri.parse(url),
-        httpHeaders: const {'Connection': 'keep-alive'},
-      );
-      await ctrl.initialize();
-      if (!mounted) { ctrl.dispose(); return; }
+      final player = Player();
+      final ctrl = VideoController(player);
+      _player = player;
       _videoCtrl = ctrl;
-      _videoCtrl!.setLooping(false);
-      _videoCtrl!.play();
-      _videoCtrl!.addListener(_onVideoTick);
-      setState(() => _videoReady = true);
-    } catch (e) {
-      debugPrint('[StoryVideo] plain fallback also failed: $url — $e');
-      if (mounted) setState(() => _videoError = true);
-    }
-  }
 
-  void _onVideoTick() {
-    if (_videoCtrl == null) return;
-    final v = _videoCtrl!.value;
-    if (v.position >= v.duration && v.duration > Duration.zero) {
-      widget.onFinished();
+      _completedSub = player.stream.completed.listen((done) {
+        if (done && mounted) widget.onFinished();
+      });
+      _videoParamsSub = player.stream.videoParams.listen((vp) {
+        if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) {
+          setState(() => _hasFrame = true);
+        }
+      });
+      _errorSub = player.stream.error.listen((_) {
+        if (mounted && !_hasFrame) setState(() => _videoError = true);
+      });
+
+      await player.open(Media(widget.story.mediaUrl!));
+      await player.setPlaylistMode(PlaylistMode.none);
+
+      // Fallback: show video after 1s if videoParams never fires
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted && !_hasFrame && !_videoError) setState(() => _hasFrame = true);
+      });
+    } catch (e) {
+      if (mounted) setState(() => _videoError = true);
     }
   }
 
   @override
   void dispose() {
-    _videoCtrl?.removeListener(_onVideoTick);
-    _videoCtrl?.dispose();
+    _completedSub?.cancel();
+    _videoParamsSub?.cancel();
+    _errorSub?.cancel();
+    _player?.dispose();
     super.dispose();
   }
 
@@ -357,43 +363,64 @@ class _StoryContentState extends State<_StoryContent> {
     final story = widget.story;
 
     if (story.type == 'text') {
+      final bg = story.bgColor != null
+          ? Color(int.parse('0xFF${story.bgColor!.replaceFirst('#', '')}'))
+          : kOrange;
       return Container(
-        color: story.bgColor != null ? Color(int.parse('0xFF${story.bgColor!.replaceFirst('#', '')}')) : kOrange,
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              story.textContent ?? '',
+        color: bg,
+        child: Center(child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Text(story.textContent ?? '',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700, height: 1.4),
-            ),
-          ),
-        ),
+              style: const TextStyle(color: Colors.white, fontSize: 26,
+                  fontWeight: FontWeight.w700, height: 1.4)),
+        )),
       );
     }
 
     if (story.type == 'video') {
-      if (_videoReady && _videoCtrl != null) {
-        return Center(child: AspectRatio(aspectRatio: _videoCtrl!.value.aspectRatio,
-          child: VideoPlayer(_videoCtrl!)));
-      }
-      if (_videoError) {
-        return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.error_outline_rounded, color: Colors.white54, size: 48),
-          SizedBox(height: 8),
-          Text('Video failed to load', style: TextStyle(color: Colors.white54)),
-        ]));
-      }
-      return Center(child: SizedBox(width: 28, height: 28,
-        child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)));
+      return Stack(fit: StackFit.expand, children: [
+        // Thumbnail always shown as background
+        if (story.thumbnail != null)
+          CachedNetworkImage(imageUrl: story.thumbnail!, fit: BoxFit.cover,
+              placeholder: (_, __) => Container(color: Colors.black),
+              errorWidget: (_, __, ___) => Container(color: Colors.black))
+        else
+          Container(color: Colors.black),
+
+        // Error state
+        if (_videoError)
+          Container(color: Colors.black,
+            child: const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.error_outline_rounded, color: Colors.white54, size: 48),
+              SizedBox(height: 8),
+              Text('Video failed to load', style: TextStyle(color: Colors.white54)),
+            ]))),
+
+        // Video crossfades in over thumbnail once first frame is ready
+        if (_videoCtrl != null)
+          AnimatedOpacity(
+            opacity: _hasFrame ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 300),
+            child: Video(controller: _videoCtrl!, controls: NoVideoControls,
+                fit: BoxFit.contain),
+          ),
+
+        // Loading spinner (shown only before frame + before error)
+        if (!_hasFrame && !_videoError)
+          const Center(child: SizedBox(width: 28, height: 28,
+              child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2))),
+      ]);
     }
 
+    // Image story
     if (story.mediaUrl != null) {
-      return NetImage(
-        url: story.mediaUrl!,
+      return CachedNetworkImage(
+        imageUrl: story.mediaUrl!,
         fit: BoxFit.cover,
-        placeholder: Center(child: CircularProgressIndicator(color: Colors.white)),
-        errorWidget: Center(child: Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64)),
+        placeholder: (_, __) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+        errorWidget: (_, __, ___) => const Center(
+            child: Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64)),
       );
     }
 
@@ -401,12 +428,15 @@ class _StoryContentState extends State<_StoryContent> {
   }
 }
 
+// ── Progress Bar ──────────────────────────────────────────────────────────────
+
 class _ProgressBar extends StatefulWidget {
   final bool active;
   final bool done;
   final Duration duration;
   final VoidCallback? onDone;
-  const _ProgressBar({super.key, required this.active, required this.done, required this.duration, this.onDone});
+  const _ProgressBar({super.key, required this.active, required this.done,
+      required this.duration, this.onDone});
 
   @override
   State<_ProgressBar> createState() => _ProgressBarState();
@@ -428,19 +458,13 @@ class _ProgressBarState extends State<_ProgressBar> with SingleTickerProviderSta
   }
 
   @override
-  void dispose() {
-    _ctrl?.dispose();
-    super.dispose();
-  }
+  void dispose() { _ctrl?.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 2,
-      decoration: BoxDecoration(
-        color: Colors.white30,
-        borderRadius: BorderRadius.circular(1),
-      ),
+      decoration: BoxDecoration(color: Colors.white30, borderRadius: BorderRadius.circular(1)),
       child: widget.done
           ? Container(decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(1)))
           : widget.active && _ctrl != null
@@ -449,11 +473,10 @@ class _ProgressBarState extends State<_ProgressBar> with SingleTickerProviderSta
                   builder: (_, __) => FractionallySizedBox(
                     widthFactor: _ctrl!.value,
                     alignment: Alignment.centerLeft,
-                    child: Container(decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(1))),
-                  ),
-                )
+                    child: Container(decoration: BoxDecoration(
+                        color: context.colors.cardBg, borderRadius: BorderRadius.circular(1))),
+                  ))
               : const SizedBox.shrink(),
     );
   }
 }
-
