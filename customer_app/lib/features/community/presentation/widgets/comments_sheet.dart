@@ -34,6 +34,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   bool _sending = false;
   int? _replyToId;
   String? _replyToName;
+  String? _mentionUser; // @username prepended when replying to a reply
   XFile? _mediaFile;
   String? _mediaType;
   RecorderController? _recorderCtrl;
@@ -115,12 +116,14 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   }
 
   Future<void> _send() async {
-    final text = _textCtrl.text.trim();
-    if (text.isEmpty && _mediaFile == null) return;
+    final rawText = _textCtrl.text.trim();
+    if (rawText.isEmpty && _mediaFile == null) return;
     if (_sending) return;
     setState(() => _sending = true);
+    // Prepend @mention when replying to a specific user within a thread
+    final mention = _mentionUser != null ? '@$_mentionUser ' : '';
+    final text = mention + rawText;
     try {
-      CommunityComment comment;
       if (_mediaFile != null) {
         final file = File(_mediaFile!.path);
         if (!await file.exists()) { setState(() => _sending = false); return; }
@@ -129,17 +132,17 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
         final fname = _mediaType == 'voice' ? 'voice.aac' : 'comment_media.$ext';
         final mime = _mediaType == 'voice' ? 'audio/aac' : (ext == 'png' ? 'image/png' : 'image/jpeg');
         final form = FormData.fromMap({
-          'content': text.isNotEmpty ? text : (_mediaType == 'voice' ? 'Voice message' : 'Image'),
+          'content': rawText.isNotEmpty ? text : (_mediaType == 'voice' ? 'Voice message' : 'Image'),
           if (_replyToId != null) 'parent_id': _replyToId,
           'type': _mediaType ?? 'image',
           'media': MultipartFile.fromBytes(bytes, filename: fname, contentType: DioMediaType.parse(mime)),
         });
-        comment = await _repo.addMediaComment(widget.postId, form);
+        await _repo.addMediaComment(widget.postId, form);
       } else {
-        comment = await _repo.addComment(widget.postId, text, parentId: _replyToId);
+        await _repo.addComment(widget.postId, text, parentId: _replyToId);
       }
       _textCtrl.clear();
-      setState(() { _replyToId = null; _replyToName = null; _mediaFile = null; _mediaType = null; _sending = false; });
+      setState(() { _replyToId = null; _replyToName = null; _mentionUser = null; _mediaFile = null; _mediaType = null; _sending = false; });
       await _loadComments();
     } catch (e) {
       setState(() => _sending = false);
@@ -187,7 +190,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                             Padding(padding: EdgeInsets.only(left: 44),
                               child: Column(children: [
                                 Container(width: 2, height: 8, color: context.colors.dividerColor),
-                                ...replies.map((r) => _CommentTile(comment: r, onReply: () => _setReply(root), isReply: true,
+                                ...replies.map((r) => _CommentTile(comment: r, onReply: () => _setReplyToReply(root, r), isReply: true,
                                   onEdit: r.user.isMe ? (newContent) async {
                                     await _repo.updateComment(r.id, newContent);
                                     setState(() { final idx = _comments.indexWhere((c) => c.id == r.id); if (idx >= 0) _comments[idx] = _comments[idx].copyWith(content: newContent); _rebuildIndex(); });
@@ -208,7 +211,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
             SizedBox(width: 6),
             Text('Replying to $_replyToName', style: TextStyle(color: context.colors.mutedText, fontSize: 13, fontWeight: FontWeight.w600)),
             Spacer(),
-            GestureDetector(onTap: () => setState(() { _replyToId = null; _replyToName = null; }),
+            GestureDetector(onTap: () => setState(() { _replyToId = null; _replyToName = null; _mentionUser = null; }),
               child: Icon(Icons.close, size: 16, color: context.colors.mutedText)),
           ])),
         if (_mediaFile != null) Container(
@@ -280,7 +283,17 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   }
 
   void _setReply(CommunityComment c) {
-    setState(() { _replyToId = c.id; _replyToName = c.user.name; });
+    setState(() { _replyToId = c.id; _replyToName = c.user.name; _mentionUser = null; });
+    _focusNode.requestFocus();
+  }
+
+  // Replying to a reply — thread stays under root but @mentions the target user
+  void _setReplyToReply(CommunityComment root, CommunityComment target) {
+    setState(() {
+      _replyToId = root.id;
+      _replyToName = target.user.name;
+      _mentionUser = target.user.username ?? target.user.name;
+    });
     _focusNode.requestFocus();
   }
 }
@@ -337,6 +350,20 @@ class _CommentTileState extends State<_CommentTile> {
     }
   }
 
+  Widget _buildContent(String content, dynamic c, bool isReply) {
+    final fontSize = isReply ? 13.0 : 14.0;
+    final match = RegExp(r'^(@\S+)\s*').firstMatch(content);
+    if (match != null) {
+      final mention = match.group(1)!;
+      final rest = content.substring(match.end);
+      return RichText(text: TextSpan(children: [
+        TextSpan(text: '$mention ', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700, fontSize: fontSize)),
+        if (rest.isNotEmpty) TextSpan(text: rest, style: TextStyle(color: c.bodyText, fontSize: fontSize, height: 1.3)),
+      ]));
+    }
+    return Text(content, style: TextStyle(fontSize: fontSize, color: c.bodyText, height: 1.3));
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -360,7 +387,7 @@ class _CommentTileState extends State<_CommentTile> {
               ]),
               SizedBox(height: 2),
               if (comment.content.isNotEmpty && comment.content != 'Voice message' && comment.content != 'Image')
-                Text(comment.content, style: TextStyle(fontSize: isReply ? 13 : 14, color: c.bodyText, height: 1.3)),
+                _buildContent(comment.content, c, isReply),
               if (comment.mediaUrl != null && comment.mediaType == 'image')
                 Padding(padding: EdgeInsets.only(top: 6),
                   child: ClipRRect(borderRadius: BorderRadius.circular(10),
