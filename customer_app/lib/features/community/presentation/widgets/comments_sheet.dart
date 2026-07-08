@@ -285,7 +285,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   }
 }
 
-class _CommentTile extends StatelessWidget {
+class _CommentTile extends StatefulWidget {
   final CommunityComment comment;
   final VoidCallback onReply;
   final VoidCallback? onDelete;
@@ -294,8 +294,56 @@ class _CommentTile extends StatelessWidget {
   const _CommentTile({required this.comment, required this.onReply, this.onDelete, this.onEdit, required this.isReply});
 
   @override
+  State<_CommentTile> createState() => _CommentTileState();
+}
+
+class _CommentTileState extends State<_CommentTile> {
+  static const _reactions = [
+    ('like', '👍'), ('love', '❤️'), ('haha', '😂'), ('wow', '😮'), ('sad', '😢'),
+  ];
+  final _repo = CommunityRepository();
+  late int _likesCount;
+  late String? _userReaction;
+  bool _reacting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _likesCount = widget.comment.likesCount;
+    _userReaction = widget.comment.userReaction;
+  }
+
+  Future<void> _react(String type) async {
+    if (_reacting) return;
+    setState(() { _reacting = true; });
+    final prev = _userReaction;
+    final prevCount = _likesCount;
+    // Optimistic update
+    if (_userReaction == type) {
+      setState(() { _userReaction = null; _likesCount = (_likesCount - 1).clamp(0, 9999); });
+    } else {
+      setState(() { _userReaction = type; if (prev == null) _likesCount++; });
+    }
+    try {
+      final r = await _repo.reactToComment(widget.comment.id, type);
+      if (mounted) setState(() {
+        _likesCount = r['likes_count'] as int? ?? _likesCount;
+        _userReaction = (r['reacted'] as bool? ?? false) ? (r['reaction'] as String?) : null;
+      });
+    } catch (_) {
+      if (mounted) setState(() { _userReaction = prev; _likesCount = prevCount; });
+    } finally {
+      if (mounted) setState(() => _reacting = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final comment = widget.comment;
+    final isReply = widget.isReply;
+    final isText = comment.mediaType == null;
+
     return Padding(
       padding: EdgeInsets.fromLTRB(isReply ? 0 : 12, isReply ? 2 : 6, 12, isReply ? 2 : 6),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -322,12 +370,36 @@ class _CommentTile extends StatelessWidget {
             ]),
           ),
           SizedBox(height: 4),
+          // Reaction bar
           Row(children: [
-            Text(timeago.format(comment.createdAt), style: TextStyle(color: context.colors.mutedText, fontSize: 11)),
+            ..._reactions.map((rec) {
+              final isActive = _userReaction == rec.$1;
+              return GestureDetector(
+                onTap: () => _react(rec.$1),
+                child: Container(
+                  margin: EdgeInsets.only(right: 4),
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isActive ? kOrange.withValues(alpha: 0.15) : c.inputFill,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: isActive ? kOrange : Colors.transparent, width: 1),
+                  ),
+                  child: Text(rec.$2, style: TextStyle(fontSize: 14)),
+                ),
+              );
+            }),
+            if (_likesCount > 0) ...[
+              SizedBox(width: 4),
+              Text('$_likesCount', style: TextStyle(color: _userReaction != null ? kOrange : c.mutedText, fontSize: 11, fontWeight: FontWeight.w600)),
+            ],
+          ]),
+          SizedBox(height: 2),
+          Row(children: [
+            Text(timeago.format(comment.createdAt), style: TextStyle(color: c.mutedText, fontSize: 11)),
             SizedBox(width: 14),
-            GestureDetector(onTap: onReply,
-              child: Text('Reply', style: TextStyle(color: context.colors.mutedText, fontSize: 11, fontWeight: FontWeight.w700))),
-            if (onEdit != null) ...[SizedBox(width: 14),
+            GestureDetector(onTap: widget.onReply,
+              child: Text('Reply', style: TextStyle(color: c.mutedText, fontSize: 11, fontWeight: FontWeight.w700))),
+            if (widget.onEdit != null && isText) ...[SizedBox(width: 14),
               GestureDetector(onTap: () {
                 final ctrl = TextEditingController(text: comment.content);
                 showDialog(context: context, builder: (ctx) => AlertDialog(
@@ -335,15 +407,13 @@ class _CommentTile extends StatelessWidget {
                   content: TextField(controller: ctrl, maxLines: 4, decoration: InputDecoration(border: OutlineInputBorder())),
                   actions: [
                     TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
-                    TextButton(onPressed: () { Navigator.pop(ctx); onEdit!(ctrl.text.trim()); },
+                    TextButton(onPressed: () { Navigator.pop(ctx); widget.onEdit!(ctrl.text.trim()); },
                       child: Text('Save', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700))),
                   ],
                 ));
               }, child: Text('Edit', style: TextStyle(color: kOrange, fontSize: 11, fontWeight: FontWeight.w600)))],
-            if (onDelete != null) ...[SizedBox(width: 14),
-              GestureDetector(onTap: onDelete, child: Text('Delete', style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w600)))],
-            SizedBox(width: 14),
-            if (comment.likesCount > 0) Text('${comment.likesCount} likes', style: TextStyle(color: context.colors.mutedText, fontSize: 11)),
+            if (widget.onDelete != null) ...[SizedBox(width: 14),
+              GestureDetector(onTap: widget.onDelete, child: Text('Delete', style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w600)))],
           ]),
         ])),
       ]),

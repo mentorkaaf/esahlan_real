@@ -165,6 +165,11 @@ class CommunityRepository {
     return CommunityComment.fromJson(r.data['data'] as Map<String, dynamic>);
   }
 
+  Future<Map<String, dynamic>> reactToComment(int commentId, String type) async {
+    final r = await _dio.post('/community/comments/$commentId/react', data: {'type': type});
+    return r.data as Map<String, dynamic>;
+  }
+
   Future<void> deleteComment(int commentId) => _dio.delete('/community/comments/$commentId');
 
   Future<void> updateComment(int commentId, String content) =>

@@ -277,6 +277,7 @@ class CommunityComment {
   final int? parentId;
   final DateTime createdAt;
   bool isLiked;
+  String? userReaction;
 
   CommunityComment({
     required this.id,
@@ -291,6 +292,7 @@ class CommunityComment {
     this.parentId,
     required this.createdAt,
     this.isLiked = false,
+    this.userReaction,
   });
 
   factory CommunityComment.fromJson(Map<String, dynamic> j) => CommunityComment(
@@ -311,7 +313,7 @@ class CommunityComment {
     id: id, postId: postId, user: user, content: content ?? this.content,
     mediaUrl: mediaUrl, mediaType: mediaType, likesCount: likesCount,
     repliesCount: repliesCount, isPinned: isPinned, parentId: parentId,
-    createdAt: createdAt, isLiked: isLiked,
+    createdAt: createdAt, isLiked: isLiked, userReaction: userReaction,
   );
 }
 
