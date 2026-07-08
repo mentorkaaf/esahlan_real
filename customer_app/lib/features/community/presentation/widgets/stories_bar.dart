@@ -137,7 +137,11 @@ class _StoryCard extends StatelessWidget {
             )
           else if (firstStory?.type == 'image' && firstStory?.mediaUrl != null)
             CachedNetworkImage(imageUrl: firstStory!.mediaUrl!, fit: BoxFit.cover,
-              placeholder: (_, __) => Container(color: const Color(0xFF1A1B2E)),
+              memCacheHeight: 400,
+              fadeInDuration: const Duration(milliseconds: 150),
+              placeholder: (_, __) => Container(decoration: const BoxDecoration(gradient: LinearGradient(
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
+                colors: [Color(0xFF2A1B3D), Color(0xFF1A1B2E)]))),
               errorWidget: (_, __, ___) => Container(color: const Color(0xFF1A1B2E)))
           else if (firstStory?.type == 'text')
             Container(
@@ -252,19 +256,23 @@ class _VideoStoryPreviewState extends State<_VideoStoryPreview> {
   @override
   Widget build(BuildContext context) {
     return Stack(fit: StackFit.expand, children: [
-      // Thumbnail shown immediately
+      // Gradient placeholder shown instantly while thumbnail network-loads
+      Container(decoration: const BoxDecoration(gradient: LinearGradient(
+        begin: Alignment.topLeft, end: Alignment.bottomRight,
+        colors: [Color(0xFF2A1B3D), Color(0xFF1A1B2E)]))),
+
+      // Thumbnail shown immediately from cache (or loads over gradient)
       if (widget.thumbnailUrl != null)
         CachedNetworkImage(imageUrl: widget.thumbnailUrl!, fit: BoxFit.cover,
-          placeholder: (_, __) => Container(color: const Color(0xFF1A1B2E)),
-          errorWidget: (_, __, ___) => Container(color: const Color(0xFF1A1B2E)))
-      else
-        Container(color: const Color(0xFF1A1B2E)),
+          fadeInDuration: const Duration(milliseconds: 150),
+          placeholder: (_, __) => const SizedBox.shrink(),
+          errorWidget: (_, __, ___) => const SizedBox.shrink()),
 
       // Video crossfades in once first frame ready
       if (_ctrl != null)
         AnimatedOpacity(
           opacity: _hasFrame ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 400),
+          duration: const Duration(milliseconds: 300),
           child: Video(controller: _ctrl!, controls: NoVideoControls, fit: BoxFit.cover),
         ),
     ]);

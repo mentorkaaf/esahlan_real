@@ -184,15 +184,23 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
       if (prev == 1 && next != 1) _pool.pauseAll();
     });
 
-    // Jump to a specific reel when tapped from the feed carousel
+    // Jump to a specific reel when tapped from the feed carousel.
+    // addPostFrameCallback ensures _tabActive is already updated before we play.
     ref.listen<int?>(communityReelsJumpPostIdProvider, (_, postId) {
       if (postId == null) return;
       final items = _cachedItems;
       if (items == null) return;
       final idx = items.indexWhere((e) => e.communityPost?.id == postId);
-      if (idx >= 0 && _pageCtrl.hasClients) {
-        _pageCtrl.jumpToPage(idx);
-        setState(() => _currentIndex = idx);
+      if (idx >= 0) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (_pageCtrl.hasClients) _pageCtrl.jumpToPage(idx);
+          setState(() => _currentIndex = idx);
+          final urls = _extractVideoUrls(items);
+          _pool.setWindow(urls, idx);
+          final url = idx < urls.length ? urls[idx] : '';
+          if (url.isNotEmpty) _pool.play(url);
+        });
       }
       ref.read(communityReelsJumpPostIdProvider.notifier).state = null;
     });

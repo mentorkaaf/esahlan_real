@@ -63,8 +63,15 @@ class _StoryViewerState extends State<StoryViewer> {
     _repo.viewStory(_currentStory.id);
     _disposePlayer();
     setState(() { _hasFrame = false; _videoError = false; });
-    if (_currentStory.type == 'video' && _currentStory.mediaUrl != null) {
-      _initVideo(_currentStory.mediaUrl!);
+    final story = _currentStory;
+    // Pre-warm thumbnail into CachedNetworkImage cache so it shows instantly
+    if (story.thumbnail != null) {
+      precacheImage(CachedNetworkImageProvider(story.thumbnail!), context);
+    } else if (story.mediaUrl != null && story.type == 'image') {
+      precacheImage(CachedNetworkImageProvider(story.mediaUrl!), context);
+    }
+    if (story.type == 'video' && story.mediaUrl != null) {
+      _initVideo(story.mediaUrl!);
     }
   }
 
@@ -87,8 +94,8 @@ class _StoryViewerState extends State<StoryViewer> {
     try {
       await player.open(Media(url));
       await player.setPlaylistMode(PlaylistMode.none);
-      // Fallback frame reveal
-      Future.delayed(const Duration(milliseconds: 800), () {
+      // Fallback frame reveal — short so black screen is minimal
+      Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted && !_hasFrame && !_videoError) setState(() => _hasFrame = true);
       });
     } catch (_) {
@@ -297,13 +304,14 @@ class _StoryViewerState extends State<StoryViewer> {
         if (_videoCtrl != null)
           AnimatedOpacity(
             opacity: _hasFrame ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 250),
+            duration: const Duration(milliseconds: 200),
             child: Video(controller: _videoCtrl!, controls: NoVideoControls, fit: BoxFit.contain),
           ),
 
         if (!_hasFrame && !_videoError)
-          const Center(child: SizedBox(width: 28, height: 28,
-              child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2))),
+          Positioned(bottom: 120, left: 0, right: 0,
+            child: Center(child: SizedBox(width: 24, height: 24,
+                child: CircularProgressIndicator(color: Colors.white38, strokeWidth: 2)))),
       ]);
     }
 
