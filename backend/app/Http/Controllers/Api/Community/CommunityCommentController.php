@@ -15,7 +15,7 @@ class CommunityCommentController extends Controller
     public function index(int $postId)
     {
         $me = auth()->id();
-        $comments = CommunityComment::with(['user.communityProfile','replies.user.communityProfile'])
+        $comments = CommunityComment::with(['user.communityProfile', 'replies' => fn($q) => $q->with('user.communityProfile')->oldest()])
             ->where('post_id',$postId)
             ->whereNull('parent_id')
             ->latest()
