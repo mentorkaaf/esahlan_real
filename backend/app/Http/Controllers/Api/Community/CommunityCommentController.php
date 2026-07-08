@@ -28,7 +28,7 @@ class CommunityCommentController extends Controller
         $request->validate([
             'content' => 'nullable|string|max:2000',
             'parent_id' => 'nullable|exists:community_comments,id',
-            'media' => 'nullable|file|mimes:jpg,jpeg,png,gif,mp3,m4a,ogg,wav,aac|max:20480',
+            'media' => 'nullable|file|mimetypes:image/jpeg,image/png,image/gif,image/webp,audio/mpeg,audio/mp4,audio/aac,audio/x-aac,audio/ogg,audio/wav,audio/wave,audio/x-m4a,audio/3gpp|max:20480',
             'type' => 'nullable|in:text,image,voice',
         ]);
         $post = CommunityPost::findOrFail($postId);
