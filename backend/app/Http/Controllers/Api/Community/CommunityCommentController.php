@@ -14,11 +14,20 @@ class CommunityCommentController extends Controller
 {
     public function index(int $postId)
     {
+        $me = auth()->id();
         $comments = CommunityComment::with(['user.communityProfile','replies.user.communityProfile'])
             ->where('post_id',$postId)
             ->whereNull('parent_id')
             ->latest()
             ->paginate(20);
+
+        $comments->getCollection()->transform(function ($c) use ($me) {
+            $c->user->is_me = $c->user_id === $me;
+            $c->replies->each(function ($r) use ($me) {
+                $r->user->is_me = $r->user_id === $me;
+            });
+            return $c;
+        });
 
         return response()->json(['status'=>'success','data'=>$comments]);
     }
