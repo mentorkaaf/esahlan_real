@@ -4,6 +4,8 @@ use App\Http\Controllers\Controller;
 use App\Models\CommunityFollow;
 use App\Models\CommunityProfile;
 use App\Models\CommunityNotification;
+use App\Models\User;
+use App\Services\FcmService;
 use App\Services\RealtimeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,16 +29,27 @@ class CommunityFollowController extends Controller
             CommunityProfile::firstOrCreate(['user_id' => $me])->increment('following_count');
             CommunityProfile::firstOrCreate(['user_id' => $userId])->increment('followers_count');
             CommunityNotification::create(['user_id' => $userId, 'actor_id' => $me, 'type' => 'follow', 'notifiable_type' => 'user', 'notifiable_id' => $userId]);
-            return ['following' => true];
+            return ['following' => true, 'fcm_token' => User::where('id', $userId)->value('fcm_token')];
         });
 
         // Broadcasts fire after transaction commits
         $this->broadcastFollowCounts($me, $userId);
         if ($result['following']) {
+            $actor = auth()->user();
             RealtimeService::toUser($userId, 'profile.new_follower', [
                 'follower_id'   => $me,
-                'follower_name' => auth()->user()->name,
+                'follower_name' => $actor->name,
             ]);
+            // Push notification to the person being followed
+            $fcmToken = $result['fcm_token'] ?? null;
+            if ($fcmToken) {
+                FcmService::sendToToken(
+                    $fcmToken,
+                    'New Follower',
+                    "{$actor->name} started following you",
+                    ['type' => 'follow', 'user_id' => (string) $me, 'screen' => 'notifications']
+                );
+            }
         }
 
         return response()->json(['status' => 'success', 'following' => $result['following']]);

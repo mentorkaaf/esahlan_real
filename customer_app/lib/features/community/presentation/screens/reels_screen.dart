@@ -824,7 +824,12 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         ? VideoAdOverlay(
             mainController: _videoCtrl!.player,
             onAdStart: () => _pool.pause(_videoUrl),
-            onAdEnd:   () => _pool.reactivate(_videoUrl),
+            onAdEnd: () {
+              _pool.reactivate(_videoUrl);
+              // Restore volume — pool sets vol=0 on pause, reactivate only
+              // calls play() without restoring the volume level.
+              _videoCtrl?.player.setVolume(_muted ? 0 : 100);
+            },
             child: reelContent)
         : reelContent;
   }

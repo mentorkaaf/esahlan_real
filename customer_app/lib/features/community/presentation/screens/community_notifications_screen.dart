@@ -183,15 +183,43 @@ class _NotifList extends ConsumerWidget {
   );
 }
 
-class _NotifTile extends StatelessWidget {
+class _NotifTile extends ConsumerStatefulWidget {
   final CommunityNotification notif;
   final VoidCallback onTap;
   const _NotifTile({required this.notif, required this.onTap});
 
   @override
+  ConsumerState<_NotifTile> createState() => _NotifTileState();
+}
+
+class _NotifTileState extends ConsumerState<_NotifTile> {
+  late bool _following;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _following = widget.notif.actor?.isFollowing ?? false;
+  }
+
+  Future<void> _toggleFollow() async {
+    final actorId = widget.notif.actor?.id;
+    if (actorId == null || _loading) return;
+    setState(() { _loading = true; _following = !_following; });
+    try {
+      await ref.read(communityRepoProvider).toggleFollow(actorId);
+    } catch (_) {
+      if (mounted) setState(() => _following = !_following);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final notif = widget.notif;
     return InkWell(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
         color: notif.isRead ? Colors.white : kOrange.withOpacity(0.06),
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -234,19 +262,25 @@ class _NotifTile extends StatelessWidget {
             ]),
           ),
           SizedBox(width: 8),
-          // Follow button for follow notifications
-          if (notif.type == 'follow')
-            ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kOrange,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          if (notif.type == 'follow' && notif.actor != null)
+            SizedBox(
+              height: 32,
+              child: ElevatedButton(
+                onPressed: _loading ? null : _toggleFollow,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _following ? Colors.grey.shade200 : kOrange,
+                  foregroundColor: _following ? Colors.black87 : Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  elevation: 0,
+                ),
+                child: _loading
+                    ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: _following ? Colors.black54 : Colors.white))
+                    : Text(_following ? 'Following' : 'Follow Back',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
               ),
-              child: Text('Follow', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
             )
           else if (!notif.isRead)
             Container(

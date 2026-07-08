@@ -125,8 +125,12 @@ class _VideoAdOverlayState extends ConsumerState<VideoAdOverlay> {
     if (widget.mainController.state.position.inSeconds < 2) return;
 
     if (progress >= _triggerPoints[_nextTriggerIndex]) {
-      _nextTriggerIndex++;
-      _showAdNow();
+      // Only consume the trigger slot when ad is actually ready to show.
+      // If not ready yet, keep checking on subsequent timer ticks.
+      if (_preloadDone && _adCtrl != null && _ad != null) {
+        _nextTriggerIndex++;
+        _showAdNow();
+      }
     }
   }
 
