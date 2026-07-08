@@ -1666,38 +1666,44 @@ class _ReelsCarousel extends ConsumerWidget {
         SizedBox(height: 200,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             itemCount: reels.length,
             itemBuilder: (_, i) {
               final reel = reels[i];
               final media = reel.media.isNotEmpty ? reel.media.first : null;
+              final videoUrl = media?.mp4DirectUrl ?? media?.url ?? '';
               final thumb = media?.thumbnail ?? media?.url;
               return GestureDetector(
                 onTap: () {
+                  ref.read(communityReelsJumpPostIdProvider.notifier).state = reel.id;
                   ref.read(communityNavIndexProvider.notifier).state = 1;
                 },
                 child: Container(
-                  width: 120, margin: EdgeInsets.only(right: 8),
+                  width: 120, margin: const EdgeInsets.only(right: 8),
                   decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), color: const Color(0xFF1A1B2E)),
                   clipBehavior: Clip.antiAlias,
                   child: Stack(fit: StackFit.expand, children: [
-                    if (thumb != null) NetImage(url: thumb, fit: BoxFit.cover),
-                    Container(decoration: BoxDecoration(gradient: LinearGradient(
+                    // Animated video preview
+                    if (videoUrl.isNotEmpty)
+                      _VideoReelPreview(videoUrl: videoUrl, thumbnailUrl: thumb)
+                    else if (thumb != null)
+                      NetImage(url: thumb, fit: BoxFit.cover),
+
+                    Container(decoration: const BoxDecoration(gradient: LinearGradient(
                       begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)]))),
-                    Center(child: Icon(Icons.play_circle_outline_rounded, color: Colors.white70, size: 36)),
+                      colors: [Colors.transparent, Colors.black87]))),
                     Positioned(bottom: 8, left: 8, right: 8,
                       child: Row(children: [
                         CircleNetImage(url: reel.user.avatar, size: 22, fallbackText: reel.user.name),
-                        SizedBox(width: 6),
-                        Expanded(child: Text(reel.user.name, style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                        const SizedBox(width: 6),
+                        Expanded(child: Text(reel.user.name, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
                           maxLines: 1, overflow: TextOverflow.ellipsis)),
                       ])),
                     if (reel.viewsCount > 0) Positioned(top: 6, right: 6,
-                      child: Container(padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      child: Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                         decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(4)),
                         child: Text(reel.viewsCount >= 1000 ? '${(reel.viewsCount / 1000).toStringAsFixed(1)}K' : '${reel.viewsCount}',
-                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)))),
+                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)))),
                   ]),
                 ),
               );
@@ -1706,6 +1712,67 @@ class _ReelsCarousel extends ConsumerWidget {
         SizedBox(height: 8),
       ]),
     );
+  }
+}
+
+// ── Animated video preview for reel cards in feed carousel ───────────────────
+
+class _VideoReelPreview extends StatefulWidget {
+  final String videoUrl;
+  final String? thumbnailUrl;
+  const _VideoReelPreview({required this.videoUrl, this.thumbnailUrl});
+
+  @override
+  State<_VideoReelPreview> createState() => _VideoReelPreviewState();
+}
+
+class _VideoReelPreviewState extends State<_VideoReelPreview> {
+  Player? _player;
+  VideoController? _ctrl;
+  bool _hasFrame = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    final player = Player();
+    final ctrl = VideoController(player);
+    _player = player;
+    _ctrl = ctrl;
+    player.stream.videoParams.listen((vp) {
+      if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) setState(() => _hasFrame = true);
+    });
+    await player.open(Media(widget.videoUrl));
+    await player.setPlaylistMode(PlaylistMode.loop);
+    await player.setVolume(0);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted && !_hasFrame) setState(() => _hasFrame = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _player?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(fit: StackFit.expand, children: [
+      if (widget.thumbnailUrl != null)
+        NetImage(url: widget.thumbnailUrl!, fit: BoxFit.cover)
+      else
+        Container(color: const Color(0xFF1A1B2E)),
+      if (_ctrl != null)
+        AnimatedOpacity(
+          opacity: _hasFrame ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 400),
+          child: Video(controller: _ctrl!, controls: NoVideoControls, fit: BoxFit.cover),
+        ),
+    ]);
   }
 }
 

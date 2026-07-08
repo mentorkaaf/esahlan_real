@@ -184,6 +184,19 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
       if (prev == 1 && next != 1) _pool.pauseAll();
     });
 
+    // Jump to a specific reel when tapped from the feed carousel
+    ref.listen<int?>(communityReelsJumpPostIdProvider, (_, postId) {
+      if (postId == null) return;
+      final items = _cachedItems;
+      if (items == null) return;
+      final idx = items.indexWhere((e) => e.communityPost?.id == postId);
+      if (idx >= 0 && _pageCtrl.hasClients) {
+        _pageCtrl.jumpToPage(idx);
+        setState(() => _currentIndex = idx);
+      }
+      ref.read(communityReelsJumpPostIdProvider.notifier).state = null;
+    });
+
     final communityReels = reelsAsync.valueOrNull ?? [];
     final rentReels = rentAsync.valueOrNull ?? [];
 

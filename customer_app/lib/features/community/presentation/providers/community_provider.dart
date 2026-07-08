@@ -15,6 +15,9 @@ extension _CacheFor on Ref {
 
 final _repo = CommunityRepository();
 
+// Stores the post ID to jump to when the reels tab opens
+final communityReelsJumpPostIdProvider = StateProvider<int?>((ref) => null);
+
 // ── Feed providers ─────────────────────────────────────────────────────────
 final communityFeedProvider =
     StateNotifierProvider<FeedNotifier, AsyncValue<List<CommunityPost>>>(
