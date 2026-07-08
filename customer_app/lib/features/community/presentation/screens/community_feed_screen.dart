@@ -1740,8 +1740,8 @@ class _VideoReelPreviewState extends State<_VideoReelPreview> {
   Future<void> _init() async {
     final player = Player();
     final ctrl = VideoController(player);
-    _player = player;
-    _ctrl = ctrl;
+    if (!mounted) return;
+    setState(() { _player = player; _ctrl = ctrl; });
     player.stream.videoParams.listen((vp) {
       if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) setState(() => _hasFrame = true);
     });

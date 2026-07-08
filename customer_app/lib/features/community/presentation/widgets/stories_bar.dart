@@ -228,20 +228,14 @@ class _VideoStoryPreviewState extends State<_VideoStoryPreview> {
   Future<void> _init() async {
     final player = Player();
     final ctrl = VideoController(player);
-    _player = player;
-    _ctrl = ctrl;
-
+    if (!mounted) return;
+    setState(() { _player = player; _ctrl = ctrl; });
     player.stream.videoParams.listen((vp) {
-      if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) {
-        setState(() => _hasFrame = true);
-      }
+      if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) setState(() => _hasFrame = true);
     });
-
     await player.open(Media(widget.videoUrl));
     await player.setPlaylistMode(PlaylistMode.loop);
     await player.setVolume(0);
-
-    // Fallback reveal
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted && !_hasFrame) setState(() => _hasFrame = true);
     });

@@ -274,6 +274,10 @@ class _StoryViewerState extends State<StoryViewer> {
     );
   }
 
+  static const _bgGradient = BoxDecoration(gradient: LinearGradient(
+    begin: Alignment.topLeft, end: Alignment.bottomRight,
+    colors: [Color(0xFF1A0533), Color(0xFF0D1B2A)]));
+
   Widget _buildContent(CommunityStory story) {
     if (story.type == 'text') {
       final bg = story.bgColor != null
@@ -286,43 +290,45 @@ class _StoryViewerState extends State<StoryViewer> {
 
     if (story.type == 'video') {
       return Stack(fit: StackFit.expand, children: [
-        // Thumbnail always visible immediately
+        // Dark gradient shown INSTANTLY — never black
+        Container(decoration: _bgGradient),
+
+        // Thumbnail fades in quickly from cache (pre-warmed in _loadCurrentStory)
         if (story.thumbnail != null)
-          CachedNetworkImage(imageUrl: story.thumbnail!, fit: BoxFit.cover,
-              placeholder: (_, __) => Container(color: Colors.black),
-              errorWidget: (_, __, ___) => Container(color: Colors.black))
-        else
-          Container(color: Colors.black),
+          CachedNetworkImage(
+            imageUrl: story.thumbnail!, fit: BoxFit.cover,
+            fadeInDuration: const Duration(milliseconds: 100),
+            placeholder: (_, __) => const SizedBox.shrink(),
+            errorWidget: (_, __, ___) => const SizedBox.shrink()),
 
-        if (_videoError)
-          const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.error_outline_rounded, color: Colors.white54, size: 48),
-            SizedBox(height: 8),
-            Text('Video failed to load', style: TextStyle(color: Colors.white54)),
-          ])),
-
+        // Video overlays once first frame ready
         if (_videoCtrl != null)
           AnimatedOpacity(
             opacity: _hasFrame ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 200),
-            child: Video(controller: _videoCtrl!, controls: NoVideoControls, fit: BoxFit.contain),
-          ),
+            child: Video(controller: _videoCtrl!, controls: NoVideoControls, fit: BoxFit.contain)),
 
         if (!_hasFrame && !_videoError)
           Positioned(bottom: 120, left: 0, right: 0,
-            child: Center(child: SizedBox(width: 24, height: 24,
+            child: const Center(child: SizedBox(width: 22, height: 22,
                 child: CircularProgressIndicator(color: Colors.white38, strokeWidth: 2)))),
+
+        if (_videoError)
+          const Center(child: Icon(Icons.play_circle_outline_rounded, color: Colors.white38, size: 56)),
       ]);
     }
 
-    // Image
-    if (story.mediaUrl != null) {
-      return CachedNetworkImage(imageUrl: story.mediaUrl!, fit: BoxFit.cover,
-          placeholder: (_, __) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+    // Image story
+    return Stack(fit: StackFit.expand, children: [
+      Container(decoration: _bgGradient),
+      if (story.mediaUrl != null)
+        CachedNetworkImage(
+          imageUrl: story.mediaUrl!, fit: BoxFit.cover,
+          fadeInDuration: const Duration(milliseconds: 100),
+          placeholder: (_, __) => const SizedBox.shrink(),
           errorWidget: (_, __, ___) => const Center(
-              child: Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64)));
-    }
-    return Container(color: Colors.grey[900]);
+              child: Icon(Icons.broken_image_rounded, color: Colors.white38, size: 64))),
+    ]);
   }
 
   void _showViewersSheet(BuildContext context, CommunityStory story) {
