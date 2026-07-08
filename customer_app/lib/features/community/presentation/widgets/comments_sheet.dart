@@ -58,14 +58,18 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
 
   Future<void> _toggleRecording() async {
     if (_recording) {
-      // Stop recording
-      try { await _recorderCtrl?.stop(); } catch (_) {}
+      // stop() returns the actual saved path — use it, fall back to _recordPath.
+      String? savedPath;
+      try { savedPath = await _recorderCtrl?.stop(); } catch (_) {}
       _recordTimer?.cancel();
-      if (_recordPath != null && mounted) {
-        final file = File(_recordPath!);
+      final pathToUse = (savedPath != null && savedPath.isNotEmpty) ? savedPath : _recordPath;
+      if (pathToUse != null && mounted) {
+        final file = File(pathToUse);
         if (await file.exists()) {
-          setState(() { _mediaFile = XFile(_recordPath!); _mediaType = 'voice'; _recording = false; _recordSeconds = 0; });
+          _recordPath = pathToUse;
+          setState(() { _mediaFile = XFile(pathToUse); _mediaType = 'voice'; _recording = false; _recordSeconds = 0; });
         } else {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recording failed — file not saved'), backgroundColor: Colors.red));
           setState(() { _recording = false; _recordSeconds = 0; });
         }
       } else {
@@ -74,9 +78,16 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     } else {
       // Start recording
       try {
+        final hasPermission = await RecorderController().checkPermission();
+        if (!hasPermission) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Microphone permission denied'), backgroundColor: Colors.red));
+          return;
+        }
         final dir = await getTemporaryDirectory();
         _recordPath = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.aac';
-        _recorderCtrl = RecorderController()..androidEncoder = AndroidEncoder.aac..sampleRate = 44100;
+        _recorderCtrl = RecorderController()
+          ..androidEncoder = AndroidEncoder.aac
+          ..sampleRate = 44100;
         await _recorderCtrl!.record(path: _recordPath!);
         _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) { if (mounted) setState(() => _recordSeconds++); });
         setState(() => _recording = true);
@@ -198,11 +209,16 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
               Container(width: 42, height: 42, decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(10)),
                 child: Icon(Icons.mic_rounded, color: Colors.white, size: 22)),
             SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(_mediaType == 'voice' ? 'Voice recorded' : 'Image attached',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.bodyText)),
-              Text('Tap send to post', style: TextStyle(fontSize: 11, color: kOrange.withValues(alpha: 0.7))),
-            ])),
+            Expanded(child: _mediaType == 'voice'
+              ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Voice message', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: context.colors.bodyText)),
+                  SizedBox(height: 4),
+                  _MiniLocalAudioPlayer(path: _mediaFile!.path),
+                ])
+              : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Image attached', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.bodyText)),
+                  Text('Tap send to post', style: TextStyle(fontSize: 11, color: kOrange.withValues(alpha: 0.7))),
+                ])),
             GestureDetector(onTap: () => setState(() { _mediaFile = null; _mediaType = null; }),
               child: Container(width: 28, height: 28, margin: EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), shape: BoxShape.circle),
@@ -325,6 +341,60 @@ void showCommentsSheet(BuildContext context, int postId, {int initialCount = 0})
     builder: (_) => DraggableScrollableSheet(
       initialChildSize: 0.65, maxChildSize: 0.95, minChildSize: 0.4,
       builder: (_, __) => CommentsSheet(postId: postId, initialCount: initialCount)));
+}
+
+// Plays a local recorded file (before upload) — uses DeviceFileSource.
+class _MiniLocalAudioPlayer extends StatefulWidget {
+  final String path;
+  const _MiniLocalAudioPlayer({required this.path});
+  @override
+  State<_MiniLocalAudioPlayer> createState() => _MiniLocalAudioPlayerState();
+}
+
+class _MiniLocalAudioPlayerState extends State<_MiniLocalAudioPlayer> {
+  final _player = ap.AudioPlayer();
+  bool _playing = false;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _player.onDurationChanged.listen((d) { if (mounted) setState(() => _duration = d); });
+    _player.onPositionChanged.listen((p) { if (mounted) setState(() => _position = p); });
+    _player.onPlayerComplete.listen((_) { if (mounted) setState(() { _playing = false; _position = Duration.zero; }); });
+  }
+
+  @override
+  void dispose() { _player.dispose(); super.dispose(); }
+
+  String _fmt(Duration d) =>
+      '${(d.inSeconds ~/ 60).toString().padLeft(2,'0')}:${(d.inSeconds % 60).toString().padLeft(2,'0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      GestureDetector(
+        onTap: () async {
+          if (_playing) {
+            await _player.pause();
+            setState(() => _playing = false);
+          } else {
+            await _player.play(ap.DeviceFileSource(widget.path));
+            setState(() => _playing = true);
+          }
+        },
+        child: Container(width: 30, height: 30, decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle),
+          child: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 16))),
+      SizedBox(width: 6),
+      SizedBox(width: 80, child: LinearProgressIndicator(
+        value: _duration.inMilliseconds > 0 ? _position.inMilliseconds / _duration.inMilliseconds : 0,
+        backgroundColor: kOrange.withValues(alpha: 0.15), color: kOrange, minHeight: 3)),
+      SizedBox(width: 5),
+      Text(_fmt(_duration > Duration.zero ? _duration - _position : Duration.zero),
+        style: TextStyle(fontSize: 10, color: context.colors.mutedText)),
+    ]);
+  }
 }
 
 class _MiniAudioPlayer extends StatefulWidget {
