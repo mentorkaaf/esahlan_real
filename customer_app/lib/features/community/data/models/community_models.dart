@@ -294,16 +294,16 @@ class CommunityComment {
   });
 
   factory CommunityComment.fromJson(Map<String, dynamic> j) => CommunityComment(
-        id: j['id'] as int,
-        postId: j['post_id'] as int,
+        id: (j['id'] is String) ? int.parse(j['id']) : j['id'] as int,
+        postId: (j['post_id'] is String) ? int.parse(j['post_id']) : j['post_id'] as int,
         user: CommunityUser.fromJson(j['user'] as Map<String, dynamic>),
         content: j['content'] as String? ?? '',
         mediaUrl: j['media_url'] as String?,
         mediaType: j['media_type'] as String?,
-        likesCount: j['likes_count'] as int? ?? 0,
-        repliesCount: j['replies_count'] as int? ?? 0,
+        likesCount: (j['likes_count'] is String) ? int.parse(j['likes_count']) : j['likes_count'] as int? ?? 0,
+        repliesCount: (j['replies_count'] is String) ? int.parse(j['replies_count']) : j['replies_count'] as int? ?? 0,
         isPinned: j['is_pinned'] as bool? ?? false,
-        parentId: j['parent_id'] as int?,
+        parentId: j['parent_id'] == null ? null : (j['parent_id'] is String) ? int.tryParse(j['parent_id']) : j['parent_id'] as int?,
         createdAt: DateTime.tryParse(j['created_at'] as String? ?? '') ?? DateTime.now(),
       );
 
