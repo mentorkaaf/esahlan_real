@@ -129,7 +129,8 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
         comment = await _repo.addComment(widget.postId, text, parentId: _replyToId);
       }
       _textCtrl.clear();
-      setState(() { _comments.add(comment); _replyToId = null; _replyToName = null; _mediaFile = null; _mediaType = null; _sending = false; });
+      setState(() { _replyToId = null; _replyToName = null; _mediaFile = null; _mediaType = null; _sending = false; });
+      await _loadComments();
     } catch (e) {
       setState(() => _sending = false);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: Colors.red));

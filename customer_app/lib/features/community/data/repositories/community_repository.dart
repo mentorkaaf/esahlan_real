@@ -142,7 +142,16 @@ class CommunityRepository {
     final r = await _dio.get('/community/posts/$postId/comments', queryParameters: {'page': page});
     final raw = r.data['data'];
     final list = raw is List ? raw : (raw as Map<String, dynamic>)['data'] as List;
-    return list.map((e) => CommunityComment.fromJson(e as Map<String, dynamic>)).toList();
+    final result = <CommunityComment>[];
+    for (final e in list) {
+      final root = CommunityComment.fromJson(e as Map<String, dynamic>);
+      result.add(root);
+      final replies = e['replies'] as List? ?? [];
+      for (final rep in replies) {
+        result.add(CommunityComment.fromJson(rep as Map<String, dynamic>));
+      }
+    }
+    return result;
   }
 
   Future<CommunityComment> addComment(int postId, String content, {int? parentId}) async {
