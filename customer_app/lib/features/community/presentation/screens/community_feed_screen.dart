@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../../../core/widgets/app_shimmer.dart';
-import 'package:media_kit/media_kit.dart' show Player;
+import 'package:media_kit/media_kit.dart' show Player, Media, PlaylistMode;
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:video_player/video_player.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
