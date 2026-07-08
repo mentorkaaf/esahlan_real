@@ -116,21 +116,13 @@ class _StoryCard extends StatelessWidget {
     final avatar = group.user.avatar;
     final firstStory = group.stories.isNotEmpty ? group.stories.first : null;
     final hasUnviewed = !group.allViewed;
-
-    String? previewUrl;
-    if (firstStory != null) {
-      if (firstStory.type == 'image') {
-        previewUrl = firstStory.mediaUrl;
-      } else if (firstStory.type == 'video') {
-        previewUrl = firstStory.thumbnail ?? firstStory.mediaUrl;
-      }
-    }
+    final isVideo = firstStory?.type == 'video';
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 120,
-        margin: EdgeInsets.only(right: 8),
+        margin: const EdgeInsets.only(right: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           color: const Color(0xFF1A1B2E),
@@ -138,17 +130,22 @@ class _StoryCard extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: Stack(fit: StackFit.expand, children: [
           // Story preview background
-          if (previewUrl != null)
-            CachedNetworkImage(imageUrl: previewUrl, fit: BoxFit.cover,
+          if (isVideo && firstStory?.mediaUrl != null)
+            _VideoStoryPreview(
+              videoUrl: firstStory!.mediaUrl!,
+              thumbnailUrl: firstStory.thumbnail,
+            )
+          else if (firstStory?.type == 'image' && firstStory?.mediaUrl != null)
+            CachedNetworkImage(imageUrl: firstStory!.mediaUrl!, fit: BoxFit.cover,
               placeholder: (_, __) => Container(color: const Color(0xFF1A1B2E)),
               errorWidget: (_, __, ___) => Container(color: const Color(0xFF1A1B2E)))
           else if (firstStory?.type == 'text')
             Container(
               color: _parseColor(firstStory?.bgColor),
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               alignment: Alignment.center,
               child: Text(firstStory?.textContent ?? '',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11),
                 maxLines: 5, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
             )
           else
@@ -161,17 +158,10 @@ class _StoryCard extends StatelessWidget {
             stops: const [0.0, 0.3, 1.0],
           ))),
 
-          // Video play icon
-          if (firstStory?.type == 'video')
-            Positioned(top: 8, right: 8,
-              child: Container(width: 24, height: 24,
-                decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-                child: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16))),
-
           // User avatar at top-left with ring
           Positioned(top: 8, left: 8,
             child: Container(
-              padding: EdgeInsets.all(2),
+              padding: const EdgeInsets.all(2),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
@@ -184,7 +174,7 @@ class _StoryCard extends StatelessWidget {
                 backgroundColor: const Color(0xFF374151),
                 child: avatar == null
                   ? Text(group.user.name[0].toUpperCase(),
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))
                   : null,
               ),
             ),
@@ -193,7 +183,7 @@ class _StoryCard extends StatelessWidget {
           // User name at bottom
           Positioned(left: 8, right: 8, bottom: 10,
             child: Text(group.user.name,
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12,
                 shadows: [Shadow(color: Colors.black54, blurRadius: 4)]),
               maxLines: 2, overflow: TextOverflow.ellipsis),
           ),
@@ -206,6 +196,78 @@ class _StoryCard extends StatelessWidget {
     if (hex == null || hex.length < 6) return const Color(0xFF140465);
     hex = hex.replaceAll('#', '');
     return Color(int.parse('FF$hex', radix: 16));
+  }
+}
+
+// ── Animated video preview for story cards ────────────────────────────────────
+
+class _VideoStoryPreview extends StatefulWidget {
+  final String videoUrl;
+  final String? thumbnailUrl;
+  const _VideoStoryPreview({required this.videoUrl, this.thumbnailUrl});
+
+  @override
+  State<_VideoStoryPreview> createState() => _VideoStoryPreviewState();
+}
+
+class _VideoStoryPreviewState extends State<_VideoStoryPreview> {
+  Player? _player;
+  VideoController? _ctrl;
+  bool _hasFrame = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    final player = Player();
+    final ctrl = VideoController(player);
+    _player = player;
+    _ctrl = ctrl;
+
+    player.stream.videoParams.listen((vp) {
+      if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) {
+        setState(() => _hasFrame = true);
+      }
+    });
+
+    await player.open(Media(widget.videoUrl));
+    await player.setPlaylistMode(PlaylistMode.loop);
+    await player.setVolume(0);
+
+    // Fallback reveal
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted && !_hasFrame) setState(() => _hasFrame = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _player?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(fit: StackFit.expand, children: [
+      // Thumbnail shown immediately
+      if (widget.thumbnailUrl != null)
+        CachedNetworkImage(imageUrl: widget.thumbnailUrl!, fit: BoxFit.cover,
+          placeholder: (_, __) => Container(color: const Color(0xFF1A1B2E)),
+          errorWidget: (_, __, ___) => Container(color: const Color(0xFF1A1B2E)))
+      else
+        Container(color: const Color(0xFF1A1B2E)),
+
+      // Video crossfades in once first frame ready
+      if (_ctrl != null)
+        AnimatedOpacity(
+          opacity: _hasFrame ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 400),
+          child: Video(controller: _ctrl!, controls: NoVideoControls, fit: BoxFit.cover),
+        ),
+    ]);
   }
 }
 
