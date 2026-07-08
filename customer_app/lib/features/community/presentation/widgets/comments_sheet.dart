@@ -28,6 +28,8 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   final _textCtrl = TextEditingController();
   final _focusNode = FocusNode();
   List<CommunityComment> _comments = [];
+  List<CommunityComment> _roots = [];
+  Map<int, List<CommunityComment>> _repliesMap = {};
   bool _loading = true;
   bool _sending = false;
   int? _replyToId;
@@ -45,8 +47,16 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   Future<void> _loadComments() async {
     try {
       final comments = await _repo.getComments(widget.postId);
-      if (mounted) setState(() { _comments = comments; _loading = false; });
+      if (mounted) setState(() { _comments = comments; _loading = false; _rebuildIndex(); });
     } catch (_) { if (mounted) setState(() => _loading = false); }
+  }
+
+  void _rebuildIndex() {
+    _roots = _comments.where((c) => c.parentId == null).toList();
+    _repliesMap = {};
+    for (final c in _comments.where((c) => c.parentId != null)) {
+      _repliesMap.putIfAbsent(c.parentId!, () => []).add(c);
+    }
   }
 
   Future<void> _pickImage() async {
@@ -139,13 +149,6 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    // Separate root comments and replies
-    final roots = _comments.where((c) => c.parentId == null).toList();
-    final repliesMap = <int, List<CommunityComment>>{};
-    for (final c in _comments.where((c) => c.parentId != null)) {
-      repliesMap.putIfAbsent(c.parentId!, () => []).add(c);
-    }
-
     final c = context.colors;
     return Container(
       decoration: BoxDecoration(color: c.cardBg, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -162,26 +165,37 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
         Expanded(
           child: _loading
               ? Center(child: CircularProgressIndicator(color: kOrange))
-              : _comments.isEmpty
+              : _roots.isEmpty
                   ? Center(child: Text('No comments yet.\nBe the first!', textAlign: TextAlign.center, style: TextStyle(color: context.colors.mutedText)))
                   : ListView.builder(
                       padding: EdgeInsets.only(top: 8, bottom: 8),
-                      itemCount: roots.length,
+                      itemCount: _roots.length,
                       itemBuilder: (_, i) {
-                        final root = roots[i];
-                        final replies = repliesMap[root.id] ?? [];
+                        final root = _roots[i];
+                        final replies = _repliesMap[root.id] ?? [];
                         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           _CommentTile(comment: root, onReply: () => _setReply(root), isReply: false,
-                            onEdit: root.user.isMe ? (newContent) async { await _repo.updateComment(root.id, newContent); setState(() { final idx = _comments.indexWhere((c) => c.id == root.id); if (idx >= 0) _comments[idx] = _comments[idx].copyWith(content: newContent); }); } : null,
-                            onDelete: root.user.isMe ? () async { await _repo.deleteComment(root.id); setState(() => _comments.removeWhere((c) => c.id == root.id)); } : null),
-                          // Threaded replies — indented
+                            onEdit: root.user.isMe ? (newContent) async {
+                              await _repo.updateComment(root.id, newContent);
+                              setState(() { final idx = _comments.indexWhere((c) => c.id == root.id); if (idx >= 0) _comments[idx] = _comments[idx].copyWith(content: newContent); _rebuildIndex(); });
+                            } : null,
+                            onDelete: root.user.isMe ? () async {
+                              await _repo.deleteComment(root.id);
+                              setState(() { _comments.removeWhere((c) => c.id == root.id || c.parentId == root.id); _rebuildIndex(); });
+                            } : null),
                           if (replies.isNotEmpty)
                             Padding(padding: EdgeInsets.only(left: 44),
                               child: Column(children: [
                                 Container(width: 2, height: 8, color: context.colors.dividerColor),
                                 ...replies.map((r) => _CommentTile(comment: r, onReply: () => _setReply(root), isReply: true,
-                                  onEdit: r.user.isMe ? (newContent) async { await _repo.updateComment(r.id, newContent); setState(() { final idx = _comments.indexWhere((c) => c.id == r.id); if (idx >= 0) _comments[idx] = _comments[idx].copyWith(content: newContent); }); } : null,
-                                  onDelete: r.user.isMe ? () async { await _repo.deleteComment(r.id); setState(() => _comments.removeWhere((c) => c.id == r.id)); } : null)),
+                                  onEdit: r.user.isMe ? (newContent) async {
+                                    await _repo.updateComment(r.id, newContent);
+                                    setState(() { final idx = _comments.indexWhere((c) => c.id == r.id); if (idx >= 0) _comments[idx] = _comments[idx].copyWith(content: newContent); _rebuildIndex(); });
+                                  } : null,
+                                  onDelete: r.user.isMe ? () async {
+                                    await _repo.deleteComment(r.id);
+                                    setState(() { _comments.removeWhere((c) => c.id == r.id); _rebuildIndex(); });
+                                  } : null)),
                               ])),
                         ]);
                       }),
