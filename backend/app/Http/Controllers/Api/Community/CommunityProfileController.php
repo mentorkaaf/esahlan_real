@@ -111,7 +111,8 @@ class CommunityProfileController extends Controller
 
         $query = CommunityPost::with(['user.communityProfile','media','userReaction'])
             ->where('user_id',$userId)
-            ->where('privacy','public');
+            ->where('privacy','public')
+            ->where(fn($q) => $q->where('moderation_status','approved')->orWhere('user_id',$authId));
 
         if ($type === 'reels') $query->whereIn('type',['reel','video']);
         elseif ($type === 'photos') $query->whereIn('type',['image']);
