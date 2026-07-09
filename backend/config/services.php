@@ -27,6 +27,7 @@ return [
     'google' => [
         'maps_api_key' => env('GOOGLE_MAPS_API_KEY'),
         'places_api_key' => env('GOOGLE_PLACES_API_KEY'),
+        'vision_key' => env('GOOGLE_VISION_API_KEY'),
     ],
     'pusher' => [
         'key' => env('PUSHER_APP_KEY'),

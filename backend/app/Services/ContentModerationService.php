@@ -28,7 +28,7 @@ class ContentModerationService
         return [
             'enabled'             => true,
             'keyword_filter'      => true,
-            'image_scan'          => false,   // Disabled by default — too aggressive
+            'image_scan'          => true,    // Google Vision SafeSearch
             'auto_block'          => false,   // Don't auto-block, just flag for review
             'review_all_media'    => false,   // Flag all media posts for review
             'block_threshold'     => 0.85,
@@ -120,6 +120,59 @@ class ContentModerationService
 
     private static function analyzeImage(string $filePath): float
     {
+        $key = config('services.google.vision_key');
+        if ($key) {
+            return self::analyzeImageWithVision($filePath, $key);
+        }
+        // Fallback: GD pixel analysis (less reliable)
+        return self::analyzeImageGd($filePath);
+    }
+
+    private static function analyzeImageWithVision(string $filePath, string $key): float
+    {
+        $data = @file_get_contents($filePath);
+        if (!$data) return 0;
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(10)->post(
+                "https://vision.googleapis.com/v1/images:annotate?key={$key}",
+                [
+                    'requests' => [[
+                        'image'    => ['content' => base64_encode($data)],
+                        'features' => [['type' => 'SAFE_SEARCH_DETECTION']],
+                    ]],
+                ]
+            );
+
+            if (!$response->successful()) {
+                Log::warning('Google Vision API error', ['status' => $response->status(), 'body' => $response->body()]);
+                return 0;
+            }
+
+            $safe = $response->json('responses.0.safeSearchAnnotation') ?? [];
+            $likelihood = [
+                'UNKNOWN'      => 0,
+                'VERY_UNLIKELY'=> 0,
+                'UNLIKELY'     => 0.1,
+                'POSSIBLE'     => 0.5,
+                'LIKELY'       => 0.8,
+                'VERY_LIKELY'  => 0.95,
+            ];
+
+            $adult = $likelihood[$safe['adult'] ?? 'UNKNOWN'] ?? 0;
+            $racy  = $likelihood[$safe['racy']  ?? 'UNKNOWN'] ?? 0;
+
+            Log::info('Vision SafeSearch', ['adult' => $safe['adult'] ?? '-', 'racy' => $safe['racy'] ?? '-', 'score' => max($adult, $racy)]);
+
+            return max($adult, $racy);
+        } catch (\Throwable $e) {
+            Log::warning('Google Vision exception: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    private static function analyzeImageGd(string $filePath): float
+    {
         if (!function_exists('imagecreatefromstring')) return 0;
         $data = @file_get_contents($filePath);
         if (!$data) return 0;
@@ -141,10 +194,9 @@ class ContentModerationService
         imagedestroy($img);
         if ($total === 0) return 0;
         $ratio = $skin / $total;
-        // A face selfie: 15-30% skin. Explicit images: 55%+.
-        if ($ratio > 0.65) return 0.93; // very high skin → auto-block
-        if ($ratio > 0.50) return 0.82; // high skin → review
-        if ($ratio > 0.35) return 0.55; // moderate → mild flag
+        if ($ratio > 0.65) return 0.93;
+        if ($ratio > 0.50) return 0.82;
+        if ($ratio > 0.35) return 0.55;
         return 0.05;
     }
 }
