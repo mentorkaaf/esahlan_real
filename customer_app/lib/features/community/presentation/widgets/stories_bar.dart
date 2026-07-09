@@ -36,8 +36,11 @@ class StoriesBar extends ConsumerWidget {
             );
           }
           final group = groups[i - 1];
+          // Only first 3 video story cards get live Player preview (memory limit)
+          final enableVideoPreview = i <= 3;
           return _StoryCard(
             group: group,
+            enableVideoPreview: enableVideoPreview,
             onTap: () => Navigator.push(ctx,
               MaterialPageRoute(builder: (_) => StoryViewer(groups: groups, initialGroupIndex: i - 1))),
           );
@@ -109,7 +112,8 @@ class _CreateStoryCard extends ConsumerWidget {
 class _StoryCard extends StatelessWidget {
   final StoryGroup group;
   final VoidCallback onTap;
-  const _StoryCard({required this.group, required this.onTap});
+  final bool enableVideoPreview;
+  const _StoryCard({required this.group, required this.onTap, this.enableVideoPreview = true});
 
   @override
   Widget build(BuildContext context) {
@@ -130,11 +134,18 @@ class _StoryCard extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: Stack(fit: StackFit.expand, children: [
           // Story preview background
-          if (isVideo && firstStory?.mediaUrl != null)
+          if (isVideo && firstStory?.mediaUrl != null && enableVideoPreview)
             _VideoStoryPreview(
               videoUrl: firstStory!.mediaUrl!,
               thumbnailUrl: firstStory.thumbnail,
             )
+          else if (isVideo && firstStory?.thumbnail != null)
+            CachedNetworkImage(imageUrl: firstStory!.thumbnail!, fit: BoxFit.cover,
+              memCacheHeight: 400, fadeInDuration: const Duration(milliseconds: 150),
+              placeholder: (_, __) => Container(decoration: const BoxDecoration(gradient: LinearGradient(
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
+                colors: [Color(0xFF2A1B3D), Color(0xFF1A1B2E)]))),
+              errorWidget: (_, __, ___) => Container(color: const Color(0xFF1A1B2E)))
           else if (firstStory?.type == 'image' && firstStory?.mediaUrl != null)
             CachedNetworkImage(imageUrl: firstStory!.mediaUrl!, fit: BoxFit.cover,
               memCacheHeight: 400,

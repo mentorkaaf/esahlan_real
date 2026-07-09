@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
@@ -37,7 +38,9 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   String? _mentionUser; // @username prepended when replying to a reply
   XFile? _mediaFile;
   String? _mediaType;
-  RecorderController? _recorderCtrl;
+  RecorderController? _recorderCtrl; // waveform visualization only
+  AudioRecorder? _audioRecorder;     // actual high-quality capture
+  String? _recordPath;
   bool _recording = false;
   int _recordSeconds = 0;
   Timer? _recordTimer;
@@ -65,42 +68,56 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     if (f != null) setState(() { _mediaFile = f; _mediaType = 'image'; });
   }
 
-  String? _recordPath;
-
   Future<void> _toggleRecording() async {
     if (_recording) {
-      // stop() returns the actual saved path — use it, fall back to _recordPath.
-      String? savedPath;
-      try { savedPath = await _recorderCtrl?.stop(); } catch (_) {}
       _recordTimer?.cancel();
-      final pathToUse = (savedPath != null && savedPath.isNotEmpty) ? savedPath : _recordPath;
-      if (pathToUse != null && mounted) {
-        final file = File(pathToUse);
+      try {
+        await _audioRecorder?.stop();
+        _recorderCtrl?.stop();
+      } catch (_) {}
+      final path = _recordPath;
+      if (path != null && mounted) {
+        final file = File(path);
         if (await file.exists()) {
-          _recordPath = pathToUse;
-          setState(() { _mediaFile = XFile(pathToUse); _mediaType = 'voice'; _recording = false; _recordSeconds = 0; });
+          setState(() { _mediaFile = XFile(path); _mediaType = 'voice'; _recording = false; _recordSeconds = 0; });
         } else {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recording failed — file not saved'), backgroundColor: Colors.red));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recording failed — file not saved'), backgroundColor: Colors.red));
           setState(() { _recording = false; _recordSeconds = 0; });
         }
       } else {
         setState(() { _recording = false; _recordSeconds = 0; });
       }
     } else {
-      // Start recording
       try {
-        final hasPermission = await RecorderController().checkPermission();
+        final hasPermission = await AudioRecorder().hasPermission();
         if (!hasPermission) {
           if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Microphone permission denied'), backgroundColor: Colors.red));
           return;
         }
         final dir = await getTemporaryDirectory();
-        _recordPath = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.aac';
-        _recorderCtrl = RecorderController()
-          ..androidEncoder = AndroidEncoder.aac
-          ..sampleRate = 44100;
-        await _recorderCtrl!.record(path: _recordPath!);
-        _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) { if (mounted) setState(() => _recordSeconds++); });
+        _recordPath = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+        // High-quality voice recording with hardware noise suppression
+        _audioRecorder = AudioRecorder();
+        await _audioRecorder!.start(
+          const RecordConfig(
+            encoder: AudioEncoder.aacLc,
+            sampleRate: 16000,    // 16kHz — optimal for voice (less noise than 44.1kHz)
+            bitRate: 96000,       // 96kbps — clear voice quality
+            numChannels: 1,       // mono — voice doesn't need stereo
+            noiseSuppress: true,  // Android hardware noise suppressor
+            echoCancellation: true, // Android hardware echo canceller
+            autoGain: true,       // Automatic gain control
+          ),
+          path: _recordPath!,
+        );
+
+        // Waveform visualization (separate controller, not used for audio output)
+        _recorderCtrl = RecorderController()..androidEncoder = AndroidEncoder.aac;
+
+        _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+          if (mounted) setState(() => _recordSeconds++);
+        });
         setState(() => _recording = true);
       } catch (e) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Recording failed: $e'), backgroundColor: Colors.red));
@@ -112,6 +129,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   void dispose() {
     _textCtrl.dispose(); _focusNode.dispose();
     _recorderCtrl?.dispose(); _recordTimer?.cancel();
+    _audioRecorder?.dispose();
     super.dispose();
   }
 

@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../../../core/widgets/app_shimmer.dart';
-import 'package:media_kit/media_kit.dart' show Player, Media, PlaylistMode;
+import 'package:media_kit/media_kit.dart' show Player;
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:video_player/video_player.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
@@ -350,9 +350,9 @@ class _FeedTab extends ConsumerWidget {
                 final post = posts[i];
                 if (post.isAd && _postsSinceLastAd < 3) continue;
                 if (post.isAd) { _postsSinceLastAd = 0; } else { _postsSinceLastAd++; }
-                items.add(_PostCard(post: posts[i],
+                items.add(RepaintBoundary(child: _PostCard(post: posts[i],
                   onDelete: () { ref.read(communityRepoProvider).deletePost(posts[i].id); ref.read(communityFeedProvider.notifier).removePost(posts[i].id); },
-                ));
+                )));
                 if (i == 4 && suggestions.where((u) => !u.isMe && !u.isFollowing).isNotEmpty) {
                   items.add(_PeopleYouMayKnow(users: suggestions.where((u) => !u.isMe && !u.isFollowing).take(10).toList()));
                 }
@@ -1671,7 +1671,6 @@ class _ReelsCarousel extends ConsumerWidget {
             itemBuilder: (_, i) {
               final reel = reels[i];
               final media = reel.media.isNotEmpty ? reel.media.first : null;
-              final videoUrl = media?.mp4DirectUrl ?? media?.url ?? '';
               final thumb = media?.thumbnail ?? media?.url;
               return GestureDetector(
                 onTap: () {
@@ -1683,11 +1682,7 @@ class _ReelsCarousel extends ConsumerWidget {
                   decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), color: const Color(0xFF1A1B2E)),
                   clipBehavior: Clip.antiAlias,
                   child: Stack(fit: StackFit.expand, children: [
-                    // Animated video preview
-                    if (videoUrl.isNotEmpty)
-                      _VideoReelPreview(videoUrl: videoUrl, thumbnailUrl: thumb)
-                    else if (thumb != null)
-                      NetImage(url: thumb, fit: BoxFit.cover),
+                    _VideoReelPreview(thumbnailUrl: thumb),
 
                     Container(decoration: const BoxDecoration(gradient: LinearGradient(
                       begin: Alignment.topCenter, end: Alignment.bottomCenter,
@@ -1715,49 +1710,32 @@ class _ReelsCarousel extends ConsumerWidget {
   }
 }
 
-// ── Animated video preview for reel cards in feed carousel ───────────────────
+// ── Lightweight reel card preview — thumbnail + pulsing play ring (no Player) ─
 
 class _VideoReelPreview extends StatefulWidget {
-  final String videoUrl;
   final String? thumbnailUrl;
-  const _VideoReelPreview({required this.videoUrl, this.thumbnailUrl});
+  const _VideoReelPreview({this.thumbnailUrl});
 
   @override
   State<_VideoReelPreview> createState() => _VideoReelPreviewState();
 }
 
-class _VideoReelPreviewState extends State<_VideoReelPreview> {
-  Player? _player;
-  VideoController? _ctrl;
-  bool _hasFrame = false;
+class _VideoReelPreviewState extends State<_VideoReelPreview>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+  late final Animation<double> _scale;
 
   @override
   void initState() {
     super.initState();
-    _init();
-  }
-
-  Future<void> _init() async {
-    final player = Player();
-    final ctrl = VideoController(player);
-    if (!mounted) return;
-    setState(() { _player = player; _ctrl = ctrl; });
-    player.stream.videoParams.listen((vp) {
-      if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) setState(() => _hasFrame = true);
-    });
-    await player.open(Media(widget.videoUrl));
-    await player.setPlaylistMode(PlaylistMode.loop);
-    await player.setVolume(0);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted && !_hasFrame) setState(() => _hasFrame = true);
-    });
+    _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat(reverse: true);
+    _scale = Tween<double>(begin: 0.85, end: 1.0).animate(
+        CurvedAnimation(parent: _pulse, curve: Curves.easeInOut));
   }
 
   @override
-  void dispose() {
-    _player?.dispose();
-    super.dispose();
-  }
+  void dispose() { _pulse.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -1766,12 +1744,16 @@ class _VideoReelPreviewState extends State<_VideoReelPreview> {
         NetImage(url: widget.thumbnailUrl!, fit: BoxFit.cover)
       else
         Container(color: const Color(0xFF1A1B2E)),
-      if (_ctrl != null)
-        AnimatedOpacity(
-          opacity: _hasFrame ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 400),
-          child: Video(controller: _ctrl!, controls: NoVideoControls, fit: BoxFit.cover),
-        ),
+      Center(child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.black38,
+            border: Border.all(color: Colors.white70, width: 2)),
+          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24)),
+      )),
     ]);
   }
 }
