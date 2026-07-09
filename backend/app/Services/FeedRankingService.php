@@ -190,6 +190,7 @@ class FeedRankingService
             ->whereNull('community_posts.group_id')
             ->where('community_posts.privacy', '!=', 'private')
             ->whereNull('community_posts.deleted_at')
+            ->where('community_posts.moderation_status', 'approved')
             ->where('community_posts.created_at', '>', now()->subDays(14))
             ->where(fn ($q) => $q->where('community_posts.video_ready', true)->orWhere('community_posts.user_id', $this->userId));
 
@@ -783,6 +784,7 @@ class FeedRankingService
     {
         $posts = CommunityPost::where('created_at', '>', now()->subDays(14))
             ->whereNull('deleted_at')
+            ->where('moderation_status', 'approved')
             ->get(['id', 'user_id', 'type', 'views_count', 'likes_count',
                    'comments_count', 'shares_count', 'saves_count', 'created_at']);
 

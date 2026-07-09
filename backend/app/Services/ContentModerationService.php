@@ -141,10 +141,10 @@ class ContentModerationService
         imagedestroy($img);
         if ($total === 0) return 0;
         $ratio = $skin / $total;
-        // Only flag extreme skin ratio — avoids false positives on portraits/selfies
-        // Soomaali skin tones are in the detection range, so threshold must be very high
-        if ($ratio > 0.85) return 0.93; // nearly entire image is skin → very likely explicit
-        if ($ratio > 0.75) return 0.82; // high skin ratio → flag for review
-        return 0.05; // normal photo — portrait, selfie, outdoor all fall below 0.75
+        // A face selfie: 15-30% skin. Explicit images: 55%+.
+        if ($ratio > 0.65) return 0.93; // very high skin → auto-block
+        if ($ratio > 0.50) return 0.82; // high skin → review
+        if ($ratio > 0.35) return 0.55; // moderate → mild flag
+        return 0.05;
     }
 }
