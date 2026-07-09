@@ -179,7 +179,9 @@
         @forelse($queue as $item)
         <div class="queue-item">
             <div class="queue-thumb">
-                @if($item->media_url)
+                @if(!empty($item->thumbnail ?? null))
+                    <img src="{{ $item->thumbnail }}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">
+                @elseif(!empty($item->media_url ?? null))
                     <img src="{{ $item->media_url }}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">
                 @else
                     <i class="fas fa-file-alt"></i>
