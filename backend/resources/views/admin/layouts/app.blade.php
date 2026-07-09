@@ -563,6 +563,32 @@
         </div>
         @endif
 
+        @if($u->canManageModule('community') || $u->role === 'super_admin' || $u->role === 'admin')
+        <div class="nav-section-label">Trust & Safety</div>
+        <a href="{{ route('admin.trust-safety.dashboard') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.dashboard') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-shield-halved"></i></div> Dashboard
+        </a>
+        <a href="{{ route('admin.trust-safety.queue') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.queue') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-inbox"></i></div> Review Queue
+            @php $tsQueueCount = \Illuminate\Support\Facades\DB::table('community_posts')->where('moderation_status','pending')->count(); @endphp
+            @if($tsQueueCount > 0)<span class="nav-badge">{{ $tsQueueCount }}</span>@endif
+        </a>
+        <a href="{{ route('admin.trust-safety.reports') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.reports') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-flag"></i></div> Reports
+            @php $tsReportCount = \Illuminate\Support\Facades\DB::table('community_reports')->where('status','pending')->count(); @endphp
+            @if($tsReportCount > 0)<span class="nav-badge">{{ $tsReportCount }}</span>@endif
+        </a>
+        <a href="{{ route('admin.trust-safety.strikes') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.strikes') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-gavel"></i></div> Strikes
+        </a>
+        <a href="{{ route('admin.trust-safety.appeals') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.appeals') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-scale-balanced"></i></div> Appeals
+        </a>
+        <a href="{{ route('admin.trust-safety.settings') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.settings') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-sliders"></i></div> TS Settings
+        </a>
+        @endif
+
         @if($u->canManageModule('elearning'))
         <div class="nav-section-label">eLearning</div>
         <div class="nav-link nav-toggle-btn {{ request()->is('admin/elearning*') ? 'open active' : '' }}"

@@ -305,6 +305,23 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/algorithm', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'algorithm'])->name('algorithm');
             Route::get('/algorithm/data', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'algorithmData'])->name('algorithm.data');
         });
+        // Trust & Safety
+        Route::prefix('trust-safety')->name('trust-safety.')->group(function () {
+            $c = \App\Http\Controllers\Admin\AdminTrustSafetyController::class;
+            Route::get('/',              [$c, 'dashboard'])->name('dashboard');
+            Route::get('/api/data',      [$c, 'dashboardApi'])->name('api');
+            Route::get('/reports',       [$c, 'reports'])->name('reports');
+            Route::post('/reports/{id}', [$c, 'resolveReport'])->name('reports.resolve');
+            Route::get('/queue',         [$c, 'queue'])->name('queue');
+            Route::post('/queue/{id}',   [$c, 'moderatePost'])->name('queue.moderate');
+            Route::get('/strikes',       [$c, 'strikes'])->name('strikes');
+            Route::get('/appeals',       [$c, 'appeals'])->name('appeals');
+            Route::post('/appeals/{id}', [$c, 'resolveAppeal'])->name('appeals.resolve');
+            Route::get('/settings',      [$c, 'settings'])->name('settings');
+            Route::post('/terms',        [$c, 'addBlockedTerm'])->name('terms.store');
+            Route::delete('/terms/{id}', [$c, 'deleteBlockedTerm'])->name('terms.delete');
+        });
+
         // Community Ads & Business Pages
         Route::prefix('community-ads')->name('community-ads.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'index'])->name('index');
