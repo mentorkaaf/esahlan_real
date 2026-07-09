@@ -705,6 +705,7 @@ class CommunityFeedController extends Controller
             'user'              => $displayUser,
             'user_reaction'     => $post->userReaction?->type,
             'is_saved'          => in_array($post->id, $savedPostIds),
+            'moderation_status' => $post->moderation_status ?? 'approved',
             'shared_post'       => $sharedPost,
             'page_id'           => $post->page_id,
             'page'              => $post->page_id ? ['id' => $post->page?->id, 'name' => $post->page?->name, 'avatar' => cdn_url($post->page?->avatar)] : null,

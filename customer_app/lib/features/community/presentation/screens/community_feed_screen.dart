@@ -835,7 +835,16 @@ class _CreatePostBar extends ConsumerWidget {
                         context,
                         MaterialPageRoute(builder: (_) => CreatePostScreen()),
                       );
-                      if (post != null) ref.read(communityFeedProvider.notifier).prependPost(post);
+                      if (post != null) {
+                        if (post.moderationStatus == 'pending') {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            content: Text('Your post is under review and will appear once approved.'),
+                            duration: Duration(seconds: 4),
+                          ));
+                        } else {
+                          ref.read(communityFeedProvider.notifier).prependPost(post);
+                        }
+                      }
                     },
                     child: Container(
                       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 11),
@@ -885,7 +894,16 @@ class _PostTypeBtn extends ConsumerWidget {
             context,
             MaterialPageRoute(builder: (_) => CreatePostScreen(initialType: type)),
           );
-          if (post != null) ref.read(communityFeedProvider.notifier).prependPost(post);
+          if (post != null) {
+            if (post.moderationStatus == 'pending') {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Your post is under review and will appear once approved.'),
+                duration: Duration(seconds: 4),
+              ));
+            } else {
+              ref.read(communityFeedProvider.notifier).prependPost(post);
+            }
+          }
         },
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
