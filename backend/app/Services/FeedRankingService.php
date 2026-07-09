@@ -821,8 +821,8 @@ class FeedRankingService
             $watchCompletionData = DB::table('feed_interactions as fi')
                 ->join('community_post_media as m', 'm.post_id', '=', 'fi.post_id')
                 ->whereIn('fi.post_id', $chunkIds)->where('fi.type', 'watch')
-                ->whereNotNull('fi.duration_ms')->whereRaw('m.duration_ms > 0')
-                ->selectRaw('fi.post_id, AVG(LEAST(fi.duration_ms / m.duration_ms, 1.0)) as avg_completion')
+                ->whereNotNull('fi.duration_ms')->whereRaw('m.duration > 0')
+                ->selectRaw('fi.post_id, AVG(LEAST(fi.duration_ms / (m.duration * 1000), 1.0)) as avg_completion')
                 ->groupBy('fi.post_id')->pluck('avg_completion', 'post_id');
 
             // Feature 2: avg dwell time (all types — view + watch interactions)
