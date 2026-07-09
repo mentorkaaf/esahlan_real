@@ -293,7 +293,33 @@
         </table>
     </div>
 
-    {{-- Live Stream / Recent Reports --}}
+    {{-- Copyright Claims card --}}
+    <div class="ts-card">
+        <div class="ts-card-title">
+            Copyright Claims
+            <a href="{{ route('admin.copyright.index') }}">View all →</a>
+        </div>
+        @php
+            $copyrightPending = \Illuminate\Support\Facades\DB::table('copyright_claims')->where('status','pending')->count();
+            $copyrightUpheld  = \Illuminate\Support\Facades\DB::table('copyright_claims')->where('status','upheld')->count();
+        @endphp
+        <div style="display:flex;gap:10px;margin-bottom:12px;">
+            <div style="flex:1;background:#fef3c7;border-radius:10px;padding:12px;text-align:center;">
+                <div style="font-size:22px;font-weight:900;color:#d97706;">{{ $copyrightPending }}</div>
+                <div style="font-size:11px;color:#92400e;font-weight:700;">Pending</div>
+            </div>
+            <div style="flex:1;background:#fee2e2;border-radius:10px;padding:12px;text-align:center;">
+                <div style="font-size:22px;font-weight:900;color:#dc2626;">{{ $copyrightUpheld }}</div>
+                <div style="font-size:11px;color:#7f1d1d;font-weight:700;">Upheld</div>
+            </div>
+        </div>
+        <a href="{{ route('admin.copyright.index') }}"
+           style="display:block;text-align:center;background:#f3f4f6;border-radius:8px;padding:8px;font-size:12px;font-weight:700;color:#374151;text-decoration:none;">
+            Manage Copyright Claims →
+        </a>
+    </div>
+
+    {{-- Recent Reports --}}
     <div class="ts-card">
         <div class="ts-card-title">
             Recent Reports

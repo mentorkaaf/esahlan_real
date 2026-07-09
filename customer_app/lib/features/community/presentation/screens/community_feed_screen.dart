@@ -27,6 +27,7 @@ import '../widgets/video_ad_overlay.dart';
 import '../services/video_pool.dart';
 import '../services/ad_video_manager.dart';
 import '../../../../core/services/realtime_client.dart';
+import 'copyright_screen.dart';
 import '../../../../core/widgets/realtime_status_banner.dart';
 import 'business_page_detail_screen.dart';
 import 'community_search_screen.dart';
@@ -1417,6 +1418,20 @@ class _PostCardState extends ConsumerState<_PostCard> {
             },
           ),
           ListTile(
+            leading: const Icon(Icons.copyright_rounded, color: Color(0xFF3B82F6)),
+            title: const Text('Copyright Claim', style: TextStyle(color: Color(0xFF3B82F6), fontWeight: FontWeight.w600)),
+            onTap: () {
+              Navigator.pop(context);
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.white,
+                shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                builder: (_) => _CopyrightQuickClaim(postId: widget.post.id),
+              );
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.flag_rounded, color: Color(0xFFDC2626)),
             title: const Text('Report Post', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w600)),
             onTap: () {
@@ -2738,5 +2753,115 @@ class _DocumentCard extends StatelessWidget {
         ]),
       ]),
     );
+  }
+}
+
+// ── Quick copyright claim from feed post options ───────────────────────────
+class _CopyrightQuickClaim extends StatefulWidget {
+  final int postId;
+  const _CopyrightQuickClaim({required this.postId});
+
+  @override
+  State<_CopyrightQuickClaim> createState() => _CopyrightQuickClaimState();
+}
+
+class _CopyrightQuickClaimState extends State<_CopyrightQuickClaim> {
+  final _nameCtrl  = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _descCtrl  = TextEditingController();
+  bool _loading    = false;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose(); _emailCtrl.dispose(); _descCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 16),
+            const Text('File Copyright Claim', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+            const SizedBox(height: 4),
+            Text('Post #${widget.postId}', style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+            const SizedBox(height: 18),
+            _buildField(_nameCtrl, 'Your Name', 'Legal name'),
+            const SizedBox(height: 12),
+            _buildField(_emailCtrl, 'Your Email', 'Contact email', type: TextInputType.emailAddress),
+            const SizedBox(height: 12),
+            _buildField(_descCtrl, 'Work Description', 'Describe your original work...', lines: 3),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3B82F6),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: _loading ? null : _submit,
+                child: _loading
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Submit Claim', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildField(TextEditingController ctrl, String label, String hint, {int lines = 1, TextInputType type = TextInputType.text}) =>
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF374151))),
+        const SizedBox(height: 6),
+        TextField(
+          controller: ctrl, maxLines: lines, keyboardType: type,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(color: Color(0xFFD1D5DB), fontSize: 13),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFEEF0F6))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFEEF0F6))),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF3B82F6))),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          ),
+        ),
+      ],
+    );
+
+  Future<void> _submit() async {
+    if (_nameCtrl.text.trim().isEmpty || _emailCtrl.text.trim().isEmpty || _descCtrl.text.trim().length < 20) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all fields (description min 20 chars)')));
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      await CommunityRepository().submitCopyrightClaim(
+        reportedType: 'post', reportedId: widget.postId,
+        claimantName: _nameCtrl.text.trim(), claimantEmail: _emailCtrl.text.trim(),
+        workDescription: _descCtrl.text.trim(),
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Copyright claim submitted'), backgroundColor: Color(0xFF3B82F6)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: const Color(0xFFDC2626)));
+      }
+    }
   }
 }

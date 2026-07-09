@@ -322,6 +322,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('/terms/{id}', [$c, 'deleteBlockedTerm'])->name('terms.delete');
         });
 
+        // Copyright Claims
+        Route::prefix('copyright')->name('copyright.')->group(function () {
+            $cc = \App\Http\Controllers\Admin\AdminCopyrightController::class;
+            Route::get('/',                         [$cc, 'index'])->name('index');
+            Route::get('/{id}',                     [$cc, 'show'])->name('show');
+            Route::post('/{id}/resolve',            [$cc, 'resolve'])->name('resolve');
+            Route::post('/counter/{id}/resolve',    [$cc, 'resolveCounter'])->name('counter.resolve');
+        });
+
         // Community Ads & Business Pages
         Route::prefix('community-ads')->name('community-ads.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'index'])->name('index');

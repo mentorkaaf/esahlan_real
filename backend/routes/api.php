@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\Community\CommunityChatController;
 use App\Http\Controllers\Api\Community\CommunityNotificationController;
 use App\Http\Controllers\Api\Community\CommunityReportController;
 use App\Http\Controllers\Api\Community\CommunityModerationController;
+use App\Http\Controllers\Api\Community\CopyrightController;
 use App\Http\Controllers\Api\Community\CommunityBusinessPageController;
 use App\Http\Controllers\Api\Community\CommunityAdController;
 
@@ -374,6 +375,14 @@ Route::prefix('v1')->group(function () {
             Route::get('moderation', [CommunityModerationController::class, 'myStatus']);
             Route::get('appeals', [CommunityModerationController::class, 'myAppeals']);
             Route::post('appeals', [CommunityModerationController::class, 'submitAppeal']);
+            Route::get('copyright-claims', [CopyrightController::class, 'myClaims']);
+            Route::get('copyright-against-me', [CopyrightController::class, 'claimsAgainstMe']);
+        });
+
+        // Copyright Claims
+        Route::prefix('copyright')->group(function () {
+            Route::post('claims', [CopyrightController::class, 'submitClaim']);
+            Route::post('claims/{id}/counter', [CopyrightController::class, 'submitCounter']);
         });
     });
 

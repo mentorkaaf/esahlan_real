@@ -12,6 +12,7 @@ use App\Services\InteractionTracker;
 use App\Services\FcmService;
 use App\Services\RealtimeService;
 use App\Jobs\TranscodeVideoJob;
+use App\Jobs\ScorePostRiskJob;
 use App\Models\CommunityFollow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -141,6 +142,14 @@ class CommunityPostController extends Controller
                 'author_name' => $userName,
             ]);
         }
+
+        // AI risk scoring in background (non-blocking)
+        ScorePostRiskJob::dispatch(
+            $post->id,
+            auth()->id(),
+            $post->content ?? '',
+            $moderation['score'] ?? 0.0,
+        )->onQueue('transcoding');
 
         $post->load(['user.communityProfile','media','userReaction']);
         return response()->json(['status'=>'success','data'=>$this->feed->transformPost($post, auth()->id())], 201);

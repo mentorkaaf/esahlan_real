@@ -14,6 +14,7 @@ import 'community_chat_screen.dart';
 import 'edit_profile_screen.dart';
 import 'ad_analytics_screen.dart';
 import 'transparency_center_screen.dart';
+import 'copyright_screen.dart';
 
 class CommunityProfileScreen extends ConsumerWidget {
   final int userId;
@@ -85,6 +86,16 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const TransparencyCenter()));
+                },
+              ),
+            if (widget.isMe)
+              ListTile(
+                leading: const Icon(Icons.copyright_rounded, color: Color(0xFF3B82F6)),
+                title: const Text('Copyright', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                subtitle: const Text('Manage copyright claims', style: TextStyle(fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const CopyrightScreen()));
                 },
               ),
             ListTile(

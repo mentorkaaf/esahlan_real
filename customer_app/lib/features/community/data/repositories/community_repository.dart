@@ -493,6 +493,46 @@ class CommunityRepository {
     });
   }
 
+  // ── Copyright ─────────────────────────────────────────────────────────────
+  Future<void> submitCopyrightClaim({
+    required String reportedType,
+    required int reportedId,
+    required String claimantName,
+    required String claimantEmail,
+    required String workDescription,
+    String? originalUrl,
+  }) async {
+    await _dio.post('/community/copyright/claims', data: {
+      'reported_type':    reportedType,
+      'reported_id':      reportedId,
+      'claimant_name':    claimantName,
+      'claimant_email':   claimantEmail,
+      'work_description': workDescription,
+      if (originalUrl != null && originalUrl.isNotEmpty) 'original_url': originalUrl,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getMyCopyrightClaims() async {
+    final r = await _dio.get('/community/my/copyright-claims');
+    final data = r.data['data'];
+    if (data is List) return data.cast<Map<String, dynamic>>();
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> getCopyrightClaimsAgainstMe() async {
+    final r = await _dio.get('/community/my/copyright-against-me');
+    final data = r.data['data'];
+    if (data is List) return data.cast<Map<String, dynamic>>();
+    return [];
+  }
+
+  Future<void> submitCounterNotice(int claimId, String statement, {String? jurisdiction}) async {
+    await _dio.post('/community/copyright/claims/$claimId/counter', data: {
+      'statement': statement,
+      if (jurisdiction != null && jurisdiction.isNotEmpty) 'jurisdiction': jurisdiction,
+    });
+  }
+
   // ── Helper ─────────────────────────────────────────────────────────────────
   List<CommunityPost> _parsePosts(dynamic data) {
     List raw;
