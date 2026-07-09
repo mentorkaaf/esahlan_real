@@ -472,6 +472,28 @@ class _PostsGrid extends ConsumerWidget {
                   if (p.media.length > 1)
                     Positioned(top: 4, right: 4,
                       child: Icon(Icons.collections_rounded, color: Colors.white, size: 18)),
+                  if (p.moderationStatus == 'pending')
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black.withOpacity(0.55),
+                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(Icons.hourglass_top_rounded, color: Colors.orange, size: 22),
+                          SizedBox(height: 4),
+                          Text('Under Review', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+                        ]),
+                      ),
+                    ),
+                  if (p.moderationStatus == 'blocked')
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black.withOpacity(0.65),
+                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(Icons.block_rounded, color: Colors.red, size: 22),
+                          SizedBox(height: 4),
+                          Text('Removed', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+                        ]),
+                      ),
+                    ),
                 ]),
               ),
             );
@@ -492,6 +514,45 @@ class _PostDetailScreen extends StatelessWidget {
       appBar: AppBar(title: Text('Post'), backgroundColor: context.colors.cardBg, foregroundColor: context.colors.navyText),
       body: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Moderation notice
+          if (post.moderationStatus == 'pending')
+            Container(
+              width: double.infinity,
+              margin: EdgeInsets.all(12),
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.12),
+                border: Border.all(color: Colors.orange.withOpacity(0.4)),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(children: [
+                Icon(Icons.hourglass_top_rounded, color: Colors.orange, size: 20),
+                SizedBox(width: 8),
+                Expanded(child: Text(
+                  'This post is under review and is only visible to you. It will appear publicly once approved.',
+                  style: TextStyle(color: Colors.orange.shade800, fontSize: 13),
+                )),
+              ]),
+            ),
+          if (post.moderationStatus == 'blocked')
+            Container(
+              width: double.infinity,
+              margin: EdgeInsets.all(12),
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.10),
+                border: Border.all(color: Colors.red.withOpacity(0.4)),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(children: [
+                Icon(Icons.block_rounded, color: Colors.red, size: 20),
+                SizedBox(width: 8),
+                Expanded(child: Text(
+                  'This post was removed for violating community guidelines.',
+                  style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                )),
+              ]),
+            ),
           // User header
           Padding(padding: EdgeInsets.all(12), child: Row(children: [
             CircleNetImage(url: post.user.avatar, size: 40, fallbackText: post.user.name),
