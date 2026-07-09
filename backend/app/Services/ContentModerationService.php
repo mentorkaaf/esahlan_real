@@ -79,19 +79,25 @@ class ContentModerationService
         }
 
         // Image scan (only if enabled by admin)
+        Log::info('Moderation: image_scan=' . ($settings['image_scan'] ? 'true' : 'false') . ' mediaFiles=' . count($mediaFiles));
         if ($settings['image_scan'] && !empty($mediaFiles)) {
             foreach ($mediaFiles as $file) {
                 if (!$file) continue;
                 $mime = is_object($file) ? $file->getMimeType() : (function_exists('mime_content_type') ? mime_content_type($file) : '');
+                Log::info('Moderation: checking file mime=' . $mime);
                 if (str_starts_with($mime, 'image/')) {
                     $path = is_object($file) ? $file->getRealPath() : $file;
                     $score = self::analyzeImage($path);
+                    Log::info('Moderation: analyzeImage score=' . $score . ' block_threshold=' . $settings['block_threshold'] . ' auto_block=' . ($settings['auto_block'] ? 'true' : 'false'));
                     if ($score >= $settings['block_threshold']) {
+                        $action = $settings['auto_block'] ? 'block' : 'review';
+                        Log::info('Moderation: FLAGGED action=' . $action);
                         return $settings['auto_block']
                             ? ['safe' => false, 'score' => $score, 'action' => 'block', 'reason' => 'Explicit image detected']
                             : ['safe' => false, 'score' => $score, 'action' => 'review', 'reason' => 'Image flagged for review'];
                     }
                     if ($score >= $settings['review_threshold']) {
+                        Log::info('Moderation: REVIEW score=' . $score);
                         return ['safe' => false, 'score' => $score, 'action' => 'review', 'reason' => 'Image flagged for review'];
                     }
                 }
