@@ -69,6 +69,8 @@ class CommunityPostController extends Controller
             'published_at' => now(),
             'is_pinned' => false,
             'video_ready' => !$isVideoPost,
+            'moderation_status' => $needsReview ? 'pending' : 'approved',
+            'moderation_score'  => $moderation['score'],
         ]);
 
         // Flag for review
