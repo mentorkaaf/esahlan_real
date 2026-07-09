@@ -24,6 +24,10 @@ return [
         'api_key' => env('WAAFI_API_KEY'),
         'description' => env('WAAFI_DESCRIPTION', 'eSahlan Payment'),
     ],
+    'sightengine' => [
+        'api_user'   => env('SIGHTENGINE_API_USER'),
+        'api_secret' => env('SIGHTENGINE_API_SECRET'),
+    ],
     'google' => [
         'maps_api_key' => env('GOOGLE_MAPS_API_KEY'),
         'places_api_key' => env('GOOGLE_PLACES_API_KEY'),

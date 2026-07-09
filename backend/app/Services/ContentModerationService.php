@@ -120,53 +120,49 @@ class ContentModerationService
 
     private static function analyzeImage(string $filePath): float
     {
-        $key = config('services.google.vision_key');
-        if ($key) {
-            return self::analyzeImageWithVision($filePath, $key);
+        $user   = config('services.sightengine.api_user');
+        $secret = config('services.sightengine.api_secret');
+        if ($user && $secret) {
+            return self::analyzeImageWithSightengine($filePath, $user, $secret);
         }
         // Fallback: GD pixel analysis (less reliable)
         return self::analyzeImageGd($filePath);
     }
 
-    private static function analyzeImageWithVision(string $filePath, string $key): float
+    private static function analyzeImageWithSightengine(string $filePath, string $user, string $secret): float
     {
-        $data = @file_get_contents($filePath);
-        if (!$data) return 0;
-
         try {
-            $response = \Illuminate\Support\Facades\Http::timeout(10)->post(
-                "https://vision.googleapis.com/v1/images:annotate?key={$key}",
-                [
-                    'requests' => [[
-                        'image'    => ['content' => base64_encode($data)],
-                        'features' => [['type' => 'SAFE_SEARCH_DETECTION']],
-                    ]],
-                ]
-            );
+            $response = \Illuminate\Support\Facades\Http::timeout(15)
+                ->attach('media', fopen($filePath, 'r'), basename($filePath))
+                ->post('https://api.sightengine.com/1.0/check.json', [
+                    'models'     => 'nudity-2.1',
+                    'api_user'   => $user,
+                    'api_secret' => $secret,
+                ]);
 
             if (!$response->successful()) {
-                Log::warning('Google Vision API error', ['status' => $response->status(), 'body' => $response->body()]);
+                Log::warning('Sightengine API error', ['status' => $response->status()]);
                 return 0;
             }
 
-            $safe = $response->json('responses.0.safeSearchAnnotation') ?? [];
-            $likelihood = [
-                'UNKNOWN'      => 0,
-                'VERY_UNLIKELY'=> 0,
-                'UNLIKELY'     => 0.1,
-                'POSSIBLE'     => 0.5,
-                'LIKELY'       => 0.8,
-                'VERY_LIKELY'  => 0.95,
-            ];
+            $nudity = $response->json('nudity') ?? [];
+            // sexual_activity = explicit sex, sexual_display = nudity, erotica = suggestive
+            $score = max(
+                (float)($nudity['sexual_activity'] ?? 0),
+                (float)($nudity['sexual_display']  ?? 0),
+                (float)($nudity['erotica']          ?? 0) * 0.7,
+            );
 
-            $adult = $likelihood[$safe['adult'] ?? 'UNKNOWN'] ?? 0;
-            $racy  = $likelihood[$safe['racy']  ?? 'UNKNOWN'] ?? 0;
+            Log::info('Sightengine nudity', [
+                'sexual_activity' => $nudity['sexual_activity'] ?? 0,
+                'sexual_display'  => $nudity['sexual_display']  ?? 0,
+                'erotica'         => $nudity['erotica']          ?? 0,
+                'score'           => $score,
+            ]);
 
-            Log::info('Vision SafeSearch', ['adult' => $safe['adult'] ?? '-', 'racy' => $safe['racy'] ?? '-', 'score' => max($adult, $racy)]);
-
-            return max($adult, $racy);
+            return $score;
         } catch (\Throwable $e) {
-            Log::warning('Google Vision exception: ' . $e->getMessage());
+            Log::warning('Sightengine exception: ' . $e->getMessage());
             return 0;
         }
     }
