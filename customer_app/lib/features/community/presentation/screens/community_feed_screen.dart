@@ -1329,6 +1329,59 @@ class _PostCardState extends ConsumerState<_PostCard> {
     ));
   }
 
+  void _showReportDialog(BuildContext context) {
+    const reasons = [
+      ('spam', 'Spam'),
+      ('violence', 'Violence'),
+      ('fake_news', 'Fake News'),
+      ('scam', 'Scam'),
+      ('harassment', 'Harassment'),
+      ('pornography', 'Nudity / Sexual Content'),
+      ('copyright', 'Copyright'),
+      ('other', 'Other'),
+    ];
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 14),
+              child: Text('Report Post', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+            ),
+            ...reasons.map((r) => ListTile(
+              dense: true,
+              title: Text(r.$2, style: const TextStyle(fontSize: 14)),
+              onTap: () async {
+                Navigator.pop(ctx);
+                try {
+                  await ref.read(communityRepoProvider).reportPost(widget.post.id, r.$1);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Report submitted. Thank you.'), backgroundColor: Color(0xFF16A34A)),
+                    );
+                  }
+                } catch (_) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Already reported or error occurred')),
+                    );
+                  }
+                }
+              },
+            )),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -1364,9 +1417,12 @@ class _PostCardState extends ConsumerState<_PostCard> {
             },
           ),
           ListTile(
-            leading: Icon(Icons.flag_rounded),
-            title: Text('Report Post'),
-            onTap: () => Navigator.pop(context),
+            leading: const Icon(Icons.flag_rounded, color: Color(0xFFDC2626)),
+            title: const Text('Report Post', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w600)),
+            onTap: () {
+              Navigator.pop(context);
+              _showReportDialog(context);
+            },
           ),
         ]),
       ),

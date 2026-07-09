@@ -1,4 +1,5 @@
 ﻿import 'dart:typed_data';
+import 'package:video_compress/video_compress.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/widgets/network_image_widget.dart';
@@ -299,6 +300,7 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
   XFile? _mediaFile;
   String _storyType = 'text';
   bool _posting = false;
+  bool _trimming = false;
   Color _bgColor = const Color(0xFF140465);
 
   static const _bgColors = [
@@ -317,7 +319,32 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
 
   Future<void> _pickVideo() async {
     final vid = await _picker.pickVideo(source: ImageSource.gallery);
-    if (vid != null) setState(() { _mediaFile = vid; _storyType = 'video'; });
+    if (vid == null) return;
+
+    // Check duration — auto-trim if > 60s
+    final info = await VideoCompress.getMediaInfo(vid.path);
+    final durationMs = info.duration ?? 0;
+
+    if (durationMs > 60000) {
+      setState(() => _trimming = true);
+      try {
+        final trimmed = await VideoCompress.compressVideo(
+          vid.path,
+          quality: VideoQuality.MediumQuality,
+          startTime: 0,
+          duration: 60,
+          includeAudio: true,
+          deleteOrigin: false,
+        );
+        if (mounted && trimmed?.path != null) {
+          setState(() { _mediaFile = XFile(trimmed!.path!); _storyType = 'video'; _trimming = false; });
+        }
+      } catch (_) {
+        if (mounted) setState(() => _trimming = false);
+      }
+    } else {
+      setState(() { _mediaFile = vid; _storyType = 'video'; });
+    }
   }
 
   Future<void> _post() async {
@@ -356,7 +383,7 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
         actions: [
           Padding(padding: EdgeInsets.only(right: 12),
             child: ElevatedButton(
-              onPressed: _posting ? null : _post,
+              onPressed: (_posting || _trimming) ? null : _post,
               style: ElevatedButton.styleFrom(
                 backgroundColor: kOrange, foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -376,7 +403,11 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
                 child: TextField(controller: _textCtrl, maxLines: null, textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
                   decoration: const InputDecoration.collapsed(hintText: 'Type something...', hintStyle: TextStyle(color: Colors.white54, fontSize: 22)))))
-            : _mediaFile != null
+            : _trimming
+              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  CircularProgressIndicator(color: Colors.white), SizedBox(height: 16),
+                  Text('Trimming to 1 minute...', style: TextStyle(color: Colors.white70, fontSize: 15))]))
+              : _mediaFile != null
               ? _storyType == 'video'
                 ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Icon(Icons.videocam_rounded, color: Colors.white, size: 80), SizedBox(height: 12),
@@ -392,8 +423,8 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
           child: Column(children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
               _TypeBtn(icon: Icons.text_fields_rounded, label: 'Text', active: _storyType == 'text', onTap: () => setState(() { _storyType = 'text'; _mediaFile = null; })),
-              _TypeBtn(icon: Icons.photo_rounded, label: 'Photo', active: _storyType == 'image', onTap: _pickImage),
-              _TypeBtn(icon: Icons.videocam_rounded, label: 'Video', active: _storyType == 'video', onTap: _pickVideo),
+              _TypeBtn(icon: Icons.photo_rounded, label: 'Photo', active: _storyType == 'image', onTap: _trimming ? null : _pickImage),
+              _TypeBtn(icon: Icons.videocam_rounded, label: 'Video', active: _storyType == 'video', onTap: _trimming ? null : _pickVideo),
             ]),
             if (_storyType == 'text') ...[
               SizedBox(height: 12),
@@ -436,7 +467,7 @@ class _TypeBtn extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool active;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   const _TypeBtn({required this.icon, required this.label, required this.active, required this.onTap});
   @override
   Widget build(BuildContext context) => GestureDetector(

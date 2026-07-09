@@ -465,6 +465,34 @@ class CommunityRepository {
     return r.data as Map<String, dynamic>;
   }
 
+  // ── Transparency Center ────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> getMyModerationStatus() async {
+    final r = await _dio.get('/community/my/moderation');
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<List<Map<String, dynamic>>> getMyAppeals() async {
+    final r = await _dio.get('/community/my/appeals');
+    final data = r.data['data'];
+    if (data is List) return data.cast<Map<String, dynamic>>();
+    return [];
+  }
+
+  Future<void> submitAppeal(int postId, String reason, {String? evidence}) async {
+    await _dio.post('/community/my/appeals', data: {
+      'post_id': postId,
+      'reason': reason,
+      if (evidence != null && evidence.isNotEmpty) 'evidence': evidence,
+    });
+  }
+
+  Future<void> reportPost(int postId, String reason, {String? description}) async {
+    await _dio.post('/community/posts/$postId/report', data: {
+      'reason': reason,
+      if (description != null && description.isNotEmpty) 'description': description,
+    });
+  }
+
   // ── Helper ─────────────────────────────────────────────────────────────────
   List<CommunityPost> _parsePosts(dynamic data) {
     List raw;

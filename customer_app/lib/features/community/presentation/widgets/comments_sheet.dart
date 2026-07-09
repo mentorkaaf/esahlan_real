@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:record/record.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
@@ -38,8 +37,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   String? _mentionUser; // @username prepended when replying to a reply
   XFile? _mediaFile;
   String? _mediaType;
-  RecorderController? _recorderCtrl; // waveform visualization only
-  AudioRecorder? _audioRecorder;     // actual high-quality capture
+  RecorderController? _recorderCtrl;
   String? _recordPath;
   bool _recording = false;
   int _recordSeconds = 0;
@@ -71,10 +69,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   Future<void> _toggleRecording() async {
     if (_recording) {
       _recordTimer?.cancel();
-      try {
-        await _audioRecorder?.stop();
-        _recorderCtrl?.stop();
-      } catch (_) {}
+      try { await _recorderCtrl?.stop(); } catch (_) {}
       final path = _recordPath;
       if (path != null && mounted) {
         final file = File(path);
@@ -89,34 +84,22 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       }
     } else {
       try {
-        final hasPermission = await AudioRecorder().hasPermission();
-        if (!hasPermission) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Microphone permission denied'), backgroundColor: Colors.red));
-          return;
-        }
         final dir = await getTemporaryDirectory();
         _recordPath = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
-        // High-quality voice recording with hardware noise suppression
-        _audioRecorder = AudioRecorder();
-        await _audioRecorder!.start(
-          const RecordConfig(
-            encoder: AudioEncoder.aacLc,
-            sampleRate: 16000,    // 16kHz — optimal for voice (less noise than 44.1kHz)
-            bitRate: 96000,       // 96kbps — clear voice quality
-            numChannels: 1,       // mono — voice doesn't need stereo
-            noiseSuppress: true,  // Android hardware noise suppressor
-            echoCancellation: true, // Android hardware echo canceller
-            autoGain: true,       // Automatic gain control
-          ),
-          path: _recordPath!,
-        );
+        _recorderCtrl = RecorderController()
+          ..androidEncoder = AndroidEncoder.aac
+          ..androidOutputFormat = AndroidOutputFormat.mpeg4
+          ..iosEncoder = IosEncoder.kAudioFormatMPEG4AAC
+          ..sampleRate = 16000
+          ..bitRate = 96000;
 
-        // Waveform visualization (separate controller, not used for audio output)
-        _recorderCtrl = RecorderController()..androidEncoder = AndroidEncoder.aac;
+        await _recorderCtrl!.record(path: _recordPath);
 
         _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-          if (mounted) setState(() => _recordSeconds++);
+          if (!mounted) return;
+          setState(() => _recordSeconds++);
+          if (_recordSeconds >= 60) _toggleRecording(); // auto-stop at 1 min
         });
         setState(() => _recording = true);
       } catch (e) {
@@ -129,7 +112,6 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   void dispose() {
     _textCtrl.dispose(); _focusNode.dispose();
     _recorderCtrl?.dispose(); _recordTimer?.cancel();
-    _audioRecorder?.dispose();
     super.dispose();
   }
 

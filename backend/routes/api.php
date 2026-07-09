@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Community\CommunityGroupController;
 use App\Http\Controllers\Api\Community\CommunityChatController;
 use App\Http\Controllers\Api\Community\CommunityNotificationController;
 use App\Http\Controllers\Api\Community\CommunityReportController;
+use App\Http\Controllers\Api\Community\CommunityModerationController;
 use App\Http\Controllers\Api\Community\CommunityBusinessPageController;
 use App\Http\Controllers\Api\Community\CommunityAdController;
 
@@ -365,7 +366,15 @@ Route::prefix('v1')->group(function () {
 
         // Reports & Block
         Route::post('report', [CommunityReportController::class, 'store']);
+        Route::post('posts/{id}/report', [CommunityModerationController::class, 'reportPost']);
         Route::post('block/{userId}', [CommunityReportController::class, 'block']);
+
+        // Transparency Center (user's own moderation status & appeals)
+        Route::prefix('my')->group(function () {
+            Route::get('moderation', [CommunityModerationController::class, 'myStatus']);
+            Route::get('appeals', [CommunityModerationController::class, 'myAppeals']);
+            Route::post('appeals', [CommunityModerationController::class, 'submitAppeal']);
+        });
     });
 
         // Auth

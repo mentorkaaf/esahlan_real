@@ -13,6 +13,7 @@ import 'community_shell.dart';
 import 'community_chat_screen.dart';
 import 'edit_profile_screen.dart';
 import 'ad_analytics_screen.dart';
+import 'transparency_center_screen.dart';
 
 class CommunityProfileScreen extends ConsumerWidget {
   final int userId;
@@ -63,6 +64,46 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
   bool _following = false;
   String? _localAvatar;
   String? _localCover;
+
+  void _showProfileMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 8),
+            if (widget.isMe)
+              ListTile(
+                leading: const Icon(Icons.shield_outlined, color: Color(0xFFFF8A00)),
+                title: const Text('Account Status', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                subtitle: const Text('View violations, strikes & appeals', style: TextStyle(fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const TransparencyCenter()));
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.share_outlined, color: Color(0xFF6B7280)),
+              title: const Text('Share Profile', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              onTap: () => Navigator.pop(context),
+            ),
+            if (!widget.isMe)
+              ListTile(
+                leading: const Icon(Icons.flag_outlined, color: Color(0xFFDC2626)),
+                title: const Text('Report User', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFFDC2626))),
+                onTap: () => Navigator.pop(context),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
 
   Future<void> _pickAvatar() async {
     final picker = ImagePicker();
@@ -147,8 +188,8 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                 : null,
             actions: [
               IconButton(
-                icon: Icon(Icons.more_horiz_rounded, color: Colors.white),
-                onPressed: () {},
+                icon: const Icon(Icons.more_horiz_rounded, color: Colors.white),
+                onPressed: () => _showProfileMenu(context),
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
