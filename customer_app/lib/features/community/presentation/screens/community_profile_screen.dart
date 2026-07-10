@@ -306,13 +306,13 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
 
                 // Interests
                 if (u.interests.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  SizedBox(height: 34, child: ListView(
+                  const SizedBox(height: 16),
+                  SizedBox(height: 76, child: ListView(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     children: [
-                      ...u.interests.map((i) => Padding(padding: const EdgeInsets.only(right: 8), child: _InterestChip(label: i))),
-                      _InterestChip(label: 'More', isMore: true),
+                      ...u.interests.map((i) => Padding(padding: const EdgeInsets.only(right: 20), child: _InterestChip(label: i))),
+                      Padding(padding: const EdgeInsets.only(right: 16), child: _InterestChip(label: 'More', isMore: true)),
                     ],
                   )),
                 ],
@@ -465,19 +465,79 @@ class _InterestChip extends StatelessWidget {
   final bool isMore;
   const _InterestChip({required this.label, this.isMore = false});
 
+  static const _iconMap = <String, IconData>{
+    'business':      Icons.business_center_rounded,
+    'tech':          Icons.laptop_mac_rounded,
+    'technology':    Icons.laptop_mac_rounded,
+    'motivation':    Icons.bolt_rounded,
+    'islamic':       Icons.mosque_rounded,
+    'religion':      Icons.mosque_rounded,
+    'travel':        Icons.flight_rounded,
+    'food':          Icons.restaurant_rounded,
+    'sports':        Icons.sports_soccer_rounded,
+    'music':         Icons.music_note_rounded,
+    'video':         Icons.videocam_rounded,
+    'image':         Icons.image_rounded,
+    'photo':         Icons.photo_camera_rounded,
+    'photography':   Icons.camera_alt_rounded,
+    'audio':         Icons.headphones_rounded,
+    'share':         Icons.share_rounded,
+    'text':          Icons.text_fields_rounded,
+    'fashion':       Icons.checkroom_rounded,
+    'health':        Icons.favorite_rounded,
+    'fitness':       Icons.fitness_center_rounded,
+    'education':     Icons.school_rounded,
+    'entertainment': Icons.movie_rounded,
+    'politics':      Icons.how_to_vote_rounded,
+    'news':          Icons.newspaper_rounded,
+    'comedy':        Icons.sentiment_very_satisfied_rounded,
+    'gaming':        Icons.sports_esports_rounded,
+    'art':           Icons.palette_rounded,
+    'science':       Icons.science_rounded,
+    'nature':        Icons.nature_rounded,
+    'finance':       Icons.account_balance_rounded,
+    'crypto':        Icons.currency_bitcoin_rounded,
+    'cooking':       Icons.local_dining_rounded,
+    'diy':           Icons.handyman_rounded,
+    'animals':       Icons.pets_rounded,
+    'cars':          Icons.directions_car_rounded,
+    'shopping':      Icons.shopping_bag_rounded,
+    'lifestyle':     Icons.wb_sunny_rounded,
+  };
+
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-    decoration: BoxDecoration(
-      color: isMore ? context.colors.inputFill : kOrange.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: isMore ? context.colors.borderColor : kOrange.withValues(alpha: 0.3)),
-    ),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      if (isMore) Icon(Icons.more_horiz_rounded, size: 14, color: context.colors.mutedText)
-      else Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: kOrange)),
-    ]),
-  );
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    if (isMore) {
+      return SizedBox(
+        width: 56,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 50, height: 50,
+            decoration: BoxDecoration(color: c.inputFill, shape: BoxShape.circle, border: Border.all(color: c.borderColor, width: 1.5)),
+            child: Icon(Icons.more_horiz_rounded, size: 22, color: c.mutedText),
+          ),
+          const SizedBox(height: 5),
+          Text('More', style: TextStyle(fontSize: 10, color: c.mutedText, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+        ]),
+      );
+    }
+    final key = label.toLowerCase();
+    final icon = _iconMap[key] ?? Icons.interests_rounded;
+    final disp = label.length > 9 ? label.substring(0, 8) : label;
+    return SizedBox(
+      width: 60,
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 50, height: 50,
+          decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.1), shape: BoxShape.circle),
+          child: Icon(icon, size: 24, color: kOrange),
+        ),
+        const SizedBox(height: 5),
+        Text(disp, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: c.bodyText), overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
+      ]),
+    );
+  }
 }
 
 class _EmptyTab extends StatelessWidget {

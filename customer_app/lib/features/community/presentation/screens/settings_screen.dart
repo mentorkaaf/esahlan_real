@@ -106,34 +106,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         Expanded(
-          child: ListView.separated(
+          child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-            itemCount: filtered.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (_, i) {
-              final s = filtered[i];
-              return Material(
-                color: c.cardBg,
+            children: [
+              ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () => _open(s.key, settings),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    child: Row(children: [
-                      Container(width: 44, height: 44, decoration: BoxDecoration(color: s.color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)), child: Icon(s.icon, color: s.color, size: 22)),
-                      const SizedBox(width: 14),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(s.label, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: c.bodyText)),
-                        const SizedBox(height: 2),
-                        Text(s.subtitle, style: TextStyle(fontSize: 11, color: c.subtleText)),
-                      ])),
-                      Icon(Icons.chevron_right_rounded, color: c.subtleText, size: 20),
-                    ]),
-                  ),
+                child: Material(
+                  color: c.cardBg,
+                  child: Column(children: [
+                    for (int i = 0; i < filtered.length; i++) ...[
+                      InkWell(
+                        onTap: () => _open(filtered[i].key, settings),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                          child: Row(children: [
+                            Container(width: 42, height: 42, decoration: BoxDecoration(color: filtered[i].color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(11)), child: Icon(filtered[i].icon, color: filtered[i].color, size: 21)),
+                            const SizedBox(width: 13),
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(filtered[i].label, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: c.bodyText)),
+                              const SizedBox(height: 2),
+                              Text(filtered[i].subtitle, style: TextStyle(fontSize: 11, color: c.subtleText)),
+                            ])),
+                            Icon(Icons.chevron_right_rounded, color: c.subtleText, size: 20),
+                          ]),
+                        ),
+                      ),
+                      if (i < filtered.length - 1) Divider(height: 1, indent: 71, color: c.dividerColor),
+                    ],
+                  ]),
                 ),
-              );
-            },
+              ),
+            ],
           ),
         ),
       ]),
