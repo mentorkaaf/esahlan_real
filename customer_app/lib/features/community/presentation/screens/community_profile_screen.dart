@@ -7,12 +7,11 @@ import '../../../../core/widgets/network_image_widget.dart';
 import '../../data/models/community_models.dart';
 import '../providers/community_provider.dart';
 import 'community_chat_screen.dart';
+import 'community_shell.dart' show kOrange;
 import 'edit_profile_screen.dart';
 import 'transparency_center_screen.dart';
 import 'copyright_screen.dart';
 import 'settings_screen.dart';
-
-const kOrange = Color(0xFFFF8A00);
 
 // ── Profile entry points ────────────────────────────────────────────────
 class CommunityProfileScreen extends ConsumerWidget {

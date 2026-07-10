@@ -1,4 +1,3 @@
-import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import '../../../../core/constants/app_constants.dart';
 import 'package:video_player/video_player.dart';
@@ -16,10 +15,9 @@ class AdPreloader {
     stalePeriod: AppConstants.adPreloadCacheStalePeriod,
   ));
 
-  final _ready    = <String, VideoPlayerController>{};
-  final _wrappers = <String, CachedVideoPlayerPlus>{};
+  final _ready   = <String, VideoPlayerController>{};
   // Keeps the in-flight (or completed) Future so duplicate calls share one download
-  final _futures  = <String, Future<VideoPlayerController?>>{};
+  final _futures = <String, Future<VideoPlayerController?>>{};
 
   /// Fire-and-forget: starts downloading [urls] in parallel.
   /// Safe to call repeatedly — skips URLs already ready or in flight.
@@ -42,28 +40,38 @@ class AdPreloader {
 
   Future<VideoPlayerController?> _initOne(String url) async {
     try {
-      final wrapper = CachedVideoPlayerPlus.networkUrl(
-        Uri.parse(url),
-        httpHeaders: const {'Connection': 'keep-alive'},
-        cacheManager: _diskCache,
+      // Try disk cache first, fall back to network
+      final file = await _diskCache.getSingleFile(url);
+      final ctrl = VideoPlayerController.file(
+        file,
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
       );
-      await wrapper.initialize();
-      final ctrl = wrapper.controller;
+      await ctrl.initialize();
       ctrl.setLooping(true);
       ctrl.setVolume(0);
-      _wrappers[url] = wrapper;
-      _ready[url]   = ctrl;
+      _ready[url] = ctrl;
       return ctrl;
     } catch (_) {
-      return null;
+      try {
+        final ctrl = VideoPlayerController.networkUrl(
+          Uri.parse(url),
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
+        await ctrl.initialize();
+        ctrl.setLooping(true);
+        ctrl.setVolume(0);
+        _ready[url] = ctrl;
+        return ctrl;
+      } catch (_) {
+        return null;
+      }
     }
   }
 
   bool isLoading(String url) => _futures.containsKey(url) && !_ready.containsKey(url);
 
   void dispose() {
-    for (final w in _wrappers.values) w.dispose();
-    _wrappers.clear();
+    for (final c in _ready.values) c.dispose();
     _ready.clear();
     _futures.clear();
   }

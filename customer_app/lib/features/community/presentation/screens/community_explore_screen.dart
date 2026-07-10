@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import '../../data/models/community_models.dart';
 import '../providers/community_provider.dart';
 import 'community_shell.dart';
-import 'community_profile_screen.dart';
 
 class CommunityExploreScreen extends ConsumerStatefulWidget {
   const CommunityExploreScreen({super.key});
