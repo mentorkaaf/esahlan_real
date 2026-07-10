@@ -291,6 +291,14 @@ final communityHighlightsProvider =
     FutureProvider.family.autoDispose<List<CommunityHighlight>, int>(
         (ref, userId) => _repo.getHighlights(userId));
 
+final communitySavedPostsProvider =
+    FutureProvider.autoDispose<List<CommunityPost>>(
+        (ref) => _repo.getSavedPosts());
+
+final communityLikedPostsProvider =
+    FutureProvider.family.autoDispose<List<CommunityPost>, int>(
+        (ref, userId) => _repo.getLikedPosts(userId));
+
 // ── Repo accessor ──────────────────────────────────────────────────────────
 final communityRepoProvider = Provider<CommunityRepository>((ref) => _repo);
 

@@ -2575,7 +2575,10 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
           ? VideoAdOverlay(
               mainController: _controller!.player,
               onAdStart: () => _pool.pause(_previewUrl),
-              onAdEnd:   () => _pool.reactivate(_previewUrl),
+              onAdEnd:   () {
+                _pool.reactivate(_previewUrl);
+                _controller?.player.setVolume(_globalMuted ? 0 : 100);
+              },
               child: videoContent)
           : videoContent,
     );

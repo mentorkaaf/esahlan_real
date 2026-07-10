@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../data/repositories/community_repository.dart';
 import 'transparency_center_screen.dart';
+import 'edit_profile_screen.dart';
+import '../../data/models/community_models.dart';
 
 const _kOrange = Color(0xFFFF8A00);
 
@@ -55,15 +57,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   void _open(String key, Map<String, dynamic> settings) {
     Widget? screen = switch (key) {
+      'account'       => const AccountSettingsScreen(),
       'privacy'       => PrivacySettingsScreen(initial: _section(settings, 'privacy')),
       'notifications' => NotificationSettingsScreen(initial: _section(settings, 'notifications')),
       'security'      => const SecuritySettingsScreen(),
+      'content'       => ContentPreferencesScreen(initial: _section(settings, 'content')),
+      'language'      => const LanguageSettingsScreen(),
       'data_saver'    => DataSaverSettingsScreen(initial: _section(settings, 'data_saver')),
       'appearance'    => AppearanceSettingsScreen(initial: _section(settings, 'appearance')),
       'video'         => VideoSettingsScreen(initial: _section(settings, 'video')),
       'messages'      => MessageSettingsScreen(initial: _section(settings, 'messages')),
       'wallet'        => const WalletSettingsScreen(),
       'creator_studio'=> const CreatorStudioSettingsScreen(),
+      'business'      => const BusinessSettingsScreen(),
       'accessibility' => AccessibilitySettingsScreen(initial: _section(settings, 'accessibility')),
       'ai'            => AiSettingsScreen(initial: _section(settings, 'ai_features')),
       'safety'        => const CommunitySafetySettingsScreen(),
@@ -861,6 +867,117 @@ class AboutSettingsScreen extends ConsumerWidget {
 }
 
 final _appVersionProvider = FutureProvider.autoDispose<Map<String, String>>((ref) async {
-  // Package info can be added via package_info_plus — fallback to constants
   return {'version': '2.4.1', 'build': '241'};
 });
+
+// ══════════════════════════════════════════════════════════════════════════
+// ACCOUNT SETTINGS — routes to EditProfileScreen
+// ══════════════════════════════════════════════════════════════════════════
+class AccountSettingsScreen extends ConsumerWidget {
+  const AccountSettingsScreen({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(_myProfileForSettingsProvider);
+    final c = context.colors;
+    return Scaffold(
+      backgroundColor: c.scaffoldBg,
+      appBar: _bar(context, 'Account'),
+      body: profileAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator(color: _kOrange)),
+        error: (_, __) => const Center(child: Text('Failed to load')),
+        data: (user) => ListView(padding: const EdgeInsets.all(16), children: [
+          _group(context: context, children: [
+            _Nav(icon: Icons.edit_rounded, iconColor: _kOrange, label: 'Edit Profile',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfileScreen(user: user)))),
+            _Nav(icon: Icons.alternate_email_rounded, iconColor: const Color(0xFF3B82F6), label: 'Username', trailing: user.username != null ? '@${user.username}' : 'Not set',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfileScreen(user: user)))),
+            _Nav(icon: Icons.phone_outlined, iconColor: const Color(0xFF10B981), label: 'Phone Number', trailing: 'Manage',
+              onTap: () {}),
+            _Nav(icon: Icons.email_outlined, iconColor: const Color(0xFF8B5CF6), label: 'Email Address', trailing: 'Manage',
+              onTap: () {}),
+          ]),
+          _group(title: 'ACCOUNT CONTROL', context: context, children: [
+            _Nav(icon: Icons.download_outlined, iconColor: const Color(0xFF06B6D4), label: 'Download Your Data', onTap: () {}),
+            _Nav(icon: Icons.pause_circle_outline_rounded, iconColor: const Color(0xFFF59E0B), label: 'Deactivate Account', onTap: () {}),
+            _Nav(icon: Icons.delete_outline_rounded, iconColor: const Color(0xFFEF4444), label: 'Delete Account', onTap: () {}),
+          ]),
+        ]),
+      ),
+    );
+  }
+}
+
+final _myProfileForSettingsProvider = FutureProvider.autoDispose((ref) =>
+    CommunityRepository().getMyProfile());
+
+// ══════════════════════════════════════════════════════════════════════════
+// CONTENT PREFERENCES
+// ══════════════════════════════════════════════════════════════════════════
+class ContentPreferencesScreen extends ConsumerStatefulWidget {
+  final Map<String, dynamic> initial;
+  const ContentPreferencesScreen({super.key, required this.initial});
+  @override ConsumerState<ContentPreferencesScreen> createState() => _ContentPrefState();
+}
+class _ContentPrefState extends ConsumerState<ContentPreferencesScreen> {
+  late Map<String, dynamic> _s;
+  @override void initState() { super.initState(); _s = Map.from(widget.initial); }
+  bool _b(String k) => _s[k] == true || _s[k] == 1;
+  void _save(String k, dynamic v) { setState(() => _s[k] = v); CommunityRepository().saveSettings({'content.$k': v}); }
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: context.colors.scaffoldBg, appBar: _bar(context, 'Content Preferences'),
+    body: ListView(padding: const EdgeInsets.all(16), children: [_group(context: context, children: [
+      _Toggle(icon: Icons.translate_rounded, iconColor: const Color(0xFF06B6D4), label: 'Show Posts in Other Languages', subtitle: 'Auto-translate posts', value: _b('auto_translate'), onChanged: (v) => _save('auto_translate', v)),
+      _Toggle(icon: Icons.explore_outlined, iconColor: _kOrange, label: 'Suggest Reels', subtitle: 'Show suggested reels in feed', value: _b('suggest_reels'), onChanged: (v) => _save('suggest_reels', v)),
+      _Toggle(icon: Icons.recommend_outlined, iconColor: const Color(0xFF8B5CF6), label: 'Personalized Ads', subtitle: 'Use your activity to personalize ads', value: _b('personalized_ads'), onChanged: (v) => _save('personalized_ads', v)),
+    ])]),
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// LANGUAGE
+// ══════════════════════════════════════════════════════════════════════════
+class LanguageSettingsScreen extends StatelessWidget {
+  const LanguageSettingsScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final languages = ['English', 'Somali', 'Arabic', 'Amharic', 'Swahili', 'French'];
+    const selected = 'English';
+    return Scaffold(
+      backgroundColor: context.colors.scaffoldBg, appBar: _bar(context, 'Language'),
+      body: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: languages.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 4),
+        itemBuilder: (_, i) {
+          final lang = languages[i];
+          final isSelected = lang == selected;
+          return ListTile(
+            tileColor: context.colors.cardBg,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            title: Text(lang, style: TextStyle(fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal, color: context.colors.bodyText)),
+            trailing: isSelected ? const Icon(Icons.check_rounded, color: _kOrange) : null,
+            onTap: () {},
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// BUSINESS SETTINGS
+// ══════════════════════════════════════════════════════════════════════════
+class BusinessSettingsScreen extends StatelessWidget {
+  const BusinessSettingsScreen({super.key});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: context.colors.scaffoldBg, appBar: _bar(context, 'Business Center'),
+    body: ListView(padding: const EdgeInsets.all(16), children: [_group(context: context, children: [
+      _Nav(icon: Icons.store_outlined, iconColor: _kOrange, label: 'My Business Page', onTap: () {}),
+      _Nav(icon: Icons.bar_chart_rounded, iconColor: const Color(0xFF3B82F6), label: 'Business Analytics', onTap: () {}),
+      _Nav(icon: Icons.campaign_outlined, iconColor: const Color(0xFFF59E0B), label: 'Advertise', onTap: () {}),
+      _Nav(icon: Icons.shopping_bag_outlined, iconColor: const Color(0xFF10B981), label: 'Shop Settings', onTap: () {}),
+    ])]),
+  );
+}

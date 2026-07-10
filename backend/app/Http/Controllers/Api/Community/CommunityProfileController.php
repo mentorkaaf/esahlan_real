@@ -124,6 +124,31 @@ class CommunityProfileController extends Controller
         return response()->json(['status'=>'success','data'=>$posts->map(fn($p)=>$feed->transformPost($p,$authId))->toArray(),'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage()]]);
     }
 
+    public function savedPosts(Request $request)
+    {
+        $authId = auth()->id();
+        $feed = new CommunityFeedController();
+        $posts = CommunityPost::with(['user.communityProfile','media','userReaction'])
+            ->whereHas('saves', fn($q) => $q->where('user_id', $authId))
+            ->where('privacy','public')
+            ->latest()
+            ->paginate(12);
+        return response()->json(['status'=>'success','data'=>$posts->map(fn($p)=>$feed->transformPost($p,$authId))->toArray()]);
+    }
+
+    public function likedPosts(int $userId, Request $request)
+    {
+        $authId = auth()->id();
+        $feed = new CommunityFeedController();
+        $posts = CommunityPost::with(['user.communityProfile','media','userReaction'])
+            ->whereHas('reactions', fn($q) => $q->where('user_id', $userId)->where('type','like'))
+            ->where('privacy','public')
+            ->where(fn($q) => $q->where('moderation_status','approved')->orWhere('user_id',$authId))
+            ->latest()
+            ->paginate(12);
+        return response()->json(['status'=>'success','data'=>$posts->map(fn($p)=>$feed->transformPost($p,$authId))->toArray()]);
+    }
+
     public function followers(int $userId)
     {
         $follows = CommunityFollow::with('follower.communityProfile')->where('following_id',$userId)->latest()->paginate(20);

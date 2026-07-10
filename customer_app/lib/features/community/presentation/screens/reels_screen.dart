@@ -552,6 +552,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
       _pool.pause(_videoUrl);
     } else {
       _pool.play(_videoUrl);
+      _videoCtrl!.player.setVolume(_muted ? 0 : 100);
     }
   }
 

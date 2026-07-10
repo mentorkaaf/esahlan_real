@@ -127,11 +127,6 @@ class CommunityRepository {
     return r.data['saved'] as bool;
   }
 
-  Future<List<CommunityPost>> getSavedPosts() async {
-    final r = await _dio.get('/community/posts/saved');
-    return _parsePosts(r.data['data']);
-  }
-
   Future<Map<String, dynamic>> votePoll(int postId, int optionIndex) async {
     final r = await _dio.post('/community/posts/$postId/vote', data: {'option_index': optionIndex});
     return r.data as Map<String, dynamic>;
@@ -566,6 +561,21 @@ class CommunityRepository {
 
   Future<void> deleteHighlight(int id) async {
     await _dio.delete('/community/highlights/$id');
+  }
+
+  // ── Saved / Liked posts ────────────────────────────────────────────────────
+  Future<List<CommunityPost>> getSavedPosts() async {
+    try {
+      final r = await _dio.get('/community/profile/me/saved-posts');
+      return _parsePosts(r.data['data']);
+    } catch (_) { return []; }
+  }
+
+  Future<List<CommunityPost>> getLikedPosts(int userId) async {
+    try {
+      final r = await _dio.get('/community/profile/$userId/liked-posts');
+      return _parsePosts(r.data['data']);
+    } catch (_) { return []; }
   }
 
   Future<Map<String, dynamic>> getWalletInfo() async {

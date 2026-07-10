@@ -305,6 +305,8 @@ Route::prefix('v1')->group(function () {
         Route::put('profile', [CommunityProfileController::class, 'update']);
         Route::get('profile/{userId}', [CommunityProfileController::class, 'show']);
         Route::get('profile/{userId}/posts', [CommunityProfileController::class, 'posts']);
+        Route::get('profile/{userId}/liked-posts', [CommunityProfileController::class, 'likedPosts']);
+        Route::get('profile/me/saved-posts', [CommunityProfileController::class, 'savedPosts']);
         Route::get('profile/{userId}/followers', [CommunityProfileController::class, 'followers']);
         Route::get('profile/{userId}/following', [CommunityProfileController::class, 'following']);
 

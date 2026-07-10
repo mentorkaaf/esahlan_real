@@ -82,6 +82,8 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     setState(() { _followLoading = true; _following = !_following; });
     try {
       await ref.read(communityRepoProvider).toggleFollow(widget.user.id);
+      ref.invalidate(communityProfileProvider(widget.user.id));
+      ref.invalidate(communityMyProfileProvider);
     } catch (_) {
       setState(() => _following = !_following);
     } finally {
@@ -206,19 +208,17 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // White card starts 44px below cover so avatar floats half-in
-                Padding(
-                  padding: const EdgeInsets.only(top: 44),
-                  child: ColoredBox(
-                    color: c.cardBg,
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      // Reserve space for the avatar that floats above
-                      const SizedBox(height: 48),
-
-                      // Action buttons row (right-aligned)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                        child: Row(children: [
+                // Card starts at Stack top (no gap between cover and card)
+                ColoredBox(
+                  color: c.cardBg,
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    // Row: reserve space for avatar lower half | action buttons right-aligned
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: SizedBox(
+                        height: 48,
+                        child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                          const SizedBox(width: 96), // avatar width (88) + gap (8)
                           const Spacer(),
                           if (widget.isMe)
                             _ActionBtn(label: 'Edit Profile', icon: Icons.edit_rounded, outlined: true, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfileScreen(user: u))))
@@ -240,6 +240,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                           ],
                         ]),
                       ),
+                    ),
 
                       // Name + badges
                       Padding(
@@ -317,11 +318,10 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                       ),
                     ]),
                   ),
-                ),
 
-                // Avatar — floats at top of Stack, half over cover / half over card
+                // Avatar — half overlaps cover above, half sits in card
                 Positioned(
-                  top: 0, left: 16,
+                  top: -44, left: 16,
                   child: GestureDetector(
                     onTap: widget.isMe ? _pickAvatar : null,
                     child: Stack(clipBehavior: Clip.none, children: [
@@ -362,8 +362,8 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
             _PostsGrid(userId: u.id, videoOnly: true),
             _PostsGrid(userId: u.id, type: 'audio'),
             _PostsGrid(userId: u.id, mediaOnly: true),
-            _EmptyTab(icon: Icons.bookmark_outline_rounded, label: 'No saved posts yet'),
-            _EmptyTab(icon: Icons.favorite_outline_rounded, label: 'No liked posts yet'),
+            _SavedPostsGrid(),
+            _LikedPostsGrid(userId: u.id),
           ],
         ),
       ),
@@ -667,6 +667,7 @@ class _HighlightsSection extends ConsumerWidget {
                 ),
                 onPressed: () async {
                   Navigator.pop(ctx);
+                  if (!context.mounted) return;
                   await _confirmDelete(context, ref, h);
                 },
                 child: const Text('Delete Highlight', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -850,6 +851,71 @@ class _PostsGrid extends ConsumerWidget {
               ),
             );
           },
+        );
+      },
+    );
+  }
+}
+
+class _SavedPostsGrid extends ConsumerWidget {
+  const _SavedPostsGrid();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final a = ref.watch(communitySavedPostsProvider);
+    return a.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
+      error: (_, __) => _EmptyTab(icon: Icons.bookmark_outline_rounded, label: 'No saved posts yet'),
+      data: (posts) {
+        if (posts.isEmpty) return _EmptyTab(icon: Icons.bookmark_outline_rounded, label: 'No saved posts yet');
+        return _PostListGrid(posts: posts);
+      },
+    );
+  }
+}
+
+class _LikedPostsGrid extends ConsumerWidget {
+  final int userId;
+  const _LikedPostsGrid({required this.userId});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final a = ref.watch(communityLikedPostsProvider(userId));
+    return a.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
+      error: (_, __) => _EmptyTab(icon: Icons.favorite_outline_rounded, label: 'No liked posts yet'),
+      data: (posts) {
+        if (posts.isEmpty) return _EmptyTab(icon: Icons.favorite_outline_rounded, label: 'No liked posts yet');
+        return _PostListGrid(posts: posts);
+      },
+    );
+  }
+}
+
+class _PostListGrid extends StatelessWidget {
+  final List<CommunityPost> posts;
+  const _PostListGrid({required this.posts});
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return GridView.builder(
+      padding: const EdgeInsets.all(2),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
+      itemCount: posts.length,
+      itemBuilder: (_, i) {
+        final p = posts[i];
+        final media = p.media.isNotEmpty ? p.media[0] : null;
+        final isVideo = media?.type == 'video';
+        final imgUrl = isVideo ? media?.thumbnail : media?.url;
+        return GestureDetector(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _PostDetailScreen(post: p))),
+          child: Container(
+            color: c.borderColor,
+            child: Stack(children: [
+              if (imgUrl != null) Positioned.fill(child: NetImage(url: imgUrl, fit: BoxFit.cover))
+              else Center(child: Padding(padding: const EdgeInsets.all(6), child: Text(p.content?.substring(0, p.content!.length.clamp(0, 50)) ?? '', style: TextStyle(fontSize: 11, color: c.mutedText), maxLines: 4, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis))),
+              if (isVideo) const Positioned(top: 4, right: 4, child: Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 22)),
+              if (p.media.length > 1) const Positioned(top: 4, right: 4, child: Icon(Icons.collections_rounded, color: Colors.white, size: 18)),
+            ]),
+          ),
         );
       },
     );
