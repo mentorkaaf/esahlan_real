@@ -9,6 +9,7 @@ use App\Services\InteractionTracker;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\Community\CommunityAdController;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\DB;
 
 class CommunityFeedController extends Controller
 {
