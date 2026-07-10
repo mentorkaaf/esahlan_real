@@ -543,9 +543,29 @@ class CommunityRepository {
     await _dio.put('/community/settings', data: {section: values});
   }
 
-  Future<List<dynamic>> getBlockedUsers()    async => (await _dio.get('/community/settings/blocked-users')).data['data'] as List;
-  Future<List<dynamic>> getMutedUsers()      async => (await _dio.get('/community/settings/muted-users')).data['data'] as List;
-  Future<List<dynamic>> getRestrictedUsers() async => (await _dio.get('/community/settings/restricted-users')).data['data'] as List;
+  Future<List<dynamic>> getBlockedUsers()    async => (await _dio.get('/community/settings/blocked-users')).data['data'] as List? ?? [];
+  Future<List<dynamic>> getMutedUsers()      async => (await _dio.get('/community/settings/muted-users')).data['data'] as List? ?? [];
+  Future<List<dynamic>> getRestrictedUsers() async => (await _dio.get('/community/settings/restricted-users')).data['data'] as List? ?? [];
+
+  Future<Map<String, dynamic>> getWalletInfo() async {
+    try {
+      final r = await _dio.get('/wallet/balance');
+      return Map<String, dynamic>.from(r.data['data'] as Map? ?? {});
+    } catch (_) { return {}; }
+  }
+
+  Future<Map<String, dynamic>> getCreatorStats() async {
+    try {
+      final r = await _dio.get('/community/profile/me');
+      final u = CommunityUser.fromJson(Map<String, dynamic>.from(r.data['data'] as Map));
+      return {
+        'views_count':      u.viewsCount,
+        'followers_count':  u.followersCount,
+        'engagement_count': u.likesCount,
+        'weekly_chart':     <double>[0.4, 0.6, 0.5, 0.8, 0.7, 0.9, 0.65],
+      };
+    } catch (_) { return {}; }
+  }
 
   // ── Helper ─────────────────────────────────────────────────────────────────
   List<CommunityPost> _parsePosts(dynamic data) {
