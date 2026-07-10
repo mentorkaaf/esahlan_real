@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\Community\CommunityReportController;
 use App\Http\Controllers\Api\Community\CommunityModerationController;
 use App\Http\Controllers\Api\Community\CopyrightController;
 use App\Http\Controllers\Api\Community\UserSettingsController;
+use App\Http\Controllers\Api\Community\CommunityHighlightController;
 use App\Http\Controllers\Api\Community\CommunityBusinessPageController;
 use App\Http\Controllers\Api\Community\CommunityAdController;
 
@@ -393,6 +394,12 @@ Route::prefix('v1')->group(function () {
         Route::get('community/settings/blocked-users',           [UserSettingsController::class, 'blockedUsers']);
         Route::get('community/settings/muted-users',             [UserSettingsController::class, 'mutedUsers']);
         Route::get('community/settings/restricted-users',        [UserSettingsController::class, 'restrictedUsers']);
+
+        // Highlights
+        Route::get('community/users/{userId}/highlights',        [CommunityHighlightController::class, 'index']);
+        Route::post('community/highlights',                      [CommunityHighlightController::class, 'store']);
+        Route::post('community/highlights/{id}',                 [CommunityHighlightController::class, 'update']);
+        Route::delete('community/highlights/{id}',               [CommunityHighlightController::class, 'destroy']);
 
         // Auth
         Route::post('auth/logout',          [AuthController::class, 'logout']);
