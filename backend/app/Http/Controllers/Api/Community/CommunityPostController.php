@@ -14,6 +14,7 @@ use App\Services\RealtimeService;
 use App\Jobs\TranscodeVideoJob;
 use App\Jobs\ScorePostRiskJob;
 use App\Models\CommunityFollow;
+use App\Services\AutoRestrictService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -24,6 +25,8 @@ class CommunityPostController extends Controller
 
     public function store(Request $request)
     {
+        AutoRestrictService::enforce(auth()->id(), 'post');
+
         $request->validate([
             'type' => 'required|in:text,image,video,reel,poll,service,audio,document',
             'content' => 'nullable|string|max:5000',

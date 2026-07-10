@@ -5,6 +5,7 @@ use App\Models\CommunityComment;
 use App\Models\CommunityPost;
 use App\Models\CommunityNotification;
 use App\Models\User;
+use App\Services\AutoRestrictService;
 use App\Services\FcmService;
 use App\Services\InteractionTracker;
 use App\Services\RealtimeService;
@@ -34,6 +35,8 @@ class CommunityCommentController extends Controller
 
     public function store(Request $request, int $postId)
     {
+        AutoRestrictService::enforce(auth()->id(), 'comment');
+
         $request->validate([
             'content' => 'nullable|string|max:2000',
             'parent_id' => 'nullable|exists:community_comments,id',

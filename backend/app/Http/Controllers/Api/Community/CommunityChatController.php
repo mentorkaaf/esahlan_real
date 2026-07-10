@@ -5,6 +5,7 @@ use App\Models\CommunityChat;
 use App\Models\CommunityChatMember;
 use App\Models\CommunityMessage;
 use App\Models\User;
+use App\Services\AutoRestrictService;
 use App\Services\FcmService;
 use App\Services\RealtimeService;
 use Illuminate\Http\Request;
@@ -60,6 +61,8 @@ class CommunityChatController extends Controller
 
     public function send(Request $request, int $chatId)
     {
+        AutoRestrictService::enforce(auth()->id(), 'message');
+
         $request->validate(['type'=>'in:text,image,video,audio,voice','content'=>'nullable|string|max:2000','media'=>'nullable|file|max:51200','reply_to_id'=>'nullable|exists:community_messages,id']);
         $userId = auth()->id();
         CommunityChatMember::where('chat_id',$chatId)->where('user_id',$userId)->firstOrFail();

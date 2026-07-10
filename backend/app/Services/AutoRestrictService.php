@@ -1,10 +1,66 @@
 <?php
 namespace App\Services;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
 class AutoRestrictService
 {
+    // Which restriction types block which actions
+    private const BLOCKS = [
+        'post'    => ['post_ban', 'read_only', 'temp_suspend', 'perm_suspend'],
+        'comment' => ['comment_ban', 'post_ban', 'read_only', 'temp_suspend', 'perm_suspend'],
+        'message' => ['message_ban', 'read_only', 'temp_suspend', 'perm_suspend'],
+        'live'    => ['live_ban', 'read_only', 'temp_suspend', 'perm_suspend'],
+        'any'     => ['read_only', 'temp_suspend', 'perm_suspend'],
+    ];
+
+    private const MESSAGES = [
+        'comment_ban'  => 'You are banned from commenting.',
+        'post_ban'     => 'You are banned from creating posts.',
+        'live_ban'     => 'You are banned from going live.',
+        'message_ban'  => 'You are banned from sending messages.',
+        'shadow_reduce'=> null, // silent — user never told
+        'read_only'    => 'Your account is in read-only mode.',
+        'temp_suspend' => 'Your account is temporarily suspended.',
+        'perm_suspend' => 'Your account has been permanently suspended.',
+    ];
+
+    /**
+     * Check if user is restricted for a given action.
+     * Aborts with 403 JSON if blocked. Silent if not blocked.
+     *
+     * Usage: AutoRestrictService::enforce(auth()->id(), 'post');
+     *
+     * @param  string  $action  post|comment|message|live|any
+     */
+    public static function enforce(int $userId, string $action): void
+    {
+        $blockedBy = self::BLOCKS[$action] ?? self::BLOCKS['any'];
+
+        $restriction = DB::table('ts_restrictions')
+            ->where('user_id', $userId)
+            ->where('active', true)
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->whereIn('type', $blockedBy)
+            ->orderByDesc('created_at')
+            ->first(['type', 'expires_at', 'reason']);
+
+        if (!$restriction) return;
+
+        $message = self::MESSAGES[$restriction->type] ?? 'Action not allowed.';
+        $expiresAt = $restriction->expires_at
+            ? ' Expires: ' . $restriction->expires_at
+            : '';
+
+        abort(response()->json([
+            'message'      => $message . $expiresAt,
+            'restriction'  => $restriction->type,
+            'expires_at'   => $restriction->expires_at,
+        ], 403));
+    }
+
+
     // Points → restriction type + duration (days, null = permanent)
     private const TIERS = [
         ['min' => 15, 'type' => 'temp_suspend',  'days' => 30],
