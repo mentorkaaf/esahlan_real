@@ -365,17 +365,6 @@ class CommunityRepository {
     return CommunityMessage.fromJson(r.data['data'] as Map<String, dynamic>, myId);
   }
 
-  // ── Highlights ────────────────────────────────────────────────────────────
-  Future<List<Map<String, dynamic>>> getHighlights(int userId) async {
-    final r = await _dio.get('/community/highlights/$userId');
-    return (r.data['data'] as List).cast<Map<String, dynamic>>();
-  }
-
-  Future<void> createHighlight({required String title, required List<int> storyIds}) =>
-    _dio.post('/community/highlights', data: {'title': title, 'story_ids': storyIds});
-
-  Future<void> deleteHighlight(int id) => _dio.delete('/community/highlights/$id');
-
   // ── Trending ──────────────────────────────────────────────────────────────
   Future<List<Map<String, dynamic>>> getTrending() async {
     final r = await _dio.get('/community/trending');
@@ -546,6 +535,38 @@ class CommunityRepository {
   Future<List<dynamic>> getBlockedUsers()    async => (await _dio.get('/community/settings/blocked-users')).data['data'] as List? ?? [];
   Future<List<dynamic>> getMutedUsers()      async => (await _dio.get('/community/settings/muted-users')).data['data'] as List? ?? [];
   Future<List<dynamic>> getRestrictedUsers() async => (await _dio.get('/community/settings/restricted-users')).data['data'] as List? ?? [];
+
+  // ── Highlights ─────────────────────────────────────────────────────────
+  Future<List<CommunityHighlight>> getHighlights(int userId) async {
+    try {
+      final r = await _dio.get('/community/users/$userId/highlights');
+      return (r.data['data'] as List? ?? [])
+          .map((e) => CommunityHighlight.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    } catch (_) { return []; }
+  }
+
+  Future<CommunityHighlight> createHighlight(String title, {MultipartFile? coverFile}) async {
+    final form = FormData.fromMap({
+      'title': title,
+      if (coverFile != null) 'cover_image': coverFile,
+    });
+    final r = await _dio.post('/community/highlights', data: form);
+    return CommunityHighlight.fromJson(Map<String, dynamic>.from(r.data['data'] as Map));
+  }
+
+  Future<CommunityHighlight> updateHighlight(int id, {String? title, MultipartFile? coverFile}) async {
+    final form = FormData.fromMap({
+      if (title != null) 'title': title,
+      if (coverFile != null) 'cover_image': coverFile,
+    });
+    final r = await _dio.post('/community/highlights/$id', data: form);
+    return CommunityHighlight.fromJson(Map<String, dynamic>.from(r.data['data'] as Map));
+  }
+
+  Future<void> deleteHighlight(int id) async {
+    await _dio.delete('/community/highlights/$id');
+  }
 
   Future<Map<String, dynamic>> getWalletInfo() async {
     try {

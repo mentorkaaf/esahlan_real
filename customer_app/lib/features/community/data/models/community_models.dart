@@ -1,5 +1,28 @@
 import '../../../../core/constants/app_constants.dart';
 
+// ── Highlight (Instagram-style story circle) ───────────────────────────────
+class CommunityHighlight {
+  final int id;
+  final String title;
+  final String? coverImage;
+  final int sortOrder;
+
+  const CommunityHighlight({
+    required this.id,
+    required this.title,
+    this.coverImage,
+    this.sortOrder = 0,
+  });
+
+  factory CommunityHighlight.fromJson(Map<String, dynamic> j) =>
+      CommunityHighlight(
+        id:         j['id'] as int,
+        title:      j['title'] as String,
+        coverImage: _fixUrlNullable(j['cover_image'] as String?),
+        sortOrder:  (j['sort_order'] as num?)?.toInt() ?? 0,
+      );
+}
+
 String _fixUrl(String? url) {
   if (url == null || url.isEmpty) return '';
   final canonical  = 'https://${AppConstants.baseDomain}';

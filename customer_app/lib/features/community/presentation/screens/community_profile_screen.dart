@@ -1,3 +1,4 @@
+import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
@@ -304,18 +305,9 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   ]),
                 ),
 
-                // Interests
-                if (u.interests.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  SizedBox(height: 76, child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    children: [
-                      ...u.interests.map((i) => Padding(padding: const EdgeInsets.only(right: 20), child: _InterestChip(label: i))),
-                      Padding(padding: const EdgeInsets.only(right: 16), child: _InterestChip(label: 'More', isMore: true)),
-                    ],
-                  )),
-                ],
+                // Highlights
+                const SizedBox(height: 16),
+                _HighlightsSection(userId: u.id, isMe: widget.isMe),
 
                 const SizedBox(height: 12),
 
@@ -460,85 +452,318 @@ class _StatCol extends StatelessWidget {
   );
 }
 
-class _InterestChip extends StatelessWidget {
-  final String label;
-  final bool isMore;
-  const _InterestChip({required this.label, this.isMore = false});
+// ══════════════════════════════════════════════════════════════════════════
+// HIGHLIGHTS — Instagram-style story circles
+// ══════════════════════════════════════════════════════════════════════════
 
-  static const _iconMap = <String, IconData>{
-    'business':      Icons.business_center_rounded,
-    'tech':          Icons.laptop_mac_rounded,
-    'technology':    Icons.laptop_mac_rounded,
-    'motivation':    Icons.bolt_rounded,
-    'islamic':       Icons.mosque_rounded,
-    'religion':      Icons.mosque_rounded,
-    'travel':        Icons.flight_rounded,
-    'food':          Icons.restaurant_rounded,
-    'sports':        Icons.sports_soccer_rounded,
-    'music':         Icons.music_note_rounded,
-    'video':         Icons.videocam_rounded,
-    'image':         Icons.image_rounded,
-    'photo':         Icons.photo_camera_rounded,
-    'photography':   Icons.camera_alt_rounded,
-    'audio':         Icons.headphones_rounded,
-    'share':         Icons.share_rounded,
-    'text':          Icons.text_fields_rounded,
-    'fashion':       Icons.checkroom_rounded,
-    'health':        Icons.favorite_rounded,
-    'fitness':       Icons.fitness_center_rounded,
-    'education':     Icons.school_rounded,
-    'entertainment': Icons.movie_rounded,
-    'politics':      Icons.how_to_vote_rounded,
-    'news':          Icons.newspaper_rounded,
-    'comedy':        Icons.sentiment_very_satisfied_rounded,
-    'gaming':        Icons.sports_esports_rounded,
-    'art':           Icons.palette_rounded,
-    'science':       Icons.science_rounded,
-    'nature':        Icons.nature_rounded,
-    'finance':       Icons.account_balance_rounded,
-    'crypto':        Icons.currency_bitcoin_rounded,
-    'cooking':       Icons.local_dining_rounded,
-    'diy':           Icons.handyman_rounded,
-    'animals':       Icons.pets_rounded,
-    'cars':          Icons.directions_car_rounded,
-    'shopping':      Icons.shopping_bag_rounded,
-    'lifestyle':     Icons.wb_sunny_rounded,
-  };
+class _HighlightsSection extends ConsumerWidget {
+  final int userId;
+  final bool isMe;
+  const _HighlightsSection({required this.userId, required this.isMe});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(communityHighlightsProvider(userId));
+    final highlights = async.valueOrNull ?? [];
+
+    if (!isMe && highlights.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 88,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          if (isMe)
+            Padding(
+              padding: const EdgeInsets.only(right: 18),
+              child: _HighlightCircle(
+                isAdd: true,
+                onTap: () => _showCreateSheet(context, ref),
+              ),
+            ),
+          ...highlights.map((h) => Padding(
+            padding: const EdgeInsets.only(right: 18),
+            child: _HighlightCircle(
+              highlight: h,
+              onLongPress: isMe
+                  ? () => _confirmDelete(context, ref, h)
+                  : null,
+              onTap: () => _openEditSheet(context, ref, h),
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showCreateSheet(BuildContext context, WidgetRef ref) async {
+    final ctrl = TextEditingController();
+    String? localPath;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.colors.cardBg,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: ctx.colors.dividerColor, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            Text('New Highlight', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: ctx.colors.bodyText)),
+            const SizedBox(height: 20),
+            // Cover picker
+            GestureDetector(
+              onTap: () async {
+                final f = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
+                if (f != null) setS(() => localPath = f.path);
+              },
+              child: Stack(alignment: Alignment.center, children: [
+                Container(
+                  width: 80, height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: kOrange.withValues(alpha: 0.12),
+                    border: Border.all(color: kOrange, width: 2),
+                  ),
+                  child: localPath != null
+                      ? ClipOval(child: Image.file(io.File(localPath!), fit: BoxFit.cover, width: 80, height: 80))
+                      : const Icon(Icons.add_photo_alternate_rounded, color: kOrange, size: 30),
+                ),
+                if (localPath != null)
+                  Positioned(bottom: 0, right: 0,
+                    child: Container(width: 26, height: 26, decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle, border: Border.all(color: ctx.colors.cardBg, width: 2)),
+                      child: const Icon(Icons.edit_rounded, color: Colors.white, size: 12))),
+              ]),
+            ),
+            const SizedBox(height: 6),
+            Text('Tap to set cover', style: TextStyle(fontSize: 11, color: ctx.colors.subtleText)),
+            const SizedBox(height: 20),
+            TextField(
+              controller: ctrl,
+              maxLength: 20,
+              autofocus: true,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: ctx.colors.bodyText),
+              decoration: InputDecoration(
+                hintText: 'Highlight name...',
+                hintStyle: TextStyle(color: ctx.colors.mutedText),
+                filled: true, fillColor: ctx.colors.inputFill,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                counterText: '',
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14)),
+                onPressed: () async {
+                  final title = ctrl.text.trim();
+                  if (title.isEmpty) return;
+                  Navigator.pop(ctx);
+                  try {
+                    MultipartFile? mf;
+                    if (localPath != null) {
+                      final bytes = await _readBytes(localPath!);
+                      final ext = localPath!.split('.').last.toLowerCase();
+                      mf = MultipartFile.fromBytes(bytes, filename: 'cover.$ext', contentType: DioMediaType.parse(ext == 'png' ? 'image/png' : 'image/jpeg'));
+                    }
+                    await ref.read(communityRepoProvider).createHighlight(title, coverFile: mf);
+                    ref.invalidate(communityHighlightsProvider(userId));
+                  } catch (e) {
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: Colors.red));
+                  }
+                },
+                child: const Text('Add Highlight', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ]),
+        );
+      }),
+    );
+  }
+
+  Future<void> _openEditSheet(BuildContext context, WidgetRef ref, CommunityHighlight h) async {
+    if (!isMe) return;
+    final ctrl = TextEditingController(text: h.title);
+    String? localPath;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.colors.cardBg,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: ctx.colors.dividerColor, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            Text('Edit Highlight', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: ctx.colors.bodyText)),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () async {
+                final f = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
+                if (f != null) setS(() => localPath = f.path);
+              },
+              child: _HighlightCircle(highlight: h, localPath: localPath, isInteractive: false),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: ctrl,
+              maxLength: 20,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: ctx.colors.bodyText),
+              decoration: InputDecoration(
+                hintText: 'Highlight name...',
+                hintStyle: TextStyle(color: ctx.colors.mutedText),
+                filled: true, fillColor: ctx.colors.inputFill,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                counterText: '',
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14)),
+                onPressed: () async {
+                  final title = ctrl.text.trim();
+                  if (title.isEmpty) return;
+                  Navigator.pop(ctx);
+                  try {
+                    MultipartFile? mf;
+                    if (localPath != null) {
+                      final bytes = await _readBytes(localPath!);
+                      final ext = localPath!.split('.').last.toLowerCase();
+                      mf = MultipartFile.fromBytes(bytes, filename: 'cover.$ext', contentType: DioMediaType.parse(ext == 'png' ? 'image/png' : 'image/jpeg'));
+                    }
+                    await ref.read(communityRepoProvider).updateHighlight(h.id, title: title, coverFile: mf);
+                    ref.invalidate(communityHighlightsProvider(userId));
+                  } catch (e) {
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: Colors.red));
+                  }
+                },
+                child: const Text('Save', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ]),
+        );
+      }),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, CommunityHighlight h) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Highlight?'),
+        content: Text('Delete "${h.title}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ref.read(communityRepoProvider).deleteHighlight(h.id);
+      ref.invalidate(communityHighlightsProvider(userId));
+    }
+  }
+
+  static Future<List<int>> _readBytes(String path) =>
+      io.File(path).readAsBytes();
+}
+
+class _HighlightCircle extends StatelessWidget {
+  final CommunityHighlight? highlight;
+  final bool isAdd;
+  final String? localPath;
+  final bool isInteractive;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  const _HighlightCircle({
+    this.highlight,
+    this.isAdd = false,
+    this.localPath,
+    this.isInteractive = true,
+    this.onTap,
+    this.onLongPress,
+  });
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    if (isMore) {
-      return SizedBox(
-        width: 56,
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 50, height: 50,
-            decoration: BoxDecoration(color: c.inputFill, shape: BoxShape.circle, border: Border.all(color: c.borderColor, width: 1.5)),
-            child: Icon(Icons.more_horiz_rounded, size: 22, color: c.mutedText),
+    Widget circle;
+
+    if (isAdd) {
+      circle = Container(
+        width: 64, height: 64,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: c.borderColor, width: 1.5),
+          color: c.inputFill,
+        ),
+        child: Icon(Icons.add_rounded, color: c.subtleText, size: 28),
+      );
+    } else {
+      final h = highlight!;
+      final hasLocalCover = localPath != null;
+      final hasCover = h.coverImage != null || hasLocalCover;
+
+      Widget inner;
+      if (hasLocalCover) {
+        inner = _LocalFileImage(path: localPath!);
+      } else if (h.coverImage != null) {
+        inner = NetImage(url: h.coverImage!, fit: BoxFit.cover);
+      } else {
+        inner = Center(
+          child: Text(
+            h.title.isNotEmpty ? h.title[0].toUpperCase() : '?',
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white),
           ),
-          const SizedBox(height: 5),
-          Text('More', style: TextStyle(fontSize: 10, color: c.mutedText, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
-        ]),
+        );
+      }
+
+      circle = Container(
+        width: 64, height: 64,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: hasCover ? null : const LinearGradient(colors: [kOrange, Color(0xFFFF6B00)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          border: Border.all(color: kOrange.withValues(alpha: 0.6), width: 2),
+        ),
+        child: ClipOval(child: inner),
       );
     }
-    final key = label.toLowerCase();
-    final icon = _iconMap[key] ?? Icons.interests_rounded;
-    final disp = label.length > 9 ? label.substring(0, 8) : label;
-    return SizedBox(
-      width: 60,
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          width: 50, height: 50,
-          decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.1), shape: BoxShape.circle),
-          child: Icon(icon, size: 24, color: kOrange),
-        ),
-        const SizedBox(height: 5),
-        Text(disp, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: c.bodyText), overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
-      ]),
+
+    final label = isAdd ? 'New' : (highlight!.title.length > 9 ? '${highlight!.title.substring(0, 8)}...' : highlight!.title);
+
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: SizedBox(
+        width: 70,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          circle,
+          const SizedBox(height: 5),
+          Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: isAdd ? c.mutedText : c.bodyText), overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
+        ]),
+      ),
     );
   }
 }
+
+class _LocalFileImage extends StatelessWidget {
+  final String path;
+  const _LocalFileImage({required this.path});
+  @override
+  Widget build(BuildContext context) {
+    return Image.file(io.File(path), fit: BoxFit.cover, width: 64, height: 64,
+      errorBuilder: (_, __, ___) => const Icon(Icons.image_rounded, color: Colors.white));
+  }
+}
+
 
 class _EmptyTab extends StatelessWidget {
   final IconData icon;

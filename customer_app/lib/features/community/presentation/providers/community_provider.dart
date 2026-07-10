@@ -287,6 +287,10 @@ final communityGroupPostsProvider =
     FutureProvider.family<List<CommunityPost>, int>(
         (ref, groupId) { ref.cacheFor(const Duration(seconds: 30)); return _repo.getGroupPosts(groupId); });
 
+final communityHighlightsProvider =
+    FutureProvider.family.autoDispose<List<CommunityHighlight>, int>(
+        (ref, userId) => _repo.getHighlights(userId));
+
 // ── Repo accessor ──────────────────────────────────────────────────────────
 final communityRepoProvider = Provider<CommunityRepository>((ref) => _repo);
 
