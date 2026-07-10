@@ -714,8 +714,35 @@ class CommunityFeedController extends Controller
 
     public function transformUser($user, int $userId, array $followingIds = []): array
     {
-        if (!$user) return ['id' => 0, 'name' => 'Unknown', 'username' => null, 'avatar' => null, 'bio' => null, 'is_verified' => false, 'is_business' => false, 'followers_count' => 0, 'following_count' => 0, 'posts_count' => 0, 'is_following' => false, 'is_me' => false, 'cover_photo' => null, 'location' => null, 'website' => null];
+        if (!$user) return ['id' => 0, 'name' => 'Unknown', 'username' => null, 'avatar' => null, 'bio' => null, 'is_verified' => false, 'is_business' => false, 'followers_count' => 0, 'following_count' => 0, 'posts_count' => 0, 'is_following' => false, 'is_me' => false, 'cover_photo' => null, 'location' => null, 'website' => null, 'views_count' => 0, 'likes_count' => 0, 'joined_at' => null, 'is_top_creator' => false, 'badges' => [], 'interests' => []];
         $profile = $user->communityProfile;
+
+        // Aggregate post stats for profile
+        $stats = DB::table('community_posts')
+            ->where('user_id', $user->id)
+            ->where('moderation_status', 'approved')
+            ->selectRaw('SUM(views_count) as total_views, SUM(likes_count) as total_likes')
+            ->first();
+
+        // Top interests from user_interests table
+        $interests = DB::table('user_interests')
+            ->where('user_id', $user->id)
+            ->where('interest_key', 'like', 'type:%')
+            ->orderByDesc('score')
+            ->limit(5)
+            ->pluck('interest_key')
+            ->map(fn ($k) => str_replace('type:', '', $k))
+            ->toArray();
+
+        // Badges
+        $badges = [];
+        if ($profile?->is_verified)      $badges[] = 'verified';
+        if ($profile?->is_business)      $badges[] = 'business';
+        $followersCount = $profile?->followers_count ?? 0;
+        if ($followersCount >= 10000)    $badges[] = 'top_creator';
+        if ($followersCount >= 1000)     $badges[] = 'active_member';
+        if ($profile?->is_verified && $profile?->is_business) $badges[] = 'trusted_seller';
+
         return [
             'id'              => $user->id,
             'name'            => $user->name ?? 'User',
@@ -723,15 +750,22 @@ class CommunityFeedController extends Controller
             'avatar'          => $user->avatar ?? null,
             'cover_photo'     => $profile ? cdn_url($profile->getRawOriginal('cover_photo')) : null,
             'bio'             => $profile?->bio,
-            'location'        => null,
+            'location'        => $profile?->location ?? null,
             'website'         => $profile?->website,
+            'occupation'      => $profile?->occupation ?? null,
             'is_verified'     => $profile?->is_verified ?? false,
             'is_business'     => $profile?->is_business ?? false,
-            'followers_count' => $profile?->followers_count ?? 0,
+            'is_top_creator'  => $followersCount >= 10000,
+            'followers_count' => $followersCount,
             'following_count' => $profile?->following_count ?? 0,
             'posts_count'     => $profile?->posts_count ?? 0,
+            'views_count'     => (int) ($stats->total_views ?? 0),
+            'likes_count'     => (int) ($stats->total_likes ?? 0),
+            'joined_at'       => $user->created_at?->toDateString(),
             'is_following'    => in_array($user->id, $followingIds),
             'is_me'           => $user->id === $userId,
+            'badges'          => $badges,
+            'interests'       => $interests,
         ];
     }
 }

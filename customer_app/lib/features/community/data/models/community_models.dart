@@ -26,13 +26,20 @@ class CommunityUser {
   final String? bio;
   final String? location;
   final String? website;
+  final String? occupation;
   final bool isVerified;
   final bool isBusiness;
+  final bool isTopCreator;
   final int followersCount;
   final int followingCount;
   final int postsCount;
+  final int viewsCount;
+  final int likesCount;
+  final String? joinedAt;
   bool isFollowing;
   final bool isMe;
+  final List<String> badges;
+  final List<String> interests;
 
   CommunityUser({
     required this.id,
@@ -43,13 +50,20 @@ class CommunityUser {
     this.bio,
     this.location,
     this.website,
+    this.occupation,
     this.isVerified = false,
     this.isBusiness = false,
+    this.isTopCreator = false,
     this.followersCount = 0,
     this.followingCount = 0,
     this.postsCount = 0,
+    this.viewsCount = 0,
+    this.likesCount = 0,
+    this.joinedAt,
     this.isFollowing = false,
     this.isMe = false,
+    this.badges = const [],
+    this.interests = const [],
   });
 
   factory CommunityUser.fromJson(Map<String, dynamic> j) => CommunityUser(
@@ -61,13 +75,20 @@ class CommunityUser {
         bio: j['bio'] as String?,
         location: j['location'] as String?,
         website: j['website'] as String?,
+        occupation: j['occupation'] as String?,
         isVerified: j['is_verified'] as bool? ?? false,
         isBusiness: j['is_business'] as bool? ?? false,
+        isTopCreator: j['is_top_creator'] as bool? ?? false,
         followersCount: j['followers_count'] as int? ?? 0,
         followingCount: j['following_count'] as int? ?? 0,
         postsCount: j['posts_count'] as int? ?? 0,
+        viewsCount: j['views_count'] as int? ?? 0,
+        likesCount: j['likes_count'] as int? ?? 0,
+        joinedAt: j['joined_at'] as String?,
         isFollowing: j['is_following'] as bool? ?? false,
         isMe: j['is_me'] as bool? ?? false,
+        badges: (j['badges'] as List<dynamic>?)?.cast<String>() ?? [],
+        interests: (j['interests'] as List<dynamic>?)?.cast<String>() ?? [],
       );
 }
 

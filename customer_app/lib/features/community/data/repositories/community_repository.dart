@@ -533,6 +533,20 @@ class CommunityRepository {
     });
   }
 
+  // ── Settings ───────────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> getSettings() async {
+    final r = await _dio.get('/community/settings');
+    return Map<String, dynamic>.from(r.data['data'] as Map);
+  }
+
+  Future<void> updateSettings(String section, Map<String, dynamic> values) async {
+    await _dio.put('/community/settings', data: {section: values});
+  }
+
+  Future<List<dynamic>> getBlockedUsers()    async => (await _dio.get('/community/settings/blocked-users')).data['data'] as List;
+  Future<List<dynamic>> getMutedUsers()      async => (await _dio.get('/community/settings/muted-users')).data['data'] as List;
+  Future<List<dynamic>> getRestrictedUsers() async => (await _dio.get('/community/settings/restricted-users')).data['data'] as List;
+
   // ── Helper ─────────────────────────────────────────────────────────────────
   List<CommunityPost> _parsePosts(dynamic data) {
     List raw;

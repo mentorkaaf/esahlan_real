@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\Community\CommunityNotificationController;
 use App\Http\Controllers\Api\Community\CommunityReportController;
 use App\Http\Controllers\Api\Community\CommunityModerationController;
 use App\Http\Controllers\Api\Community\CopyrightController;
+use App\Http\Controllers\Api\Community\UserSettingsController;
 use App\Http\Controllers\Api\Community\CommunityBusinessPageController;
 use App\Http\Controllers\Api\Community\CommunityAdController;
 
@@ -385,6 +386,13 @@ Route::prefix('v1')->group(function () {
             Route::post('claims/{id}/counter', [CopyrightController::class, 'submitCounter']);
         });
     });
+
+        // Settings
+        Route::get('community/settings',                         [UserSettingsController::class, 'index']);
+        Route::put('community/settings',                         [UserSettingsController::class, 'update']);
+        Route::get('community/settings/blocked-users',           [UserSettingsController::class, 'blockedUsers']);
+        Route::get('community/settings/muted-users',             [UserSettingsController::class, 'mutedUsers']);
+        Route::get('community/settings/restricted-users',        [UserSettingsController::class, 'restrictedUsers']);
 
         // Auth
         Route::post('auth/logout',          [AuthController::class, 'logout']);

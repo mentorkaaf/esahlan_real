@@ -23,6 +23,8 @@ class CommunityProfileController extends Controller
             'username' => 'nullable|string|max:50|unique:community_profiles,username,'.auth()->user()->communityProfile?->id,
             'bio' => 'nullable|string|max:500',
             'website' => 'nullable|string|max:255',
+            'location' => 'nullable|string|max:100',
+            'occupation' => 'nullable|string|max:100',
             'privacy' => 'nullable|in:public,friends,private',
             'is_business' => 'boolean',
             'business_category' => 'nullable|string|max:100',
@@ -30,7 +32,7 @@ class CommunityProfileController extends Controller
         ]);
 
         $profile = CommunityProfile::firstOrCreate(['user_id'=>auth()->id()]);
-        $data = $request->only(['display_name','username','bio','website','privacy','is_business','business_category']);
+        $data = $request->only(['display_name','username','bio','website','location','occupation','privacy','is_business','business_category']);
 
         if ($request->hasFile('cover_photo')) {
             $path = $request->file('cover_photo')->store('community/covers','public');

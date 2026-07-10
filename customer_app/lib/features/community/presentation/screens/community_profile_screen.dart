@@ -15,6 +15,7 @@ import 'edit_profile_screen.dart';
 import 'ad_analytics_screen.dart';
 import 'transparency_center_screen.dart';
 import 'copyright_screen.dart';
+import 'settings_screen.dart';
 
 class CommunityProfileScreen extends ConsumerWidget {
   final int userId;
@@ -157,7 +158,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 4, vsync: this);
+    _tab = TabController(length: 6, vsync: this);
     _following = widget.user.isFollowing;
   }
 
@@ -179,9 +180,6 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
   @override
   Widget build(BuildContext context) {
     final u = widget.user;
-    final postsAsync = ref.watch(
-      communityProfilePostsProvider(u.id),
-    );
 
     return Scaffold(
       
@@ -198,6 +196,11 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   )
                 : null,
             actions: [
+              if (widget.isMe)
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined, color: Colors.white),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+                ),
               IconButton(
                 icon: const Icon(Icons.more_horiz_rounded, color: Colors.white),
                 onPressed: () => _showProfileMenu(context),
@@ -289,20 +292,33 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   ]),
                 ),
 
-                // Name + verified + username
+                // Name + badges + username + bio + location
                 Padding(
                   padding: EdgeInsets.fromLTRB(16, 0, 16, 6),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
-                      Text(u.name,
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: context.colors.bodyText)),
+                      Flexible(
+                        child: Text(u.name, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: context.colors.bodyText), overflow: TextOverflow.ellipsis),
+                      ),
                       if (u.isVerified) ...[
-                        SizedBox(width: 6),
+                        SizedBox(width: 5),
                         Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 18),
+                      ],
+                      if (u.isTopCreator) ...[
+                        SizedBox(width: 4),
+                        _Badge(label: 'Top Creator', color: kOrange),
+                      ],
+                      if (u.isBusiness) ...[
+                        SizedBox(width: 4),
+                        _Badge(label: 'Business', color: Color(0xFF3B82F6)),
                       ],
                     ]),
                     if (u.username != null)
-                      Text('@${u.username}', style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
+                      Text('@${u.username}', style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
+                    if (u.occupation != null) ...[
+                      SizedBox(height: 2),
+                      Text(u.occupation!, style: TextStyle(color: context.colors.mutedText, fontSize: 13, fontStyle: FontStyle.italic)),
+                    ],
                     if (u.bio != null && u.bio!.isNotEmpty) ...[
                       SizedBox(height: 6),
                       Text(u.bio!, style: TextStyle(color: context.colors.bodyText, fontSize: 14, height: 1.4)),
@@ -315,18 +331,40 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                         Text(u.location!, style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
                       ]),
                     ],
+                    // Interests chips
+                    if (u.interests.isNotEmpty) ...[
+                      SizedBox(height: 8),
+                      SizedBox(height: 28, child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: u.interests.length,
+                        separatorBuilder: (_, __) => SizedBox(width: 6),
+                        itemBuilder: (_, i) => Container(
+                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: kOrange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: kOrange.withValues(alpha: 0.3)),
+                          ),
+                          child: Text(u.interests[i], style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kOrange)),
+                        ),
+                      )),
+                    ],
                   ]),
                 ),
 
-                // Stats
+                // Stats row
                 Padding(
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: Row(children: [
-                    _Stat(value: '${u.postsCount}', label: 'Posts'),
-                    SizedBox(width: 24),
-                    _Stat(value: _fmt(u.followersCount), label: 'Followers'),
-                    SizedBox(width: 24),
-                    _Stat(value: _fmt(u.followingCount), label: 'Following'),
+                  padding: EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+                    _Stat(value: '${u.postsCount}',         label: 'Posts'),
+                    _StatDivider(),
+                    _Stat(value: _fmt(u.followersCount),    label: 'Followers'),
+                    _StatDivider(),
+                    _Stat(value: _fmt(u.followingCount),    label: 'Following'),
+                    _StatDivider(),
+                    _Stat(value: _fmt(u.viewsCount),        label: 'Views'),
+                    _StatDivider(),
+                    _Stat(value: _fmt(u.likesCount),        label: 'Likes'),
                   ]),
                 ),
 
@@ -345,18 +383,22 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                     ),
                   ),
 
-                // Tab bar
+                // Tab bar (6 tabs)
                 TabBar(
                   controller: _tab,
                   indicatorColor: kOrange,
                   indicatorWeight: 2.5,
                   labelColor: kOrange,
                   unselectedLabelColor: const Color(0xFF9CA3AF),
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
                   tabs: const [
-                    Tab(icon: Icon(Icons.grid_on_rounded, size: 22)),
-                    Tab(icon: Icon(Icons.photo_library_rounded, size: 22)),
-                    Tab(icon: Icon(Icons.chat_bubble_outline_rounded, size: 22)),
-                    Tab(icon: Icon(Icons.camera_alt_rounded, size: 22)),
+                    Tab(text: 'Posts'),
+                    Tab(text: 'Reels'),
+                    Tab(text: 'Photos'),
+                    Tab(text: 'Audio'),
+                    Tab(text: 'Saved'),
+                    Tab(text: 'Liked'),
                   ],
                 ),
               ]),
@@ -368,9 +410,11 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
           controller: _tab,
           children: [
             _PostsGrid(userId: u.id),
-            _PostsGrid(userId: u.id, mediaOnly: true),
-            _PostsGrid(userId: u.id, type: 'text'),
             _PostsGrid(userId: u.id, videoOnly: true),
+            _PostsGrid(userId: u.id, mediaOnly: true),
+            _PostsGrid(userId: u.id, type: 'audio'),
+            _EmptyTab(icon: Icons.bookmark_outline_rounded, label: 'No saved posts yet'),
+            _EmptyTab(icon: Icons.favorite_outline_rounded, label: 'No liked posts yet'),
           ],
         ),
       ),
@@ -382,6 +426,37 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
     return '$n';
   }
+}
+
+class _Badge extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _Badge({required this.label, required this.color});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6), border: Border.all(color: color.withValues(alpha: 0.3))),
+    child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
+  );
+}
+
+class _StatDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(width: 1, height: 28, color: context.colors.dividerColor);
+}
+
+class _EmptyTab extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _EmptyTab({required this.icon, required this.label});
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 48, color: const Color(0xFFD1D5DB)),
+      const SizedBox(height: 10),
+      Text(label, style: TextStyle(color: context.colors.mutedText)),
+    ]),
+  );
 }
 
 class _Stat extends StatelessWidget {
