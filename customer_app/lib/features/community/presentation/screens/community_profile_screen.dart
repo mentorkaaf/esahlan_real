@@ -203,133 +203,139 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
 
           // ── Profile info ────────────────────────────────────────────
           SliverToBoxAdapter(
-            child: ColoredBox(
-              color: c.cardBg,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-                // Avatar row
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // White card starts 44px below cover so avatar floats half-in
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    // Avatar overlapping cover
-                    Transform.translate(
-                      offset: const Offset(0, -28),
-                      child: GestureDetector(
-                        onTap: widget.isMe ? _pickAvatar : null,
-                        child: Stack(clipBehavior: Clip.none, children: [
-                          Container(
-                            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: c.cardBg, width: 3)),
-                            child: CircleNetImage(url: _localAvatar ?? u.avatar, size: 84, fallbackText: u.name),
-                          ),
-                          // Online dot
-                          Positioned(bottom: 4, right: 4, child: Container(width: 16, height: 16, decoration: BoxDecoration(color: const Color(0xFF22C55E), shape: BoxShape.circle, border: Border.all(color: c.cardBg, width: 2)))),
+                  padding: const EdgeInsets.only(top: 44),
+                  child: ColoredBox(
+                    color: c.cardBg,
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      // Reserve space for the avatar that floats above
+                      const SizedBox(height: 48),
+
+                      // Action buttons row (right-aligned)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                        child: Row(children: [
+                          const Spacer(),
                           if (widget.isMe)
-                            Positioned(bottom: 0, right: 0, child: Transform.translate(offset: const Offset(2, 2), child: Container(padding: const EdgeInsets.all(4), decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle, border: Border.all(color: c.cardBg, width: 1.5)), child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 11)))),
+                            _ActionBtn(label: 'Edit Profile', icon: Icons.edit_rounded, outlined: true, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfileScreen(user: u))))
+                          else ...[
+                            _ActionBtn(label: 'Message', icon: Icons.chat_bubble_rounded, outlined: true, onTap: () async {
+                              try {
+                                final chat = await ref.read(communityChatsProvider.notifier).startOrGetChat(widget.user.id);
+                                if (context.mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityChatScreen(chat: chat)));
+                              } catch (e) {
+                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: Colors.red));
+                              }
+                            }),
+                            const SizedBox(width: 8),
+                            _ActionBtn(
+                              label: _following ? 'Following' : 'Follow',
+                              icon: _following ? Icons.check_rounded : Icons.person_add_rounded,
+                              outlined: false, loading: _followLoading, onTap: _toggleFollow,
+                            ),
+                          ],
                         ]),
                       ),
-                    ),
-                    const Spacer(),
-                    // Action buttons
-                    if (widget.isMe)
-                      _ActionBtn(label: 'Edit Profile', icon: Icons.edit_rounded, outlined: true, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfileScreen(user: u))))
-                    else ...[
-                      _ActionBtn(label: 'Message', icon: Icons.chat_bubble_rounded, outlined: true, onTap: () async {
-                        try {
-                          final chat = await ref.read(communityChatsProvider.notifier).startOrGetChat(widget.user.id);
-                          if (context.mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityChatScreen(chat: chat)));
-                        } catch (e) {
-                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: Colors.red));
-                        }
-                      }),
-                      const SizedBox(width: 8),
-                      _ActionBtn(
-                        label: _following ? 'Following' : 'Follow',
-                        icon: _following ? Icons.check_rounded : Icons.person_add_rounded,
-                        outlined: false,
-                        loading: _followLoading,
-                        onTap: _toggleFollow,
+
+                      // Name + badges
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                        child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 6, children: [
+                          Text(u.name, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: c.bodyText)),
+                          if (u.isVerified) const Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 20),
+                          if (u.isTopCreator) _InlineBadge(label: 'Top Creator', filled: true),
+                          if (u.isBusiness) _InlineBadge(label: 'Business', filled: false),
+                          if (u.isVerified && !u.isTopCreator) _InlineBadge(label: 'Verified', filled: false),
+                        ]),
                       ),
-                    ],
-                    const SizedBox(width: 4),
-                  ]),
-                ),
 
-                // Name + badges
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                  child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 6, children: [
-                    Text(u.name, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: c.bodyText)),
-                    if (u.isVerified) const Icon(Icons.verified_rounded, color: Color(0xFF1877F2), size: 20),
-                    if (u.isTopCreator) _InlineBadge(label: 'Top Creator', filled: true),
-                    if (u.isBusiness) _InlineBadge(label: 'Business', filled: false),
-                    if (u.isVerified && !u.isTopCreator) _InlineBadge(label: 'Verified', filled: false),
-                  ]),
-                ),
+                      // Username
+                      if (u.username != null)
+                        Padding(padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
+                          child: Text('@${u.username}', style: TextStyle(color: c.mutedText, fontSize: 14))),
 
-                // Username
-                if (u.username != null)
-                  Padding(padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
-                    child: Text('@${u.username}', style: TextStyle(color: c.mutedText, fontSize: 14))),
+                      // Bio
+                      if (u.bio != null && u.bio!.isNotEmpty)
+                        Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                          child: Text(u.bio!, style: TextStyle(color: c.bodyText, fontSize: 14, height: 1.45))),
 
-                // Bio
-                if (u.bio != null && u.bio!.isNotEmpty)
-                  Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    child: Text(u.bio!, style: TextStyle(color: c.bodyText, fontSize: 14, height: 1.45))),
+                      // Location + website
+                      if (u.location != null || u.website != null)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                          child: Wrap(spacing: 16, runSpacing: 4, children: [
+                            if (u.location != null) _MetaChip(icon: Icons.location_on_rounded, label: u.location!),
+                            if (u.website != null) _MetaChip(icon: Icons.link_rounded, label: u.website!, isLink: true),
+                          ]),
+                        ),
 
-                // Location + website
-                if (u.location != null || u.website != null)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    child: Wrap(spacing: 16, runSpacing: 4, children: [
-                      if (u.location != null) _MetaChip(icon: Icons.location_on_rounded, label: u.location!),
-                      if (u.website != null) _MetaChip(icon: Icons.link_rounded, label: u.website!, isLink: true),
+                      // Joined date
+                      if (u.joinedAt != null)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                          child: _MetaChip(icon: Icons.calendar_today_rounded, label: 'Joined ${_fmtDate(u.joinedAt!)}'),
+                        ),
+
+                      // Stats row
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        child: Row(children: [
+                          _StatCol(value: '${u.postsCount}',      label: 'Posts'),
+                          _StatCol(value: _fmt(u.followersCount), label: 'Followers'),
+                          _StatCol(value: _fmt(u.followingCount), label: 'Following'),
+                          _StatCol(value: _fmt(u.viewsCount),     label: 'Views'),
+                          _StatCol(value: _fmt(u.likesCount),     label: 'Likes'),
+                        ]),
+                      ),
+
+                      // Highlights
+                      const SizedBox(height: 16),
+                      _HighlightsSection(userId: u.id, isMe: widget.isMe),
+                      const SizedBox(height: 12),
+
+                      // Tabs
+                      TabBar(
+                        controller: _tab,
+                        indicatorColor: kOrange,
+                        indicatorWeight: 2.5,
+                        labelColor: kOrange,
+                        unselectedLabelColor: c.mutedText,
+                        isScrollable: false,
+                        labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                        tabs: const [
+                          Tab(icon: Icon(Icons.grid_on_rounded, size: 20), text: 'Posts'),
+                          Tab(icon: Icon(Icons.play_circle_outline_rounded, size: 20), text: 'Reels'),
+                          Tab(icon: Icon(Icons.music_note_rounded, size: 20), text: 'Audio'),
+                          Tab(icon: Icon(Icons.photo_rounded, size: 20), text: 'Photos'),
+                          Tab(icon: Icon(Icons.bookmark_border_rounded, size: 20), text: 'Saved'),
+                          Tab(icon: Icon(Icons.favorite_border_rounded, size: 20), text: 'Likes'),
+                        ],
+                      ),
                     ]),
                   ),
+                ),
 
-                // Joined date
-                if (u.joinedAt != null)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-                    child: _MetaChip(icon: Icons.calendar_today_rounded, label: 'Joined ${_fmtDate(u.joinedAt!)}'),
+                // Avatar — floats at top of Stack, half over cover / half over card
+                Positioned(
+                  top: 0, left: 16,
+                  child: GestureDetector(
+                    onTap: widget.isMe ? _pickAvatar : null,
+                    child: Stack(clipBehavior: Clip.none, children: [
+                      Container(
+                        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: c.cardBg, width: 3)),
+                        child: CircleNetImage(url: _localAvatar ?? u.avatar, size: 88, fallbackText: u.name),
+                      ),
+                      Positioned(bottom: 6, right: 6, child: Container(width: 16, height: 16, decoration: BoxDecoration(color: const Color(0xFF22C55E), shape: BoxShape.circle, border: Border.all(color: c.cardBg, width: 2)))),
+                      if (widget.isMe)
+                        Positioned(bottom: 2, right: 2, child: Container(padding: const EdgeInsets.all(4), decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle, border: Border.all(color: c.cardBg, width: 1.5)), child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 11))),
+                    ]),
                   ),
-
-                // Stats row
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  child: Row(children: [
-                    _StatCol(value: '${u.postsCount}',      label: 'Posts'),
-                    _StatCol(value: _fmt(u.followersCount), label: 'Followers'),
-                    _StatCol(value: _fmt(u.followingCount), label: 'Following'),
-                    _StatCol(value: _fmt(u.viewsCount),     label: 'Views'),
-                    _StatCol(value: _fmt(u.likesCount),     label: 'Likes'),
-                  ]),
                 ),
-
-                // Highlights
-                const SizedBox(height: 16),
-                _HighlightsSection(userId: u.id, isMe: widget.isMe),
-
-                const SizedBox(height: 12),
-
-                // Tabs
-                TabBar(
-                  controller: _tab,
-                  indicatorColor: kOrange,
-                  indicatorWeight: 2.5,
-                  labelColor: kOrange,
-                  unselectedLabelColor: c.mutedText,
-                  isScrollable: false,
-                  labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                  tabs: const [
-                    Tab(icon: Icon(Icons.grid_on_rounded, size: 20), text: 'Posts'),
-                    Tab(icon: Icon(Icons.play_circle_outline_rounded, size: 20), text: 'Reels'),
-                    Tab(icon: Icon(Icons.music_note_rounded, size: 20), text: 'Audio'),
-                    Tab(icon: Icon(Icons.photo_rounded, size: 20), text: 'Photos'),
-                    Tab(icon: Icon(Icons.bookmark_border_rounded, size: 20), text: 'Saved'),
-                    Tab(icon: Icon(Icons.favorite_border_rounded, size: 20), text: 'Likes'),
-                  ],
-                ),
-              ]),
+              ],
             ),
           ),
 
@@ -646,6 +652,24 @@ class _HighlightsSection extends ConsumerWidget {
                   }
                 },
                 child: const Text('Save', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Delete button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await _confirmDelete(context, ref, h);
+                },
+                child: const Text('Delete Highlight', style: TextStyle(fontWeight: FontWeight.w700)),
               ),
             ),
           ]),
