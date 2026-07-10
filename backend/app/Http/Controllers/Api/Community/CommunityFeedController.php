@@ -728,11 +728,10 @@ class CommunityFeedController extends Controller
         // Top interests from user_interests table
         $interests = DB::table('user_interests')
             ->where('user_id', $user->id)
-            ->where('interest_key', 'like', 'type:%')
+            ->where('category', 'type')
             ->orderByDesc('score')
             ->limit(5)
-            ->pluck('interest_key')
-            ->map(fn ($k) => str_replace('type:', '', $k))
+            ->pluck('value')
             ->toArray();
 
         // Badges
