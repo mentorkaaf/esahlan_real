@@ -10,6 +10,7 @@ import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
 import 'community_shell.dart';
+import '../../../../core/widgets/restriction_dialog.dart';
 
 class CommunityChatScreen extends ConsumerStatefulWidget {
   final CommunityChat chat;
@@ -157,8 +158,10 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
         );
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send: $e'), backgroundColor: Colors.red));
+      if (mounted && !RestrictionDialog.handle(context, e)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send: $e'), backgroundColor: Colors.red));
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }

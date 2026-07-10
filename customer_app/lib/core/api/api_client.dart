@@ -3,6 +3,22 @@ import 'package:flutter/foundation.dart';
 import '../constants/app_constants.dart';
 import '../storage/local_storage.dart';
 
+/// Thrown when the API returns 403 with a restriction payload.
+class RestrictionException implements Exception {
+  final String message;
+  final String restrictionType;
+  final String? expiresAt;
+
+  const RestrictionException({
+    required this.message,
+    required this.restrictionType,
+    this.expiresAt,
+  });
+
+  @override
+  String toString() => message;
+}
+
 class ApiClient {
   static Dio? _instance;
 
@@ -53,7 +69,22 @@ class _AuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     if (err.response?.statusCode == 401) {
       await LocalStorage.deleteToken();
-      // Navigation handled by router redirect
+    }
+    if (err.response?.statusCode == 403) {
+      final data = err.response?.data;
+      if (data is Map && data['restriction'] != null) {
+        handler.reject(
+          DioException(
+            requestOptions: err.requestOptions,
+            error: RestrictionException(
+              message: data['message'] ?? 'Action not allowed.',
+              restrictionType: data['restriction'] as String,
+              expiresAt: data['expires_at'] as String?,
+            ),
+          ),
+        );
+        return;
+      }
     }
     handler.next(err);
   }

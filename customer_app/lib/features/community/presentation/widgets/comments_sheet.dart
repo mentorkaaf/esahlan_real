@@ -10,6 +10,7 @@ import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/widgets/restriction_dialog.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
@@ -146,7 +147,9 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       await _loadComments();
     } catch (e) {
       setState(() => _sending = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: Colors.red));
+      if (mounted && !RestrictionDialog.handle(context, e)) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: Colors.red));
+      }
     }
   }
 

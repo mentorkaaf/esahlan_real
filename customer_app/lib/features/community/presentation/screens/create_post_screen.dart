@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/restriction_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../data/models/community_models.dart';
@@ -108,9 +109,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       if (mounted) Navigator.pop(context, post);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
+        if (!RestrictionDialog.handle(context, e)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _posting = false);
