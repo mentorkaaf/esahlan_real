@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\AutoRestrictService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -259,10 +260,11 @@ class AdminTrustSafetyController extends Controller
         if ($request->action === 'reject') {
             $post = DB::table('community_posts')->where('id',$id)->first();
             if ($post) {
+                $severity = $post->moderation_score >= 0.9 ? 'high' : 'medium';
                 DB::table('ts_strikes')->insert([
                     'user_id'       => $post->user_id,
                     'violation_type'=> 'content_violation',
-                    'severity'      => $post->moderation_score >= 0.9 ? 'high' : 'medium',
+                    'severity'      => $severity,
                     'points'        => $post->moderation_score >= 0.9 ? 2 : 1,
                     'reason'        => $request->note ?? 'Content violated community guidelines',
                     'content_type'  => 'App\\Models\\CommunityPost',
@@ -271,6 +273,7 @@ class AdminTrustSafetyController extends Controller
                     'created_at'    => now(),
                     'updated_at'    => now(),
                 ]);
+                AutoRestrictService::evaluate($post->user_id, auth()->id(), $severity);
             }
         }
 
