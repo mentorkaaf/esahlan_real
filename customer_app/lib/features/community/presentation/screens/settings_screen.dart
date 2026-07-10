@@ -922,7 +922,7 @@ class _ContentPrefState extends ConsumerState<ContentPreferencesScreen> {
   late Map<String, dynamic> _s;
   @override void initState() { super.initState(); _s = Map.from(widget.initial); }
   bool _b(String k) => _s[k] == true || _s[k] == 1;
-  void _save(String k, dynamic v) { setState(() => _s[k] = v); CommunityRepository().saveSettings({'content.$k': v}); }
+  void _save(String k, dynamic v) { setState(() => _s[k] = v); CommunityRepository().updateSettings('content', {k: v}); }
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: context.colors.scaffoldBg, appBar: _bar(context, 'Content Preferences'),
