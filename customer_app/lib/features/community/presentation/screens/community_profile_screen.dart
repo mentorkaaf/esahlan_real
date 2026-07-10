@@ -5,11 +5,9 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../../data/models/community_models.dart';
-import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
 import 'community_chat_screen.dart';
 import 'edit_profile_screen.dart';
-import 'ad_analytics_screen.dart';
 import 'transparency_center_screen.dart';
 import 'copyright_screen.dart';
 import 'settings_screen.dart';
@@ -539,7 +537,7 @@ class _PostsGrid extends ConsumerWidget {
                   if (isVideo) const Positioned(top: 4, right: 4, child: Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 22)),
                   if (p.media.length > 1) const Positioned(top: 4, right: 4, child: Icon(Icons.collections_rounded, color: Colors.white, size: 18)),
                   if (p.moderationStatus == 'pending') Positioned.fill(child: Container(color: Colors.black54, child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.hourglass_top_rounded, color: Colors.orange, size: 22), SizedBox(height: 4), Text('Under Review', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600))]))),
-                  if (p.moderationStatus == 'blocked')  Positioned.fill(child: Container(color: Colors.black65, child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.block_rounded, color: Colors.red, size: 22), SizedBox(height: 4), Text('Removed', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600))]))),
+                  if (p.moderationStatus == 'blocked')  Positioned.fill(child: Container(color: Colors.black.withValues(alpha: 0.65), child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.block_rounded, color: Colors.red, size: 22), SizedBox(height: 4), Text('Removed', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600))]))),
                 ]),
               ),
             );
