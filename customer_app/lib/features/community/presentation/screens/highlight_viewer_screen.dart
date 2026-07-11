@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
 import '../../../../core/theme/theme_x.dart';
-import '../../../../core/widgets/net_image.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import '../../data/models/community_models.dart';
 import '../providers/community_provider.dart';
 
