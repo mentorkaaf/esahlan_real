@@ -14,25 +14,31 @@ final _videoCache = CacheManager(
   ),
 );
 
-/// Returns the local cached file path if the video is already on disk,
-/// otherwise returns the original URL so playback starts immediately.
-/// Also schedules a background download so the NEXT view is instant.
-Future<String> _resolveVideoUrl(String url) async {
+/// Checks disk cache only — no download.
+/// Returns local file path on hit, null on miss (non-blocking, 150ms timeout).
+Future<String?> _getCachedPath(String url) async {
   try {
-    final cached = await _videoCache.getFileFromCache(url);
+    final cached = await _videoCache
+        .getFileFromCache(url)
+        .timeout(const Duration(milliseconds: 150));
     if (cached != null && await cached.file.exists()) {
       debugPrint('[cache] HIT  ${url.split('/').last}');
       return cached.file.path;
     }
   } catch (_) {}
-  // Miss — kick off background cache, play from network now
-  _cacheInBackground(url);
-  debugPrint('[cache] MISS ${url.split('/').last}');
-  return url;
+  return null;
 }
 
-void _cacheInBackground(String url) {
-  _videoCache.downloadFile(url).catchError((_) {});
+/// Caches a video to disk AFTER it has been played (called from _evict).
+/// Never called while the video is actively streaming — avoids bandwidth split.
+void _cacheAfterEvict(String url) {
+  // Only cache if not already cached
+  _videoCache.getFileFromCache(url).then((existing) {
+    if (existing == null) {
+      _videoCache.downloadFile(url).catchError((_) {});
+      debugPrint('[cache] queued ${url.split('/').last}');
+    }
+  }).catchError((_) {});
 }
 
 // ── VideoPool ─────────────────────────────────────────────────────────────────
@@ -63,10 +69,9 @@ class VideoPool {
   String?      _activeUrl;
   String?      _pendingPlay;
 
-  // Fewer concurrent preloads → current video gets more bandwidth on slow networks.
-  static const _maxSlots     = 4;
-  static const _evictDist    = 5;
-  static const _preloadAhead = 2;
+  static const _maxSlots     = 6;   // more pre-loaded players
+  static const _evictDist    = 7;   // keep further videos in memory longer
+  static const _preloadAhead = 3;   // preload 3 ahead
   static const _dominant     = 0.5;
 
   // ── Public API ────────────────────────────────────────────────────────────
@@ -111,20 +116,15 @@ class VideoPool {
 
   Future<VideoController?> preload(String url) => _preload(url);
 
-  /// Cache videos to disk in the background (no Player created — just disk).
-  /// Call this for off-screen videos that should be ready instantly later.
-  static void warmDiskCache(List<String> urls) {
-    for (final url in urls) {
-      if (url.isEmpty) continue;
-      _cacheInBackground(url);
-    }
+  static Future<bool> isCached(String url) async {
+    return await _getCachedPath(url) != null;
   }
 
-  static Future<bool> isCached(String url) async {
-    try {
-      final f = await _videoCache.getFileFromCache(url);
-      return f != null && await f.file.exists();
-    } catch (_) { return false; }
+  /// Returns local cached file path if available, otherwise the original URL.
+  /// Safe to call anywhere — falls back to URL within 150ms if cache is slow.
+  static Future<String> resolveUrl(String url) async {
+    if (url.isEmpty) return url;
+    return await _getCachedPath(url) ?? url;
   }
 
   void play(String url) => _doPlay(url);
@@ -204,17 +204,22 @@ class VideoPool {
   Future<VideoController?> _doInit(String url) async {
     _makeRoom(protect: url);
     try {
-      // Resolve to local file if cached, otherwise use network URL
-      final source = await _resolveVideoUrl(url);
+      // Check disk cache first (non-blocking, 150ms timeout).
+      // If hit → use local file (instant, no network).
+      // If miss → use URL; video will be cached AFTER eviction (not during streaming).
+      final cachedPath = await _getCachedPath(url);
 
       // Was this URL evicted while we awaited the cache check?
       if (!_loading.containsKey(url)) return null;
 
+      final source = cachedPath ?? url;
+
       final player = Player(
         configuration: const PlayerConfiguration(
-          // 8 MB — enough for ~5s of 1080p. Smaller = less bandwidth fighting
-          // between concurrent preloads on slow mobile networks.
-          bufferSize: 8 * 1024 * 1024,
+          // 32 MB buffer — reduces rebuffering on slow/mobile networks.
+          // Each preloaded player gets its own buffer, so total memory for
+          // _maxSlots=6 players ≈ 6×32MB=192MB peak (not all filled at once).
+          bufferSize: 32 * 1024 * 1024,
         ),
       );
       final controller = VideoController(player);
@@ -234,7 +239,7 @@ class VideoPool {
       _players[url]     = player;
       _controllers[url] = controller;
       _loading.remove(url);
-      debugPrint('[$_id] ready ${url.split('/').last} (${source == url ? "network" : "cache"})');
+      debugPrint('[$_id] ready ${url.split('/').last} (${cachedPath != null ? "CACHE" : "network"})');
 
       if (_pendingPlay == url) {
         _pendingPlay = null;
@@ -271,6 +276,8 @@ class VideoPool {
     try { p?.dispose(); } catch (_) {}
     _fractions.remove(url);
     debugPrint('[$_id] evicted ${url.split('/').last}');
+    // Cache to disk AFTER the player is disposed so bandwidth is fully free.
+    if (url.startsWith('http')) _cacheAfterEvict(url);
   }
 
   // ── Private — playback ────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
 import '../screens/community_shell.dart';
+import '../services/video_pool.dart';
 import 'highlight_viewer_screen.dart';
 
 class StoryViewer extends StatefulWidget {
@@ -77,7 +78,14 @@ class _StoryViewerState extends State<StoryViewer> {
   }
 
   Future<void> _initVideo(String url) async {
-    final player = Player();
+    // Check disk cache (previously watched stories play instantly, no network)
+    final source = await VideoPool.resolveUrl(url);
+
+    final player = Player(
+      configuration: const PlayerConfiguration(
+        bufferSize: 32 * 1024 * 1024, // 32 MB — reduces story rebuffering
+      ),
+    );
     final ctrl = VideoController(player);
     _player = player;
     _videoCtrl = ctrl;
@@ -93,10 +101,10 @@ class _StoryViewerState extends State<StoryViewer> {
     });
 
     try {
-      await player.open(Media(url));
+      await player.open(Media(source));
       await player.setPlaylistMode(PlaylistMode.none);
       // Fallback frame reveal — short so black screen is minimal
-      Future.delayed(const Duration(milliseconds: 500), () {
+      Future.delayed(const Duration(milliseconds: 400), () {
         if (mounted && !_hasFrame && !_videoError) setState(() => _hasFrame = true);
       });
     } catch (_) {
