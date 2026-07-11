@@ -311,8 +311,11 @@ Route::prefix('v1')->group(function () {
         Route::get('profile/{userId}/followers', [CommunityProfileController::class, 'followers']);
         Route::get('profile/{userId}/following', [CommunityProfileController::class, 'following']);
 
-        // Follow
+        // Follow + Follow Requests
         Route::post('follow/{userId}', [CommunityFollowController::class, 'toggle']);
+        Route::get('follow-requests', [CommunityFollowController::class, 'requests']);
+        Route::post('follow-requests/{id}/accept', [CommunityFollowController::class, 'accept']);
+        Route::post('follow-requests/{id}/reject', [CommunityFollowController::class, 'reject']);
 
         // Stories
         Route::post('stories', [CommunityStoryController::class, 'store']);

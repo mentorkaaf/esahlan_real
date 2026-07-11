@@ -745,11 +745,14 @@ class CommunityFeedController extends Controller
         if ($profile?->is_verified && $profile?->is_business) $badges[] = 'trusted_seller';
 
         // When called from profile endpoint, $followingIds is empty — do a direct lookup
+        $isRequested = false;
         if (empty($followingIds) && $userId > 0 && $user->id !== $userId) {
-            $isFollowing = DB::table('community_follows')
+            $followRow = DB::table('community_follows')
                 ->where('follower_id', $userId)
                 ->where('following_id', $user->id)
-                ->exists();
+                ->first();
+            $isFollowing = $followRow?->status === 'accepted';
+            $isRequested = $followRow?->status === 'pending';
         } else {
             $isFollowing = in_array($user->id, $followingIds);
         }
@@ -774,6 +777,7 @@ class CommunityFeedController extends Controller
             'likes_count'     => (int) ($stats->total_likes ?? 0),
             'joined_at'       => $user->created_at?->toDateString(),
             'is_following'    => $isFollowing,
+            'is_requested'    => $isRequested,
             'is_me'           => $user->id === $userId,
             'badges'          => $badges,
             'interests'       => $interests,

@@ -44,6 +44,7 @@ class PrivacyService
         return DB::table('community_follows')
             ->where('follower_id', $viewerId)
             ->where('following_id', $targetId)
+            ->where('status', 'accepted')
             ->exists();
     }
 

@@ -4,7 +4,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
 class CommunityFollow extends Model {
-    protected $fillable = ['follower_id','following_id'];
+    protected $fillable = ['follower_id','following_id','status'];
 
     protected static function booted(): void
     {
