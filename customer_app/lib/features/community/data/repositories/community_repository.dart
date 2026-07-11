@@ -634,6 +634,26 @@ class CommunityRepository {
     await _dio.delete('/community/highlights/$id');
   }
 
+  Future<List<CommunityHighlightItem>> getHighlightItems(int highlightId) async {
+    try {
+      final r = await _dio.get('/community/highlights/$highlightId/items');
+      return (r.data['data'] as List? ?? [])
+          .map((e) => CommunityHighlightItem.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    } catch (_) { return []; }
+  }
+
+  Future<void> addToHighlight(int highlightId, {required String contentType, required int contentId}) async {
+    await _dio.post('/community/highlights/$highlightId/items', data: {
+      'content_type': contentType,
+      'content_id': contentId,
+    });
+  }
+
+  Future<void> removeFromHighlight(int highlightId, int itemId) async {
+    await _dio.delete('/community/highlights/$highlightId/items/$itemId');
+  }
+
   // ── Saved / Liked posts ────────────────────────────────────────────────────
   Future<List<CommunityPost>> getSavedPosts() async {
     try {

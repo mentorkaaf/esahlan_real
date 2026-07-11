@@ -13,6 +13,7 @@ import 'package:go_router/go_router.dart';
 import 'community_shell.dart' show kOrange;
 import 'edit_profile_screen.dart';
 import 'follow_list_screen.dart';
+import 'highlight_viewer_screen.dart';
 import 'transparency_center_screen.dart';
 import 'copyright_screen.dart';
 import 'settings_screen.dart';
@@ -631,10 +632,10 @@ class _HighlightsSection extends ConsumerWidget {
             padding: const EdgeInsets.only(right: 18),
             child: _HighlightCircle(
               highlight: h,
-              onLongPress: isMe
-                  ? () => _confirmDelete(context, ref, h)
-                  : null,
-              onTap: () => _openEditSheet(context, ref, h),
+              onLongPress: isMe ? () => _confirmDelete(context, ref, h) : null,
+              onTap: () => isMe
+                  ? _showOwnerOptions(context, ref, h)
+                  : _openViewer(context, h),
             ),
           )),
         ],
@@ -730,8 +731,42 @@ class _HighlightsSection extends ConsumerWidget {
     );
   }
 
+  void _openViewer(BuildContext context, CommunityHighlight h) {
+    context.push('/community/highlight-viewer', extra: {'highlight': h, 'initialIndex': 0});
+  }
+
+  Future<void> _showOwnerOptions(BuildContext context, WidgetRef ref, CommunityHighlight h) async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: context.colors.cardBg,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 8),
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: ctx.colors.dividerColor, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 8),
+          ListTile(
+            leading: const Icon(Icons.play_circle_outline_rounded),
+            title: const Text('View Highlight'),
+            onTap: () { Navigator.pop(ctx); _openViewer(context, h); },
+          ),
+          ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Edit Highlight'),
+            onTap: () { Navigator.pop(ctx); _openEditSheet(context, ref, h); },
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+            title: const Text('Delete Highlight', style: TextStyle(color: Colors.red)),
+            onTap: () { Navigator.pop(ctx); _confirmDelete(context, ref, h); },
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+  }
+
   Future<void> _openEditSheet(BuildContext context, WidgetRef ref, CommunityHighlight h) async {
-    if (!isMe) return;
     final ctrl = TextEditingController(text: h.title);
     String? localPath;
     await showModalBottomSheet(

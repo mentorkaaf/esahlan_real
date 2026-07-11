@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
+import '../screens/highlight_viewer_screen.dart';
+import '../providers/community_provider.dart';
 
 class PostCard extends ConsumerStatefulWidget {
   final CommunityPost post;
@@ -145,6 +147,7 @@ class _PostCardState extends ConsumerState<PostCard>
             onSelected: (v) => _handlePostMenu(v, post),
             itemBuilder: (_) => [
               const PopupMenuItem(value: 'save', child: Text('Save Post')),
+              if (post.user.isMe) const PopupMenuItem(value: 'highlight', child: Text('Add to Highlight')),
               const PopupMenuItem(value: 'share', child: Text('Share')),
               const PopupMenuItem(value: 'report', child: Text('Report')),
               if (post.user.isMe) const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
@@ -388,11 +391,23 @@ class _PostCardState extends ConsumerState<PostCard>
     switch (value) {
       case 'save': _toggleSave();
       case 'share': _sharePost(post);
-      case 'delete':
-        widget.onDelete?.call();
-      case 'report':
-        _showReportDialog(post);
+      case 'delete': widget.onDelete?.call();
+      case 'report': _showReportDialog(post);
+      case 'highlight': _showAddToHighlight(post);
     }
+  }
+
+  void _showAddToHighlight(CommunityPost post) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddToHighlightSheet(
+        userId: post.user.id,
+        contentType: 'post',
+        contentId: post.id,
+      ),
+    );
   }
 
   void _showReportDialog(CommunityPost post) {

@@ -31,6 +31,7 @@ import '../../features/community/presentation/screens/groups_screen.dart';
 import '../../features/community/presentation/screens/post_detail_screen.dart';
 import '../../features/community/data/models/community_models.dart';
 import '../../features/community/presentation/screens/follow_list_screen.dart';
+import '../../features/community/presentation/screens/highlight_viewer_screen.dart';
 
 // eLearning screens
 import '../../features/elearning/presentation/screens/elearning_screen.dart';
@@ -152,6 +153,16 @@ final routerProvider = Provider<GoRouter>((ref) {
               return FollowListScreen(
                 userId: extra['userId'] as int,
                 type: extra['type'] as String,
+              );
+            },
+          ),
+          GoRoute(
+            path: '/community/highlight-viewer',
+            builder: (_, state) {
+              final extra = state.extra as Map<String, dynamic>;
+              return HighlightViewerScreen(
+                highlight: extra['highlight'] as CommunityHighlight,
+                initialIndex: (extra['initialIndex'] as int?) ?? 0,
               );
             },
           ),

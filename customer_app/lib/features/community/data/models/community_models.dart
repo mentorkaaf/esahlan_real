@@ -6,12 +6,14 @@ class CommunityHighlight {
   final String title;
   final String? coverImage;
   final int sortOrder;
+  final int itemsCount;
 
   const CommunityHighlight({
     required this.id,
     required this.title,
     this.coverImage,
     this.sortOrder = 0,
+    this.itemsCount = 0,
   });
 
   factory CommunityHighlight.fromJson(Map<String, dynamic> j) =>
@@ -20,6 +22,51 @@ class CommunityHighlight {
         title:      j['title'] as String,
         coverImage: _fixUrlNullable(j['cover_image'] as String?),
         sortOrder:  (j['sort_order'] as num?)?.toInt() ?? 0,
+        itemsCount: (j['items_count'] as num?)?.toInt() ?? 0,
+      );
+}
+
+// ── Highlight Item ─────────────────────────────────────────────────────────
+class CommunityHighlightItem {
+  final int itemId;
+  final String contentType; // 'post' | 'story'
+  final int contentId;
+  final String postType;    // 'post', 'reel', 'video', 'story'
+  final String? thumbnailUrl;
+  final String? mediaUrl;
+  final String? hlsUrl;
+  final bool isVideo;
+  final String? caption;
+  final int likesCount;
+  final Map<String, dynamic> user;
+
+  const CommunityHighlightItem({
+    required this.itemId,
+    required this.contentType,
+    required this.contentId,
+    required this.postType,
+    this.thumbnailUrl,
+    this.mediaUrl,
+    this.hlsUrl,
+    this.isVideo = false,
+    this.caption,
+    this.likesCount = 0,
+    this.user = const {},
+  });
+
+  factory CommunityHighlightItem.fromJson(Map<String, dynamic> j) =>
+      CommunityHighlightItem(
+        itemId:       (j['item_id'] as num).toInt(),
+        contentType:  j['content_type'] as String,
+        contentId:    (j['content_id'] as num).toInt(),
+        postType:     j['post_type'] as String? ?? 'post',
+        thumbnailUrl: _fixUrlNullable(j['thumbnail_url'] as String?),
+        mediaUrl:     _fixUrlNullable(j['media_url'] as String?),
+        hlsUrl:       _fixUrlNullable(j['hls_url'] as String?),
+        isVideo:      j['is_video'] as bool? ?? false,
+        caption:      j['caption'] as String?,
+        likesCount:   (j['likes_count'] as num?)?.toInt() ?? 0,
+        user:         Map<String, dynamic>.from(j['user'] as Map? ?? {}),
       );
 }
 
