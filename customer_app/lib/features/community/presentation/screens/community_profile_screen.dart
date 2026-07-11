@@ -404,19 +404,15 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                         child: Row(children: [
-                          _StatCol(value: '${u.postsCount}',      label: 'Posts'),
-                          GestureDetector(
+                          _StatCol(value: '${u.postsCount}', label: 'Posts'),
+                          _StatCol(value: _fmt(u.followersCount), label: 'Followers',
                             onTap: () => context.push('/community/follow-list',
-                                extra: {'userId': u.id, 'type': 'followers'}),
-                            child: _StatCol(value: _fmt(u.followersCount), label: 'Followers'),
-                          ),
-                          GestureDetector(
+                                extra: {'userId': u.id, 'type': 'followers'})),
+                          _StatCol(value: _fmt(u.followingCount), label: 'Following',
                             onTap: () => context.push('/community/follow-list',
-                                extra: {'userId': u.id, 'type': 'following'}),
-                            child: _StatCol(value: _fmt(u.followingCount), label: 'Following'),
-                          ),
-                          _StatCol(value: _fmt(u.viewsCount),     label: 'Views'),
-                          _StatCol(value: _fmt(u.likesCount),     label: 'Likes'),
+                                extra: {'userId': u.id, 'type': 'following'})),
+                          _StatCol(value: _fmt(u.viewsCount), label: 'Views'),
+                          _StatCol(value: _fmt(u.likesCount), label: 'Likes'),
                         ]),
                       ),
 
@@ -564,15 +560,20 @@ class _MetaChip extends StatelessWidget {
 
 class _StatCol extends StatelessWidget {
   final String value, label;
-  const _StatCol({required this.value, required this.label});
+  final VoidCallback? onTap;
+  const _StatCol({required this.value, required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) => Expanded(
-    child: Column(children: [
-      Text(value, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.bodyText)),
-      const SizedBox(height: 2),
-      Text(label, style: TextStyle(fontSize: 11, color: context.colors.mutedText)),
-    ]),
+    child: GestureDetector(
+      onTap: onTap,
+      child: Column(children: [
+        Text(value, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800,
+            color: onTap != null ? kOrange : context.colors.bodyText)),
+        const SizedBox(height: 2),
+        Text(label, style: TextStyle(fontSize: 11, color: context.colors.mutedText)),
+      ]),
+    ),
   );
 }
 
