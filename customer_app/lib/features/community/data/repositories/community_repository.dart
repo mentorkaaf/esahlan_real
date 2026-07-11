@@ -585,9 +585,31 @@ class CommunityRepository {
 
   Future<Map<String, dynamic>> getWalletInfo() async {
     try {
-      final r = await _dio.get('/wallet/balance');
-      return Map<String, dynamic>.from(r.data['data'] as Map? ?? {});
+      final r = await _dio.get('/wallet');
+      final d = Map<String, dynamic>.from(r.data['data'] as Map? ?? {});
+      final balance = (d['balance'] as num?)?.toDouble() ?? 0.0;
+      final currency = d['currency'] as String? ?? 'USD';
+      d['balance_formatted'] = '$currency ${balance.toStringAsFixed(2)}';
+      return d;
     } catch (_) { return {}; }
+  }
+
+  Future<List<Map<String, dynamic>>> getWalletTransactions({int page = 1}) async {
+    try {
+      final r = await _dio.get('/wallet/transactions', queryParameters: {'page': page});
+      final list = r.data['data']['data'] as List? ?? [];
+      return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } catch (_) { return []; }
+  }
+
+  Future<Map<String, dynamic>> depositWallet(String phone, double amount) async {
+    final r = await _dio.post('/wallet/topup', data: {'phone': phone, 'amount': amount});
+    return Map<String, dynamic>.from(r.data as Map);
+  }
+
+  Future<Map<String, dynamic>> withdrawWallet(double amount) async {
+    final r = await _dio.post('/wallet/withdraw', data: {'amount': amount});
+    return Map<String, dynamic>.from(r.data as Map);
   }
 
   Future<Map<String, dynamic>> getCreatorStats() async {

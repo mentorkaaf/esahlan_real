@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/providers/app_settings_provider.dart';
 import '../../data/repositories/community_repository.dart';
 import 'transparency_center_screen.dart';
 import 'edit_profile_screen.dart';
+import 'ad_analytics_screen.dart';
 import '../../data/models/community_models.dart';
 
 const _kOrange = Color(0xFFFF8A00);
@@ -73,7 +76,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       'business'      => const BusinessSettingsScreen(),
       'accessibility' => AccessibilitySettingsScreen(initial: _section(settings, 'accessibility')),
       'ai'            => AiSettingsScreen(initial: _section(settings, 'ai_features')),
-      'safety'        => const CommunitySafetySettingsScreen(),
+      'safety'        => CommunitySafetySettingsScreen(initial: _section(settings, 'safety')),
       'help'          => const HelpSettingsScreen(),
       'about'         => const AboutSettingsScreen(),
       _               => null,
@@ -200,18 +203,18 @@ class _Toggle extends StatelessWidget {
 
 class _Nav extends StatelessWidget {
   final IconData icon; final Color iconColor; final String label;
-  final String? trailing; final VoidCallback? onTap; final Widget? trailingWidget;
-  const _Nav({required this.icon, required this.iconColor, required this.label, this.trailing, this.onTap, this.trailingWidget});
+  final String? trailing; final String? subtitle; final VoidCallback? onTap; final Widget? trailingWidget;
+  const _Nav({required this.icon, required this.iconColor, required this.label, this.trailing, this.subtitle, this.onTap, this.trailingWidget});
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     return ListTile(
       leading: Container(width: 36, height: 36, decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: iconColor, size: 18)),
       title: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: c.bodyText)),
+      subtitle: subtitle != null ? Text(subtitle!, style: TextStyle(fontSize: 11, color: c.subtleText)) : null,
       trailing: trailingWidget ?? Row(mainAxisSize: MainAxisSize.min, children: [
         if (trailing != null) Text(trailing!, style: TextStyle(fontSize: 12, color: c.subtleText)),
-        const SizedBox(width: 4),
-        Icon(Icons.chevron_right_rounded, color: c.subtleText, size: 18),
+        if (onTap != null) ...[const SizedBox(width: 4), Icon(Icons.chevron_right_rounded, color: c.subtleText, size: 18)],
       ]),
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -400,8 +403,10 @@ class SecuritySettingsScreen extends ConsumerWidget {
           _Nav(icon: Icons.verified_outlined, iconColor: const Color(0xFF10B981), label: 'Trusted Devices', trailing: info != null ? '${info['trusted_devices']}' : null, onTap: () {}),
         ]),
         _group(title: 'ACCOUNT', context: context, children: [
-          _Nav(icon: Icons.vpn_key_outlined, iconColor: const Color(0xFFF59E0B), label: 'Recovery Codes', onTap: () {}),
-          _Toggle(icon: Icons.notifications_active_outlined, iconColor: const Color(0xFF06B6D4), label: 'Security Alerts', value: true, onChanged: (_) {}),
+          _Toggle(icon: Icons.notifications_active_outlined, iconColor: const Color(0xFF06B6D4), label: 'Security Alerts',
+            subtitle: 'Get notified about suspicious activity',
+            value: info?['security_alerts'] as bool? ?? true,
+            onChanged: (v) => CommunityRepository().updateSettings('security', {'security_alerts': v}).catchError((_) {})),
         ]),
         const SizedBox(height: 16),
         Material(color: const Color(0xFFEF4444).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(16), child: ListTile(
@@ -627,65 +632,82 @@ class _MsgState extends ConsumerState<MessageSettingsScreen> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// WALLET  — real data from backend
+// WALLET — real data from backend
 // ══════════════════════════════════════════════════════════════════════════
 final _walletProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  try {
-    return await CommunityRepository().getWalletInfo();
-  } catch (_) {
-    return {};
-  }
+  try { return await CommunityRepository().getWalletInfo(); } catch (_) { return {}; }
 });
 
-class WalletSettingsScreen extends ConsumerWidget {
+final _walletTxProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  try { return await CommunityRepository().getWalletTransactions(); } catch (_) { return []; }
+});
+
+class WalletSettingsScreen extends ConsumerStatefulWidget {
   const WalletSettingsScreen({super.key});
+  @override ConsumerState<WalletSettingsScreen> createState() => _WalletState();
+}
+class _WalletState extends ConsumerState<WalletSettingsScreen> {
+  void _deposit() => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: context.colors.cardBg,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    builder: (ctx) => _DepositSheet(onDone: () { ref.invalidate(_walletProvider); }));
+
+  void _withdraw() => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: context.colors.cardBg,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    builder: (ctx) => _WithdrawSheet(onDone: () { ref.invalidate(_walletProvider); }));
+
+  void _history() => Navigator.push(context, MaterialPageRoute(builder: (_) => const _WalletHistoryScreen()));
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final c = context.colors;
     final walletAsync = ref.watch(_walletProvider);
-    final wallet = walletAsync.valueOrNull;
+    final txAsync = ref.watch(_walletTxProvider);
+    final wallet = walletAsync.valueOrNull ?? {};
+    final txs = txAsync.valueOrNull ?? [];
 
     return Scaffold(
       backgroundColor: c.scaffoldBg,
       appBar: _bar(context, 'Wallet'),
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        // Balance card
         Container(
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF0F1F3D), Color(0xFF1E3A6E)], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(20)),
+          decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF0F1F3D), Color(0xFF1E3A6E)], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.all(Radius.circular(20))),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('Total Balance', style: TextStyle(color: Colors.white60, fontSize: 13)),
             const SizedBox(height: 6),
             walletAsync.isLoading
                 ? const SizedBox(height: 40, child: Center(child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)))
-                : Text(
-                    wallet?['balance_formatted'] ?? '\$0.00',
-                    style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800),
-                  ),
-            Text(wallet?['currency'] ?? 'USD', style: const TextStyle(color: Colors.white60, fontSize: 12)),
+                : Text(wallet['balance_formatted'] ?? '${wallet['currency'] ?? 'USD'} 0.00',
+                    style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)),
+            if (wallet['loyalty_points'] != null)
+              Text('${wallet['loyalty_points']} loyalty points', style: const TextStyle(color: Colors.white60, fontSize: 11)),
             const SizedBox(height: 20),
             Row(children: [
-              _WBtn(label: 'Deposit', icon: Icons.add_rounded),
+              _WBtn(label: 'Deposit', icon: Icons.add_rounded, onTap: _deposit),
               const SizedBox(width: 8),
-              _WBtn(label: 'Withdraw', icon: Icons.arrow_upward_rounded, outlined: true),
+              _WBtn(label: 'Withdraw', icon: Icons.arrow_upward_rounded, outlined: true, onTap: _withdraw),
               const SizedBox(width: 8),
-              _WBtn(label: 'History', icon: Icons.history_rounded, outlined: true),
+              _WBtn(label: 'History', icon: Icons.history_rounded, outlined: true, onTap: _history),
             ]),
           ]),
         ),
-        // Recent transactions
-        if (wallet?['recent_transactions'] != null && (wallet!['recent_transactions'] as List).isNotEmpty) ...[
+        if (txs.isNotEmpty) ...[
           Padding(padding: const EdgeInsets.fromLTRB(4, 20, 4, 8), child: Text('RECENT TRANSACTIONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c.subtleText, letterSpacing: .6))),
           Material(color: c.cardBg, borderRadius: BorderRadius.circular(16), child: Column(children: [
-            for (final tx in (wallet['recent_transactions'] as List).cast<Map>())
-              _TxTile(tx: Map<String, dynamic>.from(tx)),
+            for (int i = 0; i < txs.take(5).length; i++) ...[
+              _TxTile(tx: txs[i]),
+              if (i < txs.take(5).length - 1) Divider(height: 1, indent: 56, color: c.dividerColor),
+            ],
           ])),
+          const SizedBox(height: 8),
+          TextButton(onPressed: _history, child: const Text('View all transactions', style: TextStyle(color: _kOrange))),
         ],
         _group(title: 'QUICK ACCESS', context: context, children: [
-          _Nav(icon: Icons.credit_card_rounded, iconColor: const Color(0xFF3B82F6), label: 'Cards', onTap: () {}),
-          _Nav(icon: Icons.account_balance_outlined, iconColor: const Color(0xFF10B981), label: 'Bank Accounts', onTap: () {}),
-          _Nav(icon: Icons.receipt_long_outlined, iconColor: const Color(0xFFF59E0B), label: 'Transactions', onTap: () {}),
-          _Nav(icon: Icons.payment_rounded, iconColor: const Color(0xFF8B5CF6), label: 'Payment Methods', onTap: () {}),
+          _Nav(icon: Icons.add_circle_outline_rounded, iconColor: const Color(0xFF10B981), label: 'Deposit', onTap: _deposit),
+          _Nav(icon: Icons.arrow_circle_up_outlined,   iconColor: const Color(0xFFEF4444), label: 'Withdraw', onTap: _withdraw),
+          _Nav(icon: Icons.receipt_long_outlined,      iconColor: const Color(0xFFF59E0B), label: 'All Transactions', onTap: _history),
+          _Nav(icon: Icons.loyalty_outlined,           iconColor: const Color(0xFF8B5CF6), label: 'Loyalty Points',
+            trailing: wallet['loyalty_points']?.toString(), onTap: null),
         ]),
       ]),
     );
@@ -693,13 +715,16 @@ class WalletSettingsScreen extends ConsumerWidget {
 }
 
 class _WBtn extends StatelessWidget {
-  final String label; final IconData icon; final bool outlined;
-  const _WBtn({required this.label, required this.icon, this.outlined = false});
+  final String label; final IconData icon; final bool outlined; final VoidCallback? onTap;
+  const _WBtn({required this.label, required this.icon, this.outlined = false, this.onTap});
   @override
-  Widget build(BuildContext context) => Expanded(child: Container(
-    padding: const EdgeInsets.symmetric(vertical: 10),
-    decoration: BoxDecoration(color: outlined ? Colors.transparent : _kOrange, border: outlined ? Border.all(color: Colors.white38) : null, borderRadius: BorderRadius.circular(12)),
-    child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icon, color: Colors.white, size: 18), const SizedBox(height: 4), Text(label, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600))]),
+  Widget build(BuildContext context) => Expanded(child: GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(color: outlined ? Colors.transparent : _kOrange, border: outlined ? Border.all(color: Colors.white38) : null, borderRadius: BorderRadius.circular(12)),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icon, color: Colors.white, size: 18), const SizedBox(height: 4), Text(label, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600))]),
+    ),
   ));
 }
 
@@ -710,14 +735,157 @@ class _TxTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final isCredit = (tx['type'] ?? '') == 'credit';
-    final amount = tx['amount_formatted'] ?? '';
+    final amount = (tx['amount'] as num?)?.toStringAsFixed(2) ?? '0.00';
+    final note = tx['note'] as String? ?? tx['description'] as String? ?? '';
+    final date = tx['created_at'] as String? ?? '';
     return ListTile(
-      leading: Container(width: 40, height: 40, decoration: BoxDecoration(color: (isCredit ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+      leading: Container(width: 40, height: 40,
+        decoration: BoxDecoration(color: (isCredit ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
         child: Icon(isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded, color: isCredit ? const Color(0xFF10B981) : const Color(0xFFEF4444), size: 18)),
-      title: Text(tx['description'] ?? '', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.bodyText)),
-      subtitle: Text(tx['date'] ?? '', style: TextStyle(fontSize: 11, color: c.subtleText)),
-      trailing: Text(isCredit ? '+$amount' : '-$amount', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: isCredit ? const Color(0xFF10B981) : const Color(0xFFEF4444))),
+      title: Text(note.isNotEmpty ? note : (isCredit ? 'Credit' : 'Debit'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.bodyText), maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(date.length > 10 ? date.substring(0, 10) : date, style: TextStyle(fontSize: 11, color: c.subtleText)),
+      trailing: Text(isCredit ? '+\$$amount' : '-\$$amount', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: isCredit ? const Color(0xFF10B981) : const Color(0xFFEF4444))),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    );
+  }
+}
+
+// Deposit sheet
+class _DepositSheet extends ConsumerStatefulWidget {
+  final VoidCallback onDone;
+  const _DepositSheet({required this.onDone});
+  @override ConsumerState<_DepositSheet> createState() => _DepositSheetState();
+}
+class _DepositSheetState extends ConsumerState<_DepositSheet> {
+  final _phone = TextEditingController();
+  final _amount = TextEditingController();
+  bool _loading = false;
+  String? _error;
+
+  @override void dispose() { _phone.dispose(); _amount.dispose(); super.dispose(); }
+
+  Future<void> _submit() async {
+    final phone = _phone.text.trim();
+    final amount = double.tryParse(_amount.text.trim());
+    if (phone.isEmpty || amount == null || amount <= 0) { setState(() => _error = 'Enter valid phone and amount'); return; }
+    setState(() { _loading = true; _error = null; });
+    try {
+      final res = await CommunityRepository().depositWallet(phone, amount);
+      if (!mounted) return;
+      Navigator.pop(context);
+      widget.onDone();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? 'Deposit initiated'), backgroundColor: const Color(0xFF10B981)));
+    } catch (e) {
+      setState(() { _loading = false; _error = e.toString(); });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, bottom + 24),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Deposit to Wallet', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: c.bodyText)),
+        const SizedBox(height: 20),
+        TextField(controller: _phone, decoration: InputDecoration(labelText: 'Phone Number', prefixIcon: const Icon(Icons.phone_outlined), hintText: '61XXXXXXX'),
+          keyboardType: TextInputType.phone, style: TextStyle(color: c.bodyText)),
+        const SizedBox(height: 12),
+        TextField(controller: _amount, decoration: const InputDecoration(labelText: 'Amount (USD)', prefixIcon: Icon(Icons.attach_money_rounded)),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true), style: TextStyle(color: c.bodyText)),
+        if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12))),
+        const SizedBox(height: 20),
+        SizedBox(width: double.infinity, child: ElevatedButton(
+          onPressed: _loading ? null : _submit,
+          child: _loading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Deposit via Waafi Pay'),
+        )),
+      ]),
+    );
+  }
+}
+
+// Withdraw sheet
+class _WithdrawSheet extends ConsumerStatefulWidget {
+  final VoidCallback onDone;
+  const _WithdrawSheet({required this.onDone});
+  @override ConsumerState<_WithdrawSheet> createState() => _WithdrawSheetState();
+}
+class _WithdrawSheetState extends ConsumerState<_WithdrawSheet> {
+  final _amount = TextEditingController();
+  bool _loading = false;
+  String? _error;
+  @override void dispose() { _amount.dispose(); super.dispose(); }
+
+  Future<void> _submit() async {
+    final amount = double.tryParse(_amount.text.trim());
+    if (amount == null || amount <= 0) { setState(() => _error = 'Enter valid amount'); return; }
+    setState(() { _loading = true; _error = null; });
+    try {
+      final res = await CommunityRepository().withdrawWallet(amount);
+      if (!mounted) return;
+      Navigator.pop(context);
+      widget.onDone();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? 'Withdrawal requested'), backgroundColor: const Color(0xFF10B981)));
+    } catch (e) {
+      setState(() { _loading = false; _error = e.toString(); });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Withdraw from Wallet', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: c.bodyText)),
+        const SizedBox(height: 20),
+        TextField(controller: _amount, decoration: const InputDecoration(labelText: 'Amount (USD)', prefixIcon: Icon(Icons.attach_money_rounded)),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true), style: TextStyle(color: c.bodyText)),
+        if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12))),
+        const SizedBox(height: 20),
+        SizedBox(width: double.infinity, child: ElevatedButton(
+          onPressed: _loading ? null : _submit,
+          child: _loading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Request Withdrawal'),
+        )),
+      ]),
+    );
+  }
+}
+
+// Wallet history full screen
+class _WalletHistoryScreen extends ConsumerStatefulWidget {
+  const _WalletHistoryScreen();
+  @override ConsumerState<_WalletHistoryScreen> createState() => _WalletHistoryState();
+}
+class _WalletHistoryState extends ConsumerState<_WalletHistoryScreen> {
+  late Future<List<Map<String, dynamic>>> _future;
+  @override void initState() { super.initState(); _future = CommunityRepository().getWalletTransactions(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Scaffold(
+      backgroundColor: c.scaffoldBg,
+      appBar: _bar(context, 'Transaction History'),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _future,
+        builder: (ctx, snap) {
+          if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _kOrange));
+          final txs = snap.data ?? [];
+          if (txs.isEmpty) return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.receipt_long_outlined, size: 56, color: c.subtleText),
+            const SizedBox(height: 12),
+            Text('No transactions yet', style: TextStyle(color: c.subtleText)),
+          ]));
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: txs.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 4),
+            itemBuilder: (_, i) => Material(color: c.cardBg, borderRadius: BorderRadius.circular(12), child: _TxTile(tx: txs[i])),
+          );
+        },
+      ),
     );
   }
 }
@@ -774,14 +942,13 @@ class CreatorStudioSettingsScreen extends ConsumerWidget {
           ]),
         ),
         _group(title: 'TOOLS', context: context, children: [
-          _Nav(icon: Icons.dashboard_outlined,     iconColor: const Color(0xFF3B82F6), label: 'Dashboard',      onTap: () {}),
-          _Nav(icon: Icons.analytics_outlined,     iconColor: const Color(0xFF8B5CF6), label: 'Analytics',      onTap: () {}),
-          _Nav(icon: Icons.attach_money_rounded,   iconColor: const Color(0xFF10B981), label: 'Earnings',       onTap: () {}),
-          _Nav(icon: Icons.monetization_on_outlined,iconColor: const Color(0xFFF59E0B),label: 'Monetization',   onTap: () {}),
-          _Nav(icon: Icons.group_outlined,         iconColor: const Color(0xFF06B6D4), label: 'Subscribers',    onTap: () {}),
-          _Nav(icon: Icons.build_outlined,         iconColor: const Color(0xFF6B7280), label: 'Creator Tools',  onTap: () {}),
-          _Nav(icon: Icons.school_outlined,        iconColor: const Color(0xFF8B5CF6), label: 'Creator Academy',onTap: () {}),
-          _Nav(icon: Icons.verified_outlined,      iconColor: _kOrange,               label: 'Verification',
+          _Nav(icon: Icons.analytics_outlined,      iconColor: const Color(0xFF8B5CF6), label: 'Ad Analytics',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdAnalyticsScreen()))),
+          _Nav(icon: Icons.attach_money_rounded,    iconColor: const Color(0xFF10B981), label: 'Earnings',       trailing: 'Coming Soon', onTap: null),
+          _Nav(icon: Icons.monetization_on_outlined,iconColor: const Color(0xFFF59E0B), label: 'Monetization',   trailing: 'Coming Soon', onTap: null),
+          _Nav(icon: Icons.group_outlined,          iconColor: const Color(0xFF06B6D4), label: 'Subscribers',
+            trailing: stats != null ? '${stats['followers_count']}' : null, onTap: null),
+          _Nav(icon: Icons.verified_outlined,       iconColor: _kOrange,               label: 'Verification',
             trailingWidget: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: _kOrange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: _kOrange)), child: const Text('Verified', style: TextStyle(color: _kOrange, fontSize: 11, fontWeight: FontWeight.w700)))),
         ]),
       ]),
@@ -858,21 +1025,126 @@ class _AiState extends ConsumerState<AiSettingsScreen> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// COMMUNITY SAFETY
+// COMMUNITY SAFETY — full implementation
 // ══════════════════════════════════════════════════════════════════════════
-class CommunitySafetySettingsScreen extends StatelessWidget {
-  const CommunitySafetySettingsScreen({super.key});
-  @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: context.colors.scaffoldBg, appBar: _bar(context, 'Community Safety'),
-    body: ListView(padding: const EdgeInsets.all(16), children: [_group(context: context, children: [
-      _Nav(icon: Icons.filter_alt_outlined,    iconColor: const Color(0xFF10B981), label: 'Hidden Words',      onTap: () {}),
-      _Nav(icon: Icons.comment_outlined,       iconColor: const Color(0xFF3B82F6), label: 'Comment Filter',    onTap: () {}),
-      _Nav(icon: Icons.warning_amber_rounded,  iconColor: const Color(0xFFF59E0B), label: 'Sensitive Content', trailing: 'Standard', onTap: () {}),
-      _Nav(icon: Icons.history_rounded,        iconColor: const Color(0xFF8B5CF6), label: 'Report History',    onTap: () {}),
-      _Nav(icon: Icons.security_rounded,       iconColor: const Color(0xFF10B981), label: 'Safety Center', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransparencyCenter()))),
-      _Nav(icon: Icons.family_restroom_rounded,iconColor: const Color(0xFF06B6D4), label: 'Parental Controls', onTap: () {}),
-    ])]),
-  );
+class CommunitySafetySettingsScreen extends ConsumerStatefulWidget {
+  final Map<String, dynamic> initial;
+  const CommunitySafetySettingsScreen({super.key, required this.initial});
+  @override ConsumerState<CommunitySafetySettingsScreen> createState() => _SafetyState();
+}
+class _SafetyState extends ConsumerState<CommunitySafetySettingsScreen> {
+  late Map<String, dynamic> _s;
+  @override void initState() { super.initState(); _s = Map.from(widget.initial); }
+  Future<void> _save(String k, dynamic v) async {
+    setState(() => _s[k] = v);
+    try { await CommunityRepository().updateSettings('safety', {k: v}); } catch (_) {}
+  }
+  bool _b(String k) => _s[k] == true || _s[k] == 1;
+  String _str(String k, [String d = '']) => _s[k] as String? ?? d;
+  List<String> _words() => (_s['hidden_words'] as List?)?.cast<String>() ?? [];
+
+  void _editSensitive() => showModalBottomSheet(
+    context: context, backgroundColor: context.colors.cardBg,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    builder: (ctx) {
+      final c = context.colors;
+      return Padding(padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).padding.bottom + 20), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Sensitive Content', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: c.bodyText)),
+        const SizedBox(height: 8),
+        Text('Control what kind of sensitive content appears in your feed.', style: TextStyle(fontSize: 12, color: c.subtleText)),
+        const SizedBox(height: 16),
+        for (final opt in [('Off', 'off', 'No sensitive content filtering'), ('Standard', 'standard', 'Filter most sensitive content'), ('Strict', 'strict', 'Strictly filter sensitive content')])
+          ListTile(
+            title: Text(opt.$1, style: TextStyle(color: c.bodyText, fontWeight: FontWeight.w600)),
+            subtitle: Text(opt.$3, style: TextStyle(color: c.subtleText, fontSize: 11)),
+            trailing: _str('sensitive_content', 'standard') == opt.$2 ? const Icon(Icons.check_circle_rounded, color: _kOrange) : null,
+            onTap: () { Navigator.pop(ctx); _save('sensitive_content', opt.$2); },
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+      ]));
+    });
+
+  @override
+  Widget build(BuildContext context) {
+    final words = _words();
+    final sensitive = _str('sensitive_content', 'standard');
+    final sensitiveLabel = switch (sensitive) { 'off' => 'Off', 'strict' => 'Strict', _ => 'Standard' };
+
+    return Scaffold(
+      backgroundColor: context.colors.scaffoldBg, appBar: _bar(context, 'Community Safety'),
+      body: ListView(padding: const EdgeInsets.all(16), children: [
+        _group(context: context, children: [
+          _Toggle(icon: Icons.comment_outlined, iconColor: const Color(0xFF3B82F6), label: 'Comment Filter',
+            subtitle: 'Filter offensive comments on your posts', value: _b('comment_filter'), onChanged: (v) => _save('comment_filter', v)),
+          _Nav(icon: Icons.warning_amber_rounded, iconColor: const Color(0xFFF59E0B), label: 'Sensitive Content',
+            trailing: sensitiveLabel, onTap: _editSensitive),
+          _Nav(icon: Icons.filter_alt_outlined, iconColor: const Color(0xFF10B981), label: 'Hidden Words',
+            trailing: words.isEmpty ? null : '${words.length}',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _HiddenWordsScreen(words: words, onSave: (w) => _save('hidden_words', w))))),
+          _Nav(icon: Icons.security_rounded, iconColor: const Color(0xFF10B981), label: 'Safety Center',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransparencyCenter()))),
+        ]),
+      ]),
+    );
+  }
+}
+
+// Hidden words screen
+class _HiddenWordsScreen extends StatefulWidget {
+  final List<String> words;
+  final ValueChanged<List<String>> onSave;
+  const _HiddenWordsScreen({required this.words, required this.onSave});
+  @override State<_HiddenWordsScreen> createState() => _HiddenWordsState();
+}
+class _HiddenWordsState extends State<_HiddenWordsScreen> {
+  late List<String> _words;
+  final _ctrl = TextEditingController();
+  @override void initState() { super.initState(); _words = List.from(widget.words); }
+  @override void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  void _add() {
+    final w = _ctrl.text.trim().toLowerCase();
+    if (w.isEmpty || _words.contains(w)) return;
+    setState(() => _words.add(w));
+    _ctrl.clear();
+    widget.onSave(_words);
+  }
+
+  void _remove(String w) {
+    setState(() => _words.remove(w));
+    widget.onSave(_words);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Scaffold(
+      backgroundColor: c.scaffoldBg, appBar: _bar(context, 'Hidden Words'),
+      body: Column(children: [
+        Padding(padding: const EdgeInsets.all(16), child: Row(children: [
+          Expanded(child: TextField(controller: _ctrl, decoration: const InputDecoration(hintText: 'Add a word or phrase...', prefixIcon: Icon(Icons.add_rounded)),
+            onSubmitted: (_) => _add(), style: TextStyle(color: c.bodyText))),
+          const SizedBox(width: 10),
+          ElevatedButton(onPressed: _add, style: ElevatedButton.styleFrom(minimumSize: const Size(60, 48)), child: const Text('Add')),
+        ])),
+        Expanded(child: _words.isEmpty
+          ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.filter_alt_outlined, size: 48, color: c.subtleText),
+              const SizedBox(height: 12),
+              Text('No hidden words yet', style: TextStyle(color: c.subtleText)),
+            ]))
+          : ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              itemCount: _words.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 4),
+              itemBuilder: (_, i) => Material(color: c.cardBg, borderRadius: BorderRadius.circular(10), child: ListTile(
+                title: Text(_words[i], style: TextStyle(color: c.bodyText)),
+                trailing: IconButton(icon: const Icon(Icons.close_rounded, color: Color(0xFFEF4444)), onPressed: () => _remove(_words[i])),
+              )),
+            )),
+      ]),
+    );
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -880,50 +1152,84 @@ class CommunitySafetySettingsScreen extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════
 class HelpSettingsScreen extends StatelessWidget {
   const HelpSettingsScreen({super.key});
-  @override Widget build(BuildContext context) => Scaffold(
+
+  void _email(BuildContext ctx, String subject) async {
+    final uri = Uri(scheme: 'mailto', path: 'support@esahlan.com', query: 'subject=${Uri.encodeComponent(subject)}');
+    if (!await launchUrl(uri)) {
+      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Cannot open email app')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
     backgroundColor: context.colors.scaffoldBg, appBar: _bar(context, 'Help & Support'),
-    body: ListView(padding: const EdgeInsets.all(16), children: [_group(context: context, children: [
-      _Nav(icon: Icons.help_outline_rounded,     iconColor: const Color(0xFF3B82F6), label: 'Help Center',      onTap: () {}),
-      _Nav(icon: Icons.support_agent_rounded,    iconColor: const Color(0xFF10B981), label: 'Contact Support',  onTap: () {}),
-      _Nav(icon: Icons.chat_outlined,            iconColor: const Color(0xFFF59E0B), label: 'Live Chat',        onTap: () {}),
-      _Nav(icon: Icons.bug_report_outlined,      iconColor: const Color(0xFFEF4444), label: 'Report a Bug',     onTap: () {}),
-      _Nav(icon: Icons.lightbulb_outline_rounded,iconColor: const Color(0xFF8B5CF6), label: 'Feature Request',  onTap: () {}),
-      _Nav(icon: Icons.rate_review_outlined,     iconColor: const Color(0xFF06B6D4), label: 'Send Feedback',    onTap: () {}),
-    ])]),
+    body: ListView(padding: const EdgeInsets.all(16), children: [
+      _group(context: context, children: [
+        _Nav(icon: Icons.support_agent_rounded,    iconColor: const Color(0xFF10B981), label: 'Contact Support',
+          subtitle: 'support@esahlan.com', onTap: () => _email(context, 'Support Request')),
+        _Nav(icon: Icons.bug_report_outlined,      iconColor: const Color(0xFFEF4444), label: 'Report a Bug',
+          onTap: () => _email(context, 'Bug Report')),
+        _Nav(icon: Icons.lightbulb_outline_rounded,iconColor: const Color(0xFF8B5CF6), label: 'Feature Request',
+          onTap: () => _email(context, 'Feature Request')),
+        _Nav(icon: Icons.rate_review_outlined,     iconColor: const Color(0xFF06B6D4), label: 'Send Feedback',
+          onTap: () => _email(context, 'App Feedback')),
+      ]),
+      _group(title: 'CONTACT', context: context, children: [
+        _Nav(icon: Icons.email_outlined, iconColor: const Color(0xFF3B82F6), label: 'Email',
+          trailing: 'support@esahlan.com',
+          trailingWidget: GestureDetector(
+            onTap: () { Clipboard.setData(const ClipboardData(text: 'support@esahlan.com')); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied to clipboard'))); },
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text('support@esahlan.com', style: TextStyle(fontSize: 11, color: context.colors.subtleText)),
+              const SizedBox(width: 4),
+              Icon(Icons.copy_rounded, size: 14, color: context.colors.subtleText),
+            ]),
+          ), onTap: () => _email(context, 'Support')),
+      ]),
+    ]),
   );
 }
 
 // ══════════════════════════════════════════════════════════════════════════
 // ABOUT
 // ══════════════════════════════════════════════════════════════════════════
-class AboutSettingsScreen extends ConsumerWidget {
+class AboutSettingsScreen extends StatelessWidget {
   const AboutSettingsScreen({super.key});
+
+  Future<void> _open(BuildContext ctx, String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Cannot open link')));
+    }
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final c = context.colors;
-    final versionAsync = ref.watch(_appVersionProvider);
-    final v = versionAsync.valueOrNull ?? {'version': '--', 'build': '--'};
+    const baseUrl = 'https://esahlan.com';
     return Scaffold(
       backgroundColor: c.scaffoldBg, appBar: _bar(context, 'About'),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         _group(context: context, children: [
-          _Nav(icon: Icons.menu_book_outlined,  iconColor: const Color(0xFF3B82F6), label: 'Community Guidelines', onTap: () {}),
-          _Nav(icon: Icons.privacy_tip_outlined,iconColor: const Color(0xFF8B5CF6), label: 'Privacy Policy',       onTap: () {}),
-          _Nav(icon: Icons.gavel_rounded,       iconColor: const Color(0xFF10B981), label: 'Terms of Service',     onTap: () {}),
-          _Nav(icon: Icons.article_outlined,    iconColor: const Color(0xFF6B7280), label: 'Licenses',             onTap: () {}),
+          _Nav(icon: Icons.menu_book_outlined,  iconColor: const Color(0xFF3B82F6), label: 'Community Guidelines',
+            onTap: () => _open(context, '$baseUrl/community-guidelines')),
+          _Nav(icon: Icons.privacy_tip_outlined,iconColor: const Color(0xFF8B5CF6), label: 'Privacy Policy',
+            onTap: () => _open(context, '$baseUrl/privacy-policy')),
+          _Nav(icon: Icons.gavel_rounded,       iconColor: const Color(0xFF10B981), label: 'Terms of Service',
+            onTap: () => _open(context, '$baseUrl/terms-of-service')),
         ]),
         _group(title: 'APP INFO', context: context, children: [
-          _Nav(icon: Icons.info_outline_rounded, iconColor: _kOrange, label: 'App Version', trailingWidget: Text('${v['version']} (${v['build']})', style: TextStyle(fontSize: 12, color: c.subtleText))),
-          _Nav(icon: Icons.cloud_done_outlined, iconColor: const Color(0xFF10B981), label: 'System Status', trailing: 'All systems operational', onTap: () {}),
+          _Nav(icon: Icons.info_outline_rounded, iconColor: _kOrange, label: 'App Version',
+            trailingWidget: const Text('1.0.0 (1)', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)))),
+          _Nav(icon: Icons.cloud_done_outlined, iconColor: const Color(0xFF10B981), label: 'System Status',
+            trailing: 'Operational', onTap: () => _open(context, '$baseUrl/status')),
+          _Nav(icon: Icons.web_rounded, iconColor: const Color(0xFF3B82F6), label: 'Website',
+            trailing: 'esahlan.com', onTap: () => _open(context, baseUrl)),
         ]),
       ]),
     );
   }
 }
-
-final _appVersionProvider = FutureProvider.autoDispose<Map<String, String>>((ref) async {
-  return {'version': '2.4.1', 'build': '241'};
-});
 
 // ══════════════════════════════════════════════════════════════════════════
 // ACCOUNT SETTINGS — routes to EditProfileScreen
