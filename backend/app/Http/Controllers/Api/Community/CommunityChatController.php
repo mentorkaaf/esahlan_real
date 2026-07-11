@@ -7,6 +7,7 @@ use App\Models\CommunityMessage;
 use App\Models\User;
 use App\Services\AutoRestrictService;
 use App\Services\FcmService;
+use App\Services\PrivacyService;
 use App\Services\RealtimeService;
 use Illuminate\Http\Request;
 
@@ -29,6 +30,12 @@ class CommunityChatController extends Controller
     {
         $me = auth()->id();
         if ($me === $userId) return response()->json(['status'=>'error'],422);
+
+        // Check privacy: who_can_message
+        $check = PrivacyService::canMessage($me, $userId);
+        if (!$check['allowed']) {
+            return response()->json(['status'=>'error','message'=>$check['reason']],403);
+        }
 
         // Find existing direct chat
         $existing = CommunityChat::where('type','direct')

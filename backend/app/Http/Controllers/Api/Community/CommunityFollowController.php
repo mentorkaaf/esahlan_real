@@ -6,6 +6,7 @@ use App\Models\CommunityProfile;
 use App\Models\CommunityNotification;
 use App\Models\User;
 use App\Services\FcmService;
+use App\Services\PrivacyService;
 use App\Services\RealtimeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,12 @@ class CommunityFollowController extends Controller
     {
         $me = auth()->id();
         if ($me === $userId) return response()->json(['status'=>'error','message'=>'Cannot follow yourself'],422);
+
+        // Check privacy: who_can_follow
+        $check = PrivacyService::canFollow($me, $userId);
+        if (!$check['allowed']) {
+            return response()->json(['status'=>'error','message'=>$check['reason']],403);
+        }
 
         $result = DB::transaction(function () use ($me, $userId) {
             $existing = CommunityFollow::where('follower_id', $me)->where('following_id', $userId)->first();

@@ -5,6 +5,7 @@ use App\Models\CommunityProfile;
 use App\Models\CommunityPost;
 use App\Models\CommunityFollow;
 use App\Models\User;
+use App\Services\PrivacyService;
 use Illuminate\Http\Request;
 
 class CommunityProfileController extends Controller

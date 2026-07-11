@@ -6,6 +6,7 @@ use App\Models\CommunityFollow;
 use App\Models\CommunityProfile;
 use App\Services\FeedRankingService;
 use App\Services\InteractionTracker;
+use App\Services\PrivacyService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\Community\CommunityAdController;
 use Illuminate\Support\Facades\Redis;
@@ -766,6 +767,11 @@ class CommunityFeedController extends Controller
             'is_me'           => $user->id === $userId,
             'badges'          => $badges,
             'interests'       => $interests,
+            'phone'           => $user->id === $userId ? $user->phone : null,
+            'email'           => $user->id === $userId ? $user->email : null,
         ];
+
+        // Apply privacy visibility (hide_followers, hide_following, hide_likes, hide_online_status)
+        return PrivacyService::applyVisibility($data, $userId);
     }
 }

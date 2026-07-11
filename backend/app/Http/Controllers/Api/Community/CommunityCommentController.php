@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\AutoRestrictService;
 use App\Services\FcmService;
 use App\Services\InteractionTracker;
+use App\Services\PrivacyService;
 use App\Services\RealtimeService;
 use Illuminate\Http\Request;
 
@@ -47,6 +48,12 @@ class CommunityCommentController extends Controller
 
         if ($post->comments_disabled) {
             return response()->json(['status' => 'error', 'message' => 'Comments are disabled on this post'], 403);
+        }
+
+        // Check privacy: who_can_comment
+        $privacyCheck = PrivacyService::canComment(auth()->id(), $post->user_id);
+        if (!$privacyCheck['allowed']) {
+            return response()->json(['status' => 'error', 'message' => $privacyCheck['reason']], 403);
         }
 
         $mediaUrl = null;

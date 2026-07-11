@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Api\Community;
 
 use App\Http\Controllers\Controller;
+use App\Services\PrivacyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -142,6 +143,11 @@ class UserSettingsController extends Controller
         } else {
             $data['created_at'] = now();
             DB::table('user_settings')->insert($data);
+        }
+
+        // Bust cached privacy settings so enforcement picks up the change immediately
+        if (isset($data['privacy'])) {
+            PrivacyService::clearCache($userId);
         }
 
         return response()->json(['status' => 'success', 'message' => 'Settings saved.']);
