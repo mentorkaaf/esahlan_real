@@ -83,6 +83,9 @@ class UserSettingsController extends Controller
             'assistant'        => true,
             'summary'          => true,
         ],
+        'language' => [
+            'code' => 'en',   // en | so | ar | am | sw | fr
+        ],
         'safety' => [
             'hidden_words'       => [],
             'comment_filter'     => false,
@@ -159,6 +162,26 @@ class UserSettingsController extends Controller
             ->get();
 
         return response()->json(['status' => 'success', 'data' => $muted]);
+    }
+
+    // DELETE /community/settings/blocked-users/{id}
+    public function unblock($id)
+    {
+        DB::table('community_blocks')
+            ->where('blocker_id', auth()->id())
+            ->where('blocked_id', $id)
+            ->delete();
+        return response()->json(['status' => 'success', 'message' => 'Unblocked']);
+    }
+
+    // DELETE /community/settings/muted-users/{id}
+    public function unmute($id)
+    {
+        DB::table('community_mutes')
+            ->where('muter_id', auth()->id())
+            ->where('muted_id', $id)
+            ->delete();
+        return response()->json(['status' => 'success', 'message' => 'Unmuted']);
     }
 
     // GET /community/settings/restricted-users

@@ -280,42 +280,42 @@ class _FeedTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Watch at top level so suggestions/reels updates don't cause extra rebuilds
+    // inside the data callback when the feed itself hasn't changed.
+    final suggestions = ref.watch(communitySuggestionsProvider).valueOrNull ?? [];
+    final reels       = ref.watch(communityReelsProvider).valueOrNull ?? [];
+
     return ColoredBox(
       color: const Color(0xFFF0F2F5),
       child: NotificationListener<ScrollNotification>(
-      onNotification: (n) {
-        if (n is ScrollUpdateNotification) {
-          final m = n.metrics;
-          if (m.pixels >= m.maxScrollExtent - 800) {
-            ref.read(communityFeedProvider.notifier).load();
+        onNotification: (n) {
+          if (n is ScrollUpdateNotification) {
+            final m = n.metrics;
+            if (m.pixels >= m.maxScrollExtent - 800) {
+              ref.read(communityFeedProvider.notifier).load();
+            }
           }
-        }
-        return false;
-      },
-      child: RefreshIndicator(
-      color: kOrange,
-      onRefresh: () => ref.read(communityFeedProvider.notifier).refresh(),
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          // Stories
-          storiesState.when(
-            data: (groups) => StoriesBar(groups: groups),
-            loading: () => SizedBox(height: 100),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
+          return false;
+        },
+        child: RefreshIndicator(
+          color: kOrange,
+          onRefresh: () => ref.read(communityFeedProvider.notifier).refresh(),
+          // CustomScrollView + SliverList: posts are built LAZILY (only visible ones).
+          // The old ListView + Column built ALL 30+ cards at once — this is the main perf fix.
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(child: storiesState.when(
+                data: (groups) => StoriesBar(groups: groups),
+                loading: () => const SizedBox(height: 100),
+                error: (_, __) => const SizedBox.shrink(),
+              )),
+              const SliverToBoxAdapter(child: _CreatePostBar()),
+              const SliverToBoxAdapter(child: SizedBox(height: 4)),
 
-          // Create post bar
-          const _CreatePostBar(),
-
-          SizedBox(height: 4),
-
-          // Feed posts
-          feedState.when(
-            data: (posts) {
-              if (posts.isEmpty) return const _EmptyFeed();
-              final suggestions = ref.watch(communitySuggestionsProvider).valueOrNull ?? [];
-              final reels = ref.watch(communityReelsProvider).valueOrNull ?? [];
+              ...feedState.when<List<Widget>>(
+                data: (posts) {
+                  if (posts.isEmpty) return [const SliverToBoxAdapter(child: _EmptyFeed())];
 
               // Register regular post video URLs in the pool (ads are separate).
               // Preload ad videos via AdPreloader so they don't compete for pool slots.
@@ -344,52 +344,69 @@ class _FeedTab extends ConsumerWidget {
                 if (adUrls.isNotEmpty) AdVideoManager.instance.preload(adUrls);
               });
 
-              // Build flat item list lazily — post cards + interspersed carousels
-              int _postsSinceLastAd = 999;
-              final items = <Widget>[];
-              for (var i = 0; i < posts.length; i++) {
-                final post = posts[i];
-                if (post.isAd && _postsSinceLastAd < 3) continue;
-                if (post.isAd) { _postsSinceLastAd = 0; } else { _postsSinceLastAd++; }
-                items.add(RepaintBoundary(child: _PostCard(post: posts[i],
-                  onDelete: () { ref.read(communityRepoProvider).deletePost(posts[i].id); ref.read(communityFeedProvider.notifier).removePost(posts[i].id); },
-                )));
-                if (i == 4 && suggestions.where((u) => !u.isMe && !u.isFollowing).isNotEmpty) {
-                  items.add(_PeopleYouMayKnow(users: suggestions.where((u) => !u.isMe && !u.isFollowing).take(10).toList()));
-                }
-                if (i == 8 && reels.isNotEmpty) {
-                  items.add(_ReelsCarousel(reels: reels.take(6).toList()));
-                }
-                if (i > 12 && (i - 12) % 10 == 0 && suggestions.where((u) => !u.isMe && !u.isFollowing).length > 10) {
-                  final offset = ((i - 12) ~/ 10) * 5;
-                  final batch = suggestions.where((u) => !u.isMe && !u.isFollowing).skip(offset).take(10).toList();
-                  if (batch.isNotEmpty) items.add(_PeopleYouMayKnow(users: batch));
-                }
-                if (i > 16 && (i - 16) % 12 == 0 && reels.length > 6) {
-                  final offset = ((i - 16) ~/ 12) * 4;
-                  final batch = reels.skip(offset).take(6).toList();
-                  if (batch.isNotEmpty) items.add(_ReelsCarousel(reels: batch));
-                }
-              }
-              final hasMore = ref.watch(communityFeedProvider.notifier).hasMore;
-              items.add(_FeedLoadMore(hasMore: hasMore));
-              return Column(children: items);
-            },
-            loading: () => Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: ShimmerPostList(count: 3),
-            ),
-            error: (e, _) => Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text('Error: $e', style: TextStyle(color: Colors.red)),
+                  // Build widget object list — SliverList calls .build() lazily
+                  // only for visible items, so this is fast (no tree inflation).
+                  int postsSinceLastAd = 999;
+                  final items = <Widget>[];
+                  final followable = suggestions.where((u) => !u.isMe && !u.isFollowing).toList();
+                  for (var i = 0; i < posts.length; i++) {
+                    final post = posts[i];
+                    if (post.isAd && postsSinceLastAd < 3) continue;
+                    if (post.isAd) { postsSinceLastAd = 0; } else { postsSinceLastAd++; }
+                    items.add(RepaintBoundary(child: _PostCard(post: posts[i],
+                      onDelete: () {
+                        ref.read(communityRepoProvider).deletePost(posts[i].id);
+                        ref.read(communityFeedProvider.notifier).removePost(posts[i].id);
+                      },
+                    )));
+                    if (i == 4 && followable.isNotEmpty) {
+                      items.add(_PeopleYouMayKnow(users: followable.take(10).toList()));
+                    }
+                    if (i == 8 && reels.isNotEmpty) {
+                      items.add(_ReelsCarousel(reels: reels.take(6).toList()));
+                    }
+                    if (i > 12 && (i - 12) % 10 == 0 && followable.length > 10) {
+                      final offset = ((i - 12) ~/ 10) * 5;
+                      final batch = followable.skip(offset).take(10).toList();
+                      if (batch.isNotEmpty) items.add(_PeopleYouMayKnow(users: batch));
+                    }
+                    if (i > 16 && (i - 16) % 12 == 0 && reels.length > 6) {
+                      final offset = ((i - 16) ~/ 12) * 4;
+                      final batch = reels.skip(offset).take(6).toList();
+                      if (batch.isNotEmpty) items.add(_ReelsCarousel(reels: batch));
+                    }
+                  }
+                  final hasMore = ref.watch(communityFeedProvider.notifier).hasMore;
+                  items.add(_FeedLoadMore(hasMore: hasMore));
+
+                  return [
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (_, i) => items[i],
+                        childCount: items.length,
+                      ),
+                    ),
+                  ];
+                },
+                loading: () => [SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: ShimmerPostList(count: 3),
+                  ),
+                )],
+                error: (e, _) => [SliverToBoxAdapter(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
+                    ),
+                  ),
+                )],
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
-    ),
-    ),
     );
   }
 }
@@ -423,66 +440,73 @@ class _TrendingTab extends ConsumerWidget {
     return RefreshIndicator(
       color: kOrange,
       onRefresh: () async { ref.read(communityExploreProvider.notifier).refresh(); ref.invalidate(_trendingHashtagsProvider); },
-      child: ListView(padding: EdgeInsets.only(bottom: 80), children: [
-        // Trending Hashtags
-        hashtagsAsync.when(
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+        SliverToBoxAdapter(child: hashtagsAsync.when(
           data: (tags) {
-            if (tags.isEmpty) return SizedBox();
+            if (tags.isEmpty) return const SizedBox.shrink();
             return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+              Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 child: Row(children: [
                   Icon(Icons.tag_rounded, color: kOrange, size: 20),
-                  SizedBox(width: 6),
+                  const SizedBox(width: 6),
                   Text('Trending Hashtags', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.bodyText)),
                 ])),
               SizedBox(height: 40, child: ListView.builder(
-                scrollDirection: Axis.horizontal, padding: EdgeInsets.symmetric(horizontal: 12),
+                scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 12),
                 itemCount: tags.length,
                 itemBuilder: (_, i) => Container(
-                  margin: EdgeInsets.only(right: 8),
-                  padding: EdgeInsets.symmetric(horizontal: 14),
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: kOrange.withValues(alpha: 0.2))),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     Text('#${tags[i]['name']}', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: kOrange)),
-                    SizedBox(width: 6),
+                    const SizedBox(width: 6),
                     Text('${tags[i]['posts_count']}', style: TextStyle(fontSize: 11, color: kOrange.withValues(alpha: 0.6), fontWeight: FontWeight.w600)),
                   ]),
                 ),
               )),
-              SizedBox(height: 8),
-              Divider(height: 1),
+              const SizedBox(height: 8),
+              const Divider(height: 1),
             ]);
           },
-          loading: () => SizedBox(),
-          error: (_, __) => SizedBox(),
-        ),
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+        )),
 
-        // Trending Posts (100+ engagement)
-        Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+        SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: Row(children: [
             Icon(Icons.local_fire_department_rounded, color: kOrange, size: 20),
-            SizedBox(width: 6),
+            const SizedBox(width: 6),
             Text('Trending Posts', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.bodyText)),
-            Spacer(),
+            const Spacer(),
             Text('100+ engagement', style: TextStyle(fontSize: 11, color: context.colors.mutedText)),
-          ])),
+          ]))),
 
-        exploreState.when(
+        ...exploreState.when<List<Widget>>(
           data: (posts) {
-            if (posts.isEmpty) return Padding(padding: EdgeInsets.all(40),
+            if (posts.isEmpty) return [SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.all(40),
               child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.trending_up_rounded, size: 48, color: Color(0xFFD1D5DB)),
-                SizedBox(height: 8),
+                const Icon(Icons.trending_up_rounded, size: 48, color: Color(0xFFD1D5DB)),
+                const SizedBox(height: 8),
                 Text('No trending posts yet', style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
-                SizedBox(height: 4),
-                Text('Posts need 100+ total likes, comments, views or shares', style: TextStyle(color: Color(0xFFD1D5DB), fontSize: 12), textAlign: TextAlign.center),
-              ])));
-            return Column(children: posts.map((p) => _PostCard(post: p, onDelete: () {})).toList());
+                const SizedBox(height: 4),
+                const Text('Posts need 100+ total likes, comments, views or shares', style: TextStyle(color: Color(0xFFD1D5DB), fontSize: 12), textAlign: TextAlign.center),
+              ]))))];
+            return [SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (_, i) => RepaintBoundary(child: _PostCard(post: posts[i], onDelete: () {})),
+                childCount: posts.length,
+              ),
+            )];
           },
-          loading: () => Padding(padding: EdgeInsets.all(16), child: ShimmerPostList(count: 3)),
-          error: (e, _) => const _EmptyTab(message: 'Error loading trending', icon: Icons.error_outline_rounded),
+          loading: () => [SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.all(16), child: ShimmerPostList(count: 3)))],
+          error: (e, _) => [const SliverToBoxAdapter(child: _EmptyTab(message: 'Error loading trending', icon: Icons.error_outline_rounded))],
         ),
+
+        const SliverToBoxAdapter(child: SizedBox(height: 80)),
       ]),
     );
   }
@@ -1072,7 +1096,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
       decoration: BoxDecoration(
         color: c.cardBg,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 1))],
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1454,21 +1478,25 @@ class _ExpandableText extends StatefulWidget {
 
 class _ExpandableTextState extends State<_ExpandableText> {
   bool _expanded = false;
+  bool? _isLong; // cached — TextPainter layout is expensive, skip on re-builds
 
   @override
   Widget build(BuildContext context) {
+    // Compute once per text content; re-compute if text changes.
+    _isLong ??= _computeIsLong(context);
+
     return Padding(
-      padding: EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(widget.text,
           style: TextStyle(color: context.colors.bodyText, fontSize: 15, height: 1.4),
           maxLines: _expanded ? null : 3,
           overflow: _expanded ? null : TextOverflow.ellipsis),
-        if (!_expanded && _isLongText())
+        if (!_expanded && (_isLong ?? false))
           GestureDetector(
             onTap: () => setState(() => _expanded = true),
             child: Padding(
-              padding: EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(top: 4),
               child: Text('See more', style: TextStyle(color: context.colors.mutedText, fontWeight: FontWeight.w700, fontSize: 14)),
             ),
           ),
@@ -1476,9 +1504,9 @@ class _ExpandableTextState extends State<_ExpandableText> {
     );
   }
 
-  bool _isLongText() {
+  bool _computeIsLong(BuildContext context) {
     final tp = TextPainter(
-      text: TextSpan(text: widget.text, style: TextStyle(fontSize: 15, height: 1.4)),
+      text: TextSpan(text: widget.text, style: const TextStyle(fontSize: 15, height: 1.4)),
       maxLines: 3,
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: MediaQuery.of(context).size.width - 24);

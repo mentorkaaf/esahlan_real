@@ -391,11 +391,13 @@ Route::prefix('v1')->group(function () {
     });
 
         // Settings
-        Route::get('community/settings',                         [UserSettingsController::class, 'index']);
-        Route::put('community/settings',                         [UserSettingsController::class, 'update']);
-        Route::get('community/settings/blocked-users',           [UserSettingsController::class, 'blockedUsers']);
-        Route::get('community/settings/muted-users',             [UserSettingsController::class, 'mutedUsers']);
-        Route::get('community/settings/restricted-users',        [UserSettingsController::class, 'restrictedUsers']);
+        Route::get('community/settings',                              [UserSettingsController::class, 'index']);
+        Route::put('community/settings',                              [UserSettingsController::class, 'update']);
+        Route::get('community/settings/blocked-users',                [UserSettingsController::class, 'blockedUsers']);
+        Route::delete('community/settings/blocked-users/{id}',        [UserSettingsController::class, 'unblock']);
+        Route::get('community/settings/muted-users',                  [UserSettingsController::class, 'mutedUsers']);
+        Route::delete('community/settings/muted-users/{id}',          [UserSettingsController::class, 'unmute']);
+        Route::get('community/settings/restricted-users',             [UserSettingsController::class, 'restrictedUsers']);
 
         // Highlights
         Route::get('community/users/{userId}/highlights',        [CommunityHighlightController::class, 'index']);
@@ -404,11 +406,13 @@ Route::prefix('v1')->group(function () {
         Route::delete('community/highlights/{id}',               [CommunityHighlightController::class, 'destroy']);
 
         // Auth
-        Route::post('auth/logout',          [AuthController::class, 'logout']);
-        Route::get('auth/me',               [AuthController::class, 'me']);
-        Route::post('auth/update-profile',  [AuthController::class, 'updateProfile']);
-        Route::delete('auth/delete-account',[AuthController::class, 'deleteAccount']);
-        Route::post('auth/fcm-token',       [AuthController::class, 'updateFcmToken']);
+        Route::post('auth/logout',              [AuthController::class, 'logout']);
+        Route::post('auth/logout-all',          [AuthController::class, 'logoutAll']);
+        Route::post('auth/deactivate',          [AuthController::class, 'deactivateAccount']);
+        Route::get('auth/me',                   [AuthController::class, 'me']);
+        Route::post('auth/update-profile',      [AuthController::class, 'updateProfile']);
+        Route::delete('auth/delete-account',    [AuthController::class, 'deleteAccount']);
+        Route::post('auth/fcm-token',           [AuthController::class, 'updateFcmToken']);
         Route::post('auth/location',        [AuthController::class, 'updateLocation']);
 
         // ─── CUSTOMER ─────────────────────────────────────────────

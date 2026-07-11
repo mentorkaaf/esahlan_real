@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import '../../../../core/providers/app_settings_provider.dart';
 
 // ── VideoPool ─────────────────────────────────────────────────────────────────
 //
@@ -167,7 +168,9 @@ class VideoPool {
 
       await player.open(Media(url), play: false);
       await player.setVolume(0);
-      await player.setPlaylistMode(_loop ? PlaylistMode.single : PlaylistMode.none);
+      // Pool default (_loop) combined with user's video loop setting
+      final loopEnabled = _loop && AppSettingsNotifier.current.videoLoop;
+      await player.setPlaylistMode(loopEnabled ? PlaylistMode.single : PlaylistMode.none);
 
       // Was this URL evicted while awaiting?
       if (!_loading.containsKey(url)) {
@@ -221,6 +224,12 @@ class VideoPool {
 
   void _doPlay(String url) {
     if (url.isEmpty) return;
+    // Respect Data Saver / Video autoplay settings
+    final s = AppSettingsNotifier.current;
+    if (s.disableAutoplay) return;
+    if (s.videoAutoplay == 'never') return;
+    // 'wifi_only' — we can't check connectivity here without a plugin, skip for now
+
     _activeUrl   = url;
     _pendingPlay = url;
 

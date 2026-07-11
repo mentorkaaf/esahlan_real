@@ -186,6 +186,19 @@ class AuthController extends Controller
         return response()->json(['success' => true, 'message' => 'Logged out']);
     }
 
+    public function logoutAll(Request $request)
+    {
+        $request->user()->tokens()->delete();
+        return response()->json(['success' => true, 'message' => 'All devices logged out']);
+    }
+
+    public function deactivateAccount(Request $request)
+    {
+        $request->user()->update(['status' => 'inactive']);
+        $request->user()->tokens()->delete();
+        return response()->json(['success' => true, 'message' => 'Account deactivated']);
+    }
+
     public function me(Request $request)
     {
         return response()->json([

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'core/constants/app_constants.dart';
+import 'core/providers/app_settings_provider.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/services/firebase_service.dart';
@@ -129,15 +130,26 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
 
   @override
   Widget build(BuildContext context) {
-    final themeMode = ref.watch(themeModeProvider);
+    final settings = ref.watch(appSettingsProvider);
     return ConnectivityWrapper(
       child: MaterialApp.router(
         title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
-        themeMode: themeMode,
+        themeMode: settings.themeMode,
+        locale: settings.locale,
+        supportedLocales: const [
+          Locale('en'), Locale('so'), Locale('ar'),
+          Locale('am'), Locale('sw'), Locale('fr'),
+        ],
         routerConfig: ref.watch(routerProvider),
+        builder: (ctx, child) => MediaQuery(
+          data: MediaQuery.of(ctx).copyWith(
+            textScaler: TextScaler.linear(settings.textScaleFactor),
+          ),
+          child: child!,
+        ),
       ),
     );
   }

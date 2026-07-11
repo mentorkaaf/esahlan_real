@@ -226,15 +226,25 @@ class _VideoStoryPreview extends StatefulWidget {
   State<_VideoStoryPreview> createState() => _VideoStoryPreviewState();
 }
 
+// Global limit — at most 2 story preview players open at the same time.
+// With many video stories in the bar, this prevents 10+ simultaneous decoders.
+int _activeStoryPreviews = 0;
+
 class _VideoStoryPreviewState extends State<_VideoStoryPreview> {
   Player? _player;
   VideoController? _ctrl;
   bool _hasFrame = false;
+  bool _claimed = false;
 
   @override
   void initState() {
     super.initState();
-    _init();
+    if (_activeStoryPreviews < 2) {
+      _claimed = true;
+      _activeStoryPreviews++;
+      _init();
+    }
+    // If limit is reached, we just show the static thumbnail (no video).
   }
 
   Future<void> _init() async {
@@ -246,15 +256,18 @@ class _VideoStoryPreviewState extends State<_VideoStoryPreview> {
       if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) setState(() => _hasFrame = true);
     });
     await player.open(Media(widget.videoUrl));
-    await player.setPlaylistMode(PlaylistMode.loop);
     await player.setVolume(0);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted && !_hasFrame) setState(() => _hasFrame = true);
+    // Play briefly for motion preview, then pause
+    Future.delayed(const Duration(milliseconds: 1500), () async {
+      if (!mounted) return;
+      if (!_hasFrame) setState(() => _hasFrame = true);
+      await player.pause();
     });
   }
 
   @override
   void dispose() {
+    if (_claimed) _activeStoryPreviews--;
     _player?.dispose();
     super.dispose();
   }

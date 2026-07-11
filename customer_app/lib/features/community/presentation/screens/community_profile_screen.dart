@@ -69,6 +69,14 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
   }
 
   @override
+  void didUpdateWidget(_ProfileBody old) {
+    super.didUpdateWidget(old);
+    if (old.user.isFollowing != widget.user.isFollowing && !_followLoading) {
+      setState(() => _following = widget.user.isFollowing);
+    }
+  }
+
+  @override
   void dispose() { _tab.dispose(); super.dispose(); }
 
   String _fmt(int n) {
@@ -174,7 +182,8 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
         headerSliverBuilder: (ctx, _) => [
           // ── Cover + AppBar ────────────────────────────────────────────
           SliverAppBar(
-            expandedHeight: 200,
+            // expandedHeight = 200 (cover) + 44 (avatar lower half in card)
+            expandedHeight: 244,
             pinned: true,
             backgroundColor: c.cardBg,
             foregroundColor: Colors.white,
@@ -187,38 +196,56 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
               IconButton(icon: const Icon(Icons.more_horiz_rounded, color: Colors.white), onPressed: _openMenu),
             ],
             flexibleSpace: FlexibleSpaceBar(
-              background: GestureDetector(
-                onTap: widget.isMe ? _pickCover : null,
-                child: Stack(fit: StackFit.expand, children: [
-                  () {
-                    final url = _localCover ?? u.coverPhoto;
-                    if (url != null) return NetImage(url: url, fit: BoxFit.cover);
-                    return Container(decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF1A1A2E), Color(0xFF16213E)], begin: Alignment.topLeft, end: Alignment.bottomRight)));
-                  }(),
-                  Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black45]))),
-                  if (widget.isMe)
-                    Positioned(bottom: 12, right: 12, child: Container(padding: const EdgeInsets.all(7), decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle), child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16))),
-                ]),
-              ),
+              background: Stack(children: [
+                // Cover photo — top 200px only
+                Positioned(top: 0, left: 0, right: 0, height: 200,
+                  child: GestureDetector(
+                    onTap: widget.isMe ? _pickCover : null,
+                    child: Stack(fit: StackFit.expand, children: [
+                      () {
+                        final url = _localCover ?? u.coverPhoto;
+                        if (url != null) return NetImage(url: url, fit: BoxFit.cover);
+                        return Container(decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF1A1A2E), Color(0xFF16213E)], begin: Alignment.topLeft, end: Alignment.bottomRight)));
+                      }(),
+                      Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black45]))),
+                      if (widget.isMe)
+                        Positioned(bottom: 8, right: 12, child: Container(padding: const EdgeInsets.all(7), decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle), child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16))),
+                    ]),
+                  ),
+                ),
+                // Card-color area below cover (bottom 44px = avatar lower half)
+                Positioned(bottom: 0, left: 0, right: 0, height: 44,
+                  child: ColoredBox(color: c.cardBg)),
+                // Avatar straddles cover/card boundary — top half on cover, bottom half on card
+                Positioned(
+                  bottom: 0, left: 16,
+                  child: GestureDetector(
+                    onTap: widget.isMe ? _pickAvatar : null,
+                    child: Stack(clipBehavior: Clip.none, children: [
+                      Container(
+                        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: c.cardBg, width: 3)),
+                        child: CircleNetImage(url: _localAvatar ?? u.avatar, size: 88, fallbackText: u.name),
+                      ),
+                      Positioned(bottom: 6, right: 6, child: Container(width: 16, height: 16, decoration: BoxDecoration(color: const Color(0xFF22C55E), shape: BoxShape.circle, border: Border.all(color: c.cardBg, width: 2)))),
+                      if (widget.isMe)
+                        Positioned(bottom: 2, right: 2, child: Container(padding: const EdgeInsets.all(4), decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle, border: Border.all(color: c.cardBg, width: 1.5)), child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 11))),
+                    ]),
+                  ),
+                ),
+              ]),
             ),
           ),
 
           // ── Profile info ────────────────────────────────────────────
           SliverToBoxAdapter(
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // Card starts at Stack top (no gap between cover and card)
-                ColoredBox(
-                  color: c.cardBg,
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    // Row: reserve space for avatar lower half | action buttons right-aligned
+            child: ColoredBox(
+              color: c.cardBg,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    // Action buttons row (right-aligned, beside avatar space)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                      child: SizedBox(
-                        height: 48,
-                        child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                          const SizedBox(width: 96), // avatar width (88) + gap (8)
+                      child: Row(children: [
+                          const SizedBox(width: 96), // leave space beside avatar
                           const Spacer(),
                           if (widget.isMe)
                             _ActionBtn(label: 'Edit Profile', icon: Icons.edit_rounded, outlined: true, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfileScreen(user: u))))
@@ -239,7 +266,6 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                             ),
                           ],
                         ]),
-                      ),
                     ),
 
                       // Name + badges
@@ -318,25 +344,6 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                       ),
                     ]),
                   ),
-
-                // Avatar — half overlaps cover above, half sits in card
-                Positioned(
-                  top: -44, left: 16,
-                  child: GestureDetector(
-                    onTap: widget.isMe ? _pickAvatar : null,
-                    child: Stack(clipBehavior: Clip.none, children: [
-                      Container(
-                        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: c.cardBg, width: 3)),
-                        child: CircleNetImage(url: _localAvatar ?? u.avatar, size: 88, fallbackText: u.name),
-                      ),
-                      Positioned(bottom: 6, right: 6, child: Container(width: 16, height: 16, decoration: BoxDecoration(color: const Color(0xFF22C55E), shape: BoxShape.circle, border: Border.all(color: c.cardBg, width: 2)))),
-                      if (widget.isMe)
-                        Positioned(bottom: 2, right: 2, child: Container(padding: const EdgeInsets.all(4), decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle, border: Border.all(color: c.cardBg, width: 1.5)), child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 11))),
-                    ]),
-                  ),
-                ),
-              ],
-            ),
           ),
 
           // Pinned post header (shown in Posts tab only)
@@ -680,14 +687,15 @@ class _HighlightsSection extends ConsumerWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref, CommunityHighlight h) async {
+    if (!context.mounted) return;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dlgCtx) => AlertDialog(
         title: const Text('Delete Highlight?'),
         content: Text('Delete "${h.title}"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(dlgCtx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dlgCtx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -804,26 +812,34 @@ class _EmptyTab extends StatelessWidget {
 }
 
 // ── Posts grid ─────────────────────────────────────────────────────────
-class _PostsGrid extends ConsumerWidget {
+class _PostsGrid extends ConsumerStatefulWidget {
   final int userId;
   final String? type;
   final bool mediaOnly;
   final bool videoOnly;
   const _PostsGrid({required this.userId, this.type, this.mediaOnly = false, this.videoOnly = false});
+  @override
+  ConsumerState<_PostsGrid> createState() => _PostsGridState();
+}
+
+class _PostsGridState extends ConsumerState<_PostsGrid> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final a = ref.watch(communityProfilePostsProvider(userId));
+  Widget build(BuildContext context) {
+    super.build(context);
+    final a = ref.watch(communityProfilePostsProvider(widget.userId));
     final c = context.colors;
     return a.when(
       loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
       error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: Colors.red))),
       data: (posts) {
         List<CommunityPost> list;
-        if (videoOnly)   list = posts.where((p) => p.type == 'video' || p.type == 'reel').toList();
-        else if (type != null) list = posts.where((p) => p.type == type).toList();
-        else if (mediaOnly)    list = posts.where((p) => p.media.any((m) => m.type == 'image')).toList();
-        else                   list = posts;
+        if (widget.videoOnly)        list = posts.where((p) => p.type == 'video' || p.type == 'reel').toList();
+        else if (widget.type != null) list = posts.where((p) => p.type == widget.type).toList();
+        else if (widget.mediaOnly)    list = posts.where((p) => p.media.any((m) => m.type == 'image')).toList();
+        else                          list = posts;
 
         if (list.isEmpty) return _EmptyTab(icon: Icons.photo_library_outlined, label: 'No posts yet');
 
@@ -857,10 +873,18 @@ class _PostsGrid extends ConsumerWidget {
   }
 }
 
-class _SavedPostsGrid extends ConsumerWidget {
+class _SavedPostsGrid extends ConsumerStatefulWidget {
   const _SavedPostsGrid();
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SavedPostsGrid> createState() => _SavedPostsGridState();
+}
+
+class _SavedPostsGridState extends ConsumerState<_SavedPostsGrid> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
     final a = ref.watch(communitySavedPostsProvider);
     return a.when(
       loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
@@ -873,12 +897,20 @@ class _SavedPostsGrid extends ConsumerWidget {
   }
 }
 
-class _LikedPostsGrid extends ConsumerWidget {
+class _LikedPostsGrid extends ConsumerStatefulWidget {
   final int userId;
   const _LikedPostsGrid({required this.userId});
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final a = ref.watch(communityLikedPostsProvider(userId));
+  ConsumerState<_LikedPostsGrid> createState() => _LikedPostsGridState();
+}
+
+class _LikedPostsGridState extends ConsumerState<_LikedPostsGrid> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final a = ref.watch(communityLikedPostsProvider(widget.userId));
     return a.when(
       loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
       error: (_, __) => _EmptyTab(icon: Icons.favorite_outline_rounded, label: 'No liked posts yet'),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/theme_x.dart';
+import '../../../../core/providers/app_settings_provider.dart';
 import '../../data/repositories/community_repository.dart';
 import 'transparency_center_screen.dart';
 import 'edit_profile_screen.dart';
@@ -62,7 +63,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       'notifications' => NotificationSettingsScreen(initial: _section(settings, 'notifications')),
       'security'      => const SecuritySettingsScreen(),
       'content'       => ContentPreferencesScreen(initial: _section(settings, 'content')),
-      'language'      => const LanguageSettingsScreen(),
+      'language'      => LanguageSettingsScreen(initial: _section(settings, 'language')),
       'data_saver'    => DataSaverSettingsScreen(initial: _section(settings, 'data_saver')),
       'appearance'    => AppearanceSettingsScreen(initial: _section(settings, 'appearance')),
       'video'         => VideoSettingsScreen(initial: _section(settings, 'video')),
@@ -282,9 +283,12 @@ class _PrivacyState extends ConsumerState<PrivacySettingsScreen> {
           _Toggle(icon: Icons.favorite_border_rounded, iconColor: const Color(0xFF6B7280), label: 'Hide Likes',          value: _b('hide_likes'),                onChanged: (v) => _save('hide_likes', v)),
         ]),
         _group(title: 'ADVANCED', context: context, children: [
-          _Nav(icon: Icons.block_rounded,      iconColor: const Color(0xFFEF4444), label: 'Blocked Users',    trailing: counts != null ? '${counts['blocked']}' : null, onTap: () {}),
-          _Nav(icon: Icons.volume_off_rounded, iconColor: const Color(0xFFF59E0B), label: 'Muted Users',      trailing: counts != null ? '${counts['muted']}' : null,   onTap: () {}),
-          _Nav(icon: Icons.person_off_outlined,iconColor: const Color(0xFF8B5CF6), label: 'Restricted Users', trailing: counts != null ? '${counts['restricted']}' : null, onTap: () {}),
+          _Nav(icon: Icons.block_rounded,      iconColor: const Color(0xFFEF4444), label: 'Blocked Users',    trailing: counts != null ? '${counts['blocked']}' : null,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _UserListScreen(type: 'blocked')))),
+          _Nav(icon: Icons.volume_off_rounded, iconColor: const Color(0xFFF59E0B), label: 'Muted Users',      trailing: counts != null ? '${counts['muted']}' : null,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _UserListScreen(type: 'muted')))),
+          _Nav(icon: Icons.person_off_outlined,iconColor: const Color(0xFF8B5CF6), label: 'Restricted Users', trailing: counts != null ? '${counts['restricted']}' : null,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _UserListScreen(type: 'restricted')))),
         ]),
       ]),
     );
@@ -403,7 +407,20 @@ class SecuritySettingsScreen extends ConsumerWidget {
         Material(color: const Color(0xFFEF4444).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(16), child: ListTile(
           leading: Container(width: 36, height: 36, decoration: BoxDecoration(color: const Color(0xFFEF4444).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 18)),
           title: const Text('Logout All Devices', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFFEF4444))),
-          onTap: () {},
+          onTap: () async {
+            final ok = await showDialog<bool>(context: context, builder: (dlgCtx) => AlertDialog(
+              title: const Text('Logout All Devices?'),
+              content: const Text('You will be signed out from all devices.'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(dlgCtx, false), child: const Text('Cancel')),
+                TextButton(onPressed: () => Navigator.pop(dlgCtx, true), child: const Text('Logout All', style: TextStyle(color: Colors.red))),
+              ],
+            ));
+            if (ok == true) {
+              await CommunityRepository().logoutAllDevices();
+              if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+            }
+          },
         )),
       ]),
     );
@@ -435,7 +452,19 @@ class DataSaverSettingsScreen extends ConsumerStatefulWidget {
 class _DataSaverState extends ConsumerState<DataSaverSettingsScreen> {
   late Map<String, dynamic> _s;
   @override void initState() { super.initState(); _s = Map.from(widget.initial); }
-  Future<void> _save(String k, dynamic v) async { setState(() => _s[k] = v); try { await CommunityRepository().updateSettings('data_saver', {k: v}); } catch (_) {} }
+
+  Future<void> _save(String k, dynamic v) async {
+    setState(() => _s[k] = v);
+    final n = ref.read(appSettingsProvider.notifier);
+    switch (k) {
+      case 'enabled':           n.setDataSaver(v as bool); break;
+      case 'disable_autoplay':  n.setDisableAutoplay(v as bool); break;
+      case 'wifi_only_download':n.setWifiOnly(v as bool); break;
+      case 'preload_wifi_only': n.setPreloadWifiOnly(v as bool); break;
+      default: CommunityRepository().updateSettings('data_saver', {k: v}).catchError((_) {});
+    }
+  }
+
   bool _b(String k, [bool d = false]) => _s[k] as bool? ?? d;
   String _str(String k, [String d = '']) => _s[k] as String? ?? d;
 
@@ -490,20 +519,35 @@ class AppearanceSettingsScreen extends ConsumerStatefulWidget {
 class _AppearanceState extends ConsumerState<AppearanceSettingsScreen> {
   late Map<String, dynamic> _s;
   @override void initState() { super.initState(); _s = Map.from(widget.initial); }
-  Future<void> _save(String k, dynamic v) async { setState(() => _s[k] = v); try { await CommunityRepository().updateSettings('appearance', {k: v}); } catch (_) {} }
+
+  Future<void> _save(String k, dynamic v) async {
+    setState(() => _s[k] = v);
+    final n = ref.read(appSettingsProvider.notifier);
+    switch (k) {
+      case 'theme':         n.setTheme(v as String); break;
+      case 'font_size':     n.setFontSize(v as String); break;
+      case 'reduce_motion': n.setReduceMotion(v as bool); break;
+      default: CommunityRepository().updateSettings('appearance', {k: v}).catchError((_) {});
+    }
+  }
+
   String _str(String k, [String d = '']) => _s[k] as String? ?? d;
   bool _b(String k) => _s[k] as bool? ?? false;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: context.colors.scaffoldBg,
-    appBar: _bar(context, 'Appearance'),
-    body: ListView(padding: const EdgeInsets.all(16), children: [
-      _group(title: 'THEME', context: context, children: [_Chips(options: const ['Light', 'Dark', 'System'], values: const ['light', 'dark', 'system'], current: _str('theme', 'system'), onChanged: (v) => _save('theme', v))]),
-      _group(title: 'FONT SIZE', context: context, children: [_Chips(options: const ['Small', 'Medium', 'Large', 'X-Large'], values: const ['small', 'medium', 'large', 'xlarge'], current: _str('font_size', 'medium'), onChanged: (v) => _save('font_size', v))]),
-      _group(title: 'MOTION', context: context, children: [_Toggle(icon: Icons.animation_rounded, iconColor: const Color(0xFF8B5CF6), label: 'Reduce Motion', subtitle: 'Minimize animations throughout the app', value: _b('reduce_motion'), onChanged: (v) => _save('reduce_motion', v))]),
-    ]),
-  );
+  Widget build(BuildContext context) {
+    final appS = ref.watch(appSettingsProvider);
+    final themeStr = switch (appS.themeMode) { ThemeMode.dark => 'dark', ThemeMode.light => 'light', _ => 'system' };
+    return Scaffold(
+      backgroundColor: context.colors.scaffoldBg,
+      appBar: _bar(context, 'Appearance'),
+      body: ListView(padding: const EdgeInsets.all(16), children: [
+        _group(title: 'THEME', context: context, children: [_Chips(options: const ['Light', 'Dark', 'System'], values: const ['light', 'dark', 'system'], current: themeStr, onChanged: (v) => _save('theme', v))]),
+        _group(title: 'FONT SIZE', context: context, children: [_Chips(options: const ['Small', 'Medium', 'Large', 'X-Large'], values: const ['small', 'medium', 'large', 'xlarge'], current: appS.fontSize, onChanged: (v) => _save('font_size', v))]),
+        _group(title: 'MOTION', context: context, children: [_Toggle(icon: Icons.animation_rounded, iconColor: const Color(0xFF8B5CF6), label: 'Reduce Motion', subtitle: 'Minimize animations throughout the app', value: appS.reduceMotion, onChanged: (v) => _save('reduce_motion', v))]),
+      ]),
+    );
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -517,7 +561,18 @@ class VideoSettingsScreen extends ConsumerStatefulWidget {
 class _VideoState extends ConsumerState<VideoSettingsScreen> {
   late Map<String, dynamic> _s;
   @override void initState() { super.initState(); _s = Map.from(widget.initial); }
-  Future<void> _save(String k, dynamic v) async { setState(() => _s[k] = v); try { await CommunityRepository().updateSettings('video', {k: v}); } catch (_) {} }
+
+  Future<void> _save(String k, dynamic v) async {
+    setState(() => _s[k] = v);
+    final n = ref.read(appSettingsProvider.notifier);
+    switch (k) {
+      case 'autoplay':    n.setVideoAutoplay(v as String); break;
+      case 'loop':        n.setVideoLoop(v as bool); break;
+      case 'pip_enabled': n.setVideoPip(v as bool); break;
+      default: CommunityRepository().updateSettings('video', {k: v}).catchError((_) {});
+    }
+  }
+
   String _str(String k, [String d = '']) => _s[k] as String? ?? d;
   bool _b(String k, [bool d = false]) => _s[k] as bool? ?? d;
 
@@ -889,17 +944,44 @@ class AccountSettingsScreen extends ConsumerWidget {
           _group(context: context, children: [
             _Nav(icon: Icons.edit_rounded, iconColor: _kOrange, label: 'Edit Profile',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfileScreen(user: user)))),
-            _Nav(icon: Icons.alternate_email_rounded, iconColor: const Color(0xFF3B82F6), label: 'Username', trailing: user.username != null ? '@${user.username}' : 'Not set',
+            _Nav(icon: Icons.alternate_email_rounded, iconColor: const Color(0xFF3B82F6), label: 'Username',
+              trailing: user.username != null ? '@${user.username}' : 'Not set',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfileScreen(user: user)))),
-            _Nav(icon: Icons.phone_outlined, iconColor: const Color(0xFF10B981), label: 'Phone Number', trailing: 'Manage',
-              onTap: () {}),
-            _Nav(icon: Icons.email_outlined, iconColor: const Color(0xFF8B5CF6), label: 'Email Address', trailing: 'Manage',
-              onTap: () {}),
+            _Nav(icon: Icons.phone_outlined, iconColor: const Color(0xFF10B981), label: 'Phone Number', trailing: 'Manage', onTap: null),
+            _Nav(icon: Icons.email_outlined, iconColor: const Color(0xFF8B5CF6), label: 'Email Address', trailing: 'Manage', onTap: null),
           ]),
           _group(title: 'ACCOUNT CONTROL', context: context, children: [
             _Nav(icon: Icons.download_outlined, iconColor: const Color(0xFF06B6D4), label: 'Download Your Data', onTap: () {}),
-            _Nav(icon: Icons.pause_circle_outline_rounded, iconColor: const Color(0xFFF59E0B), label: 'Deactivate Account', onTap: () {}),
-            _Nav(icon: Icons.delete_outline_rounded, iconColor: const Color(0xFFEF4444), label: 'Delete Account', onTap: () {}),
+            _Nav(icon: Icons.pause_circle_outline_rounded, iconColor: const Color(0xFFF59E0B), label: 'Deactivate Account',
+              onTap: () async {
+                final ok = await showDialog<bool>(context: context, builder: (dlgCtx) => AlertDialog(
+                  title: const Text('Deactivate Account?'),
+                  content: const Text('Your profile will be hidden. You can reactivate by logging in again.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(dlgCtx, false), child: const Text('Cancel')),
+                    TextButton(onPressed: () => Navigator.pop(dlgCtx, true), child: const Text('Deactivate', style: TextStyle(color: Colors.orange))),
+                  ],
+                ));
+                if (ok == true) {
+                  await CommunityRepository().deactivateAccount();
+                  if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+                }
+              }),
+            _Nav(icon: Icons.delete_outline_rounded, iconColor: const Color(0xFFEF4444), label: 'Delete Account',
+              onTap: () async {
+                final ok = await showDialog<bool>(context: context, builder: (dlgCtx) => AlertDialog(
+                  title: const Text('Delete Account?'),
+                  content: const Text('This action is permanent and cannot be undone. All your data will be removed.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(dlgCtx, false), child: const Text('Cancel')),
+                    TextButton(onPressed: () => Navigator.pop(dlgCtx, true), child: const Text('Delete Permanently', style: TextStyle(color: Colors.red))),
+                  ],
+                ));
+                if (ok == true) {
+                  await CommunityRepository().deleteAccount();
+                  if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+                }
+              }),
           ]),
         ]),
       ),
@@ -937,27 +1019,137 @@ class _ContentPrefState extends ConsumerState<ContentPreferencesScreen> {
 // ══════════════════════════════════════════════════════════════════════════
 // LANGUAGE
 // ══════════════════════════════════════════════════════════════════════════
-class LanguageSettingsScreen extends StatelessWidget {
-  const LanguageSettingsScreen({super.key});
+class LanguageSettingsScreen extends ConsumerStatefulWidget {
+  final Map<String, dynamic> initial;
+  const LanguageSettingsScreen({super.key, required this.initial});
+  @override ConsumerState<LanguageSettingsScreen> createState() => _LangState();
+}
+class _LangState extends ConsumerState<LanguageSettingsScreen> {
+  late String _code;
+  @override void initState() {
+    super.initState();
+    // Use current app setting (SharedPreferences-backed) not just backend initial
+    _code = AppSettingsNotifier.current.language;
+    if (_code == 'en' && widget.initial['code'] != null) {
+      _code = widget.initial['code'] as String? ?? 'en';
+    }
+  }
+
+  static const _langs = [
+    ('English',  'en'), ('Somali', 'so'), ('Arabic', 'ar'),
+    ('Amharic',  'am'), ('Swahili', 'sw'), ('French', 'fr'),
+  ];
+
+  Future<void> _select(String code) async {
+    setState(() => _code = code);
+    ref.read(appSettingsProvider.notifier).setLanguage(code);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final languages = ['English', 'Somali', 'Arabic', 'Amharic', 'Swahili', 'French'];
-    const selected = 'English';
+    final c = context.colors;
     return Scaffold(
-      backgroundColor: context.colors.scaffoldBg, appBar: _bar(context, 'Language'),
+      backgroundColor: c.scaffoldBg, appBar: _bar(context, 'Language'),
       body: ListView.separated(
         padding: const EdgeInsets.all(16),
-        itemCount: languages.length,
+        itemCount: _langs.length,
         separatorBuilder: (_, __) => const SizedBox(height: 4),
         itemBuilder: (_, i) {
-          final lang = languages[i];
-          final isSelected = lang == selected;
+          final (label, code) = _langs[i];
+          final isSelected = code == _code;
           return ListTile(
-            tileColor: context.colors.cardBg,
+            tileColor: c.cardBg,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            title: Text(lang, style: TextStyle(fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal, color: context.colors.bodyText)),
+            title: Text(label, style: TextStyle(fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal, color: c.bodyText)),
             trailing: isSelected ? const Icon(Icons.check_rounded, color: _kOrange) : null,
-            onTap: () {},
+            onTap: () => _select(code),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// BLOCKED / MUTED / RESTRICTED USER LIST
+// ══════════════════════════════════════════════════════════════════════════
+class _UserListScreen extends ConsumerStatefulWidget {
+  final String type; // 'blocked' | 'muted' | 'restricted'
+  const _UserListScreen({required this.type});
+  @override ConsumerState<_UserListScreen> createState() => _UserListState();
+}
+class _UserListState extends ConsumerState<_UserListScreen> {
+  late Future<List<dynamic>> _future;
+  final Set<int> _removing = {};
+
+  String get _title => switch (widget.type) { 'blocked' => 'Blocked Users', 'muted' => 'Muted Users', _ => 'Restricted Users' };
+
+  @override
+  void initState() { super.initState(); _load(); }
+  void _load() => _future = switch (widget.type) {
+    'blocked'    => CommunityRepository().getBlockedUsers(),
+    'muted'      => CommunityRepository().getMutedUsers(),
+    _            => CommunityRepository().getRestrictedUsers(),
+  };
+
+  Future<void> _remove(int id) async {
+    setState(() => _removing.add(id));
+    try {
+      if (widget.type == 'blocked') {
+        await CommunityRepository().unblockUser(id);
+      } else if (widget.type == 'muted') {
+        await CommunityRepository().unmuteUser(id);
+      }
+      setState(() { _removing.remove(id); _load(); });
+    } catch (_) {
+      setState(() => _removing.remove(id));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Scaffold(
+      backgroundColor: c.scaffoldBg,
+      appBar: _bar(context, _title),
+      body: FutureBuilder<List<dynamic>>(
+        future: _future,
+        builder: (ctx, snap) {
+          if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _kOrange));
+          if (snap.hasError) return Center(child: Text('Error: ${snap.error}', style: const TextStyle(color: Colors.red)));
+          final users = snap.data ?? [];
+          if (users.isEmpty) return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.people_outline_rounded, size: 56, color: c.subtleText),
+            const SizedBox(height: 12),
+            Text('No ${widget.type} users', style: TextStyle(color: c.subtleText, fontSize: 15)),
+          ]));
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: users.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 4),
+            itemBuilder: (_, i) {
+              final u = Map<String, dynamic>.from(users[i] as Map);
+              final id = u['id'] as int;
+              final isRemoving = _removing.contains(id);
+              return Material(color: c.cardBg, borderRadius: BorderRadius.circular(12), child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                leading: CircleAvatar(
+                  backgroundImage: u['avatar'] != null ? NetworkImage(u['avatar'] as String) : null,
+                  backgroundColor: _kOrange.withValues(alpha: 0.2),
+                  child: u['avatar'] == null ? Text((u['name'] as String? ?? '?')[0].toUpperCase(), style: const TextStyle(color: _kOrange)) : null,
+                ),
+                title: Text(u['name'] as String? ?? 'Unknown', style: TextStyle(color: c.bodyText, fontWeight: FontWeight.w600, fontSize: 14)),
+                trailing: widget.type == 'restricted'
+                    ? null
+                    : isRemoving
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _kOrange))
+                        : TextButton(
+                            onPressed: () => _remove(id),
+                            child: Text(widget.type == 'blocked' ? 'Unblock' : 'Unmute',
+                              style: const TextStyle(color: _kOrange, fontWeight: FontWeight.w600, fontSize: 13)),
+                          ),
+              ));
+            },
           );
         },
       ),

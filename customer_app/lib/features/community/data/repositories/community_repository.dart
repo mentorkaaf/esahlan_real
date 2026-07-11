@@ -530,6 +530,11 @@ class CommunityRepository {
   Future<List<dynamic>> getBlockedUsers()    async => (await _dio.get('/community/settings/blocked-users')).data['data'] as List? ?? [];
   Future<List<dynamic>> getMutedUsers()      async => (await _dio.get('/community/settings/muted-users')).data['data'] as List? ?? [];
   Future<List<dynamic>> getRestrictedUsers() async => (await _dio.get('/community/settings/restricted-users')).data['data'] as List? ?? [];
+  Future<void> unblockUser(int id)  async => _dio.delete('/community/settings/blocked-users/$id');
+  Future<void> unmuteUser(int id)   async => _dio.delete('/community/settings/muted-users/$id');
+  Future<void> logoutAllDevices()   async => _dio.post('/auth/logout-all');
+  Future<void> deactivateAccount()  async => _dio.post('/auth/deactivate');
+  Future<void> deleteAccount()      async => _dio.delete('/auth/delete-account');
 
   // ── Highlights ─────────────────────────────────────────────────────────
   Future<List<CommunityHighlight>> getHighlights(int userId) async {
