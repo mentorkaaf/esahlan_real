@@ -588,6 +588,13 @@ class CommunityRepository {
     } catch (_) { return []; }
   }
 
+  Future<List<CommunityPost>> getSavedPostsByUser(int userId) async {
+    try {
+      final r = await _dio.get('/community/profile/$userId/saved-posts');
+      return _parsePosts(r.data['data']);
+    } catch (_) { return []; }
+  }
+
   Future<List<CommunityPost>> getLikedPosts(int userId) async {
     try {
       final r = await _dio.get('/community/profile/$userId/liked-posts');

@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../../data/models/community_models.dart';
+import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
 import 'community_chat_screen.dart';
 import 'community_shell.dart' show kOrange;
@@ -390,7 +391,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   _PostsGrid(userId: u.id, videoOnly: true),
                   _PostsGrid(userId: u.id, type: 'audio'),
                   _PostsGrid(userId: u.id, mediaOnly: true),
-                  _SavedPostsGrid(),
+                  _SavedPostsGrid(userId: u.id, isMe: widget.isMe),
                   _LikedPostsGrid(userId: u.id),
                 ],
               ),
@@ -1011,7 +1012,9 @@ class _PostsGridState extends ConsumerState<_PostsGrid> with AutomaticKeepAliveC
 }
 
 class _SavedPostsGrid extends ConsumerStatefulWidget {
-  const _SavedPostsGrid();
+  final int userId;
+  final bool isMe;
+  const _SavedPostsGrid({required this.userId, required this.isMe});
   @override
   ConsumerState<_SavedPostsGrid> createState() => _SavedPostsGridState();
 }
@@ -1019,18 +1022,31 @@ class _SavedPostsGrid extends ConsumerStatefulWidget {
 class _SavedPostsGridState extends ConsumerState<_SavedPostsGrid> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
+
+  List<CommunityPost>? _posts;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final repo = CommunityRepository();
+    final posts = widget.isMe
+        ? await repo.getSavedPosts()
+        : await repo.getSavedPostsByUser(widget.userId);
+    if (mounted) setState(() { _posts = posts; _loading = false; });
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final a = ref.watch(communitySavedPostsProvider);
-    return a.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
-      error: (_, __) => _EmptyTab(icon: Icons.bookmark_outline_rounded, label: 'No saved posts yet'),
-      data: (posts) {
-        if (posts.isEmpty) return _EmptyTab(icon: Icons.bookmark_outline_rounded, label: 'No saved posts yet');
-        return _PostListGrid(posts: posts);
-      },
-    );
+    if (_loading) return const Center(child: CircularProgressIndicator(color: kOrange));
+    final posts = _posts ?? [];
+    if (posts.isEmpty) return _EmptyTab(icon: Icons.bookmark_outline_rounded, label: 'No saved posts yet');
+    return _PostListGrid(posts: posts);
   }
 }
 
