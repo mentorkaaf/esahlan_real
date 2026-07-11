@@ -65,6 +65,7 @@ class CommunityUser {
   final List<String> interests;
   final String? phone;
   final String? email;
+  final bool isPrivate;
 
   CommunityUser({
     required this.id,
@@ -91,6 +92,7 @@ class CommunityUser {
     this.interests = const [],
     this.phone,
     this.email,
+    this.isPrivate = false,
   });
 
   factory CommunityUser.fromJson(Map<String, dynamic> j) => CommunityUser(
@@ -118,6 +120,7 @@ class CommunityUser {
         interests: (j['interests'] as List<dynamic>?)?.cast<String>() ?? [],
         phone: j['phone'] as String?,
         email: j['email'] as String?,
+        isPrivate: j['is_private'] as bool? ?? false,
       );
 }
 

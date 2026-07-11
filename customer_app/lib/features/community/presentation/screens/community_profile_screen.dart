@@ -324,55 +324,63 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                       _HighlightsSection(userId: u.id, isMe: widget.isMe),
                       const SizedBox(height: 12),
 
-                      // Tabs
-                      TabBar(
-                        controller: _tab,
-                        indicatorColor: kOrange,
-                        indicatorWeight: 2.5,
-                        labelColor: kOrange,
-                        unselectedLabelColor: c.mutedText,
-                        isScrollable: false,
-                        labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                        tabs: const [
-                          Tab(icon: Icon(Icons.grid_on_rounded, size: 20), text: 'Posts'),
-                          Tab(icon: Icon(Icons.play_circle_outline_rounded, size: 20), text: 'Reels'),
-                          Tab(icon: Icon(Icons.music_note_rounded, size: 20), text: 'Audio'),
-                          Tab(icon: Icon(Icons.photo_rounded, size: 20), text: 'Photos'),
-                          Tab(icon: Icon(Icons.bookmark_border_rounded, size: 20), text: 'Saved'),
-                          Tab(icon: Icon(Icons.favorite_border_rounded, size: 20), text: 'Likes'),
-                        ],
-                      ),
+                      // Private account banner — show lock if private and not me and not following
+                      if (u.isPrivate && !widget.isMe && !u.isFollowing)
+                        const SizedBox(height: 8),
+
+                      // Tabs (hidden if private + not following)
+                      if (!u.isPrivate || widget.isMe || u.isFollowing)
+                        TabBar(
+                          controller: _tab,
+                          indicatorColor: kOrange,
+                          indicatorWeight: 2.5,
+                          labelColor: kOrange,
+                          unselectedLabelColor: c.mutedText,
+                          isScrollable: false,
+                          labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                          tabs: const [
+                            Tab(icon: Icon(Icons.grid_on_rounded, size: 20), text: 'Posts'),
+                            Tab(icon: Icon(Icons.play_circle_outline_rounded, size: 20), text: 'Reels'),
+                            Tab(icon: Icon(Icons.music_note_rounded, size: 20), text: 'Audio'),
+                            Tab(icon: Icon(Icons.photo_rounded, size: 20), text: 'Photos'),
+                            Tab(icon: Icon(Icons.bookmark_border_rounded, size: 20), text: 'Saved'),
+                            Tab(icon: Icon(Icons.favorite_border_rounded, size: 20), text: 'Likes'),
+                          ],
+                        ),
                     ]),
                   ),
           ),
 
-          // Pinned post header (shown in Posts tab only)
-          SliverToBoxAdapter(
-            child: ColoredBox(
-              color: c.scaffoldBg,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-                child: Row(children: [
-                  Icon(Icons.push_pin_rounded, size: 16, color: kOrange),
-                  const SizedBox(width: 6),
-                  Text('Pinned Post', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kOrange)),
-                ]),
+          if (!u.isPrivate || widget.isMe || u.isFollowing)
+            // Pinned post header (shown in Posts tab only)
+            SliverToBoxAdapter(
+              child: ColoredBox(
+                color: c.scaffoldBg,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+                  child: Row(children: [
+                    Icon(Icons.push_pin_rounded, size: 16, color: kOrange),
+                    const SizedBox(width: 6),
+                    Text('Pinned Post', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kOrange)),
+                  ]),
+                ),
               ),
             ),
-          ),
         ],
 
-        body: TabBarView(
-          controller: _tab,
-          children: [
-            _PostsGrid(userId: u.id),
-            _PostsGrid(userId: u.id, videoOnly: true),
-            _PostsGrid(userId: u.id, type: 'audio'),
-            _PostsGrid(userId: u.id, mediaOnly: true),
-            _SavedPostsGrid(),
-            _LikedPostsGrid(userId: u.id),
-          ],
-        ),
+        body: (u.isPrivate && !widget.isMe && !u.isFollowing)
+            ? _LockedProfileView(user: u)
+            : TabBarView(
+                controller: _tab,
+                children: [
+                  _PostsGrid(userId: u.id),
+                  _PostsGrid(userId: u.id, videoOnly: true),
+                  _PostsGrid(userId: u.id, type: 'audio'),
+                  _PostsGrid(userId: u.id, mediaOnly: true),
+                  _SavedPostsGrid(),
+                  _LikedPostsGrid(userId: u.id),
+                ],
+              ),
       ),
     );
   }
@@ -809,6 +817,72 @@ class _EmptyTab extends StatelessWidget {
     const SizedBox(height: 12),
     Text(label, style: TextStyle(color: context.colors.mutedText, fontSize: 15)),
   ]));
+}
+
+// ── Locked profile view ────────────────────────────────────────────────
+class _LockedProfileView extends StatelessWidget {
+  final CommunityUser user;
+  const _LockedProfileView({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return SingleChildScrollView(
+      child: Column(children: [
+        const SizedBox(height: 32),
+        // Lock icon circle
+        Container(
+          width: 80, height: 80,
+          decoration: BoxDecoration(
+            color: c.inputFill,
+            shape: BoxShape.circle,
+            border: Border.all(color: c.dividerColor, width: 1.5),
+          ),
+          child: Icon(Icons.lock_rounded, size: 36, color: c.subtleText),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          'This Account is Private',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.bodyText),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 48),
+          child: Text(
+            'Follow ${user.name.split(' ').first} to see their photos and videos.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: c.subtleText, height: 1.5),
+          ),
+        ),
+        const SizedBox(height: 32),
+        // Blurred grid preview — 9 grey boxes suggesting hidden posts
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2,
+            ),
+            itemCount: 9,
+            itemBuilder: (_, i) => Container(
+              color: c.inputFill,
+              child: Stack(children: [
+                // Subtle lock watermark on each cell
+                Center(child: Icon(Icons.lock_outline_rounded, size: 22, color: c.dividerColor)),
+              ]),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          '${user.postsCount > 0 ? user.postsCount : '?'} posts are hidden',
+          style: TextStyle(fontSize: 12, color: c.subtleText),
+        ),
+        const SizedBox(height: 32),
+      ]),
+    );
+  }
 }
 
 // ── Posts grid ─────────────────────────────────────────────────────────
