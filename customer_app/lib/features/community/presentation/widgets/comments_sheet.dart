@@ -19,7 +19,8 @@ import '../screens/community_shell.dart';
 class CommentsSheet extends ConsumerStatefulWidget {
   final int postId;
   final int initialCount;
-  const CommentsSheet({super.key, required this.postId, required this.initialCount});
+  final bool commentsDisabled;
+  const CommentsSheet({super.key, required this.postId, required this.initialCount, this.commentsDisabled = false});
   @override
   ConsumerState<CommentsSheet> createState() => _CommentsSheetState();
 }
@@ -33,6 +34,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   Map<int, List<CommunityComment>> _repliesMap = {};
   bool _loading = true;
   bool _sending = false;
+  bool _commentsDisabled = false;
   int? _replyToId;
   String? _replyToName;
   String? _mentionUser; // @username prepended when replying to a reply
@@ -45,13 +47,22 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   Timer? _recordTimer;
 
   @override
-  void initState() { super.initState(); _loadComments(); }
+  void initState() {
+    super.initState();
+    _commentsDisabled = widget.commentsDisabled;
+    _loadComments();
+  }
 
   Future<void> _loadComments() async {
     try {
       final comments = await _repo.getComments(widget.postId);
       if (mounted) setState(() { _comments = comments; _loading = false; _rebuildIndex(); });
-    } catch (_) { if (mounted) setState(() => _loading = false); }
+    } catch (e) {
+      if (mounted) {
+        final is403 = e is DioException && e.response?.statusCode == 403;
+        setState(() { _loading = false; if (is403) _commentsDisabled = true; });
+      }
+    }
   }
 
   void _rebuildIndex() {
@@ -147,7 +158,14 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       await _loadComments();
     } catch (e) {
       setState(() => _sending = false);
-      if (mounted && !RestrictionDialog.handle(context, e)) {
+      if (!mounted) return;
+      if (e is DioException && e.response?.statusCode == 403) {
+        setState(() => _commentsDisabled = true);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Comments are turned off for this post'),
+          backgroundColor: Color(0xFF374151),
+        ));
+      } else if (!RestrictionDialog.handle(context, e)) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: Colors.red));
       }
     }
@@ -172,7 +190,9 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
           child: _loading
               ? Center(child: CircularProgressIndicator(color: kOrange))
               : _roots.isEmpty
-                  ? Center(child: Text('No comments yet.\nBe the first!', textAlign: TextAlign.center, style: TextStyle(color: context.colors.mutedText)))
+                  ? Center(child: Text(
+                      _commentsDisabled ? 'No comments' : 'No comments yet.\nBe the first!',
+                      textAlign: TextAlign.center, style: TextStyle(color: context.colors.mutedText)))
                   : ListView.builder(
                       padding: EdgeInsets.only(top: 8, bottom: 8),
                       itemCount: _roots.length,
@@ -207,6 +227,14 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                       }),
         ),
         Divider(height: 1),
+        if (_commentsDisabled) Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 16, top: 14),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.comments_disabled_rounded, size: 16, color: context.colors.mutedText),
+            SizedBox(width: 6),
+            Text('Comments are turned off', style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
+          ]))
+        else ...[
         if (_replyToName != null) Container(
           color: c.inputFill, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Row(children: [
@@ -281,6 +309,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
               child: _sending ? Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : Icon(Icons.send_rounded, color: Colors.white, size: 20))),
           ])),
+        ], // end else (comments enabled)
       ]),
     );
   }
@@ -451,11 +480,11 @@ class _CommentTileState extends State<_CommentTile> {
   }
 }
 
-void showCommentsSheet(BuildContext context, int postId, {int initialCount = 0}) {
+void showCommentsSheet(BuildContext context, int postId, {int initialCount = 0, bool commentsDisabled = false}) {
   showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
     builder: (_) => DraggableScrollableSheet(
       initialChildSize: 0.65, maxChildSize: 0.95, minChildSize: 0.4,
-      builder: (_, __) => CommentsSheet(postId: postId, initialCount: initialCount)));
+      builder: (_, __) => CommentsSheet(postId: postId, initialCount: initialCount, commentsDisabled: commentsDisabled)));
 }
 
 // Plays a local recorded file (before upload) — uses DeviceFileSource.

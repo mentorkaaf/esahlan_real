@@ -284,6 +284,7 @@ class _PrivacyState extends ConsumerState<PrivacySettingsScreen> {
           _Toggle(icon: Icons.people_outline_rounded,  iconColor: const Color(0xFF6B7280), label: 'Hide Followers',      value: _b('hide_followers'),            onChanged: (v) => _save('hide_followers', v)),
           _Toggle(icon: Icons.person_outline_rounded,  iconColor: const Color(0xFF6B7280), label: 'Hide Following',      value: _b('hide_following'),            onChanged: (v) => _save('hide_following', v)),
           _Toggle(icon: Icons.favorite_border_rounded, iconColor: const Color(0xFF6B7280), label: 'Hide Likes',          value: _b('hide_likes'),                onChanged: (v) => _save('hide_likes', v)),
+          _Toggle(icon: Icons.bookmark_border_rounded, iconColor: const Color(0xFF6B7280), label: 'Hide Saved Posts',    value: _b('hide_saved'),                onChanged: (v) => _save('hide_saved', v)),
         ]),
         _group(title: 'ADVANCED', context: context, children: [
           _Nav(icon: Icons.block_rounded,      iconColor: const Color(0xFFEF4444), label: 'Blocked Users',    trailing: counts != null ? '${counts['blocked']}' : null,

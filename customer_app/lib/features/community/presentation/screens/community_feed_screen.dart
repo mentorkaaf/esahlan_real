@@ -1253,7 +1253,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
               onTap: () => setState(() => _showReactions = !_showReactions),
               onLongPress: () => _react('like'),
             ),
-            _ActionBtn(icon: Icons.mode_comment_outlined, label: 'Comment', color: const Color(0xFF8A94A6), onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount)),
+            _ActionBtn(icon: Icons.mode_comment_outlined, label: 'Comment', color: const Color(0xFF8A94A6), onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount, commentsDisabled: p.commentsDisabled)),
             _ActionBtn(icon: Icons.reply_rounded, label: 'Share', color: const Color(0xFF8A94A6), onTap: () => _showShareDialog()),
           ]),
         ),

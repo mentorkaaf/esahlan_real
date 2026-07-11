@@ -255,7 +255,20 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                                 final chat = await ref.read(communityChatsProvider.notifier).startOrGetChat(widget.user.id);
                                 if (context.mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityChatScreen(chat: chat)));
                               } catch (e) {
-                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: Colors.red));
+                                if (!context.mounted) return;
+                                if (e is DioException && e.response?.statusCode == 403) {
+                                  final msg = e.response?.data['message'] as String? ?? 'This user has restricted their messages';
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                    content: Row(children: [
+                                      const Icon(Icons.lock_rounded, color: Colors.white, size: 16),
+                                      const SizedBox(width: 8),
+                                      Expanded(child: Text(msg)),
+                                    ]),
+                                    backgroundColor: const Color(0xFF374151),
+                                  ));
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: Colors.red));
+                                }
                               }
                             }),
                             const SizedBox(width: 8),
@@ -827,37 +840,58 @@ class _LockedProfileView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final firstName = user.name.split(' ').first;
     return SingleChildScrollView(
       child: Column(children: [
-        const SizedBox(height: 32),
-        // Lock icon circle
+        const SizedBox(height: 24),
+
+        // Gradient lock icon
         Container(
-          width: 80, height: 80,
+          width: 88, height: 88,
           decoration: BoxDecoration(
-            color: c.inputFill,
             shape: BoxShape.circle,
-            border: Border.all(color: c.dividerColor, width: 1.5),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFF8A00), Color(0xFFFF5C00)],
+              begin: Alignment.topLeft, end: Alignment.bottomRight,
+            ),
+            boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.35), blurRadius: 20, offset: const Offset(0, 8))],
           ),
-          child: Icon(Icons.lock_rounded, size: 36, color: c.subtleText),
+          child: const Icon(Icons.lock_rounded, size: 38, color: Colors.white),
         ),
         const SizedBox(height: 20),
+
         Text(
           'This Account is Private',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.bodyText),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: c.bodyText, letterSpacing: -0.3),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 40),
           child: Text(
-            'Follow ${user.name.split(' ').first} to see their photos and videos.',
+            'Follow $firstName to see their photos and videos.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: c.subtleText, height: 1.5),
+            style: TextStyle(fontSize: 14, color: c.subtleText, height: 1.55),
           ),
         ),
-        const SizedBox(height: 32),
-        // Blurred grid preview — 9 grey boxes suggesting hidden posts
+        const SizedBox(height: 28),
+
+        // Subtle divider with label
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(children: [
+            Expanded(child: Divider(color: c.dividerColor)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text('Posts', style: TextStyle(fontSize: 11, color: c.mutedText, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+            ),
+            Expanded(child: Divider(color: c.dividerColor)),
+          ]),
+        ),
+        const SizedBox(height: 12),
+
+        // Frosted grid — 9 blurred cells with gradient overlay
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 1),
           child: GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -865,21 +899,50 @@ class _LockedProfileView extends StatelessWidget {
               crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2,
             ),
             itemCount: 9,
-            itemBuilder: (_, i) => Container(
-              color: c.inputFill,
-              child: Stack(children: [
-                // Subtle lock watermark on each cell
-                Center(child: Icon(Icons.lock_outline_rounded, size: 22, color: c.dividerColor)),
-              ]),
-            ),
+            itemBuilder: (_, i) {
+              // Alternate shade for visual depth
+              final shade = (i % 3 == 1) ? 0.06 : 0.0;
+              return Container(
+                decoration: BoxDecoration(
+                  color: c.inputFill,
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.grey.withValues(alpha: 0.08 + shade),
+                      Colors.grey.withValues(alpha: 0.14 + shade),
+                    ],
+                    begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Center(
+                  child: Container(
+                    width: 30, height: 30,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: c.dividerColor.withValues(alpha: 0.5),
+                    ),
+                    child: Icon(Icons.lock_outline_rounded, size: 14, color: c.mutedText.withValues(alpha: 0.6)),
+                  ),
+                ),
+              );
+            },
           ),
         ),
         const SizedBox(height: 16),
-        Text(
-          '${user.postsCount > 0 ? user.postsCount : '?'} posts are hidden',
-          style: TextStyle(fontSize: 12, color: c.subtleText),
+
+        // Post count badge
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: c.inputFill,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: c.dividerColor),
+          ),
+          child: Text(
+            user.postsCount > 0 ? '${user.postsCount} posts hidden' : 'Posts hidden',
+            style: TextStyle(fontSize: 12, color: c.subtleText, fontWeight: FontWeight.w500),
+          ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 40),
       ]),
     );
   }
