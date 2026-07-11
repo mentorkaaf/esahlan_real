@@ -414,6 +414,10 @@ Route::prefix('v1')->group(function () {
         Route::post('community/highlights',                      [CommunityHighlightController::class, 'store']);
         Route::post('community/highlights/{id}',                 [CommunityHighlightController::class, 'update']);
         Route::delete('community/highlights/{id}',               [CommunityHighlightController::class, 'destroy']);
+        // Highlight items
+        Route::get('community/highlights/{id}/items',            [CommunityHighlightController::class, 'getItems']);
+        Route::post('community/highlights/{id}/items',           [CommunityHighlightController::class, 'addItem']);
+        Route::delete('community/highlights/{id}/items/{itemId}',[CommunityHighlightController::class, 'removeItem']);
 
         // Auth
         Route::post('auth/logout',              [AuthController::class, 'logout']);
