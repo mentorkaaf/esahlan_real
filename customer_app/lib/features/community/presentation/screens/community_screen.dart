@@ -481,8 +481,8 @@ class _SuggestedUserCardState extends State<_SuggestedUserCard> {
           SizedBox(height: 6),
           GestureDetector(
             onTap: () async {
-              final f = await _repo.toggleFollow(widget.user.id);
-              setState(() => _following = f);
+              final result = await _repo.toggleFollow(widget.user.id);
+              setState(() => _following = result['following'] as bool? ?? _following);
             },
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 5),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../data/models/community_models.dart';
+import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'community_shell.dart';
@@ -24,7 +25,7 @@ class _State extends ConsumerState<CommunityNotificationsScreen>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 2, vsync: this);
+    _tab = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -77,6 +78,7 @@ class _State extends ConsumerState<CommunityNotificationsScreen>
           tabs: const [
             Tab(child: Center(child: Text('All', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)))),
             Tab(child: Center(child: Text('Mentions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)))),
+            Tab(child: Center(child: Text('Requests', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)))),
           ],
         ),
       ),
@@ -85,6 +87,7 @@ class _State extends ConsumerState<CommunityNotificationsScreen>
         children: [
           _NotifList(notifsAsync: notifsAsync, filter: null),
           _NotifList(notifsAsync: notifsAsync, filter: 'mention'),
+          const _FollowRequestsList(),
         ],
       ),
     );
@@ -195,6 +198,7 @@ class _NotifTile extends ConsumerStatefulWidget {
 class _NotifTileState extends ConsumerState<_NotifTile> {
   late bool _following;
   bool _loading = false;
+  bool _requestHandled = false;
 
   @override
   void initState() {
@@ -211,6 +215,30 @@ class _NotifTileState extends ConsumerState<_NotifTile> {
     } catch (_) {
       if (mounted) setState(() => _following = !_following);
     } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _acceptRequest() async {
+    final notifId = widget.notif.id;
+    if (_loading || _requestHandled) return;
+    setState(() => _loading = true);
+    try {
+      await ref.read(communityRepoProvider).acceptFollowRequest(notifId);
+      if (mounted) setState(() { _requestHandled = true; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _rejectRequest() async {
+    final notifId = widget.notif.id;
+    if (_loading || _requestHandled) return;
+    setState(() => _loading = true);
+    try {
+      await ref.read(communityRepoProvider).rejectFollowRequest(notifId);
+      if (mounted) setState(() { _requestHandled = true; _loading = false; });
+    } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -262,7 +290,42 @@ class _NotifTileState extends ConsumerState<_NotifTile> {
             ]),
           ),
           SizedBox(width: 8),
-          if (notif.type == 'follow' && notif.actor != null)
+          if (notif.type == 'follow_request' && notif.actor != null)
+            _requestHandled
+                ? Text('Done', style: TextStyle(color: Colors.grey, fontSize: 12))
+                : Row(mainAxisSize: MainAxisSize.min, children: [
+                    SizedBox(
+                      height: 32,
+                      child: ElevatedButton(
+                        onPressed: _loading ? null : _acceptRequest,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kOrange, foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap, elevation: 0,
+                        ),
+                        child: _loading
+                            ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : Text('Accept', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                    SizedBox(width: 6),
+                    SizedBox(
+                      height: 32,
+                      child: OutlinedButton(
+                        onPressed: _loading ? null : _rejectRequest,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.black87,
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text('Reject', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ])
+          else if (notif.type == 'follow' && notif.actor != null)
             SizedBox(
               height: 32,
               child: ElevatedButton(
@@ -297,6 +360,8 @@ class _NotifTileState extends ConsumerState<_NotifTile> {
       case 'like': return 'liked your post.';
       case 'comment': return 'commented on your photo.';
       case 'follow': return 'started following you.';
+      case 'follow_request': return 'wants to follow you.';
+      case 'follow_request_accepted': return 'accepted your follow request.';
       case 'mention': return 'mentioned you in a comment.';
       case 'share': return 'shared your post.';
       case 'reply': return 'replied to your comment.';
@@ -310,6 +375,8 @@ class _NotifTileState extends ConsumerState<_NotifTile> {
       case 'like': return Icons.favorite_rounded;
       case 'comment': return Icons.chat_bubble_rounded;
       case 'follow': return Icons.person_add_rounded;
+      case 'follow_request': return Icons.person_add_rounded;
+      case 'follow_request_accepted': return Icons.check_circle_rounded;
       case 'mention': return Icons.alternate_email_rounded;
       default: return Icons.notifications_rounded;
     }
@@ -320,8 +387,156 @@ class _NotifTileState extends ConsumerState<_NotifTile> {
       case 'like': return const Color(0xFFE41E3F);
       case 'comment': return const Color(0xFF1877F2);
       case 'follow': return kOrange;
+      case 'follow_request': return const Color(0xFF8B5CF6);
+      case 'follow_request_accepted': return const Color(0xFF10B981);
       case 'mention': return const Color(0xFF8B5CF6);
       default: return const Color(0xFF9CA3AF);
     }
+  }
+}
+
+class _FollowRequestsList extends ConsumerStatefulWidget {
+  const _FollowRequestsList();
+
+  @override
+  ConsumerState<_FollowRequestsList> createState() => _FollowRequestsListState();
+}
+
+class _FollowRequestsListState extends ConsumerState<_FollowRequestsList> {
+  List<dynamic> _requests = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await ref.read(communityRepoProvider).getFollowRequests();
+      if (mounted) setState(() { _requests = data; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_requests.isEmpty) {
+      return Center(
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.person_add_rounded, size: 56, color: Colors.grey.shade300),
+          SizedBox(height: 12),
+          Text('No follow requests', style: TextStyle(color: Colors.grey.shade500, fontSize: 16, fontWeight: FontWeight.w600)),
+          SizedBox(height: 4),
+          Text('When someone requests to follow you,\nit will appear here.', textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+        ]),
+      );
+    }
+    return ListView.separated(
+      itemCount: _requests.length,
+      separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey.shade100),
+      itemBuilder: (context, i) {
+        final req = _requests[i];
+        return _FollowRequestTile(
+          request: req,
+          onHandled: () => setState(() => _requests.removeAt(i)),
+        );
+      },
+    );
+  }
+}
+
+class _FollowRequestTile extends ConsumerStatefulWidget {
+  final dynamic request;
+  final VoidCallback onHandled;
+  const _FollowRequestTile({required this.request, required this.onHandled});
+
+  @override
+  ConsumerState<_FollowRequestTile> createState() => _FollowRequestTileState();
+}
+
+class _FollowRequestTileState extends ConsumerState<_FollowRequestTile> {
+  bool _loading = false;
+
+  Future<void> _accept() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      await ref.read(communityRepoProvider).acceptFollowRequest(widget.request['id'] as int);
+      widget.onHandled();
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _reject() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      await ref.read(communityRepoProvider).rejectFollowRequest(widget.request['id'] as int);
+      widget.onHandled();
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final req = widget.request;
+    final user = req['user'] as Map<String, dynamic>?;
+    final name = user?['name'] as String? ?? 'Unknown';
+    final avatar = user?['avatar'] as String?;
+    final username = user?['username'] as String? ?? '';
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(children: [
+        CircleNetImage(url: avatar, size: 48, fallbackText: name),
+        SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.bodyText)),
+            if (username.isNotEmpty)
+              Text('@$username', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+          ]),
+        ),
+        SizedBox(width: 8),
+        if (_loading)
+          SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: kOrange))
+        else ...[
+          SizedBox(
+            height: 34,
+            child: ElevatedButton(
+              onPressed: _accept,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kOrange, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: EdgeInsets.symmetric(horizontal: 14),
+                minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap, elevation: 0,
+              ),
+              child: Text('Accept', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+            ),
+          ),
+          SizedBox(width: 8),
+          SizedBox(
+            height: 34,
+            child: OutlinedButton(
+              onPressed: _reject,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.black87,
+                side: BorderSide(color: Colors.grey.shade300),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: EdgeInsets.symmetric(horizontal: 14),
+                minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text('Reject', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ]),
+    );
   }
 }

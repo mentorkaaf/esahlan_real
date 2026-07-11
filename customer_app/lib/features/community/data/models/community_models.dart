@@ -60,6 +60,7 @@ class CommunityUser {
   final int likesCount;
   final String? joinedAt;
   bool isFollowing;
+  bool isRequested;
   final bool isMe;
   final List<String> badges;
   final List<String> interests;
@@ -87,6 +88,7 @@ class CommunityUser {
     this.likesCount = 0,
     this.joinedAt,
     this.isFollowing = false,
+    this.isRequested = false,
     this.isMe = false,
     this.badges = const [],
     this.interests = const [],
@@ -115,6 +117,7 @@ class CommunityUser {
         likesCount: j['likes_count'] as int? ?? 0,
         joinedAt: j['joined_at'] as String?,
         isFollowing: j['is_following'] as bool? ?? false,
+        isRequested: j['is_requested'] as bool? ?? false,
         isMe: j['is_me'] as bool? ?? false,
         badges: (j['badges'] as List<dynamic>?)?.cast<String>() ?? [],
         interests: (j['interests'] as List<dynamic>?)?.cast<String>() ?? [],

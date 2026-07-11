@@ -109,11 +109,13 @@ class CommunityFollowController extends Controller
         ]);
     }
 
-    // POST /community/follow-requests/{id}/accept
+    // POST /community/follow-requests/{id}/accept  (id = follow row ID OR follower user_id)
     public function accept(int $id)
     {
         $me = auth()->id();
-        $req = CommunityFollow::where('id', $id)->where('following_id', $me)->where('status', 'pending')->firstOrFail();
+        $req = CommunityFollow::where('following_id', $me)->where('status', 'pending')
+            ->where(fn ($q) => $q->where('id', $id)->orWhere('follower_id', $id))
+            ->firstOrFail();
 
         DB::transaction(function () use ($req, $me) {
             $req->update(['status' => 'accepted']);
@@ -139,11 +141,13 @@ class CommunityFollowController extends Controller
         return response()->json(['status' => 'success']);
     }
 
-    // POST /community/follow-requests/{id}/reject
+    // POST /community/follow-requests/{id}/reject  (id = follow row ID OR follower user_id)
     public function reject(int $id)
     {
         $me = auth()->id();
-        $req = CommunityFollow::where('id', $id)->where('following_id', $me)->where('status', 'pending')->firstOrFail();
+        $req = CommunityFollow::where('following_id', $me)->where('status', 'pending')
+            ->where(fn ($q) => $q->where('id', $id)->orWhere('follower_id', $id))
+            ->firstOrFail();
         $req->delete();
         CommunityNotification::where('user_id', $me)->where('actor_id', $req->follower_id)->where('type', 'follow_request')->delete();
 

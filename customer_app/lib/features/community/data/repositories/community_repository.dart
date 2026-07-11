@@ -204,10 +204,22 @@ class CommunityRepository {
   }
 
   // ── Follow ─────────────────────────────────────────────────────────────────
-  Future<bool> toggleFollow(int userId) async {
+  Future<Map<String, dynamic>> toggleFollow(int userId) async {
     final r = await _dio.post('/community/follow/$userId');
-    return r.data['following'] as bool;
+    return {
+      'following': r.data['following'] as bool? ?? false,
+      'requested': r.data['requested'] as bool? ?? false,
+      'action': r.data['action'] as String? ?? '',
+    };
   }
+
+  Future<List<Map<String, dynamic>>> getFollowRequests() async {
+    final r = await _dio.get('/community/follow-requests');
+    return (r.data['data'] as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> acceptFollowRequest(int id) => _dio.post('/community/follow-requests/$id/accept');
+  Future<void> rejectFollowRequest(int id) => _dio.post('/community/follow-requests/$id/reject');
 
   // ── Stories ────────────────────────────────────────────────────────────────
   // Ads

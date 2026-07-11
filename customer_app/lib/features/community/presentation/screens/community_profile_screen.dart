@@ -58,6 +58,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
   late bool _following;
+  late bool _requested;
   String? _localAvatar;
   String? _localCover;
   bool _followLoading = false;
@@ -67,13 +68,15 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     super.initState();
     _tab = TabController(length: 6, vsync: this);
     _following = widget.user.isFollowing;
+    _requested = widget.user.isRequested;
   }
 
   @override
   void didUpdateWidget(_ProfileBody old) {
     super.didUpdateWidget(old);
-    if (old.user.isFollowing != widget.user.isFollowing && !_followLoading) {
-      setState(() => _following = widget.user.isFollowing);
+    if (!_followLoading) {
+      if (old.user.isFollowing != widget.user.isFollowing) setState(() => _following = widget.user.isFollowing);
+      if (old.user.isRequested != widget.user.isRequested) setState(() => _requested = widget.user.isRequested);
     }
   }
 
@@ -88,13 +91,18 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
 
   Future<void> _toggleFollow() async {
     if (_followLoading) return;
-    setState(() { _followLoading = true; _following = !_following; });
+    setState(() => _followLoading = true);
     try {
-      await ref.read(communityRepoProvider).toggleFollow(widget.user.id);
+      final result = await ref.read(communityRepoProvider).toggleFollow(widget.user.id);
+      final action = result['action'] as String;
+      setState(() {
+        _following  = action == 'followed';
+        _requested  = action == 'requested';
+      });
       ref.invalidate(communityProfileProvider(widget.user.id));
       ref.invalidate(communityMyProfileProvider);
     } catch (_) {
-      setState(() => _following = !_following);
+      // revert
     } finally {
       if (mounted) setState(() => _followLoading = false);
     }
@@ -274,9 +282,10 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                             }),
                             const SizedBox(width: 8),
                             _ActionBtn(
-                              label: _following ? 'Following' : 'Follow',
-                              icon: _following ? Icons.check_rounded : Icons.person_add_rounded,
-                              outlined: false, loading: _followLoading, onTap: _toggleFollow,
+                              label: _following ? 'Following' : (_requested ? 'Requested' : 'Follow'),
+                              icon: _following ? Icons.check_rounded : (_requested ? Icons.hourglass_top_rounded : Icons.person_add_rounded),
+                              outlined: _requested,
+                              loading: _followLoading, onTap: _toggleFollow,
                             ),
                           ],
                         ]),
@@ -339,11 +348,11 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                       const SizedBox(height: 12),
 
                       // Private account banner — show lock if private and not me and not following
-                      if (u.isPrivate && !widget.isMe && !u.isFollowing)
+                      if (u.isPrivate && !widget.isMe && !_following)
                         const SizedBox(height: 8),
 
                       // Tabs (hidden if private + not following)
-                      if (!u.isPrivate || widget.isMe || u.isFollowing)
+                      if (!u.isPrivate || widget.isMe || _following)
                         TabBar(
                           controller: _tab,
                           indicatorColor: kOrange,
@@ -365,7 +374,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   ),
           ),
 
-          if (!u.isPrivate || widget.isMe || u.isFollowing)
+          if (!u.isPrivate || widget.isMe || _following)
             // Pinned post header (shown in Posts tab only)
             SliverToBoxAdapter(
               child: ColoredBox(
@@ -382,7 +391,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
             ),
         ],
 
-        body: (u.isPrivate && !widget.isMe && !u.isFollowing)
+        body: (u.isPrivate && !widget.isMe && !_following)
             ? _LockedProfileView(user: u)
             : TabBarView(
                 controller: _tab,
