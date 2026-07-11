@@ -684,7 +684,7 @@ class CommunityFeedController extends Controller
             'feeling'           => $post->feeling,
             'privacy'           => $post->privacy,
             'is_pinned'         => $post->is_pinned,
-            'comments_disabled' => $post->comments_disabled,
+            'comments_disabled' => $post->comments_disabled || !PrivacyService::canComment($userId, $post->user_id)['allowed'],
             'views_count'       => $post->views_count,
             'likes_count'       => $post->likes_count,
             'comments_count'    => $post->comments_count,
