@@ -140,6 +140,16 @@ class CommunityProfileController extends Controller
     public function likedPosts(int $userId, Request $request)
     {
         $authId = auth()->id();
+
+        // Respect hide_likes — hidden from everyone except the owner
+        if ($authId !== $userId) {
+            $row = \Illuminate\Support\Facades\DB::table('user_settings')->where('user_id', $userId)->first();
+            $privacy = json_decode($row?->privacy ?? '{}', true);
+            if ($privacy['hide_likes'] ?? false) {
+                return response()->json(['status' => 'success', 'data' => [], 'meta' => ['current_page' => 1, 'last_page' => 1]]);
+            }
+        }
+
         $feed = new CommunityFeedController();
         $posts = CommunityPost::with(['user.communityProfile','media','userReaction'])
             ->whereHas('reactions', fn($q) => $q->where('user_id', $userId)->where('type','like'))

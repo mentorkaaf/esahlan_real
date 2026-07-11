@@ -21,6 +21,7 @@ class UserSettingsController extends Controller
             'hide_followers'     => false,
             'hide_following'     => false,
             'hide_likes'         => false,
+            'hide_saved'         => false,
         ],
         'notifications' => [
             'likes'            => true,
