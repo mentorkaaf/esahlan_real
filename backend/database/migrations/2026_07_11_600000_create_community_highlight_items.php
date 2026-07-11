@@ -16,7 +16,7 @@ return new class extends Migration {
             $table->unsignedInteger('sort_order')->default(0);
             $table->timestamps();
 
-            $table->unique(['highlight_id', 'content_type', 'content_id']);
+            $table->unique(['highlight_id', 'content_type', 'content_id'], 'chi_uniq');
         });
     }
 
