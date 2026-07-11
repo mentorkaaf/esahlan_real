@@ -137,6 +137,29 @@ class CommunityProfileController extends Controller
         return response()->json(['status'=>'success','data'=>$posts->map(fn($p)=>$feed->transformPost($p,$authId))->toArray()]);
     }
 
+    public function savedPostsByUser(int $userId, Request $request)
+    {
+        $authId = auth()->id();
+
+        // Owner always sees their own saved posts
+        if ($authId !== $userId) {
+            $row = \Illuminate\Support\Facades\DB::table('user_settings')->where('user_id', $userId)->first();
+            $privacy = json_decode($row?->privacy ?? '{}', true);
+            if ($privacy['hide_saved'] ?? false) {
+                return response()->json(['status' => 'success', 'data' => [], 'meta' => ['current_page' => 1, 'last_page' => 1]]);
+            }
+        }
+
+        $feed = new CommunityFeedController();
+        $posts = CommunityPost::with(['user.communityProfile','media','userReaction'])
+            ->whereHas('saves', fn($q) => $q->where('user_id', $userId))
+            ->where('privacy','public')
+            ->where(fn($q) => $q->where('moderation_status','approved')->orWhere('user_id',$authId))
+            ->latest()
+            ->paginate(12);
+        return response()->json(['status'=>'success','data'=>$posts->map(fn($p)=>$feed->transformPost($p,$authId))->toArray(),'meta'=>['current_page'=>$posts->currentPage(),'last_page'=>$posts->lastPage()]]);
+    }
+
     public function likedPosts(int $userId, Request $request)
     {
         $authId = auth()->id();
