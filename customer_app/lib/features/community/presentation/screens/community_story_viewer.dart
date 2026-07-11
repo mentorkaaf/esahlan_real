@@ -9,6 +9,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
 import '../screens/community_shell.dart';
+import 'highlight_viewer_screen.dart';
 
 class StoryViewer extends StatefulWidget {
   final List<StoryGroup> groups;
@@ -197,6 +198,11 @@ class _StoryViewerState extends State<StoryViewer> {
                 Text(group.user.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
                 Text(_timeLabel(story.createdAt), style: const TextStyle(color: Colors.white70, fontSize: 12)),
               ])),
+              GestureDetector(
+                onTap: () => _showStoryOptions(context, story, group),
+                child: const Icon(Icons.more_vert_rounded, color: Colors.white, size: 26),
+              ),
+              const SizedBox(width: 4),
               GestureDetector(onTap: () => Navigator.pop(context),
                   child: const Icon(Icons.close_rounded, color: Colors.white, size: 28)),
             ]),
@@ -269,6 +275,59 @@ class _StoryViewerState extends State<StoryViewer> {
                               child: Text(emoji, style: const TextStyle(fontSize: 26)))),
                     ]),
             )),
+        ]),
+      ),
+    );
+  }
+
+  void _showStoryOptions(BuildContext context, CommunityStory story, StoryGroup group) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 12),
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 8),
+          if (group.user.isMe) ListTile(
+            leading: const Icon(Icons.bookmark_added_rounded, color: kOrange),
+            title: const Text('Add to Highlight', style: TextStyle(color: Colors.white)),
+            onTap: () {
+              Navigator.pop(ctx);
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => AddToHighlightSheet(
+                  userId: group.user.id,
+                  contentType: 'story',
+                  contentId: story.id,
+                ),
+              );
+            },
+          ),
+          if (!group.user.isMe) ListTile(
+            leading: const Icon(Icons.flag_rounded, color: Color(0xFFDC2626)),
+            title: const Text('Report Story', style: TextStyle(color: Color(0xFFDC2626))),
+            onTap: () {
+              Navigator.pop(ctx);
+              _repo.report('story', story.id, 'inappropriate');
+              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Report submitted. Thank you.')),
+              );
+            },
+          ),
+          if (group.user.isMe) ListTile(
+            leading: const Icon(Icons.delete_rounded, color: Colors.red),
+            title: const Text('Delete Story', style: TextStyle(color: Colors.red)),
+            onTap: () async {
+              Navigator.pop(ctx);
+              await _repo.deleteStory(story.id);
+              if (context.mounted) Navigator.pop(context);
+            },
+          ),
+          const SizedBox(height: 8),
         ]),
       ),
     );

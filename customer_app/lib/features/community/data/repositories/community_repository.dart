@@ -241,6 +241,8 @@ class CommunityRepository {
     return List<Map<String, dynamic>>.from(r.data['data'] ?? []);
   }
 
+  Future<void> deleteStory(int storyId) => _dio.delete('/community/stories/$storyId');
+
   Future<void> createStory({
     required String type,
     String? textContent,

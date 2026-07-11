@@ -19,6 +19,7 @@ import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
 import '../widgets/stories_bar.dart';
+import 'highlight_viewer_screen.dart';
 import 'community_shell.dart';
 import 'community_notifications_screen.dart';
 import 'create_post_screen.dart';
@@ -1430,6 +1431,23 @@ class _PostCardState extends ConsumerState<_PostCard> {
             title: Text('Boost Post'),
             subtitle: Text('Promote to more people', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
             onTap: () { Navigator.pop(context); _showBoostDialog(); },
+          ),
+          if (widget.post.user.isMe) ListTile(
+            leading: Icon(Icons.bookmark_added_rounded, color: kOrange),
+            title: const Text('Add to Highlight'),
+            onTap: () {
+              Navigator.pop(context);
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => AddToHighlightSheet(
+                  userId: widget.post.user.id,
+                  contentType: 'post',
+                  contentId: widget.post.id,
+                ),
+              );
+            },
           ),
           if (!widget.post.user.isMe) ListTile(
             leading: Icon(Icons.visibility_off_rounded, color: context.colors.mutedText),
