@@ -139,6 +139,7 @@ class FeedRankingService
 
     private int $userId;
     private array $followingIds;
+    private array $blockedUserIds;
     private array $userInterests;
     private array $seenPostIds;
     private array $interactionHistory;
@@ -149,6 +150,7 @@ class FeedRankingService
     {
         $this->userId             = $userId;
         $this->followingIds       = $this->getFollowingIds();
+        $this->blockedUserIds     = $this->getBlockedUserIds();
         $this->userInterests      = $this->getUserInterests();
         $this->seenPostIds        = $this->getRecentSeenPosts();
         $this->interactionHistory = $this->getRecentInteractions();
@@ -192,7 +194,8 @@ class FeedRankingService
             ->whereNull('community_posts.deleted_at')
             ->where('community_posts.moderation_status', 'approved')
             ->where('community_posts.created_at', '>', now()->subDays(14))
-            ->where(fn ($q) => $q->where('community_posts.video_ready', true)->orWhere('community_posts.user_id', $this->userId));
+            ->where(fn ($q) => $q->where('community_posts.video_ready', true)->orWhere('community_posts.user_id', $this->userId))
+            ->when(!empty($this->blockedUserIds), fn ($q) => $q->whereNotIn('community_posts.user_id', $this->blockedUserIds));
 
         if (!empty($this->seenPostIds)) {
             $recentSeen      = DB::table('feed_seen_posts')
@@ -659,6 +662,19 @@ class FeedRankingService
             fn () => CommunityFollow::where('follower_id', $this->userId)
                 ->pluck('following_id')->toArray()
         );
+    }
+
+    private function getBlockedUserIds(): array
+    {
+        return Cache::remember("user:{$this->userId}:blocked_ids", 60, function () {
+            $blocked = DB::table('community_blocks')
+                ->where('blocker_id', $this->userId)
+                ->pluck('blocked_id')->toArray();
+            $blockedBy = DB::table('community_blocks')
+                ->where('blocked_id', $this->userId)
+                ->pluck('blocker_id')->toArray();
+            return array_unique(array_merge($blocked, $blockedBy));
+        });
     }
 
     private function getUserInterests(): array

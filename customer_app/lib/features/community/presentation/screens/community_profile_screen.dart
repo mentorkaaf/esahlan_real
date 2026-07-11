@@ -319,7 +319,27 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
           SliverToBoxAdapter(
             child: ColoredBox(
               color: c.cardBg,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              child: _isBlockedByThem
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                      child: Column(children: [
+                        const SizedBox(width: 96),
+                        const SizedBox(height: 24),
+                        Container(
+                          width: 72, height: 72,
+                          decoration: BoxDecoration(color: Colors.grey.shade200, shape: BoxShape.circle),
+                          child: Icon(Icons.block_rounded, size: 36, color: Colors.grey.shade400),
+                        ),
+                        const SizedBox(height: 16),
+                        Text('You can\'t view this profile',
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: c.bodyText)),
+                        const SizedBox(height: 8),
+                        Text('This user has blocked you.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 13, color: c.mutedText)),
+                      ]),
+                    )
+                  : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     // Action buttons row (right-aligned, beside avatar space)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -448,7 +468,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   ),
           ),
 
-          if (!u.isPrivate || widget.isMe || _following)
+          if (!_isBlockedByThem && (!u.isPrivate || widget.isMe || _following))
             // Pinned post header (shown in Posts tab only)
             SliverToBoxAdapter(
               child: ColoredBox(
@@ -466,7 +486,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
         ],
 
         body: _isBlockedByThem
-            ? _BlockedByView(user: u)
+            ? const SizedBox.shrink()
             : (u.isPrivate && !widget.isMe && !_following)
             ? _LockedProfileView(user: u)
             : TabBarView(

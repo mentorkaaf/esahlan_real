@@ -360,6 +360,11 @@ class CommunityFeedController extends Controller
         $followingIds = CommunityFollow::where('follower_id', $userId)->pluck('following_id')->toArray();
         $interestedCreators = array_keys($interests);
 
+        // Block filter: exclude posts from users who blocked viewer OR viewer blocked
+        $blockedByViewer = \DB::table('community_blocks')->where('blocker_id', $userId)->pluck('blocked_id')->toArray();
+        $blockedViewer   = \DB::table('community_blocks')->where('blocked_id', $userId)->pluck('blocker_id')->toArray();
+        $blockedUserIds  = array_unique(array_merge($blockedByViewer, $blockedViewer));
+
         // Exclude reels seen in the last 2 hours so scrolling doesn't repeat
         // the same clips — mirrors FeedRankingService's approach for the main
         // feed. But on a small/young content pool this can over-exclude: if
@@ -384,7 +389,8 @@ class CommunityFeedController extends Controller
             ->where('privacy', 'public')
             // Mirror FeedRankingService: owner can see their own transcoding video in reels
             ->where(fn ($q) => $q->where('video_ready', true)->orWhere('user_id', $userId))
-            ->when($applySeenExclusion, fn ($q) => $q->whereNotIn('id', $recentlySeen));
+            ->when($applySeenExclusion, fn ($q) => $q->whereNotIn('id', $recentlySeen))
+            ->when(!empty($blockedUserIds), fn ($q) => $q->whereNotIn('user_id', $blockedUserIds));
 
         // Same fix as the main feed: when following/recommended pools have
         // nothing to draw from (fresh user, or just thin interest history),
