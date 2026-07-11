@@ -172,12 +172,76 @@ class AuthController extends Controller
             return response()->json(['success' => false, 'message' => 'Your account has been banned'], 403);
         }
 
-        $token = $user->createToken('mobile')->plainTextToken;
+        $deviceName = $this->_deviceName($request);
+        $tokenModel = $user->createToken($deviceName);
+
+        // Store device info on the token row
+        DB::table('personal_access_tokens')
+            ->where('id', $tokenModel->accessToken->id)
+            ->update([
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
 
         return response()->json([
             'success' => true,
-            'data'    => ['user' => $user, 'token' => $token],
+            'data'    => ['user' => $user, 'token' => $tokenModel->plainTextToken],
         ]);
+    }
+
+    // GET /auth/sessions
+    public function sessions(Request $request)
+    {
+        $currentId = $request->user()->currentAccessToken()->id;
+
+        $tokens = DB::table('personal_access_tokens')
+            ->where('tokenable_type', 'App\\Models\\User')
+            ->where('tokenable_id', $request->user()->id)
+            ->orderByDesc('last_used_at')
+            ->get()
+            ->map(fn ($t) => [
+                'id'          => $t->id,
+                'name'        => $t->name,
+                'ip_address'  => $t->ip_address,
+                'last_used'   => $t->last_used_at,
+                'created_at'  => $t->created_at,
+                'is_current'  => $t->id === $currentId,
+                'device_type' => $this->_guessDevice($t->user_agent ?? ''),
+            ]);
+
+        return response()->json(['success' => true, 'data' => $tokens]);
+    }
+
+    // DELETE /auth/sessions/{id}
+    public function revokeSession(Request $request, int $id)
+    {
+        DB::table('personal_access_tokens')
+            ->where('id', $id)
+            ->where('tokenable_type', 'App\\Models\\User')
+            ->where('tokenable_id', $request->user()->id)
+            ->delete();
+
+        return response()->json(['success' => true, 'message' => 'Session revoked']);
+    }
+
+    private function _deviceName(Request $request): string
+    {
+        $ua = $request->userAgent() ?? '';
+        if (str_contains($ua, 'Android')) return 'Android';
+        if (str_contains($ua, 'iPhone'))  return 'iPhone';
+        if (str_contains($ua, 'iPad'))    return 'iPad';
+        if (str_contains($ua, 'Windows')) return 'Windows';
+        if (str_contains($ua, 'Mac'))     return 'Mac';
+        return 'Mobile';
+    }
+
+    private function _guessDevice(string $ua): string
+    {
+        if (str_contains($ua, 'Android')) return 'android';
+        if (str_contains($ua, 'iPhone') || str_contains($ua, 'iPad')) return 'ios';
+        if (str_contains($ua, 'Windows')) return 'windows';
+        if (str_contains($ua, 'Mac'))     return 'mac';
+        return 'mobile';
     }
 
     public function logout(Request $request)

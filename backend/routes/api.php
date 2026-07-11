@@ -409,6 +409,8 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/logout',              [AuthController::class, 'logout']);
         Route::post('auth/logout-all',          [AuthController::class, 'logoutAll']);
         Route::post('auth/deactivate',          [AuthController::class, 'deactivateAccount']);
+        Route::get('auth/sessions',             [AuthController::class, 'sessions']);
+        Route::delete('auth/sessions/{id}',     [AuthController::class, 'revokeSession']);
         Route::get('auth/me',                   [AuthController::class, 'me']);
         Route::post('auth/update-profile',      [AuthController::class, 'updateProfile']);
         Route::delete('auth/delete-account',    [AuthController::class, 'deleteAccount']);
