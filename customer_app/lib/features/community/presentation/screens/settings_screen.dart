@@ -390,17 +390,19 @@ class SecuritySettingsScreen extends ConsumerWidget {
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('Your account is secure', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF10B981), fontSize: 15)),
               const SizedBox(height: 4),
-              Text(info?['last_login'] ?? 'Checking...', style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+              Text(info != null ? (info['last_login'] as String) : 'Checking...', style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
             ])),
           ]),
         ),
         _group(title: 'AUTHENTICATION', context: context, children: [
           _Toggle(icon: Icons.security_rounded, iconColor: const Color(0xFF10B981), label: 'Two Factor Authentication', subtitle: 'Enabled', value: true, onChanged: (_) {}),
-          _Nav(icon: Icons.history_rounded, iconColor: const Color(0xFF3B82F6), label: 'Login Activity', onTap: () {}),
+          _Nav(icon: Icons.history_rounded, iconColor: const Color(0xFF3B82F6), label: 'Login Activity',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _LoginActivityScreen()))),
         ]),
         _group(title: 'DEVICES', context: context, children: [
-          _Nav(icon: Icons.devices_rounded, iconColor: const Color(0xFF8B5CF6), label: 'Active Devices', trailing: info != null ? '${info['active_devices']}' : null, onTap: () {}),
-          _Nav(icon: Icons.verified_outlined, iconColor: const Color(0xFF10B981), label: 'Trusted Devices', trailing: info != null ? '${info['trusted_devices']}' : null, onTap: () {}),
+          _Nav(icon: Icons.devices_rounded, iconColor: const Color(0xFF8B5CF6), label: 'Active Devices',
+            trailing: info != null ? '${info['active_devices']}' : null,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _ActiveDevicesScreen()))),
         ]),
         _group(title: 'ACCOUNT', context: context, children: [
           _Toggle(icon: Icons.notifications_active_outlined, iconColor: const Color(0xFF06B6D4), label: 'Security Alerts',
@@ -433,16 +435,26 @@ class SecuritySettingsScreen extends ConsumerWidget {
 }
 
 final _securityInfoProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  // Try to get real session info — graceful fallback
   try {
-    final res = await CommunityRepository().getSettings();
+    final sessions = await CommunityRepository().getSessions();
+    final current = sessions.firstWhere((s) => s['is_current'] == true, orElse: () => sessions.isNotEmpty ? sessions.first : {});
+    final lastUsed = current['last_used'] as String? ?? current['created_at'] as String? ?? '';
+    String lastLoginLabel = 'Today';
+    if (lastUsed.length >= 10) {
+      final d = DateTime.tryParse(lastUsed);
+      if (d != null) {
+        final diff = DateTime.now().difference(d);
+        if (diff.inMinutes < 60) lastLoginLabel = '${diff.inMinutes}m ago';
+        else if (diff.inHours < 24) lastLoginLabel = '${diff.inHours}h ago';
+        else lastLoginLabel = '${diff.inDays}d ago';
+      }
+    }
     return {
-      'last_login': 'Last login: Today',
-      'active_devices': res['active_devices_count'] ?? 1,
-      'trusted_devices': res['trusted_devices_count'] ?? 1,
+      'last_login': 'Last login: $lastLoginLabel',
+      'active_devices': sessions.length,
     };
   } catch (_) {
-    return {'last_login': 'Today', 'active_devices': 1, 'trusted_devices': 1};
+    return {'last_login': 'Last login: Today', 'active_devices': 1};
   }
 });
 
@@ -1253,8 +1265,12 @@ class AccountSettingsScreen extends ConsumerWidget {
             _Nav(icon: Icons.alternate_email_rounded, iconColor: const Color(0xFF3B82F6), label: 'Username',
               trailing: user.username != null ? '@${user.username}' : 'Not set',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfileScreen(user: user)))),
-            _Nav(icon: Icons.phone_outlined, iconColor: const Color(0xFF10B981), label: 'Phone Number', trailing: 'Manage', onTap: null),
-            _Nav(icon: Icons.email_outlined, iconColor: const Color(0xFF8B5CF6), label: 'Email Address', trailing: 'Manage', onTap: null),
+            _Nav(icon: Icons.phone_outlined, iconColor: const Color(0xFF10B981), label: 'Phone Number',
+              trailing: user.phone != null ? user.phone!.replaceRange(3, user.phone!.length - 2, '****') : 'Not set',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _PhoneChangeScreen(current: user.phone)))),
+            _Nav(icon: Icons.email_outlined, iconColor: const Color(0xFF8B5CF6), label: 'Email Address',
+              trailing: user.email != null && user.email!.isNotEmpty ? user.email!.split('@').first.replaceRange(2, null, '***@${user.email!.split('@').last}') : 'Not set',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _EmailChangeScreen(current: user.email)))),
           ]),
           _group(title: 'ACCOUNT CONTROL', context: context, children: [
             _Nav(icon: Icons.download_outlined, iconColor: const Color(0xFF06B6D4), label: 'Download Your Data', onTap: () {}),
@@ -1459,6 +1475,379 @@ class _UserListState extends ConsumerState<_UserListScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// LOGIN ACTIVITY
+// ══════════════════════════════════════════════════════════════════════════
+class _LoginActivityScreen extends StatefulWidget {
+  const _LoginActivityScreen();
+  @override State<_LoginActivityScreen> createState() => _LoginActivityState();
+}
+class _LoginActivityState extends State<_LoginActivityScreen> {
+  late Future<List<Map<String, dynamic>>> _future;
+  @override void initState() { super.initState(); _future = CommunityRepository().getSessions(); }
+
+  IconData _icon(String type) => switch (type) {
+    'android' => Icons.android_rounded,
+    'ios'     => Icons.phone_iphone_rounded,
+    'windows' => Icons.computer_rounded,
+    'mac'     => Icons.laptop_mac_rounded,
+    _         => Icons.phone_android_rounded,
+  };
+
+  String _timeAgo(String? raw) {
+    if (raw == null) return 'Unknown';
+    final d = DateTime.tryParse(raw);
+    if (d == null) return raw.length > 10 ? raw.substring(0, 10) : raw;
+    final diff = DateTime.now().difference(d);
+    if (diff.inMinutes < 1)  return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24)   return '${diff.inHours}h ago';
+    if (diff.inDays < 30)    return '${diff.inDays}d ago';
+    return raw.substring(0, 10);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Scaffold(
+      backgroundColor: c.scaffoldBg,
+      appBar: _bar(context, 'Login Activity'),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _future,
+        builder: (ctx, snap) {
+          if (snap.connectionState == ConnectionState.waiting)
+            return const Center(child: CircularProgressIndicator(color: _kOrange));
+          final sessions = snap.data ?? [];
+          if (sessions.isEmpty) return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.history_rounded, size: 56, color: c.subtleText),
+            const SizedBox(height: 12),
+            Text('No login history', style: TextStyle(color: c.subtleText)),
+          ]));
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: sessions.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 4),
+            itemBuilder: (_, i) {
+              final s = sessions[i];
+              final isCurrent = s['is_current'] == true;
+              final deviceType = s['device_type'] as String? ?? 'mobile';
+              final lastUsed = s['last_used'] as String? ?? s['created_at'] as String?;
+              return Material(
+                color: isCurrent ? _kOrange.withValues(alpha: 0.06) : c.cardBg,
+                borderRadius: BorderRadius.circular(12),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  leading: Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: (isCurrent ? _kOrange : const Color(0xFF3B82F6)).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(_icon(deviceType), color: isCurrent ? _kOrange : const Color(0xFF3B82F6), size: 22),
+                  ),
+                  title: Row(children: [
+                    Text(s['name'] as String? ?? 'Device', style: TextStyle(fontWeight: FontWeight.w600, color: c.bodyText, fontSize: 14)),
+                    if (isCurrent) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(color: _kOrange, borderRadius: BorderRadius.circular(6)),
+                        child: const Text('This device', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                      ),
+                    ],
+                  ]),
+                  subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    if (s['ip_address'] != null) Text(s['ip_address'] as String, style: TextStyle(fontSize: 11, color: c.subtleText)),
+                    Text('Last active: ${_timeAgo(lastUsed)}', style: TextStyle(fontSize: 11, color: c.subtleText)),
+                  ]),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ACTIVE DEVICES
+// ══════════════════════════════════════════════════════════════════════════
+class _ActiveDevicesScreen extends StatefulWidget {
+  const _ActiveDevicesScreen();
+  @override State<_ActiveDevicesScreen> createState() => _ActiveDevicesState();
+}
+class _ActiveDevicesState extends State<_ActiveDevicesScreen> {
+  late Future<List<Map<String, dynamic>>> _future;
+  final Set<int> _revoking = {};
+  @override void initState() { super.initState(); _load(); }
+  void _load() => setState(() { _future = CommunityRepository().getSessions(); });
+
+  IconData _icon(String type) => switch (type) {
+    'android' => Icons.android_rounded,
+    'ios'     => Icons.phone_iphone_rounded,
+    'windows' => Icons.computer_rounded,
+    'mac'     => Icons.laptop_mac_rounded,
+    _         => Icons.phone_android_rounded,
+  };
+
+  Future<void> _revoke(int id) async {
+    final ok = await showDialog<bool>(context: context, builder: (dlg) => AlertDialog(
+      title: const Text('Sign out device?'),
+      content: const Text('This device will be signed out immediately.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dlg, false), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(dlg, true), child: const Text('Sign Out', style: TextStyle(color: Color(0xFFEF4444)))),
+      ],
+    ));
+    if (ok != true) return;
+    setState(() => _revoking.add(id));
+    try {
+      await CommunityRepository().revokeSession(id);
+      _load();
+    } finally {
+      setState(() => _revoking.remove(id));
+    }
+  }
+
+  String _timeAgo(String? raw) {
+    if (raw == null) return '';
+    final d = DateTime.tryParse(raw);
+    if (d == null) return '';
+    final diff = DateTime.now().difference(d);
+    if (diff.inMinutes < 1)  return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24)   return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Scaffold(
+      backgroundColor: c.scaffoldBg,
+      appBar: _bar(context, 'Active Devices'),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _future,
+        builder: (ctx, snap) {
+          if (snap.connectionState == ConnectionState.waiting)
+            return const Center(child: CircularProgressIndicator(color: _kOrange));
+          final sessions = snap.data ?? [];
+          if (sessions.isEmpty) return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.devices_rounded, size: 56, color: c.subtleText),
+            const SizedBox(height: 12),
+            Text('No active devices', style: TextStyle(color: c.subtleText)),
+          ]));
+          return ListView(padding: const EdgeInsets.all(16), children: [
+            ...sessions.asMap().entries.map((entry) {
+              final i = entry.key; final s = entry.value;
+              final id = s['id'] as int;
+              final isCurrent = s['is_current'] == true;
+              final deviceType = s['device_type'] as String? ?? 'mobile';
+              final lastUsed = s['last_used'] as String? ?? s['created_at'] as String?;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Material(
+                  color: isCurrent ? _kOrange.withValues(alpha: 0.06) : c.cardBg,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(children: [
+                      Container(
+                        width: 48, height: 48,
+                        decoration: BoxDecoration(
+                          color: (isCurrent ? _kOrange : const Color(0xFF6B7280)).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(_icon(deviceType), color: isCurrent ? _kOrange : const Color(0xFF6B7280), size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Row(children: [
+                          Text(s['name'] as String? ?? 'Device', style: TextStyle(fontWeight: FontWeight.w700, color: c.bodyText, fontSize: 14)),
+                          if (isCurrent) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(color: _kOrange, borderRadius: BorderRadius.circular(6)),
+                              child: const Text('Current', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                            ),
+                          ],
+                        ]),
+                        if (s['ip_address'] != null) ...[
+                          const SizedBox(height: 3),
+                          Text(s['ip_address'] as String, style: TextStyle(fontSize: 12, color: c.subtleText)),
+                        ],
+                        const SizedBox(height: 2),
+                        Text('Active ${_timeAgo(lastUsed)}', style: TextStyle(fontSize: 11, color: c.subtleText)),
+                      ])),
+                      if (!isCurrent)
+                        _revoking.contains(id)
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFEF4444)))
+                          : TextButton(
+                              onPressed: () => _revoke(id),
+                              style: TextButton.styleFrom(foregroundColor: const Color(0xFFEF4444)),
+                              child: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            ),
+                    ]),
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 8),
+            Material(
+              color: const Color(0xFFEF4444).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              child: ListTile(
+                leading: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
+                title: const Text('Sign Out All Other Devices', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w600, fontSize: 14)),
+                onTap: () async {
+                  final ok = await showDialog<bool>(context: context, builder: (dlg) => AlertDialog(
+                    title: const Text('Sign out all devices?'),
+                    content: const Text('All other devices will be signed out. You will remain signed in on this device.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(dlg, false), child: const Text('Cancel')),
+                      TextButton(onPressed: () => Navigator.pop(dlg, true), child: const Text('Sign Out All', style: TextStyle(color: Colors.red))),
+                    ],
+                  ));
+                  if (ok == true) {
+                    await CommunityRepository().logoutAllDevices();
+                    if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+                  }
+                },
+              ),
+            ),
+          ]);
+        },
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ACCOUNT — PHONE NUMBER CHANGE
+// ══════════════════════════════════════════════════════════════════════════
+class _PhoneChangeScreen extends StatefulWidget {
+  final String? current;
+  const _PhoneChangeScreen({this.current});
+  @override State<_PhoneChangeScreen> createState() => _PhoneChangeState();
+}
+class _PhoneChangeState extends State<_PhoneChangeScreen> {
+  final _ctrl = TextEditingController();
+  bool _loading = false;
+  String? _error;
+
+  @override void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  Future<void> _submit() async {
+    final phone = _ctrl.text.trim();
+    if (phone.isEmpty || phone.length < 7) {
+      setState(() => _error = 'Enter a valid phone number');
+      return;
+    }
+    setState(() { _loading = true; _error = null; });
+    try {
+      await CommunityRepository().updateAccountInfo(phone: phone);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Phone number updated'), backgroundColor: Color(0xFF10B981)));
+      Navigator.pop(context);
+    } catch (e) {
+      setState(() { _loading = false; _error = 'Failed to update phone number'; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Scaffold(
+      backgroundColor: c.scaffoldBg,
+      appBar: _bar(context, 'Phone Number'),
+      body: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Current: ${widget.current ?? 'Not set'}', style: TextStyle(color: c.subtleText, fontSize: 13)),
+        const SizedBox(height: 20),
+        TextField(
+          controller: _ctrl,
+          keyboardType: TextInputType.phone,
+          decoration: InputDecoration(
+            labelText: 'New Phone Number',
+            prefixIcon: const Icon(Icons.phone_outlined),
+            hintText: '61XXXXXXX',
+          ),
+          style: TextStyle(color: c.bodyText),
+        ),
+        if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12))),
+        const SizedBox(height: 24),
+        SizedBox(width: double.infinity, child: ElevatedButton(
+          onPressed: _loading ? null : _submit,
+          child: _loading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Save Phone Number'),
+        )),
+      ])),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ACCOUNT — EMAIL CHANGE
+// ══════════════════════════════════════════════════════════════════════════
+class _EmailChangeScreen extends StatefulWidget {
+  final String? current;
+  const _EmailChangeScreen({this.current});
+  @override State<_EmailChangeScreen> createState() => _EmailChangeState();
+}
+class _EmailChangeState extends State<_EmailChangeScreen> {
+  final _ctrl = TextEditingController();
+  bool _loading = false;
+  String? _error;
+
+  @override void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  Future<void> _submit() async {
+    final email = _ctrl.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() => _error = 'Enter a valid email address');
+      return;
+    }
+    setState(() { _loading = true; _error = null; });
+    try {
+      await CommunityRepository().updateAccountInfo(email: email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email updated'), backgroundColor: Color(0xFF10B981)));
+      Navigator.pop(context);
+    } catch (e) {
+      setState(() { _loading = false; _error = 'Failed to update email'; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Scaffold(
+      backgroundColor: c.scaffoldBg,
+      appBar: _bar(context, 'Email Address'),
+      body: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Current: ${widget.current ?? 'Not set'}', style: TextStyle(color: c.subtleText, fontSize: 13)),
+        const SizedBox(height: 20),
+        TextField(
+          controller: _ctrl,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            labelText: 'New Email Address',
+            prefixIcon: Icon(Icons.email_outlined),
+            hintText: 'example@email.com',
+          ),
+          style: TextStyle(color: c.bodyText),
+        ),
+        if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12))),
+        const SizedBox(height: 24),
+        SizedBox(width: double.infinity, child: ElevatedButton(
+          onPressed: _loading ? null : _submit,
+          child: _loading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Save Email'),
+        )),
+      ])),
     );
   }
 }
