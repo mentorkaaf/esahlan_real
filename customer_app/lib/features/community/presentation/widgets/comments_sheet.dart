@@ -50,7 +50,12 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   void initState() {
     super.initState();
     _commentsDisabled = widget.commentsDisabled;
-    _loadComments();
+    if (_commentsDisabled) {
+      // Skip network call — already know comments are off
+      _loading = false;
+    } else {
+      _loadComments();
+    }
   }
 
   Future<void> _loadComments() async {
@@ -189,9 +194,19 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
         Expanded(
           child: _loading
               ? Center(child: CircularProgressIndicator(color: kOrange))
+              : (_commentsDisabled && _roots.isEmpty)
+                  ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Container(width: 64, height: 64,
+                        decoration: BoxDecoration(color: context.colors.inputFill, shape: BoxShape.circle),
+                        child: Icon(Icons.comments_disabled_rounded, size: 28, color: context.colors.mutedText)),
+                      const SizedBox(height: 14),
+                      Text('Comments are turned off', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: context.colors.bodyText)),
+                      const SizedBox(height: 6),
+                      Text('The author has disabled comments\non this post.', textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13, color: context.colors.mutedText, height: 1.5)),
+                    ]))
               : _roots.isEmpty
-                  ? Center(child: Text(
-                      _commentsDisabled ? 'No comments' : 'No comments yet.\nBe the first!',
+                  ? Center(child: Text('No comments yet.\nBe the first!',
                       textAlign: TextAlign.center, style: TextStyle(color: context.colors.mutedText)))
                   : ListView.builder(
                       padding: EdgeInsets.only(top: 8, bottom: 8),
