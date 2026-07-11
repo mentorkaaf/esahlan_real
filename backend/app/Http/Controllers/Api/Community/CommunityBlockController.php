@@ -38,13 +38,15 @@ class CommunityBlockController extends Controller
             })
             ->delete();
 
-        // Remove pending follow requests
-        DB::table('community_follow_requests')
+        // Remove pending follow requests (community_follows with status=pending)
+        DB::table('community_follows')
+            ->where('status', 'pending')
             ->where(function ($q) use ($me, $userId) {
-                $q->where('requester_id', $me)->where('requested_id', $userId);
-            })
-            ->orWhere(function ($q) use ($me, $userId) {
-                $q->where('requester_id', $userId)->where('requested_id', $me);
+                $q->where(function ($q2) use ($me, $userId) {
+                    $q2->where('follower_id', $me)->where('following_id', $userId);
+                })->orWhere(function ($q2) use ($me, $userId) {
+                    $q2->where('follower_id', $userId)->where('following_id', $me);
+                });
             })
             ->delete();
 
