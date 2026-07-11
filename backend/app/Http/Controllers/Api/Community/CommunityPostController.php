@@ -37,6 +37,7 @@ class CommunityPostController extends Controller
             'page_id' => 'nullable|exists:community_business_pages,id',
             'poll_options' => 'nullable|array|min:2|max:6',
             'poll_options.*' => 'string|max:100',
+            'comments_disabled' => 'nullable|boolean',
             'media.*' => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mov,mp3,m4a,ogg,wav,aac,pdf,doc,docx|max:51200',
         ]);
 
@@ -70,6 +71,7 @@ class CommunityPostController extends Controller
             'group_id' => $request->group_id,
             'page_id' => $request->page_id,
             'poll_options' => $request->type === 'poll' ? array_map(fn($o) => ['text'=>$o,'votes'=>0], $request->poll_options ?? []) : null,
+            'comments_disabled' => $request->boolean('comments_disabled', false),
             'published_at' => now(),
             'is_pinned' => false,
             'video_ready' => !$isVideoPost,
