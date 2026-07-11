@@ -29,13 +29,20 @@ class CommunityReportController extends Controller
 
     public function block(int $userId)
     {
-        if ($userId === auth()->id()) return response()->json(['status'=>'error'],422);
-        $existing = \App\Models\CommunityBlockedUser::where('user_id',auth()->id())->where('blocked_user_id',$userId)->first();
+        $me = auth()->id();
+        if ($userId === $me) return response()->json(['status'=>'error'],422);
+
+        $existing = \Illuminate\Support\Facades\DB::table('community_blocks')
+            ->where('blocker_id', $me)->where('blocked_id', $userId)->first();
         if ($existing) {
-            $existing->delete();
+            \Illuminate\Support\Facades\DB::table('community_blocks')
+                ->where('blocker_id', $me)->where('blocked_id', $userId)->delete();
             return response()->json(['status'=>'success','blocked'=>false]);
         }
-        \App\Models\CommunityBlockedUser::create(['user_id'=>auth()->id(),'blocked_user_id'=>$userId]);
+        \Illuminate\Support\Facades\DB::table('community_blocks')->insert([
+            'blocker_id' => $me, 'blocked_id' => $userId,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
         return response()->json(['status'=>'success','blocked'=>true]);
     }
 }

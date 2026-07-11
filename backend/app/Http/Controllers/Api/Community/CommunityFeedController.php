@@ -31,6 +31,10 @@ class CommunityFeedController extends Controller
         $userId = auth()->id();
         $page = (int) $request->get('page', 1);
 
+        // Get blocked user IDs to exclude from feed
+        $blockedIds = DB::table('community_blocks')
+            ->where('blocker_id', $userId)->pluck('blocked_id')->toArray();
+
         // Build personalized feed using ranking algorithm
         $ranker = new FeedRankingService($userId);
         $ranked = $ranker->buildFeed($page, 30);
@@ -42,10 +46,12 @@ class CommunityFeedController extends Controller
 
         // Fetch full post data for ranked IDs (preserving rank order)
         $rankedIds = array_column($ranked, 'post_id');
-        $posts = CommunityPost::with(['user.communityProfile', 'media', 'userReaction', 'page'])
-            ->whereIn('id', $rankedIds)
-            ->get()
-            ->keyBy('id');
+        $query = CommunityPost::with(['user.communityProfile', 'media', 'userReaction', 'page'])
+            ->whereIn('id', $rankedIds);
+        if (!empty($blockedIds)) {
+            $query->whereNotIn('community_posts.user_id', $blockedIds);
+        }
+        $posts = $query->get()->keyBy('id');
 
         // Batch-load follow + saved state once to avoid N+1 (one query each)
         $followingIds = \DB::table('community_follows')
@@ -86,11 +92,17 @@ class CommunityFeedController extends Controller
     private function coldStartFeed(int $userId, int $page): \Illuminate\Http\JsonResponse
     {
         $followingIds = CommunityFollow::where('follower_id', $userId)->pluck('following_id');
+        $blockedIds = DB::table('community_blocks')
+            ->where('blocker_id', $userId)->pluck('blocked_id')->toArray();
 
         $query = CommunityPost::with(['user.communityProfile', 'media', 'userReaction', 'page'])
             ->whereNull('group_id')
             ->where('privacy', '!=', 'private')
             ->where(fn ($q) => $q->where('video_ready', true)->orWhere('user_id', $userId));
+
+        if (!empty($blockedIds)) {
+            $query->whereNotIn('user_id', $blockedIds);
+        }
 
         if ($followingIds->isNotEmpty()) {
             // Mix: 70% following, 30% popular

@@ -395,6 +395,46 @@ class CommunityRepository {
     return r.data['blocked'] as bool;
   }
 
+  Future<Map<String, dynamic>> toggleBlock(int userId) async {
+    final r = await _dio.post('/community/block/$userId/toggle');
+    return {
+      'blocked': r.data['blocked'] as bool? ?? false,
+      'status': r.data['status'] as String? ?? '',
+    };
+  }
+
+  Future<Map<String, dynamic>> toggleMute(int userId) async {
+    final r = await _dio.post('/community/mute/$userId');
+    return {
+      'muted': r.data['muted'] as bool? ?? false,
+      'status': r.data['status'] as String? ?? '',
+    };
+  }
+
+  Future<Map<String, dynamic>> checkBlock(int userId) async {
+    try {
+      final r = await _dio.get('/community/block/$userId/check');
+      return {
+        'is_blocked': r.data['is_blocked'] as bool? ?? false,
+        'is_blocked_by': r.data['is_blocked_by'] as bool? ?? false,
+      };
+    } catch (_) {
+      return {'is_blocked': false, 'is_blocked_by': false};
+    }
+  }
+
+  Future<List<CommunityUser>> getFollowers(int userId) async {
+    final r = await _dio.get('/community/profile/$userId/followers');
+    final data = r.data['data'] as List? ?? [];
+    return data.map((e) => CommunityUser.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<CommunityUser>> getFollowing(int userId) async {
+    final r = await _dio.get('/community/profile/$userId/following');
+    final data = r.data['data'] as List? ?? [];
+    return data.map((e) => CommunityUser.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   // ── Business Pages ─────────────────────────────────────────────────────────
   Future<List<Map<String, dynamic>>> getBusinessPages({int page = 1}) async {
     final r = await _dio.get('/community/pages', queryParameters: {'page': page});

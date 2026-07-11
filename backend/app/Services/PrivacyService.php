@@ -38,6 +38,22 @@ class PrivacyService
         Cache::forget("privacy:{$userId}");
     }
 
+    // ── Block check ──────────────────────────────────────────────────────
+    public static function isBlocked(int $viewerId, int $targetId): bool
+    {
+        $key = "block:{$viewerId}:{$targetId}";
+        return Cache::remember($key, 60, function () use ($viewerId, $targetId) {
+            return DB::table('community_blocks')
+                ->where(function ($q) use ($viewerId, $targetId) {
+                    $q->where('blocker_id', $viewerId)->where('blocked_id', $targetId);
+                })
+                ->orWhere(function ($q) use ($viewerId, $targetId) {
+                    $q->where('blocker_id', $targetId)->where('blocked_id', $viewerId);
+                })
+                ->exists();
+        });
+    }
+
     // ── Follower check ────────────────────────────────────────────────────
     private static function isFollowing(int $viewerId, int $targetId): bool
     {

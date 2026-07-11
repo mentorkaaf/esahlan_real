@@ -9,8 +9,10 @@ import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
 import 'community_chat_screen.dart';
+import 'package:go_router/go_router.dart';
 import 'community_shell.dart' show kOrange;
 import 'edit_profile_screen.dart';
+import 'follow_list_screen.dart';
 import 'transparency_center_screen.dart';
 import 'copyright_screen.dart';
 import 'settings_screen.dart';
@@ -62,6 +64,9 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
   String? _localAvatar;
   String? _localCover;
   bool _followLoading = false;
+  bool _isBlocked = false;
+  bool _isBlockedByThem = false;
+  bool _isMuted = false;
 
   @override
   void initState() {
@@ -69,6 +74,19 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     _tab = TabController(length: 6, vsync: this);
     _following = widget.user.isFollowing;
     _requested = widget.user.isRequested;
+    if (!widget.isMe) _loadBlockStatus();
+  }
+
+  Future<void> _loadBlockStatus() async {
+    try {
+      final result = await ref.read(communityRepoProvider).checkBlock(widget.user.id);
+      if (mounted) {
+        setState(() {
+          _isBlocked = result['is_blocked'] as bool? ?? false;
+          _isBlockedByThem = result['is_blocked_by'] as bool? ?? false;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -169,12 +187,64 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
           title: const Text('Share Profile', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
           onTap: () => Navigator.pop(context),
         ),
-        if (!widget.isMe)
+        if (!widget.isMe) ...[
+          ListTile(
+            leading: Icon(_isBlocked ? Icons.person_add_outlined : Icons.block_rounded,
+                color: _isBlocked ? kOrange : const Color(0xFFDC2626)),
+            title: Text(
+              _isBlocked ? 'Unblock @${widget.user.username ?? widget.user.name}' : 'Block @${widget.user.username ?? widget.user.name}',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14,
+                  color: _isBlocked ? kOrange : const Color(0xFFDC2626)),
+            ),
+            onTap: () async {
+              Navigator.pop(context);
+              try {
+                final result = await ref.read(communityRepoProvider).toggleBlock(widget.user.id);
+                final blocked = result['blocked'] as bool? ?? false;
+                if (mounted) {
+                  setState(() => _isBlocked = blocked);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(blocked ? 'User blocked' : 'User unblocked')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+                );
+              }
+            },
+          ),
+          ListTile(
+            leading: Icon(_isMuted ? Icons.volume_up_outlined : Icons.volume_off_outlined,
+                color: context.colors.mutedText),
+            title: Text(
+              _isMuted ? 'Unmute @${widget.user.username ?? widget.user.name}' : 'Mute @${widget.user.username ?? widget.user.name}',
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+            ),
+            onTap: () async {
+              Navigator.pop(context);
+              try {
+                final result = await ref.read(communityRepoProvider).toggleMute(widget.user.id);
+                final muted = result['muted'] as bool? ?? false;
+                if (mounted) {
+                  setState(() => _isMuted = muted);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(muted ? 'User muted' : 'User unmuted')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+                );
+              }
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.flag_outlined, color: Color(0xFFDC2626)),
             title: const Text('Report User', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFFDC2626))),
             onTap: () => Navigator.pop(context),
           ),
+        ],
         const SizedBox(height: 8),
       ])),
     );
@@ -335,8 +405,16 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                         child: Row(children: [
                           _StatCol(value: '${u.postsCount}',      label: 'Posts'),
-                          _StatCol(value: _fmt(u.followersCount), label: 'Followers'),
-                          _StatCol(value: _fmt(u.followingCount), label: 'Following'),
+                          GestureDetector(
+                            onTap: () => context.push('/community/follow-list',
+                                extra: {'userId': u.id, 'type': 'followers'}),
+                            child: _StatCol(value: _fmt(u.followersCount), label: 'Followers'),
+                          ),
+                          GestureDetector(
+                            onTap: () => context.push('/community/follow-list',
+                                extra: {'userId': u.id, 'type': 'following'}),
+                            child: _StatCol(value: _fmt(u.followingCount), label: 'Following'),
+                          ),
                           _StatCol(value: _fmt(u.viewsCount),     label: 'Views'),
                           _StatCol(value: _fmt(u.likesCount),     label: 'Likes'),
                         ]),
@@ -391,7 +469,9 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
             ),
         ],
 
-        body: (u.isPrivate && !widget.isMe && !_following)
+        body: _isBlockedByThem
+            ? _BlockedByView(user: u)
+            : (u.isPrivate && !widget.isMe && !_following)
             ? _LockedProfileView(user: u)
             : TabBarView(
                 controller: _tab,
@@ -840,6 +920,36 @@ class _EmptyTab extends StatelessWidget {
     const SizedBox(height: 12),
     Text(label, style: TextStyle(color: context.colors.mutedText, fontSize: 15)),
   ]));
+}
+
+// ── Blocked-by view ────────────────────────────────────────────────────
+class _BlockedByView extends StatelessWidget {
+  final CommunityUser user;
+  const _BlockedByView({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return SingleChildScrollView(
+      child: Column(children: [
+        const SizedBox(height: 24),
+        Container(
+          width: 88, height: 88,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: c.borderColor,
+          ),
+          child: Icon(Icons.block_rounded, size: 38, color: c.mutedText),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          "You can't view this profile",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: c.bodyText, letterSpacing: -0.3),
+        ),
+        const SizedBox(height: 40),
+      ]),
+    );
+  }
 }
 
 // ── Locked profile view ────────────────────────────────────────────────

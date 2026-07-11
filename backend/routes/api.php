@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\Community\UserSettingsController;
 use App\Http\Controllers\Api\Community\CommunityHighlightController;
 use App\Http\Controllers\Api\Community\CommunityBusinessPageController;
 use App\Http\Controllers\Api\Community\CommunityAdController;
+use App\Http\Controllers\Api\Community\CommunityBlockController;
 
 
 use Illuminate\Support\Facades\Route;
@@ -377,6 +378,11 @@ Route::prefix('v1')->group(function () {
         Route::post('report', [CommunityReportController::class, 'store']);
         Route::post('posts/{id}/report', [CommunityModerationController::class, 'reportPost']);
         Route::post('block/{userId}', [CommunityReportController::class, 'block']);
+
+        // Block & Mute
+        Route::post('block/{userId}/toggle', [CommunityBlockController::class, 'toggle']);
+        Route::post('mute/{userId}', [CommunityBlockController::class, 'toggleMute']);
+        Route::get('block/{userId}/check', [CommunityBlockController::class, 'checkBlock']);
 
         // Transparency Center (user's own moderation status & appeals)
         Route::prefix('my')->group(function () {

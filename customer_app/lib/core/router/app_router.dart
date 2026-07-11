@@ -30,6 +30,7 @@ import '../../features/community/presentation/screens/community_explore_screen.d
 import '../../features/community/presentation/screens/groups_screen.dart';
 import '../../features/community/presentation/screens/post_detail_screen.dart';
 import '../../features/community/data/models/community_models.dart';
+import '../../features/community/presentation/screens/follow_list_screen.dart';
 
 // eLearning screens
 import '../../features/elearning/presentation/screens/elearning_screen.dart';
@@ -144,6 +145,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/community/notifications', builder: (_, __) => const CommunityNotificationsScreen()),
           GoRoute(path: '/community/explore', builder: (_, __) => const CommunityExploreScreen()),
           GoRoute(path: '/community/groups', builder: (_, __) => const GroupsScreen()),
+          GoRoute(
+            path: '/community/follow-list',
+            builder: (_, state) {
+              final extra = state.extra as Map<String, dynamic>;
+              return FollowListScreen(
+                userId: extra['userId'] as int,
+                type: extra['type'] as String,
+              );
+            },
+          ),
 
           // Modules with bottom nav
           GoRoute(path: '/eparcel',    builder: (_, __) => const EParcelScreen()),
