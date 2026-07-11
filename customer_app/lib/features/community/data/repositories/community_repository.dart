@@ -83,6 +83,7 @@ class CommunityRepository {
     int? pageId,
     List<String>? pollOptions,
     List<dynamic>? mediaFiles,
+    bool commentsDisabled = false,
   }) async {
     final form = FormData.fromMap({
       'type': type,
@@ -92,6 +93,7 @@ class CommunityRepository {
       if (feeling != null) 'feeling': feeling,
       if (pageId != null) 'page_id': pageId,
       if (groupId != null) 'group_id': groupId,
+      if (commentsDisabled) 'comments_disabled': '1',
       if (pollOptions != null) ...{for (var i = 0; i < pollOptions.length; i++) 'poll_options[$i]': pollOptions[i]},
     });
 

@@ -33,6 +33,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   List<XFile> _mediaFiles = [];
   bool _hasVideo = false;
   bool _posting = false;
+  bool _commentsDisabled = false;
 
   static const _feelings = ['😀 Happy', '😢 Sad', '😎 Cool', '🥳 Celebrating', '😍 Loved', '😤 Angry', '🤔 Thinking', '💪 Motivated'];
   static const _privacyOptions = ['Public', 'Followers', 'Private'];
@@ -90,6 +91,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         location: _location,
         mediaFiles: List<XFile>.from(_mediaFiles),
         hasVideo: _hasVideo,
+        commentsDisabled: _commentsDisabled,
       );
       if (mounted) Navigator.pop(context);
       return;
@@ -105,6 +107,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         privacy: _privacy.toLowerCase(),
         feeling: _feeling,
         location: _location,
+        commentsDisabled: _commentsDisabled,
       );
       if (mounted) Navigator.pop(context, post);
     } catch (e) {
@@ -276,6 +279,45 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                   child: const _AddBtn(emoji: '#'),
                 ),
               ]),
+              SizedBox(height: 12),
+              // Comments toggle
+              GestureDetector(
+                onTap: () => setState(() => _commentsDisabled = !_commentsDisabled),
+                child: Row(children: [
+                  Icon(
+                    _commentsDisabled ? Icons.comments_disabled_rounded : Icons.mode_comment_outlined,
+                    size: 18,
+                    color: _commentsDisabled ? Colors.red : context.colors.mutedText,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(child: Text(
+                    'Turn off commenting',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _commentsDisabled ? Colors.red : context.colors.mutedText,
+                    ),
+                  )),
+                  Container(
+                    width: 40, height: 22,
+                    decoration: BoxDecoration(
+                      color: _commentsDisabled ? Colors.red : context.colors.inputFill,
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(color: _commentsDisabled ? Colors.red : context.colors.dividerColor),
+                    ),
+                    child: AnimatedAlign(
+                      duration: const Duration(milliseconds: 150),
+                      alignment: _commentsDisabled ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(
+                        width: 18, height: 18,
+                        margin: const EdgeInsets.symmetric(horizontal: 1),
+                        decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle,
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 2)]),
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
             ]),
           ),
         ),

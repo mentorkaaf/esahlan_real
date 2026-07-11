@@ -108,6 +108,7 @@ class BackgroundUploadNotifier extends StateNotifier<UploadState> {
     List<String>? pollOptions,
     required List<XFile> mediaFiles,
     required bool hasVideo,
+    bool commentsDisabled = false,
   }) async {
     state = const UploadState(status: UploadStatus.uploading, progress: 0, message: 'Uploading...');
     _showProgressNotification(0, 'Uploading...');
@@ -125,6 +126,7 @@ class BackgroundUploadNotifier extends StateNotifier<UploadState> {
       if (feeling != null) formData.fields.add(MapEntry('feeling', feeling));
       if (pageId != null) formData.fields.add(MapEntry('page_id', pageId.toString()));
       if (groupId != null) formData.fields.add(MapEntry('group_id', groupId.toString()));
+      if (commentsDisabled) formData.fields.add(const MapEntry('comments_disabled', '1'));
       if (pollOptions != null) {
         for (var i = 0; i < pollOptions.length; i++) {
           formData.fields.add(MapEntry('poll_options[$i]', pollOptions[i]));
