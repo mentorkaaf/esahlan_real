@@ -1,8 +1,39 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import '../../../../core/providers/app_settings_provider.dart';
+
+// ── Video disk cache (max 30 videos, 7 days) ─────────────────────────────────
+final _videoCache = CacheManager(
+  Config(
+    'esahlan_video_cache',
+    maxNrOfCacheObjects: 30,
+    stalePeriod: const Duration(days: 7),
+  ),
+);
+
+/// Returns the local cached file path if the video is already on disk,
+/// otherwise returns the original URL so playback starts immediately.
+/// Also schedules a background download so the NEXT view is instant.
+Future<String> _resolveVideoUrl(String url) async {
+  try {
+    final cached = await _videoCache.getFileFromCache(url);
+    if (cached != null && await cached.file.exists()) {
+      debugPrint('[cache] HIT  ${url.split('/').last}');
+      return cached.file.path;
+    }
+  } catch (_) {}
+  // Miss — kick off background cache, play from network now
+  _cacheInBackground(url);
+  debugPrint('[cache] MISS ${url.split('/').last}');
+  return url;
+}
+
+void _cacheInBackground(String url) {
+  _videoCache.downloadFile(url).catchError((_) {});
+}
 
 // ── VideoPool ─────────────────────────────────────────────────────────────────
 //
@@ -79,6 +110,22 @@ class VideoPool {
   }
 
   Future<VideoController?> preload(String url) => _preload(url);
+
+  /// Cache videos to disk in the background (no Player created — just disk).
+  /// Call this for off-screen videos that should be ready instantly later.
+  static void warmDiskCache(List<String> urls) {
+    for (final url in urls) {
+      if (url.isEmpty) continue;
+      _cacheInBackground(url);
+    }
+  }
+
+  static Future<bool> isCached(String url) async {
+    try {
+      final f = await _videoCache.getFileFromCache(url);
+      return f != null && await f.file.exists();
+    } catch (_) { return false; }
+  }
 
   void play(String url) => _doPlay(url);
 
@@ -157,6 +204,12 @@ class VideoPool {
   Future<VideoController?> _doInit(String url) async {
     _makeRoom(protect: url);
     try {
+      // Resolve to local file if cached, otherwise use network URL
+      final source = await _resolveVideoUrl(url);
+
+      // Was this URL evicted while we awaited the cache check?
+      if (!_loading.containsKey(url)) return null;
+
       final player = Player(
         configuration: const PlayerConfiguration(
           // 8 MB — enough for ~5s of 1080p. Smaller = less bandwidth fighting
@@ -166,13 +219,13 @@ class VideoPool {
       );
       final controller = VideoController(player);
 
-      await player.open(Media(url), play: false);
+      await player.open(Media(source), play: false);
       await player.setVolume(0);
       // Pool default (_loop) combined with user's video loop setting
       final loopEnabled = _loop && AppSettingsNotifier.current.videoLoop;
       await player.setPlaylistMode(loopEnabled ? PlaylistMode.single : PlaylistMode.none);
 
-      // Was this URL evicted while awaiting?
+      // Was this URL evicted while awaiting open?
       if (!_loading.containsKey(url)) {
         player.dispose();
         return null;
@@ -181,7 +234,7 @@ class VideoPool {
       _players[url]     = player;
       _controllers[url] = controller;
       _loading.remove(url);
-      debugPrint('[$_id] ready ${url.split('/').last}');
+      debugPrint('[$_id] ready ${url.split('/').last} (${source == url ? "network" : "cache"})');
 
       if (_pendingPlay == url) {
         _pendingPlay = null;
