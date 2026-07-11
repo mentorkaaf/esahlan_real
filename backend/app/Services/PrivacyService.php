@@ -77,12 +77,10 @@ class PrivacyService
     public static function canFollow(int $viewerId, int $targetId): array
     {
         if ($viewerId === $targetId) return ['allowed' => false, 'reason' => 'Cannot follow yourself'];
+        if (self::isBlocked($viewerId, $targetId)) return ['allowed' => false, 'reason' => 'blocked'];
         $s = self::settings($targetId);
         $rule = $s['who_can_follow'] ?? 'everyone';
         if ($rule === 'nobody') return ['allowed' => false, 'reason' => 'This user is not accepting new followers'];
-        if ($rule === 'followers') {
-            // Only users already following them can re-follow (edge case, treat as everyone)
-        }
         return ['allowed' => true];
     }
 
@@ -90,6 +88,7 @@ class PrivacyService
     public static function canMessage(int $viewerId, int $targetId): array
     {
         if ($viewerId === $targetId) return ['allowed' => true];
+        if (self::isBlocked($viewerId, $targetId)) return ['allowed' => false, 'reason' => 'blocked'];
         $s = self::settings($targetId);
         $rule = $s['who_can_message'] ?? 'everyone';
         if ($rule === 'nobody') return ['allowed' => false, 'reason' => 'This user is not accepting messages'];
