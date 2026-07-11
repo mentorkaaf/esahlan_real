@@ -744,7 +744,17 @@ class CommunityFeedController extends Controller
         if ($followersCount >= 1000)     $badges[] = 'active_member';
         if ($profile?->is_verified && $profile?->is_business) $badges[] = 'trusted_seller';
 
-        return [
+        // When called from profile endpoint, $followingIds is empty — do a direct lookup
+        if (empty($followingIds) && $userId > 0 && $user->id !== $userId) {
+            $isFollowing = DB::table('community_follows')
+                ->where('follower_id', $userId)
+                ->where('following_id', $user->id)
+                ->exists();
+        } else {
+            $isFollowing = in_array($user->id, $followingIds);
+        }
+
+        $data = [
             'id'              => $user->id,
             'name'            => $user->name ?? 'User',
             'username'        => $profile?->username,
@@ -763,7 +773,7 @@ class CommunityFeedController extends Controller
             'views_count'     => (int) ($stats->total_views ?? 0),
             'likes_count'     => (int) ($stats->total_likes ?? 0),
             'joined_at'       => $user->created_at?->toDateString(),
-            'is_following'    => in_array($user->id, $followingIds),
+            'is_following'    => $isFollowing,
             'is_me'           => $user->id === $userId,
             'badges'          => $badges,
             'interests'       => $interests,
@@ -771,7 +781,7 @@ class CommunityFeedController extends Controller
             'email'           => $user->id === $userId ? $user->email : null,
         ];
 
-        // Apply privacy visibility (hide_followers, hide_following, hide_likes, hide_online_status)
+        // Apply privacy visibility (hide_followers, hide_following, hide_likes, is_private flag)
         return PrivacyService::applyVisibility($data, $userId);
     }
 }
