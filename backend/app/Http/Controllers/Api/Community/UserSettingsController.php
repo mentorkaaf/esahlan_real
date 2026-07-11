@@ -28,6 +28,7 @@ class UserSettingsController extends Controller
             'mentions'         => true,
             'messages'         => true,
             'follows'          => true,
+            'follow_requests'  => true,
             'creator_uploads'  => true,
             'business_orders'  => true,
             'live_streams'     => true,
@@ -85,6 +86,14 @@ class UserSettingsController extends Controller
         ],
         'language' => [
             'code' => 'en',   // en | so | ar | am | sw | fr
+        ],
+        'content' => [
+            'auto_translate'    => false,
+            'suggest_reels'     => true,
+            'personalized_ads'  => true,
+        ],
+        'security' => [
+            'security_alerts'   => true,
         ],
         'safety' => [
             'hidden_words'       => [],
