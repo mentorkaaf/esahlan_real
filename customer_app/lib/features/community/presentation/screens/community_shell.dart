@@ -15,6 +15,8 @@ import '../../data/models/community_models.dart';
 import '../widgets/upload_progress_banner.dart';
 import '../services/background_upload_service.dart';
 import '../services/video_pool.dart';
+import 'dart:async';
+import '../../../../core/services/realtime_client.dart';
 
 final communityNavIndexProvider = StateProvider<int>((ref) => 0);
 
@@ -39,11 +41,16 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
   DateTime? _backgroundedAt;
   bool _feedPreloaded = false;
   bool _reelsPreloaded = false;
+  void Function(dynamic)? _inboxListener;
+  void Function(dynamic)? _typingListener;
+  String? _inboxChannel;
+  final Map<int, Timer> _typingClearTimers = {};
 
   @override
   void initState() {
     super.initState();
     _checkOnboarding();
+    _subscribeInbox();
     WidgetsBinding.instance.addObserver(this);
     // Start preloading from the last-seen URLs immediately — before the API
     // responds. On first open the list is empty (no-op). On every subsequent
@@ -108,9 +115,44 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
     _saveReelUrlsToCache(urls);
   }
 
+  Future<void> _subscribeInbox() async {
+    try {
+      final me = await ref.read(communityMyProfileProvider.future);
+      _inboxChannel = 'private-user.${me.id}';
+
+      _inboxListener = (_) {
+        if (mounted) ref.read(communityChatsProvider.notifier).load();
+      };
+      RealtimeClient.instance.listen(_inboxChannel!, 'chat.inbox_update', _inboxListener!);
+
+      _typingListener = (data) {
+        if (!mounted) return;
+        final chatId = data['chat_id'] as int?;
+        final isTyping = data['is_typing'] == true;
+        if (chatId == null) return;
+        ref.read(chatTypingProvider(chatId).notifier).state = isTyping;
+        // Auto-clear after 5 s in case stop event is missed
+        _typingClearTimers[chatId]?.cancel();
+        if (isTyping) {
+          _typingClearTimers[chatId] = Timer(const Duration(seconds: 5), () {
+            if (mounted) ref.read(chatTypingProvider(chatId).notifier).state = false;
+          });
+        }
+      };
+      RealtimeClient.instance.listen(_inboxChannel!, 'chat.typing_update', _typingListener!);
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    for (final t in _typingClearTimers.values) t.cancel();
+    if (_inboxChannel != null) {
+      try {
+        if (_inboxListener != null) RealtimeClient.instance.removeListener(_inboxChannel!, 'chat.inbox_update', _inboxListener!);
+        if (_typingListener != null) RealtimeClient.instance.removeListener(_inboxChannel!, 'chat.typing_update', _typingListener!);
+      } catch (_) {}
+    }
     super.dispose();
   }
 

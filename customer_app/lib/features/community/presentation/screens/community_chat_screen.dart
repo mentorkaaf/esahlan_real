@@ -345,6 +345,15 @@ class _MessageBubble extends StatelessWidget {
                         size: 14,
                         color: msg.isRead ? kOrange : const Color(0xFF9CA3AF),
                       ),
+                      SizedBox(width: 2),
+                      Text(
+                        msg.isRead ? 'Seen' : 'Delivered',
+                        style: TextStyle(
+                          color: msg.isRead ? kOrange : const Color(0xFF9CA3AF),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ],
                   ],
                 ),

@@ -227,6 +227,10 @@ class MessagesNotifier
   }
 }
 
+// ── Per-chat typing state (used in chat list) ─────────────────────────────
+// chatId → isTyping. Auto-cleared by CommunityShell after 5s.
+final chatTypingProvider = StateProvider.family<bool, int>((ref, chatId) => false);
+
 // ── Notifications provider ─────────────────────────────────────────────────
 final communityNotifProvider =
     StateNotifierProvider<NotifNotifier, AsyncValue<List<CommunityNotification>>>(

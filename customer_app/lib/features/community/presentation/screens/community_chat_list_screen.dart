@@ -1,13 +1,10 @@
-﻿import 'package:cached_network_image/cached_network_image.dart';
-import '../../../../core/theme/theme_x.dart';
+﻿import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../data/models/community_models.dart';
-import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
-import '../../../../core/services/realtime_client.dart';
 import 'community_shell.dart';
 import 'community_chat_screen.dart';
 
@@ -19,33 +16,15 @@ class CommunityChatListScreen extends ConsumerStatefulWidget {
 }
 
 class _CommunityChatListScreenState extends ConsumerState<CommunityChatListScreen> {
-  void Function(dynamic)? _inboxListener;
-  String? _inboxChannel;
-
   @override
   void initState() {
     super.initState();
-    _subscribeInbox();
-  }
-
-  Future<void> _subscribeInbox() async {
-    try {
-      final me = await ref.read(communityMyProfileProvider.future);
-      _inboxChannel = 'private-user.${me.id}';
-      _inboxListener = (_) {
-        if (mounted) ref.read(communityChatsProvider.notifier).load();
-      };
-      RealtimeClient.instance.listen(_inboxChannel!, 'chat.inbox_update', _inboxListener!);
-    } catch (_) {}
+    // Inbox real-time updates are handled by CommunityShell which is always
+    // mounted — no need to subscribe here too.
   }
 
   @override
   void dispose() {
-    if (_inboxListener != null && _inboxChannel != null) {
-      try {
-        RealtimeClient.instance.removeListener(_inboxChannel!, 'chat.inbox_update', _inboxListener!);
-      } catch (_) {}
-    }
     super.dispose();
   }
 
@@ -131,15 +110,22 @@ class _CommunityChatListScreenState extends ConsumerState<CommunityChatListScree
   }
 }
 
-class _ChatTile extends StatelessWidget {
+class _ChatTile extends ConsumerWidget {
   final CommunityChat chat;
   const _ChatTile({required this.chat});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final other = chat.otherUser;
     final lastMsg = chat.lastMessage;
     final hasUnread = (chat.unreadCount ?? 0) > 0;
+    final isTyping = ref.watch(chatTypingProvider(chat.id));
+
+    // Parse created_at — could be DateTime string or DateTime object
+    DateTime? lastMsgTime;
+    final rawTs = lastMsg?['created_at'];
+    if (rawTs is String) lastMsgTime = DateTime.tryParse(rawTs);
+    else if (rawTs is DateTime) lastMsgTime = rawTs;
 
     return ListTile(
       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -166,14 +152,11 @@ class _ChatTile extends StatelessWidget {
                 color: context.colors.bodyText,
               )),
         ),
-        if (lastMsg != null)
+        if (lastMsgTime != null)
           Text(
-            timeago.format(
-              DateTime.tryParse(lastMsg['created_at'] as String? ?? '') ?? DateTime.now(),
-              locale: 'en_short',
-            ),
+            timeago.format(lastMsgTime, locale: 'en_short'),
             style: TextStyle(
-              color: hasUnread ? kOrange : context.colors.mutedText,
+              color: isTyping ? kOrange : (hasUnread ? kOrange : context.colors.mutedText),
               fontSize: 12,
               fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
             ),
@@ -181,16 +164,25 @@ class _ChatTile extends StatelessWidget {
       ]),
       subtitle: Row(children: [
         Expanded(
-          child: Text(
-            lastMsg?['content'] as String? ?? 'Voice note',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: hasUnread ? context.colors.bodyText : context.colors.mutedText,
-              fontSize: 13,
-              fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
-            ),
-          ),
+          child: isTyping
+              ? Text('typing…',
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: kOrange,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    fontStyle: FontStyle.italic,
+                  ))
+              : Text(
+                  lastMsg?['content'] as String? ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: hasUnread ? context.colors.bodyText : context.colors.mutedText,
+                    fontSize: 13,
+                    fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
         ),
         if (hasUnread)
           Container(

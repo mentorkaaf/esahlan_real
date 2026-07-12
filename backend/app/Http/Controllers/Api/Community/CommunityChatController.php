@@ -20,7 +20,7 @@ class CommunityChatController extends Controller
 
         $chats = CommunityChat::with(['members.user.communityProfile','lastMessage.user'])
             ->whereIn('id',$chatIds)
-            ->latest()
+            ->latest('updated_at')
             ->paginate(20);
 
         return response()->json(['status'=>'success','data'=>$chats->map(fn($c) => $this->transformChat($c, $userId))->toArray()]);
@@ -116,7 +116,10 @@ class CommunityChatController extends Controller
         ];
         RealtimeService::toChat($chatId, 'chat.message_sent', $msgPayload);
 
-        // Also notify each member's private channel so inbox updates without re-opening app
+        // Touch chat so ->latest('updated_at') ordering reflects new activity
+        CommunityChat::where('id', $chatId)->update(['updated_at' => now()]);
+
+        // Notify each member's personal channel so inbox updates in real-time
         foreach ($otherMembers as $member) {
             RealtimeService::toUser($member->user_id, 'chat.inbox_update', [
                 'chat_id'  => $chatId,
@@ -149,11 +152,21 @@ class CommunityChatController extends Controller
         $userId = auth()->id();
         CommunityChatMember::where('chat_id', $chatId)->where('user_id', $userId)->firstOrFail();
 
+        $isTyping = (bool) $request->boolean('is_typing', true);
         RealtimeService::toChatPresence($chatId, 'chat.typing', [
             'chat_id' => $chatId,
             'user_id' => $userId,
-            'is_typing' => (bool) $request->boolean('is_typing', true),
+            'is_typing' => $isTyping,
         ]);
+
+        // Also push to other members' personal channels so the chat list
+        // can show "typing..." without subscribing to every presence channel.
+        foreach (CommunityChatMember::where('chat_id', $chatId)->where('user_id', '!=', $userId)->pluck('user_id') as $uid) {
+            RealtimeService::toUser($uid, 'chat.typing_update', [
+                'chat_id'   => $chatId,
+                'is_typing' => $isTyping,
+            ]);
+        }
 
         return response()->json(['status' => 'success']);
     }
@@ -196,12 +209,12 @@ class CommunityChatController extends Controller
             'name' => $chat->type === 'group' ? $chat->name : $other?->name,
             'avatar' => $chat->type === 'group' ? $chat->avatar : $other?->avatar,
             'other_user' => $other ? $feed->transformUser($other, $userId) : null,
-            'last_message' => $chat->lastMessage?->first() ? [
-                'id' => $chat->lastMessage->first()->id,
-                'type' => $chat->lastMessage->first()->type,
-                'content' => $chat->lastMessage->first()->is_deleted ? 'Message deleted' : $chat->lastMessage->first()->content,
-                'created_at' => $chat->lastMessage->first()->created_at,
-                'is_mine' => $chat->lastMessage->first()->user_id === $userId,
+            'last_message' => $chat->lastMessage ? [
+                'id'         => $chat->lastMessage->id,
+                'type'       => $chat->lastMessage->type,
+                'content'    => $chat->lastMessage->is_deleted ? 'Message deleted' : $chat->lastMessage->content,
+                'created_at' => $chat->lastMessage->created_at,
+                'is_mine'    => $chat->lastMessage->user_id === $userId,
             ] : null,
             'unread_count' => $chat->unreadCount($userId),
             'members_count' => $chat->members->count(),

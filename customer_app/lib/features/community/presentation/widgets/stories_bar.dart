@@ -426,29 +426,32 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
     final vid = await _picker.pickVideo(source: ImageSource.gallery);
     if (vid == null) return;
 
-    // Check duration — auto-trim if > 60s
     final info = await VideoCompress.getMediaInfo(vid.path);
-    final durationMs = info.duration ?? 0;
+    final durationSec = ((info.duration ?? 0) / 1000).round();
 
-    if (durationMs > 60000) {
-      setState(() => _trimming = true);
-      try {
-        final trimmed = await VideoCompress.compressVideo(
-          vid.path,
-          quality: VideoQuality.MediumQuality,
-          startTime: 0,
-          duration: 60,
-          includeAudio: true,
-          deleteOrigin: false,
-        );
-        if (mounted && trimmed?.path != null) {
-          setState(() { _mediaFile = XFile(trimmed!.path!); _storyType = 'video'; _trimming = false; });
-        }
-      } catch (_) {
-        if (mounted) setState(() => _trimming = false);
+    setState(() => _trimming = true);
+    try {
+      // Always compress on-device to ~480p before uploading.
+      // This reduces upload from potentially 50-200 MB to 2-8 MB,
+      // making stories appear near-instantly for viewers.
+      final compressed = await VideoCompress.compressVideo(
+        vid.path,
+        quality: VideoQuality.LowQuality,
+        startTime: 0,
+        duration: durationSec > 60 ? 60 : null,
+        includeAudio: true,
+        deleteOrigin: false,
+      );
+      if (mounted) {
+        setState(() {
+          _mediaFile = XFile(compressed?.path ?? vid.path);
+          _storyType = 'video';
+          _trimming = false;
+        });
       }
-    } else {
-      setState(() { _mediaFile = vid; _storyType = 'video'; });
+    } catch (_) {
+      // Fallback: use original (server will still compress it)
+      if (mounted) setState(() { _mediaFile = vid; _storyType = 'video'; _trimming = false; });
     }
   }
 
@@ -511,7 +514,7 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
             : _trimming
               ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                   CircularProgressIndicator(color: Colors.white), SizedBox(height: 16),
-                  Text('Trimming to 1 minute...', style: TextStyle(color: Colors.white70, fontSize: 15))]))
+                  Text('Compressing video...', style: TextStyle(color: Colors.white70, fontSize: 15))]))
               : _mediaFile != null
               ? _storyType == 'video'
                 ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [

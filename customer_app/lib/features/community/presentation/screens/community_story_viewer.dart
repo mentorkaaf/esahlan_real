@@ -21,6 +21,21 @@ class StoryViewer extends StatefulWidget {
   State<StoryViewer> createState() => _StoryViewerState();
 }
 
+// Pre-buffered video ready to use instantly when the user swipes to next story
+class _PreloadedVideo {
+  final Player player;
+  final VideoController ctrl;
+  bool hasFrame = false;
+  StreamSubscription? paramsSub;
+
+  _PreloadedVideo(this.player, this.ctrl);
+
+  void dispose() {
+    paramsSub?.cancel();
+    player.dispose();
+  }
+}
+
 class _StoryViewerState extends State<StoryViewer> {
   late int _groupIndex;
   int _storyIndex = 0;
@@ -28,7 +43,7 @@ class _StoryViewerState extends State<StoryViewer> {
   final _commentCtrl = TextEditingController();
   bool _showCommentInput = false;
 
-  // Video player — owned here so progress bar can access it
+  // Active video player
   Player? _player;
   VideoController? _videoCtrl;
   bool _hasFrame = false;
@@ -36,6 +51,10 @@ class _StoryViewerState extends State<StoryViewer> {
   StreamSubscription? _completedSub;
   StreamSubscription? _videoParamsSub;
   StreamSubscription? _errorSub;
+
+  // Preloaded next story (1-slot lookahead)
+  _PreloadedVideo? _preloaded;
+  String? _preloadedUrl;
 
   @override
   void initState() {
@@ -49,6 +68,8 @@ class _StoryViewerState extends State<StoryViewer> {
   void dispose() {
     _commentCtrl.dispose();
     _disposePlayer();
+    _preloaded?.dispose();
+    _preloaded = null;
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
@@ -66,25 +87,116 @@ class _StoryViewerState extends State<StoryViewer> {
     _disposePlayer();
     setState(() { _hasFrame = false; _videoError = false; });
     final story = _currentStory;
-    // Pre-warm thumbnail into CachedNetworkImage cache so it shows instantly
+
     if (story.thumbnail != null) {
       precacheImage(CachedNetworkImageProvider(story.thumbnail!), context);
     } else if (story.mediaUrl != null && story.type == 'image') {
       precacheImage(CachedNetworkImageProvider(story.mediaUrl!), context);
     }
+
     if (story.type == 'video' && story.mediaUrl != null) {
       _initVideo(story.mediaUrl!);
+    } else {
+      // Image/text story: preload next video now
+      _schedulePreload();
     }
   }
 
+  /// Pre-buffer the next story video so it plays instantly on swipe.
+  void _schedulePreload() {
+    final nextUrl = _nextStoryVideoUrl();
+    if (nextUrl == null || nextUrl == _preloadedUrl) return;
+
+    // Cancel stale preload
+    if (_preloadedUrl != nextUrl) {
+      _preloaded?.dispose();
+      _preloaded = null;
+      _preloadedUrl = null;
+    }
+
+    _preloadedUrl = nextUrl;
+    _doPreload(nextUrl);
+  }
+
+  String? _nextStoryVideoUrl() {
+    if (_storyIndex < _currentGroup.stories.length - 1) {
+      final s = _currentGroup.stories[_storyIndex + 1];
+      if (s.type == 'video') return s.mediaUrl;
+    } else if (_groupIndex < widget.groups.length - 1) {
+      final s = widget.groups[_groupIndex + 1].stories.first;
+      if (s.type == 'video') return s.mediaUrl;
+    }
+    return null;
+  }
+
+  Future<void> _doPreload(String url) async {
+    try {
+      final source = await VideoPool.resolveUrl(url);
+      if (!mounted || _preloadedUrl != url) return;
+
+      final player = Player(
+        configuration: const PlayerConfiguration(bufferSize: 8 * 1024 * 1024),
+      );
+      final ctrl = VideoController(player);
+      final pre = _PreloadedVideo(player, ctrl);
+
+      pre.paramsSub = player.stream.videoParams.listen((vp) {
+        if ((vp.w ?? 0) > 0) pre.hasFrame = true;
+      });
+
+      await player.open(Media(source));
+      await player.setVolume(0);
+      await player.pause(); // buffer but don't audibly play
+
+      if (mounted && _preloadedUrl == url) {
+        _preloaded = pre;
+      } else {
+        pre.dispose();
+      }
+    } catch (_) {}
+  }
+
   Future<void> _initVideo(String url) async {
-    // Check disk cache (previously watched stories play instantly, no network)
+    // If we have this URL preloaded, use it directly — no network wait
+    if (_preloaded != null && _preloadedUrl == url) {
+      final pre = _preloaded!;
+      _preloaded = null;
+      _preloadedUrl = null;
+
+      _player = pre.player;
+      _videoCtrl = pre.ctrl;
+      pre.paramsSub?.cancel();
+
+      if (pre.hasFrame) {
+        setState(() => _hasFrame = true);
+      } else {
+        _videoParamsSub = _player!.stream.videoParams.listen((vp) {
+          if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) setState(() => _hasFrame = true);
+        });
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted && !_hasFrame) setState(() => _hasFrame = true);
+        });
+      }
+
+      _completedSub = _player!.stream.completed.listen((done) {
+        if (done && mounted) _nextStory();
+      });
+      _errorSub = _player!.stream.error.listen((_) {
+        if (mounted && !_hasFrame) setState(() => _videoError = true);
+      });
+
+      await _player!.setVolume(100);
+      await _player!.play();
+      _schedulePreload();
+      return;
+    }
+
+    // Fresh init from network / disk cache
     final source = await VideoPool.resolveUrl(url);
+    if (!mounted) return;
 
     final player = Player(
-      configuration: const PlayerConfiguration(
-        bufferSize: 32 * 1024 * 1024, // 32 MB — reduces story rebuffering
-      ),
+      configuration: const PlayerConfiguration(bufferSize: 8 * 1024 * 1024),
     );
     final ctrl = VideoController(player);
     _player = player;
@@ -103,8 +215,10 @@ class _StoryViewerState extends State<StoryViewer> {
     try {
       await player.open(Media(source));
       await player.setPlaylistMode(PlaylistMode.none);
-      // Fallback frame reveal — short so black screen is minimal
-      Future.delayed(const Duration(milliseconds: 400), () {
+      // Start preloading next story immediately after this one opens
+      _schedulePreload();
+      // Fallback reveal — eliminate black screen after 500ms regardless
+      Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted && !_hasFrame && !_videoError) setState(() => _hasFrame = true);
       });
     } catch (_) {
