@@ -401,9 +401,14 @@ class _StoryViewerState extends State<StoryViewer> {
           AnimatedOpacity(
             opacity: 1.0,
             duration: const Duration(milliseconds: 150),
-            child: AspectRatio(
-              aspectRatio: _ctrl!.value.aspectRatio,
-              child: VideoPlayer(_ctrl!)),
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width:  _ctrl!.value.size.width,
+                height: _ctrl!.value.size.height,
+                child:  VideoPlayer(_ctrl!),
+              ),
+            ),
           ),
 
         // Tiny spinner while buffering (only if no thumbnail)

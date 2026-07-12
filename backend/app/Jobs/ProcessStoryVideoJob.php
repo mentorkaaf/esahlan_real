@@ -35,8 +35,8 @@ class ProcessStoryVideoJob implements ShouldQueue
             $result = VideoProcessingService::processStory($this->rawPath);
 
             $update = [];
-            if (!empty($result['url']))       $update['media_url'] = $result['url'];
-            if (!empty($result['thumbnail'])) $update['thumbnail'] = $result['thumbnail_path'];
+            if (!empty($result['url']))            $update['media_url'] = $result['url'];
+            if (!empty($result['thumbnail_path'])) $update['thumbnail'] = url('/api/v1/media?f=' . $result['thumbnail_path']);
             if ($update) $story->update($update);
         } catch (\Throwable $e) {
             Log::warning("[ProcessStoryVideoJob] Story #{$this->storyId} failed: " . $e->getMessage());
