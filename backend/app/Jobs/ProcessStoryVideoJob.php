@@ -15,7 +15,7 @@ class ProcessStoryVideoJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout    = 1800; // 30 min max for stories
+    public int $timeout    = 300; // 5 min max — stories are short and compressed on upload
     public int $tries      = 1;
     public int $maxExceptions = 1;
 
@@ -32,14 +32,15 @@ class ProcessStoryVideoJob implements ShouldQueue
         if (!$story) return;
 
         try {
-            $result = VideoProcessingService::process($this->rawPath);
+            $result = VideoProcessingService::processStory($this->rawPath);
 
-            if (!empty($result['qualities']['optimized']['url'])) {
-                $story->update(['media_url' => $result['qualities']['optimized']['url']]);
-            }
+            $update = [];
+            if (!empty($result['url']))       $update['media_url'] = $result['url'];
+            if (!empty($result['thumbnail'])) $update['thumbnail'] = $result['thumbnail_path'];
+            if ($update) $story->update($update);
         } catch (\Throwable $e) {
-            Log::warning("[ProcessStoryVideoJob] Story #{$this->storyId} processing failed: " . $e->getMessage());
-            // Keep the original raw URL — story remains watchable, just uncompressed
+            Log::warning("[ProcessStoryVideoJob] Story #{$this->storyId} failed: " . $e->getMessage());
+            // Keep original raw URL — story remains watchable, just uncompressed
         }
     }
 }

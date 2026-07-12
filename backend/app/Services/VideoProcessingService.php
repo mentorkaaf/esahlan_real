@@ -263,4 +263,85 @@ class VideoProcessingService
     {
         return self::getOptimalUrl($qualities);
     }
+
+    /**
+     * Story-specific processing: aggressive compression, no HLS.
+     * Stories are short (≤60s) and viewed full-screen on mobile.
+     * Target: 480p portrait, CRF 30, maxrate 600k → ~1-3 MB per story.
+     * Runs in ~15-30s on the server vs 2-5 min for full post transcoding.
+     *
+     * Returns: ['url' => ..., 'thumbnail' => ..., 'thumbnail_path' => ...]
+     */
+    public static function processStory(string $storagePath): array
+    {
+        $inputPath = storage_path('app/public/' . $storagePath);
+        if (!file_exists($inputPath)) return ['error' => 'File not found'];
+
+        $dir  = pathinfo($storagePath, PATHINFO_DIRNAME);
+        $name = pathinfo($storagePath, PATHINFO_FILENAME);
+        $outDir = storage_path("app/public/{$dir}/{$name}");
+        @mkdir($outDir, 0755, true);
+
+        // Probe source dimensions
+        $probe = shell_exec(
+            'ffprobe -v quiet -print_format json -show_streams -show_format '
+            . escapeshellarg($inputPath) . ' 2>/dev/null'
+        );
+        $info     = json_decode($probe, true) ?? [];
+        $vStream  = collect($info['streams'] ?? [])->firstWhere('codec_type', 'video');
+        $width    = (int)($vStream['width']  ?? 1080);
+        $height   = (int)($vStream['height'] ?? 1920);
+        $duration = (float)($info['format']['duration'] ?? 0);
+
+        // Scale: limit short side to 480px → portrait 480×854, landscape 854×480
+        // Most stories are portrait (9:16). ceil to even numbers for libx264.
+        $land        = $width >= $height;
+        $scaleFilter = $land ? 'scale=-2:480' : 'scale=480:-2';
+
+        // Trim to 60 s max
+        $durationFlag = $duration > 60 ? '-t 60' : '';
+
+        $outRelPath = "{$dir}/{$name}/story.mp4";
+        $outFull    = storage_path('app/public/' . $outRelPath);
+
+        exec(sprintf(
+            '%s ffmpeg -threads 0 -i %s %s -vf %s '
+            . '-c:v libx264 -preset veryfast -crf 30 -maxrate 600k -bufsize 1200k '
+            . '-c:a aac -b:a 64k -movflags +faststart -y %s 2>/dev/null',
+            self::NICE,
+            escapeshellarg($inputPath),
+            $durationFlag,
+            $scaleFilter,
+            escapeshellarg($outFull)
+        ), $_, $code);
+
+        if ($code !== 0 || !file_exists($outFull)) {
+            // Fallback: just copy original so the story stays watchable
+            if ($inputPath !== $outFull) @copy($inputPath, $outFull);
+        }
+
+        $result = [
+            'url' => url('/api/v1/media?f=' . $outRelPath),
+        ];
+
+        // Thumbnail (360px wide, from 1s mark)
+        $thumbRelPath = "{$dir}/{$name}/thumb.jpg";
+        $thumbFull    = storage_path('app/public/' . $thumbRelPath);
+        exec(sprintf(
+            '%s ffmpeg -threads 0 -ss 1 -i %s -vframes 1 -q:v 5 -vf scale=360:-2 -y %s 2>/dev/null',
+            self::NICE,
+            escapeshellarg($outFull),
+            escapeshellarg($thumbFull)
+        ));
+        if (file_exists($thumbFull)) {
+            $result['thumbnail']      = url('/api/v1/media?f=' . $thumbRelPath);
+            $result['thumbnail_path'] = $thumbRelPath;
+        }
+
+        // Delete raw upload
+        if ($inputPath !== $outFull) @unlink($inputPath);
+
+        Log::info("[VideoProcessingService::processStory] {$storagePath} {$width}x{$height} {$duration}s → {$outRelPath}");
+        return $result;
+    }
 }
