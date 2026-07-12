@@ -212,17 +212,23 @@ class _PinBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final focused = focusNode.hasFocus;
+    final filled  = controller.text.isNotEmpty;
     return Container(
       width: 68, height: 68,
       decoration: BoxDecoration(
-        color: focusNode.hasFocus ? AppColors.primary.withOpacity(0.08) : c.inputFill,
+        color: focused
+            ? AppColors.primary.withOpacity(0.1)
+            : filled
+                ? c.surfaceBg
+                : c.inputFill,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: focusNode.hasFocus ? AppColors.primary : c.borderColor,
-          width: focusNode.hasFocus ? 2 : 1.5,
+          color: focused ? AppColors.primary : filled ? AppColors.primary.withOpacity(0.4) : c.borderColor,
+          width: focused ? 2.5 : 1.5,
         ),
-        boxShadow: focusNode.hasFocus
-            ? [BoxShadow(color: AppColors.primary.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 4))]
+        boxShadow: focused
+            ? [BoxShadow(color: AppColors.primary.withOpacity(0.2), blurRadius: 12, offset: const Offset(0, 4))]
             : null,
       ),
       child: TextField(

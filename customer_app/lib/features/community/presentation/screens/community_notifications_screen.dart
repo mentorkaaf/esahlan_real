@@ -112,8 +112,8 @@ class _NotifList extends ConsumerWidget {
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Container(
                 width: 70, height: 70,
-                decoration: BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
-                child: Icon(Icons.notifications_rounded, size: 35, color: Color(0xFFD1D5DB)),
+                decoration: BoxDecoration(color: context.colors.surfaceBg, shape: BoxShape.circle),
+                child: Icon(Icons.notifications_rounded, size: 35, color: context.colors.subtleText),
               ),
               SizedBox(height: 14),
               Text('No notifications yet',
@@ -249,7 +249,7 @@ class _NotifTileState extends ConsumerState<_NotifTile> {
     return InkWell(
       onTap: widget.onTap,
       child: Container(
-        color: notif.isRead ? Colors.white : kOrange.withOpacity(0.06),
+        color: notif.isRead ? context.colors.cardBg : kOrange.withOpacity(0.08),
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
           Stack(clipBehavior: Clip.none, children: [
@@ -261,7 +261,7 @@ class _NotifTileState extends ConsumerState<_NotifTile> {
                 decoration: BoxDecoration(
                   color: _color(notif.type),
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+                  border: Border.all(color: context.colors.cardBg, width: 2),
                 ),
                 child: Icon(_icon(notif.type), size: 10, color: Colors.white),
               ),
@@ -315,8 +315,8 @@ class _NotifTileState extends ConsumerState<_NotifTile> {
                       child: OutlinedButton(
                         onPressed: _loading ? null : _rejectRequest,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.black87,
-                          side: BorderSide(color: Colors.grey.shade300),
+                          foregroundColor: context.colors.bodyText,
+                          side: BorderSide(color: context.colors.borderColor),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                           padding: EdgeInsets.symmetric(horizontal: 12),
                           minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -331,8 +331,8 @@ class _NotifTileState extends ConsumerState<_NotifTile> {
               child: ElevatedButton(
                 onPressed: _loading ? null : _toggleFollow,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _following ? Colors.grey.shade200 : kOrange,
-                  foregroundColor: _following ? Colors.black87 : Colors.white,
+                  backgroundColor: _following ? context.colors.surfaceBg : kOrange,
+                  foregroundColor: _following ? context.colors.bodyText : Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                   padding: EdgeInsets.symmetric(horizontal: 12),
                   minimumSize: Size.zero,
@@ -427,18 +427,18 @@ class _FollowRequestsListState extends ConsumerState<_FollowRequestsList> {
     if (_requests.isEmpty) {
       return Center(
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.person_add_rounded, size: 56, color: Colors.grey.shade300),
+          Icon(Icons.person_add_rounded, size: 56, color: context.colors.subtleText),
           SizedBox(height: 12),
-          Text('No follow requests', style: TextStyle(color: Colors.grey.shade500, fontSize: 16, fontWeight: FontWeight.w600)),
+          Text('No follow requests', style: TextStyle(color: context.colors.bodyText, fontSize: 16, fontWeight: FontWeight.w600)),
           SizedBox(height: 4),
           Text('When someone requests to follow you,\nit will appear here.', textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+              style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
         ]),
       );
     }
     return ListView.separated(
       itemCount: _requests.length,
-      separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey.shade100),
+      separatorBuilder: (_, __) => Divider(height: 1, color: context.colors.dividerColor),
       itemBuilder: (context, i) {
         final req = _requests[i];
         return _FollowRequestTile(
@@ -500,7 +500,7 @@ class _FollowRequestTileState extends ConsumerState<_FollowRequestTile> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.bodyText)),
             if (username.isNotEmpty)
-              Text('@$username', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+              Text('@$username', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
           ]),
         ),
         SizedBox(width: 8),
@@ -526,8 +526,8 @@ class _FollowRequestTileState extends ConsumerState<_FollowRequestTile> {
             child: OutlinedButton(
               onPressed: _reject,
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.black87,
-                side: BorderSide(color: Colors.grey.shade300),
+                foregroundColor: context.colors.bodyText,
+                side: BorderSide(color: context.colors.borderColor),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 padding: EdgeInsets.symmetric(horizontal: 14),
                 minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap,

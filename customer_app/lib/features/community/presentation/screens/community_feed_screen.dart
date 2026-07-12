@@ -287,7 +287,7 @@ class _FeedTab extends ConsumerWidget {
     final reels       = ref.watch(communityReelsProvider).valueOrNull ?? [];
 
     return ColoredBox(
-      color: const Color(0xFFF0F2F5),
+      color: context.colors.scaffoldBg,
       child: NotificationListener<ScrollNotification>(
         onNotification: (n) {
           if (n is ScrollUpdateNotification) {

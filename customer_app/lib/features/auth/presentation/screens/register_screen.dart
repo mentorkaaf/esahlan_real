@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/phone_input_field.dart';
 import '../providers/auth_provider.dart';
 import '../../data/models/district_model.dart';
@@ -176,9 +177,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                               curve: const Interval(0.2, 1.0, curve: Curves.easeOut))),
                       child: Container(
                         margin: const EdgeInsets.only(top: 24),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                        decoration: BoxDecoration(
+                          color: context.colors.elevatedBg,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                         ),
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.fromLTRB(24, 28, 24, 40),
@@ -205,34 +206,35 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             const _Label('District'),
                             const SizedBox(height: 8),
                             distAsync.when(
-                              loading: () => Container(
+                              loading: () => Builder(builder: (ctx) => Container(
                                 height: 54,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF8F9FF),
+                                  color: ctx.colors.inputFill,
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: const Color(0xFFE8EAF0), width: 1.5),
+                                  border: Border.all(color: ctx.colors.borderColor, width: 1.5),
                                 ),
                                 child: const Center(child: SizedBox(width: 20, height: 20,
                                     child: CircularProgressIndicator(strokeWidth: 2))),
-                              ),
+                              )),
                               error: (e, _) => Text('Failed to load districts',
                                   style: TextStyle(color: AppColors.error, fontSize: 13)),
-                              data: (list) => Container(
+                              data: (list) => Builder(builder: (ctx) => Container(
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF8F9FF),
+                                  color: ctx.colors.inputFill,
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: const Color(0xFFE8EAF0), width: 1.5),
+                                  border: Border.all(color: ctx.colors.borderColor, width: 1.5),
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<int>(
                                     value: _districtId,
                                     isExpanded: true,
-                                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF07003B)),
+                                    dropdownColor: ctx.colors.elevatedBg,
+                                    icon: Icon(Icons.keyboard_arrow_down_rounded, color: ctx.colors.bodyText),
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                    hint: const Text('Select your district',
-                                        style: TextStyle(color: Color(0xFFB0B3C6), fontSize: 14)),
-                                    style: const TextStyle(color: Color(0xFF1F2937), fontSize: 15,
-                                        fontWeight: FontWeight.w600),
+                                    hint: Text('Select your district',
+                                        style: TextStyle(color: ctx.colors.subtleText, fontSize: 14)),
+                                    style: TextStyle(color: ctx.colors.bodyText, fontSize: 15,
+                                        fontWeight: FontWeight.w600, fontFamily: 'Cairo'),
                                     borderRadius: BorderRadius.circular(14),
                                     items: list.map((d) => DropdownMenuItem(
                                         value: d.id, child: Text(d.name))).toList(),
@@ -244,7 +246,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                                     },
                                   ),
                                 ),
-                              ),
+                              )),
                             ),
 
                             const SizedBox(height: 20),
@@ -252,11 +254,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             // PIN
                             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                               const _Label('Create PIN'),
-                              Text('4 digits', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+                              Text('4 digits', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
                             ]),
                             const SizedBox(height: 8),
                             Text('You will use this PIN to sign in',
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade400, height: 1.4)),
+                              style: TextStyle(fontSize: 12, color: context.colors.mutedText, height: 1.4)),
                             const SizedBox(height: 12),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -285,7 +287,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
 
                             Center(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                               Text('Already have an account? ',
-                                style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+                                style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
                               GestureDetector(
                                 onTap: () => context.go('/auth/login'),
                                 child: Text('Sign In', style: TextStyle(
@@ -328,7 +330,7 @@ class _Label extends StatelessWidget {
   const _Label(this.text);
   @override
   Widget build(BuildContext context) => Text(text,
-    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF374151)));
+    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.bodyText));
 }
 
 class _InputField extends StatelessWidget {
@@ -340,25 +342,26 @@ class _InputField extends StatelessWidget {
       this.cap = TextCapitalization.none});
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FF),
+        color: c.inputFill,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE8EAF0), width: 1.5),
+        border: Border.all(color: c.borderColor, width: 1.5),
       ),
       child: Row(children: [
         Padding(
           padding: const EdgeInsets.only(left: 14),
-          child: Icon(icon, size: 18, color: const Color(0xFFB0B3C6)),
+          child: Icon(icon, size: 18, color: c.subtleText),
         ),
         Expanded(
           child: TextField(
             controller: ctrl,
             textCapitalization: cap,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.bodyText),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: const TextStyle(color: Color(0xFFB0B3C6), fontSize: 14, fontWeight: FontWeight.w400),
+              hintStyle: TextStyle(color: c.subtleText, fontSize: 14, fontWeight: FontWeight.w400),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
             ),
@@ -378,17 +381,24 @@ class _PinBox extends StatelessWidget {
       required this.onChanged, this.onSubmit});
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final focused = focusNode.hasFocus;
+    final filled  = controller.text.isNotEmpty;
     return Container(
       width: 68, height: 68,
       decoration: BoxDecoration(
-        color: focusNode.hasFocus ? AppColors.primary.withOpacity(0.06) : const Color(0xFFF8F9FF),
+        color: focused
+            ? AppColors.primary.withOpacity(0.1)
+            : filled
+                ? c.surfaceBg
+                : c.inputFill,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: focusNode.hasFocus ? AppColors.primary : const Color(0xFFE8EAF0),
-          width: focusNode.hasFocus ? 2 : 1.5,
+          color: focused ? AppColors.primary : filled ? AppColors.primary.withOpacity(0.4) : c.borderColor,
+          width: focused ? 2.5 : 1.5,
         ),
-        boxShadow: focusNode.hasFocus
-            ? [BoxShadow(color: AppColors.primary.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 4))]
+        boxShadow: focused
+            ? [BoxShadow(color: AppColors.primary.withOpacity(0.2), blurRadius: 12, offset: const Offset(0, 4))]
             : null,
       ),
       child: TextField(
@@ -400,7 +410,7 @@ class _PinBox extends StatelessWidget {
         obscureText: true,
         obscuringCharacter: '●',
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF07003B)),
+        style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: c.navyText),
         decoration: const InputDecoration(counterText: '', border: InputBorder.none),
         onChanged: onChanged,
         onSubmitted: onSubmit,
