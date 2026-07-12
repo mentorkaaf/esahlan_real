@@ -1276,10 +1276,11 @@ class _PostCardState extends ConsumerState<_PostCard> {
 
         Divider(height: 1, thickness: 1, color: Color(0xFFF2F4F7)),
 
-        // Action buttons
+        // Action buttons — reaction left, stats right
         Padding(
-          padding: EdgeInsets.fromLTRB(6, 4, 6, 6),
+          padding: EdgeInsets.fromLTRB(10, 4, 10, 6),
           child: Row(children: [
+            // ── Left: reaction button only ──
             _myReaction != null
               ? _ReactionActiveBtn(
                   emoji: _reactionEmoji(_myReaction!),
@@ -1293,9 +1294,39 @@ class _PostCardState extends ConsumerState<_PostCard> {
                   onTap: () => setState(() => _showReactions = !_showReactions),
                   onLongPress: () => _react('like'),
                 ),
-            _ActionBtn(icon: Icons.mode_comment_outlined, label: 'Comment', color: const Color(0xFF8A94A6), onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount, commentsDisabled: p.commentsDisabled)),
-            _ActionBtn(icon: Icons.reply_rounded, label: 'Share', color: const Color(0xFF8A94A6), onTap: () => _showShareDialog()),
-            _SaveBtn(postId: p.id, isSaved: p.isSaved, onToggle: (saved) => setState(() => p.isSaved = saved)),
+            const Spacer(),
+            // ── Right: view · comment · share · save (icon + count only) ──
+            _StatIcon(
+              icon: Icons.remove_red_eye_outlined,
+              count: p.viewsCount,
+              color: const Color(0xFF8A94A6),
+            ),
+            const SizedBox(width: 14),
+            _StatIcon(
+              icon: Icons.mode_comment_outlined,
+              count: p.commentsCount,
+              color: const Color(0xFF8A94A6),
+              onTap: () => showCommentsSheet(context, p.id,
+                  initialCount: p.commentsCount,
+                  commentsDisabled: p.commentsDisabled),
+            ),
+            const SizedBox(width: 14),
+            _StatIcon(
+              icon: Icons.reply_rounded,
+              count: p.sharesCount,
+              color: const Color(0xFF8A94A6),
+              onTap: () => _showShareDialog(),
+            ),
+            const SizedBox(width: 14),
+            _SaveStatIcon(
+              postId: p.id,
+              isSaved: p.isSaved,
+              count: p.savesCount,
+              onToggle: (saved) => setState(() {
+                p.isSaved = saved;
+                p.savesCount += saved ? 1 : -1;
+              }),
+            ),
           ]),
         ),
 
@@ -1738,6 +1769,86 @@ class _ActionBtn extends StatelessWidget {
           ]),
         ),
       ),
+    );
+  }
+}
+
+// Icon + count (no label) — for the right-side stats row
+class _StatIcon extends StatelessWidget {
+  final IconData icon;
+  final int count;
+  final Color color;
+  final VoidCallback? onTap;
+  const _StatIcon({required this.icon, required this.count, required this.color, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, color: color, size: 18),
+        if (count > 0) ...[
+          const SizedBox(width: 4),
+          Text(
+            count >= 1000 ? '${(count / 1000).toStringAsFixed(1)}K' : '$count',
+            style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ]),
+    );
+  }
+}
+
+// Save icon + count — toggles saved state
+class _SaveStatIcon extends ConsumerStatefulWidget {
+  final int postId;
+  final bool isSaved;
+  final int count;
+  final void Function(bool) onToggle;
+  const _SaveStatIcon({required this.postId, required this.isSaved, required this.count, required this.onToggle});
+
+  @override
+  ConsumerState<_SaveStatIcon> createState() => _SaveStatIconState();
+}
+
+class _SaveStatIconState extends ConsumerState<_SaveStatIcon> {
+  late bool _saved;
+  late int  _count;
+
+  @override
+  void initState() {
+    super.initState();
+    _saved = widget.isSaved;
+    _count = widget.count;
+  }
+
+  void _toggle() async {
+    final next = !_saved;
+    setState(() { _saved = next; _count += next ? 1 : -1; });
+    widget.onToggle(next);
+    await ref.read(communityRepoProvider).savePost(widget.postId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _toggle,
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(
+          _saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+          color: _saved ? kOrange : const Color(0xFF8A94A6),
+          size: 18,
+        ),
+        if (_count > 0) ...[
+          const SizedBox(width: 4),
+          Text(
+            _count >= 1000 ? '${(_count / 1000).toStringAsFixed(1)}K' : '$_count',
+            style: TextStyle(
+              color: _saved ? kOrange : const Color(0xFF8A94A6),
+              fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ]),
     );
   }
 }
