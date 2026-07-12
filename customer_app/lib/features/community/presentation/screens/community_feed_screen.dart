@@ -157,6 +157,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
       body: Stack(children: [
       NestedScrollView(
         controller: _scrollCtrl,
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         headerSliverBuilder: (context, _) => [
           SliverAppBar(
             pinned: true,
@@ -304,7 +305,7 @@ class _FeedTab extends ConsumerWidget {
           // CustomScrollView + SliverList: posts are built LAZILY (only visible ones).
           // The old ListView + Column built ALL 30+ cards at once — this is the main perf fix.
           child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             slivers: [
               SliverToBoxAdapter(child: storiesState.when(
                 data: (groups) => StoriesBar(groups: groups),
@@ -1228,15 +1229,30 @@ class _PostCardState extends ConsumerState<_PostCard> {
             }).toList()),
           ),
 
-        // Engagement counts — compact pill style
-        if (p.likesCount > 0 || p.commentsCount > 0 || p.sharesCount > 0 || p.viewsCount > 0)
+        // Per-reaction emoji breakdown row (clickable)
+        if (p.reactionCounts.isNotEmpty)
           Padding(
             padding: EdgeInsets.fromLTRB(14, 8, 14, 2),
             child: Row(children: [
-              if (p.likesCount > 0) _EngagementChip(emoji: '👍', count: p.likesCount),
-              if (p.commentsCount > 0) _EngagementChip(emoji: '💬', count: p.commentsCount),
-              if (p.sharesCount > 0) _EngagementChip(emoji: '↗', count: p.sharesCount),
-              if (p.viewsCount > 0) _EngagementChip(emoji: '👁', count: p.viewsCount),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(children: p.reactionCounts.entries
+                    .where((e) => e.value > 0)
+                    .map((e) => _ReactionChip(
+                      emoji: _reactionEmoji(e.key),
+                      count: e.value,
+                      onTap: () => _showReactionsList(e.key),
+                    )).toList(),
+                  ),
+                ),
+              ),
+              if (p.commentsCount > 0)
+                GestureDetector(
+                  onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount, commentsDisabled: p.commentsDisabled),
+                  child: Text('${p.commentsCount} comment${p.commentsCount > 1 ? 's' : ''}',
+                    style: TextStyle(color: const Color(0xFF8A94A6), fontSize: 12, fontWeight: FontWeight.w500)),
+                ),
             ]),
           ),
 
@@ -1256,6 +1272,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
             ),
             _ActionBtn(icon: Icons.mode_comment_outlined, label: 'Comment', color: const Color(0xFF8A94A6), onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount, commentsDisabled: p.commentsDisabled)),
             _ActionBtn(icon: Icons.reply_rounded, label: 'Share', color: const Color(0xFF8A94A6), onTap: () => _showShareDialog()),
+            _SaveBtn(postId: p.id, isSaved: p.isSaved, onToggle: (saved) => setState(() => p.isSaved = saved)),
           ]),
         ),
 
@@ -1267,6 +1284,40 @@ class _PostCardState extends ConsumerState<_PostCard> {
           ),
       ]),
     );
+  }
+
+  void _showReactionsList(String type) {
+    final emoji = _reactionEmoji(type);
+    showModalBottomSheet(context: context, isScrollControlled: true,
+      backgroundColor: context.colors.elevatedBg,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.5, minChildSize: 0.3, maxChildSize: 0.9, expand: false,
+        builder: (ctx, scroll) => Column(children: [
+          Container(margin: const EdgeInsets.only(top: 10), width: 38, height: 4,
+            decoration: BoxDecoration(color: context.colors.borderColor, borderRadius: BorderRadius.circular(2))),
+          Padding(padding: const EdgeInsets.all(16),
+            child: Text('$emoji Reactions', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.bodyText))),
+          Expanded(child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: ref.read(communityRepoProvider).getPostReactions(widget.post.id, type: type),
+            builder: (_, snap) {
+              if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+              if (snap.hasError || snap.data == null) return Center(child: Text('Failed to load', style: TextStyle(color: context.colors.mutedText)));
+              final users = snap.data!;
+              if (users.isEmpty) return Center(child: Text('No reactions yet', style: TextStyle(color: context.colors.mutedText)));
+              return ListView.builder(controller: scroll, itemCount: users.length, itemBuilder: (_, i) {
+                final u = users[i];
+                return ListTile(
+                  leading: CircleNetImage(url: u['avatar'] as String?, size: 40, fallbackText: u['name'] as String? ?? '?'),
+                  title: Text(u['name'] as String? ?? '', style: TextStyle(fontWeight: FontWeight.w600, color: context.colors.bodyText)),
+                  subtitle: u['username'] != null ? Text('@${u['username']}', style: TextStyle(color: context.colors.mutedText, fontSize: 12)) : null,
+                  trailing: Text(_reactionEmoji(u['reaction_type'] as String? ?? type), style: const TextStyle(fontSize: 20)),
+                );
+              });
+            },
+          )),
+        ]),
+      ));
   }
 
   void _showShareDialog() {
@@ -1551,6 +1602,62 @@ class _EngagementChip extends StatelessWidget {
   }
 }
 
+class _ReactionChip extends StatelessWidget {
+  final String emoji;
+  final int count;
+  final VoidCallback onTap;
+  const _ReactionChip({required this.emoji, required this.count, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = count >= 1000 ? '${(count / 1000).toStringAsFixed(1)}K' : '$count';
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: context.colors.surfaceBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: context.colors.borderColor, width: 1),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(emoji, style: const TextStyle(fontSize: 14)),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(color: context.colors.bodyText, fontSize: 12, fontWeight: FontWeight.w700)),
+        ]),
+      ),
+    );
+  }
+}
+
+class _SaveBtn extends ConsumerWidget {
+  final int postId;
+  final bool isSaved;
+  final void Function(bool) onToggle;
+  const _SaveBtn({required this.postId, required this.isSaved, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GestureDetector(
+      onTap: () async {
+        try {
+          final saved = await ref.read(communityRepoProvider).savePost(postId);
+          onToggle(saved);
+        } catch (_) {}
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Icon(
+          isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+          color: isSaved ? kOrange : const Color(0xFF8A94A6),
+          size: 22,
+        ),
+      ),
+    );
+  }
+}
+
 class _ActionBtn extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -1823,11 +1930,31 @@ class _ReelsCarousel extends ConsumerWidget {
                       begin: Alignment.topCenter, end: Alignment.bottomCenter,
                       colors: [Colors.transparent, Colors.black87]))),
                     Positioned(bottom: 8, left: 8, right: 8,
-                      child: Row(children: [
-                        CircleNetImage(url: reel.user.avatar, size: 22, fallbackText: reel.user.name),
-                        const SizedBox(width: 6),
-                        Expanded(child: Text(reel.user.name, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
-                          maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                        Row(children: [
+                          CircleNetImage(url: reel.user.avatar, size: 22, fallbackText: reel.user.name),
+                          const SizedBox(width: 6),
+                          Expanded(child: Text(reel.user.name, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                            maxLines: 1, overflow: TextOverflow.ellipsis)),
+                        ]),
+                        if (reel.likesCount > 0 || reel.commentsCount > 0) ...[
+                          const SizedBox(height: 5),
+                          Row(children: [
+                            if (reel.likesCount > 0) ...[
+                              const Icon(Icons.thumb_up_rounded, color: Colors.white, size: 12),
+                              const SizedBox(width: 3),
+                              Text(reel.likesCount >= 1000 ? '${(reel.likesCount/1000).toStringAsFixed(1)}K' : '${reel.likesCount}',
+                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                              const SizedBox(width: 8),
+                            ],
+                            if (reel.commentsCount > 0) ...[
+                              const Icon(Icons.mode_comment_outlined, color: Colors.white, size: 12),
+                              const SizedBox(width: 3),
+                              Text(reel.commentsCount >= 1000 ? '${(reel.commentsCount/1000).toStringAsFixed(1)}K' : '${reel.commentsCount}',
+                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                            ],
+                          ]),
+                        ],
                       ])),
                     if (reel.viewsCount > 0) Positioned(top: 6, right: 6,
                       child: Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),

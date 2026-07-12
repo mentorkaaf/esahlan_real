@@ -211,7 +211,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                                 decoration: BoxDecoration(
                                   color: ctx.colors.inputFill,
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: ctx.colors.borderColor, width: 1.5),
+                                  border: Border.all(color: AppColors.primary.withOpacity(0.35), width: 1.5),
                                 ),
                                 child: const Center(child: SizedBox(width: 20, height: 20,
                                     child: CircularProgressIndicator(strokeWidth: 2))),
@@ -222,7 +222,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                                 decoration: BoxDecoration(
                                   color: ctx.colors.inputFill,
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: ctx.colors.borderColor, width: 1.5),
+                                  border: Border.all(color: AppColors.primary.withOpacity(0.35), width: 1.5),
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<int>(
@@ -343,11 +343,12 @@ class _InputField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final isDark = context.isDark;
     return Container(
       decoration: BoxDecoration(
-        color: c.inputFill,
+        color: isDark ? c.scaffoldBg : c.inputFill,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: c.borderColor, width: 1.5),
+        border: Border.all(color: AppColors.primary.withOpacity(0.35), width: 1.5),
       ),
       child: Row(children: [
         Padding(
@@ -382,19 +383,24 @@ class _PinBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final isDark = context.isDark;
     final focused = focusNode.hasFocus;
     final filled  = controller.text.isNotEmpty;
     return Container(
       width: 68, height: 68,
       decoration: BoxDecoration(
         color: focused
-            ? AppColors.primary.withOpacity(0.1)
+            ? AppColors.primary.withOpacity(0.12)
             : filled
                 ? c.surfaceBg
-                : c.inputFill,
+                : isDark ? c.scaffoldBg : c.inputFill,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: focused ? AppColors.primary : filled ? AppColors.primary.withOpacity(0.4) : c.borderColor,
+          color: focused
+              ? AppColors.primary
+              : filled
+                  ? AppColors.primary.withOpacity(0.4)
+                  : AppColors.primary.withOpacity(0.3),
           width: focused ? 2.5 : 1.5,
         ),
         boxShadow: focused

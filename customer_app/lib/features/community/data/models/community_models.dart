@@ -266,6 +266,7 @@ class CommunityPost {
   final CommunityUser user;
   String? userReaction;
   bool isSaved;
+  Map<String, int> reactionCounts;
   final String moderationStatus;
 
   // Shared post
@@ -302,6 +303,7 @@ class CommunityPost {
     required this.user,
     this.userReaction,
     this.isSaved = false,
+    this.reactionCounts = const {},
     this.moderationStatus = 'approved',
     this.sharedPost,
     this.pageId,
@@ -358,6 +360,8 @@ class CommunityPost {
         user: CommunityUser.fromJson(j['user'] as Map<String, dynamic>),
         userReaction: j['user_reaction'] as String?,
         isSaved: j['is_saved'] as bool? ?? false,
+        reactionCounts: (j['reaction_counts'] as Map<String, dynamic>?)
+                ?.map((k, v) => MapEntry(k, (v as num).toInt())) ?? {},
         moderationStatus: j['moderation_status'] as String? ?? 'approved',
         sharedPost: j['shared_post'] as Map<String, dynamic>?,
         pageId: j['page_id'] as int?,

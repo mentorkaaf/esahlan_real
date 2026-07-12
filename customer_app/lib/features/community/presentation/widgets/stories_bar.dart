@@ -1,4 +1,5 @@
-﻿import 'dart:typed_data';
+﻿import 'dart:math' show pi;
+import 'dart:typed_data';
 import 'package:video_compress/video_compress.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -123,13 +124,10 @@ class _StoryCard extends StatelessWidget {
     final hasUnviewed = !group.allViewed;
     final isVideo = firstStory?.type == 'video';
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
+    final card = Container(
         width: 120,
-        margin: const EdgeInsets.only(right: 8),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           color: const Color(0xFF1A1B2E),
         ),
         clipBehavior: Clip.antiAlias,
@@ -206,6 +204,20 @@ class _StoryCard extends StatelessWidget {
         ]),
       ),
     );
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 120,
+        margin: const EdgeInsets.only(right: 8),
+        child: hasUnviewed
+            ? _AnimGradBorder(borderRadius: 14, child: card)
+            : ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: card,
+              ),
+      ),
+    );
   }
 
   Color _parseColor(String? hex) {
@@ -213,6 +225,87 @@ class _StoryCard extends StatelessWidget {
     hex = hex.replaceAll('#', '');
     return Color(int.parse('FF$hex', radix: 16));
   }
+}
+
+// ── Animated gradient border for unviewed stories ─────────────────────────────
+
+class _AnimGradBorder extends StatefulWidget {
+  final Widget child;
+  final double borderRadius;
+  const _AnimGradBorder({required this.child, this.borderRadius = 14});
+
+  @override
+  State<_AnimGradBorder> createState() => _AnimGradBorderState();
+}
+
+class _AnimGradBorderState extends State<_AnimGradBorder> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, child) => CustomPaint(
+        painter: _GradBorderPainter(progress: _ctrl.value, radius: widget.borderRadius),
+        child: child,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(2.5),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(widget.borderRadius - 2.5),
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
+class _GradBorderPainter extends CustomPainter {
+  final double progress;
+  final double radius;
+  const _GradBorderPainter({required this.progress, required this.radius});
+
+  static const _colors = [
+    Color(0xFFFF3B3B), // red
+    Color(0xFFFF7A00), // eSahlan orange
+    Color(0xFFFFCC00), // yellow
+    Color(0xFF00C853), // green
+    Color(0xFF2979FF), // blue
+    Color(0xFFAA00FF), // purple
+    Color(0xFFFF3B3B), // back to red
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final paint = Paint()
+      ..shader = SweepGradient(
+        colors: _colors,
+        transform: GradientRotation(progress * 2 * pi),
+      ).createShader(rect)
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect.deflate(1.25), Radius.circular(radius)),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GradBorderPainter old) => old.progress != progress;
 }
 
 // ── Animated video preview for story cards ────────────────────────────────────

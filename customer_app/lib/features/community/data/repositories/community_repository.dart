@@ -720,6 +720,13 @@ class CommunityRepository {
     } catch (_) { return {}; }
   }
 
+  Future<List<Map<String, dynamic>>> getPostReactions(int postId, {String? type}) async {
+    final params = type != null ? {'type': type} : null;
+    final r = await _dio.get('/community/posts/$postId/reactions', queryParameters: params);
+    final data = r.data['data'] as List? ?? [];
+    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
   // ── Helper ─────────────────────────────────────────────────────────────────
   List<CommunityPost> _parsePosts(dynamic data) {
     List raw;

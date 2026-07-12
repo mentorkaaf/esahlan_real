@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
+import '../theme/theme_x.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Country data
@@ -232,11 +233,15 @@ class _PhoneInputFieldState extends State<PhoneInputField> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDark;
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FF),
+        color: isDark ? const Color(0xFF0B0C1E) : const Color(0xFFF8F9FF),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE8EAF0), width: 1.5),
+        border: Border.all(
+          color: AppColors.primary.withOpacity(0.35),
+          width: 1.5,
+        ),
       ),
       child: Row(children: [
         // ── Country picker button ─────────────────────────────────────────
@@ -268,7 +273,10 @@ class _PhoneInputFieldState extends State<PhoneInputField> {
         ),
 
         // ── Divider ───────────────────────────────────────────────────────
-        Container(width: 1, height: 52, color: const Color(0xFFE8EAF0)),
+        Container(
+          width: 1, height: 52,
+          color: AppColors.primary.withOpacity(0.25),
+        ),
 
         // ── Number input ──────────────────────────────────────────────────
         Expanded(
@@ -279,8 +287,9 @@ class _PhoneInputFieldState extends State<PhoneInputField> {
               FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(_selected.maxDigits),
             ],
-            style: const TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+            style: TextStyle(
+              fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.5,
+              color: context.colors.bodyText),
             onChanged: (_) => _notifyChanged(),
             decoration: InputDecoration(
               hintText: _hintFor(_selected),
@@ -359,132 +368,135 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
       minChildSize: 0.5,
       maxChildSize: 0.95,
       expand: false,
-      builder: (_, scroll) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(children: [
-          // Handle
-          Container(
-            margin: const EdgeInsets.only(top: 10),
-            width: 38, height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE5E7EB),
-              borderRadius: BorderRadius.circular(2),
-            ),
+      builder: (_, scroll) {
+        final colors = context.colors;
+        return Container(
+          decoration: BoxDecoration(
+            color: colors.elevatedBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          // Title
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Select Country',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF1F2937))),
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                        color: const Color(0xFFF3F4F6),
-                        borderRadius: BorderRadius.circular(8)),
-                    child: const Icon(Icons.close_rounded,
-                        size: 18, color: Color(0xFF6B7280)),
+          child: Column(children: [
+            // Handle
+            Container(
+              margin: const EdgeInsets.only(top: 10),
+              width: 38, height: 4,
+              decoration: BoxDecoration(
+                color: colors.borderColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Title
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Select Country',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: colors.bodyText)),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                          color: colors.surfaceBg,
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Icon(Icons.close_rounded,
+                          size: 18, color: colors.mutedText),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Search
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colors.surfaceBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextField(
+                  controller: _search,
+                  onChanged: _onSearch,
+                  autofocus: true,
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: colors.bodyText),
+                  decoration: InputDecoration(
+                    hintText: 'Search country or code…',
+                    hintStyle: TextStyle(color: colors.mutedText, fontSize: 14),
+                    prefixIcon:
+                        Icon(Icons.search_rounded, color: colors.mutedText, size: 20),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
-              ],
-            ),
-          ),
-          // Search
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: TextField(
-                controller: _search,
-                onChanged: _onSearch,
-                autofocus: true,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                decoration: const InputDecoration(
-                  hintText: 'Search country or code…',
-                  hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-                  prefixIcon:
-                      Icon(Icons.search_rounded, color: Color(0xFF9CA3AF), size: 20),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 12),
-                ),
               ),
             ),
-          ),
-          const Divider(height: 1, color: Color(0xFFF3F4F6)),
-          // List
-          Expanded(
-            child: _filtered.isEmpty
-                ? const Center(
-                    child: Text('No country found',
-                        style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)))
-                : ListView.builder(
-                    controller: scroll,
-                    itemCount: _filtered.length,
-                    itemExtent: 58,
-                    itemBuilder: (_, i) {
-                      final c = _filtered[i];
-                      final isSelected = c.iso == widget.selected.iso;
-                      return InkWell(
-                        onTap: () {
-                          widget.onPick(c);
-                          Navigator.pop(context);
-                        },
-                        child: Container(
-                          color: isSelected
-                              ? AppColors.primary.withOpacity(0.05)
-                              : null,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 8),
-                          child: Row(children: [
-                            Text(c.flag,
-                                style: const TextStyle(fontSize: 24)),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Text(c.name,
+            Divider(height: 1, color: colors.borderColor),
+            // List
+            Expanded(
+              child: _filtered.isEmpty
+                  ? Center(
+                      child: Text('No country found',
+                          style: TextStyle(color: colors.mutedText, fontSize: 14)))
+                  : ListView.builder(
+                      controller: scroll,
+                      itemCount: _filtered.length,
+                      itemExtent: 58,
+                      itemBuilder: (_, i) {
+                        final c = _filtered[i];
+                        final isSelected = c.iso == widget.selected.iso;
+                        return InkWell(
+                          onTap: () {
+                            widget.onPick(c);
+                            Navigator.pop(context);
+                          },
+                          child: Container(
+                            color: isSelected
+                                ? AppColors.primary.withOpacity(0.05)
+                                : null,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 8),
+                            child: Row(children: [
+                              Text(c.flag,
+                                  style: const TextStyle(fontSize: 24)),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(c.name,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? AppColors.primary
+                                          : colors.bodyText,
+                                    )),
+                              ),
+                              Text(c.dialCode,
                                   style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
                                     color: isSelected
                                         ? AppColors.primary
-                                        : const Color(0xFF1F2937),
+                                        : colors.mutedText,
                                   )),
-                            ),
-                            Text(c.dialCode,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: isSelected
-                                      ? AppColors.primary
-                                      : const Color(0xFF6B7280),
-                                )),
-                            if (isSelected) ...[
-                              const SizedBox(width: 8),
-                              Icon(Icons.check_circle_rounded,
-                                  size: 16, color: AppColors.primary),
-                            ],
-                          ]),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ]),
-      ),
+                              if (isSelected) ...[
+                                const SizedBox(width: 8),
+                                Icon(Icons.check_circle_rounded,
+                                    size: 16, color: AppColors.primary),
+                              ],
+                            ]),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ]),
+        );
+      },
     );
   }
 }
