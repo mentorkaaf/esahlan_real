@@ -43,6 +43,7 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
   bool _reelsPreloaded = false;
   void Function(dynamic)? _inboxListener;
   void Function(dynamic)? _typingListener;
+  void Function(dynamic)? _notifListener;
   String? _inboxChannel;
   final Map<int, Timer> _typingClearTimers = {};
 
@@ -140,6 +141,11 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
         }
       };
       RealtimeClient.instance.listen(_inboxChannel!, 'chat.typing_update', _typingListener!);
+
+      _notifListener = (_) {
+        if (mounted) ref.read(communityNotifProvider.notifier).load();
+      };
+      RealtimeClient.instance.listen(_inboxChannel!, 'notification.new', _notifListener!);
     } catch (_) {}
   }
 
@@ -151,6 +157,7 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
       try {
         if (_inboxListener != null) RealtimeClient.instance.removeListener(_inboxChannel!, 'chat.inbox_update', _inboxListener!);
         if (_typingListener != null) RealtimeClient.instance.removeListener(_inboxChannel!, 'chat.typing_update', _typingListener!);
+        if (_notifListener != null) RealtimeClient.instance.removeListener(_inboxChannel!, 'notification.new', _notifListener!);
       } catch (_) {}
     }
     super.dispose();

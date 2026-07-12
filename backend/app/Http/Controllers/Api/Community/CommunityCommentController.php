@@ -80,6 +80,7 @@ class CommunityCommentController extends Controller
         // Notify post owner
         if ($post->user_id !== auth()->id()) {
             CommunityNotification::create(['user_id'=>$post->user_id,'actor_id'=>auth()->id(),'type'=>'comment','notifiable_type'=>'post','notifiable_id'=>$postId]);
+            RealtimeService::toUser($post->user_id, 'notification.new', ['type' => 'comment']);
             $owner = \App\Models\User::find($post->user_id);
             if ($owner?->fcm_token) {
                 $actor = auth()->user();

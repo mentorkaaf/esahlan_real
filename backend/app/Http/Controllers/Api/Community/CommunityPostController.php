@@ -263,6 +263,7 @@ class CommunityPostController extends Controller
             // Notify post owner
             if ($post->user_id !== $userId) {
                 CommunityNotification::create(['user_id'=>$post->user_id,'actor_id'=>$userId,'type'=>'like','notifiable_type'=>'post','notifiable_id'=>$id]);
+                RealtimeService::toUser($post->user_id, 'notification.new', ['type' => 'like']);
                 $owner = \App\Models\User::find($post->user_id);
                 if ($owner?->fcm_token) {
                     $actor = auth()->user();
@@ -294,6 +295,7 @@ class CommunityPostController extends Controller
         $userId = auth()->id();
         if ($original->user_id !== $userId) {
             CommunityNotification::create(['user_id'=>$original->user_id,'actor_id'=>$userId,'type'=>'share','notifiable_type'=>'post','notifiable_id'=>$id]);
+            RealtimeService::toUser($original->user_id, 'notification.new', ['type' => 'share']);
             $owner = \App\Models\User::find($original->user_id);
             if ($owner?->fcm_token) {
                 $actor = auth()->user();

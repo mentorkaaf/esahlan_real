@@ -70,11 +70,13 @@ class CommunityFollowController extends Controller
         if ($action === 'followed') {
             $this->broadcastFollowCounts($me, $userId);
             RealtimeService::toUser($userId, 'profile.new_follower', ['follower_id' => $me, 'follower_name' => $actor->name]);
+            RealtimeService::toUser($userId, 'notification.new', ['type' => 'follow']);
             if ($fcmToken) {
                 FcmService::sendToToken($fcmToken, 'New Follower', "{$actor->name} started following you",
                     ['type' => 'follow', 'user_id' => (string) $me, 'screen' => 'notifications']);
             }
         } elseif ($action === 'requested') {
+            RealtimeService::toUser($userId, 'notification.new', ['type' => 'follow_request']);
             if ($fcmToken) {
                 FcmService::sendToToken($fcmToken, 'Follow Request', "{$actor->name} wants to follow you",
                     ['type' => 'follow_request', 'user_id' => (string) $me, 'screen' => 'notifications']);
@@ -132,6 +134,7 @@ class CommunityFollowController extends Controller
 
         $this->broadcastFollowCounts($req->follower_id, $me);
         $actor = auth()->user();
+        RealtimeService::toUser($req->follower_id, 'notification.new', ['type' => 'follow_request_accepted']);
         $fcmToken = User::where('id', $req->follower_id)->value('fcm_token');
         if ($fcmToken) {
             FcmService::sendToToken($fcmToken, 'Follow Request Accepted', "{$actor->name} accepted your follow request",
