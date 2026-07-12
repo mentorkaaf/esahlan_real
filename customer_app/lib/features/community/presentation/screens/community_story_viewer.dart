@@ -4,12 +4,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
+import 'package:video_player/video_player.dart';
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
 import '../screens/community_shell.dart';
-import '../services/video_pool.dart';
 import 'highlight_viewer_screen.dart';
 
 class StoryViewer extends StatefulWidget {
@@ -21,21 +19,6 @@ class StoryViewer extends StatefulWidget {
   State<StoryViewer> createState() => _StoryViewerState();
 }
 
-// Pre-buffered video ready to use instantly when the user swipes to next story
-class _PreloadedVideo {
-  final Player player;
-  final VideoController ctrl;
-  bool hasFrame = false;
-  StreamSubscription? paramsSub;
-
-  _PreloadedVideo(this.player, this.ctrl);
-
-  void dispose() {
-    paramsSub?.cancel();
-    player.dispose();
-  }
-}
-
 class _StoryViewerState extends State<StoryViewer> {
   late int _groupIndex;
   int _storyIndex = 0;
@@ -43,19 +26,14 @@ class _StoryViewerState extends State<StoryViewer> {
   final _commentCtrl = TextEditingController();
   bool _showCommentInput = false;
 
-  // Active video player
-  Player? _player;
-  VideoController? _videoCtrl;
-  bool _hasFrame = false;
-  bool _videoError = false;
-  StreamSubscription? _completedSub;
-  StreamSubscription? _videoParamsSub;
-  StreamSubscription? _errorSub;
-  DateTime? _playStarted; // guard against premature completed events
+  // Active video
+  VideoPlayerController? _ctrl;
+  bool _initialized = false;
+  bool _videoError  = false;
 
-  // Preloaded next story (1-slot lookahead)
-  _PreloadedVideo? _preloaded;
-  String? _preloadedUrl;
+  // 1-slot preload: next story's controller ready before user swipes
+  VideoPlayerController? _nextCtrl;
+  String?               _nextUrl;
 
   @override
   void initState() {
@@ -68,170 +46,14 @@ class _StoryViewerState extends State<StoryViewer> {
   @override
   void dispose() {
     _commentCtrl.dispose();
-    _disposePlayer();
-    _preloaded?.dispose();
-    _preloaded = null;
+    _ctrl?.removeListener(_onProgress);
+    _ctrl?.dispose();
+    _nextCtrl?.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
-  void _disposePlayer() {
-    _completedSub?.cancel(); _completedSub = null;
-    _videoParamsSub?.cancel(); _videoParamsSub = null;
-    _errorSub?.cancel(); _errorSub = null;
-    _player?.dispose(); _player = null;
-    _videoCtrl = null;
-  }
-
-  void _loadCurrentStory() {
-    _repo.viewStory(_currentStory.id);
-    _disposePlayer();
-    setState(() { _hasFrame = false; _videoError = false; });
-    final story = _currentStory;
-
-    if (story.thumbnail != null) {
-      precacheImage(CachedNetworkImageProvider(story.thumbnail!), context);
-    } else if (story.mediaUrl != null && story.type == 'image') {
-      precacheImage(CachedNetworkImageProvider(story.mediaUrl!), context);
-    }
-
-    if (story.type == 'video' && story.mediaUrl != null) {
-      _initVideo(story.mediaUrl!);
-    } else {
-      // Image/text story: preload next video now
-      _schedulePreload();
-    }
-  }
-
-  /// Pre-buffer the next story video so it plays instantly on swipe.
-  void _schedulePreload() {
-    final nextUrl = _nextStoryVideoUrl();
-    if (nextUrl == null || nextUrl == _preloadedUrl) return;
-
-    // Cancel stale preload
-    if (_preloadedUrl != nextUrl) {
-      _preloaded?.dispose();
-      _preloaded = null;
-      _preloadedUrl = null;
-    }
-
-    _preloadedUrl = nextUrl;
-    _doPreload(nextUrl);
-  }
-
-  String? _nextStoryVideoUrl() {
-    if (_storyIndex < _currentGroup.stories.length - 1) {
-      final s = _currentGroup.stories[_storyIndex + 1];
-      if (s.type == 'video') return s.mediaUrl;
-    } else if (_groupIndex < widget.groups.length - 1) {
-      final s = widget.groups[_groupIndex + 1].stories.first;
-      if (s.type == 'video') return s.mediaUrl;
-    }
-    return null;
-  }
-
-  Future<void> _doPreload(String url) async {
-    try {
-      final source = await VideoPool.resolveUrl(url);
-      if (!mounted || _preloadedUrl != url) return;
-
-      final player = Player(
-        configuration: const PlayerConfiguration(bufferSize: 8 * 1024 * 1024),
-      );
-      final ctrl = VideoController(player);
-      final pre = _PreloadedVideo(player, ctrl);
-
-      pre.paramsSub = player.stream.videoParams.listen((vp) {
-        if ((vp.w ?? 0) > 0) pre.hasFrame = true;
-      });
-
-      await player.open(Media(source));
-      await player.setVolume(0);
-      await player.pause(); // buffer but don't audibly play
-
-      if (mounted && _preloadedUrl == url) {
-        _preloaded = pre;
-      } else {
-        pre.dispose();
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _initVideo(String url) async {
-    // If we have this URL preloaded, use it directly — no network wait
-    if (_preloaded != null && _preloadedUrl == url) {
-      final pre = _preloaded!;
-      _preloaded = null;
-      _preloadedUrl = null;
-
-      _player = pre.player;
-      _videoCtrl = pre.ctrl;
-      pre.paramsSub?.cancel();
-
-      if (pre.hasFrame) {
-        setState(() => _hasFrame = true);
-      } else {
-        _videoParamsSub = _player!.stream.videoParams.listen((vp) {
-          if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) setState(() => _hasFrame = true);
-        });
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted && !_hasFrame) setState(() => _hasFrame = true);
-        });
-      }
-
-      _completedSub = _player!.stream.completed.listen((done) {
-        if (!done || !mounted) return;
-        // Ignore spurious completed events fired during preload/init phase
-        final elapsed = DateTime.now().difference(_playStarted ?? DateTime.now());
-        if (elapsed.inMilliseconds < 800) return;
-        _nextStory();
-      });
-      _errorSub = _player!.stream.error.listen((_) {
-        if (mounted && !_hasFrame) setState(() => _videoError = true);
-      });
-
-      _playStarted = DateTime.now();
-      await _player!.setVolume(100);
-      await _player!.play();
-      _schedulePreload();
-      return;
-    }
-
-    // Fresh init from network / disk cache
-    final source = await VideoPool.resolveUrl(url);
-    if (!mounted) return;
-
-    final player = Player(
-      configuration: const PlayerConfiguration(bufferSize: 8 * 1024 * 1024),
-    );
-    final ctrl = VideoController(player);
-    _player = player;
-    _videoCtrl = ctrl;
-
-    _completedSub = player.stream.completed.listen((done) {
-      if (done && mounted) _nextStory();
-    });
-    _videoParamsSub = player.stream.videoParams.listen((vp) {
-      if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) setState(() => _hasFrame = true);
-    });
-    _errorSub = player.stream.error.listen((_) {
-      if (mounted && !_hasFrame) setState(() => _videoError = true);
-    });
-
-    try {
-      _playStarted = DateTime.now();
-      await player.open(Media(source));
-      await player.setPlaylistMode(PlaylistMode.none);
-      // Start preloading next story immediately after this one opens
-      _schedulePreload();
-      // Fallback reveal — eliminate black screen after 500ms regardless
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted && !_hasFrame && !_videoError) setState(() => _hasFrame = true);
-      });
-    } catch (_) {
-      if (mounted) setState(() => _videoError = true);
-    }
-  }
+  // ── Navigation ────────────────────────────────────────────────────────────
 
   StoryGroup get _currentGroup => widget.groups[_groupIndex];
   CommunityStory get _currentStory => _currentGroup.stories[_storyIndex];
@@ -259,10 +81,362 @@ class _StoryViewerState extends State<StoryViewer> {
     _loadCurrentStory();
   }
 
+  // ── Story loading ─────────────────────────────────────────────────────────
+
+  void _loadCurrentStory() {
+    _repo.viewStory(_currentStory.id);
+    setState(() { _initialized = false; _videoError = false; });
+
+    // Precache thumbnail immediately so there's something to show
+    final story = _currentStory;
+    final thumbUrl = story.thumbnail ?? (story.type == 'image' ? story.mediaUrl : null);
+    if (thumbUrl != null) {
+      precacheImage(CachedNetworkImageProvider(thumbUrl), context);
+    }
+
+    if (story.type == 'video' && story.mediaUrl != null) {
+      _startVideo(story.mediaUrl!);
+    } else {
+      // Image / text: dispose old video, schedule preload of next
+      _disposeActive();
+      Future.delayed(const Duration(milliseconds: 300), _preloadNext);
+    }
+  }
+
+  void _disposeActive() {
+    _ctrl?.removeListener(_onProgress);
+    _ctrl?.dispose();
+    _ctrl = null;
+  }
+
+  Future<void> _startVideo(String url) async {
+    _disposeActive();
+
+    VideoPlayerController ctrl;
+
+    // Reuse preloaded controller if URL matches — instant start
+    if (_nextCtrl != null && _nextUrl == url) {
+      ctrl = _nextCtrl!;
+      _nextCtrl = null;
+      _nextUrl  = null;
+    } else {
+      // Cancel stale preload
+      _nextCtrl?.dispose();
+      _nextCtrl = null;
+      _nextUrl  = null;
+      ctrl = _makeController(url);
+      try {
+        await ctrl.initialize();
+      } catch (_) {
+        if (!mounted) { ctrl.dispose(); return; }
+        setState(() => _videoError = true);
+        ctrl.dispose();
+        return;
+      }
+    }
+
+    if (!mounted) { ctrl.dispose(); return; }
+
+    _ctrl = ctrl;
+    ctrl.addListener(_onProgress);
+    await ctrl.setLooping(false);
+    await ctrl.play();
+
+    setState(() => _initialized = true);
+
+    // Preload next story after a short delay so we don't compete with current
+    Future.delayed(const Duration(seconds: 1), _preloadNext);
+  }
+
+  VideoPlayerController _makeController(String url) =>
+      VideoPlayerController.networkUrl(Uri.parse(url),
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false));
+
+  void _onProgress() {
+    final c = _ctrl;
+    if (c == null || !c.value.isInitialized) return;
+    final pos = c.value.position;
+    final dur = c.value.duration;
+    if (dur.inMilliseconds > 0 &&
+        pos.inMilliseconds >= dur.inMilliseconds - 300 &&
+        !c.value.isBuffering) {
+      _nextStory();
+    }
+  }
+
+  Future<void> _preloadNext() async {
+    if (!mounted) return;
+
+    // Find next video URL
+    String? url;
+    if (_storyIndex < _currentGroup.stories.length - 1) {
+      final s = _currentGroup.stories[_storyIndex + 1];
+      if (s.type == 'video') url = s.mediaUrl;
+    } else if (_groupIndex < widget.groups.length - 1) {
+      final s = widget.groups[_groupIndex + 1].stories.first;
+      if (s.type == 'video') url = s.mediaUrl;
+    }
+
+    if (url == null || url == _nextUrl) return;
+
+    // Dispose stale preload
+    _nextCtrl?.dispose();
+    _nextCtrl = null;
+    _nextUrl  = null;
+
+    final ctrl = _makeController(url);
+    try {
+      await ctrl.initialize();
+    } catch (_) {
+      ctrl.dispose();
+      return;
+    }
+    if (!mounted) { ctrl.dispose(); return; }
+
+    _nextCtrl = ctrl;
+    _nextUrl  = url;
+    // Keep volume 0 and paused — just buffered
+    await ctrl.setVolume(0);
+    await ctrl.pause();
+    await ctrl.seekTo(Duration.zero);
+  }
+
+  // ── UI ────────────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    final group = _currentGroup;
+    final story = _currentStory;
+    final isVideo = story.type == 'video';
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      resizeToAvoidBottomInset: false,
+      body: GestureDetector(
+        onTapDown: (d) {
+          if (_showCommentInput) {
+            FocusScope.of(context).unfocus();
+            setState(() => _showCommentInput = false);
+            return;
+          }
+          final w = MediaQuery.of(context).size.width;
+          if (d.globalPosition.dx < w * 0.35) _prevStory(); else _nextStory();
+        },
+        child: Stack(fit: StackFit.expand, children: [
+
+          // ── Story content ──────────────────────────────────────────────
+          _buildContent(story),
+
+          // ── Progress bars ──────────────────────────────────────────────
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 8, right: 8,
+            child: Row(
+              children: List.generate(_currentGroup.stories.length, (i) => Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: _ProgressBar(
+                    key: ValueKey('bar_${_groupIndex}_${_storyIndex}_$i'),
+                    active: i == _storyIndex,
+                    done:   i < _storyIndex,
+                    isVideo: isVideo && i == _storyIndex,
+                    imageDuration: const Duration(seconds: 5),
+                    ctrl: isVideo && i == _storyIndex ? _ctrl : null,
+                    onDone: i == _storyIndex ? _nextStory : null,
+                  ),
+                ),
+              )),
+            ),
+          ),
+
+          // ── Header ────────────────────────────────────────────────────
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 24,
+            left: 12, right: 12,
+            child: Row(children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundImage: group.user.avatar != null
+                    ? CachedNetworkImageProvider(group.user.avatar!) : null,
+                child: group.user.avatar == null
+                    ? Text(group.user.name[0].toUpperCase(),
+                        style: const TextStyle(fontWeight: FontWeight.bold)) : null,
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(group.user.name,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+                Text(_timeLabel(story.createdAt),
+                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ])),
+              GestureDetector(
+                onTap: () => _showStoryOptions(context, story, group),
+                child: const Icon(Icons.more_vert_rounded, color: Colors.white, size: 26)),
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: const Icon(Icons.close_rounded, color: Colors.white, size: 28)),
+            ]),
+          ),
+
+          // ── Text overlay ───────────────────────────────────────────────
+          if (story.textContent != null && story.textContent!.isNotEmpty && story.type == 'text')
+            Positioned(
+              bottom: 80, left: 24, right: 24,
+              child: Text(story.textContent!, textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 22,
+                      fontWeight: FontWeight.w700, height: 1.4))),
+
+          if (story.location != null)
+            Positioned(bottom: 60, left: 24,
+              child: Row(children: [
+                const Icon(Icons.location_on_rounded, color: Colors.white70, size: 14),
+                const SizedBox(width: 4),
+                Text(story.location!, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ])),
+
+          // ── Bottom bar ─────────────────────────────────────────────────
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: Container(
+              padding: EdgeInsets.only(
+                  left: 12, right: 12, top: 8,
+                  bottom: MediaQuery.of(context).viewInsets.bottom +
+                      MediaQuery.of(context).padding.bottom + 8),
+              decoration: const BoxDecoration(gradient: LinearGradient(
+                  begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                  colors: [Colors.black87, Colors.transparent])),
+              child: group.user.isMe
+                  ? GestureDetector(
+                      onTap: () => _showViewersSheet(context, story),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        child: Row(children: [
+                          const Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          Text('${story.viewsCount} ${story.viewsCount == 1 ? 'viewer' : 'viewers'}',
+                              style: const TextStyle(color: Colors.white, fontSize: 14,
+                                  fontWeight: FontWeight.w600)),
+                          const Spacer(),
+                          const Icon(Icons.keyboard_arrow_up_rounded, color: Colors.white70, size: 24),
+                        ]),
+                      ))
+                  : _showCommentInput
+                      ? Row(children: [
+                          Expanded(child: TextField(
+                            controller: _commentCtrl, autofocus: true,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              hintText: 'Send message...',
+                              hintStyle: const TextStyle(color: Colors.white54),
+                              filled: true, fillColor: Colors.white24,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide: BorderSide.none)),
+                            onSubmitted: (_) => _sendComment())),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: _sendComment,
+                            child: const CircleAvatar(radius: 18, backgroundColor: kOrange,
+                                child: Icon(Icons.send_rounded, color: Colors.white, size: 16))),
+                        ])
+                      : Row(children: [
+                          Expanded(child: GestureDetector(
+                            onTap: () => setState(() => _showCommentInput = true),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                  color: Colors.white24,
+                                  borderRadius: BorderRadius.circular(24)),
+                              child: const Text('Send message...',
+                                  style: TextStyle(color: Colors.white54, fontSize: 14))),
+                          )),
+                          const SizedBox(width: 8),
+                          for (final emoji in ['❤️', '👍', '😂'])
+                            GestureDetector(
+                              onTap: () => _sendReaction(emoji),
+                              child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  child: Text(emoji, style: const TextStyle(fontSize: 26)))),
+                        ]),
+            )),
+        ]),
+      ),
+    );
+  }
+
+  static const _bgGradient = BoxDecoration(gradient: LinearGradient(
+      begin: Alignment.topLeft, end: Alignment.bottomRight,
+      colors: [Color(0xFF1A0533), Color(0xFF0D1B2A)]));
+
+  Widget _buildContent(CommunityStory story) {
+    if (story.type == 'text') {
+      final bg = story.bgColor != null
+          ? Color(int.parse('0xFF${story.bgColor!.replaceFirst('#', '')}'))
+          : kOrange;
+      return Container(color: bg,
+          child: Center(child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(story.textContent ?? '', textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 26,
+                      fontWeight: FontWeight.w700, height: 1.4)))));
+    }
+
+    if (story.type == 'video') {
+      return Stack(fit: StackFit.expand, children: [
+        // Gradient background — never pure black
+        Container(decoration: _bgGradient),
+
+        // Thumbnail visible instantly while video initialises
+        if (story.thumbnail != null)
+          CachedNetworkImage(
+              imageUrl: story.thumbnail!, fit: BoxFit.cover,
+              fadeInDuration: const Duration(milliseconds: 80),
+              placeholder: (_, __) => const SizedBox.shrink(),
+              errorWidget: (_, __, ___) => const SizedBox.shrink()),
+
+        // Video — shown once controller is ready
+        if (_initialized && _ctrl != null)
+          AnimatedOpacity(
+            opacity: 1.0,
+            duration: const Duration(milliseconds: 150),
+            child: AspectRatio(
+              aspectRatio: _ctrl!.value.aspectRatio,
+              child: VideoPlayer(_ctrl!)),
+          ),
+
+        // Tiny spinner while buffering (only if no thumbnail)
+        if (!_initialized && !_videoError && story.thumbnail == null)
+          const Center(child: SizedBox(width: 24, height: 24,
+              child: CircularProgressIndicator(color: Colors.white38, strokeWidth: 2))),
+
+        if (_videoError)
+          const Center(child: Icon(Icons.play_circle_outline_rounded,
+              color: Colors.white38, size: 56)),
+      ]);
+    }
+
+    // Image story
+    return Stack(fit: StackFit.expand, children: [
+      Container(decoration: _bgGradient),
+      if (story.mediaUrl != null)
+        CachedNetworkImage(
+            imageUrl: story.mediaUrl!, fit: BoxFit.cover,
+            fadeInDuration: const Duration(milliseconds: 100),
+            placeholder: (_, __) => const SizedBox.shrink(),
+            errorWidget: (_, __, ___) => const Center(
+                child: Icon(Icons.broken_image_rounded, color: Colors.white38, size: 64))),
+    ]);
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+
   void _sendReaction(String emoji) {
     _repo.reactToStory(_currentStory.id, emoji);
     ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Reacted $emoji'), duration: const Duration(seconds: 1)));
+        SnackBar(content: Text('Reacted $emoji'),
+            duration: const Duration(seconds: 1)));
   }
 
   void _sendComment() {
@@ -274,150 +448,17 @@ class _StoryViewerState extends State<StoryViewer> {
     setState(() => _showCommentInput = false);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final group = _currentGroup;
-    final story = _currentStory;
-    final isVideo = story.type == 'video';
-
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: GestureDetector(
-        onTapDown: (d) {
-          if (_showCommentInput) { FocusScope.of(context).unfocus(); setState(() => _showCommentInput = false); return; }
-          final w = MediaQuery.of(context).size.width;
-          if (d.globalPosition.dx < w * 0.35) _prevStory(); else _nextStory();
-        },
-        child: Stack(fit: StackFit.expand, children: [
-          // ── Story content ──
-          _buildContent(story),
-
-          // ── Progress bars ──
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 8, right: 8,
-            child: Row(children: List.generate(_currentGroup.stories.length, (i) => Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: _ProgressBar(
-                  key: ValueKey('bar_${_groupIndex}_${_storyIndex}_$i'),
-                  active: i == _storyIndex,
-                  done: i < _storyIndex,
-                  isVideo: isVideo && i == _storyIndex,
-                  imageDuration: const Duration(seconds: 5),
-                  player: isVideo && i == _storyIndex ? _player : null,
-                  onDone: i == _storyIndex ? _nextStory : null,
-                ),
-              ),
-            ))),
-          ),
-
-          // ── Header ──
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 24,
-            left: 12, right: 12,
-            child: Row(children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundImage: group.user.avatar != null ? CachedNetworkImageProvider(group.user.avatar!) : null,
-                child: group.user.avatar == null ? Text(group.user.name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)) : null,
-              ),
-              const SizedBox(width: 8),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(group.user.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
-                Text(_timeLabel(story.createdAt), style: const TextStyle(color: Colors.white70, fontSize: 12)),
-              ])),
-              GestureDetector(
-                onTap: () => _showStoryOptions(context, story, group),
-                child: const Icon(Icons.more_vert_rounded, color: Colors.white, size: 26),
-              ),
-              const SizedBox(width: 4),
-              GestureDetector(onTap: () => Navigator.pop(context),
-                  child: const Icon(Icons.close_rounded, color: Colors.white, size: 28)),
-            ]),
-          ),
-
-          // ── Text story overlay ──
-          if (story.textContent != null && story.textContent!.isNotEmpty && story.type == 'text')
-            Positioned(bottom: 80, left: 24, right: 24,
-              child: Text(story.textContent!, textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700, height: 1.4))),
-
-          if (story.location != null)
-            Positioned(bottom: 60, left: 24,
-              child: Row(children: [
-                const Icon(Icons.location_on_rounded, color: Colors.white70, size: 14),
-                const SizedBox(width: 4),
-                Text(story.location!, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-              ])),
-
-          // ── Bottom bar ──
-          Positioned(bottom: 0, left: 0, right: 0,
-            child: Container(
-              padding: EdgeInsets.only(left: 12, right: 12, top: 8,
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 8),
-              decoration: const BoxDecoration(gradient: LinearGradient(
-                begin: Alignment.bottomCenter, end: Alignment.topCenter,
-                colors: [Colors.black87, Colors.transparent])),
-              child: group.user.isMe
-                ? GestureDetector(
-                    onTap: () => _showViewersSheet(context, story),
-                    child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      child: Row(children: [
-                        const Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
-                        const SizedBox(width: 8),
-                        Text('${story.viewsCount} ${story.viewsCount == 1 ? 'viewer' : 'viewers'}',
-                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-                        const Spacer(),
-                        const Icon(Icons.keyboard_arrow_up_rounded, color: Colors.white70, size: 24),
-                      ]),
-                    ))
-                : _showCommentInput
-                  ? Row(children: [
-                      Expanded(child: TextField(
-                        controller: _commentCtrl, autofocus: true,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: 'Send message...', hintStyle: const TextStyle(color: Colors.white54),
-                          filled: true, fillColor: Colors.white24,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none)),
-                        onSubmitted: (_) => _sendComment())),
-                      const SizedBox(width: 8),
-                      GestureDetector(onTap: _sendComment,
-                          child: const CircleAvatar(radius: 18, backgroundColor: kOrange,
-                              child: Icon(Icons.send_rounded, color: Colors.white, size: 16))),
-                    ])
-                  : Row(children: [
-                      Expanded(child: GestureDetector(
-                        onTap: () => setState(() => _showCommentInput = true),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(24)),
-                          child: const Text('Send message...', style: TextStyle(color: Colors.white54, fontSize: 14)),
-                        ),
-                      )),
-                      const SizedBox(width: 8),
-                      for (final emoji in ['❤️', '👍', '😂'])
-                        GestureDetector(onTap: () => _sendReaction(emoji),
-                          child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: Text(emoji, style: const TextStyle(fontSize: 26)))),
-                    ]),
-            )),
-        ]),
-      ),
-    );
-  }
-
   void _showStoryOptions(BuildContext context, CommunityStory story, StoryGroup group) {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1A1A2E),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const SizedBox(height: 12),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+          Container(width: 40, height: 4,
+              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 8),
           if (group.user.isMe) ListTile(
             leading: const Icon(Icons.bookmark_added_rounded, color: kOrange),
@@ -425,15 +466,10 @@ class _StoryViewerState extends State<StoryViewer> {
             onTap: () {
               Navigator.pop(ctx);
               showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
+                context: context, isScrollControlled: true,
                 backgroundColor: Colors.transparent,
                 builder: (_) => AddToHighlightSheet(
-                  userId: group.user.id,
-                  contentType: 'story',
-                  contentId: story.id,
-                ),
-              );
+                    userId: group.user.id, contentType: 'story', contentId: story.id));
             },
           ),
           if (!group.user.isMe) ListTile(
@@ -443,8 +479,7 @@ class _StoryViewerState extends State<StoryViewer> {
               Navigator.pop(ctx);
               _repo.report('story', story.id, 'inappropriate');
               if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Report submitted. Thank you.')),
-              );
+                  const SnackBar(content: Text('Report submitted. Thank you.')));
             },
           ),
           if (group.user.isMe) ListTile(
@@ -462,110 +497,62 @@ class _StoryViewerState extends State<StoryViewer> {
     );
   }
 
-  static const _bgGradient = BoxDecoration(gradient: LinearGradient(
-    begin: Alignment.topLeft, end: Alignment.bottomRight,
-    colors: [Color(0xFF1A0533), Color(0xFF0D1B2A)]));
-
-  Widget _buildContent(CommunityStory story) {
-    if (story.type == 'text') {
-      final bg = story.bgColor != null
-          ? Color(int.parse('0xFF${story.bgColor!.replaceFirst('#', '')}')) : kOrange;
-      return Container(color: bg,
-        child: Center(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Text(story.textContent ?? '', textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700, height: 1.4)))));
-    }
-
-    if (story.type == 'video') {
-      return Stack(fit: StackFit.expand, children: [
-        // Dark gradient shown INSTANTLY — never black
-        Container(decoration: _bgGradient),
-
-        // Thumbnail fades in quickly from cache (pre-warmed in _loadCurrentStory)
-        if (story.thumbnail != null)
-          CachedNetworkImage(
-            imageUrl: story.thumbnail!, fit: BoxFit.cover,
-            fadeInDuration: const Duration(milliseconds: 100),
-            placeholder: (_, __) => const SizedBox.shrink(),
-            errorWidget: (_, __, ___) => const SizedBox.shrink()),
-
-        // Video overlays once first frame ready
-        if (_videoCtrl != null)
-          AnimatedOpacity(
-            opacity: _hasFrame ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 200),
-            child: Video(controller: _videoCtrl!, controls: NoVideoControls, fit: BoxFit.contain)),
-
-        if (!_hasFrame && !_videoError)
-          Positioned(bottom: 120, left: 0, right: 0,
-            child: const Center(child: SizedBox(width: 22, height: 22,
-                child: CircularProgressIndicator(color: Colors.white38, strokeWidth: 2)))),
-
-        if (_videoError)
-          const Center(child: Icon(Icons.play_circle_outline_rounded, color: Colors.white38, size: 56)),
-      ]);
-    }
-
-    // Image story
-    return Stack(fit: StackFit.expand, children: [
-      Container(decoration: _bgGradient),
-      if (story.mediaUrl != null)
-        CachedNetworkImage(
-          imageUrl: story.mediaUrl!, fit: BoxFit.cover,
-          fadeInDuration: const Duration(milliseconds: 100),
-          placeholder: (_, __) => const SizedBox.shrink(),
-          errorWidget: (_, __, ___) => const Center(
-              child: Icon(Icons.broken_image_rounded, color: Colors.white38, size: 64))),
-    ]);
-  }
-
   void _showViewersSheet(BuildContext context, CommunityStory story) {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1A1B2E),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => FutureBuilder<List<Map<String, dynamic>>>(
         future: _repo.getStoryViewers(story.id),
         builder: (ctx, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
-            return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: kOrange)));
+            return const SizedBox(height: 200,
+                child: Center(child: CircularProgressIndicator(color: kOrange)));
           }
           final viewers = snap.data ?? [];
-          return Container(color: const Color(0xFF1A1B2E),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const SizedBox(height: 8),
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
-              Padding(padding: const EdgeInsets.all(16),
-                child: Row(children: [
-                  const Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
-                  const SizedBox(width: 8),
-                  Text('${viewers.length} ${viewers.length == 1 ? 'viewer' : 'viewers'}',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
-                ])),
-              const Divider(color: Colors.white12, height: 1),
-              if (viewers.isEmpty)
-                const Padding(padding: EdgeInsets.all(32), child: Text('No viewers yet', style: TextStyle(color: Colors.white54)))
-              else
-                SizedBox(
-                  height: (viewers.length * 64.0).clamp(64, 300),
-                  child: ListView.builder(
-                    itemCount: viewers.length,
-                    itemBuilder: (_, i) {
-                      final v = viewers[i];
-                      final name = v['name']?.toString() ?? '';
-                      return Container(color: const Color(0xFF1A1B2E),
-                        child: ListTile(
-                          leading: CircleNetImage(url: v['avatar']?.toString(), size: 44, fallbackText: name),
-                          title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
-                          subtitle: v['username'] != null
-                              ? Text('@${v['username']}', style: const TextStyle(color: Colors.white54, fontSize: 12)) : null,
-                        ),
-                      );
-                    },
-                  ),
+          return Column(mainAxisSize: MainAxisSize.min, children: [
+            const SizedBox(height: 8),
+            Container(width: 40, height: 4,
+                decoration: BoxDecoration(color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2))),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(children: [
+                const Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Text('${viewers.length} ${viewers.length == 1 ? 'viewer' : 'viewers'}',
+                    style: const TextStyle(color: Colors.white,
+                        fontWeight: FontWeight.w700, fontSize: 16)),
+              ])),
+            const Divider(color: Colors.white12, height: 1),
+            if (viewers.isEmpty)
+              const Padding(padding: EdgeInsets.all(32),
+                  child: Text('No viewers yet', style: TextStyle(color: Colors.white54)))
+            else
+              SizedBox(
+                height: (viewers.length * 64.0).clamp(64, 300),
+                child: ListView.builder(
+                  itemCount: viewers.length,
+                  itemBuilder: (_, i) {
+                    final v = viewers[i];
+                    final name = v['name']?.toString() ?? '';
+                    return ListTile(
+                      tileColor: const Color(0xFF1A1B2E),
+                      leading: CircleNetImage(
+                          url: v['avatar']?.toString(), size: 44, fallbackText: name),
+                      title: Text(name, style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
+                      subtitle: v['username'] != null
+                          ? Text('@${v['username']}',
+                              style: const TextStyle(color: Colors.white54, fontSize: 12))
+                          : null,
+                    );
+                  },
                 ),
-              SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
-            ]));
+              ),
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+          ]);
         },
       ),
     );
@@ -579,14 +566,14 @@ class _StoryViewerState extends State<StoryViewer> {
   }
 }
 
-// ── Progress Bar — syncs with Player stream for video ─────────────────────────
+// ── Progress Bar ──────────────────────────────────────────────────────────────
 
 class _ProgressBar extends StatefulWidget {
   final bool active;
   final bool done;
   final bool isVideo;
   final Duration imageDuration;
-  final Player? player;
+  final VideoPlayerController? ctrl;
   final VoidCallback? onDone;
 
   const _ProgressBar({
@@ -595,7 +582,7 @@ class _ProgressBar extends StatefulWidget {
     required this.done,
     required this.isVideo,
     required this.imageDuration,
-    this.player,
+    this.ctrl,
     this.onDone,
   });
 
@@ -603,86 +590,70 @@ class _ProgressBar extends StatefulWidget {
   State<_ProgressBar> createState() => _ProgressBarState();
 }
 
-class _ProgressBarState extends State<_ProgressBar> with SingleTickerProviderStateMixin {
-  // Image / text stories use an AnimationController
-  AnimationController? _ctrl;
-  // Video stories stream position from player
-  StreamSubscription? _posSub;
-  StreamSubscription? _durSub;
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
+class _ProgressBarState extends State<_ProgressBar>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _anim;
 
   @override
   void initState() {
     super.initState();
     if (!widget.active) return;
-    if (widget.isVideo && widget.player != null) {
-      _listenToPlayer(widget.player!);
+    if (widget.isVideo && widget.ctrl != null) {
+      widget.ctrl!.addListener(_rebuild);
     } else {
-      _startTimer();
+      _anim = AnimationController(vsync: this, duration: widget.imageDuration)
+        ..addStatusListener((s) {
+          if (s == AnimationStatus.completed) widget.onDone?.call();
+        })
+        ..forward();
     }
   }
 
-  void _startTimer() {
-    _ctrl = AnimationController(vsync: this, duration: widget.imageDuration)
-      ..addStatusListener((s) {
-        if (s == AnimationStatus.completed) widget.onDone?.call();
-      })
-      ..forward();
-  }
-
-  void _listenToPlayer(Player player) {
-    // Combine position + duration via separate subscriptions
-    _posSub = player.stream.position.listen((pos) {
-      if (!mounted) return;
-      setState(() => _position = pos);
-    });
-    _durSub = player.stream.duration.listen((dur) {
-      if (!mounted) return;
-      setState(() => _duration = dur);
-    });
-  }
+  void _rebuild() { if (mounted) setState(() {}); }
 
   @override
   void dispose() {
-    _ctrl?.dispose();
-    _posSub?.cancel();
-    _durSub?.cancel();
+    widget.ctrl?.removeListener(_rebuild);
+    _anim?.dispose();
     super.dispose();
   }
 
   double get _fraction {
     if (widget.isVideo) {
-      if (_duration.inMilliseconds <= 0) return 0.0;
-      return (_position.inMilliseconds / _duration.inMilliseconds).clamp(0.0, 1.0);
+      final c = widget.ctrl;
+      if (c == null || !c.value.isInitialized) return 0.0;
+      final dur = c.value.duration.inMilliseconds;
+      if (dur <= 0) return 0.0;
+      return (c.value.position.inMilliseconds / dur).clamp(0.0, 1.0);
     }
-    return _ctrl?.value ?? 0.0;
+    return _anim?.value ?? 0.0;
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 2.5,
-      decoration: BoxDecoration(color: Colors.white30, borderRadius: BorderRadius.circular(2)),
+      decoration: BoxDecoration(
+          color: Colors.white30, borderRadius: BorderRadius.circular(2)),
       child: widget.done
-          ? Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(2)))
+          ? Container(decoration: BoxDecoration(
+              color: Colors.white, borderRadius: BorderRadius.circular(2)))
           : widget.active
               ? widget.isVideo
-                  // Video: rebuild on each position tick (setState in listener)
                   ? FractionallySizedBox(
                       widthFactor: _fraction,
                       alignment: Alignment.centerLeft,
-                      child: Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(2))),
-                    )
-                  // Image/text: AnimationController drives rebuild
-                  : _ctrl != null
+                      child: Container(decoration: BoxDecoration(
+                          color: Colors.white, borderRadius: BorderRadius.circular(2))))
+                  : _anim != null
                       ? AnimatedBuilder(
-                          animation: _ctrl!,
+                          animation: _anim!,
                           builder: (_, __) => FractionallySizedBox(
-                            widthFactor: _ctrl!.value,
+                            widthFactor: _anim!.value,
                             alignment: Alignment.centerLeft,
-                            child: Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(2))),
-                          ))
+                            child: Container(decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(2)))))
                       : const SizedBox.shrink()
               : const SizedBox.shrink(),
     );
