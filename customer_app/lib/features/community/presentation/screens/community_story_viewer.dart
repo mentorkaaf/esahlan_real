@@ -51,6 +51,7 @@ class _StoryViewerState extends State<StoryViewer> {
   StreamSubscription? _completedSub;
   StreamSubscription? _videoParamsSub;
   StreamSubscription? _errorSub;
+  DateTime? _playStarted; // guard against premature completed events
 
   // Preloaded next story (1-slot lookahead)
   _PreloadedVideo? _preloaded;
@@ -179,12 +180,17 @@ class _StoryViewerState extends State<StoryViewer> {
       }
 
       _completedSub = _player!.stream.completed.listen((done) {
-        if (done && mounted) _nextStory();
+        if (!done || !mounted) return;
+        // Ignore spurious completed events fired during preload/init phase
+        final elapsed = DateTime.now().difference(_playStarted ?? DateTime.now());
+        if (elapsed.inMilliseconds < 800) return;
+        _nextStory();
       });
       _errorSub = _player!.stream.error.listen((_) {
         if (mounted && !_hasFrame) setState(() => _videoError = true);
       });
 
+      _playStarted = DateTime.now();
       await _player!.setVolume(100);
       await _player!.play();
       _schedulePreload();
@@ -213,6 +219,7 @@ class _StoryViewerState extends State<StoryViewer> {
     });
 
     try {
+      _playStarted = DateTime.now();
       await player.open(Media(source));
       await player.setPlaylistMode(PlaylistMode.none);
       // Start preloading next story immediately after this one opens
