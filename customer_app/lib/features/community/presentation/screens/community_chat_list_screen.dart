@@ -78,7 +78,7 @@ class _CommunityChatListScreenState extends ConsumerState<CommunityChatListScree
           child: Container(
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFF0F2F5),
+              color: context.colors.searchBarBg,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(children: [
@@ -102,8 +102,8 @@ class _CommunityChatListScreenState extends ConsumerState<CommunityChatListScree
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Container(
                       width: 70, height: 70,
-                      decoration: BoxDecoration(color: Color(0xFFF0F2F5), shape: BoxShape.circle),
-                      child: Icon(Icons.chat_bubble_rounded, size: 35, color: Color(0xFFD1D5DB)),
+                      decoration: BoxDecoration(color: context.colors.surfaceBg, shape: BoxShape.circle),
+                      child: Icon(Icons.chat_bubble_rounded, size: 35, color: context.colors.subtleText),
                     ),
                     SizedBox(height: 14),
                     Text('No messages yet',
@@ -152,7 +152,7 @@ class _ChatTile extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xFF45BD62),
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
+              border: Border.all(color: context.colors.cardBg, width: 2),
             ),
           ),
         ),
@@ -163,7 +163,7 @@ class _ChatTile extends StatelessWidget {
               style: TextStyle(
                 fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w600,
                 fontSize: 15,
-                color: const Color(0xFF1A1B2E),
+                color: context.colors.bodyText,
               )),
         ),
         if (lastMsg != null)
@@ -173,7 +173,7 @@ class _ChatTile extends StatelessWidget {
               locale: 'en_short',
             ),
             style: TextStyle(
-              color: hasUnread ? kOrange : const Color(0xFF9CA3AF),
+              color: hasUnread ? kOrange : context.colors.mutedText,
               fontSize: 12,
               fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
             ),
@@ -186,7 +186,7 @@ class _ChatTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: hasUnread ? const Color(0xFF1A1B2E) : const Color(0xFF9CA3AF),
+              color: hasUnread ? context.colors.bodyText : context.colors.mutedText,
               fontSize: 13,
               fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
             ),

@@ -97,11 +97,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       TextField(
         controller: ctrl, maxLines: maxLines, maxLength: maxLength,
         decoration: InputDecoration(
-          hintText: hint, hintStyle: TextStyle(color: Color(0xFFD1D5DB), fontSize: 14),
+          hintText: hint, hintStyle: TextStyle(color: context.colors.subtleText, fontSize: 14),
           prefixIcon: Icon(icon, color: kOrange, size: 20),
-          filled: true, fillColor: const Color(0xFFF9FAFB),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+          filled: true, fillColor: context.colors.inputFill,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.colors.borderColor)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.colors.borderColor)),
           focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kOrange, width: 1.5)),
           contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         ),

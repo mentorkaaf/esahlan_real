@@ -451,7 +451,7 @@ class _PremiumServiceCardState extends ConsumerState<_PremiumServiceCard>
               decoration: BoxDecoration(
                 color: _pressed ? _kOrange : (context.isDark ? const Color(0xFF0b013d) : _kNavy),
                 borderRadius: BorderRadius.circular(18),
-                border: context.isDark ? Border.all(color: _kOrange, width: 2) : null,
+                border: null,
                 boxShadow: [
                   BoxShadow(
                     color: (_pressed ? _kOrange : (context.isDark ? const Color(0xFF0b013d) : _kNavy)).withValues(alpha: 0.35),

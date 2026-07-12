@@ -4,6 +4,7 @@ import '../../../../core/constants/app_assets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/phone_input_field.dart';
 import '../providers/auth_provider.dart';
 
@@ -112,9 +113,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               curve: const Interval(0.2, 1.0, curve: Curves.easeOut))),
                       child: Container(
                         margin: const EdgeInsets.only(top: 32),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                        decoration: BoxDecoration(
+                          color: context.colors.elevatedBg,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                         ),
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
@@ -128,7 +129,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             const SizedBox(height: 28),
                             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                               const _Label('PIN Code'),
-                              Text('4 digits', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+                              Text('4 digits', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
                             ]),
                             const SizedBox(height: 12),
                             Row(
@@ -154,7 +155,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             const SizedBox(height: 28),
                             Center(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                               Text("Don't have an account? ",
-                                style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+                                style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
                               GestureDetector(
                                 onTap: () => context.go('/auth/register'),
                                 child: Text('Sign Up', style: TextStyle(
@@ -198,7 +199,7 @@ class _Label extends StatelessWidget {
   const _Label(this.text);
   @override
   Widget build(BuildContext context) => Text(text,
-    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF374151)));
+    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.bodyText));
 }
 
 class _PinBox extends StatelessWidget {
@@ -210,13 +211,14 @@ class _PinBox extends StatelessWidget {
       required this.onChanged, this.onSubmit});
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       width: 68, height: 68,
       decoration: BoxDecoration(
-        color: focusNode.hasFocus ? AppColors.primary.withOpacity(0.06) : const Color(0xFFF8F9FF),
+        color: focusNode.hasFocus ? AppColors.primary.withOpacity(0.08) : c.inputFill,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: focusNode.hasFocus ? AppColors.primary : const Color(0xFFE8EAF0),
+          color: focusNode.hasFocus ? AppColors.primary : c.borderColor,
           width: focusNode.hasFocus ? 2 : 1.5,
         ),
         boxShadow: focusNode.hasFocus
@@ -232,7 +234,7 @@ class _PinBox extends StatelessWidget {
         obscureText: true,
         obscuringCharacter: '●',
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF07003B)),
+        style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: c.navyText),
         decoration: const InputDecoration(counterText: '', border: InputBorder.none),
         onChanged: onChanged,
         onSubmitted: onSubmit,
