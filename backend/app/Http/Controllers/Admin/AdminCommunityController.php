@@ -50,17 +50,30 @@ class AdminCommunityController extends Controller
             ->withCount('reactions as likes_count', 'comments', 'reports as reports_count');
 
         if ($request->search) {
-            $query->where('content', 'like', "%{$request->search}%");
+            $query->where(function($q) use ($request) {
+                $q->where('content', 'like', "%{$request->search}%")
+                  ->orWhereHas('user', fn($u) => $u->where('name', 'like', "%{$request->search}%"));
+            });
         }
         if ($request->type) {
             $query->where('type', $request->type);
         }
+        if ($request->privacy) {
+            $query->where('privacy', $request->privacy);
+        }
         if ($request->status === 'reported') {
             $query->has('reports');
         }
+        if ($request->video_status === 'pending') {
+            $query->where('type', 'video')->where('video_ready', false);
+        }
 
         $posts = $query->latest()->paginate(20);
-        return view('admin.community.posts', compact('posts'));
+
+        // Stats for header cards
+        $typeCounts = CommunityPost::selectRaw('type, count(*) as cnt')->groupBy('type')->pluck('cnt', 'type');
+        $totalViews = CommunityPost::sum('views_count');
+        return view('admin.community.posts', compact('posts', 'typeCounts', 'totalViews'));
     }
 
     public function deletePost($id)
