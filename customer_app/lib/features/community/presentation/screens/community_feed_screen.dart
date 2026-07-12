@@ -1247,13 +1247,15 @@ class _PostCardState extends ConsumerState<_PostCard> {
             }).toList()),
           ),
 
-        // Per-reaction emoji breakdown row (clickable)
+        // Per-reaction emoji breakdown row (left) + stats row (right)
         Builder(builder: (_) {
           final chips = p.reactionCounts.entries.where((e) => e.value > 0).toList();
-          if (chips.isEmpty && p.commentsCount == 0) return const SizedBox.shrink();
+          final hasStats = p.viewsCount > 0 || p.commentsCount > 0 || p.sharesCount > 0 || p.savesCount > 0;
+          if (chips.isEmpty && !hasStats) return const SizedBox.shrink();
           return Padding(
             padding: EdgeInsets.fromLTRB(14, 8, 14, 2),
             child: Row(children: [
+              // Left: reaction emoji chips
               Expanded(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -1264,23 +1266,38 @@ class _PostCardState extends ConsumerState<_PostCard> {
                   )).toList()),
                 ),
               ),
-              if (p.commentsCount > 0)
-                GestureDetector(
-                  onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount, commentsDisabled: p.commentsDisabled),
-                  child: Text('${p.commentsCount} comment${p.commentsCount > 1 ? 's' : ''}',
-                    style: TextStyle(color: const Color(0xFF8A94A6), fontSize: 12, fontWeight: FontWeight.w500)),
-                ),
+              // Right: 👁 views · 💬 comments · ↪ shares · 🔖 saves
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                if (p.viewsCount > 0) ...[
+                  _StatIcon(icon: Icons.remove_red_eye_outlined, count: p.viewsCount, color: const Color(0xFF8A94A6)),
+                  const SizedBox(width: 10),
+                ],
+                if (p.commentsCount > 0) ...[
+                  _StatIcon(
+                    icon: Icons.mode_comment_outlined,
+                    count: p.commentsCount,
+                    color: const Color(0xFF8A94A6),
+                    onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount, commentsDisabled: p.commentsDisabled),
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                if (p.sharesCount > 0) ...[
+                  _StatIcon(icon: Icons.reply_rounded, count: p.sharesCount, color: const Color(0xFF8A94A6)),
+                  const SizedBox(width: 10),
+                ],
+                if (p.savesCount > 0)
+                  _StatIcon(icon: Icons.bookmark_border_rounded, count: p.savesCount, color: const Color(0xFF8A94A6)),
+              ]),
             ]),
           );
         }),
 
         Divider(height: 1, thickness: 1, color: Color(0xFFF2F4F7)),
 
-        // Action buttons — reaction left, stats right
+        // Action buttons (unchanged)
         Padding(
-          padding: EdgeInsets.fromLTRB(10, 4, 10, 6),
+          padding: EdgeInsets.fromLTRB(6, 4, 6, 6),
           child: Row(children: [
-            // ── Left: reaction button only ──
             _myReaction != null
               ? _ReactionActiveBtn(
                   emoji: _reactionEmoji(_myReaction!),
@@ -1294,39 +1311,9 @@ class _PostCardState extends ConsumerState<_PostCard> {
                   onTap: () => setState(() => _showReactions = !_showReactions),
                   onLongPress: () => _react('like'),
                 ),
-            const Spacer(),
-            // ── Right: view · comment · share · save (icon + count only) ──
-            _StatIcon(
-              icon: Icons.remove_red_eye_outlined,
-              count: p.viewsCount,
-              color: const Color(0xFF8A94A6),
-            ),
-            const SizedBox(width: 14),
-            _StatIcon(
-              icon: Icons.mode_comment_outlined,
-              count: p.commentsCount,
-              color: const Color(0xFF8A94A6),
-              onTap: () => showCommentsSheet(context, p.id,
-                  initialCount: p.commentsCount,
-                  commentsDisabled: p.commentsDisabled),
-            ),
-            const SizedBox(width: 14),
-            _StatIcon(
-              icon: Icons.reply_rounded,
-              count: p.sharesCount,
-              color: const Color(0xFF8A94A6),
-              onTap: () => _showShareDialog(),
-            ),
-            const SizedBox(width: 14),
-            _SaveStatIcon(
-              postId: p.id,
-              isSaved: p.isSaved,
-              count: p.savesCount,
-              onToggle: (saved) => setState(() {
-                p.isSaved = saved;
-                p.savesCount += saved ? 1 : -1;
-              }),
-            ),
+            _ActionBtn(icon: Icons.mode_comment_outlined, label: 'Comment', color: const Color(0xFF8A94A6), onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount, commentsDisabled: p.commentsDisabled)),
+            _ActionBtn(icon: Icons.reply_rounded, label: 'Share', color: const Color(0xFF8A94A6), onTap: () => _showShareDialog()),
+            _SaveBtn(postId: p.id, isSaved: p.isSaved, onToggle: (saved) => setState(() => p.isSaved = saved)),
           ]),
         ),
 
