@@ -33,7 +33,7 @@ class _CommunityChatListScreenState extends ConsumerState<CommunityChatListScree
       final me = await ref.read(communityMyProfileProvider.future);
       _inboxChannel = 'private-user.${me.id}';
       _inboxListener = (_) {
-        if (mounted) ref.invalidate(communityChatsProvider);
+        if (mounted) ref.read(communityChatsProvider.notifier).load();
       };
       RealtimeClient.instance.listen(_inboxChannel!, 'chat.inbox_update', _inboxListener!);
     } catch (_) {}

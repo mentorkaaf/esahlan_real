@@ -252,7 +252,8 @@ class CommunityPostController extends Controller
                 $existing->delete();
                 $post->decrement('likes_count');
                 $freshCount = $post->fresh()->likes_count;
-                RealtimeService::toPublic("community.post.{$id}", 'post.likes_changed', ['post_id' => $id, 'likes_count' => $freshCount]);
+                $reactionCounts = CommunityPostReaction::where('post_id', $id)->selectRaw('type, COUNT(*) as cnt')->groupBy('type')->pluck('cnt', 'type');
+                RealtimeService::toPublic("community.post.{$id}", 'post.likes_changed', ['post_id' => $id, 'likes_count' => $freshCount, 'reaction_counts' => $reactionCounts]);
                 return response()->json(['status'=>'success','reacted'=>false,'likes_count'=>$freshCount]);
             }
             $existing->update(['type'=>$request->type]);
@@ -272,7 +273,8 @@ class CommunityPostController extends Controller
 
         InteractionTracker::track($userId, $id, 'like');
         $freshCount = $post->fresh()->likes_count;
-        RealtimeService::toPublic("community.post.{$id}", 'post.likes_changed', ['post_id' => $id, 'likes_count' => $freshCount]);
+        $reactionCounts = CommunityPostReaction::where('post_id', $id)->selectRaw('type, COUNT(*) as cnt')->groupBy('type')->pluck('cnt', 'type');
+        RealtimeService::toPublic("community.post.{$id}", 'post.likes_changed', ['post_id' => $id, 'likes_count' => $freshCount, 'reaction_counts' => $reactionCounts]);
         return response()->json(['status'=>'success','reacted'=>true,'reaction'=>$request->type,'likes_count'=>$freshCount]);
     }
 

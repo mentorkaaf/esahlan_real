@@ -145,18 +145,13 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     }
     setState(() => _sending = true);
     try {
-      final myProfile = ref.read(communityMyProfileProvider).valueOrNull;
-      final myId = myProfile?.id ?? 0;
-      await ref.read(communityRepoProvider).sendMessage(chat.id, myId, content: text);
-      ref.read(communityMessagesProvider(chat.id).notifier).load();
-      await Future.delayed(const Duration(milliseconds: 100));
-      if (_scrollCtrl.hasClients) {
-        _scrollCtrl.animateTo(
-          _scrollCtrl.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-        );
-      }
+      await ref.read(communityMessagesProvider(chat.id).notifier).send(content: text);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollCtrl.hasClients) {
+          _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+        }
+      });
     } catch (e) {
       if (mounted && !RestrictionDialog.handle(context, e)) {
         ScaffoldMessenger.of(context).showSnackBar(

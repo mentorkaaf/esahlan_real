@@ -870,6 +870,8 @@ class _CreatePostBar extends ConsumerWidget {
                           ));
                         } else {
                           ref.read(communityFeedProvider.notifier).prependPost(post);
+                          final myId = ref.read(communityMyProfileProvider).valueOrNull?.id;
+                          if (myId != null) ref.invalidate(communityProfilePostsProvider(myId));
                         }
                       }
                     },
@@ -929,6 +931,8 @@ class _PostTypeBtn extends ConsumerWidget {
               ));
             } else {
               ref.read(communityFeedProvider.notifier).prependPost(post);
+              final myId = ref.read(communityMyProfileProvider).valueOrNull?.id;
+              if (myId != null) ref.invalidate(communityProfilePostsProvider(myId));
             }
           }
         },
@@ -1031,7 +1035,14 @@ class _PostCardState extends ConsumerState<_PostCard> {
 
     on('post.likes_changed', (data) {
       if (!mounted) return;
-      setState(() => widget.post.likesCount = data['likes_count'] as int);
+      setState(() {
+        widget.post.likesCount = data['likes_count'] as int;
+        final rc = data['reaction_counts'];
+        if (rc is Map) {
+          widget.post.reactionCounts = Map<String, int>.from(
+              rc.map((k, v) => MapEntry(k.toString(), (v as num).toInt())));
+        }
+      });
     });
     on('post.views_changed', (data) {
       if (!mounted) return;
@@ -2122,10 +2133,11 @@ class _MediaGrid extends StatelessWidget {
 
 class _TranscodingPlaceholder extends ConsumerStatefulWidget {
   final int mediaId;
+  final int postId;
   final int progress;
   final String? thumbnail;
   final bool isOwner;
-  const _TranscodingPlaceholder({required this.mediaId, required this.progress, this.thumbnail, this.isOwner = false});
+  const _TranscodingPlaceholder({required this.mediaId, required this.postId, required this.progress, this.thumbnail, this.isOwner = false});
   @override
   ConsumerState<_TranscodingPlaceholder> createState() => _TranscodingPlaceholderState();
 }
@@ -2160,7 +2172,23 @@ class _TranscodingPlaceholderState extends ConsumerState<_TranscodingPlaceholder
       if (status == 'ready' || status == 'failed') {
         _done = true;
         _pollTimer?.cancel();
-        ref.invalidate(communityFeedProvider);
+        // Refresh just this post in-place (avoids resetting the whole feed scroll position).
+        if (status == 'ready' && widget.postId > 0) {
+          try {
+            final fresh = await ref.read(communityRepoProvider).getPost(widget.postId);
+            if (mounted) {
+              ref.read(communityFeedProvider.notifier).updatePost(fresh);
+              // Also refresh the profile so the processed video appears there too.
+              final myId = ref.read(communityMyProfileProvider).valueOrNull?.id;
+              if (myId != null) ref.invalidate(communityProfilePostsProvider(myId));
+            }
+          } catch (_) {
+            // Fallback: reload the whole feed if the single-post fetch fails.
+            if (mounted) ref.invalidate(communityFeedProvider);
+          }
+        } else {
+          ref.invalidate(communityFeedProvider);
+        }
         if (!mounted) return;
         final isReady = status == 'ready';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -2590,6 +2618,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (_isVideo && widget.m.isTranscoding && widget.isOwner) {
       return _TranscodingPlaceholder(
         mediaId: widget.m.id,
+        postId: widget.postId ?? 0,
         progress: widget.m.transcodingProgress,
         thumbnail: widget.m.thumbnail,
         isOwner: true,
@@ -3067,5 +3096,38 @@ class _CopyrightQuickClaimState extends State<_CopyrightQuickClaim> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: const Color(0xFFDC2626)));
       }
     }
+  }
+}
+
+// ── Public post detail screen — reuses _PostCard for full feed-identical UX ──
+// Used from profile, saved, liked, and any other non-feed context.
+class PostDetailScreen extends StatelessWidget {
+  final CommunityPost post;
+  const PostDetailScreen({super.key, required this.post});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Scaffold(
+      backgroundColor: c.scaffoldBg,
+      appBar: AppBar(
+        backgroundColor: c.cardBg,
+        foregroundColor: c.navyText,
+        elevation: 0,
+        title: Text('Post',
+            style: TextStyle(color: c.navyText, fontWeight: FontWeight.w700, fontSize: 16)),
+      ),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        child: Column(children: [
+          const SizedBox(height: 8),
+          _PostCard(
+            post: post,
+            onDelete: () => Navigator.pop(context),
+          ),
+          const SizedBox(height: 24),
+        ]),
+      ),
+    );
   }
 }
