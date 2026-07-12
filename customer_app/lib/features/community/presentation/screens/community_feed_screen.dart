@@ -1196,7 +1196,14 @@ class _PostCardState extends ConsumerState<_PostCard> {
           ),
 
         // Media
-        if (p.media.isNotEmpty) _MediaGrid(media: p.media, postId: p.id, isOwner: p.user.isMe),
+        if (p.media.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: _MediaGrid(media: p.media, postId: p.id, isOwner: p.user.isMe),
+            ),
+          ),
 
         // Poll
         if (p.type == 'poll' && p.pollOptions.isNotEmpty)
@@ -1230,21 +1237,20 @@ class _PostCardState extends ConsumerState<_PostCard> {
           ),
 
         // Per-reaction emoji breakdown row (clickable)
-        if (p.reactionCounts.isNotEmpty)
-          Padding(
+        Builder(builder: (_) {
+          final chips = p.reactionCounts.entries.where((e) => e.value > 0).toList();
+          if (chips.isEmpty && p.commentsCount == 0) return const SizedBox.shrink();
+          return Padding(
             padding: EdgeInsets.fromLTRB(14, 8, 14, 2),
             child: Row(children: [
               Expanded(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  child: Row(children: p.reactionCounts.entries
-                    .where((e) => e.value > 0)
-                    .map((e) => _ReactionChip(
-                      emoji: _reactionEmoji(e.key),
-                      count: e.value,
-                      onTap: () => _showReactionsList(e.key),
-                    )).toList(),
-                  ),
+                  child: Row(children: chips.map((e) => _ReactionChip(
+                    emoji: _reactionEmoji(e.key),
+                    count: e.value,
+                    onTap: () => _showReactionsList(e.key),
+                  )).toList()),
                 ),
               ),
               if (p.commentsCount > 0)
@@ -1254,7 +1260,8 @@ class _PostCardState extends ConsumerState<_PostCard> {
                     style: TextStyle(color: const Color(0xFF8A94A6), fontSize: 12, fontWeight: FontWeight.w500)),
                 ),
             ]),
-          ),
+          );
+        }),
 
         Divider(height: 1, thickness: 1, color: Color(0xFFF2F4F7)),
 
@@ -1262,14 +1269,19 @@ class _PostCardState extends ConsumerState<_PostCard> {
         Padding(
           padding: EdgeInsets.fromLTRB(6, 4, 6, 6),
           child: Row(children: [
-            _ActionBtn(
-              icon: _myReaction != null ? Icons.thumb_up_rounded : Icons.thumb_up_alt_outlined,
-              label: _myReaction != null ? _reactionEmoji(_myReaction!) : 'Like',
-              color: _myReaction != null ? kOrange : const Color(0xFF8A94A6),
-              active: _myReaction != null,
-              onTap: () => setState(() => _showReactions = !_showReactions),
-              onLongPress: () => _react('like'),
-            ),
+            _myReaction != null
+              ? _ReactionActiveBtn(
+                  emoji: _reactionEmoji(_myReaction!),
+                  onTap: () => setState(() => _showReactions = !_showReactions),
+                  onLongPress: () => _react('like'),
+                )
+              : _ActionBtn(
+                  icon: Icons.thumb_up_alt_outlined,
+                  label: 'Like',
+                  color: const Color(0xFF8A94A6),
+                  onTap: () => setState(() => _showReactions = !_showReactions),
+                  onLongPress: () => _react('like'),
+                ),
             _ActionBtn(icon: Icons.mode_comment_outlined, label: 'Comment', color: const Color(0xFF8A94A6), onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount, commentsDisabled: p.commentsDisabled)),
             _ActionBtn(icon: Icons.reply_rounded, label: 'Share', color: const Color(0xFF8A94A6), onTap: () => _showShareDialog()),
             _SaveBtn(postId: p.id, isSaved: p.isSaved, onToggle: (saved) => setState(() => p.isSaved = saved)),
@@ -1652,6 +1664,35 @@ class _SaveBtn extends ConsumerWidget {
           isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
           color: isSaved ? kOrange : const Color(0xFF8A94A6),
           size: 22,
+        ),
+      ),
+    );
+  }
+}
+
+// Shown when the user has reacted — displays only the chosen emoji, no thumbs-up icon
+class _ReactionActiveBtn extends StatelessWidget {
+  final String emoji;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  const _ReactionActiveBtn({required this.emoji, required this.onTap, this.onLongPress});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+          padding: const EdgeInsets.symmetric(vertical: 7),
+          decoration: BoxDecoration(
+            color: kOrange.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Center(
+            child: Text(emoji, style: const TextStyle(fontSize: 18)),
+          ),
         ),
       ),
     );
@@ -2104,7 +2145,7 @@ class _TranscodingPlaceholderState extends ConsumerState<_TranscodingPlaceholder
   }
 
   void _startPolling() {
-    _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) => _poll());
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _poll());
     // Also fire immediately after a short delay (don't block initState)
     Future.delayed(const Duration(seconds: 2), _poll);
   }
@@ -2545,9 +2586,15 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (_isVideo && widget.m.isTranscoding && !widget.isOwner) {
       return const SizedBox.shrink();
     }
-    // For owner: fall through to normal video player — plays raw upload via
-    // PHP proxy (mp4DirectUrl falls back to url when hlsUrl is null).
-    // A processing badge is shown as a Stack overlay below.
+    // Owner sees a real-time transcoding placeholder that polls progress every 5s.
+    if (_isVideo && widget.m.isTranscoding && widget.isOwner) {
+      return _TranscodingPlaceholder(
+        mediaId: widget.m.id,
+        progress: widget.m.transcodingProgress,
+        thumbnail: widget.m.thumbnail,
+        isOwner: true,
+      );
+    }
     if (_isVideo && widget.m.transcodingFailed) {
       return Container(
         height: 220, color: const Color(0xFF1A1B2E),
@@ -2632,25 +2679,6 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                 ],
               ),
             ),
-
-            // Processing badge (owner only)
-            if (widget.m.isTranscoding)
-              Positioned(top: 8, left: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.65),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    SizedBox(width: 10, height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: kOrange)),
-                    const SizedBox(width: 6),
-                    Text('Processing ${widget.m.transcodingProgress}%',
-                      style: const TextStyle(color: Colors.white, fontSize: 11,
-                        fontWeight: FontWeight.w500)),
-                  ]),
-                )),
 
             // Re-buffering indicator (only during actual stall, not initial load)
             if (_ready && _controller != null && _controller!.player.state.buffering)

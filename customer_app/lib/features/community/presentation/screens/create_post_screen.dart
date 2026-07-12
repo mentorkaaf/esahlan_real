@@ -1,5 +1,7 @@
-﻿import 'dart:typed_data';
+﻿import 'dart:io';
+import 'dart:typed_data';
 import '../../../../core/theme/theme_x.dart';
+import '../../../../core/constants/app_constants.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:dio/dio.dart';
@@ -34,6 +36,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   bool _hasVideo = false;
   bool _posting = false;
   bool _commentsDisabled = false;
+  double? _videoFileSizeMB;
+  bool _videoOverLimit = false;
 
   static const _feelings = ['😀 Happy', '😢 Sad', '😎 Cool', '🥳 Celebrating', '😍 Loved', '😤 Angry', '🤔 Thinking', '💪 Motivated'];
   static const _privacyOptions = ['Public', 'Followers', 'Private'];
@@ -52,10 +56,32 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 
   Future<void> _pickVideo() async {
+    // Show limits info sheet before opening picker
+    final confirmed = await _showVideoLimitsSheet();
+    if (!confirmed) return;
+
     final video = await _picker.pickVideo(source: ImageSource.gallery);
     if (video != null) {
-      setState(() { _mediaFiles = [video]; _hasVideo = true; _postType = 'video'; });
+      final bytes = await File(video.path).length();
+      final sizeMB = bytes / (1024 * 1024);
+      final overLimit = sizeMB > AppConstants.postVideoMaxFileSizeMB;
+      setState(() {
+        _mediaFiles = [video];
+        _hasVideo = true;
+        _postType = 'video';
+        _videoFileSizeMB = sizeMB;
+        _videoOverLimit = overLimit;
+      });
     }
+  }
+
+  Future<bool> _showVideoLimitsSheet() async {
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _VideoLimitsSheet(),
+    );
+    return result == true;
   }
 
   String _postType = 'text';
@@ -76,6 +102,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 
   Future<void> _post() async {
+    if (_videoOverLimit) return;
     final text = _textCtrl.text.trim();
     if (text.isEmpty && _mediaFiles.isEmpty) return;
 
@@ -156,7 +183,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               child: _posting
                   ? SizedBox(width: 16, height: 16,
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : Text('Post', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  : Text('Post', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14,
+                      color: _videoOverLimit ? Colors.white54 : Colors.white)),
             ),
           ),
         ],
@@ -235,22 +263,25 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: _hasVideo
-                          ? Container(
-                              color: const Color(0xFF1A1B2E),
-                              width: double.infinity,
-                              height: double.infinity,
-                              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                Icon(Icons.videocam_rounded, color: Colors.white54, size: 40),
-                                SizedBox(height: 6),
-                                Text(_mediaFiles[i].name, style: TextStyle(color: Colors.white54, fontSize: 10), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
-                              ]),
+                          ? _VideoPreviewCard(
+                              file: _mediaFiles[i],
+                              sizeMB: _videoFileSizeMB,
+                              overLimit: _videoOverLimit,
                             )
                           : _XFileImage(file: _mediaFiles[i]),
                     ),
                     Positioned(
                       top: 4, right: 4,
                       child: GestureDetector(
-                        onTap: () => setState(() => _mediaFiles.removeAt(i)),
+                        onTap: () => setState(() {
+                          _mediaFiles.removeAt(i);
+                          if (_hasVideo && _mediaFiles.isEmpty) {
+                            _hasVideo = false;
+                            _videoFileSizeMB = null;
+                            _videoOverLimit = false;
+                            _postType = 'text';
+                          }
+                        }),
                         child: Container(
                           padding: EdgeInsets.all(4),
                           decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
@@ -512,6 +543,239 @@ class _XFileImageState extends State<_XFileImage> {
         }
         return Container(color: const Color(0xFFE5E7EB));
       },
+    );
+  }
+}
+
+// ── Video preview card with size info ────────────────────────────────────────
+class _VideoPreviewCard extends StatelessWidget {
+  final XFile file;
+  final double? sizeMB;
+  final bool overLimit;
+  const _VideoPreviewCard({required this.file, this.sizeMB, required this.overLimit});
+
+  @override
+  Widget build(BuildContext context) {
+    final sizeText = sizeMB != null ? '${sizeMB!.toStringAsFixed(1)} MB' : '';
+    final limitText = '/ ${AppConstants.postVideoMaxFileSizeMB} MB max';
+
+    return Container(
+      color: overLimit ? const Color(0xFF2D0A0A) : const Color(0xFF0D1B2E),
+      width: double.infinity,
+      height: double.infinity,
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: overLimit
+                ? Colors.red.withValues(alpha: 0.15)
+                : kOrange.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            overLimit ? Icons.error_outline_rounded : Icons.videocam_rounded,
+            color: overLimit ? Colors.red : kOrange,
+            size: 34,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          file.name,
+          style: const TextStyle(color: Colors.white70, fontSize: 10),
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        if (sizeMB != null) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: overLimit
+                  ? Colors.red.withValues(alpha: 0.2)
+                  : Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: overLimit
+                    ? Colors.red.withValues(alpha: 0.5)
+                    : Colors.white.withValues(alpha: 0.15),
+                width: 1,
+              ),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(
+                overLimit ? Icons.warning_amber_rounded : Icons.check_circle_outline_rounded,
+                size: 12,
+                color: overLimit ? Colors.red : Colors.green,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                '$sizeText $limitText',
+                style: TextStyle(
+                  color: overLimit ? Colors.red[300] : Colors.white70,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ]),
+          ),
+          if (overLimit) ...[
+            const SizedBox(height: 6),
+            Text(
+              'File too large — pick a smaller video',
+              style: TextStyle(color: Colors.red[400], fontSize: 10),
+            ),
+          ],
+        ],
+      ]),
+    );
+  }
+}
+
+// ── Video limits info bottom sheet ────────────────────────────────────────────
+class _VideoLimitsSheet extends StatelessWidget {
+  const _VideoLimitsSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final maxMB = AppConstants.postVideoMaxFileSizeMB;
+    final maxDur = AppConstants.postVideoMaxDuration;
+    final durLabel = maxDur.inHours >= 1
+        ? '${maxDur.inHours} hour${maxDur.inHours > 1 ? "s" : ""}'
+        : '${maxDur.inMinutes} minutes';
+
+    return Container(
+      margin: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: context.colors.elevatedBg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // Handle
+        Center(
+          child: Container(
+            width: 36, height: 4,
+            decoration: BoxDecoration(
+              color: context.colors.borderColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Header
+        Row(children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              color: kOrange.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.videocam_rounded, color: kOrange, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Upload Video',
+                style: TextStyle(
+                    color: context.colors.bodyText,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17)),
+            const SizedBox(height: 2),
+            Text('Requirements & limits',
+                style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
+          ]),
+        ]),
+
+        const SizedBox(height: 20),
+
+        // Limit rows
+        _LimitRow(
+          icon: Icons.timer_outlined,
+          label: 'Max Duration',
+          value: durLabel,
+          iconColor: const Color(0xFF3B82F6),
+        ),
+        const SizedBox(height: 12),
+        _LimitRow(
+          icon: Icons.storage_outlined,
+          label: 'Max File Size',
+          value: '$maxMB MB',
+          iconColor: const Color(0xFF10B981),
+        ),
+        const SizedBox(height: 12),
+        _LimitRow(
+          icon: Icons.hd_outlined,
+          label: 'Supported Formats',
+          value: 'MP4, MOV',
+          iconColor: const Color(0xFF8B5CF6),
+        ),
+
+        const SizedBox(height: 22),
+
+        // CTA
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kOrange,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Choose Video',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text('Cancel',
+              style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
+        ),
+      ]),
+    );
+  }
+}
+
+class _LimitRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color iconColor;
+  const _LimitRow({required this.icon, required this.label, required this.value, required this.iconColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.colors.borderColor),
+      ),
+      child: Row(children: [
+        Container(
+          width: 34, height: 34,
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: iconColor, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(label,
+              style: TextStyle(color: context.colors.bodyText, fontSize: 14, fontWeight: FontWeight.w500)),
+        ),
+        Text(value,
+            style: TextStyle(
+                color: context.colors.bodyText,
+                fontSize: 14,
+                fontWeight: FontWeight.w700)),
+      ]),
     );
   }
 }

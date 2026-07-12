@@ -202,8 +202,7 @@ class _StoryCard extends StatelessWidget {
               maxLines: 2, overflow: TextOverflow.ellipsis),
           ),
         ]),
-      ),
-    );
+      );
 
     return GestureDetector(
       onTap: onTap,

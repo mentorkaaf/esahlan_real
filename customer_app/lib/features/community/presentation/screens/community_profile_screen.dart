@@ -73,6 +73,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
   void initState() {
     super.initState();
     _tab = TabController(length: 6, vsync: this);
+    _tab.addListener(() { if (mounted) setState(() {}); });
     _following = widget.user.isFollowing;
     _requested = widget.user.isRequested;
     if (!widget.isMe) _loadBlockStatus();
@@ -469,8 +470,8 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   ),
           ),
 
-          if (!_isBlockedByThem && (!u.isPrivate || widget.isMe || _following))
-            // Pinned post header (shown in Posts tab only)
+          if (!_isBlockedByThem && (!u.isPrivate || widget.isMe || _following) && _tab.index == 0)
+            // Pinned post header (Posts tab only)
             SliverToBoxAdapter(
               child: ColoredBox(
                 color: c.scaffoldBg,
@@ -1125,17 +1126,36 @@ class _SavedPostsGrid extends ConsumerStatefulWidget {
   ConsumerState<_SavedPostsGrid> createState() => _SavedPostsGridState();
 }
 
-class _SavedPostsGridState extends ConsumerState<_SavedPostsGrid> with AutomaticKeepAliveClientMixin {
+class _SavedPostsGridState extends ConsumerState<_SavedPostsGrid>
+    with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
   @override
   bool get wantKeepAlive => true;
 
   List<CommunityPost>? _posts;
   bool _loading = true;
+  late TabController _catTab;
+
+  static const _cats = [
+    {'key': 'all',      'label': 'All',    'icon': Icons.bookmark_rounded},
+    {'key': 'video',    'label': 'Videos', 'icon': Icons.videocam_rounded},
+    {'key': 'image',    'label': 'Images', 'icon': Icons.image_rounded},
+    {'key': 'audio',    'label': 'Audio',  'icon': Icons.music_note_rounded},
+    {'key': 'text',     'label': 'Text',   'icon': Icons.text_fields_rounded},
+    {'key': 'document', 'label': 'Files',  'icon': Icons.picture_as_pdf_rounded},
+  ];
 
   @override
   void initState() {
     super.initState();
+    _catTab = TabController(length: _cats.length, vsync: this);
+    _catTab.addListener(() { if (mounted) setState(() {}); });
     _load();
+  }
+
+  @override
+  void dispose() {
+    _catTab.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -1146,13 +1166,77 @@ class _SavedPostsGridState extends ConsumerState<_SavedPostsGrid> with Automatic
     if (mounted) setState(() { _posts = posts; _loading = false; });
   }
 
+  List<CommunityPost> _filtered(String key) {
+    final all = _posts ?? [];
+    if (key == 'all') return all;
+    if (key == 'video')    return all.where((p) => p.media.any((m) => m.type == 'video') || p.type == 'video' || p.type == 'reel').toList();
+    if (key == 'image')    return all.where((p) => p.media.any((m) => m.type == 'image') && p.type != 'video' && p.type != 'reel').toList();
+    if (key == 'audio')    return all.where((p) => p.media.any((m) => m.type == 'audio') || p.type == 'audio').toList();
+    if (key == 'document') return all.where((p) => p.media.any((m) => m.type == 'document') || p.type == 'document').toList();
+    if (key == 'text')     return all.where((p) => p.media.isEmpty && p.type == 'text').toList();
+    return all;
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final c = context.colors;
+
     if (_loading) return const Center(child: CircularProgressIndicator(color: kOrange));
-    final posts = _posts ?? [];
-    if (posts.isEmpty) return _EmptyTab(icon: Icons.bookmark_outline_rounded, label: 'No saved posts yet');
-    return _PostListGrid(posts: posts);
+
+    final catKey = (_cats[_catTab.index]['key'] as String);
+    final filtered = _filtered(catKey);
+
+    return Column(children: [
+      // Category tab bar
+      Container(
+        color: c.cardBg,
+        child: TabBar(
+          controller: _catTab,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          indicatorColor: kOrange,
+          indicatorWeight: 2.5,
+          labelColor: kOrange,
+          unselectedLabelColor: c.mutedText,
+          labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+          unselectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+          tabs: _cats.map((cat) {
+            final cnt = _filtered(cat['key'] as String).length;
+            return Tab(
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(cat['icon'] as IconData, size: 15),
+                const SizedBox(width: 5),
+                Text('${cat['label']}'),
+                if (cnt > 0) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: _catTab.index == _cats.indexOf(cat) ? kOrange : c.borderColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text('$cnt',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: _catTab.index == _cats.indexOf(cat) ? Colors.white : c.mutedText,
+                        )),
+                  ),
+                ],
+              ]),
+            );
+          }).toList(),
+        ),
+      ),
+
+      // Grid
+      Expanded(
+        child: filtered.isEmpty
+            ? _EmptyTab(icon: Icons.bookmark_outline_rounded, label: 'No saved ${catKey == 'all' ? 'posts' : catKey} yet')
+            : _PostListGrid(posts: filtered),
+      ),
+    ]);
   }
 }
 

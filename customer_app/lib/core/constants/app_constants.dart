@@ -73,6 +73,7 @@ class AppConstants {
   static const Duration feedHeartbeatInterval   = Duration(seconds: 30);
   static const Duration presenceAwayThreshold   = Duration(minutes: 2);
   static const Duration postVideoMaxDuration    = Duration(hours: 1);
+  static const int      postVideoMaxFileSizeMB  = 100;
   static const int      profileBioMaxLength     = 500;
 
   // ── Video Cache ──────────────────────────────────────────────────────────
