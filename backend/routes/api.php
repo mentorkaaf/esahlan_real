@@ -279,6 +279,7 @@ Route::prefix('v1')->group(function () {
         Route::get('posts/saved', [CommunityPostController::class, 'saved']);
         Route::apiResource('posts', CommunityPostController::class)->except(['index']);
         Route::post('posts/{id}/react', [CommunityPostController::class, 'react']);
+        Route::get('posts/{id}/reactions', [CommunityPostController::class, 'reactions']);
         Route::post('posts/{id}/share', [CommunityPostController::class, 'share']);
         Route::post('posts/{id}/save', [CommunityPostController::class, 'save']);
         Route::post('posts/{id}/vote', [CommunityPostController::class, 'votePoll']);

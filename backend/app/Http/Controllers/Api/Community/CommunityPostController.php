@@ -38,7 +38,7 @@ class CommunityPostController extends Controller
             'poll_options' => 'nullable|array|min:2|max:6',
             'poll_options.*' => 'string|max:100',
             'comments_disabled' => 'nullable|boolean',
-            'media.*' => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mov,mp3,m4a,ogg,wav,aac,pdf,doc,docx|max:51200',
+            'media.*' => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mov,mp3,m4a,ogg,wav,aac,pdf,doc,docx|max:102400',
         ]);
 
         // ── Content Moderation ──────────────────────────────────────
@@ -219,6 +219,24 @@ class CommunityPostController extends Controller
 
         $post->delete();
         return response()->json(['status'=>'success','message'=>'Post deleted']);
+    }
+
+    public function reactions(Request $request, int $id)
+    {
+        $post = CommunityPost::findOrFail($id);
+        $type = $request->query('type');
+        $query = CommunityPostReaction::with('user')
+            ->where('post_id', $post->id);
+        if ($type) $query->where('type', $type);
+        $reactions = $query->latest()->take(100)->get();
+        $data = $reactions->map(fn($r) => [
+            'id'            => $r->user->id,
+            'name'          => $r->user->name,
+            'username'      => $r->user->communityProfile?->username,
+            'avatar'        => cdn_url($r->user->communityProfile?->avatar),
+            'reaction_type' => $r->type,
+        ]);
+        return response()->json(['status' => 'success', 'data' => $data]);
     }
 
     public function react(Request $request, int $id)

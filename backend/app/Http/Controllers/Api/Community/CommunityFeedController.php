@@ -58,11 +58,12 @@ class CommunityFeedController extends Controller
             ->where('follower_id', $userId)->pluck('following_id')->toArray();
         $savedPostIds = \DB::table('community_saved_posts')
             ->where('user_id', $userId)->whereIn('post_id', $rankedIds)->pluck('post_id')->toArray();
+        $reactionCounts = $this->batchReactionCounts($rankedIds);
 
         $transformed = [];
         foreach ($rankedIds as $pid) {
             if ($posts->has($pid)) {
-                $transformed[] = $this->transformPost($posts[$pid], $userId, $followingIds, $savedPostIds);
+                $transformed[] = $this->transformPost($posts[$pid], $userId, $followingIds, $savedPostIds, $reactionCounts[$pid] ?? []);
             }
         }
 
@@ -672,7 +673,22 @@ class CommunityFeedController extends Controller
         return $posts->map(fn ($p) => $this->transformPost($p, $userId, $followingIds, $savedIds))->toArray();
     }
 
-    public function transformPost($post, int $userId, array $followingIds = [], array $savedPostIds = []): array
+    private function batchReactionCounts(array $postIds): array
+    {
+        if (empty($postIds)) return [];
+        $rows = \DB::table('community_post_reactions')
+            ->whereIn('post_id', $postIds)
+            ->selectRaw('post_id, type, COUNT(*) as cnt')
+            ->groupBy('post_id', 'type')
+            ->get();
+        $result = [];
+        foreach ($rows as $row) {
+            $result[$row->post_id][$row->type] = (int) $row->cnt;
+        }
+        return $result;
+    }
+
+    public function transformPost($post, int $userId, array $followingIds = [], array $savedPostIds = [], array $reactionCounts = []): array
     {
         $displayUser = $this->transformUser($post->user, $userId, $followingIds);
         if ($post->page_id && $post->page) {
@@ -725,6 +741,7 @@ class CommunityFeedController extends Controller
             'user'              => $displayUser,
             'user_reaction'     => $post->userReaction?->type,
             'is_saved'          => in_array($post->id, $savedPostIds),
+            'reaction_counts'   => $reactionCounts ?: (object)[],
             'moderation_status' => $post->moderation_status ?? 'approved',
             'shared_post'       => $sharedPost,
             'page_id'           => $post->page_id,
