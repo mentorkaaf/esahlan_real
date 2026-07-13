@@ -539,7 +539,7 @@ body[data-soc-theme="dark"] #themeToggle .t-icon{transform:rotate(180deg)}
     </div>
 
     <div class="g2">
-        <div class="g" style="padding:0;overflow:hidden">
+        <div class="g" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
             @php
                 $totalFailed = array_sum(array_column($hourlyData,'count'));
                 $peakHour    = collect($hourlyData)->sortByDesc('count')->first();
@@ -548,42 +548,40 @@ body[data-soc-theme="dark"] #themeToggle .t-icon{transform:rotate(180deg)}
                 $avgFail     = $totalFailed > 0 ? round($totalFailed/24,1) : 0;
                 $criticalH   = collect($hourlyData)->sortByDesc('critical')->first();
             @endphp
-            <div style="padding:16px 18px 10px;border-bottom:1px solid var(--brd)">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px">
-                    <div>
-                        <div class="s-head" style="margin:0 0 2px">Failed Logins — Last 24h</div>
-                        <div class="s-sub" style="margin:0">Hourly authentication failure analysis</div>
+            {{-- ── Top row: title + 4 stat chips inline ── --}}
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--brd);flex-wrap:wrap">
+                <div style="flex:1;min-width:140px">
+                    <div class="s-head" style="margin:0 0 1px;font-size:13px">Failed Logins — Last 24h</div>
+                    <div class="s-sub" style="margin:0;font-size:10px">Hourly authentication failure analysis</div>
+                </div>
+                <div style="display:flex;gap:6px;flex-shrink:0">
+                    <div style="text-align:center;padding:4px 10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:7px">
+                        <div style="font-size:17px;font-weight:800;color:#ef4444;line-height:1.1">{{ $totalFailed }}</div>
+                        <div style="font-size:8.5px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px">Total</div>
                     </div>
-                    <div style="display:flex;gap:10px;flex-wrap:wrap">
-                        <div style="text-align:center;padding:6px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:8px">
-                            <div style="font-size:18px;font-weight:800;color:#ef4444;line-height:1">{{ $totalFailed }}</div>
-                            <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px;margin-top:1px">Total</div>
-                        </div>
-                        <div style="text-align:center;padding:6px 12px;background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.2);border-radius:8px">
-                            <div style="font-size:18px;font-weight:800;color:#f97316;line-height:1">{{ $peakHour['count'] ?? 0 }}</div>
-                            <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px;margin-top:1px">Peak {{ str_pad($peakHour['hour']??0,2,'0',STR_PAD_LEFT) }}:00</div>
-                        </div>
-                        <div style="text-align:center;padding:6px 12px;background:var(--bg3);border:1px solid var(--brd);border-radius:8px">
-                            <div style="font-size:18px;font-weight:800;color:var(--txt);line-height:1">{{ $currentFail }}</div>
-                            <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px;margin-top:1px">This Hour</div>
-                        </div>
-                        <div style="text-align:center;padding:6px 12px;background:var(--bg3);border:1px solid var(--brd);border-radius:8px">
-                            <div style="font-size:18px;font-weight:800;color:var(--txt);line-height:1">{{ $avgFail }}</div>
-                            <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px;margin-top:1px">Avg/hr</div>
-                        </div>
+                    <div style="text-align:center;padding:4px 10px;background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.25);border-radius:7px">
+                        <div style="font-size:17px;font-weight:800;color:#f97316;line-height:1.1">{{ $peakHour['count'] ?? 0 }}</div>
+                        <div style="font-size:8.5px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px">Peak {{ str_pad($peakHour['hour']??0,2,'0',STR_PAD_LEFT) }}h</div>
+                    </div>
+                    <div style="text-align:center;padding:4px 10px;background:var(--bg3);border:1px solid var(--brd);border-radius:7px">
+                        <div style="font-size:17px;font-weight:800;color:var(--txt);line-height:1.1">{{ $currentFail }}</div>
+                        <div style="font-size:8.5px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px">Now</div>
+                    </div>
+                    <div style="text-align:center;padding:4px 10px;background:var(--bg3);border:1px solid var(--brd);border-radius:7px">
+                        <div style="font-size:17px;font-weight:800;color:var(--txt);line-height:1.1">{{ $avgFail }}</div>
+                        <div style="font-size:8.5px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px">Avg/h</div>
                     </div>
                 </div>
             </div>
-            <div style="padding:16px 18px 8px">
-                <div style="display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap">
-                    <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--txt2)"><div style="width:12px;height:3px;border-radius:2px;background:#ef4444"></div>Failed Logins</div>
-                    <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--txt2)"><div style="width:12px;height:3px;border-radius:2px;background:#94a3b8;opacity:.6"></div>All Events</div>
-                    <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--txt2)"><div style="width:10px;height:10px;border-radius:3px;background:rgba(239,68,68,.2)"></div>Critical</div>
-                </div>
-                <div style="position:relative">
-                    <canvas id="hourlyChart" height="180"></canvas>
-                    <div id="hlTooltip" style="display:none;position:absolute;pointer-events:none;background:var(--bg2);border:1px solid var(--brd);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--txt);box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:110px;z-index:10"></div>
-                </div>
+            {{-- ── Legend + Chart filling remaining space ── --}}
+            <div style="padding:10px 14px 4px;display:flex;gap:12px;align-items:center">
+                <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--txt2)"><div style="width:10px;height:2.5px;border-radius:2px;background:#ef4444"></div>Failed Logins</div>
+                <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--txt2)"><div style="width:10px;height:2.5px;border-radius:2px;background:#94a3b8;opacity:.55"></div>All Events</div>
+                <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--txt2)"><div style="width:8px;height:8px;border-radius:2px;background:rgba(239,68,68,.2)"></div>Critical</div>
+            </div>
+            <div style="padding:0 14px 12px;position:relative;flex:1">
+                <canvas id="hourlyChart" style="width:100%;display:block"></canvas>
+                <div id="hlTooltip" style="display:none;position:absolute;pointer-events:none;background:var(--bg2);border:1px solid var(--brd);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--txt);box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:110px;z-index:10"></div>
             </div>
         </div>
         <div class="g" style="padding:0;overflow:hidden">
@@ -1269,8 +1267,8 @@ function drawHourlyChart() {
     _hlCanvas = c;
     const ctx = c.getContext('2d');
     const W = c.offsetWidth || c.parentElement.offsetWidth;
-    const H = 180;
-    c.width = W; c.height = H;
+    const H = c.parentElement.offsetHeight || (c.parentElement.parentElement.offsetHeight - 30) || 220;
+    c.width = W; c.height = Math.max(H, 200);
     const pad = { t: 14, r: 12, b: 32, l: 36 };
     const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
     _hlPad = pad; _hlCw = cw; _hlCh = ch; _hlH = H;
