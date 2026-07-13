@@ -123,13 +123,14 @@ Route::prefix('v1')->group(function () {
         ]]);
     });
 
-    Route::prefix('auth')->group(function () {
+    Route::prefix('auth')->middleware('throttle:auth')->group(function () {
         Route::post('register',        [AuthController::class, 'register']);
-        Route::post('send-otp',        [AuthController::class, 'sendOtp']);
         Route::post('verify-otp',      [AuthController::class, 'verifyOtp']);
         Route::post('login',           [AuthController::class, 'login'])->middleware('brute_force');
         Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
         Route::post('reset-password',  [AuthController::class, 'resetPassword']);
+        // OTP has its own stricter limit on top of auth
+        Route::post('send-otp',        [AuthController::class, 'sendOtp'])->middleware('throttle:otp');
     });
 
     // Deliveryman auth (public — no token required)
@@ -246,7 +247,7 @@ Route::prefix('v1')->group(function () {
     // ═══════════════════════════════════════════════════════════════
     // AUTHENTICATED — ALL ROLES
     // ═══════════════════════════════════════════════════════════════
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     // Reverb private/presence channel authorization for mobile clients.
     // The framework auto-registers broadcasting/auth under the "web"
@@ -260,14 +261,16 @@ Route::prefix('v1')->group(function () {
 
     // ── Community Module ──────────────────────────────────────────────────────
     Route::prefix('community')->group(function () {
-        // Feed
-        Route::get('feed', [CommunityFeedController::class, 'following']);
-        Route::get('explore', [CommunityFeedController::class, 'explore']);
-        Route::get('reels', [CommunityFeedController::class, 'reels']);
-        Route::get('stories', [CommunityFeedController::class, 'stories']);
-        Route::get('trending', [CommunityFeedController::class, 'trending']);
-        Route::get('search', [CommunityFeedController::class, 'search']);
-        Route::get('suggestions', [CommunityFeedController::class, 'suggestions']);
+        // Feed (throttle:feed — heavier reads capped at 60/min)
+        Route::middleware('throttle:feed')->group(function () {
+            Route::get('feed',        [CommunityFeedController::class, 'following']);
+            Route::get('explore',     [CommunityFeedController::class, 'explore']);
+            Route::get('reels',       [CommunityFeedController::class, 'reels']);
+            Route::get('stories',     [CommunityFeedController::class, 'stories']);
+            Route::get('trending',    [CommunityFeedController::class, 'trending']);
+            Route::get('search',      [CommunityFeedController::class, 'search']);
+            Route::get('suggestions', [CommunityFeedController::class, 'suggestions']);
+        });
 
         // Feed interaction tracking
         Route::post('feed/track', [CommunityFeedController::class, 'trackInteraction']);
@@ -275,9 +278,10 @@ Route::prefix('v1')->group(function () {
         Route::post('feed/heartbeat', [CommunityFeedController::class, 'heartbeat']);
         Route::delete('feed/heartbeat', [CommunityFeedController::class, 'leave']);
 
-        // Posts
+        // Posts (upload-creating routes get stricter limit)
+        Route::post('posts', [CommunityPostController::class, 'store'])->middleware('throttle:upload');
         Route::get('posts/saved', [CommunityPostController::class, 'saved']);
-        Route::apiResource('posts', CommunityPostController::class)->except(['index']);
+        Route::apiResource('posts', CommunityPostController::class)->except(['index', 'store']);
         Route::post('posts/{id}/react', [CommunityPostController::class, 'react']);
         Route::get('posts/{id}/reactions', [CommunityPostController::class, 'reactions']);
         Route::post('posts/{id}/share', [CommunityPostController::class, 'share']);
@@ -319,8 +323,8 @@ Route::prefix('v1')->group(function () {
         Route::post('follow-requests/{id}/accept', [CommunityFollowController::class, 'accept']);
         Route::post('follow-requests/{id}/reject', [CommunityFollowController::class, 'reject']);
 
-        // Stories
-        Route::post('stories', [CommunityStoryController::class, 'store']);
+        // Stories (creation throttled as upload)
+        Route::post('stories', [CommunityStoryController::class, 'store'])->middleware('throttle:upload');
         Route::post('stories/{id}/view', [CommunityStoryController::class, 'view']);
         Route::get('stories/{id}/viewers', [CommunityStoryController::class, 'viewers']);
         Route::post('stories/{id}/react', [CommunityStoryController::class, 'react']);
@@ -335,11 +339,11 @@ Route::prefix('v1')->group(function () {
         Route::delete('groups/{id}/leave', [CommunityGroupController::class, 'leave']);
         Route::get('groups/{id}/posts', [CommunityGroupController::class, 'posts']);
 
-        // Chats
+        // Chats (message sending throttled separately)
         Route::get('chats', [CommunityChatController::class, 'index']);
         Route::post('chats/start/{userId}', [CommunityChatController::class, 'startOrGet']);
         Route::get('chats/{chatId}/messages', [CommunityChatController::class, 'messages']);
-        Route::post('chats/{chatId}/messages', [CommunityChatController::class, 'send']);
+        Route::post('chats/{chatId}/messages', [CommunityChatController::class, 'send'])->middleware('throttle:chat');
         Route::post('chats/{chatId}/read', [CommunityChatController::class, 'markRead']);
         Route::post('chats/{chatId}/typing', [CommunityChatController::class, 'typing']);
         Route::post('messages/{msgId}/react', [CommunityChatController::class, 'reactToMessage']);
@@ -455,19 +459,20 @@ Route::prefix('v1')->group(function () {
             Route::post('orders/{order}/cancel', [OrderController::class, 'cancel']);
             Route::get('orders/{order}/tracking', [OrderController::class, 'tracking']);
 
-            // Wallet
+            // Wallet + Payment (throttle:payment — max 10/min, fraud protection)
+            Route::middleware('throttle:payment')->group(function () {
+                Route::post('wallet/topup',          [WalletController::class, 'topup']);
+                Route::post('wallet/send',           [WalletController::class, 'send']);
+                Route::post('wallet/withdraw',       [WalletController::class, 'requestWithdrawal']);
+                Route::post('wallet/verify-pin',     [WalletController::class, 'verifyPin']);
+                Route::post('payment/initiate',      [PaymentController::class, 'initiate']);
+            });
             Route::get('wallet',                    [WalletController::class, 'index']);
             Route::get('wallet/transactions',       [WalletController::class, 'transactions']);
-            Route::post('wallet/topup',             [WalletController::class, 'topup']);
             Route::get('wallet/topup/status/{ref}', [WalletController::class, 'topupStatus']);
-            Route::post('wallet/send',              [WalletController::class, 'send']);
-            Route::post('wallet/withdraw',          [WalletController::class, 'requestWithdrawal']);
-            Route::post('wallet/verify-pin',        [WalletController::class, 'verifyPin']);
             Route::post('wallet/set-pin',           [WalletController::class, 'setPin']);
             Route::get('wallet/loyalty-points',     [WalletController::class, 'loyaltyPoints']);
             Route::get('wallet/referral',           [WalletController::class, 'referral']);
-            // Centralized payment (Waafi Pay)
-            Route::post('payment/initiate',         [PaymentController::class, 'initiate']);
             Route::get('payment/status/{ref}',      [PaymentController::class, 'status']);
 
             // Addresses
