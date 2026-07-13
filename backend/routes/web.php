@@ -561,7 +561,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // ── Security / SOC Dashboard ──────────────────────────────────────────
         Route::middleware('can:platform.audit.view')->prefix('security')->name('security.')->group(function () {
-            Route::get('/soc', [\App\Http\Controllers\Admin\AdminSecurityController::class, 'soc'])->name('soc');
+            $sc = \App\Http\Controllers\Admin\AdminSecurityController::class;
+            Route::get('/soc',               [$sc, 'soc'])->name('soc');
+            Route::get('/stats',             [$sc, 'stats'])->name('stats');
+            Route::post('/quick-action',     [$sc, 'quickAction'])->name('quick-action');
+            Route::get('/audit/export',      [$sc, 'exportAudit'])->name('audit.export');
         });
 
         // ── Roles & Access (assign roles + scope employees to modules) ────────
