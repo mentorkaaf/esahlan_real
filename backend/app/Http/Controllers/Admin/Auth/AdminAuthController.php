@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\RateLimiter;
 
 class AdminAuthController extends Controller
 {
-    // Max 10 failed attempts per IP per 15 minutes → block 30 min
-    const MAX_ATTEMPTS    = 10;
+    // Max 5 failed attempts per IP per 15 minutes → block 30 min
+    const MAX_ATTEMPTS    = 5;
     const DECAY_MINUTES   = 15;
     const LOCKOUT_MINUTES = 30;
 
