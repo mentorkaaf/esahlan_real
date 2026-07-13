@@ -304,6 +304,11 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/engagement/reset-all', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'resetAllEngagement'])->name('engagement.reset-all');
             Route::get('/algorithm', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'algorithm'])->name('algorithm');
             Route::get('/algorithm/data', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'algorithmData'])->name('algorithm.data');
+            Route::get('/users/{id}/detail', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'userDetail'])->name('users.detail');
+            Route::get('/users/{id}/chats', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'userChats'])->name('users.chats');
+            Route::get('/chats/{chatId}/messages', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'chatMessages'])->name('chats.messages');
+            Route::get('/chat-monitor', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'chatMonitor'])->name('chat-monitor');
+            Route::delete('/messages/{id}', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'deleteMessage'])->name('messages.delete');
         });
         // Trust & Safety
         Route::prefix('trust-safety')->name('trust-safety.')->group(function () {

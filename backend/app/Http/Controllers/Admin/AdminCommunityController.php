@@ -9,6 +9,8 @@ use App\Models\CommunityProfile;
 use App\Models\CommunityReport;
 use App\Models\CommunityStory;
 use App\Models\CommunityMessage;
+use App\Models\CommunityChat;
+use App\Models\CommunityChatMember;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -224,21 +226,50 @@ class AdminCommunityController extends Controller
 
     public function users(Request $request)
     {
-        $query = CommunityProfile::with('user')
-            ->withCount('posts', 'followers');
+        $query = CommunityProfile::with('user')->withCount('posts', 'followers');
 
         if ($request->search) {
-            $query->whereHas('user', fn($q) =>
-                $q->where('name', 'like', "%{$request->search}%")
-                  ->orWhere('email', 'like', "%{$request->search}%")
-            );
+            $query->where(function($q) use ($request) {
+                $q->whereHas('user', fn($u) =>
+                    $u->where('name', 'like', "%{$request->search}%")
+                      ->orWhere('email', 'like', "%{$request->search}%")
+                )->orWhere('username', 'like', "%{$request->search}%")
+                 ->orWhere('display_name', 'like', "%{$request->search}%");
+            });
         }
         if ($request->verified !== null && $request->verified !== '') {
             $query->where('is_verified', (bool)$request->verified);
         }
+        if ($request->gender) {
+            $query->where('gender', $request->gender);
+        }
+        if ($request->country) {
+            $query->where('country', $request->country);
+        }
+        if ($request->onboarded !== null && $request->onboarded !== '') {
+            $query->where('onboarding_completed', (bool)$request->onboarded);
+        }
 
-        $users = $query->latest()->paginate(20);
-        return view('admin.community.users', compact('users'));
+        $users = $query->latest()->paginate(24);
+
+        $stats = [
+            'total'        => CommunityProfile::count(),
+            'verified'     => CommunityProfile::where('is_verified', true)->count(),
+            'new_week'     => CommunityProfile::where('created_at', '>=', now()->subWeek())->count(),
+            'onboarded'    => CommunityProfile::where('onboarding_completed', true)->count(),
+            'male'         => CommunityProfile::where('gender', 'male')->count(),
+            'female'       => CommunityProfile::where('gender', 'female')->count(),
+            'other_gender' => CommunityProfile::whereNotIn('gender', ['male', 'female'])->whereNotNull('gender')->count(),
+        ];
+
+        $countries = CommunityProfile::whereNotNull('country')
+            ->selectRaw('country, COUNT(*) as cnt')
+            ->groupBy('country')
+            ->orderByDesc('cnt')
+            ->limit(10)
+            ->pluck('cnt', 'country');
+
+        return view('admin.community.users', compact('users', 'stats', 'countries'));
     }
 
     public function toggleVerify($id)
@@ -247,6 +278,114 @@ class AdminCommunityController extends Controller
         $profile->update(['is_verified' => !$profile->is_verified]);
 
         return back()->with('success', $profile->is_verified ? 'User verified.' : 'Verification removed.');
+    }
+
+    public function userDetail($id)
+    {
+        $profile = CommunityProfile::with('user')->findOrFail($id);
+        $recentPosts = CommunityPost::where('user_id', $profile->user_id)
+            ->withCount('reactions as likes_count', 'comments')
+            ->latest()->take(6)->get(['id','content','type','created_at','likes_count','views_count','comments_count']);
+
+        return response()->json([
+            'profile' => $profile,
+            'recent_posts' => $recentPosts,
+        ]);
+    }
+
+    public function userChats($userId)
+    {
+        $profile = CommunityProfile::where('user_id', $userId)->firstOrFail();
+        $chatIds = CommunityChatMember::where('user_id', $userId)->pluck('chat_id');
+
+        $chats = CommunityChat::whereIn('id', $chatIds)
+            ->with(['members.user.communityProfile', 'messages' => fn($q) => $q->latest()->limit(1)])
+            ->withCount('messages')
+            ->latest('updated_at')
+            ->take(20)
+            ->get()
+            ->map(function($chat) use ($userId) {
+                $other = $chat->members->firstWhere('user_id', '!=', $userId);
+                return [
+                    'id' => $chat->id,
+                    'type' => $chat->type,
+                    'name' => $chat->name ?? optional(optional($other)->user)->name,
+                    'avatar' => optional(optional(optional($other)->user)->communityProfile)->avatar,
+                    'last_message' => optional($chat->messages->first())->content,
+                    'last_message_at' => optional($chat->messages->first())->created_at,
+                    'messages_count' => $chat->messages_count,
+                ];
+            });
+
+        return response()->json(['chats' => $chats]);
+    }
+
+    public function chatMessages($chatId)
+    {
+        $chat = CommunityChat::with('members.user.communityProfile')->findOrFail($chatId);
+        $messages = CommunityMessage::where('chat_id', $chatId)
+            ->with('user.communityProfile')
+            ->orderBy('created_at')
+            ->take(100)
+            ->get()
+            ->map(fn($m) => [
+                'id' => $m->id,
+                'user_id' => $m->user_id,
+                'name' => optional($m->user)->name,
+                'avatar' => optional(optional($m->user)->communityProfile)->avatar,
+                'type' => $m->type,
+                'content' => $m->is_deleted ? '[deleted]' : $m->content,
+                'media_url' => $m->is_deleted ? null : $m->media_url,
+                'is_deleted' => $m->is_deleted,
+                'created_at' => $m->created_at,
+            ]);
+
+        $members = $chat->members->map(fn($cm) => [
+            'user_id' => $cm->user_id,
+            'name' => optional($cm->user)->name,
+            'avatar' => optional(optional($cm->user)->communityProfile)->avatar,
+        ]);
+
+        return response()->json(['messages' => $messages, 'members' => $members]);
+    }
+
+    public function chatMonitor(Request $request)
+    {
+        $search = $request->search;
+        $chats = CommunityChat::with(['members.user.communityProfile', 'messages' => fn($q) => $q->latest()->limit(1)])
+            ->withCount('messages')
+            ->when($search, fn($q) => $q->whereHas('members.user', fn($u) => $u->where('name', 'like', "%{$search}%")))
+            ->orderBy('updated_at', 'desc')
+            ->take(50)
+            ->get()
+            ->map(function($chat) {
+                $memberNames = $chat->members->map(fn($cm) => optional($cm->user)->name)->filter()->implode(', ');
+                $lastMsg = $chat->messages->first();
+                return [
+                    'id' => $chat->id,
+                    'type' => $chat->type,
+                    'name' => $chat->name ?? $memberNames,
+                    'members' => $chat->members->map(fn($cm) => [
+                        'user_id' => $cm->user_id,
+                        'name' => optional($cm->user)->name,
+                        'avatar' => optional(optional($cm->user)->communityProfile)->avatar,
+                    ])->values(),
+                    'last_message' => $lastMsg && !$lastMsg->is_deleted ? $lastMsg->content : null,
+                    'last_message_type' => optional($lastMsg)->type,
+                    'last_message_at' => optional($lastMsg)->created_at,
+                    'messages_count' => $chat->messages_count,
+                    'updated_at' => $chat->updated_at,
+                ];
+            });
+
+        return response()->json(['chats' => $chats]);
+    }
+
+    public function deleteMessage($id)
+    {
+        $msg = CommunityMessage::findOrFail($id);
+        $msg->update(['is_deleted' => true, 'content' => null]);
+        return response()->json(['success' => true]);
     }
 
     // ── Content Moderation ────────────────────────────────────────────────────
