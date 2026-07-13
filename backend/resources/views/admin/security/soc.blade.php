@@ -95,11 +95,14 @@
 .s-sub{font-size:12px;color:var(--txt2);margin-bottom:16px}
 
 /* ── Map ─────────────────────────────────────────────────────────────── */
-#mapWrap{position:relative;border-radius:14px;overflow:hidden;background:#08101e;border:1px solid var(--brd)}
-#mapCanvas{width:100%;display:block}
-.map-legend{position:absolute;bottom:12px;left:12px;display:flex;gap:8px;flex-wrap:wrap}
-.map-leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--txt2);background:rgba(0,0,0,.6);padding:3px 8px;border-radius:6px}
+#mapWrap{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--brd)}
+#gmap{width:100%;height:340px}
+#mapOverlay{position:absolute;top:0;left:0;width:100%;height:340px;pointer-events:none}
+.map-legend{position:absolute;bottom:12px;left:12px;display:flex;gap:8px;flex-wrap:wrap;z-index:10}
+.map-leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--txt2);background:rgba(0,0,0,.72);padding:3px 8px;border-radius:6px;backdrop-filter:blur(6px)}
 .map-leg-dot{width:8px;height:8px;border-radius:50%}
+.map-stats{position:absolute;top:10px;right:10px;z-index:10;background:rgba(6,9,26,.85);border:1px solid var(--brd);border-radius:10px;padding:8px 14px;font-size:11px;backdrop-filter:blur(8px)}
+.map-stats strong{color:var(--red);font-size:16px;display:block;line-height:1}
 
 /* ── Timeline ────────────────────────────────────────────────────────── */
 .tl{display:flex;flex-direction:column;gap:0;max-height:380px;overflow-y:auto}
@@ -378,15 +381,20 @@
 
     <div class="gc" style="margin-bottom:20px">
         <div>
-            <div class="s-label">Live Attack Map</div>
+            <div class="s-label">Live Attack Map — Real Attacker Locations</div>
             <div id="mapWrap">
-                <canvas id="mapCanvas" height="340"></canvas>
+                <div id="gmap"></div>
+                <canvas id="mapOverlay"></canvas>
+                <div class="map-stats">
+                    <strong id="mapAttackerCount">{{ count($attackerGeo) }}</strong>
+                    <span style="color:var(--txt2)">Attackers (48h)</span>
+                </div>
                 <div class="map-legend">
                     <div class="map-leg-item"><div class="map-leg-dot" style="background:#ff4757"></div> Brute Force</div>
                     <div class="map-leg-item"><div class="map-leg-dot" style="background:#ffc800"></div> Credential Stuffing</div>
-                    <div class="map-leg-item"><div class="map-leg-dot" style="background:#a855f7"></div> Upload Attack</div>
+                    <div class="map-leg-item"><div class="map-leg-dot" style="background:#a855f7"></div> Malware Upload</div>
                     <div class="map-leg-item"><div class="map-leg-dot" style="background:#4d9fff"></div> API Abuse</div>
-                    <div class="map-leg-item"><div class="map-leg-dot" style="background:#00d97e"></div> Server</div>
+                    <div class="map-leg-item"><div class="map-leg-dot" style="background:#00d97e"></div> eSahlan Server</div>
                 </div>
             </div>
         </div>
@@ -1056,103 +1064,197 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     labels.forEach((l, i) => ctx.fillText(l, pad.l + (i / (n - 1 || 1)) * cw, H - 6));
 })();
 
-// ── World Attack Map ───────────────────────────────────────────────────────
-(function () {
-    const canvas = document.getElementById('mapCanvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const wrap = canvas.parentElement;
-    let W, H;
-    const resize = () => { W = canvas.width = wrap.offsetWidth; H = canvas.height = 340; };
-    resize();
+// ── Real Attack Map (Google Maps + real IP geolocation) ───────────────────
+const ATTACKER_GEO  = @json($attackerGeo);
+const GMAPS_KEY     = '{{ $gmapsKey }}';
+const SERVER_POS    = { lat: 2.0469, lng: 45.3182 }; // eSahlan VPS region
+const ATTACK_COLORS = { brute_force:'#ff4757', credential_stuffing:'#ffc800', malware_upload:'#a855f7', api_abuse:'#4d9fff' };
 
-    const toXY = (lat, lng) => [((lng + 180) / 360) * W, ((90 - lat) / 180) * H];
-    const [TX, TY] = toXY(2, 45); // eSahlan server region
-    const COLORS = ['#ff4757', '#ffc800', '#a855f7', '#4d9fff'];
+const DARK_MAP_STYLE = [
+    {elementType:'geometry',stylers:[{color:'#0a0f1e'}]},
+    {elementType:'labels',stylers:[{visibility:'off'}]},
+    {featureType:'water',elementType:'geometry',stylers:[{color:'#06152e'}]},
+    {featureType:'road',stylers:[{visibility:'off'}]},
+    {featureType:'poi',stylers:[{visibility:'off'}]},
+    {featureType:'transit',stylers:[{visibility:'off'}]},
+    {featureType:'administrative.country',elementType:'geometry.stroke',stylers:[{color:'rgba(255,255,255,0.12)'}]},
+    {featureType:'administrative.province',stylers:[{visibility:'off'}]},
+    {featureType:'landscape',elementType:'geometry',stylers:[{color:'#0d1226'}]},
+];
 
-    // [lat, lng, weight, type]
-    const SOURCES = [
-        [38,-97,5,0],[35,105,6,1],[60,100,3,0],[51,10,2,2],[48,2,2,3],
-        [36,127,3,0],[22,77,4,1],[39,35,4,0],[55,37,5,0],[31,36,3,2],
-        [23,113,5,1],[40,-3,2,3],[44,26,2,0],[37,36,3,0],[43,45,4,0],
-        [-26,28,2,1],[1,32,2,3],[15,30,2,0],[30,31,3,0],[36,33,4,0],
-    ];
-    const LAND = [
-        [40,-100],[37,-90],[32,-85],[27,-80],[45,-75],[50,-70],[58,-48],[50,-40],[46,-30],[43,-20],
-        [40,-10],[38,-5],[36,0],[35,5],[33,10],[30,12],[25,15],[20,18],[15,20],[10,22],[5,25],
-        [0,28],[5,35],[10,38],[15,40],[20,42],[25,45],[30,48],[35,50],[40,55],[38,60],[35,65],
-        [30,68],[25,70],[20,72],[15,75],[10,78],[5,80],[55,40],[60,45],[65,50],[70,60],[65,70],
-        [60,80],[55,90],[50,95],[45,100],[40,105],[35,108],[30,110],[25,112],[20,115],[15,118],
-        [10,120],[5,122],[0,125],[45,130],[38,127],[35,130],[33,132],[25,90],[22,85],[18,80],
-        [51,10],[50,15],[48,20],[46,25],[44,28],[42,30],[40,32],[38,35],[36,38],[52,-4],[50,0],
-        [48,2],[46,5],[44,8],[42,10],[48,-2],[53,-3],[57,-4],[60,-2],[-15,25],[-20,28],[-25,30],
-        [-30,32],[-25,18],[-10,-40],[-15,-38],[-20,-40],[-25,-48],[-35,-58],[-35,145],[-38,148],
-        [-28,153],[-25,150],[-22,148],[25,-80],[20,-78],[15,-75],[10,-72],[5,-68],[0,-60],[-5,-55],
-        [-10,-50],[30,120],[36,130],[33,130],[26,50],[24,46],[22,40],[15,44],[12,44],[8,40],
-    ];
+let _gmap = null, _overlayCanvas = null, _overlayCtx = null;
+const _particles = [];
 
-    const particles = [];
-    SOURCES.forEach(([lat, lng, w, type]) => {
-        const [sx, sy] = toXY(lat, lng);
-        for (let i = 0; i < w; i++) {
-            particles.push({ sx, sy, prog: Math.random(), speed: 0.003 + Math.random() * 0.004, col: COLORS[type], trail: [] });
-        }
+function initMap() {
+    const mapEl = document.getElementById('gmap');
+    if (!mapEl || !window.google) return;
+
+    _gmap = new google.maps.Map(mapEl, {
+        center: { lat: 20, lng: 15 },
+        zoom: 2,
+        styles: DARK_MAP_STYLE,
+        disableDefaultUI: true,
+        gestureHandling: 'none',
+        backgroundColor: '#0a0f1e',
     });
 
-    function draw() {
-        ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = '#08101e'; ctx.fillRect(0, 0, W, H);
+    // Server marker (eSahlan)
+    new google.maps.Marker({
+        position: SERVER_POS,
+        map: _gmap,
+        title: 'eSahlan Server',
+        icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 9,
+            fillColor: '#00d97e',
+            fillOpacity: 1,
+            strokeColor: '#fff',
+            strokeWeight: 2,
+        },
+        zIndex: 100,
+    });
 
-        LAND.forEach(([lat, lng]) => {
-            const [x, y] = toXY(lat, lng);
-            if (x > 0 && x < W && y > 0 && y < H) {
-                ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fill();
-            }
+    // Real attacker markers
+    ATTACKER_GEO.forEach(a => {
+        const col = ATTACK_COLORS[a.type] || '#ff4757';
+        const marker = new google.maps.Marker({
+            position: { lat: a.lat, lng: a.lng },
+            map: _gmap,
+            title: `${a.ip} — ${a.city}, ${a.country} (${a.cnt} attempts)`,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: Math.min(10, 4 + a.cnt * 0.5),
+                fillColor: col,
+                fillOpacity: 0.85,
+                strokeColor: col,
+                strokeWeight: 1,
+            },
         });
 
-        SOURCES.forEach(([lat, lng,, type]) => {
-            const [x, y] = toXY(lat, lng);
-            ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2);
-            ctx.fillStyle = COLORS[type] + '66'; ctx.fill();
-            ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2);
-            ctx.fillStyle = COLORS[type]; ctx.fill();
+        // Info window on click
+        const iw = new google.maps.InfoWindow({
+            content: `<div style="background:#0d1226;color:#fff;padding:10px;border-radius:8px;font-size:12px;min-width:180px">
+                <strong style="color:${col}">${a.type.replace(/_/g,' ').toUpperCase()}</strong><br>
+                <span style="font-family:monospace">${a.ip}</span><br>
+                📍 ${a.city ? a.city + ', ' : ''}${a.country}<br>
+                🔁 <strong>${a.cnt}</strong> attempts (48h)
+            </div>`,
         });
+        marker.addListener('click', () => iw.open(_gmap, marker));
+    });
 
-        particles.forEach(p => {
-            p.prog += p.speed;
-            if (p.prog >= 1) { p.prog = 0; p.trail = []; }
-            const t = p.prog;
-            const cx = (p.sx + TX) / 2, cy = Math.min(p.sy, TY) - 60;
-            const x = (1-t)*(1-t)*p.sx + 2*(1-t)*t*cx + t*t*TX;
-            const y = (1-t)*(1-t)*p.sy + 2*(1-t)*t*cy + t*t*TY;
-            p.trail.push({ x, y });
-            if (p.trail.length > 16) p.trail.shift();
-            p.trail.forEach((pt, i) => {
-                if (!i) return;
-                ctx.beginPath(); ctx.moveTo(p.trail[i-1].x, p.trail[i-1].y); ctx.lineTo(pt.x, pt.y);
-                ctx.strokeStyle = p.col + Math.round((i / p.trail.length) * 0.7 * 255).toString(16).padStart(2, '0');
-                ctx.lineWidth = 1.5; ctx.stroke();
-            });
-            ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2);
-            ctx.fillStyle = p.col; ctx.fill();
-        });
-
-        // Target rings
-        const ring = (Date.now() % 2000) / 2000;
-        for (let r = 1; r <= 3; r++) {
-            const rr = ring * 24 * r * 0.5;
-            ctx.beginPath(); ctx.arc(TX, TY, rr, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(0,217,126,${Math.max(0, 0.55 - ring * r * 0.18)})`; ctx.lineWidth = 1.5; ctx.stroke();
+    // Canvas overlay for animated attack lines
+    _gmap.addListener('idle', () => {
+        if (!_overlayCanvas) setupOverlay();
+        buildParticles();
+        if (!_overlayCanvas._animating) {
+            _overlayCanvas._animating = true;
+            animateOverlay();
         }
-        ctx.beginPath(); ctx.arc(TX, TY, 5, 0, Math.PI * 2); ctx.fillStyle = '#00d97e'; ctx.fill();
-        ctx.beginPath(); ctx.arc(TX, TY, 3, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+    });
+}
 
-        requestAnimationFrame(draw);
+function setupOverlay() {
+    const wrap = document.getElementById('mapWrap');
+    _overlayCanvas = document.getElementById('mapOverlay');
+    _overlayCanvas.width  = wrap.offsetWidth;
+    _overlayCanvas.height = 340;
+    _overlayCtx = _overlayCanvas.getContext('2d');
+}
+
+function latLngToPixel(lat, lng) {
+    if (!_gmap || !_gmap.getProjection() || !_gmap.getBounds()) return null;
+    const proj   = _gmap.getProjection();
+    const bounds = _gmap.getBounds();
+    const ne     = proj.fromLatLngToPoint(bounds.getNorthEast());
+    const sw     = proj.fromLatLngToPoint(bounds.getSouthWest());
+    const scale  = Math.pow(2, _gmap.getZoom());
+    const pt     = proj.fromLatLngToPoint(new google.maps.LatLng(lat, lng));
+    const W      = _overlayCanvas.width, H = 340;
+    return {
+        x: ((pt.x - sw.x) / (ne.x - sw.x)) * W,
+        y: ((pt.y - ne.y) / (sw.y - ne.y)) * H,
+    };
+}
+
+function buildParticles() {
+    _particles.length = 0;
+    ATTACKER_GEO.forEach(a => {
+        const col   = ATTACK_COLORS[a.type] || '#ff4757';
+        const count = Math.min(6, 1 + Math.ceil(a.cnt / 3));
+        for (let i = 0; i < count; i++) {
+            _particles.push({
+                lat: a.lat, lng: a.lng,
+                prog: Math.random(),
+                speed: 0.003 + Math.random() * 0.004,
+                col, trail: [],
+            });
+        }
+    });
+}
+
+function animateOverlay() {
+    if (!_overlayCtx || !_overlayCanvas) return;
+    const W = _overlayCanvas.width, H = 340;
+    _overlayCtx.clearRect(0, 0, W, H);
+
+    const tgt = latLngToPixel(SERVER_POS.lat, SERVER_POS.lng);
+    if (!tgt) { requestAnimationFrame(animateOverlay); return; }
+
+    _particles.forEach(p => {
+        const src = latLngToPixel(p.lat, p.lng);
+        if (!src) return;
+
+        p.prog += p.speed;
+        if (p.prog >= 1) { p.prog = 0; p.trail = []; }
+
+        const t  = p.prog;
+        const cx = (src.x + tgt.x) / 2;
+        const cy = Math.min(src.y, tgt.y) - 50;
+        const x  = (1-t)*(1-t)*src.x + 2*(1-t)*t*cx + t*t*tgt.x;
+        const y  = (1-t)*(1-t)*src.y + 2*(1-t)*t*cy + t*t*tgt.y;
+
+        p.trail.push({ x, y });
+        if (p.trail.length > 18) p.trail.shift();
+
+        p.trail.forEach((pt, i) => {
+            if (!i) return;
+            const alpha = (i / p.trail.length) * 0.75;
+            _overlayCtx.beginPath();
+            _overlayCtx.moveTo(p.trail[i-1].x, p.trail[i-1].y);
+            _overlayCtx.lineTo(pt.x, pt.y);
+            _overlayCtx.strokeStyle = p.col + Math.round(alpha * 255).toString(16).padStart(2, '0');
+            _overlayCtx.lineWidth = 1.8;
+            _overlayCtx.stroke();
+        });
+
+        _overlayCtx.beginPath();
+        _overlayCtx.arc(x, y, 2.5, 0, Math.PI * 2);
+        _overlayCtx.fillStyle = p.col;
+        _overlayCtx.fill();
+    });
+
+    // Server pulse rings
+    const ring = (Date.now() % 2000) / 2000;
+    for (let r = 1; r <= 3; r++) {
+        const rr = ring * 28 * r * 0.45;
+        _overlayCtx.beginPath();
+        _overlayCtx.arc(tgt.x, tgt.y, rr, 0, Math.PI * 2);
+        _overlayCtx.strokeStyle = `rgba(0,217,126,${Math.max(0, 0.6 - ring * r * 0.2)})`;
+        _overlayCtx.lineWidth = 1.5;
+        _overlayCtx.stroke();
     }
-    draw();
-    window.addEventListener('resize', resize);
-})();
+
+    requestAnimationFrame(animateOverlay);
+}
+
+// Load Google Maps async
+if (GMAPS_KEY) {
+    const s = document.createElement('script');
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}&callback=initMap`;
+    s.async = true; s.defer = true;
+    document.head.appendChild(s);
+}
 
 // ── Auto-refresh ──────────────────────────────────────────────────────────
 let countdown = 30;

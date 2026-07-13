@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Redis;
 
 class AdminSecurityController extends Controller
@@ -115,6 +116,8 @@ class AdminSecurityController extends Controller
             $this->liveUsers($now),
             $this->aiThreats($now),
             $this->contentStats(),
+            $this->geolocateAttackers($now),
+            ['gmapsKey'       => config('services.google.maps_api_key', '')],
             ['auditLog'       => SecurityAuditLog::orderByDesc('created_at')->limit(100)->get()],
             ['recentCritical' => SecurityAuditLog::where('severity', 'critical')->orderByDesc('created_at')->limit(20)->get()],
         );
@@ -549,6 +552,87 @@ class AdminSecurityController extends Controller
             try { $contentStats[$key] = $fn(); } catch (\Throwable) { $contentStats[$key] = 0; }
         }
         return compact('contentStats');
+    }
+
+    // ── IP Geolocation (real attacker positions) ──────────────────────────────
+
+    private function geolocateAttackers($now): array
+    {
+        $attackerGeo = Cache::remember('soc_attacker_geo', 3600, function () use ($now) {
+            // Get unique attacker IPs with event types (last 48h)
+            $rows = SecurityAuditLog::where('created_at', '>=', $now->copy()->subHours(48))
+                ->whereNotNull('ip_address')
+                ->whereIn('event', ['login.failed', 'login.blocked', 'upload.rejected', 'rate_limit'])
+                ->selectRaw('ip_address, event, COUNT(*) as cnt')
+                ->groupBy('ip_address', 'event')
+                ->orderByDesc('cnt')
+                ->limit(80)
+                ->get();
+
+            if ($rows->isEmpty()) {
+                return [];
+            }
+
+            // Filter out private / loopback IPs
+            $public = $rows->filter(fn ($r) => filter_var(
+                $r->ip_address,
+                FILTER_VALIDATE_IP,
+                FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+            ))->values();
+
+            if ($public->isEmpty()) {
+                return [];
+            }
+
+            // Batch geolocate via ip-api.com (free, server-side HTTP, cached 1h)
+            $batch = $public->map(fn ($r) => ['query' => $r->ip_address, 'fields' => 'status,lat,lon,country,city,query'])->toArray();
+
+            try {
+                $resp = Http::timeout(8)->post('http://ip-api.com/batch?fields=status,lat,lon,country,city,query', $batch);
+                if (! $resp->ok()) {
+                    return [];
+                }
+                $geo = $resp->json();
+            } catch (\Throwable) {
+                return [];
+            }
+
+            $result = [];
+            $seen   = [];
+
+            foreach ($geo as $i => $g) {
+                if (($g['status'] ?? '') !== 'success') {
+                    continue;
+                }
+                $ip = $g['query'] ?? ($public[$i]?->ip_address ?? null);
+                if (! $ip || isset($seen[$ip])) {
+                    continue;
+                }
+                $seen[$ip] = true;
+
+                $row  = $public->firstWhere('ip_address', $ip) ?? $public[$i];
+                $type = match ($row?->event ?? '') {
+                    'upload.rejected'           => 'malware_upload',
+                    'login.blocked'             => 'credential_stuffing',
+                    'rate_limit'                => 'api_abuse',
+                    default                     => 'brute_force',
+                };
+
+                $result[] = [
+                    'ip'      => $ip,
+                    'lat'     => (float) $g['lat'],
+                    'lng'     => (float) $g['lon'],
+                    'country' => $g['country'] ?? '',
+                    'city'    => $g['city'] ?? '',
+                    'cnt'     => (int) ($row?->cnt ?? 1),
+                    'type'    => $type,
+                ];
+            }
+
+            return $result;
+        });
+
+        return ['attackerGeo' => $attackerGeo];
     }
 
     // ── Quick Action Handlers ─────────────────────────────────────────────────
