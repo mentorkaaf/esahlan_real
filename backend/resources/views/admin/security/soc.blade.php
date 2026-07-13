@@ -97,12 +97,11 @@
 /* ── Map ─────────────────────────────────────────────────────────────── */
 #mapWrap{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--brd)}
 #gmap{width:100%;height:340px}
-#mapOverlay{position:absolute;top:0;left:0;width:100%;height:340px;pointer-events:none}
 .map-legend{position:absolute;bottom:12px;left:12px;display:flex;gap:8px;flex-wrap:wrap;z-index:10}
 .map-leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--txt2);background:rgba(0,0,0,.72);padding:3px 8px;border-radius:6px;backdrop-filter:blur(6px)}
 .map-leg-dot{width:8px;height:8px;border-radius:50%}
-.map-stats{position:absolute;top:10px;right:10px;z-index:10;background:rgba(6,9,26,.85);border:1px solid var(--brd);border-radius:10px;padding:8px 14px;font-size:11px;backdrop-filter:blur(8px)}
-.map-stats strong{color:var(--red);font-size:16px;display:block;line-height:1}
+.map-stats{position:absolute;top:10px;right:10px;z-index:10;background:rgba(6,9,26,.88);border:1px solid var(--brd);border-radius:10px;padding:8px 14px;font-size:11px;backdrop-filter:blur(8px)}
+.map-stats strong{color:var(--red);font-size:18px;display:block;line-height:1}
 
 /* ── Timeline ────────────────────────────────────────────────────────── */
 .tl{display:flex;flex-direction:column;gap:0;max-height:380px;overflow-y:auto}
@@ -384,7 +383,6 @@
             <div class="s-label">Live Attack Map — Real Attacker Locations</div>
             <div id="mapWrap">
                 <div id="gmap"></div>
-                <canvas id="mapOverlay"></canvas>
                 <div class="map-stats">
                     <strong id="mapAttackerCount">{{ count($attackerGeo) }}</strong>
                     <span style="color:var(--txt2)">Attackers (48h)</span>
@@ -1064,33 +1062,32 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     labels.forEach((l, i) => ctx.fillText(l, pad.l + (i / (n - 1 || 1)) * cw, H - 6));
 })();
 
-// ── Real Attack Map (Google Maps + real IP geolocation) ───────────────────
+// ── Real Attack Map ───────────────────────────────────────────────────────
 const ATTACKER_GEO  = @json($attackerGeo);
 const GMAPS_KEY     = '{{ $gmapsKey }}';
-const SERVER_POS    = { lat: 2.0469, lng: 45.3182 }; // eSahlan VPS region
+const SERVER_POS    = { lat: 2.0469, lng: 45.3182 };
 const ATTACK_COLORS = { brute_force:'#ff4757', credential_stuffing:'#ffc800', malware_upload:'#a855f7', api_abuse:'#4d9fff' };
 
 const DARK_MAP_STYLE = [
     {elementType:'geometry',stylers:[{color:'#0a0f1e'}]},
     {elementType:'labels',stylers:[{visibility:'off'}]},
-    {featureType:'water',elementType:'geometry',stylers:[{color:'#06152e'}]},
+    {featureType:'water',stylers:[{color:'#06152e'}]},
     {featureType:'road',stylers:[{visibility:'off'}]},
     {featureType:'poi',stylers:[{visibility:'off'}]},
     {featureType:'transit',stylers:[{visibility:'off'}]},
-    {featureType:'administrative.country',elementType:'geometry.stroke',stylers:[{color:'rgba(255,255,255,0.12)'}]},
+    {featureType:'administrative.country',elementType:'geometry.stroke',stylers:[{color:'#1e2d4a'}]},
     {featureType:'administrative.province',stylers:[{visibility:'off'}]},
-    {featureType:'landscape',elementType:'geometry',stylers:[{color:'#0d1226'}]},
+    {featureType:'landscape',stylers:[{color:'#0d1226'}]},
 ];
 
-let _gmap = null, _overlayCanvas = null, _overlayCtx = null;
-const _particles = [];
+let _gmap;
 
 function initMap() {
-    const mapEl = document.getElementById('gmap');
-    if (!mapEl || !window.google) return;
+    const el = document.getElementById('gmap');
+    if (!el || !window.google) return;
 
-    _gmap = new google.maps.Map(mapEl, {
-        center: { lat: 20, lng: 15 },
+    _gmap = new google.maps.Map(el, {
+        center: { lat: 25, lng: 15 },
         zoom: 2,
         styles: DARK_MAP_STYLE,
         disableDefaultUI: true,
@@ -1098,160 +1095,116 @@ function initMap() {
         backgroundColor: '#0a0f1e',
     });
 
-    // Server marker (eSahlan)
+    const bounds = new google.maps.LatLngBounds();
+    const srvLL  = new google.maps.LatLng(SERVER_POS.lat, SERVER_POS.lng);
+    bounds.extend(srvLL);
+
+    // ── Server marker
     new google.maps.Marker({
-        position: SERVER_POS,
-        map: _gmap,
-        title: 'eSahlan Server',
-        icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 9,
-            fillColor: '#00d97e',
-            fillOpacity: 1,
-            strokeColor: '#fff',
-            strokeWeight: 2,
-        },
-        zIndex: 100,
+        position: srvLL, map: _gmap, zIndex: 200,
+        title: 'eSahlan Server — Mogadishu',
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 11,
+                fillColor: '#00d97e', fillOpacity: 1,
+                strokeColor: '#ffffff', strokeWeight: 2.5 },
     });
 
-    // Real attacker markers
+    // Server pulse rings (static circles)
+    [80000, 180000, 320000].forEach((r, i) => {
+        new google.maps.Circle({
+            center: srvLL, radius: r, map: _gmap,
+            strokeColor: '#00d97e', strokeOpacity: 0.35 - i * 0.08, strokeWeight: 1,
+            fillColor: '#00d97e',   fillOpacity: 0.04 - i * 0.01,
+        });
+    });
+
+    if (ATTACKER_GEO.length === 0) {
+        // No attackers yet — keep world view
+        return;
+    }
+
     ATTACKER_GEO.forEach(a => {
-        const col = ATTACK_COLORS[a.type] || '#ff4757';
-        const marker = new google.maps.Marker({
-            position: { lat: a.lat, lng: a.lng },
-            map: _gmap,
-            title: `${a.ip} — ${a.city}, ${a.country} (${a.cnt} attempts)`,
-            icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: Math.min(10, 4 + a.cnt * 0.5),
-                fillColor: col,
-                fillOpacity: 0.85,
-                strokeColor: col,
-                strokeWeight: 1,
-            },
+        const col  = ATTACK_COLORS[a.type] || '#ff4757';
+        const aLL  = new google.maps.LatLng(a.lat, a.lng);
+        const sz   = Math.min(13, 7 + Math.sqrt(a.cnt));
+        bounds.extend(aLL);
+
+        // Attacker marker
+        const mk = new google.maps.Marker({
+            position: aLL, map: _gmap, zIndex: 100,
+            title: `${a.ip} (${a.cnt} attempts)`,
+            icon: { path: google.maps.SymbolPath.CIRCLE, scale: sz,
+                    fillColor: col, fillOpacity: 0.92,
+                    strokeColor: '#fff', strokeWeight: 1.5 },
+        });
+
+        // Glow ring around attacker
+        new google.maps.Circle({
+            center: aLL, radius: 60000 * Math.min(4, a.cnt), map: _gmap,
+            strokeColor: col, strokeOpacity: 0.35, strokeWeight: 1,
+            fillColor: col,   fillOpacity: 0.07,
         });
 
         // Info window on click
         const iw = new google.maps.InfoWindow({
-            content: `<div style="background:#0d1226;color:#fff;padding:10px;border-radius:8px;font-size:12px;min-width:180px">
-                <strong style="color:${col}">${a.type.replace(/_/g,' ').toUpperCase()}</strong><br>
-                <span style="font-family:monospace">${a.ip}</span><br>
-                📍 ${a.city ? a.city + ', ' : ''}${a.country}<br>
-                🔁 <strong>${a.cnt}</strong> attempts (48h)
+            content: `<div style="background:#0d1226;color:#fff;padding:12px 16px;border-radius:10px;font-size:12px;min-width:200px;border:1px solid ${col}33;line-height:1.8">
+                <strong style="color:${col};text-transform:uppercase;letter-spacing:.5px">${a.type.replace(/_/g,' ')}</strong><br>
+                <span style="font-family:monospace;font-size:13px">${a.ip}</span><br>
+                📍 ${[a.city, a.country].filter(Boolean).join(', ')}<br>
+                🔁 <strong style="color:#fff">${a.cnt}</strong> attempts in 48h
             </div>`,
         });
-        marker.addListener('click', () => iw.open(_gmap, marker));
-    });
+        mk.addListener('click', () => iw.open(_gmap, mk));
 
-    // Canvas overlay for animated attack lines
-    _gmap.addListener('idle', () => {
-        if (!_overlayCanvas) setupOverlay();
-        buildParticles();
-        if (!_overlayCanvas._animating) {
-            _overlayCanvas._animating = true;
-            animateOverlay();
-        }
-    });
-}
-
-function setupOverlay() {
-    const wrap = document.getElementById('mapWrap');
-    _overlayCanvas = document.getElementById('mapOverlay');
-    _overlayCanvas.width  = wrap.offsetWidth;
-    _overlayCanvas.height = 340;
-    _overlayCtx = _overlayCanvas.getContext('2d');
-}
-
-function latLngToPixel(lat, lng) {
-    if (!_gmap || !_gmap.getProjection() || !_gmap.getBounds()) return null;
-    const proj   = _gmap.getProjection();
-    const bounds = _gmap.getBounds();
-    const ne     = proj.fromLatLngToPoint(bounds.getNorthEast());
-    const sw     = proj.fromLatLngToPoint(bounds.getSouthWest());
-    const scale  = Math.pow(2, _gmap.getZoom());
-    const pt     = proj.fromLatLngToPoint(new google.maps.LatLng(lat, lng));
-    const W      = _overlayCanvas.width, H = 340;
-    return {
-        x: ((pt.x - sw.x) / (ne.x - sw.x)) * W,
-        y: ((pt.y - ne.y) / (sw.y - ne.y)) * H,
-    };
-}
-
-function buildParticles() {
-    _particles.length = 0;
-    ATTACKER_GEO.forEach(a => {
-        const col   = ATTACK_COLORS[a.type] || '#ff4757';
-        const count = Math.min(6, 1 + Math.ceil(a.cnt / 3));
-        for (let i = 0; i < count; i++) {
-            _particles.push({
-                lat: a.lat, lng: a.lng,
-                prog: Math.random(),
-                speed: 0.003 + Math.random() * 0.004,
-                col, trail: [],
-            });
-        }
-    });
-}
-
-function animateOverlay() {
-    if (!_overlayCtx || !_overlayCanvas) return;
-    const W = _overlayCanvas.width, H = 340;
-    _overlayCtx.clearRect(0, 0, W, H);
-
-    const tgt = latLngToPixel(SERVER_POS.lat, SERVER_POS.lng);
-    if (!tgt) { requestAnimationFrame(animateOverlay); return; }
-
-    _particles.forEach(p => {
-        const src = latLngToPixel(p.lat, p.lng);
-        if (!src) return;
-
-        p.prog += p.speed;
-        if (p.prog >= 1) { p.prog = 0; p.trail = []; }
-
-        const t  = p.prog;
-        const cx = (src.x + tgt.x) / 2;
-        const cy = Math.min(src.y, tgt.y) - 50;
-        const x  = (1-t)*(1-t)*src.x + 2*(1-t)*t*cx + t*t*tgt.x;
-        const y  = (1-t)*(1-t)*src.y + 2*(1-t)*t*cy + t*t*tgt.y;
-
-        p.trail.push({ x, y });
-        if (p.trail.length > 18) p.trail.shift();
-
-        p.trail.forEach((pt, i) => {
-            if (!i) return;
-            const alpha = (i / p.trail.length) * 0.75;
-            _overlayCtx.beginPath();
-            _overlayCtx.moveTo(p.trail[i-1].x, p.trail[i-1].y);
-            _overlayCtx.lineTo(pt.x, pt.y);
-            _overlayCtx.strokeStyle = p.col + Math.round(alpha * 255).toString(16).padStart(2, '0');
-            _overlayCtx.lineWidth = 1.8;
-            _overlayCtx.stroke();
+        // Geodesic attack line
+        new google.maps.Polyline({
+            path: [aLL, srvLL], geodesic: true, map: _gmap,
+            strokeColor: col, strokeOpacity: 0.22, strokeWeight: 1.5,
         });
 
-        _overlayCtx.beginPath();
-        _overlayCtx.arc(x, y, 2.5, 0, Math.PI * 2);
-        _overlayCtx.fillStyle = p.col;
-        _overlayCtx.fill();
+        // Animated moving dot along the attack path
+        spawnAttackDot(a.lat, a.lng, col);
     });
 
-    // Server pulse rings
-    const ring = (Date.now() % 2000) / 2000;
-    for (let r = 1; r <= 3; r++) {
-        const rr = ring * 28 * r * 0.45;
-        _overlayCtx.beginPath();
-        _overlayCtx.arc(tgt.x, tgt.y, rr, 0, Math.PI * 2);
-        _overlayCtx.strokeStyle = `rgba(0,217,126,${Math.max(0, 0.6 - ring * r * 0.2)})`;
-        _overlayCtx.lineWidth = 1.5;
-        _overlayCtx.stroke();
-    }
-
-    requestAnimationFrame(animateOverlay);
+    // Auto-zoom to fit all attackers + server
+    _gmap.fitBounds(bounds, { top: 40, right: 40, bottom: 60, left: 40 });
 }
 
-// Load Google Maps async
+// Animates a dot from attacker → server using bezier arc
+function spawnAttackDot(srcLat, srcLng, col) {
+    let t = Math.random(); // stagger start time
+
+    const dot = new google.maps.Marker({
+        map: _gmap, zIndex: 150,
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 4,
+                fillColor: col, fillOpacity: 1,
+                strokeColor: '#fff', strokeWeight: 0.8 },
+    });
+
+    // Midpoint lifted for arc effect
+    const midLat = (srcLat + SERVER_POS.lat) / 2 + 18;
+    const midLng = (srcLng + SERVER_POS.lng) / 2;
+
+    let last = null;
+    function step(ts) {
+        if (!last) last = ts;
+        t += (ts - last) / 3200; // full arc in ~3.2 seconds
+        last = ts;
+        if (t >= 1) t = 0;
+
+        const u  = 1 - t;
+        const lat = u*u*srcLat     + 2*u*t*midLat     + t*t*SERVER_POS.lat;
+        const lng = u*u*srcLng     + 2*u*t*midLng     + t*t*SERVER_POS.lng;
+        dot.setPosition({ lat, lng });
+        requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+}
+
+// Bootstrap Google Maps
 if (GMAPS_KEY) {
+    window.initMap = initMap;
     const s = document.createElement('script');
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}&callback=initMap`;
+    s.src   = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}&callback=initMap`;
     s.async = true; s.defer = true;
     document.head.appendChild(s);
 }
