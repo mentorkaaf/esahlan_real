@@ -116,8 +116,8 @@ body[data-soc-theme="dark"] .g{background:linear-gradient(135deg,rgba(255,255,25
 .s-sub{font-size:12px;color:var(--txt2);margin-bottom:16px}
 
 /* ── Map ─────────────────────────────────────────────────────────────── */
-#mapWrap{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--brd)}
-#gmap{width:100%;height:340px}
+#mapWrap{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--brd);display:flex;flex-direction:column;flex:1}
+#gmap{width:100%;flex:1;min-height:320px}
 .map-legend{position:absolute;bottom:12px;left:12px;display:flex;gap:8px;flex-wrap:wrap;z-index:10}
 .map-leg-dot{width:8px;height:8px;border-radius:50%}
 
@@ -414,8 +414,8 @@ body[data-soc-theme="dark"] #themeToggle .t-icon{transform:rotate(180deg)}
         </div>
     </div>
 
-    <div class="gc" style="margin-bottom:20px">
-        <div>
+    <div class="gc" style="margin-bottom:20px;align-items:stretch">
+        <div style="display:flex;flex-direction:column">
             <div class="s-label">Live Attack Map — Real Attacker Locations</div>
             <div id="mapWrap">
                 <div id="gmap"></div>
@@ -434,7 +434,7 @@ body[data-soc-theme="dark"] #themeToggle .t-icon{transform:rotate(180deg)}
         </div>
         <div>
             <div class="s-label">Security Timeline</div>
-            <div class="g" style="padding:16px;height:374px;overflow:hidden;display:flex;flex-direction:column">
+            <div class="g" style="padding:16px;overflow:hidden;display:flex;flex-direction:column;flex:1">
                 <div class="tl" id="tlFeed">
                     @forelse($auditLog as $log)
                     @php
@@ -1001,6 +1001,13 @@ function applyTheme(theme, save) {
 function toggleTheme() {
     const cur = document.body.getAttribute('data-soc-theme') === 'dark' ? 'dark' : 'light';
     applyTheme(cur === 'dark' ? 'light' : 'dark');
+    // Redraw all canvas charts with new theme colors
+    setTimeout(() => {
+        drawGauge({{ $securityScore }});
+        drawHourlyChart();
+        drawDonutChart();
+        drawTrendChart();
+    }, 50); // small delay so CSS vars update first
 }
 
 // ── Tabs ───────────────────────────────────────────────────────────────────
@@ -1013,34 +1020,44 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     });
 });
 
+// ── Theme helpers ─────────────────────────────────────────────────────────
+function isDark() { return document.body.getAttribute('data-soc-theme') === 'dark'; }
+function cssVar(v) { return getComputedStyle(document.body).getPropertyValue(v).trim(); }
+function gridColor() { return isDark() ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.07)'; }
+function labelColor() { return isDark() ? 'rgba(255,255,255,.35)' : '#94a3b8'; }
+
 // ── Security Score Gauge ──────────────────────────────────────────────────
-(function () {
+function drawGauge(score) {
     const c = document.getElementById('scoreGauge');
     if (!c) return;
     const ctx = c.getContext('2d');
-    const score = {{ $securityScore }};
     const color = score >= 90 ? '#00d97e' : score >= 70 ? '#ffc800' : score >= 50 ? '#ff7c00' : '#ff4757';
     const start = Math.PI * 0.75, end = Math.PI * 2.25;
+    ctx.clearRect(0, 0, 120, 120);
     ctx.beginPath(); ctx.arc(60, 60, 50, start, end);
-    ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.stroke();
+    ctx.strokeStyle = isDark() ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.1)';
+    ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.stroke();
     ctx.beginPath(); ctx.arc(60, 60, 50, start, start + (end - start) * (score / 100));
     ctx.strokeStyle = color; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.stroke();
-    document.getElementById('scoreNum').style.color = color;
-})();
+    const num = document.getElementById('scoreNum');
+    if (num) num.style.color = color;
+}
+drawGauge({{ $securityScore }});
 
-// ── Hourly Chart ───────────────────────────────────────────────────────────
-(function () {
+// ── Hourly Bar Chart ───────────────────────────────────────────────────────
+const _hourlyData = @json(array_column($hourlyData, 'count'));
+function drawHourlyChart() {
     const c = document.getElementById('hourlyChart');
     if (!c) return;
     const ctx = c.getContext('2d');
-    const data = @json(array_column($hourlyData, 'count'));
-    const W = c.offsetWidth, H = 160;
+    const data = _hourlyData;
+    const W = c.offsetWidth || c.parentElement.offsetWidth, H = 160;
     c.width = W; c.height = H;
     const max = Math.max(...data, 1);
     const pad = { t: 10, r: 10, b: 28, l: 30 };
     const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
     ctx.clearRect(0, 0, W, H);
-    ctx.strokeStyle = 'rgba(255,255,255,.05)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = gridColor(); ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
         const y = pad.t + ch - (i / 4) * ch;
         ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
@@ -1048,83 +1065,98 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     data.forEach((v, i) => {
         const bw = Math.max(2, cw / data.length - 3);
         const x = pad.l + (i / data.length) * cw + (cw / data.length - bw) / 2;
-        const bh = (v / max) * ch;
+        const bh = (v / max) * ch || 2;
         const grd = ctx.createLinearGradient(0, pad.t + ch - bh, 0, pad.t + ch);
-        grd.addColorStop(0, 'rgba(255,71,87,.9)'); grd.addColorStop(1, 'rgba(255,71,87,.15)');
+        grd.addColorStop(0, 'rgba(229,62,62,.9)'); grd.addColorStop(1, 'rgba(229,62,62,.15)');
         ctx.fillStyle = grd;
         ctx.beginPath(); ctx.roundRect(x, pad.t + ch - bh, bw, bh, [3, 3, 0, 0]); ctx.fill();
     });
-    ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.font = '10px system-ui'; ctx.textAlign = 'center';
+    ctx.fillStyle = labelColor(); ctx.font = '10px system-ui'; ctx.textAlign = 'center';
     for (let i = 0; i < 24; i += 4) {
         const x = pad.l + (i / data.length) * cw + cw / (data.length * 2);
         ctx.fillText(i + ':00', x, H - 6);
     }
-})();
+}
+drawHourlyChart();
 
 // ── Donut Chart ────────────────────────────────────────────────────────────
-(function () {
+const _sevRaw = @json($severityData);
+const _sevItems = [
+    { label: 'Critical', key: 'critical', color: '#e53e3e' },
+    { label: 'High',     key: 'high',     color: '#E87200' },
+    { label: 'Medium',   key: 'medium',   color: '#d69e00' },
+    { label: 'Low',      key: 'low',      color: '#2b7de9' },
+    { label: 'Info',     key: 'info',     color: '#94a3b8' },
+];
+function drawDonutChart() {
     const c = document.getElementById('sevDonut');
     if (!c) return;
     const ctx = c.getContext('2d');
-    const raw = @json($severityData);
-    const items = [
-        { label: 'Critical', key: 'critical', color: '#ff4757' },
-        { label: 'High',     key: 'high',     color: '#FF8A00' },
-        { label: 'Medium',   key: 'medium',   color: '#ffc800' },
-        { label: 'Low',      key: 'low',      color: '#4d9fff' },
-        { label: 'Info',     key: 'info',     color: 'rgba(255,255,255,.2)' },
-    ];
-    const vals = items.map(it => raw[it.key]?.count || 0);
+    const vals = _sevItems.map(it => _sevRaw[it.key]?.count || 0);
     const total = vals.reduce((a, b) => a + b, 0) || 1;
+    const bg2 = cssVar('--bg2') || (isDark() ? '#0d1226' : '#ffffff');
+    ctx.clearRect(0, 0, 160, 160);
     let angle = -Math.PI / 2;
     vals.forEach((v, i) => {
         const slice = (v / total) * Math.PI * 2;
-        ctx.beginPath(); ctx.moveTo(80, 80); ctx.arc(80, 80, 65, angle, angle + slice);
-        ctx.closePath(); ctx.fillStyle = items[i].color; ctx.fill();
-        ctx.beginPath(); ctx.arc(80, 80, 38, 0, Math.PI * 2);
-        ctx.fillStyle = '#0d1226'; ctx.fill();
+        if (slice > 0) {
+            ctx.beginPath(); ctx.moveTo(80, 80); ctx.arc(80, 80, 65, angle, angle + slice);
+            ctx.closePath(); ctx.fillStyle = _sevItems[i].color; ctx.fill();
+        }
         angle += slice;
     });
+    ctx.beginPath(); ctx.arc(80, 80, 38, 0, Math.PI * 2);
+    ctx.fillStyle = bg2; ctx.fill();
+    // Legend
     const leg = document.getElementById('sevLegend');
-    if (leg) items.forEach((it, i) => {
-        if (!vals[i]) return;
-        leg.innerHTML += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:rgba(255,255,255,.55)"><div style="width:8px;height:8px;border-radius:50%;background:${it.color}"></div>${it.label} <strong style="color:#fff">${vals[i]}</strong></div>`;
-    });
-})();
+    if (leg) {
+        leg.innerHTML = '';
+        _sevItems.forEach((it, i) => {
+            if (!vals[i]) return;
+            const txt = cssVar('--txt') || (isDark() ? '#fff' : '#1a202c');
+            const txt2 = cssVar('--txt2') || (isDark() ? 'rgba(255,255,255,.5)' : '#4a5568');
+            leg.innerHTML += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:${txt2}"><div style="width:8px;height:8px;border-radius:50%;background:${it.color}"></div>${it.label} <strong style="color:${txt}">${vals[i]}</strong></div>`;
+        });
+    }
+}
+drawDonutChart();
 
 // ── 7-Day Trend Chart ──────────────────────────────────────────────────────
-(function () {
+const _trendRaw = @json($dailyEvents);
+function drawTrendChart() {
     const c = document.getElementById('trendChart');
     if (!c) return;
     const ctx = c.getContext('2d');
-    const W = c.offsetWidth, H = 120;
+    const W = c.offsetWidth || c.parentElement.offsetWidth, H = 120;
     c.width = W; c.height = H;
-    const raw = @json($dailyEvents);
-    if (!raw.length) return;
-    const data = raw.map(r => r.count);
-    const labels = raw.map(r => (r.date || '').slice(5));
+    if (!_trendRaw.length) return;
+    const data = _trendRaw.map(r => r.count);
+    const labels = _trendRaw.map(r => (r.date || '').slice(5));
     const max = Math.max(...data, 1);
     const pad = { t: 10, r: 10, b: 28, l: 40 };
     const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+    const n = data.length;
     ctx.clearRect(0, 0, W, H);
-    ctx.strokeStyle = 'rgba(255,255,255,.05)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = gridColor(); ctx.lineWidth = 1;
     for (let i = 0; i <= 3; i++) {
         const y = pad.t + ch - (i / 3) * ch;
         ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
     }
-    const n = data.length;
+    const ora = isDark() ? '#FF8A00' : '#E87200';
     ctx.beginPath(); ctx.moveTo(pad.l, pad.t + ch);
-    data.forEach((v, i) => ctx[i === 0 ? 'lineTo' : 'lineTo'](pad.l + (i / (n - 1 || 1)) * cw, pad.t + ch - (v / max) * ch));
+    data.forEach((v, i) => ctx.lineTo(pad.l + (i / (n - 1 || 1)) * cw, pad.t + ch - (v / max) * ch));
     ctx.lineTo(pad.l + cw, pad.t + ch); ctx.closePath();
     const grd = ctx.createLinearGradient(0, pad.t, 0, pad.t + ch);
-    grd.addColorStop(0, 'rgba(255,138,0,.3)'); grd.addColorStop(1, 'rgba(255,138,0,.02)');
+    grd.addColorStop(0, isDark() ? 'rgba(255,138,0,.3)' : 'rgba(232,114,0,.2)');
+    grd.addColorStop(1, 'rgba(255,138,0,.02)');
     ctx.fillStyle = grd; ctx.fill();
-    ctx.beginPath(); ctx.strokeStyle = '#FF8A00'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.strokeStyle = ora; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
     data.forEach((v, i) => ctx[i === 0 ? 'moveTo' : 'lineTo'](pad.l + (i / (n - 1 || 1)) * cw, pad.t + ch - (v / max) * ch));
     ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.font = '10px system-ui'; ctx.textAlign = 'center';
+    ctx.fillStyle = labelColor(); ctx.font = '10px system-ui'; ctx.textAlign = 'center';
     labels.forEach((l, i) => ctx.fillText(l, pad.l + (i / (n - 1 || 1)) * cw, H - 6));
-})();
+}
+drawTrendChart();
 
 // ── Real Attack Map ───────────────────────────────────────────────────────
 const ATTACKER_GEO  = @json($attackerGeo);
