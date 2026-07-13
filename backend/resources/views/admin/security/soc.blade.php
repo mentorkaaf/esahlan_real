@@ -584,23 +584,109 @@ body[data-soc-theme="dark"] #themeToggle .t-icon{transform:rotate(180deg)}
                 <div id="hlTooltip" style="display:none;position:absolute;pointer-events:none;background:var(--bg2);border:1px solid var(--brd);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--txt);box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:110px;z-index:10"></div>
             </div>
         </div>
-        <div class="g" style="padding:0;overflow:hidden">
-            <div style="padding:16px 16px 8px;border-bottom:1px solid var(--brd)">
-                <div class="s-head" style="margin:0 0 2px">Severity Distribution</div>
-                <div class="s-sub" style="margin:0">Event breakdown — last 24h</div>
+        <div class="g" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
+            @php
+                $totalEvents24h = $severityData->sum('count');
+                $criticalCount  = $severityData->get('critical')?->count ?? 0;
+                $topEvtList     = $eventBreakdown->take(5);
+                $topIpList      = $topIps->take(4);
+                $maxEvtCount    = $topEvtList->max('count') ?: 1;
+                $maxIpCount     = $topIpList->max('attempts') ?: 1;
+            @endphp
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--brd)">
+                <div>
+                    <div class="s-head" style="margin:0 0 1px;font-size:13px">Severity Distribution</div>
+                    <div class="s-sub" style="margin:0;font-size:10px">Event breakdown — last 24h</div>
+                </div>
+                <div style="display:flex;gap:6px">
+                    <div style="padding:3px 10px;border-radius:6px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);font-size:11px;font-weight:700;color:#ef4444">{{ $criticalCount }} critical</div>
+                    <div style="padding:3px 10px;border-radius:6px;background:var(--bg3);border:1px solid var(--brd);font-size:11px;font-weight:700;color:var(--txt)">{{ $totalEvents24h }} total</div>
+                </div>
             </div>
-            <div class="sev-panel">
-                <div class="sev-donut-wrap">
-                    <div style="position:relative;flex-shrink:0">
-                        <canvas id="sevDonut" width="140" height="140"></canvas>
+
+            {{-- Main body: 3 columns --}}
+            <div style="display:flex;flex:1;overflow:hidden;min-height:0">
+
+                {{-- Col 1: Donut --}}
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 10px;border-right:1px solid var(--brd);flex-shrink:0;width:152px">
+                    <div style="position:relative">
+                        <canvas id="sevDonut" width="130" height="130"></canvas>
                         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
-                            <div id="sevTotalNum" class="sev-donut-total">0</div>
+                            <div id="sevTotalNum" class="sev-donut-total" style="font-size:22px">0</div>
                             <div class="sev-donut-sub">events</div>
                         </div>
                     </div>
-                    <div id="sevQuickStats" style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:0"></div>
+                    <div id="sevQuickStats" style="display:flex;flex-direction:column;gap:4px;width:100%;margin-top:8px"></div>
                 </div>
-                <div class="sev-rows" id="sevRows"></div>
+
+                {{-- Col 2: Top Event Types --}}
+                <div style="flex:1;border-right:1px solid var(--brd);display:flex;flex-direction:column;min-width:0">
+                    <div style="padding:8px 12px 6px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--txt3);border-bottom:1px solid var(--brd)">
+                        <i class="fas fa-list-ul" style="margin-right:4px"></i>Top Event Types
+                    </div>
+                    <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column">
+                        @forelse($topEvtList as $evt)
+                        @php
+                            $evtPct = round($evt->count / $maxEvtCount * 100);
+                            $evtColor = match(true) {
+                                str_contains($evt->event,'blocked')   => '#ef4444',
+                                str_contains($evt->event,'failed')    => '#f97316',
+                                str_contains($evt->event,'probe')     => '#eab308',
+                                str_contains($evt->event,'success')   => '#10b981',
+                                str_contains($evt->event,'register')  => '#3b82f6',
+                                default => '#94a3b8',
+                            };
+                        @endphp
+                        <div style="padding:7px 12px;border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:8px">
+                            <div style="width:3px;height:28px;border-radius:2px;background:{{ $evtColor }};flex-shrink:0"></div>
+                            <div style="flex:1;min-width:0">
+                                <div style="font-size:10.5px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $evt->event }}</div>
+                                <div style="margin-top:4px;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden">
+                                    <div style="height:100%;width:{{ $evtPct }}%;background:{{ $evtColor }};border-radius:2px;transition:width .5s ease"></div>
+                                </div>
+                            </div>
+                            <div style="font-size:12px;font-weight:800;color:var(--txt);flex-shrink:0">{{ $evt->count }}</div>
+                        </div>
+                        @empty
+                        <div style="padding:20px;text-align:center;font-size:11px;color:var(--txt3)">No events</div>
+                        @endforelse
+                    </div>
+                </div>
+
+                {{-- Col 3: Top Attacking IPs --}}
+                <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+                    <div style="padding:8px 12px 6px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--txt3);border-bottom:1px solid var(--brd)">
+                        <i class="fas fa-crosshairs" style="margin-right:4px"></i>Top Attackers
+                    </div>
+                    <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column">
+                        @forelse($topIpList as $i => $ip)
+                        @php
+                            $risk = $ip->attempts > 20 ? ['CRIT','#ef4444'] : ($ip->attempts > 10 ? ['HIGH','#f97316'] : ($ip->attempts > 3 ? ['MED','#eab308'] : ['LOW','#3b82f6']));
+                            $ipPct = round($ip->attempts / $maxIpCount * 100);
+                        @endphp
+                        <div style="padding:7px 12px;border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:8px">
+                            <div style="font-size:10px;font-weight:700;color:var(--txt3);width:14px;flex-shrink:0">{{ $i+1 }}</div>
+                            <div style="flex:1;min-width:0">
+                                <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">
+                                    <span style="font-size:10.5px;font-weight:600;color:var(--txt);font-family:monospace">{{ $ip->ip_address }}</span>
+                                    <span style="font-size:8.5px;font-weight:700;padding:1px 5px;border-radius:3px;background:{{ $risk[1] }}22;color:{{ $risk[1] }}">{{ $risk[0] }}</span>
+                                </div>
+                                <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden">
+                                    <div style="height:100%;width:{{ $ipPct }}%;background:{{ $risk[1] }};border-radius:2px;transition:width .5s ease"></div>
+                                </div>
+                            </div>
+                            <div style="font-size:12px;font-weight:800;color:{{ $risk[1] }};flex-shrink:0">{{ $ip->attempts }}</div>
+                        </div>
+                        @empty
+                        <div style="padding:20px;text-align:center;font-size:11px;color:var(--txt3)"><i class="fas fa-shield-check" style="color:var(--grn);display:block;font-size:18px;margin-bottom:4px"></i>No attackers</div>
+                        @endforelse
+                    </div>
+                    {{-- Severity rows at bottom --}}
+                    <div style="border-top:1px solid var(--brd)">
+                        <div id="sevRows" style="display:flex;flex-direction:column"></div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -1419,7 +1505,7 @@ function drawDonutChart() {
     const c = document.getElementById('sevDonut');
     if (!c) return;
     const ctx = c.getContext('2d');
-    const W = 140, R = 56, r = 34, cx = 70, cy = 70;
+    const W = 130, R = 52, r = 31, cx = 65, cy = 65;
     const vals  = _sevItems.map(it => _sevRaw[it.key]?.count || 0);
     const total = vals.reduce((a,b)=>a+b,0) || 1;
     const bg2   = cssVar('--bg2') || (isDark() ? '#0d1226' : '#ffffff');
@@ -1428,7 +1514,7 @@ function drawDonutChart() {
 
     // Gap between slices
     let angle = -Math.PI / 2;
-    const gap = 0.025;
+    const gap = 0.03;
     vals.forEach((v, i) => {
         const slice = (v / total) * Math.PI * 2;
         if (slice < 0.01) { angle += slice; return; }
@@ -1452,39 +1538,33 @@ function drawDonutChart() {
     // Quick stats (right of donut — top 3 non-zero)
     const qEl = document.getElementById('sevQuickStats');
     if (qEl) {
-        const top3 = _sevItems.map((it,i)=>({...it,v:vals[i]})).filter(x=>x.v>0).slice(0,3);
+        const top3 = _sevItems.map((it,i)=>({...it,v:vals[i]})).filter(x=>x.v>0).slice(0,4);
         qEl.innerHTML = top3.map(it => `
-            <div style="display:flex;align-items:center;gap:8px">
-                <div style="width:3px;height:28px;border-radius:2px;background:${it.color};flex-shrink:0"></div>
-                <div>
-                    <div style="font-size:16px;font-weight:800;color:var(--txt);line-height:1">${it.v}</div>
-                    <div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px">${it.label}</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:2px 0">
+                <div style="display:flex;align-items:center;gap:5px">
+                    <div style="width:7px;height:7px;border-radius:50%;background:${it.color};flex-shrink:0"></div>
+                    <span style="font-size:10px;color:var(--txt2)">${it.label}</span>
                 </div>
+                <strong style="font-size:11px;color:var(--txt)">${it.v}</strong>
             </div>
         `).join('');
     }
 
-    // Rows
+    // Rows — compact 2-per-row grid inside col 3
     const rowsEl = document.getElementById('sevRows');
     if (rowsEl) {
-        const maxVal = Math.max(...vals, 1);
-        rowsEl.innerHTML = _sevItems.map((it,i) => {
+        rowsEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;padding:4px 0">` +
+        _sevItems.map((it,i) => {
             const v   = vals[i];
             const pct = Math.round((v / total) * 100);
-            const bar = Math.round((v / maxVal) * 100);
-            const trend = v > 0 ? (v > (total/6) ? '↑' : '↓') : '—';
-            const trendColor = trend==='↑' ? 'var(--red)' : (trend==='↓' ? 'var(--grn)' : 'var(--txt3)');
-            return `<div class="sev-row">
-                <div class="sev-row-dot" style="background:${it.color}"></div>
-                <div class="sev-row-label">${it.label}</div>
-                <div class="sev-row-bar-wrap">
-                    <div class="sev-row-bar" style="width:${bar}%;background:${it.color};opacity:.85"></div>
+            return `<div style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-bottom:1px solid var(--brd)">
+                <div style="width:7px;height:7px;border-radius:50%;background:${it.color};flex-shrink:0"></div>
+                <div style="flex:1;min-width:0">
+                    <div style="font-size:9.5px;color:var(--txt3);text-transform:uppercase;letter-spacing:.3px">${it.label}</div>
+                    <div style="font-size:13px;font-weight:800;color:var(--txt);line-height:1.2">${v} <span style="font-size:9px;font-weight:400;color:var(--txt3)">${pct}%</span></div>
                 </div>
-                <div class="sev-row-count">${v}</div>
-                <div class="sev-row-pct">${pct}%</div>
-                <div class="sev-row-trend" style="color:${trendColor}">${trend}</div>
             </div>`;
-        }).join('');
+        }).join('') + `</div>`;
     }
 }
 drawDonutChart();
