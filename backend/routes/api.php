@@ -124,10 +124,10 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::prefix('auth')->group(function () {
-        Route::post('register',     [AuthController::class, 'register']);
-        Route::post('send-otp',     [AuthController::class, 'sendOtp']);
-        Route::post('verify-otp',   [AuthController::class, 'verifyOtp']);
-        Route::post('login',        [AuthController::class, 'login']);
+        Route::post('register',        [AuthController::class, 'register']);
+        Route::post('send-otp',        [AuthController::class, 'sendOtp']);
+        Route::post('verify-otp',      [AuthController::class, 'verifyOtp']);
+        Route::post('login',           [AuthController::class, 'login'])->middleware('brute_force');
         Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
         Route::post('reset-password',  [AuthController::class, 'resetPassword']);
     });
@@ -569,6 +569,10 @@ Route::prefix('v1')->group(function () {
         Route::prefix('admin')->middleware('role:super_admin,admin,operations_manager,finance_manager')->group(function () {
             // dashboard stats via API
             Route::get('stats', [\App\Http\Controllers\Admin\DashboardController::class, 'stats']);
+
+            // SOC — Security Operations Center
+            Route::get('soc/stats',          [\App\Http\Controllers\Api\Admin\SocController::class, 'stats']);
+            Route::get('soc/events',         [\App\Http\Controllers\Api\Admin\SocController::class, 'recentEvents']);
         });
     });
 });
