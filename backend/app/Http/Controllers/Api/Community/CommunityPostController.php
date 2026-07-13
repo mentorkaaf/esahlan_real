@@ -8,6 +8,7 @@ use App\Models\CommunityHashtag;
 use App\Models\CommunitySavedPost;
 use App\Models\CommunityNotification;
 use App\Models\CommunityPollVote;
+use App\Services\FileUploadSecurityService;
 use App\Services\InteractionTracker;
 use App\Services\FcmService;
 use App\Services\RealtimeService;
@@ -96,6 +97,13 @@ class CommunityPostController extends Controller
         // Handle media uploads
         if ($request->hasFile('media')) {
             foreach ($request->file('media') as $i => $file) {
+                // Security: validate magic bytes, extension, size before storing
+                $check = \App\Services\FileUploadSecurityService::validate($file, 'media');
+                if (!$check['ok']) {
+                    $post->delete();
+                    return response()->json(['status' => 'error', 'message' => $check['reason']], 422);
+                }
+
                 $mime = $file->getMimeType();
                 $type = 'image';
                 if (str_starts_with($mime, 'video/')) $type = 'video';

@@ -28,6 +28,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'brute_force'   => \App\Http\Middleware\CheckBruteForce::class,
         ]);
 
+        // Sanitize text input on every API request (strip null bytes + control chars)
+        $middleware->api(append: [
+            \App\Http\Middleware\SanitizeInput::class,
+        ]);
+
         // CORS must run before everything — prepend to global stack
         $middleware->prepend(\Illuminate\Http\Middleware\HandleCors::class);
 

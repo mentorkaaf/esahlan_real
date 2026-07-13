@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Api\Community;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessStoryVideoJob;
+use App\Services\FileUploadSecurityService;
 use App\Models\CommunityStory;
 use App\Models\CommunityStoryView;
 use App\Services\FcmService;
@@ -30,8 +31,13 @@ class CommunityStoryController extends Controller
         $mediaUrl = null;
         $rawPath  = null;
         if ($request->hasFile('media')) {
-            $rawPath  = $request->file('media')->store('community/stories', 'public');
-            $mediaUrl = cdn_url($rawPath); // immediately usable; job will replace with optimized URL
+            $file  = $request->file('media');
+            $check = FileUploadSecurityService::validate($file, 'media');
+            if (!$check['ok']) {
+                return response()->json(['status' => 'error', 'message' => $check['reason']], 422);
+            }
+            $rawPath  = $file->store('community/stories', 'public');
+            $mediaUrl = cdn_url($rawPath);
         }
 
         $story = CommunityStory::create([

@@ -8,6 +8,7 @@ use App\Models\OtpCode;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Services\FileUploadSecurityService;
 use App\Services\SecurityAuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -335,8 +336,12 @@ class AuthController extends Controller
         }
 
         if ($request->hasFile('avatar')) {
-            $path         = $request->file('avatar')->store('avatars', 'public');
-            $data['avatar'] = $path;
+            $avatarFile = $request->file('avatar');
+            $check      = FileUploadSecurityService::validate($avatarFile, 'avatar');
+            if (!$check['ok']) {
+                return response()->json(['success' => false, 'message' => $check['reason']], 422);
+            }
+            $data['avatar'] = $avatarFile->store('avatars', 'public');
         }
 
         $user->update($data);
