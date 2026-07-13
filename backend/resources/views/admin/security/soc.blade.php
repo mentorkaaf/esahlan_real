@@ -610,10 +610,15 @@ canvas.soc-chart { display: block; width: 100% !important; }
             <div class="infra-info">
                 <div class="infra-name">{{ $svc['label'] }}</div>
                 <div class="infra-meta">
-                    @if(isset($svc['latency']) && $svc['latency'] !== null){{ $svc['latency'] }}ms latency@endif
-                    @if(isset($svc['failed'])) {{ $svc['failed'] }} failed · {{ $svc['pending'] }} pending@endif
-                    @if(isset($svc['used_pct'])) {{ $svc['used_pct'] }}% used ({{ $svc['free_gb'] ?? '?' }}GB free)@endif
-                    @if(!isset($svc['latency']) && !isset($svc['failed']) && !isset($svc['used_pct'])) Operational @endif
+                    @if(isset($svc['latency']) && $svc['latency'] !== null)
+                        {{ $svc['latency'] }}ms latency
+                    @elseif(isset($svc['failed']))
+                        {{ $svc['failed'] }} failed · {{ $svc['pending'] }} pending
+                    @elseif(isset($svc['used_pct']))
+                        {{ $svc['used_pct'] }}% used ({{ $svc['free_gb'] ?? '?' }}GB free)
+                    @else
+                        Operational
+                    @endif
                 </div>
             </div>
             <span class="infra-status status-{{ $st }}">{{ strtoupper($st) }}</span>
