@@ -981,45 +981,42 @@ function dismissSecToast(el) {
     setTimeout(() => el.remove(), 280);
 }
 
-// Audio — unlocked on first user gesture, then reused
-let _secAudioCtx = null;
-function _getAudioCtx() {
-    if (!_secAudioCtx) {
-        try { _secAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
-    }
-    if (_secAudioCtx && _secAudioCtx.state === 'suspended') {
-        _secAudioCtx.resume().catch(() => {});
-    }
-    return _secAudioCtx;
-}
-// Unlock on first click anywhere on page
-document.addEventListener('click', () => _getAudioCtx(), { once: true });
+// Audio — new context per beep, resumed immediately
+let _secAudioUnlocked = false;
+document.addEventListener('click', () => { _secAudioUnlocked = true; }, { once: true });
 
 function secBeep(sev) {
+    if (!_secAudioUnlocked) return;
     try {
-        const ctx = _getAudioCtx();
-        if (!ctx || ctx.state !== 'running') return;
-        const playTone = (freq, startOffset, dur) => {
-            const osc  = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain); gain.connect(ctx.destination);
-            osc.type = 'sine';
-            osc.frequency.value = freq;
-            gain.gain.setValueAtTime(0, ctx.currentTime + startOffset);
-            gain.gain.linearRampToValueAtTime(0.9, ctx.currentTime + startOffset + 0.01);
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startOffset + dur);
-            osc.start(ctx.currentTime + startOffset);
-            osc.stop(ctx.currentTime + startOffset + dur);
-        };
-        if (sev === 'critical') {
-            // Two-tone urgent beep
-            playTone(880, 0,    0.12);
-            playTone(660, 0.15, 0.18);
-        } else {
-            // Single soft beep
-            playTone(660, 0, 0.2);
-        }
-    } catch(e) {}
+        const AC  = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        const ctx = new AC();
+        ctx.resume().then(() => {
+            const play = (freq, delay, dur) => {
+                const osc  = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'square';           // louder, more cutting than sine
+                osc.frequency.value = freq;
+                const t = ctx.currentTime + delay;
+                gain.gain.setValueAtTime(0.001, t);
+                gain.gain.linearRampToValueAtTime(1.0, t + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+                osc.start(t);
+                osc.stop(t + dur + 0.05);
+                osc.onended = () => { try { ctx.close(); } catch(e) {} };
+            };
+            if (sev === 'critical') {
+                play(1000, 0,    0.15);
+                play(700,  0.2,  0.25);
+                play(1000, 0.5,  0.15);
+            } else {
+                play(750, 0, 0.2);
+                play(600, 0.25, 0.2);
+            }
+        });
+    } catch(e) { console.warn('secBeep error:', e); }
 }
 
 // ── Polling ──────────────────────────────────────────────────────────────────
