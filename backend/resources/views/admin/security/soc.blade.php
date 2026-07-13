@@ -1001,13 +1001,14 @@ function applyTheme(theme, save) {
 function toggleTheme() {
     const cur = document.body.getAttribute('data-soc-theme') === 'dark' ? 'dark' : 'light';
     applyTheme(cur === 'dark' ? 'light' : 'dark');
-    // Redraw all canvas charts with new theme colors
+    // Redraw all canvas charts + update map style
     setTimeout(() => {
         drawGauge({{ $securityScore }});
         drawHourlyChart();
         drawDonutChart();
         drawTrendChart();
-    }, 50); // small delay so CSS vars update first
+        if (_gmap) _gmap.setOptions({ styles: currentMapStyle() });
+    }, 50);
 }
 
 // ── Tabs ───────────────────────────────────────────────────────────────────
@@ -1162,7 +1163,9 @@ drawTrendChart();
 const ATTACKER_GEO  = @json($attackerGeo);
 const GMAPS_KEY     = '{{ $gmapsKey }}';
 const SERVER_POS    = { lat: 2.0469, lng: 45.3182 };
-const ATTACK_COLORS = { brute_force:'#ff4757', credential_stuffing:'#ffc800', malware_upload:'#a855f7', api_abuse:'#4d9fff' };
+const ATTACK_COLORS_DARK  = { brute_force:'#ff4757', credential_stuffing:'#ffc800', malware_upload:'#a855f7', api_abuse:'#4d9fff' };
+const ATTACK_COLORS_LIGHT = { brute_force:'#dc2626', credential_stuffing:'#b45309', malware_upload:'#7c3aed', api_abuse:'#1d4ed8' };
+function attackColor(type) { return (isDark() ? ATTACK_COLORS_DARK : ATTACK_COLORS_LIGHT)[type] || (isDark() ? '#ff4757' : '#dc2626'); }
 
 const DARK_MAP_STYLE = [
     {elementType:'geometry',stylers:[{color:'#0a0f1e'}]},
@@ -1176,6 +1179,21 @@ const DARK_MAP_STYLE = [
     {featureType:'landscape',stylers:[{color:'#0d1226'}]},
 ];
 
+const LIGHT_MAP_STYLE = [
+    {elementType:'geometry',stylers:[{color:'#e8edf3'}]},
+    {elementType:'labels',stylers:[{visibility:'off'}]},
+    {featureType:'water',stylers:[{color:'#b8d4ea'}]},
+    {featureType:'road',stylers:[{visibility:'off'}]},
+    {featureType:'poi',stylers:[{visibility:'off'}]},
+    {featureType:'transit',stylers:[{visibility:'off'}]},
+    {featureType:'administrative.country',elementType:'geometry.stroke',stylers:[{color:'#94a3b8'}]},
+    {featureType:'administrative.province',stylers:[{visibility:'off'}]},
+    {featureType:'landscape',stylers:[{color:'#dce4ee'}]},
+];
+
+function currentMapStyle() { return isDark() ? DARK_MAP_STYLE : LIGHT_MAP_STYLE; }
+function currentMapBg()    { return isDark() ? '#0a0f1e' : '#e8edf3'; }
+
 let _gmap;
 
 function initMap() {
@@ -1185,10 +1203,10 @@ function initMap() {
     _gmap = new google.maps.Map(el, {
         center: { lat: 25, lng: 15 },
         zoom: 2,
-        styles: DARK_MAP_STYLE,
+        styles: currentMapStyle(),
         disableDefaultUI: true,
         gestureHandling: 'none',
-        backgroundColor: '#0a0f1e',
+        backgroundColor: currentMapBg(),
     });
 
     const bounds = new google.maps.LatLngBounds();
@@ -1219,7 +1237,7 @@ function initMap() {
     }
 
     ATTACKER_GEO.forEach(a => {
-        const col  = ATTACK_COLORS[a.type] || '#ff4757';
+        const col  = attackColor(a.type);
         const aLL  = new google.maps.LatLng(a.lat, a.lng);
         const sz   = Math.min(13, 7 + Math.sqrt(a.cnt));
         bounds.extend(aLL);
@@ -1229,24 +1247,28 @@ function initMap() {
             position: aLL, map: _gmap, zIndex: 100,
             title: `${a.ip} (${a.cnt} attempts)`,
             icon: { path: google.maps.SymbolPath.CIRCLE, scale: sz,
-                    fillColor: col, fillOpacity: 0.92,
-                    strokeColor: '#fff', strokeWeight: 1.5 },
+                    fillColor: col, fillOpacity: 0.95,
+                    strokeColor: '#fff', strokeWeight: 2 },
         });
 
         // Glow ring around attacker
         new google.maps.Circle({
             center: aLL, radius: 60000 * Math.min(4, a.cnt), map: _gmap,
-            strokeColor: col, strokeOpacity: 0.35, strokeWeight: 1,
-            fillColor: col,   fillOpacity: 0.07,
+            strokeColor: col, strokeOpacity: 0.4, strokeWeight: 1.5,
+            fillColor: col,   fillOpacity: 0.1,
         });
 
-        // Info window on click
+        // Info window on click — theme-aware
+        const dark = isDark();
+        const iwBg  = dark ? '#0d1226' : '#ffffff';
+        const iwTxt = dark ? '#fff'    : '#1a202c';
+        const iwSub = dark ? 'rgba(255,255,255,.55)' : '#4a5568';
         const iw = new google.maps.InfoWindow({
-            content: `<div style="background:#0d1226;color:#fff;padding:12px 16px;border-radius:10px;font-size:12px;min-width:200px;border:1px solid ${col}33;line-height:1.8">
+            content: `<div style="background:${iwBg};color:${iwTxt};padding:12px 16px;border-radius:10px;font-size:12px;min-width:200px;border:1px solid ${col};line-height:1.8;box-shadow:0 4px 16px rgba(0,0,0,.15)">
                 <strong style="color:${col};text-transform:uppercase;letter-spacing:.5px">${a.type.replace(/_/g,' ')}</strong><br>
-                <span style="font-family:monospace;font-size:13px">${a.ip}</span><br>
-                📍 ${[a.city, a.country].filter(Boolean).join(', ')}<br>
-                🔁 <strong style="color:#fff">${a.cnt}</strong> attempts in 48h
+                <span style="font-family:monospace;font-size:13px;color:${iwTxt}">${a.ip}</span><br>
+                <span style="color:${iwSub}">📍 ${[a.city, a.country].filter(Boolean).join(', ')}</span><br>
+                <span style="color:${iwSub}">🔁 <strong style="color:${iwTxt}">${a.cnt}</strong> attempts in 48h</span>
             </div>`,
         });
         mk.addListener('click', () => iw.open(_gmap, mk));
@@ -1254,7 +1276,7 @@ function initMap() {
         // Geodesic attack line
         new google.maps.Polyline({
             path: [aLL, srvLL], geodesic: true, map: _gmap,
-            strokeColor: col, strokeOpacity: 0.22, strokeWeight: 1.5,
+            strokeColor: col, strokeOpacity: isDark() ? 0.22 : 0.5, strokeWeight: 2,
         });
 
         // Animated moving dot along the attack path
