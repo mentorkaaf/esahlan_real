@@ -637,6 +637,13 @@
         </div>
         @endif
 
+        @can('platform.audit.view')
+        <div class="nav-section-label">Security</div>
+        <a href="{{ route('admin.security.soc') }}" class="nav-link {{ request()->routeIs('admin.security.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-shield-halved"></i></div> SOC Dashboard
+        </a>
+        @endcan
+
         @if($u->isFullAdmin())
         <div class="nav-section-label">System</div>
         @if(in_array($u->role?->slug, ['super_admin','admin']))

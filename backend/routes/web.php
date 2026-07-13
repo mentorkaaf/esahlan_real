@@ -559,6 +559,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/landing', [AdminLandingController::class, 'index'])->name('landing.index');
         Route::put('/landing', [AdminLandingController::class, 'update'])->name('landing.update');
 
+        // ── Security / SOC Dashboard ──────────────────────────────────────────
+        Route::middleware('can:platform.audit.view')->prefix('security')->name('security.')->group(function () {
+            Route::get('/soc', [\App\Http\Controllers\Admin\AdminSecurityController::class, 'soc'])->name('soc');
+        });
+
         // ── Roles & Access (assign roles + scope employees to modules) ────────
         Route::middleware('role:super_admin,admin')->prefix('access')->name('access.')->group(function () {
             Route::get('/',        [\App\Http\Controllers\Admin\AdminAccessController::class, 'index'])->name('index');
