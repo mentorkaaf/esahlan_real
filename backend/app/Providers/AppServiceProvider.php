@@ -128,5 +128,14 @@ class AppServiceProvider extends ServiceProvider
                     'message' => 'Slow down — too many messages.',
                 ], 429));
         });
+
+        // Media proxy — prevent enumeration / bandwidth abuse (unauthenticated, keyed by IP)
+        RateLimiter::for('media', function (Request $request) {
+            return Limit::perMinute(200)->by('media:' . $request->ip())
+                ->response(fn () => response()->json([
+                    'success' => false,
+                    'message' => 'Too many media requests.',
+                ], 429));
+        });
     }
 }

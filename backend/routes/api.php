@@ -98,7 +98,7 @@ Route::prefix('v1')->group(function () {
         $f = ltrim(str_replace(['..', "\0"], '', $f), '/');
         abort_if($f === '', 404);
         return proxy_storage_file($f);
-    });
+    })->middleware('throttle:media');
 
     // Legacy extension-based proxy. Kept for backwards compatibility, but the CDN
     // caches these and strips CORS — new URLs use /media above.
@@ -109,17 +109,13 @@ Route::prefix('v1')->group(function () {
     // PUBLIC ROUTES
     // ═══════════════════════════════════════════════════════════════
 
-    // App config (public — non-sensitive keys for Flutter app)
+    // App config (public — non-sensitive keys only)
     Route::get('app-config', function () {
         return response()->json(['success' => true, 'data' => [
-            'google_maps_api_key'    => \App\Helpers\AppSettings::get('google_maps_api_key', ''),
-            'google_maps_default_lat'=> (float)\App\Helpers\AppSettings::get('google_maps_default_lat', 2.0469),
-            'google_maps_default_lng'=> (float)\App\Helpers\AppSettings::get('google_maps_default_lng', 45.3182),
-            'google_maps_default_zoom'=> (int)\App\Helpers\AppSettings::get('google_maps_default_zoom', 13),
-            'fcm_enabled'            => (bool)\App\Helpers\AppSettings::get('fcm_enabled', true),
-            'firebase_project_id'    => \App\Helpers\AppSettings::get('firebase_project_id', ''),
-            'currency_symbol'        => \App\Helpers\AppSettings::get('app_currency_symbol', '$'),
-            'app_name'               => \App\Helpers\AppSettings::get('app_name', 'eSahlan'),
+            'fcm_enabled'     => (bool)\App\Helpers\AppSettings::get('fcm_enabled', true),
+            'firebase_project_id' => \App\Helpers\AppSettings::get('firebase_project_id', ''),
+            'currency_symbol' => \App\Helpers\AppSettings::get('app_currency_symbol', '$'),
+            'app_name'        => \App\Helpers\AppSettings::get('app_name', 'eSahlan'),
         ]]);
     });
 
@@ -134,8 +130,10 @@ Route::prefix('v1')->group(function () {
     });
 
     // Deliveryman auth (public — no token required)
-    Route::post('delivery/auth/register', [DeliveryController::class, 'register']);
-    Route::post('delivery/auth/login',    [DeliveryController::class, 'login']);
+    Route::middleware('throttle:auth')->group(function () {
+        Route::post('delivery/auth/register', [DeliveryController::class, 'register']);
+        Route::post('delivery/auth/login',    [DeliveryController::class, 'login'])->middleware('brute_force');
+    });
 
     // Public info
     Route::get('ads',                   [AdController::class, 'index']);         // ?type=popup|banner|card &module=efood
@@ -248,6 +246,16 @@ Route::prefix('v1')->group(function () {
     // AUTHENTICATED — ALL ROLES
     // ═══════════════════════════════════════════════════════════════
     Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
+
+    // Sensitive config — only returned to authenticated users (Maps API key etc.)
+    Route::get('app-config/sensitive', function () {
+        return response()->json(['success' => true, 'data' => [
+            'google_maps_api_key'     => \App\Helpers\AppSettings::get('google_maps_api_key', ''),
+            'google_maps_default_lat' => (float)\App\Helpers\AppSettings::get('google_maps_default_lat', 2.0469),
+            'google_maps_default_lng' => (float)\App\Helpers\AppSettings::get('google_maps_default_lng', 45.3182),
+            'google_maps_default_zoom'=> (int)\App\Helpers\AppSettings::get('google_maps_default_zoom', 13),
+        ]]);
+    });
 
     // Reverb private/presence channel authorization for mobile clients.
     // The framework auto-registers broadcasting/auth under the "web"
