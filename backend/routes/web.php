@@ -564,6 +564,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             $sc = \App\Http\Controllers\Admin\AdminSecurityController::class;
             Route::get('/soc',               [$sc, 'soc'])->name('soc');
             Route::get('/stats',             [$sc, 'stats'])->name('stats');
+            Route::get('/system-metrics',    [$sc, 'systemMetrics'])->name('system-metrics');
+            Route::get('/live-events',       [$sc, 'liveEvents'])->name('live-events');
             Route::post('/quick-action',     [$sc, 'quickAction'])->name('quick-action');
             Route::get('/audit/export',      [$sc, 'exportAudit'])->name('audit.export');
         });
