@@ -3,540 +3,1226 @@
 @section('content')
 
 <style>
-.stat-card { border-radius:14px; padding:20px 24px; display:flex; align-items:center; gap:16px; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.08); }
-.stat-card .icon { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
-.stat-card .label { font-size:12px; color:#6b7280; font-weight:500; text-transform:uppercase; letter-spacing:.5px; }
-.stat-card .value { font-size:26px; font-weight:700; color:#111; line-height:1.1; }
-.stat-card .sub { font-size:11px; color:#9ca3af; margin-top:2px; }
-.tab-bar { display:flex; gap:4px; background:#f3f4f6; border-radius:12px; padding:4px; margin-bottom:24px; max-width:440px; }
-.tab-bar button { flex:1; padding:8px 16px; border:none; border-radius:9px; font-size:14px; font-weight:500; cursor:pointer; background:transparent; color:#6b7280; transition:all .15s; }
-.tab-bar button.active { background:#fff; color:#111; box-shadow:0 1px 3px rgba(0,0,0,.12); }
-.filter-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:20px; }
-.filter-bar input, .filter-bar select { border:1.5px solid #e5e7eb; border-radius:9px; padding:8px 12px; font-size:13px; color:#111; background:#fff; outline:none; }
-.filter-bar input:focus, .filter-bar select:focus { border-color:#6366f1; }
-.filter-bar .btn-filter { background:#6366f1; color:#fff; border:none; border-radius:9px; padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer; }
-.users-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px; }
-.user-card { background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.07); cursor:pointer; transition:box-shadow .15s, transform .15s; border:1.5px solid transparent; }
-.user-card:hover { box-shadow:0 6px 20px rgba(0,0,0,.12); transform:translateY(-2px); border-color:#e0e7ff; }
-.user-card .cover { height:60px; position:relative; }
-.user-card .avatar-wrap { position:absolute; bottom:-22px; left:16px; }
-.user-card .avatar-wrap img, .user-card .av-init { width:44px; height:44px; border-radius:50%; border:3px solid #fff; object-fit:cover; }
-.user-card .av-init { background:#6366f1; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; }
-.user-card .card-body { padding:30px 16px 14px; }
-.user-card .name { font-weight:700; font-size:15px; color:#111; display:flex; align-items:center; gap:5px; }
-.user-card .username { font-size:12px; color:#6b7280; margin-bottom:8px; }
-.user-card .badges { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:10px; }
-.badge-sm { font-size:10px; padding:2px 8px; border-radius:20px; font-weight:600; }
-.badge-verified { background:#dbeafe; color:#1d4ed8; }
-.badge-business { background:#fef3c7; color:#92400e; }
-.badge-gender { background:#f3e8ff; color:#7c3aed; }
-.badge-country { background:#dcfce7; color:#166534; }
-.user-card .stats-row { display:flex; gap:12px; border-top:1px solid #f3f4f6; padding-top:10px; margin-top:4px; }
-.user-card .stat { text-align:center; flex:1; }
-.user-card .stat .n { font-size:14px; font-weight:700; color:#111; }
-.user-card .stat .l { font-size:10px; color:#9ca3af; }
-.user-card .card-actions { padding:0 16px 14px; display:flex; gap:6px; }
-.btn-xs { flex:1; padding:6px; font-size:11px; font-weight:600; border:none; border-radius:8px; cursor:pointer; }
-.btn-xs.btn-view { background:#ede9fe; color:#6d28d9; }
-.btn-xs.btn-verify { background:#dcfce7; color:#15803d; }
-.btn-xs.btn-verify.is-verified { background:#fef2f2; color:#b91c1c; }
-.btn-xs.btn-chat { background:#dbeafe; color:#1d4ed8; }
-.slide-panel { position:fixed; top:0; right:-500px; width:480px; height:100vh; background:#fff; z-index:9999; box-shadow:-4px 0 30px rgba(0,0,0,.15); transition:right .25s ease; display:flex; flex-direction:column; }
-.slide-panel.open { right:0; }
-.panel-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:9998; }
-.panel-overlay.open { display:block; }
-.panel-header { padding:20px; border-bottom:1px solid #f3f4f6; display:flex; align-items:center; gap:12px; }
-.panel-header h3 { font-size:16px; font-weight:700; margin:0; flex:1; }
-.panel-close { background:none; border:none; font-size:20px; cursor:pointer; color:#6b7280; }
-.panel-body { flex:1; overflow-y:auto; padding:20px; }
-.panel-section { margin-bottom:20px; }
-.panel-section h4 { font-size:12px; text-transform:uppercase; letter-spacing:.6px; color:#9ca3af; font-weight:600; margin-bottom:10px; }
-.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-.info-item { background:#f9fafb; border-radius:8px; padding:8px 12px; }
-.info-item .key { font-size:10px; color:#9ca3af; text-transform:uppercase; letter-spacing:.4px; }
-.info-item .val { font-size:13px; font-weight:600; color:#111; margin-top:2px; }
-.mini-post { display:flex; gap:10px; align-items:center; padding:8px; background:#f9fafb; border-radius:8px; margin-bottom:6px; }
-.mini-post .meta { font-size:11px; color:#6b7280; }
-.mini-post .content-text { font-size:12px; color:#374151; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
-.chat-row { background:#fff; border-radius:12px; border:1.5px solid #e5e7eb; padding:12px 16px; display:flex; align-items:center; gap:12px; cursor:pointer; transition:border-color .15s; margin-bottom:8px; }
-.chat-row:hover, .chat-row.selected { border-color:#6366f1; background:#f5f3ff; }
-.chat-avatars { display:flex; }
-.chat-av { width:36px; height:36px; border-radius:50%; border:2px solid #fff; object-fit:cover; margin-right:-10px; background:#e0e7ff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#6366f1; }
-.chat-row .chat-meta { flex:1; min-width:0; }
-.chat-row .chat-names { font-size:13px; font-weight:600; color:#111; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.chat-row .chat-last { font-size:11px; color:#9ca3af; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
-.chat-row .chat-right { text-align:right; flex-shrink:0; }
-.chat-row .chat-cnt { font-size:11px; color:#6b7280; }
-.chat-row .chat-time { font-size:10px; color:#d1d5db; margin-top:2px; }
-.msg-thread { display:flex; flex-direction:column; gap:8px; overflow-y:auto; padding:12px; background:#f8f9fa; border-radius:12px; flex:1; }
-.msg-wrap { display:flex; gap:8px; align-items:flex-start; }
-.msg-wrap.right { flex-direction:row-reverse; }
-.msg-av { width:28px; height:28px; border-radius:50%; flex-shrink:0; background:#e0e7ff; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:#6366f1; overflow:hidden; }
-.msg-av img { width:100%; height:100%; object-fit:cover; }
-.msg-bubble { max-width:72%; padding:8px 12px; border-radius:12px; font-size:12px; line-height:1.5; }
-.msg-bubble.left { background:#fff; color:#111; border-bottom-left-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
-.msg-bubble.right-b { background:#6366f1; color:#fff; border-bottom-right-radius:4px; }
-.msg-sender { font-size:9px; font-weight:600; color:#6b7280; margin-bottom:2px; }
-.msg-bubble.right-b .msg-sender { color:rgba(255,255,255,.7); }
-.msg-time { font-size:9px; color:#d1d5db; margin-top:3px; text-align:right; }
-.msg-deleted-text { font-style:italic; color:#9ca3af !important; }
-.msg-del-btn { background:#fee2e2; color:#b91c1c; border:none; border-radius:6px; padding:3px 7px; font-size:10px; cursor:pointer; align-self:center; display:none; }
-.msg-wrap:hover .msg-del-btn { display:block; }
-.country-bar { margin-bottom:8px; }
-.country-bar .lrow { display:flex; justify-content:space-between; font-size:11px; color:#6b7280; margin-bottom:2px; }
-.country-bar .track { background:#f3f4f6; border-radius:4px; height:6px; }
-.country-bar .fill { background:#6366f1; border-radius:4px; height:6px; }
-.realtime-dot { width:8px; height:8px; background:#10b981; border-radius:50%; display:inline-block; animation:pulse2 1.5s infinite; }
-@keyframes pulse2 { 0%,100%{opacity:1;} 50%{opacity:.35;} }
-.spinner2 { border:2px solid #e5e7eb; border-top:2px solid #6366f1; border-radius:50%; width:20px; height:20px; animation:spin2 .6s linear infinite; display:inline-block; }
-@keyframes spin2 { to { transform:rotate(360deg); } }
+:root {
+  --accent: #6C63FF;
+  --accent2: #EC4899;
+  --green: #10B981;
+  --amber: #F59E0B;
+  --blue: #3B82F6;
+  --red: #EF4444;
+  --surface: #fff;
+  --bg: #F1F5F9;
+  --border: #E8ECF4;
+  --text: #0F172A;
+  --muted: #64748B;
+  --faint: #F8FAFC;
+  --radius: 16px;
+  --shadow: 0 2px 12px rgba(0,0,0,.07);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.12);
+}
+
+/* ═══ Page Layout ═══════════════════════════════════════════════════════════ */
+.cu-page { padding: 0; background: var(--bg); min-height: 100vh; }
+
+/* ═══ Top Hero Bar ══════════════════════════════════════════════════════════ */
+.cu-hero {
+  background: linear-gradient(135deg, #0a0040 0%, #1a0070 50%, #0d004d 100%);
+  padding: 28px 32px 80px;
+  position: relative;
+  overflow: hidden;
+}
+.cu-hero::before {
+  content: '';
+  position: absolute;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(108,99,255,.3) 0%, transparent 70%);
+  top: -100px; right: -80px; pointer-events: none;
+}
+.cu-hero::after {
+  content: '';
+  position: absolute;
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(236,72,153,.2) 0%, transparent 70%);
+  bottom: -80px; left: 100px; pointer-events: none;
+}
+.cu-hero h1 { font-size: 26px; font-weight: 800; color: #fff; margin: 0 0 4px; letter-spacing: -.3px; }
+.cu-hero p { font-size: 13px; color: rgba(255,255,255,.55); margin: 0; }
+
+/* ═══ Stats Float ════════════════════════════════════════════════════════════ */
+.stats-float {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  margin: -44px 32px 24px;
+  position: relative;
+  z-index: 10;
+}
+.sf-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(255,255,255,.8);
+  transition: transform .2s, box-shadow .2s;
+}
+.sf-card:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,.13); }
+.sf-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.sf-card .label { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; }
+.sf-card .val { font-size: 22px; font-weight: 800; color: var(--text); line-height: 1.1; }
+.sf-card .sub { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+/* ═══ Tabs ════════════════════════════════════════════════════════════════════ */
+.cu-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 32px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--border);
+}
+.cu-tab {
+  padding: 11px 22px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: color .15s;
+}
+.cu-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.cu-tab:hover:not(.active) { color: var(--text); }
+.tab-badge {
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 20px;
+  line-height: 1.4;
+}
+
+/* ═══ Content Wrapper ════════════════════════════════════════════════════════ */
+.cu-body { padding: 0 32px 32px; }
+
+/* ═══ Filter Bar ═════════════════════════════════════════════════════════════ */
+.filter-strip {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+.filter-strip input[type=text] {
+  flex: 1;
+  min-width: 200px;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+}
+.filter-strip select {
+  border: 1.5px solid var(--border);
+  border-radius: 9px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--faint);
+  outline: none;
+  cursor: pointer;
+}
+.filter-strip select:focus { border-color: var(--accent); }
+.fs-divider { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+.btn-apply {
+  background: linear-gradient(135deg, var(--accent), #8B5CF6);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-clear { font-size: 12px; color: var(--muted); text-decoration: none; white-space: nowrap; }
+.btn-clear:hover { color: var(--red); }
+
+/* ═══ Results Meta ═══════════════════════════════════════════════════════════ */
+.results-meta { font-size: 12px; color: var(--muted); margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+
+/* ═══ User Cards ═════════════════════════════════════════════════════════════ */
+.ug-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 16px;
+}
+.ug-card {
+  background: #fff;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1.5px solid var(--border);
+  box-shadow: var(--shadow);
+  transition: border-color .2s, box-shadow .2s, transform .2s;
+  cursor: pointer;
+  position: relative;
+}
+.ug-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 8px 32px rgba(108,99,255,.15);
+  transform: translateY(-3px);
+}
+.ug-cover {
+  height: 72px;
+  position: relative;
+}
+.ug-cover-img { width: 100%; height: 100%; object-fit: cover; }
+.ug-av-ring {
+  position: absolute;
+  bottom: -24px;
+  left: 18px;
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  overflow: hidden;
+  background: #fff;
+}
+.ug-av-ring img { width: 100%; height: 100%; object-fit: cover; }
+.ug-av-init {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 800; color: #fff;
+}
+.verified-crown {
+  position: absolute;
+  top: 8px; right: 10px;
+  background: rgba(255,255,255,.2);
+  backdrop-filter: blur(8px);
+  border-radius: 20px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid rgba(255,255,255,.3);
+}
+.ug-body { padding: 32px 18px 12px; }
+.ug-name {
+  font-size: 15px; font-weight: 800; color: var(--text);
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 2px;
+}
+.ug-name .verify-dot { width: 14px; height: 14px; background: var(--blue); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.ug-name .verify-dot svg { width: 8px; height: 8px; }
+.ug-handle { font-size: 11px; color: var(--muted); margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ug-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+.chip {
+  font-size: 10px; font-weight: 600;
+  padding: 3px 9px; border-radius: 20px;
+  display: flex; align-items: center; gap: 3px;
+}
+.chip-purple { background: #EDE9FE; color: #5B21B6; }
+.chip-pink   { background: #FCE7F3; color: #9D174D; }
+.chip-green  { background: #D1FAE5; color: #065F46; }
+.chip-blue   { background: #DBEAFE; color: #1E40AF; }
+.chip-amber  { background: #FEF3C7; color: #92400E; }
+.chip-gray   { background: #F1F5F9; color: #64748B; }
+.ug-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.ug-stat {
+  background: var(--faint);
+  padding: 8px 4px;
+  text-align: center;
+}
+.ug-stat .n { font-size: 15px; font-weight: 800; color: var(--text); }
+.ug-stat .l { font-size: 9px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 600; }
+.ug-actions { display: flex; gap: 6px; }
+.ua-btn {
+  flex: 1;
+  border: none;
+  border-radius: 9px;
+  padding: 7px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: filter .15s;
+}
+.ua-btn:hover { filter: brightness(.92); }
+.ua-view   { background: #EDE9FE; color: #5B21B6; }
+.ua-verify { background: #D1FAE5; color: #065F46; }
+.ua-verify.on { background: #FEE2E2; color: #991B1B; }
+.ua-chat   { background: #DBEAFE; color: #1E40AF; }
+
+/* ═══ Analytics ══════════════════════════════════════════════════════════════ */
+.analytics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.an-card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.an-card h3 { font-size: 13px; font-weight: 700; color: var(--text); margin: 0 0 20px; display: flex; align-items: center; gap: 8px; }
+.an-card h3 .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.donut-wrap { display: flex; align-items: center; gap: 28px; }
+.donut-legend { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.legend-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.legend-label { font-size: 12px; color: var(--muted); flex: 1; }
+.legend-val { font-size: 13px; font-weight: 700; color: var(--text); }
+.legend-pct { font-size: 10px; color: var(--muted); min-width: 28px; text-align: right; }
+.cbar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.cbar-label { font-size: 12px; color: var(--text); font-weight: 600; min-width: 72px; }
+.cbar-track { flex: 1; height: 8px; background: var(--faint); border-radius: 4px; overflow: hidden; }
+.cbar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), #8B5CF6); }
+.cbar-cnt { font-size: 11px; font-weight: 700; color: var(--muted); min-width: 24px; text-align: right; }
+.kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.kpi-box { background: var(--faint); border-radius: 12px; padding: 14px; border: 1px solid var(--border); }
+.kpi-box .kv { font-size: 24px; font-weight: 800; color: var(--text); }
+.kpi-box .kl { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+
+/* ═══ Chat Monitor ════════════════════════════════════════════════════════════ */
+.chat-shell {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 0;
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  height: calc(100vh - 280px);
+  min-height: 500px;
+}
+/* Left sidebar */
+.chat-sidebar {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.chat-sidebar-head {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--faint);
+}
+.chat-sidebar-head h3 { font-size: 13px; font-weight: 800; color: var(--text); margin: 0 0 10px; }
+.chat-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 7px 12px;
+}
+.chat-search-box i { color: var(--muted); font-size: 12px; }
+.chat-search-box input { border: none; outline: none; font-size: 12px; flex: 1; color: var(--text); background: transparent; }
+.chat-list-el { overflow-y: auto; flex: 1; }
+.chat-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(0,0,0,.04);
+  transition: background .1s;
+  position: relative;
+}
+.chat-item:hover { background: var(--faint); }
+.chat-item.selected { background: #F0EEFF; border-left: 3px solid var(--accent); }
+.chat-item.selected .chat-item-name { color: var(--accent); }
+.chat-avs { display: flex; flex-shrink: 0; }
+.chat-av {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 2px solid #fff;
+  background: #EDE9FE;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: var(--accent);
+  margin-right: -10px;
+  overflow: hidden;
+}
+.chat-av img { width: 100%; height: 100%; object-fit: cover; }
+.chat-item-body { flex: 1; min-width: 0; }
+.chat-item-name { font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-item-last { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.chat-item-right { flex-shrink: 0; text-align: right; }
+.chat-item-cnt { font-size: 11px; font-weight: 700; color: var(--accent); }
+.chat-item-time { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.chat-empty { text-align: center; padding: 60px 20px; }
+.chat-empty i { font-size: 32px; color: #CBD5E1; display: block; margin-bottom: 10px; }
+.chat-empty p { font-size: 12px; color: var(--muted); }
+
+/* Right thread */
+.chat-main { display: flex; flex-direction: column; overflow: hidden; }
+.thread-topbar {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--faint);
+  flex-shrink: 0;
+}
+.thread-topbar .tt-info { flex: 1; }
+.thread-topbar .tt-name { font-size: 14px; font-weight: 800; color: var(--text); }
+.thread-topbar .tt-sub { font-size: 11px; color: var(--muted); }
+.thread-topbar .tt-badge { background: var(--faint); border: 1px solid var(--border); color: var(--muted); font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+.thread-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; background: #F8F9FC; }
+.thread-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  gap: 12px;
+}
+.thread-placeholder i { font-size: 40px; color: #CBD5E1; }
+.thread-placeholder h4 { font-size: 14px; font-weight: 700; color: #94A3B8; }
+.thread-placeholder p { font-size: 12px; color: #CBD5E1; }
+/* Messages */
+.msg-row { display: flex; gap: 8px; align-items: flex-end; }
+.msg-row.right { flex-direction: row-reverse; }
+.msg-av2 {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  background: #EDE9FE; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: var(--accent); overflow: hidden;
+}
+.msg-av2 img { width: 100%; height: 100%; object-fit: cover; }
+.msg-col { max-width: 68%; display: flex; flex-direction: column; gap: 2px; }
+.msg-name { font-size: 9px; font-weight: 700; color: var(--muted); padding: 0 4px; }
+.msg-row.right .msg-name { text-align: right; }
+.bubble {
+  padding: 9px 13px;
+  border-radius: 16px;
+  font-size: 12px;
+  line-height: 1.55;
+  position: relative;
+}
+.bubble.left  { background: #fff; color: var(--text); border-bottom-left-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+.bubble.right { background: linear-gradient(135deg, var(--accent), #8B5CF6); color: #fff; border-bottom-right-radius: 4px; }
+.bubble .btime { font-size: 9px; opacity: .5; margin-top: 3px; text-align: right; }
+.bubble.deleted { background: #F1F5F9; color: #94A3B8; font-style: italic; }
+.msg-del-btn {
+  background: #FEE2E2;
+  color: var(--red);
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  align-self: center;
+  opacity: 0;
+  transition: opacity .15s;
+  flex-shrink: 0;
+}
+.msg-row:hover .msg-del-btn { opacity: 1; }
+/* Date separator */
+.date-sep {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 10px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .5px;
+  margin: 8px 0;
+}
+.date-sep::before, .date-sep::after { content:''; flex:1; height:1px; background:var(--border); }
+/* Thread footer */
+.thread-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.thread-footer .live-pulse { display: flex; align-items: center; gap: 5px; }
+.live-dot { width: 7px; height: 7px; background: var(--green); border-radius: 50%; animation: lp 1.4s infinite; }
+@keyframes lp { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.3;transform:scale(.7);} }
+
+/* ═══ Slide Panel ═════════════════════════════════════════════════════════════ */
+.sp-overlay { display:none; position:fixed; inset:0; background:rgba(15,23,42,.5); backdrop-filter:blur(4px); z-index:9000; }
+.sp-overlay.open { display:block; }
+.sp {
+  position: fixed; top: 0; right: -560px;
+  width: 540px; height: 100vh;
+  background: #fff;
+  z-index: 9001;
+  box-shadow: -8px 0 40px rgba(0,0,0,.18);
+  transition: right .28s cubic-bezier(.4,0,.2,1);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sp.open { right: 0; }
+.sp-head {
+  background: linear-gradient(135deg, #0a0040, #1a0070);
+  padding: 20px;
+  display: flex; align-items: center; gap: 12px;
+  flex-shrink: 0;
+}
+.sp-head h3 { font-size: 16px; font-weight: 800; color: #fff; flex: 1; margin: 0; }
+.sp-close { background: rgba(255,255,255,.15); border: none; color: #fff; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.sp-close:hover { background: rgba(255,255,255,.25); }
+.sp-hero { background: linear-gradient(135deg, #0a0040 0%, #1a0070 100%); padding: 0 20px 24px; display: flex; align-items: flex-end; gap: 16px; flex-shrink: 0; }
+.sp-av { width: 72px; height: 72px; border-radius: 50%; border: 4px solid rgba(255,255,255,.3); overflow: hidden; background: #EDE9FE; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 800; color: var(--accent); flex-shrink: 0; }
+.sp-av img { width: 100%; height: 100%; object-fit: cover; }
+.sp-av-info .sp-name { font-size: 18px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 6px; }
+.sp-av-info .sp-handle { font-size: 12px; color: rgba(255,255,255,.55); }
+.sp-body { flex: 1; overflow-y: auto; padding: 20px; }
+.sp-section { margin-bottom: 20px; }
+.sp-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: .7px; font-weight: 700; color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.sp-section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+.ig2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ig3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.info-box { background: var(--faint); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.info-box .ib-k { font-size: 9px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: 600; }
+.info-box .ib-v { font-size: 13px; font-weight: 700; color: var(--text); margin-top: 2px; }
+.stat-big { background: linear-gradient(135deg, var(--faint), #EDE9FE20); border: 1px solid var(--border); border-radius: 12px; padding: 14px; text-align: center; }
+.stat-big .sbv { font-size: 22px; font-weight: 800; color: var(--text); }
+.stat-big .sbl { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+.ppost { display: flex; gap: 10px; align-items: flex-start; background: var(--faint); border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-bottom: 6px; }
+.ppost .ptype { background: #EDE9FE; color: var(--accent); font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+.ppost .ptxt { font-size: 12px; color: var(--text); font-weight: 500; line-height: 1.4; flex: 1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ppost .pmeta { font-size: 10px; color: var(--muted); margin-top: 4px; }
+.interest-chip { background: linear-gradient(135deg, #EDE9FE, #FCE7F3); color: var(--accent); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 20px; display: inline-block; margin: 2px; }
+.sp-actions { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; flex-shrink: 0; }
+.sp-act-btn { flex: 1; padding: 10px; border: none; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: filter .15s; }
+.sp-act-btn:hover { filter: brightness(.9); }
+.sp-act-chat  { background: #DBEAFE; color: #1E40AF; }
+.sp-act-verify { background: #D1FAE5; color: #065F46; }
+.sp-act-verify.on { background: #FEE2E2; color: #991B1B; }
+
+/* ═══ Pagination ═════════════════════════════════════════════════════════════ */
+.pag-wrap { display: flex; justify-content: center; margin-top: 28px; }
+.pag-wrap nav { display: flex; gap: 4px; align-items: center; }
+.pag-wrap a, .pag-wrap span {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 34px; height: 34px;
+  border: 1.5px solid var(--border); border-radius: 9px;
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  text-decoration: none; padding: 0 8px;
+  transition: all .15s;
+}
+.pag-wrap a:hover { border-color: var(--accent); color: var(--accent); }
+.pag-wrap span[aria-current] { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ═══ Spinner ════════════════════════════════════════════════════════════════ */
+.spin { border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; width: 22px; height: 22px; animation: sp .6s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
 </style>
 
-<div style="padding:24px;">
+<div class="cu-page">
 
-{{-- Header --}}
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
-    <div>
-        <h1 style="font-size:22px;font-weight:800;color:#111;margin:0;">Community Users</h1>
-        <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Full analytics &amp; real-time chat monitoring</p>
+{{-- ══ HERO ════════════════════════════════════════════════════════════════════ --}}
+<div class="cu-hero">
+    <div style="position:relative;z-index:1;">
+        <h1><i class="fas fa-users" style="font-size:22px;margin-right:10px;opacity:.8;"></i>Community Users</h1>
+        <p>Full analytics dashboard &amp; real-time DM monitoring for {{ number_format($stats['total']) }} members</p>
     </div>
 </div>
 
-{{-- Stats --}}
-<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin-bottom:24px;">
-    <div class="stat-card">
-        <div class="icon" style="background:#ede9fe;"><i class="fas fa-users" style="color:#7c3aed;"></i></div>
-        <div><div class="label">Total</div><div class="value">{{ number_format($stats['total']) }}</div></div>
+{{-- ══ STATS ════════════════════════════════════════════════════════════════════ --}}
+<div class="stats-float">
+    <div class="sf-card">
+        <div class="sf-icon" style="background:linear-gradient(135deg,#EDE9FE,#DDD6FE);">
+            <i class="fas fa-users" style="color:#7C3AED;"></i>
+        </div>
+        <div>
+            <div class="label">Total Members</div>
+            <div class="val">{{ number_format($stats['total']) }}</div>
+        </div>
     </div>
-    <div class="stat-card">
-        <div class="icon" style="background:#dbeafe;"><i class="fas fa-check-circle" style="color:#2563eb;"></i></div>
-        <div><div class="label">Verified</div><div class="value">{{ number_format($stats['verified']) }}</div>
-        <div class="sub">{{ $stats['total'] > 0 ? round($stats['verified']/$stats['total']*100,1) : 0 }}%</div></div>
+    <div class="sf-card">
+        <div class="sf-icon" style="background:linear-gradient(135deg,#DBEAFE,#BFDBFE);">
+            <i class="fas fa-shield-check" style="color:#2563EB;"></i>
+        </div>
+        <div>
+            <div class="label">Verified</div>
+            <div class="val">{{ number_format($stats['verified']) }}</div>
+            <div class="sub">{{ $stats['total'] > 0 ? round($stats['verified']/$stats['total']*100,1) : 0 }}% verified</div>
+        </div>
     </div>
-    <div class="stat-card">
-        <div class="icon" style="background:#dcfce7;"><i class="fas fa-user-plus" style="color:#16a34a;"></i></div>
-        <div><div class="label">New Week</div><div class="value">{{ number_format($stats['new_week']) }}</div></div>
+    <div class="sf-card">
+        <div class="sf-icon" style="background:linear-gradient(135deg,#D1FAE5,#A7F3D0);">
+            <i class="fas fa-user-plus" style="color:#059669;"></i>
+        </div>
+        <div>
+            <div class="label">New This Week</div>
+            <div class="val">{{ number_format($stats['new_week']) }}</div>
+            <div class="sub">Last 7 days</div>
+        </div>
     </div>
-    <div class="stat-card">
-        <div class="icon" style="background:#fef3c7;"><i class="fas fa-flag" style="color:#d97706;"></i></div>
-        <div><div class="label">Onboarded</div><div class="value">{{ number_format($stats['onboarded']) }}</div></div>
+    <div class="sf-card">
+        <div class="sf-icon" style="background:linear-gradient(135deg,#FEF3C7,#FDE68A);">
+            <i class="fas fa-rocket" style="color:#D97706;"></i>
+        </div>
+        <div>
+            <div class="label">Onboarded</div>
+            <div class="val">{{ number_format($stats['onboarded']) }}</div>
+            <div class="sub">{{ $stats['total'] > 0 ? round($stats['onboarded']/$stats['total']*100,1) : 0 }}% complete</div>
+        </div>
     </div>
-    <div class="stat-card">
-        <div class="icon" style="background:#fce7f3;"><i class="fas fa-venus-mars" style="color:#be185d;"></i></div>
-        <div><div class="label">Gender</div>
-        <div class="value" style="font-size:14px;"><span style="color:#3b82f6;">M {{ $stats['male'] }}</span> / <span style="color:#ec4899;">F {{ $stats['female'] }}</span></div>
-        <div class="sub">Other: {{ $stats['other_gender'] }}</div></div>
+    <div class="sf-card">
+        <div class="sf-icon" style="background:linear-gradient(135deg,#FCE7F3,#FBCFE8);">
+            <i class="fas fa-venus-mars" style="color:#BE185D;"></i>
+        </div>
+        <div>
+            <div class="label">Gender Split</div>
+            <div class="val" style="font-size:15px;font-weight:800;">
+                <span style="color:#3B82F6;">M {{ $stats['male'] }}</span> / <span style="color:#EC4899;">F {{ $stats['female'] }}</span>
+            </div>
+            <div class="sub">Other: {{ $stats['other_gender'] }}</div>
+        </div>
     </div>
 </div>
 
-{{-- Tabs --}}
-<div class="tab-bar">
-    <button class="active" id="tab-users" onclick="switchTab('users')"><i class="fas fa-users"></i> Users</button>
-    <button id="tab-analytics" onclick="switchTab('analytics')"><i class="fas fa-chart-pie"></i> Analytics</button>
-    <button id="tab-chat" onclick="switchTab('chat')"><i class="fas fa-comments"></i> Chat Monitor <span class="realtime-dot" style="margin-left:4px;vertical-align:middle;"></span></button>
+{{-- ══ TABS ══════════════════════════════════════════════════════════════════════ --}}
+<div class="cu-tabs">
+    <button class="cu-tab active" id="tab-users" onclick="switchTab('users')">
+        <i class="fas fa-th-large"></i> Users Grid
+    </button>
+    <button class="cu-tab" id="tab-analytics" onclick="switchTab('analytics')">
+        <i class="fas fa-chart-pie"></i> Analytics
+    </button>
+    <button class="cu-tab" id="tab-chat" onclick="switchTab('chat')">
+        <i class="fas fa-comment-dots"></i> Chat Monitor
+        <span class="tab-badge" style="background:var(--green);">LIVE</span>
+    </button>
 </div>
 
-{{-- ══ USERS TAB ══ --}}
+<div class="cu-body">
+
+{{-- ══════════════════ TAB: USERS ══════════════════════════════════════════════ --}}
 <div id="pane-users">
-    <form method="GET" action="{{ route('admin.community.users') }}" class="filter-bar">
+    <form method="GET" action="{{ route('admin.community.users') }}" class="filter-strip">
+        <i class="fas fa-search" style="color:var(--muted);font-size:13px;flex-shrink:0;"></i>
         <input type="text" name="search" value="{{ request('search') }}" placeholder="Search name, email, username...">
+        <div class="fs-divider"></div>
         <select name="verified">
             <option value="">All Verified</option>
-            <option value="1" @selected(request('verified')==='1')>Verified</option>
+            <option value="1" @selected(request('verified')==='1')>✓ Verified</option>
             <option value="0" @selected(request('verified')==='0')>Not Verified</option>
         </select>
         <select name="gender">
             <option value="">All Genders</option>
-            <option value="male" @selected(request('gender')==='male')>Male</option>
+            <option value="male"   @selected(request('gender')==='male')>Male</option>
             <option value="female" @selected(request('gender')==='female')>Female</option>
-            <option value="other" @selected(request('gender')==='other')>Other</option>
+            <option value="other"  @selected(request('gender')==='other')>Other</option>
         </select>
         <select name="country">
             <option value="">All Countries</option>
             @foreach($countries as $c => $cnt)
-                <option value="{{ $c }}" @selected(request('country')===$c)>{{ $c }} ({{ $cnt }})</option>
+            <option value="{{ $c }}" @selected(request('country')===$c)>{{ $c }} ({{ $cnt }})</option>
             @endforeach
         </select>
         <select name="onboarded">
-            <option value="">All</option>
+            <option value="">All Users</option>
             <option value="1" @selected(request('onboarded')==='1')>Onboarded</option>
-            <option value="0" @selected(request('onboarded')==='0')>Not Onboarded</option>
+            <option value="0" @selected(request('onboarded')==='0')>Pending</option>
         </select>
-        <button type="submit" class="btn-filter"><i class="fas fa-search"></i> Filter</button>
-        <a href="{{ route('admin.community.users') }}" style="font-size:12px;color:#6b7280;text-decoration:none;">Clear</a>
+        <div class="fs-divider"></div>
+        <button type="submit" class="btn-apply"><i class="fas fa-filter"></i> Filter</button>
+        <a href="{{ route('admin.community.users') }}" class="btn-clear">Clear</a>
     </form>
 
-    <p style="font-size:12px;color:#9ca3af;margin-bottom:16px;">
-        Showing {{ $users->firstItem() }}–{{ $users->lastItem() }} of {{ $users->total() }} users
-    </p>
+    <div class="results-meta">
+        <span>Showing <strong>{{ $users->firstItem() }}–{{ $users->lastItem() }}</strong> of <strong>{{ $users->total() }}</strong> members</span>
+        <span style="color:var(--muted);">{{ $users->perPage() }} per page</span>
+    </div>
 
-    <div class="users-grid">
+    <div class="ug-grid">
         @forelse($users as $profile)
         @php
             $u = $profile->user;
-            $initials = strtoupper(substr($u->name ?? 'U', 0, 1));
-            $age = $profile->date_of_birth ? (int)\Carbon\Carbon::parse($profile->date_of_birth)->diffInYears(now()) : null;
-            $colors = ['#6366f1','#8b5cf6','#0ea5e9','#10b981','#f59e0b','#ef4444'];
-            $colors2 = ['#8b5cf6','#ec4899','#0284c7','#059669','#d97706','#dc2626'];
-            $c1 = $colors[abs(crc32($u->name ?? '')) % 6];
-            $c2 = $colors2[abs(crc32($u->email ?? '')) % 6];
+            $init = strtoupper(substr($u->name ?? 'U', 0, 1));
+            $age  = $profile->date_of_birth ? (int)\Carbon\Carbon::parse($profile->date_of_birth)->diffInYears(now()) : null;
+            $palettes = [
+                ['#6C63FF','#8B5CF6'],['#EC4899','#F472B6'],['#0EA5E9','#38BDF8'],
+                ['#10B981','#34D399'],['#F59E0B','#FCD34D'],['#EF4444','#F87171'],
+            ];
+            $pal = $palettes[abs(crc32(($u->name ?? '').'x')) % 6];
         @endphp
-        <div class="user-card" onclick="openUserPanel({{ $profile->id }}, {{ $profile->user_id }})">
-            <div class="cover" style="background:linear-gradient(135deg,{{ $c1 }},{{ $c2 }});">
+        <div class="ug-card" onclick="openPanel({{ $profile->id }}, {{ $profile->user_id }})">
+            <div class="ug-cover" style="background:linear-gradient(135deg,{{ $pal[0] }},{{ $pal[1] }});">
                 @if($profile->cover_photo)
-                <img src="{{ asset('storage/'.$profile->cover_photo) }}" style="width:100%;height:100%;object-fit:cover;" alt="">
+                <img class="ug-cover-img" src="{{ asset('storage/'.$profile->cover_photo) }}" alt="">
                 @endif
-                <div class="avatar-wrap">
+                @if($profile->is_verified)
+                <div class="verified-crown"><i class="fas fa-check-circle"></i> Verified</div>
+                @endif
+                <div class="ug-av-ring">
                     @if($u && $u->avatar)
                     <img src="{{ $u->avatar }}" alt="">
                     @else
-                    <div class="av-init">{{ $initials }}</div>
+                    <div class="ug-av-init" style="background:{{ $pal[0] }};">{{ $init }}</div>
                     @endif
                 </div>
             </div>
-            <div class="card-body">
-                <div class="name">
+
+            <div class="ug-body">
+                <div class="ug-name">
                     {{ $u->name ?? 'Unknown' }}
-                    @if($profile->is_verified)<i class="fas fa-check-circle" style="color:#2563eb;font-size:12px;"></i>@endif
+                    @if($profile->is_verified)
+                    <div class="verify-dot"><svg viewBox="0 0 8 8" fill="none"><path d="M1.5 4l2 2 3-3" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                    @endif
                 </div>
-                <div class="username">
-                    @if($profile->username)@{{ $profile->username }} · @endif
-                    {{ $u->email ?? '' }}
+                <div class="ug-handle">{{ $profile->username ? '@'.$profile->username.' · ' : '' }}{{ $u->email ?? '' }}</div>
+
+                <div class="ug-chips">
+                    @if($profile->gender)  <span class="chip chip-purple"><i class="fas fa-venus-mars" style="font-size:8px;"></i> {{ ucfirst($profile->gender) }}{{ $age ? ', '.$age.'y' : '' }}</span> @endif
+                    @if($profile->country) <span class="chip chip-green"><i class="fas fa-map-pin" style="font-size:8px;"></i> {{ $profile->country }}{{ $profile->city ? ', '.$profile->city : '' }}</span> @endif
+                    @if($profile->is_business) <span class="chip chip-amber"><i class="fas fa-briefcase" style="font-size:8px;"></i> Business</span> @endif
+                    @if(!$profile->onboarding_completed) <span class="chip chip-gray">Not Onboarded</span> @endif
                 </div>
-                <div class="badges">
-                    @if($profile->is_verified)<span class="badge-sm badge-verified">Verified</span>@endif
-                    @if($profile->is_business)<span class="badge-sm badge-business">Business</span>@endif
-                    @if($profile->gender)<span class="badge-sm badge-gender">{{ ucfirst($profile->gender) }}{{ $age ? ' · '.$age.'y' : '' }}</span>@endif
-                    @if($profile->country)<span class="badge-sm badge-country">{{ $profile->country }}{{ $profile->city ? ', '.$profile->city : '' }}</span>@endif
-                    @if(!$profile->onboarding_completed)<span class="badge-sm" style="background:#f3f4f6;color:#9ca3af;">Not Onboarded</span>@endif
+
+                <div class="ug-stats">
+                    <div class="ug-stat">
+                        <div class="n">{{ number_format($profile->posts_count) }}</div>
+                        <div class="l">Posts</div>
+                    </div>
+                    <div class="ug-stat">
+                        <div class="n">{{ number_format($profile->followers_count ?? 0) }}</div>
+                        <div class="l">Followers</div>
+                    </div>
+                    <div class="ug-stat">
+                        <div class="n">{{ number_format($profile->following_count ?? 0) }}</div>
+                        <div class="l">Following</div>
+                    </div>
                 </div>
-                <div class="stats-row">
-                    <div class="stat"><div class="n">{{ number_format($profile->posts_count) }}</div><div class="l">Posts</div></div>
-                    <div class="stat"><div class="n">{{ number_format($profile->followers_count ?? 0) }}</div><div class="l">Followers</div></div>
-                    <div class="stat"><div class="n">{{ number_format($profile->following_count ?? 0) }}</div><div class="l">Following</div></div>
+
+                <div class="ug-actions">
+                    <button class="ua-btn ua-view" onclick="event.stopPropagation();openPanel({{ $profile->id }},{{ $profile->user_id }})">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                    <button class="ua-btn ua-verify {{ $profile->is_verified ? 'on' : '' }}" id="vb-{{ $profile->id }}" onclick="event.stopPropagation();doVerify({{ $profile->id }},this)">
+                        <i class="fas fa-{{ $profile->is_verified ? 'times' : 'check' }}"></i> {{ $profile->is_verified ? 'Unverify' : 'Verify' }}
+                    </button>
+                    <button class="ua-btn ua-chat" onclick="event.stopPropagation();viewChats({{ $profile->user_id }})">
+                        <i class="fas fa-comment"></i> Chats
+                    </button>
                 </div>
-            </div>
-            <div class="card-actions">
-                <button class="btn-xs btn-view" onclick="event.stopPropagation();openUserPanel({{ $profile->id }},{{ $profile->user_id }})"><i class="fas fa-eye"></i> View</button>
-                <button class="btn-xs btn-verify {{ $profile->is_verified ? 'is-verified' : '' }}" id="vbtn-{{ $profile->id }}" onclick="event.stopPropagation();toggleVerify({{ $profile->id }}, this)">
-                    <i class="fas fa-{{ $profile->is_verified ? 'times' : 'check' }}"></i> {{ $profile->is_verified ? 'Unverify' : 'Verify' }}
-                </button>
-                <button class="btn-xs btn-chat" onclick="event.stopPropagation();openUserChats({{ $profile->user_id }})"><i class="fas fa-comment"></i> Chats</button>
             </div>
         </div>
         @empty
-        <div style="grid-column:1/-1;text-align:center;padding:60px 0;color:#9ca3af;">
-            <i class="fas fa-users" style="font-size:32px;display:block;margin-bottom:12px;"></i>No users found
+        <div style="grid-column:1/-1;text-align:center;padding:80px 0;color:var(--muted);">
+            <i class="fas fa-search" style="font-size:36px;color:#CBD5E1;display:block;margin-bottom:14px;"></i>
+            <p style="font-size:14px;font-weight:600;">No users found</p>
+            <p style="font-size:12px;margin-top:4px;">Try adjusting your filters</p>
         </div>
         @endforelse
     </div>
 
-    <div style="display:flex;justify-content:center;margin-top:24px;">
-        {{ $users->withQueryString()->links() }}
-    </div>
+    <div class="pag-wrap">{{ $users->withQueryString()->links() }}</div>
 </div>
 
-{{-- ══ ANALYTICS TAB ══ --}}
+{{-- ══════════════════ TAB: ANALYTICS ══════════════════════════════════════════ --}}
 <div id="pane-analytics" style="display:none;">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-        <div style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.07);">
-            <h3 style="font-size:14px;font-weight:700;margin:0 0 16px;">Gender Distribution</h3>
-            <canvas id="genderChart" width="180" height="180" style="display:block;margin:0 auto;"></canvas>
-            <div style="display:flex;justify-content:center;gap:16px;margin-top:12px;font-size:12px;flex-wrap:wrap;">
-                <span><span style="display:inline-block;width:10px;height:10px;background:#3b82f6;border-radius:2px;margin-right:4px;"></span>Male ({{ $stats['male'] }})</span>
-                <span><span style="display:inline-block;width:10px;height:10px;background:#ec4899;border-radius:2px;margin-right:4px;"></span>Female ({{ $stats['female'] }})</span>
-                <span><span style="display:inline-block;width:10px;height:10px;background:#a78bfa;border-radius:2px;margin-right:4px;"></span>Other ({{ $stats['other_gender'] }})</span>
+    <div class="analytics-grid">
+
+        {{-- Gender Donut --}}
+        <div class="an-card">
+            <h3><span class="dot" style="background:var(--accent);"></span> Gender Distribution</h3>
+            <div class="donut-wrap">
+                <canvas id="gc" width="140" height="140" style="flex-shrink:0;"></canvas>
+                <div class="donut-legend">
+                    <div class="legend-row">
+                        <div class="legend-dot" style="background:#3B82F6;"></div>
+                        <span class="legend-label">Male</span>
+                        <span class="legend-val">{{ $stats['male'] }}</span>
+                        <span class="legend-pct">{{ $stats['total'] > 0 ? round($stats['male']/$stats['total']*100) : 0 }}%</span>
+                    </div>
+                    <div class="legend-row">
+                        <div class="legend-dot" style="background:#EC4899;"></div>
+                        <span class="legend-label">Female</span>
+                        <span class="legend-val">{{ $stats['female'] }}</span>
+                        <span class="legend-pct">{{ $stats['total'] > 0 ? round($stats['female']/$stats['total']*100) : 0 }}%</span>
+                    </div>
+                    <div class="legend-row">
+                        <div class="legend-dot" style="background:#A78BFA;"></div>
+                        <span class="legend-label">Other</span>
+                        <span class="legend-val">{{ $stats['other_gender'] }}</span>
+                        <span class="legend-pct">{{ $stats['total'] > 0 ? round($stats['other_gender']/$stats['total']*100) : 0 }}%</span>
+                    </div>
+                </div>
             </div>
         </div>
-        <div style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.07);">
-            <h3 style="font-size:14px;font-weight:700;margin:0 0 16px;">Verification Status</h3>
-            <canvas id="verifyChart" width="180" height="180" style="display:block;margin:0 auto;"></canvas>
-            <div style="display:flex;justify-content:center;gap:16px;margin-top:12px;font-size:12px;">
-                <span><span style="display:inline-block;width:10px;height:10px;background:#10b981;border-radius:2px;margin-right:4px;"></span>Verified ({{ $stats['verified'] }})</span>
-                <span><span style="display:inline-block;width:10px;height:10px;background:#e5e7eb;border-radius:2px;margin-right:4px;"></span>Unverified ({{ $stats['total'] - $stats['verified'] }})</span>
+
+        {{-- Verification --}}
+        <div class="an-card">
+            <h3><span class="dot" style="background:var(--green);"></span> Verification Status</h3>
+            <div class="donut-wrap">
+                <canvas id="vc" width="140" height="140" style="flex-shrink:0;"></canvas>
+                <div class="donut-legend">
+                    <div class="legend-row">
+                        <div class="legend-dot" style="background:#10B981;"></div>
+                        <span class="legend-label">Verified</span>
+                        <span class="legend-val">{{ $stats['verified'] }}</span>
+                        <span class="legend-pct">{{ $stats['total'] > 0 ? round($stats['verified']/$stats['total']*100) : 0 }}%</span>
+                    </div>
+                    <div class="legend-row">
+                        <div class="legend-dot" style="background:#E2E8F0;"></div>
+                        <span class="legend-label">Unverified</span>
+                        <span class="legend-val">{{ $stats['total'] - $stats['verified'] }}</span>
+                        <span class="legend-pct">{{ $stats['total'] > 0 ? round(($stats['total']-$stats['verified'])/$stats['total']*100) : 0 }}%</span>
+                    </div>
+                </div>
             </div>
         </div>
-        <div style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.07);">
-            <h3 style="font-size:14px;font-weight:700;margin:0 0 16px;">Top Countries</h3>
-            @php $maxCnt = $countries->max() ?: 1; @endphp
+
+        {{-- Countries --}}
+        <div class="an-card">
+            <h3><span class="dot" style="background:var(--amber);"></span> Top Countries by Members</h3>
+            @php $maxC = $countries->max() ?: 1; @endphp
             @foreach($countries as $country => $cnt)
-            <div class="country-bar">
-                <div class="lrow"><span>{{ $country }}</span><span>{{ $cnt }}</span></div>
-                <div class="track"><div class="fill" style="width:{{ round($cnt/$maxCnt*100) }}%"></div></div>
+            <div class="cbar-row">
+                <span class="cbar-label">{{ $country }}</span>
+                <div class="cbar-track"><div class="cbar-fill" style="width:{{ round($cnt/$maxC*100) }}%;"></div></div>
+                <span class="cbar-cnt">{{ $cnt }}</span>
             </div>
             @endforeach
+            @if($countries->isEmpty())
+            <p style="font-size:12px;color:var(--muted);text-align:center;padding:20px;">No location data</p>
+            @endif
         </div>
-        <div style="background:#fff;border-radius:16px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.07);">
-            <h3 style="font-size:14px;font-weight:700;margin:0 0 16px;">Onboarding</h3>
-            <canvas id="onboardChart" width="180" height="180" style="display:block;margin:0 auto;"></canvas>
-            <div style="display:flex;justify-content:center;gap:16px;margin-top:12px;font-size:12px;">
-                <span><span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:2px;margin-right:4px;"></span>Onboarded ({{ $stats['onboarded'] }})</span>
-                <span><span style="display:inline-block;width:10px;height:10px;background:#e5e7eb;border-radius:2px;margin-right:4px;"></span>Pending ({{ $stats['total'] - $stats['onboarded'] }})</span>
+
+        {{-- KPIs --}}
+        <div class="an-card">
+            <h3><span class="dot" style="background:var(--blue);"></span> Key Metrics</h3>
+            <div class="kpi-grid">
+                <div class="kpi-box">
+                    <div class="kv">{{ $stats['total'] > 0 ? round($stats['onboarded']/$stats['total']*100) : 0 }}%</div>
+                    <div class="kl">Onboarding Rate</div>
+                </div>
+                <div class="kpi-box">
+                    <div class="kv">{{ $stats['total'] > 0 ? round($stats['verified']/$stats['total']*100,1) : 0 }}%</div>
+                    <div class="kl">Verification Rate</div>
+                </div>
+                <div class="kpi-box">
+                    <div class="kv">{{ number_format($stats['new_week']) }}</div>
+                    <div class="kl">Joined This Week</div>
+                </div>
+                <div class="kpi-box">
+                    <div class="kv">{{ $stats['total'] > 0 ? round($stats['male']/$stats['total']*100) : 0 }}%</div>
+                    <div class="kl">Male Ratio</div>
+                </div>
+                <div class="kpi-box">
+                    <div class="kv" style="font-size:18px;">{{ number_format($stats['onboarded']) }}</div>
+                    <div class="kl">Onboarded Users</div>
+                </div>
+                <div class="kpi-box">
+                    <div class="kv" style="font-size:18px;">{{ number_format($stats['total'] - $stats['onboarded']) }}</div>
+                    <div class="kl">Pending Onboard</div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-{{-- ══ CHAT MONITOR TAB ══ --}}
+{{-- ══════════════════ TAB: CHAT MONITOR ═══════════════════════════════════════ --}}
 <div id="pane-chat" style="display:none;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-        <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#10b981;font-weight:600;">
-            <span class="realtime-dot"></span> Real-time monitoring
+    <div class="chat-shell">
+        {{-- Left: Conversation List --}}
+        <div class="chat-sidebar">
+            <div class="chat-sidebar-head">
+                <h3>All Conversations</h3>
+                <div class="chat-search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="chat-search-inp" placeholder="Search users..." oninput="loadMonitor()">
+                </div>
+            </div>
+            <div class="chat-list-el" id="chat-list-el">
+                <div style="display:flex;align-items:center;justify-content:center;padding:60px 0;"><div class="spin"></div></div>
+            </div>
         </div>
-        <input type="text" id="chat-search" placeholder="Search by user name..." style="border:1.5px solid #e5e7eb;border-radius:9px;padding:7px 12px;font-size:13px;flex:1;outline:none;" oninput="loadChatMonitor()">
-        <span style="font-size:11px;color:#9ca3af;" id="chat-refresh-time"></span>
-    </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;height:calc(100vh - 340px);">
-        <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.07);display:flex;flex-direction:column;overflow:hidden;">
-            <h3 style="font-size:13px;font-weight:700;margin:0 0 12px;color:#374151;">Conversations</h3>
-            <div id="chat-list-el" style="overflow-y:auto;flex:1;">
-                <div style="text-align:center;padding:40px 0;"><div class="spinner2"></div></div>
+        {{-- Right: Thread View --}}
+        <div class="chat-main">
+            <div class="thread-topbar" id="thread-topbar">
+                <div style="width:36px;height:36px;border-radius:50%;background:#EDE9FE;display:flex;align-items:center;justify-content:center;color:var(--accent);flex-shrink:0;">
+                    <i class="fas fa-comment-dots"></i>
+                </div>
+                <div class="tt-info">
+                    <div class="tt-name">Select a conversation</div>
+                    <div class="tt-sub">Click any chat on the left to view messages</div>
+                </div>
             </div>
-        </div>
-        <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.07);display:flex;flex-direction:column;overflow:hidden;">
-            <div id="thread-header" style="margin-bottom:12px;">
-                <h3 style="font-size:13px;font-weight:700;margin:0;color:#374151;">Select a conversation</h3>
-                <p style="font-size:11px;color:#9ca3af;margin:2px 0 0;">Click a chat to view messages</p>
+
+            <div class="thread-area" id="thread-area">
+                <div class="thread-placeholder">
+                    <i class="fas fa-comments"></i>
+                    <h4>No conversation selected</h4>
+                    <p>Select a chat from the sidebar to monitor messages</p>
+                </div>
             </div>
-            <div id="msg-thread-el" class="msg-thread">
-                <div style="text-align:center;padding:60px 0;color:#d1d5db;font-size:13px;"><i class="fas fa-comment-slash" style="font-size:28px;display:block;margin-bottom:8px;"></i>No conversation selected</div>
+
+            <div class="thread-footer">
+                <div class="live-pulse">
+                    <div class="live-dot"></div>
+                    <span>Real-time monitoring active</span>
+                </div>
+                <span style="margin-left:auto;font-size:10px;" id="last-refresh"></span>
             </div>
         </div>
     </div>
 </div>
 
-</div>{{-- /padding --}}
+</div>{{-- /cu-body --}}
+</div>{{-- /cu-page --}}
 
-{{-- Slide Panel --}}
-<div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
-<div class="slide-panel" id="userPanel">
-    <div class="panel-header">
-        <button class="panel-close" onclick="closePanel()">✕</button>
-        <h3 id="panelTitle">User Detail</h3>
-        <button id="panelChatBtn" style="background:#dbeafe;color:#1d4ed8;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;display:none;" onclick="openUserChatsFromPanel()">
-            <i class="fas fa-comments"></i> Chats
-        </button>
+{{-- ══ SLIDE PANEL: User Detail ════════════════════════════════════════════════ --}}
+<div class="sp-overlay" id="spOverlay" onclick="closePanel()"></div>
+<div class="sp" id="spPanel">
+    <div class="sp-head">
+        <button class="sp-close" onclick="closePanel()"><i class="fas fa-times"></i></button>
+        <h3 id="spTitle">User Profile</h3>
     </div>
-    <div class="panel-body" id="panelBody">
-        <div style="text-align:center;padding:60px 0;"><div class="spinner2" style="margin:0 auto;"></div></div>
+    <div class="sp-hero" id="spHero">
+        <div class="sp-av" id="spAv">U</div>
+        <div class="sp-av-info">
+            <div class="sp-name" id="spName">—</div>
+            <div class="sp-handle" id="spHandle">—</div>
+        </div>
+    </div>
+    <div class="sp-body" id="spBody">
+        <div style="display:flex;align-items:center;justify-content:center;padding:80px;"><div class="spin"></div></div>
+    </div>
+    <div class="sp-actions" id="spActions" style="display:none;">
+        <button class="sp-act-btn sp-act-chat" onclick="viewChatsFromPanel()"><i class="fas fa-comments"></i> View Chats</button>
+        <button class="sp-act-btn sp-act-verify" id="spVerifyBtn" onclick="doVerifyPanel()"><i class="fas fa-check"></i> Verify</button>
     </div>
 </div>
 
 <script>
-const BASE = '/admin/community';
-let activeChatId = null;
-let currentPanelUserId = null;
+const B = '/admin/community';
+const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
+let activeChatId = null, panelUserId = null, panelProfileId = null;
 
-// ── Tabs
-function switchTab(tab) {
-    ['users','analytics','chat'].forEach(t => {
-        document.getElementById('pane-'+t).style.display = 'none';
-        document.getElementById('tab-'+t).classList.remove('active');
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+function switchTab(t) {
+    ['users','analytics','chat'].forEach(x => {
+        document.getElementById('pane-'+x).style.display = 'none';
+        document.getElementById('tab-'+x).classList.remove('active');
     });
-    document.getElementById('pane-'+tab).style.display = 'block';
-    document.getElementById('tab-'+tab).classList.add('active');
-    if (tab === 'analytics') initCharts();
-    if (tab === 'chat') loadChatMonitor();
+    document.getElementById('pane-'+t).style.display = 'block';
+    document.getElementById('tab-'+t).classList.add('active');
+    if (t === 'analytics') drawAll();
+    if (t === 'chat') loadMonitor();
 }
 
-// ── Donut charts
-let chartsInited = false;
-function initCharts() {
-    if (chartsInited) return; chartsInited = true;
-    drawDonut('genderChart', [{{ $stats['male'] }}, {{ $stats['female'] }}, {{ $stats['other_gender'] }}], ['#3b82f6','#ec4899','#a78bfa']);
-    drawDonut('verifyChart', [{{ $stats['verified'] }}, {{ $stats['total'] - $stats['verified'] }}], ['#10b981','#e5e7eb']);
-    drawDonut('onboardChart', [{{ $stats['onboarded'] }}, {{ $stats['total'] - $stats['onboarded'] }}], ['#f59e0b','#e5e7eb']);
+// ─── Donut Canvas ─────────────────────────────────────────────────────────────
+let drew = false;
+function drawAll() {
+    if (drew) return; drew = true;
+    donut('gc',  [{{ $stats['male'] }}, {{ $stats['female'] }}, {{ $stats['other_gender'] }}], ['#3B82F6','#EC4899','#A78BFA']);
+    donut('vc',  [{{ $stats['verified'] }}, {{ $stats['total'] - $stats['verified'] }}], ['#10B981','#E2E8F0']);
 }
-function drawDonut(id, data, colors) {
-    const canvas = document.getElementById(id);
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const total = data.reduce((a,b)=>a+b,0)||1;
-    const cx = canvas.width/2, cy = canvas.height/2, r = 68, inner = 44;
-    let angle = -Math.PI/2;
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    data.forEach((v,i) => {
-        const sweep = (v/total)*2*Math.PI;
-        ctx.beginPath(); ctx.moveTo(cx,cy);
-        ctx.arc(cx,cy,r,angle,angle+sweep);
-        ctx.closePath(); ctx.fillStyle = colors[i]; ctx.fill();
-        angle += sweep;
+function donut(id, data, cols) {
+    const c = document.getElementById(id);
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    const total = data.reduce((a,b)=>a+b,0) || 1;
+    const cx = c.width/2, cy = c.height/2, r = c.width*.44, ri = c.width*.27;
+    let a = -Math.PI/2;
+    ctx.clearRect(0, 0, c.width, c.height);
+    // shadow
+    ctx.save();
+    data.forEach((v, i) => {
+        const sw = (v / total) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, a, a + sw);
+        ctx.closePath();
+        ctx.fillStyle = cols[i];
+        ctx.fill();
+        a += sw;
     });
-    ctx.beginPath(); ctx.arc(cx,cy,inner,0,2*Math.PI);
+    ctx.restore();
+    // inner hole
+    ctx.beginPath(); ctx.arc(cx, cy, ri, 0, Math.PI*2);
     ctx.fillStyle = '#fff'; ctx.fill();
-    ctx.fillStyle = '#111'; ctx.font = 'bold 16px sans-serif';
+    // center text
+    ctx.fillStyle = '#0F172A';
+    ctx.font = `800 ${Math.round(c.width*.13)}px "Segoe UI",sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(total.toLocaleString(), cx, cy);
 }
 
-// ── User Panel
-function openUserPanel(profileId, userId) {
-    currentPanelUserId = userId;
-    document.getElementById('userPanel').classList.add('open');
-    document.getElementById('panelOverlay').classList.add('open');
-    document.getElementById('panelTitle').textContent = 'Loading...';
-    document.getElementById('panelChatBtn').style.display = 'none';
-    document.getElementById('panelBody').innerHTML = '<div style="text-align:center;padding:60px 0;"><div class="spinner2" style="margin:0 auto;"></div></div>';
-    fetch(`${BASE}/users/${profileId}/detail`).then(r=>r.json()).then(renderPanel);
+// ─── User Slide Panel ─────────────────────────────────────────────────────────
+function openPanel(profileId, userId) {
+    panelProfileId = profileId;
+    panelUserId = userId;
+    document.getElementById('spOverlay').classList.add('open');
+    document.getElementById('spPanel').classList.add('open');
+    document.getElementById('spTitle').textContent = 'Loading profile...';
+    document.getElementById('spName').textContent = '—';
+    document.getElementById('spHandle').textContent = '—';
+    document.getElementById('spAv').innerHTML = '<div class="spin" style="border-top-color:#fff;border-color:rgba(255,255,255,.2);"></div>';
+    document.getElementById('spBody').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:80px;"><div class="spin"></div></div>';
+    document.getElementById('spActions').style.display = 'none';
+    fetch(`${B}/users/${profileId}/detail`).then(r=>r.json()).then(renderPanel);
 }
-function renderPanel(data) {
-    const p = data.profile, u = p.user || {};
+function renderPanel(d) {
+    const p = d.profile, u = p.user || {};
     const age = p.date_of_birth ? Math.floor((Date.now()-new Date(p.date_of_birth))/(365.25*86400000)) : null;
-    document.getElementById('panelTitle').textContent = u.name || 'User';
-    document.getElementById('panelChatBtn').style.display = 'inline-flex';
-    let interests = '';
-    if (p.interests) {
+    document.getElementById('spTitle').textContent = 'User Profile';
+    document.getElementById('spName').innerHTML = `${u.name||'Unknown'} ${p.is_verified?'<i class="fas fa-check-circle" style="color:#6EE7B7;font-size:14px;"></i>':''}`;
+    document.getElementById('spHandle').textContent = `@${p.username||''} · ${u.email||''}`;
+    const avEl = document.getElementById('spAv');
+    if (u.avatar) { avEl.innerHTML = `<img src="${u.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;">`; }
+    else { avEl.textContent = (u.name||'U')[0].toUpperCase(); }
+
+    const interests = (() => {
+        if (!p.interests) return '';
         const arr = Array.isArray(p.interests) ? p.interests : String(p.interests).split(',');
-        interests = arr.map(i=>`<span style="background:#ede9fe;color:#7c3aed;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;">${i.trim()}</span>`).join(' ');
-    }
-    const posts = (data.recent_posts||[]).map(post=>`
-        <div class="mini-post">
-            <span style="background:#f3f4f6;border-radius:6px;padding:4px 8px;font-size:10px;color:#6b7280;">${post.type}</span>
+        return arr.map(i=>`<span class="interest-chip">${i.trim()}</span>`).join('');
+    })();
+
+    const posts = (d.recent_posts||[]).map(post => `
+        <div class="ppost">
+            <span class="ptype">${post.type}</span>
             <div style="flex:1;min-width:0;">
-                <div class="content-text">${post.content||'(media only)'}</div>
-                <div class="meta">${post.likes_count} likes · ${post.views_count||0} views · ${post.comments_count} comments</div>
+                <div class="ptxt">${post.content||'<em style="color:var(--muted);">Media only</em>'}</div>
+                <div class="pmeta">❤️ ${post.likes_count} · 👁 ${post.views_count||0} · 💬 ${post.comments_count}</div>
             </div>
         </div>`).join('');
-    const avHtml = u.avatar
-        ? `<img src="${u.avatar}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">`
-        : `<div style="width:56px;height:56px;border-radius:50%;background:#6366f1;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;">${(u.name||'U')[0].toUpperCase()}</div>`;
-    document.getElementById('panelBody').innerHTML = `
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">${avHtml}
-            <div>
-                <div style="font-weight:700;font-size:16px;">${u.name||''} ${p.is_verified?'<i class="fas fa-check-circle" style="color:#2563eb;font-size:13px;"></i>':''}</div>
-                <div style="font-size:12px;color:#6b7280;">@${p.username||''}${p.is_business?' · Business':''}</div>
-                <div style="font-size:11px;color:#9ca3af;">${u.email||''}</div>
+
+    document.getElementById('spBody').innerHTML = `
+        <div class="sp-section">
+            <div class="sp-section-title">Profile Information</div>
+            <div class="ig2">
+                <div class="info-box"><div class="ib-k">Gender</div><div class="ib-v">${p.gender ? p.gender.charAt(0).toUpperCase()+p.gender.slice(1) : '—'}</div></div>
+                <div class="info-box"><div class="ib-k">Age</div><div class="ib-v">${age ? age+' years old' : '—'}</div></div>
+                <div class="info-box"><div class="ib-k">Country</div><div class="ib-v">${p.country||'—'}</div></div>
+                <div class="info-box"><div class="ib-k">City</div><div class="ib-v">${p.city||'—'}</div></div>
+                <div class="info-box"><div class="ib-k">Privacy</div><div class="ib-v">${p.privacy||'—'}</div></div>
+                <div class="info-box"><div class="ib-k">Joined</div><div class="ib-v">${u.created_at?new Date(u.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}</div></div>
             </div>
         </div>
-        ${p.bio?`<div style="background:#f9fafb;border-radius:10px;padding:10px 12px;font-size:12px;color:#374151;margin-bottom:16px;">${p.bio}</div>`:''}
-        <div class="panel-section"><h4>Profile Info</h4>
-            <div class="info-grid">
-                <div class="info-item"><div class="key">Gender</div><div class="val">${p.gender||'—'}</div></div>
-                <div class="info-item"><div class="key">Age</div><div class="val">${age?age+' yrs':'—'}</div></div>
-                <div class="info-item"><div class="key">Country</div><div class="val">${p.country||'—'}</div></div>
-                <div class="info-item"><div class="key">City</div><div class="val">${p.city||'—'}</div></div>
-                <div class="info-item"><div class="key">Privacy</div><div class="val">${p.privacy||'—'}</div></div>
-                <div class="info-item"><div class="key">Joined</div><div class="val">${u.created_at?new Date(u.created_at).toLocaleDateString():'—'}</div></div>
+        ${p.bio ? `<div class="sp-section"><div class="sp-section-title">Bio</div><div style="background:var(--faint);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12px;line-height:1.6;color:var(--text);">${p.bio}</div></div>` : ''}
+        <div class="sp-section">
+            <div class="sp-section-title">Social Stats</div>
+            <div class="ig3">
+                <div class="stat-big"><div class="sbv">${(p.posts_count||0).toLocaleString()}</div><div class="sbl">Posts</div></div>
+                <div class="stat-big"><div class="sbv">${(p.followers_count||0).toLocaleString()}</div><div class="sbl">Followers</div></div>
+                <div class="stat-big"><div class="sbv">${(p.following_count||0).toLocaleString()}</div><div class="sbl">Following</div></div>
             </div>
         </div>
-        <div class="panel-section"><h4>Social Stats</h4>
-            <div class="info-grid">
-                <div class="info-item"><div class="key">Posts</div><div class="val">${(p.posts_count||0).toLocaleString()}</div></div>
-                <div class="info-item"><div class="key">Followers</div><div class="val">${(p.followers_count||0).toLocaleString()}</div></div>
-                <div class="info-item"><div class="key">Following</div><div class="val">${(p.following_count||0).toLocaleString()}</div></div>
-                <div class="info-item"><div class="key">Onboarded</div><div class="val">${p.onboarding_completed?'Yes':'No'}</div></div>
+        <div class="sp-section">
+            <div class="sp-section-title">Account Status</div>
+            <div class="ig2">
+                <div class="info-box"><div class="ib-k">Verified</div><div class="ib-v" style="color:${p.is_verified?'var(--green)':'var(--muted);'};">${p.is_verified?'✓ Yes':'No'}</div></div>
+                <div class="info-box"><div class="ib-k">Business</div><div class="ib-v">${p.is_business?'Yes':'No'}</div></div>
+                <div class="info-box"><div class="ib-k">Onboarded</div><div class="ib-v" style="color:${p.onboarding_completed?'var(--green)':'var(--amber);'};">${p.onboarding_completed?'✓ Complete':'Pending'}</div></div>
+                <div class="info-box"><div class="ib-k">Privacy</div><div class="ib-v">${(p.privacy||'public').charAt(0).toUpperCase()+(p.privacy||'public').slice(1)}</div></div>
             </div>
         </div>
-        ${interests?`<div class="panel-section"><h4>Interests</h4><div style="display:flex;flex-wrap:wrap;gap:4px;">${interests}</div></div>`:''}
-        ${posts?`<div class="panel-section"><h4>Recent Posts</h4>${posts}</div>`:''}
+        ${interests ? `<div class="sp-section"><div class="sp-section-title">Interests</div><div style="line-height:2;">${interests}</div></div>` : ''}
+        ${posts ? `<div class="sp-section"><div class="sp-section-title">Recent Posts</div>${posts}</div>` : ''}
     `;
+
+    const vBtn = document.getElementById('spVerifyBtn');
+    vBtn.className = `sp-act-btn sp-act-verify${p.is_verified?' on':''}`;
+    vBtn.innerHTML = `<i class="fas fa-${p.is_verified?'times':'check'}"></i> ${p.is_verified?'Unverify':'Verify'}`;
+    vBtn.dataset.verified = p.is_verified ? '1' : '0';
+    document.getElementById('spActions').style.display = 'flex';
 }
 function closePanel() {
-    document.getElementById('userPanel').classList.remove('open');
-    document.getElementById('panelOverlay').classList.remove('open');
+    document.getElementById('spOverlay').classList.remove('open');
+    document.getElementById('spPanel').classList.remove('open');
 }
-function openUserChatsFromPanel() {
-    if (currentPanelUserId) { closePanel(); openUserChats(currentPanelUserId); }
+function doVerifyPanel() {
+    if (!panelProfileId) return;
+    doVerify(panelProfileId, document.getElementById('spVerifyBtn'));
+}
+function viewChatsFromPanel() {
+    if (panelUserId) { closePanel(); viewChats(panelUserId); }
 }
 
-// ── Chat Monitor
-function loadChatMonitor() {
-    const q = document.getElementById('chat-search')?.value||'';
-    fetch(`${BASE}/chat-monitor${q?'?search='+encodeURIComponent(q):''}`)
-        .then(r=>r.json()).then(data=>renderChatList(data.chats||[]));
-    document.getElementById('chat-refresh-time').textContent = 'Updated '+new Date().toLocaleTimeString();
+// ─── Verify ────────────────────────────────────────────────────────────────────
+function doVerify(profileId, btn) {
+    fetch(`${B}/users/${profileId}/verify`, { method:'POST', headers:{'X-CSRF-TOKEN':CSRF} })
+        .then(r => {
+            const isOn = btn.classList.contains('on') || btn.dataset.verified === '1';
+            btn.classList.toggle('on', !isOn);
+            btn.innerHTML = !isOn
+                ? '<i class="fas fa-times"></i> Unverify'
+                : '<i class="fas fa-check"></i> Verify';
+            btn.dataset.verified = !isOn ? '1' : '0';
+            // Also update card button
+            const cardBtn = document.getElementById('vb-'+profileId);
+            if (cardBtn) {
+                cardBtn.classList.toggle('on', !isOn);
+                cardBtn.innerHTML = !isOn
+                    ? '<i class="fas fa-times"></i> Unverify'
+                    : '<i class="fas fa-check"></i> Verify';
+            }
+        });
 }
-function renderChatList(chats) {
+
+// ─── Chat Monitor ─────────────────────────────────────────────────────────────
+function loadMonitor() {
+    const q = document.getElementById('chat-search-inp')?.value || '';
+    fetch(`${B}/chat-monitor${q?'?search='+encodeURIComponent(q):''}`)
+        .then(r=>r.json())
+        .then(d => {
+            renderConvList(d.chats||[]);
+            document.getElementById('last-refresh').textContent = 'Updated ' + new Date().toLocaleTimeString();
+        });
+}
+function renderConvList(chats) {
     const el = document.getElementById('chat-list-el');
-    if (!chats.length) { el.innerHTML='<div style="text-align:center;padding:40px 0;color:#9ca3af;font-size:13px;">No conversations</div>'; return; }
-    el.innerHTML = chats.map(chat=>{
-        const members = chat.members||[];
-        const avs = members.slice(0,2).map(m=>m.avatar
-            ?`<img src="${m.avatar}" class="chat-av" style="object-fit:cover;" alt="">`
-            :`<div class="chat-av">${(m.name||'?')[0].toUpperCase()}</div>`).join('');
-        const lastMsg = chat.last_message || (chat.last_message_type==='image'?'📷 Image':chat.last_message_type==='audio'?'🎵 Audio':'');
+    if (!chats.length) {
+        el.innerHTML = '<div class="chat-empty"><i class="fas fa-comment-slash"></i><p>No conversations found</p></div>';
+        return;
+    }
+    el.innerHTML = chats.map(chat => {
+        const mems = chat.members||[];
+        const avHtml = mems.slice(0,2).map(m =>
+            m.avatar ? `<div class="chat-av"><img src="${m.avatar}" alt=""></div>`
+                     : `<div class="chat-av">${(m.name||'?')[0].toUpperCase()}</div>`
+        ).join('');
+        const last = chat.last_message ||(chat.last_message_type==='image'?'📷 Photo':chat.last_message_type==='audio'?'🎵 Audio':null);
         const t = chat.last_message_at ? new Date(chat.last_message_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
-        return `<div class="chat-row${chat.id===activeChatId?' selected':''}" onclick="loadMessages(${chat.id},'${(chat.name||'Chat').replace(/'/g,"\\'")}')">
-            <div class="chat-avatars">${avs}</div>
-            <div class="chat-meta">
-                <div class="chat-names">${chat.name||'Unknown'}</div>
-                <div class="chat-last">${lastMsg||'<em style="color:#d1d5db;">No messages</em>'}</div>
+        return `<div class="chat-item${chat.id===activeChatId?' selected':''}" onclick="openThread(${chat.id},'${(chat.name||'Chat').replace(/'/g,"\\'").replace(/"/g,"&quot;")}',this)">
+            <div class="chat-avs" style="width:58px;flex-shrink:0;">${avHtml}</div>
+            <div class="chat-item-body">
+                <div class="chat-item-name">${chat.name||'Unknown'}</div>
+                <div class="chat-item-last">${last||'<em>No messages</em>'}</div>
             </div>
-            <div class="chat-right">
-                <div class="chat-cnt">${(chat.messages_count||0)} msgs</div>
-                <div class="chat-time">${t}</div>
+            <div class="chat-item-right">
+                <div class="chat-item-cnt">${chat.messages_count||0}</div>
+                <div class="chat-item-time">${t}</div>
             </div>
         </div>`;
     }).join('');
 }
-function loadMessages(chatId, chatName) {
+
+function viewChats(userId) {
+    switchTab('chat');
+    fetch(`${B}/users/${userId}/chats`).then(r=>r.json()).then(d=>renderConvList(d.chats||[]));
+}
+
+function openThread(chatId, name, rowEl) {
     activeChatId = chatId;
-    document.querySelectorAll('.chat-row').forEach(r=>r.classList.remove('selected'));
-    event.currentTarget.classList.add('selected');
-    document.getElementById('thread-header').innerHTML = `<h3 style="font-size:13px;font-weight:700;margin:0;color:#374151;">${chatName}</h3><p style="font-size:11px;color:#9ca3af;margin:2px 0 0;">Chat #${chatId}</p>`;
-    document.getElementById('msg-thread-el').innerHTML = '<div style="text-align:center;padding:40px;"><div class="spinner2" style="margin:0 auto;"></div></div>';
-    fetch(`${BASE}/chats/${chatId}/messages`).then(r=>r.json()).then(data=>renderMessages(data.messages||[], data.members||[]));
+    document.querySelectorAll('.chat-item').forEach(r=>r.classList.remove('selected'));
+    rowEl.classList.add('selected');
+
+    // Update topbar
+    document.getElementById('thread-topbar').innerHTML = `
+        <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#8B5CF6);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;font-weight:700;font-size:14px;">
+            ${name.charAt(0).toUpperCase()}
+        </div>
+        <div class="tt-info">
+            <div class="tt-name">${name}</div>
+            <div class="tt-sub">Chat #${chatId} · Viewing all messages</div>
+        </div>
+        <span class="tt-badge">MONITORING</span>`;
+
+    document.getElementById('thread-area').innerHTML = '<div style="display:flex;justify-content:center;align-items:center;flex:1;height:100%;"><div class="spin"></div></div>';
+
+    fetch(`${B}/chats/${chatId}/messages`).then(r=>r.json()).then(d=>renderThread(d.messages||[], d.members||[]));
 }
-function renderMessages(messages, members) {
-    const memberMap = {};
-    members.forEach(m=>memberMap[m.user_id]=m);
+
+function renderThread(messages, members) {
+    const ta = document.getElementById('thread-area');
+    if (!messages.length) {
+        ta.innerHTML = '<div class="thread-placeholder"><i class="fas fa-comment-slash"></i><h4>No messages</h4><p>This conversation has no messages yet</p></div>';
+        return;
+    }
     const firstId = messages[0]?.user_id;
-    const thread = document.getElementById('msg-thread-el');
-    if (!messages.length) { thread.innerHTML='<div style="text-align:center;padding:40px;color:#9ca3af;font-size:12px;">No messages</div>'; return; }
-    thread.innerHTML = messages.map(msg=>{
-        const isRight = msg.user_id===firstId;
+    let lastDate = null;
+    ta.innerHTML = messages.map(msg => {
+        const right = msg.user_id === firstId;
+        const d = msg.created_at ? new Date(msg.created_at) : null;
+        const dateStr = d ? d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}) : null;
+        let sep = '';
+        if (dateStr && dateStr !== lastDate) { lastDate = dateStr; sep = `<div class="date-sep">${dateStr}</div>`; }
+
         const av = msg.avatar
-            ?`<div class="msg-av"><img src="${msg.avatar}" alt=""></div>`
-            :`<div class="msg-av">${(msg.name||'?')[0].toUpperCase()}</div>`;
-        const t = msg.created_at ? new Date(msg.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
+            ? `<div class="msg-av2"><img src="${msg.avatar}" alt=""></div>`
+            : `<div class="msg-av2">${(msg.name||'?')[0].toUpperCase()}</div>`;
+        const t = d ? d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
         const content = msg.is_deleted
-            ?`<span class="msg-deleted-text">[Deleted]</span>`
-            :(msg.type==='image'&&msg.media_url?`<img src="${msg.media_url}" style="max-width:100%;border-radius:8px;margin-top:4px;">`
-            :(msg.type==='audio'&&msg.media_url?`🎵 Audio`:msg.content||''));
-        const delBtn = !msg.is_deleted?`<button class="msg-del-btn" onclick="deleteMsg(${msg.id},this)">Delete</button>`:'';
-        return `<div class="msg-wrap${isRight?' right':''}">
-            ${av}
-            <div class="msg-bubble${isRight?' right-b':' left'}">
-                <div class="msg-sender">${msg.name||''}</div>
-                ${content}
-                <div class="msg-time">${t}</div>
+            ? `<span style="font-style:italic;opacity:.6;">Message deleted</span>`
+            : (msg.type==='image'&&msg.media_url ? `<img src="${msg.media_url}" style="max-width:100%;border-radius:8px;display:block;margin-top:4px;" alt="">`
+            : msg.type==='audio'&&msg.media_url ? `<span>🎵 Audio message</span>`
+            : escHtml(msg.content||''));
+
+        const delBtn = !msg.is_deleted ? `<button class="msg-del-btn" onclick="delMsg(${msg.id},this)" title="Delete"><i class="fas fa-trash"></i></button>` : '';
+
+        return `${sep}<div class="msg-row${right?' right':''}">
+            ${right?delBtn:''}${av}
+            <div class="msg-col">
+                <div class="msg-name">${msg.name||''}</div>
+                <div class="bubble${right?' right':' left'}${msg.is_deleted?' deleted':''}">
+                    ${content}
+                    <div class="btime">${t}</div>
+                </div>
             </div>
-            ${delBtn}
+            ${!right?delBtn:''}
         </div>`;
     }).join('');
-    thread.scrollTop = thread.scrollHeight;
+    ta.scrollTop = ta.scrollHeight;
 }
-function deleteMsg(id, btn) {
-    if (!confirm('Delete this message?')) return;
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.content||'';
-    fetch(`${BASE}/messages/${id}`, {method:'DELETE',headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json'}})
-        .then(r=>r.json()).then(d=>{
+
+function delMsg(id, btn) {
+    if (!confirm('Permanently delete this message?')) return;
+    fetch(`${B}/messages/${id}`, {method:'DELETE',headers:{'X-CSRF-TOKEN':CSRF,'Accept':'application/json'}})
+        .then(r=>r.json()).then(d => {
             if (d.success) {
-                const wrap = btn.closest('.msg-wrap');
-                wrap.querySelector('.msg-bubble').innerHTML += '<div class="msg-deleted-text" style="margin-top:4px;">[Deleted]</div>';
+                const row = btn.closest('.msg-row');
+                const bubble = row.querySelector('.bubble');
+                bubble.classList.add('deleted');
+                bubble.innerHTML = '<span style="font-style:italic;opacity:.6;">Message deleted</span>';
                 btn.remove();
             }
         });
 }
-function openUserChats(userId) {
-    switchTab('chat');
-    fetch(`${BASE}/users/${userId}/chats`).then(r=>r.json()).then(data=>renderChatList(data.chats||[]));
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ── Verify Toggle
-function toggleVerify(profileId, btn) {
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.content||'';
-    const isVerified = btn.classList.contains('is-verified');
-    fetch(`${BASE}/users/${profileId}/verify`, {method:'POST',headers:{'X-CSRF-TOKEN':csrf}})
-        .then(r=>{ if(r.ok||r.redirected) {
-            btn.classList.toggle('is-verified', !isVerified);
-            btn.innerHTML = !isVerified ? '<i class="fas fa-times"></i> Unverify' : '<i class="fas fa-check"></i> Verify';
-        }});
-}
-
-// ── Auto-poll chat monitor every 5s when visible
-setInterval(()=>{ if(document.getElementById('pane-chat').style.display!=='none') loadChatMonitor(); }, 5000);
+// ─── Auto-refresh ─────────────────────────────────────────────────────────────
+setInterval(() => {
+    if (document.getElementById('pane-chat').style.display !== 'none') loadMonitor();
+}, 5000);
 </script>
 
 @endsection
