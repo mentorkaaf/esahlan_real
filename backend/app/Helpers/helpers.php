@@ -136,13 +136,27 @@ if (!function_exists('proxy_storage_file')) {
     /**
      * Serve a public-storage file with full Range-request support.
      *
-     * PHP validates the path (no traversal, file must exist), sets CORS +
-     * cache headers, and streams only the requested byte range. Range support
-     * is required for video seeking (video_player / ExoPlayer send Range headers).
+     * When the request carries ?s= and ?e= parameters the file is treated as
+     * signed (private). The HMAC is validated before serving; an invalid or
+     * expired signature yields 403. Files without ?s= are served publicly —
+     * backward-compatible with all existing unsigned URLs.
      */
     function proxy_storage_file(string $path): \Symfony\Component\HttpFoundation\Response
     {
         $path     = ltrim(str_replace(['..', "\0"], '', $path), '/');
+
+        // ── Signature validation (only when ?s= is present) ──────────
+        $req = request();
+        $sig = $req->query('s');
+        if ($sig !== null) {
+            $expires = (int) $req->query('e', 0);
+            if (!\App\Services\MediaSigningService::verify($path, $sig, $expires)) {
+                abort(403, 'Media link has expired or is invalid.');
+            }
+            // Signed URLs must not be cached publicly
+            $cacheControl = 'private, max-age=3600';
+        }
+
         $realPath = storage_path('app/public/' . $path);
         if (!is_file($realPath)) {
             abort(404);
@@ -182,7 +196,7 @@ if (!function_exists('proxy_storage_file')) {
             'Content-Type'                        => $mime,
             'Content-Length'                      => $length,
             'Accept-Ranges'                       => 'bytes',
-            'Cache-Control'                       => 'public, max-age=604800',
+            'Cache-Control'                       => $cacheControl ?? 'public, max-age=604800',
             'Access-Control-Allow-Origin'         => '*',
             'Access-Control-Allow-Methods'        => 'GET, OPTIONS',
             'Access-Control-Allow-Headers'        => 'Origin, Accept, Content-Type, Range',
@@ -282,6 +296,40 @@ if (!function_exists('cdn_url')) {
 
         // Relative storage path.
         return media_proxy_url($val);
+    }
+}
+
+if (!function_exists('signed_media_url')) {
+    /**
+     * Generate a time-limited signed media URL for private/expiring content.
+     *
+     * Use for: story media (TTL = time to story expiry), private post media,
+     * paid eLearning content, chat attachments.
+     *
+     * Public images (banners, vendor logos, public post thumbnails) should
+     * continue using cdn_url() — no need to sign freely accessible content.
+     *
+     * @param  string        $pathOrUrl  Storage-relative path OR full cdn_url
+     * @param  int|\DateTime $ttl        Seconds (int) or an absolute expiry DateTime
+     */
+    function signed_media_url(?string $pathOrUrl, int|\DateTime $ttl = 3600): ?string
+    {
+        if (!$pathOrUrl) return null;
+
+        // Extract the storage-relative path from a full proxy URL
+        $path = $pathOrUrl;
+        if (str_contains($pathOrUrl, '/api/v1/media')) {
+            parse_str(parse_url($pathOrUrl, PHP_URL_QUERY) ?? '', $q);
+            $path = rawurldecode($q['f'] ?? '');
+        } elseif (str_starts_with($pathOrUrl, 'http')) {
+            // External URL — cannot sign, return as-is
+            return $pathOrUrl;
+        }
+
+        $path      = ltrim($path, '/');
+        $ttlSecs   = $ttl instanceof \DateTime ? max(1, $ttl->getTimestamp() - time()) : $ttl;
+
+        return \App\Services\MediaSigningService::url($path, $ttlSecs);
     }
 }
 

@@ -560,7 +560,18 @@ class CommunityFeedController extends Controller
         ->whereHas('stories', fn ($q) => $q->where('expires_at', '>', now()))
         ->get()
         ->map(function ($u) use ($userId) {
-            $stories = $u->stories->map(fn ($s) => array_merge($s->toArray(), ['is_viewed' => $s->isViewedBy($userId)]));
+            $stories = $u->stories->map(function ($s) use ($userId) {
+                $data = $s->toArray();
+                // Sign media URL with TTL = time remaining until story expires
+                if (!empty($data['media_url']) && $s->type !== 'text') {
+                    $data['media_url'] = signed_media_url($data['media_url'], $s->expires_at);
+                }
+                if (!empty($data['thumbnail'])) {
+                    $data['thumbnail'] = signed_media_url($data['thumbnail'], $s->expires_at);
+                }
+                $data['is_viewed'] = $s->isViewedBy($userId);
+                return $data;
+            });
             $allViewed = $stories->every(fn ($s) => $s['is_viewed']);
             return ['user' => $this->transformUser($u, $userId), 'stories' => $stories, 'all_viewed' => $allViewed];
         });
@@ -726,18 +737,27 @@ class CommunityFeedController extends Controller
             'saves_count'       => $post->saves_count,
             'poll_options'      => $post->poll_options,
             'created_at'        => $post->created_at,
-            'media'             => $post->media->map(fn ($m) => [
-                'id'                   => $m->id,
-                'type'                 => $m->type,
-                'url'                  => cdn_url($m->getRawOriginal('url')),
-                'hls_url'              => $m->getRawOriginal('hls_url') ? cdn_url($m->getRawOriginal('hls_url')) : null,
-                'thumbnail'            => cdn_url($m->getRawOriginal('thumbnail')),
-                'duration'             => $m->duration,
-                'width'                => $m->width,
-                'height'               => $m->height,
-                'transcoding_status'   => $m->getRawOriginal('transcoding_status') ?? 'none',
-                'transcoding_progress' => $m->transcoding_progress ?? 0,
-            ])->toArray(),
+            'media'             => $post->media->map(function ($m) use ($post) {
+                // Private / followers-only posts: sign media URLs so they expire (7 days)
+                $private = in_array($post->privacy, ['followers', 'private']);
+                $ttl     = $private ? 7 * 86400 : null;
+                return [
+                    'id'                   => $m->id,
+                    'type'                 => $m->type,
+                    'url'                  => $private
+                                                ? signed_media_url($m->getRawOriginal('url'), $ttl)
+                                                : cdn_url($m->getRawOriginal('url')),
+                    'hls_url'              => $m->getRawOriginal('hls_url') ? cdn_url($m->getRawOriginal('hls_url')) : null,
+                    'thumbnail'            => $private
+                                                ? signed_media_url($m->getRawOriginal('thumbnail'), $ttl)
+                                                : cdn_url($m->getRawOriginal('thumbnail')),
+                    'duration'             => $m->duration,
+                    'width'                => $m->width,
+                    'height'               => $m->height,
+                    'transcoding_status'   => $m->getRawOriginal('transcoding_status') ?? 'none',
+                    'transcoding_progress' => $m->transcoding_progress ?? 0,
+                ];
+            })->toArray(),
             'user'              => $displayUser,
             'user_reaction'     => $post->userReaction?->type,
             'is_saved'          => in_array($post->id, $savedPostIds),
