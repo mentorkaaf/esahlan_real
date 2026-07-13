@@ -27,11 +27,11 @@ class LoginNotifier extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
-  Future<void> login(String phone, String password) async {
+  Future<void> login({String? phone, String? email, required String password}) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final repo = ref.read(authRepositoryProvider);
-      await repo.login(phone: phone, password: password);
+      await repo.login(phone: phone, email: email, password: password);
       ref.invalidate(authStateProvider);
     });
   }
@@ -48,13 +48,17 @@ class RegisterNotifier extends AsyncNotifier<void> {
     required String name,
     required String phone,
     required String password,
+    String? email,
     int? districtId,
     String? referralCode,
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final repo = ref.read(authRepositoryProvider);
-      await repo.register(name: name, phone: phone, password: password, districtId: districtId, referralCode: referralCode);
+      await repo.register(
+        name: name, phone: phone, password: password,
+        email: email, districtId: districtId, referralCode: referralCode,
+      );
       ref.invalidate(authStateProvider);
     });
   }

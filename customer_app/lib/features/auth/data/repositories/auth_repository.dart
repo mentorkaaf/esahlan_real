@@ -10,12 +10,15 @@ class AuthRepository {
   final Dio _dio = ApiClient.instance;
 
   Future<({UserModel user, String token})> login({
-    required String phone,
+    String? phone,
+    String? email,
     required String password,
   }) async {
+    assert(phone != null || email != null, 'phone or email required');
     try {
       final res = await _dio.post('/auth/login', data: {
-        'phone': phone,
+        if (email != null && email.isNotEmpty) 'email': email
+        else 'phone': phone,
         'password': password,
       });
       final data  = res.data['data'];
@@ -35,6 +38,7 @@ class AuthRepository {
     required String name,
     required String phone,
     required String password,
+    String? email,
     int? districtId,
     String? referralCode,
   }) async {
@@ -44,6 +48,7 @@ class AuthRepository {
         'phone': phone,
         'password': password,
         'password_confirmation': password,
+        if (email != null && email.isNotEmpty) 'email': email,
         if (districtId != null) 'district_id': districtId,
         if (referralCode != null) 'referral_code': referralCode,
       });

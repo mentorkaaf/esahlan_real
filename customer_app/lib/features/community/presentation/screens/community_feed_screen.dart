@@ -275,13 +275,20 @@ class _AppBarBtn extends StatelessWidget {
   }
 }
 
-class _FeedTab extends ConsumerWidget {
+class _FeedTab extends ConsumerStatefulWidget {
   final AsyncValue<List<CommunityPost>> feedState;
   final AsyncValue<List<StoryGroup>> storiesState;
   const _FeedTab({required this.feedState, required this.storiesState});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_FeedTab> createState() => _FeedTabState();
+}
+
+class _FeedTabState extends ConsumerState<_FeedTab> {
+  int _lastLoadMs = 0;
+
+  @override
+  Widget build(BuildContext context) {
     // Watch at top level so suggestions/reels updates don't cause extra rebuilds
     // inside the data callback when the feed itself hasn't changed.
     final suggestions = ref.watch(communitySuggestionsProvider).valueOrNull ?? [];
@@ -294,7 +301,11 @@ class _FeedTab extends ConsumerWidget {
           if (n is ScrollUpdateNotification) {
             final m = n.metrics;
             if (m.pixels >= m.maxScrollExtent - 800) {
-              ref.read(communityFeedProvider.notifier).load();
+              final now = DateTime.now().millisecondsSinceEpoch;
+              if (now - _lastLoadMs > 400) {
+                _lastLoadMs = now;
+                ref.read(communityFeedProvider.notifier).load();
+              }
             }
           }
           return false;
@@ -306,8 +317,9 @@ class _FeedTab extends ConsumerWidget {
           // The old ListView + Column built ALL 30+ cards at once — this is the main perf fix.
           child: CustomScrollView(
             physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            cacheExtent: 1500,
             slivers: [
-              SliverToBoxAdapter(child: storiesState.when(
+              SliverToBoxAdapter(child: widget.storiesState.when(
                 data: (groups) => StoriesBar(groups: groups),
                 loading: () => const SizedBox(height: 100),
                 error: (_, __) => const SizedBox.shrink(),
@@ -315,7 +327,7 @@ class _FeedTab extends ConsumerWidget {
               const SliverToBoxAdapter(child: _CreatePostBar()),
               const SliverToBoxAdapter(child: SizedBox(height: 4)),
 
-              ...feedState.when<List<Widget>>(
+              ...widget.feedState.when<List<Widget>>(
                 data: (posts) {
                   if (posts.isEmpty) return [const SliverToBoxAdapter(child: _EmptyFeed())];
 
@@ -998,24 +1010,12 @@ class _PostCard extends ConsumerStatefulWidget {
 }
 
 class _PostCardState extends ConsumerState<_PostCard> {
-  bool _showReactions = false;
-  String? _myReaction;
   String get _postChannel => 'community.post.${widget.post.id}';
   final Map<String, void Function(dynamic)> _realtimeListeners = {};
-
-  static const _reactions = [
-    {'type': 'like', 'emoji': '👍', 'color': Color(0xFF1877F2)},
-    {'type': 'love', 'emoji': '❤️', 'color': Color(0xFFE41E3F)},
-    {'type': 'haha', 'emoji': '😂', 'color': Color(0xFFF7B928)},
-    {'type': 'wow', 'emoji': '😮', 'color': Color(0xFFF7B928)},
-    {'type': 'sad', 'emoji': '😢', 'color': Color(0xFFF7B928)},
-    {'type': 'angry', 'emoji': '😡', 'color': Color(0xFFE47820)},
-  ];
 
   @override
   void initState() {
     super.initState();
-    _myReaction = widget.post.userReaction;
     if (!widget.post.isAd) _subscribeRealtime();
   }
 
@@ -1085,16 +1085,6 @@ class _PostCardState extends ConsumerState<_PostCard> {
   }
 
   String _reactionEmoji(String type) => {'like': '👍', 'love': '❤️', 'haha': '😂', 'wow': '😮', 'sad': '😢', 'angry': '😡'}[type] ?? 'Like';
-
-  void _react(String type) async {
-    setState(() {
-      _myReaction = _myReaction == type ? null : type;
-      _showReactions = false;
-    });
-    try {
-      await ref.read(communityRepoProvider).reactToPost(widget.post.id, type);
-    } catch (_) {}
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1292,37 +1282,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
           );
         }),
 
-        Divider(height: 1, thickness: 1, color: Color(0xFFF2F4F7)),
-
-        // Action buttons (unchanged)
-        Padding(
-          padding: EdgeInsets.fromLTRB(6, 4, 6, 6),
-          child: Row(children: [
-            _myReaction != null
-              ? _ReactionActiveBtn(
-                  emoji: _reactionEmoji(_myReaction!),
-                  onTap: () => setState(() => _showReactions = !_showReactions),
-                  onLongPress: () => _react('like'),
-                )
-              : _ActionBtn(
-                  icon: Icons.thumb_up_alt_outlined,
-                  label: 'Like',
-                  color: const Color(0xFF8A94A6),
-                  onTap: () => setState(() => _showReactions = !_showReactions),
-                  onLongPress: () => _react('like'),
-                ),
-            _ActionBtn(icon: Icons.mode_comment_outlined, label: 'Comment', color: const Color(0xFF8A94A6), onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount, commentsDisabled: p.commentsDisabled)),
-            _ActionBtn(icon: Icons.reply_rounded, label: 'Share', color: const Color(0xFF8A94A6), onTap: () => _showShareDialog()),
-            _SaveBtn(postId: p.id, isSaved: p.isSaved, onToggle: (saved) => setState(() => p.isSaved = saved)),
-          ]),
-        ),
-
-        // Reaction picker â€” shown above action buttons
-        if (_showReactions)
-          Container(
-            padding: EdgeInsets.fromLTRB(12, 0, 12, 8),
-            child: _ReactionPicker(reactions: _reactions, onPick: _react, onDismiss: () => setState(() => _showReactions = false)),
-          ),
+        _PostActionBar(post: p, onShare: _showShareDialog),
       ]),
     );
   }
@@ -1669,6 +1629,102 @@ class _ReactionChip extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+// Isolated action bar: owns reaction picker state + save state.
+// Extracted so that like/save/share taps only rebuild this small widget,
+// not the entire post card (which includes media grid, text, stats row).
+class _PostActionBar extends ConsumerStatefulWidget {
+  final CommunityPost post;
+  final VoidCallback onShare;
+  const _PostActionBar({required this.post, required this.onShare});
+
+  @override
+  ConsumerState<_PostActionBar> createState() => _PostActionBarState();
+}
+
+class _PostActionBarState extends ConsumerState<_PostActionBar> {
+  bool _showReactions = false;
+  late String? _myReaction;
+  late bool _isSaved;
+
+  static const _reactions = [
+    {'type': 'like', 'emoji': '👍', 'color': Color(0xFF1877F2)},
+    {'type': 'love', 'emoji': '❤️', 'color': Color(0xFFE41E3F)},
+    {'type': 'haha', 'emoji': '😂', 'color': Color(0xFFF7B928)},
+    {'type': 'wow', 'emoji': '😮', 'color': Color(0xFFF7B928)},
+    {'type': 'sad', 'emoji': '😢', 'color': Color(0xFFF7B928)},
+    {'type': 'angry', 'emoji': '😡', 'color': Color(0xFFE47820)},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _myReaction = widget.post.userReaction;
+    _isSaved = widget.post.isSaved;
+  }
+
+  String _emoji(String type) =>
+      {'like': '👍', 'love': '❤️', 'haha': '😂', 'wow': '😮', 'sad': '😢', 'angry': '😡'}[type] ?? 'Like';
+
+  void _react(String type) async {
+    setState(() {
+      _myReaction = _myReaction == type ? null : type;
+      _showReactions = false;
+    });
+    try {
+      await ref.read(communityRepoProvider).reactToPost(widget.post.id, type);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.post;
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      const Divider(height: 1, thickness: 1, color: Color(0xFFF2F4F7)),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(6, 4, 6, 6),
+        child: Row(children: [
+          _myReaction != null
+            ? _ReactionActiveBtn(
+                emoji: _emoji(_myReaction!),
+                onTap: () => setState(() => _showReactions = !_showReactions),
+                onLongPress: () => _react('like'),
+              )
+            : _ActionBtn(
+                icon: Icons.thumb_up_alt_outlined,
+                label: 'Like',
+                color: const Color(0xFF8A94A6),
+                onTap: () => setState(() => _showReactions = !_showReactions),
+                onLongPress: () => _react('like'),
+              ),
+          _ActionBtn(
+            icon: Icons.mode_comment_outlined, label: 'Comment',
+            color: const Color(0xFF8A94A6),
+            onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount, commentsDisabled: p.commentsDisabled),
+          ),
+          _ActionBtn(icon: Icons.reply_rounded, label: 'Share', color: const Color(0xFF8A94A6), onTap: widget.onShare),
+          _SaveBtn(
+            postId: p.id,
+            isSaved: _isSaved,
+            onToggle: (saved) {
+              setState(() => _isSaved = saved);
+              p.isSaved = saved;
+            },
+          ),
+        ]),
+      ),
+      if (_showReactions)
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: _ReactionPicker(
+            reactions: _reactions,
+            onPick: _react,
+            onDismiss: () => setState(() => _showReactions = false),
+          ),
+        ),
+    ]);
   }
 }
 

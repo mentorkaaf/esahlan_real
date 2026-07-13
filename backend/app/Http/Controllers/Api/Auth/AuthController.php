@@ -21,12 +21,21 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
+        // If email provided → strong password required; otherwise 4-digit PIN allowed
+        $passwordRule = $request->filled('email')
+            ? ['required', 'string', 'min:8', 'confirmed',
+               'regex:/[A-Z]/', 'regex:/[a-z]/', 'regex:/[0-9]/', 'regex:/[@$!%*#?&^_\-]/']
+            : ['required', 'string', 'min:4', 'max:4', 'regex:/^\d{4}$/'];
+
         $v = Validator::make($request->all(), [
             'name'          => 'required|string|max:100',
             'phone'         => 'required|string|unique:users,phone',
-            'password'      => 'required|string|min:8|confirmed',
+            'email'         => 'nullable|email|unique:users,email',
+            'password'      => $passwordRule,
             'referral_code' => 'nullable|string|exists:users,referral_code',
             'district_id'   => 'nullable|integer|exists:districts,id',
+        ], [
+            'password.regex' => 'Password must contain uppercase, lowercase, number and special character (@$!%*#?&).',
         ]);
 
         if ($v->fails()) {
