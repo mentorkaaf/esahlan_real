@@ -56,6 +56,24 @@ class AdminCommunityAdsController extends Controller
         return back()->with('success', 'Ad deleted and remaining budget refunded.');
     }
 
+    public function reactivateAd(Request $request, $id)
+    {
+        $ad = CommunityAd::findOrFail($id);
+        $extraBudget = max(0, (float) ($request->input('extra_budget', 0)));
+
+        $ad->update([
+            'status'      => 'active',
+            'spent'       => 0,
+            'clicks'      => 0,
+            'impressions' => 0,
+            'budget'      => $ad->budget + $extraBudget,
+            'starts_at'   => now(),
+            'ends_at'     => $ad->ends_at && $ad->ends_at->isPast() ? now()->addDays(30) : $ad->ends_at,
+        ]);
+
+        return back()->with('success', "Ad #{$ad->id} reactivated successfully.");
+    }
+
     public function bulkDelete(Request $request)
     {
         $ids = $request->input('ids', []);

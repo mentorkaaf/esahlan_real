@@ -75,12 +75,20 @@
                         @else <span style="color:#8A8A9A;font-size:11px;">No targeting</span>@endif
                     </td>
                     <td>
-                        <div style="display:flex;gap:4px;">
-                            <form action="{{ route('admin.community-ads.status', $ad->id) }}" method="POST" style="display:flex;gap:4px;">@csrf @method('PATCH')
-                                <select name="status" class="form-control" style="width:100px;font-size:11px;">@foreach(['pending','active','paused','completed','rejected'] as $s)<option value="{{ $s }}" {{ $ad->status===$s?'selected':'' }}>{{ ucfirst($s) }}</option>@endforeach</select>
-                                <button class="btn btn-sm btn-primary"><i class="fas fa-check"></i></button>
-                            </form>
-                            <form action="{{ route('admin.community-ads.delete', $ad->id) }}" method="POST" onsubmit="return confirm('Delete?')">@csrf<button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button></form>
+                        <div style="display:flex;flex-direction:column;gap:4px;">
+                            <div style="display:flex;gap:4px;">
+                                <form action="{{ route('admin.community-ads.status', $ad->id) }}" method="POST" style="display:flex;gap:4px;">@csrf @method('PATCH')
+                                    <select name="status" class="form-control" style="width:100px;font-size:11px;">@foreach(['pending','active','paused','completed','rejected'] as $s)<option value="{{ $s }}" {{ $ad->status===$s?'selected':'' }}>{{ ucfirst($s) }}</option>@endforeach</select>
+                                    <button class="btn btn-sm btn-primary"><i class="fas fa-check"></i></button>
+                                </form>
+                                <form action="{{ route('admin.community-ads.delete', $ad->id) }}" method="POST" onsubmit="return confirm('Delete?')">@csrf<button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button></form>
+                            </div>
+                            @if(in_array($ad->status, ['completed','paused','rejected']))
+                            <button onclick="openReactivateModal({{ $ad->id }}, '{{ addslashes($ad->title) }}', {{ $ad->budget }})"
+                                style="background:linear-gradient(135deg,#FF8A00,#f97316);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                                <i class="fas fa-redo" style="font-size:10px;"></i> Reactivate
+                            </button>
+                            @endif
                         </div>
                     </td>
                 </tr>
@@ -266,6 +274,56 @@ function closeMediaModal() {
     document.getElementById('mediaModal').style.display = 'none';
     document.getElementById('mediaContent').innerHTML = '';
 }
+
+// ── Reactivate Modal ──────────────────────────────────────────────────────────
+var _reactivateId = null;
+function openReactivateModal(id, title, budget) {
+    _reactivateId = id;
+    document.getElementById('reactivateTitle').textContent = '"' + title + '"';
+    document.getElementById('reactivateBudget').textContent = '$' + parseFloat(budget).toFixed(2);
+    document.getElementById('reactivateExtraBudget').value = '';
+    document.getElementById('reactivateForm').action = '/admin/community-ads/ads/' + id + '/reactivate';
+    document.getElementById('reactivateModal').style.display = 'flex';
+}
+function closeReactivateModal() {
+    document.getElementById('reactivateModal').style.display = 'none';
+}
 </script>
+
+{{-- Reactivate Modal --}}
+<div id="reactivateModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:28px;width:400px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+            <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#FF8A00,#f97316);display:flex;align-items:center;justify-content:center;">
+                <i class="fas fa-redo" style="color:#fff;font-size:16px;"></i>
+            </div>
+            <div>
+                <div style="font-weight:800;font-size:16px;color:#1A1B2E;">Reactivate Ad</div>
+                <div style="font-size:12px;color:#8A8A9A;" id="reactivateTitle"></div>
+            </div>
+        </div>
+        <div style="background:#FFF8F0;border:1px solid #FFD9A8;border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px;color:#92400E;">
+            <i class="fas fa-info-circle" style="color:#FF8A00;"></i>
+            Spent, clicks, and impressions will reset to 0. Current budget: <strong id="reactivateBudget"></strong>
+        </div>
+        <form id="reactivateForm" method="POST">
+            @csrf
+            <div style="margin-bottom:14px;">
+                <label style="font-weight:700;font-size:13px;display:block;margin-bottom:6px;">Add Extra Budget (optional)</label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-weight:700;color:#8A8A9A;">$</span>
+                    <input type="number" name="extra_budget" id="reactivateExtraBudget" min="0" step="0.01" placeholder="0.00" class="form-control" style="flex:1;">
+                </div>
+                <small style="color:#8A8A9A;font-size:11px;">Leave empty to keep the original budget amount</small>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button type="button" onclick="closeReactivateModal()" style="padding:8px 18px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;color:#374151;font-weight:600;cursor:pointer;">Cancel</button>
+                <button type="submit" style="padding:8px 20px;background:linear-gradient(135deg,#FF8A00,#f97316);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                    <i class="fas fa-redo"></i> Reactivate Ad
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 @endpush
 @endsection

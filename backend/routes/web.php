@@ -339,6 +339,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/ads-bulk-delete', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'bulkDelete'])->name('bulk-delete');
             Route::post('/settings', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'saveSettings'])->name('save-settings');
             Route::patch('/pricing/{id}', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'updatePricing'])->name('pricing');
+            Route::post('/ads/{id}/reactivate', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'reactivateAd'])->name('reactivate');
         });
 
         Route::prefix('notifications')->name('notifications.')->group(function () {
