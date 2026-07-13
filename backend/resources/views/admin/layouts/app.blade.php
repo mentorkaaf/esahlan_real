@@ -981,42 +981,66 @@ function dismissSecToast(el) {
     setTimeout(() => el.remove(), 280);
 }
 
-// Audio — new context per beep, resumed immediately
+// Audio — real security alarm sounds
 let _secAudioUnlocked = false;
 document.addEventListener('click', () => { _secAudioUnlocked = true; }, { once: true });
 
 function secBeep(sev) {
     if (!_secAudioUnlocked) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
     try {
-        const AC  = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return;
         const ctx = new AC();
         ctx.resume().then(() => {
-            const play = (freq, delay, dur) => {
-                const osc  = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.type = 'square';           // louder, more cutting than sine
-                osc.frequency.value = freq;
-                const t = ctx.currentTime + delay;
-                gain.gain.setValueAtTime(0.001, t);
-                gain.gain.linearRampToValueAtTime(1.0, t + 0.01);
-                gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-                osc.start(t);
-                osc.stop(t + dur + 0.05);
-                osc.onended = () => { try { ctx.close(); } catch(e) {} };
-            };
             if (sev === 'critical') {
-                play(1000, 0,    0.15);
-                play(700,  0.2,  0.25);
-                play(1000, 0.5,  0.15);
+                // Emergency siren: rapid wail up-down × 3, harsh sawtooth
+                for (let i = 0; i < 3; i++) {
+                    const osc  = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    const dist = ctx.createWaveShaper();
+                    // Distortion curve for harsh, cutting sound
+                    const curve = new Float32Array(256);
+                    for (let j = 0; j < 256; j++) {
+                        const x = (j * 2) / 256 - 1;
+                        curve[j] = (Math.PI + 400) * x / (Math.PI + 400 * Math.abs(x));
+                    }
+                    dist.curve = curve;
+                    osc.connect(dist); dist.connect(gain); gain.connect(ctx.destination);
+                    osc.type = 'sawtooth';
+                    const t = ctx.currentTime + i * 0.38;
+                    // Sweep: 400Hz → 1200Hz → 400Hz in 0.35s (siren wail)
+                    osc.frequency.setValueAtTime(400, t);
+                    osc.frequency.linearRampToValueAtTime(1200, t + 0.17);
+                    osc.frequency.linearRampToValueAtTime(400,  t + 0.34);
+                    gain.gain.setValueAtTime(0, t);
+                    gain.gain.linearRampToValueAtTime(0.9, t + 0.02);
+                    gain.gain.setValueAtTime(0.9, t + 0.30);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.36);
+                    osc.start(t);
+                    osc.stop(t + 0.38);
+                    if (i === 2) osc.onended = () => { try { ctx.close(); } catch(e){} };
+                }
             } else {
-                play(750, 0, 0.2);
-                play(600, 0.25, 0.2);
+                // Warning: two sharp descending pulses — like an alarm panel
+                [[900, 600], [900, 600]].forEach(([hi, lo], i) => {
+                    const osc  = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.type = 'square';
+                    const t = ctx.currentTime + i * 0.32;
+                    osc.frequency.setValueAtTime(hi, t);
+                    osc.frequency.linearRampToValueAtTime(lo, t + 0.18);
+                    gain.gain.setValueAtTime(0, t);
+                    gain.gain.linearRampToValueAtTime(0.85, t + 0.01);
+                    gain.gain.setValueAtTime(0.85, t + 0.15);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.28);
+                    osc.start(t);
+                    osc.stop(t + 0.30);
+                    if (i === 1) osc.onended = () => { try { ctx.close(); } catch(e){} };
+                });
             }
         });
-    } catch(e) { console.warn('secBeep error:', e); }
+    } catch(e) {}
 }
 
 // ── Polling ──────────────────────────────────────────────────────────────────
