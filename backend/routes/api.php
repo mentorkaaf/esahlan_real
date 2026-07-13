@@ -575,9 +575,12 @@ Route::prefix('v1')->group(function () {
             // dashboard stats via API
             Route::get('stats', [\App\Http\Controllers\Admin\DashboardController::class, 'stats']);
 
-            // SOC — Security Operations Center
-            Route::get('soc/stats',          [\App\Http\Controllers\Api\Admin\SocController::class, 'stats']);
-            Route::get('soc/events',         [\App\Http\Controllers\Api\Admin\SocController::class, 'recentEvents']);
+            // SOC — Security Operations Center (requires platform.audit.view gate)
+            Route::middleware('can:platform.audit.view')->group(function () {
+                Route::get('soc/stats',  [\App\Http\Controllers\Api\Admin\SocController::class, 'stats']);
+                Route::get('soc/events', [\App\Http\Controllers\Api\Admin\SocController::class, 'recentEvents']);
+            });
+
         });
     });
 });

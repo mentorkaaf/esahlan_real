@@ -66,9 +66,47 @@ class User extends Authenticatable
 
     public function hasPermission(string $slug): bool
     {
-        $direct = $this->permissions()->where('slug', $slug)->first();
-        if ($direct) return (bool) $direct->pivot->granted;
-        return $this->role?->permissions()->where('slug', $slug)->exists() ?? false;
+        // Cache the full permission set per user for the lifetime of this request.
+        // Avoids N+1 when multiple Gate checks fire on a single request.
+        $perms = $this->_loadPermissionCache();
+
+        // Explicit user-level grant/revoke takes priority over role
+        if (array_key_exists($slug, $perms['user'])) {
+            return (bool) $perms['user'][$slug];
+        }
+
+        return in_array($slug, $perms['role'], true);
+    }
+
+    /** @return array{user: array<string,bool>, role: string[]} */
+    private function _loadPermissionCache(): array
+    {
+        static $cache = [];
+        $key = $this->id;
+
+        if (!isset($cache[$key])) {
+            // User-level overrides: slug → granted bool
+            $userPerms = $this->permissions()
+                ->get(['slug', 'granted' /* pivot */])
+                ->mapWithKeys(fn($p) => [$p->slug => (bool) $p->pivot->granted])
+                ->all();
+
+            // Role-level permissions: array of slugs
+            $rolePerms = $this->role
+                ? $this->role->permissions()->pluck('slug')->all()
+                : [];
+
+            $cache[$key] = ['user' => $userPerms, 'role' => $rolePerms];
+        }
+
+        return $cache[$key];
+    }
+
+    /** Flush the per-request permission cache for this user (call after role/perm changes). */
+    public function flushPermissionCache(): void
+    {
+        static $cache = [];
+        unset($cache[$this->id]);
     }
 
     public function hasRole(string $slug): bool { return $this->role?->slug === $slug; }

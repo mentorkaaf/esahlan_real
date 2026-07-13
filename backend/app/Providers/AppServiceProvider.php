@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -19,6 +21,42 @@ class AppServiceProvider extends ServiceProvider
         }
 
         $this->configureRateLimiting();
+        $this->defineGates();
+    }
+
+    private function defineGates(): void
+    {
+        // super_admin bypasses every gate check automatically
+        Gate::before(function (User $user, string $ability) {
+            if ($user->hasRole('super_admin')) return true;
+            return null; // let the specific gate decide
+        });
+
+        // Define a gate for every permission slug — delegates to User::hasPermission()
+        $permissions = [
+            // Community
+            'community.post.create',
+            'community.post.delete_any',
+            'community.comment.delete_any',
+            'community.user.ban',
+            'community.report.view',
+            'community.report.resolve',
+            'community.content.feature',
+            // Finance
+            'finance.transaction.view',
+            'finance.refund.process',
+            'finance.withdrawal.approve',
+            // Platform
+            'platform.setting.manage',
+            'platform.role.manage',
+            'platform.audit.view',
+            'platform.analytics.view',
+            'platform.module.manage',
+        ];
+
+        foreach ($permissions as $slug) {
+            Gate::define($slug, fn (User $user) => $user->hasPermission($slug));
+        }
     }
 
     private function configureRateLimiting(): void
