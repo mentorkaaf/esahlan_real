@@ -23,6 +23,7 @@ class AdminSecurityController extends Controller
     public function stats()
     {
         Cache::forget('soc_v3_main');
+        Cache::forget('soc_attacker_geo'); // always refresh geo on poll
         return response()->json($this->fullPayload());
     }
 
@@ -558,7 +559,7 @@ class AdminSecurityController extends Controller
 
     private function geolocateAttackers($now): array
     {
-        $attackerGeo = Cache::remember('soc_attacker_geo', 3600, function () use ($now) {
+        $attackerGeo = Cache::remember('soc_attacker_geo', 300, function () use ($now) {
             // Get unique attacker IPs with event types (last 48h)
             $rows = SecurityAuditLog::where('created_at', '>=', $now->copy()->subHours(48))
                 ->whereNotNull('ip_address')

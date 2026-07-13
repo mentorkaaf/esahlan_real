@@ -1289,7 +1289,8 @@ function initMap() {
 
 // Animates a dot from attacker → server using bezier arc
 function spawnAttackDot(srcLat, srcLng, col) {
-    let t = Math.random(); // stagger start time
+    let t = Math.random();
+    let alive = true;
 
     const dot = new google.maps.Marker({
         map: _gmap, zIndex: 150,
@@ -1297,25 +1298,31 @@ function spawnAttackDot(srcLat, srcLng, col) {
                 fillColor: col, fillOpacity: 1,
                 strokeColor: '#fff', strokeWeight: 0.8 },
     });
+    _mapMarkers.push(dot);
 
-    // Midpoint lifted for arc effect
     const midLat = (srcLat + SERVER_POS.lat) / 2 + 18;
     const midLng = (srcLng + SERVER_POS.lng) / 2;
 
     let last = null;
     function step(ts) {
+        if (!alive) { dot.setMap(null); return; }
         if (!last) last = ts;
-        t += (ts - last) / 3200; // full arc in ~3.2 seconds
+        t += (ts - last) / 3200;
         last = ts;
         if (t >= 1) t = 0;
-
-        const u  = 1 - t;
-        const lat = u*u*srcLat     + 2*u*t*midLat     + t*t*SERVER_POS.lat;
-        const lng = u*u*srcLng     + 2*u*t*midLng     + t*t*SERVER_POS.lng;
-        dot.setPosition({ lat, lng });
-        requestAnimationFrame(step);
+        const u = 1 - t;
+        dot.setPosition({
+            lat: u*u*srcLat + 2*u*t*midLat + t*t*SERVER_POS.lat,
+            lng: u*u*srcLng + 2*u*t*midLng + t*t*SERVER_POS.lng,
+        });
+        const id = requestAnimationFrame(step);
+        _animFrames.push(id);
     }
-    requestAnimationFrame(step);
+    const id = requestAnimationFrame(step);
+    _animFrames.push(id);
+
+    // Return stop fn so refreshMap can kill it
+    return () => { alive = false; };
 }
 
 // Bootstrap Google Maps
@@ -1345,25 +1352,100 @@ async function socRefresh() {
         if (!resp.ok) return;
         const d = await resp.json();
         const up = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.textContent = val; };
-        up('kCritical',   d.criticalEvents1h);
-        up('kFailed',     d.failedLogins1h);
-        up('kBlocked',    d.blockedIps24h);
-        up('kMalware',    d.malware24h);
-        up('kSessions',   d.activeSessions);
+        up('kCritical',    d.criticalEvents1h);
+        up('kFailed',      d.failedLogins1h);
+        up('kBlocked',     d.blockedIps24h);
+        up('kMalware',     d.malware24h);
+        up('kSessions',    d.activeSessions);
         up('kSuccessRate', (d.successRate ?? '') + '%');
-        up('kRateLimit',  d.rateLimitHits24h);
-        up('kNewUsers',   d.newUsers24h);
-        up('hdrThreats',  d.threatCount);
-        up('hdrSessions', d.activeSessions);
-        up('hdrFailed',   d.failedLogins1h);
-        up('liveTotal',   d.totalSessions);
-        up('scoreNum',    d.securityScore);
-        up('perfCpu',     (d.cpuPct ?? '') + '%');
-        up('perfRam',     (d.ramUsedPct ?? '') + '%');
-        up('perfDisk',    (d.diskUsedPct ?? '') + '%');
-        up('perfDb',      d.mysqlThreads);
-        up('perfQueue',   d.failedJobs);
+        up('kRateLimit',   d.rateLimitHits24h);
+        up('kNewUsers',    d.newUsers24h);
+        up('hdrThreats',   d.threatCount);
+        up('hdrSessions',  d.activeSessions);
+        up('hdrFailed',    d.failedLogins1h);
+        up('liveTotal',    d.totalSessions);
+        up('scoreNum',     d.securityScore);
+        up('perfCpu',      (d.cpuPct ?? '') + '%');
+        up('perfRam',      (d.ramUsedPct ?? '') + '%');
+        up('perfDisk',     (d.diskUsedPct ?? '') + '%');
+        up('perfDb',       d.mysqlThreads);
+        up('perfQueue',    d.failedJobs);
+
+        // ── Live map update ─────────────────────────────────────────────
+        if (d.attackerGeo && _gmap && window.google) {
+            refreshMap(d.attackerGeo);
+        }
     } catch (e) {}
+}
+
+// Clears & re-plots all markers/lines/dots on the map with fresh geo data
+let _mapMarkers = [], _mapCircles = [], _mapLines = [], _animFrames = [];
+
+function refreshMap(geoData) {
+    // Stop old animation frames
+    _animFrames.forEach(id => cancelAnimationFrame(id));
+    _animFrames = [];
+
+    // Remove old overlays
+    _mapMarkers.forEach(m => m.setMap(null));
+    _mapCircles.forEach(c => c.setMap(null));
+    _mapLines.forEach(l => l.setMap(null));
+    _mapMarkers = []; _mapCircles = []; _mapLines = [];
+
+    const bounds = new google.maps.LatLngBounds();
+    const srvLL  = new google.maps.LatLng(SERVER_POS.lat, SERVER_POS.lng);
+    bounds.extend(srvLL);
+
+    // Update badge count
+    const badge = document.getElementById('mapAttackerCount');
+    if (badge) badge.textContent = geoData.length;
+
+    if (geoData.length === 0) return;
+
+    geoData.forEach(a => {
+        const col = attackColor(a.type);
+        const aLL = new google.maps.LatLng(a.lat, a.lng);
+        const sz  = Math.min(13, 7 + Math.sqrt(a.cnt));
+        bounds.extend(aLL);
+
+        const mk = new google.maps.Marker({
+            position: aLL, map: _gmap, zIndex: 100,
+            title: `${a.ip} (${a.cnt} attempts)`,
+            icon: { path: google.maps.SymbolPath.CIRCLE, scale: sz,
+                    fillColor: col, fillOpacity: 0.95,
+                    strokeColor: '#fff', strokeWeight: 2 },
+        });
+        _mapMarkers.push(mk);
+
+        const ring = new google.maps.Circle({
+            center: aLL, radius: 60000 * Math.min(4, a.cnt), map: _gmap,
+            strokeColor: col, strokeOpacity: 0.4, strokeWeight: 1.5,
+            fillColor: col, fillOpacity: 0.1,
+        });
+        _mapCircles.push(ring);
+
+        const dark = isDark();
+        const iwBg = dark ? '#0d1226' : '#ffffff', iwTxt = dark ? '#fff' : '#1a202c', iwSub = dark ? 'rgba(255,255,255,.55)' : '#4a5568';
+        const iw = new google.maps.InfoWindow({
+            content: `<div style="background:${iwBg};color:${iwTxt};padding:12px 16px;border-radius:10px;font-size:12px;min-width:200px;border:1px solid ${col};line-height:1.8;box-shadow:0 4px 16px rgba(0,0,0,.15)">
+                <strong style="color:${col};text-transform:uppercase;letter-spacing:.5px">${a.type.replace(/_/g,' ')}</strong><br>
+                <span style="font-family:monospace;font-size:13px;color:${iwTxt}">${a.ip}</span><br>
+                <span style="color:${iwSub}">📍 ${[a.city, a.country].filter(Boolean).join(', ')}</span><br>
+                <span style="color:${iwSub}">🔁 <strong style="color:${iwTxt}">${a.cnt}</strong> attempts in 48h</span>
+            </div>`,
+        });
+        mk.addListener('click', () => iw.open(_gmap, mk));
+
+        const line = new google.maps.Polyline({
+            path: [aLL, srvLL], geodesic: true, map: _gmap,
+            strokeColor: col, strokeOpacity: isDark() ? 0.22 : 0.5, strokeWeight: 2,
+        });
+        _mapLines.push(line);
+
+        spawnAttackDot(a.lat, a.lng, col);
+    });
+
+    _gmap.fitBounds(bounds, { top: 40, right: 40, bottom: 60, left: 40 });
 }
 
 // ── Quick Actions ─────────────────────────────────────────────────────────
