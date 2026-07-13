@@ -182,7 +182,7 @@ body[data-soc-theme="dark"] .soc-table tr:hover td{background:rgba(255,255,255,.
 
 /* ── AI Threat cards ─────────────────────────────────────────────────── */
 .threat-list{display:flex;flex-direction:column;gap:10px}
-.threat-card{padding:14px 16px;border-radius:14px;border-left:3px solid;border-top:1px solid var(--brd);border-right:1px solid var(--brd);border-bottom:1px solid var(--brd);background:var(--bg2)}
+.threat-card{padding:14px 16px;border-radius:14px;border-left:3px solid;border-top:1px solid var(--brd);border-right:1px solid var(--brd);border-bottom:1px solid var(--brd);background:var(--bg2);position:relative}
 .threat-card.risk-critical{border-left-color:var(--red)}
 .threat-card.risk-high{border-left-color:var(--ora)}
 .threat-card.risk-medium{border-left-color:var(--ylw)}
@@ -574,43 +574,116 @@ body[data-soc-theme="dark"] #themeToggle .t-icon{transform:rotate(180deg)}
 
 {{-- ═══════════════════════════ AI THREATS ═════════════════════════════ --}}
 <div id="tab-threats" class="tab-pane">
-    <div class="s-label" style="margin-bottom:16px">AI Threat Detection Engine &nbsp;·&nbsp; Real-time analysis from audit logs</div>
-    @if(count($aiThreats) === 0)
-    <div class="g" style="padding:40px;text-align:center">
-        <i class="fas fa-shield-check" style="font-size:48px;color:var(--grn);margin-bottom:16px;display:block"></i>
-        <div style="font-size:16px;font-weight:600;color:var(--grn);margin-bottom:8px">No Active Threats Detected</div>
-        <div style="font-size:13px;color:var(--txt2)">All monitored patterns are within normal thresholds.</div>
-    </div>
-    @else
-    <div class="threat-list">
-        @foreach($aiThreats as $t)
-        @php
-            $rc = match($t['risk']){ 'critical'=>'var(--red)','high'=>'var(--ora)','medium'=>'var(--ylw)',default=>'var(--blu)' };
-            $rb = match($t['risk']){ 'critical'=>'rgba(255,71,87,.2)','high'=>'rgba(255,138,0,.2)','medium'=>'rgba(255,200,0,.2)',default=>'rgba(77,159,255,.2)' };
-        @endphp
-        <div class="threat-card risk-{{ $t['risk'] }}">
-            <div class="tc-head">
-                <div class="tc-icon" style="background:{{ $rb }};color:{{ $rc }}"><i class="fas {{ $t['icon'] }}"></i></div>
-                <div>
-                    <div class="tc-type">{{ $t['type'] }}</div>
-                    <div style="font-size:11px;color:{{ $rc }};text-transform:uppercase;font-weight:600">{{ $t['risk'] }}</div>
-                </div>
-                <div class="tc-conf conf-{{ $t['risk'] }}" style="margin-left:auto">{{ $t['confidence'] }}% confidence</div>
-                @if($t['auto'])
-                <span style="font-size:10px;background:rgba(0,217,126,.15);color:var(--grn);padding:2px 7px;border-radius:5px;font-weight:600">AUTO-MITIGATED</span>
-                @endif
-            </div>
-            <div class="tc-detail">{{ $t['detail'] }}</div>
-            <div class="tc-foot">
-                <span class="tc-src"><i class="fas fa-location-dot" style="margin-right:4px;opacity:.5"></i>{{ $t['source'] }}</span>
-                <button class="tc-action" onclick="quickAct('block_ip','{{ addslashes($t['source']) }}',this)">
-                    <i class="fas fa-ban" style="margin-right:4px"></i>{{ $t['action'] }}
-                </button>
-            </div>
+@php
+    $appThreats   = array_values(array_filter($aiThreats, fn($t) => ($t['vector'] ?? 'app') !== 'admin_panel'));
+    $adminThreats = array_values(array_filter($aiThreats, fn($t) => ($t['vector'] ?? '') === 'admin_panel'));
+@endphp
+
+{{-- ── Summary row ── --}}
+<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+    <div class="g" style="padding:14px 20px;flex:1;min-width:160px;display:flex;align-items:center;gap:12px">
+        <div style="width:38px;height:38px;border-radius:10px;background:rgba(77,159,255,.15);display:flex;align-items:center;justify-content:center;color:var(--blu);font-size:16px"><i class="fas fa-mobile-screen"></i></div>
+        <div>
+            <div style="font-size:22px;font-weight:700;color:var(--blu);line-height:1">{{ count($appThreats) }}</div>
+            <div style="font-size:11px;color:var(--txt2);text-transform:uppercase;letter-spacing:.8px">App Threats</div>
         </div>
-        @endforeach
     </div>
-    @endif
+    <div class="g" style="padding:14px 20px;flex:1;min-width:160px;display:flex;align-items:center;gap:12px">
+        <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,71,87,.15);display:flex;align-items:center;justify-content:center;color:var(--red);font-size:16px"><i class="fas fa-shield-halved"></i></div>
+        <div>
+            <div style="font-size:22px;font-weight:700;color:var(--red);line-height:1">{{ count($adminThreats) }}</div>
+            <div style="font-size:11px;color:var(--txt2);text-transform:uppercase;letter-spacing:.8px">Admin Panel Attacks</div>
+        </div>
+    </div>
+    <div class="g" style="padding:14px 20px;flex:1;min-width:160px;display:flex;align-items:center;gap:12px">
+        <div style="width:38px;height:38px;border-radius:10px;background:rgba(0,217,126,.15);display:flex;align-items:center;justify-content:center;color:var(--grn);font-size:16px"><i class="fas fa-clock"></i></div>
+        <div>
+            <div style="font-size:12px;color:var(--txt);font-weight:600">Live Detection</div>
+            <div style="font-size:11px;color:var(--txt2)">Real-time — all surfaces</div>
+        </div>
+    </div>
+</div>
+
+@if(count($aiThreats) === 0)
+<div class="g" style="padding:40px;text-align:center">
+    <i class="fas fa-shield-check" style="font-size:48px;color:var(--grn);margin-bottom:16px;display:block"></i>
+    <div style="font-size:16px;font-weight:600;color:var(--grn);margin-bottom:8px">No Active Threats Detected</div>
+    <div style="font-size:13px;color:var(--txt2)">All monitored patterns are within normal thresholds.</div>
+</div>
+@else
+
+{{-- ── Admin Panel Attacks ── --}}
+@if(count($adminThreats) > 0)
+<div class="s-label" style="margin-bottom:10px;display:flex;align-items:center;gap:8px">
+    <i class="fas fa-shield-halved" style="color:var(--red)"></i>
+    Admin Panel Attacks
+    <span style="background:rgba(255,71,87,.2);color:var(--red);font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px">{{ count($adminThreats) }} active</span>
+</div>
+<div class="threat-list" style="margin-bottom:24px">
+    @foreach($adminThreats as $t)
+    @php
+        $rc = match($t['risk']){ 'critical'=>'var(--red)','high'=>'var(--ora)','medium'=>'var(--ylw)',default=>'var(--blu)' };
+        $rb = match($t['risk']){ 'critical'=>'rgba(255,71,87,.2)','high'=>'rgba(255,138,0,.2)','medium'=>'rgba(255,200,0,.2)',default=>'rgba(77,159,255,.2)' };
+    @endphp
+    <div class="threat-card risk-{{ $t['risk'] }}" style="border-left-color:var(--red)">
+        <div style="position:absolute;top:10px;right:10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;background:rgba(255,71,87,.15);color:var(--red);padding:2px 8px;border-radius:6px;border:1px solid rgba(255,71,87,.3)">ADMIN PANEL</div>
+        <div class="tc-head">
+            <div class="tc-icon" style="background:{{ $rb }};color:{{ $rc }}"><i class="fas {{ $t['icon'] }}"></i></div>
+            <div>
+                <div class="tc-type">{{ $t['type'] }}</div>
+                <div style="font-size:11px;color:{{ $rc }};text-transform:uppercase;font-weight:600">{{ $t['risk'] }}</div>
+            </div>
+            <div class="tc-conf conf-{{ $t['risk'] }}" style="margin-left:auto;margin-right:70px">{{ $t['confidence'] }}% confidence</div>
+        </div>
+        <div class="tc-detail">{{ $t['detail'] }}</div>
+        <div class="tc-foot">
+            <span class="tc-src"><i class="fas fa-location-dot" style="margin-right:4px;opacity:.5"></i>{{ $t['source'] }}</span>
+            <button class="tc-action" onclick="quickAct('block_ip','{{ addslashes($t['source']) }}',this)">
+                <i class="fas fa-ban" style="margin-right:4px"></i>{{ $t['action'] }}
+            </button>
+        </div>
+    </div>
+    @endforeach
+</div>
+@endif
+
+{{-- ── App Threats ── --}}
+@if(count($appThreats) > 0)
+<div class="s-label" style="margin-bottom:10px;display:flex;align-items:center;gap:8px">
+    <i class="fas fa-mobile-screen" style="color:var(--blu)"></i>
+    Mobile App Threats
+</div>
+<div class="threat-list">
+    @foreach($appThreats as $t)
+    @php
+        $rc = match($t['risk']){ 'critical'=>'var(--red)','high'=>'var(--ora)','medium'=>'var(--ylw)',default=>'var(--blu)' };
+        $rb = match($t['risk']){ 'critical'=>'rgba(255,71,87,.2)','high'=>'rgba(255,138,0,.2)','medium'=>'rgba(255,200,0,.2)',default=>'rgba(77,159,255,.2)' };
+    @endphp
+    <div class="threat-card risk-{{ $t['risk'] }}">
+        <div class="tc-head">
+            <div class="tc-icon" style="background:{{ $rb }};color:{{ $rc }}"><i class="fas {{ $t['icon'] }}"></i></div>
+            <div>
+                <div class="tc-type">{{ $t['type'] }}</div>
+                <div style="font-size:11px;color:{{ $rc }};text-transform:uppercase;font-weight:600">{{ $t['risk'] }}</div>
+            </div>
+            <div class="tc-conf conf-{{ $t['risk'] }}" style="margin-left:auto">{{ $t['confidence'] }}% confidence</div>
+            @if($t['auto'])
+            <span style="font-size:10px;background:rgba(0,217,126,.15);color:var(--grn);padding:2px 7px;border-radius:5px;font-weight:600">AUTO-MITIGATED</span>
+            @endif
+        </div>
+        <div class="tc-detail">{{ $t['detail'] }}</div>
+        <div class="tc-foot">
+            <span class="tc-src"><i class="fas fa-location-dot" style="margin-right:4px;opacity:.5"></i>{{ $t['source'] }}</span>
+            <button class="tc-action" onclick="quickAct('block_ip','{{ addslashes($t['source']) }}',this)">
+                <i class="fas fa-ban" style="margin-right:4px"></i>{{ $t['action'] }}
+            </button>
+        </div>
+    </div>
+    @endforeach
+</div>
+@endif
+
+@endif
 </div>
 
 {{-- ═══════════════════════════ API SECURITY ════════════════════════════ --}}

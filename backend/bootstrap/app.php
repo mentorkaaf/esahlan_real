@@ -21,11 +21,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(fn () => route('admin.login'));
 
         $middleware->alias([
-            'role'          => \App\Http\Middleware\RoleMiddleware::class,
-            'module.active' => \App\Http\Middleware\CheckModuleActive::class,
-            'vendor'        => \App\Http\Middleware\VendorMiddleware::class,
-            'admin.gate'    => \App\Http\Middleware\AdminModuleGate::class,
-            'brute_force'   => \App\Http\Middleware\CheckBruteForce::class,
+            'role'             => \App\Http\Middleware\RoleMiddleware::class,
+            'module.active'    => \App\Http\Middleware\CheckModuleActive::class,
+            'vendor'           => \App\Http\Middleware\VendorMiddleware::class,
+            'admin.gate'       => \App\Http\Middleware\AdminModuleGate::class,
+            'brute_force'      => \App\Http\Middleware\CheckBruteForce::class,
+            'admin.monitor'    => \App\Http\Middleware\AdminRouteMonitor::class,
         ]);
 
         // Sanitize text input on every API request (strip null bytes + control chars)

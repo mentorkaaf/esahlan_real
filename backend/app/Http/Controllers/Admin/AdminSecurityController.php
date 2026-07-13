@@ -530,6 +530,77 @@ class AdminSecurityController extends Controller
             ];
         }
 
+        // 5. Admin panel brute force
+        $ab = SecurityAuditLog::where('event', 'admin.login.failed')
+            ->where('created_at', '>=', $now->copy()->subHour())
+            ->selectRaw('ip_address, COUNT(*) as attempts, COUNT(DISTINCT user_identifier) as targets')
+            ->groupBy('ip_address')
+            ->having('attempts', '>=', 3)
+            ->orderByDesc('attempts')
+            ->limit(5)
+            ->get();
+
+        foreach ($ab as $r) {
+            $threats[] = [
+                'type'       => 'Admin Brute Force',
+                'icon'       => 'fa-shield-halved',
+                'risk'       => $r->attempts >= 8 ? 'critical' : 'high',
+                'confidence' => min(99, 80 + ($r->attempts * 3)),
+                'detail'     => "IP {$r->ip_address}: {$r->attempts} admin login attempts ({$r->targets} account(s) targeted)",
+                'source'     => $r->ip_address,
+                'action'     => 'Block IP',
+                'auto'       => false,
+                'vector'     => 'admin_panel',
+            ];
+        }
+
+        // 6. Admin route scanning / probing
+        $probe = SecurityAuditLog::whereIn('event', ['admin.route.probe', 'admin.route.blocked'])
+            ->where('created_at', '>=', $now->copy()->subHour())
+            ->selectRaw('ip_address, COUNT(*) as cnt, MAX(event) as worst')
+            ->groupBy('ip_address')
+            ->having('cnt', '>=', 3)
+            ->orderByDesc('cnt')
+            ->limit(5)
+            ->get();
+
+        foreach ($probe as $r) {
+            $threats[] = [
+                'type'       => 'Admin Panel Scan',
+                'icon'       => 'fa-magnifying-glass',
+                'risk'       => $r->worst === 'admin.route.blocked' ? 'critical' : 'high',
+                'confidence' => min(99, 65 + ($r->cnt * 2)),
+                'detail'     => "IP {$r->ip_address} probing admin routes — {$r->cnt} unauthorized requests in 1h",
+                'source'     => $r->ip_address,
+                'action'     => 'Block IP',
+                'auto'       => false,
+                'vector'     => 'admin_panel',
+            ];
+        }
+
+        // 7. Privilege escalation attempts
+        $pe = SecurityAuditLog::whereIn('event', ['admin.access.denied', 'admin.privilege.escalation'])
+            ->where('created_at', '>=', $now->copy()->subHours(24))
+            ->selectRaw('ip_address, user_identifier, COUNT(*) as cnt')
+            ->groupBy('ip_address', 'user_identifier')
+            ->orderByDesc('cnt')
+            ->limit(5)
+            ->get();
+
+        foreach ($pe as $r) {
+            $threats[] = [
+                'type'       => 'Privilege Escalation',
+                'icon'       => 'fa-user-lock',
+                'risk'       => 'critical',
+                'confidence' => 95,
+                'detail'     => ($r->user_identifier ? "User {$r->user_identifier}" : "IP {$r->ip_address}") . " attempted admin access without permission ({$r->cnt}×)",
+                'source'     => $r->ip_address ?? $r->user_identifier,
+                'action'     => 'Revoke Session',
+                'auto'       => false,
+                'vector'     => 'admin_panel',
+            ];
+        }
+
         usort($threats, fn ($a, $b) => (
             (['critical' => 4, 'high' => 3, 'medium' => 2, 'low' => 1][$b['risk']] ?? 0) -
             (['critical' => 4, 'high' => 3, 'medium' => 2, 'low' => 1][$a['risk']] ?? 0)

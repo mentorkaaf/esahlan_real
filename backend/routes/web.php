@@ -176,7 +176,7 @@ Route::get('/api-sync', function (\Illuminate\Http\Request $request) {
 });
 
 // Admin Auth
-Route::prefix('admin')->name('admin.')->group(function () {
+Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(function () {
     Route::middleware('guest')->group(function () {
         Route::get('/login', [AdminAuthController::class, 'showLogin'])->name('login');
         Route::post('/login', [AdminAuthController::class, 'login'])->name('login.post');
