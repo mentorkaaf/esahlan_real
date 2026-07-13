@@ -34,13 +34,44 @@ class AdminSecurityController extends Controller
 
     public function liveEvents()
     {
-        $since = request('since');
-        $q = SecurityAuditLog::orderByDesc('created_at')->limit(25);
-        if ($since) {
-            $q->where('created_at', '>', $since);
+        $afterId = (int) request('after', 0);
+        $limit   = min((int) request('limit', 50), 100);
+
+        // Only security-relevant events worth notifying about
+        $notifyEvents = [
+            'admin.login.failed', 'admin.login.blocked', 'admin.login.success',
+            'admin.route.probe',  'admin.route.blocked',
+            'admin.privilege.escalation', 'admin.access.denied',
+            'login.failed', 'login.blocked', 'upload.rejected',
+        ];
+
+        $q = SecurityAuditLog::whereIn('event', $notifyEvents)
+            ->orderByDesc('id')
+            ->limit($limit);
+
+        if ($afterId > 0) {
+            $q->where('id', '>', $afterId);
         }
+
+        $rows = $q->get()->map(function ($log) {
+            $meta       = is_array($log->metadata) ? $log->metadata : (json_decode($log->metadata, true) ?? []);
+            $sev        = $log->severity === 'crit' ? 'critical' : ($log->severity ?? 'info');
+            return [
+                'id'         => $log->id,
+                'event'      => $log->event,
+                'severity'   => $sev,
+                'ip'         => $log->ip_address,
+                'identifier' => $log->user_identifier,
+                'path'       => $meta['path'] ?? null,
+                'probe_count'=> $meta['probe_count'] ?? null,
+                'attempts'   => $meta['attempts'] ?? null,
+                'time_ago'   => $log->created_at?->diffForHumans(),
+                'created_at' => $log->created_at?->toIso8601String(),
+            ];
+        });
+
         return response()->json([
-            'events'    => $q->get(),
+            'events'    => $rows,
             'timestamp' => now()->toIso8601String(),
         ]);
     }

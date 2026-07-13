@@ -762,5 +762,298 @@ document.getElementById('globalSearch')?.addEventListener('keydown', e => {
 </script>
 @stack('scripts')
 @include('partials.order-notifier')
+
+{{-- ══ Global Security Alert System ══════════════════════════════════════ --}}
+<style>
+/* Notification panel */
+#secNotifBtn{position:relative;cursor:pointer;background:none;border:none;padding:6px 8px;border-radius:8px;color:#64748b;transition:.15s;display:flex;align-items:center}
+#secNotifBtn:hover{background:rgba(255,138,0,.1);color:#FF8A00}
+#secNotifDot{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#ff4757;display:none;box-shadow:0 0 0 2px #fff;animation:secPulse 1.4s infinite}
+#secNotifDot.show{display:block}
+@keyframes secPulse{0%,100%{box-shadow:0 0 0 2px #fff,0 0 0 4px rgba(255,71,87,0)}50%{box-shadow:0 0 0 2px #fff,0 0 0 6px rgba(255,71,87,.35)}}
+#secNotifCount{position:absolute;top:2px;right:2px;min-width:16px;height:16px;border-radius:8px;background:#ff4757;color:#fff;font-size:9px;font-weight:700;display:none;align-items:center;justify-content:center;padding:0 3px;line-height:1}
+#secNotifCount.show{display:flex}
+
+/* Dropdown panel */
+#secNotifPanel{position:fixed;top:54px;right:16px;width:380px;max-height:520px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.15);z-index:9999;display:none;flex-direction:column;overflow:hidden;animation:secPanelIn .2s ease}
+#secNotifPanel.open{display:flex}
+@keyframes secPanelIn{from{opacity:0;transform:translateY(-8px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.sec-panel-head{padding:14px 18px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.sec-panel-title{font-size:13px;font-weight:700;color:#1a202c}
+.sec-panel-sub{font-size:11px;color:#94a3b8;margin-left:auto}
+.sec-clear-btn{font-size:11px;color:#FF8A00;background:none;border:none;cursor:pointer;font-weight:600;padding:0}
+.sec-notif-list{overflow-y:auto;flex:1}
+.sec-notif-list::-webkit-scrollbar{width:3px}
+.sec-notif-list::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:2px}
+.sec-notif-item{display:flex;align-items:flex-start;gap:10px;padding:12px 18px;border-bottom:1px solid #f8fafc;transition:.15s;cursor:default}
+.sec-notif-item:hover{background:#f8fafc}
+.sec-notif-item.unread{background:#fff8f0}
+.sec-notif-item.unread::before{content:'';position:absolute;left:8px;width:4px;height:4px;border-radius:50%;background:#FF8A00;top:50%;transform:translateY(-50%)}
+.sec-notif-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.sni-critical{background:rgba(255,71,87,.12);color:#e53e3e}
+.sni-warn{background:rgba(255,138,0,.12);color:#e87200}
+.sni-info{background:rgba(77,159,255,.12);color:#2b7de9}
+.sni-ok{background:rgba(0,168,98,.12);color:#00a862}
+.sec-notif-body{flex:1;min-width:0}
+.sec-notif-event{font-size:12px;font-weight:600;color:#1a202c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sec-notif-meta{font-size:11px;color:#94a3b8;margin-top:2px}
+.sec-notif-time{font-size:10px;color:#cbd5e1;margin-top:3px}
+.sec-notif-empty{padding:32px;text-align:center;color:#94a3b8;font-size:13px}
+.sec-panel-foot{padding:10px 18px;border-top:1px solid #f1f5f9;flex-shrink:0;text-align:center}
+.sec-panel-foot a{font-size:12px;font-weight:600;color:#FF8A00;text-decoration:none}
+
+/* Toast alerts */
+#secToastStack{position:fixed;bottom:24px;left:24px;display:flex;flex-direction:column-reverse;gap:10px;z-index:99999;pointer-events:none}
+.sec-toast{display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-radius:14px;min-width:320px;max-width:400px;pointer-events:all;box-shadow:0 8px 32px rgba(0,0,0,.18);border:1px solid;animation:secToastIn .3s cubic-bezier(.34,1.56,.64,1);cursor:pointer;transition:.2s}
+.sec-toast:hover{transform:translateX(4px)}
+@keyframes secToastIn{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:translateX(0)}}
+.sec-toast.out{animation:secToastOut .25s ease forwards}
+@keyframes secToastOut{to{opacity:0;transform:translateX(-20px);max-height:0;padding:0;margin:0}}
+.sec-toast.t-critical{background:#fff5f5;border-color:#fed7d7}
+.sec-toast.t-warn{background:#fffbeb;border-color:#fde68a}
+.sec-toast.t-info{background:#eff6ff;border-color:#bfdbfe}
+.sec-toast.t-ok{background:#f0fdf4;border-color:#bbf7d0}
+.sec-toast-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.sec-toast.t-critical .sec-toast-icon{background:rgba(229,62,62,.15);color:#e53e3e}
+.sec-toast.t-warn .sec-toast-icon{background:rgba(232,114,0,.15);color:#e87200}
+.sec-toast.t-info .sec-toast-icon{background:rgba(43,125,233,.15);color:#2b7de9}
+.sec-toast.t-ok .sec-toast-icon{background:rgba(0,168,98,.15);color:#00a862}
+.sec-toast-body{flex:1;min-width:0}
+.sec-toast-title{font-size:12px;font-weight:700;margin-bottom:3px}
+.sec-toast.t-critical .sec-toast-title{color:#c53030}
+.sec-toast.t-warn .sec-toast-title{color:#b45309}
+.sec-toast.t-info .sec-toast-title{color:#1d4ed8}
+.sec-toast.t-ok .sec-toast-title{color:#166534}
+.sec-toast-msg{font-size:11px;color:#64748b;line-height:1.45;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.sec-toast-close{font-size:14px;color:#94a3b8;background:none;border:none;cursor:pointer;padding:0;line-height:1;flex-shrink:0;margin-top:1px}
+.sec-toast-close:hover{color:#475569}
+.sec-toast-bar{position:absolute;bottom:0;left:0;height:3px;border-radius:0 0 0 14px;animation:secBar 7s linear forwards}
+.sec-toast{position:relative;overflow:hidden}
+@keyframes secBar{from{width:100%}to{width:0}}
+.sec-toast.t-critical .sec-toast-bar{background:#e53e3e}
+.sec-toast.t-warn .sec-toast-bar{background:#e87200}
+.sec-toast.t-info .sec-toast-bar{background:#2b7de9}
+.sec-toast.t-ok .sec-toast-bar{background:#00a862}
+</style>
+
+<!-- Notification button (inject into topbar) -->
+<script>
+(function injectSecBtn() {
+    const topRight = document.querySelector('.topbar-right, .flex.items-center.gap-3, .flex.gap-3');
+    if (!topRight) return;
+    const btn = document.createElement('button');
+    btn.id = 'secNotifBtn';
+    btn.title = 'Security Alerts';
+    btn.innerHTML = '<i class="fas fa-shield-halved" style="font-size:16px"></i><span id="secNotifDot"></span><span id="secNotifCount"></span>';
+    btn.onclick = toggleSecPanel;
+    topRight.prepend(btn);
+})();
+</script>
+
+<!-- Notification panel -->
+<div id="secNotifPanel">
+    <div class="sec-panel-head">
+        <i class="fas fa-shield-halved" style="color:#FF8A00;font-size:14px"></i>
+        <span class="sec-panel-title">Security Alerts</span>
+        <span class="sec-panel-sub" id="secPanelSub">Live · 15s</span>
+        <button class="sec-clear-btn" onclick="clearSecNotifs()">Clear all</button>
+    </div>
+    <div class="sec-notif-list" id="secNotifList">
+        <div class="sec-notif-empty" id="secEmptyMsg"><i class="fas fa-shield-check" style="font-size:28px;color:#00a862;display:block;margin-bottom:8px"></i>No active alerts</div>
+    </div>
+    <div class="sec-panel-foot">
+        <a href="{{ route('admin.security.soc') }}"><i class="fas fa-arrow-right" style="margin-right:4px"></i>Open Security Center</a>
+    </div>
+</div>
+
+<!-- Toast stack -->
+<div id="secToastStack"></div>
+
+<script>
+'use strict';
+// ── Security Notification System ────────────────────────────────────────────
+const SEC_ALERTS_URL = '{{ route("admin.security.live-events") }}';
+const SEC_ICONS = {
+    'admin.login.failed':       { icon:'fa-user-lock',      cls:'sni-warn',     tc:'t-warn',    label:'Admin Login Failed' },
+    'admin.login.blocked':      { icon:'fa-ban',            cls:'sni-critical', tc:'t-critical',label:'Admin Login Blocked' },
+    'admin.route.probe':        { icon:'fa-magnifying-glass',cls:'sni-warn',    tc:'t-warn',    label:'Admin Panel Probe' },
+    'admin.route.blocked':      { icon:'fa-shield-xmark',   cls:'sni-critical', tc:'t-critical',label:'Admin Panel Blocked' },
+    'admin.privilege.escalation':{ icon:'fa-user-lock',     cls:'sni-critical', tc:'t-critical',label:'Privilege Escalation' },
+    'admin.access.denied':      { icon:'fa-lock',           cls:'sni-warn',     tc:'t-warn',    label:'Access Denied' },
+    'login.blocked':            { icon:'fa-ban',            cls:'sni-critical', tc:'t-critical',label:'App Login Blocked' },
+    'login.failed':             { icon:'fa-key',            cls:'sni-warn',     tc:'t-warn',    label:'Login Failed' },
+    'upload.rejected':          { icon:'fa-virus',          cls:'sni-critical', tc:'t-critical',label:'Malware Upload' },
+    'admin.login.success':      { icon:'fa-shield-check',   cls:'sni-ok',       tc:'t-ok',      label:'Admin Login' },
+};
+const SHOW_TOAST_FOR = ['admin.login.failed','admin.login.blocked','admin.route.probe','admin.route.blocked',
+                        'admin.privilege.escalation','admin.access.denied','login.blocked','upload.rejected'];
+
+let _secNotifs      = JSON.parse(localStorage.getItem('sec_notifs') || '[]');
+let _secLastId      = localStorage.getItem('sec_last_id') || 0;
+let _secPanelOpen   = false;
+let _secUnread      = 0;
+
+function toggleSecPanel() {
+    _secPanelOpen = !_secPanelOpen;
+    document.getElementById('secNotifPanel').classList.toggle('open', _secPanelOpen);
+    if (_secPanelOpen) { _secUnread = 0; updateSecBadge(); renderSecPanel(); }
+    document.addEventListener('click', outsideSecPanel, { once: true });
+}
+function outsideSecPanel(e) {
+    const panel = document.getElementById('secNotifPanel');
+    const btn   = document.getElementById('secNotifBtn');
+    if (!panel?.contains(e.target) && !btn?.contains(e.target)) {
+        _secPanelOpen = false;
+        panel?.classList.remove('open');
+    }
+}
+function clearSecNotifs() {
+    _secNotifs = []; _secUnread = 0;
+    localStorage.setItem('sec_notifs', '[]');
+    updateSecBadge(); renderSecPanel();
+}
+function updateSecBadge() {
+    const dot   = document.getElementById('secNotifDot');
+    const count = document.getElementById('secNotifCount');
+    if (!dot || !count) return;
+    if (_secUnread > 0) {
+        dot.classList.add('show');
+        count.textContent = _secUnread > 99 ? '99+' : _secUnread;
+        count.classList.add('show');
+    } else {
+        dot.classList.remove('show');
+        count.classList.remove('show');
+    }
+}
+function renderSecPanel() {
+    const list  = document.getElementById('secNotifList');
+    const empty = document.getElementById('secEmptyMsg');
+    if (!list) return;
+    if (_secNotifs.length === 0) { if(empty) empty.style.display=''; list.innerHTML=''; list.appendChild(empty); return; }
+    if (empty) empty.style.display = 'none';
+    list.innerHTML = _secNotifs.slice(0, 50).map(n => {
+        const m = SEC_ICONS[n.event] || { icon:'fa-circle-dot', cls:'sni-info', label: n.event };
+        const sev = n.severity === 'critical' ? 'critical' : n.severity === 'warn' ? 'warn' : 'info';
+        return `<div class="sec-notif-item ${n.read ? '' : 'unread'}" style="position:relative">
+            <div class="sec-notif-icon ${m.cls}"><i class="fas ${m.icon}"></i></div>
+            <div class="sec-notif-body">
+                <div class="sec-notif-event">${m.label || n.event}</div>
+                <div class="sec-notif-meta">${n.ip || ''} ${n.identifier ? '· ' + n.identifier : ''}</div>
+                <div class="sec-notif-time">${n.time_ago || ''}</div>
+            </div>
+            <span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:5px;${sev==='critical'?'background:rgba(229,62,62,.15);color:#c53030':sev==='warn'?'background:rgba(232,114,0,.12);color:#b45309':'background:rgba(43,125,233,.12);color:#1d4ed8'}">${sev.toUpperCase()}</span>
+        </div>`;
+    }).join('');
+    // Mark all as read
+    _secNotifs.forEach(n => n.read = true);
+    localStorage.setItem('sec_notifs', JSON.stringify(_secNotifs));
+}
+
+function showSecToast(notif) {
+    const m    = SEC_ICONS[notif.event] || { icon:'fa-circle-dot', tc:'t-info', label: notif.event };
+    const tc   = m.tc || 't-info';
+    const stack = document.getElementById('secToastStack');
+    if (!stack) return;
+
+    const el = document.createElement('div');
+    el.className = `sec-toast ${tc}`;
+    el.innerHTML = `
+        <div class="sec-toast-icon"><i class="fas ${m.icon}"></i></div>
+        <div class="sec-toast-body">
+            <div class="sec-toast-title">${m.label || notif.event}</div>
+            <div class="sec-toast-msg">${notif.ip || ''}${notif.identifier ? ' · ' + notif.identifier : ''}${notif.path ? ' → ' + notif.path : ''}</div>
+        </div>
+        <button class="sec-toast-close" onclick="dismissSecToast(this.parentElement)">×</button>
+        <div class="sec-toast-bar"></div>`;
+    el.onclick = e => { if (!e.target.classList.contains('sec-toast-close')) window.location.href = '{{ route("admin.security.soc") }}'; };
+    stack.prepend(el);
+
+    // Auto-dismiss after 7s
+    setTimeout(() => dismissSecToast(el), 7000);
+
+    // Limit stack to 5 visible toasts
+    while (stack.children.length > 5) stack.removeChild(stack.lastChild);
+}
+
+function dismissSecToast(el) {
+    if (!el || el.classList.contains('out')) return;
+    el.classList.add('out');
+    setTimeout(() => el.remove(), 280);
+}
+
+// Play a subtle audio click for critical alerts (uses Web Audio API — no external file)
+function secBeep(sev) {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = sev === 'critical' ? 880 : 660;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.35);
+    } catch(e) {}
+}
+
+// ── Polling ──────────────────────────────────────────────────────────────────
+async function fetchSecAlerts() {
+    try {
+        const url  = SEC_ALERTS_URL + '?after=' + encodeURIComponent(_secLastId);
+        const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const events = data.events || [];
+        if (events.length === 0) return;
+
+        // Track highest ID seen
+        const maxId = Math.max(...events.map(e => e.id));
+        if (maxId > _secLastId) { _secLastId = maxId; localStorage.setItem('sec_last_id', maxId); }
+
+        let newCritical = 0;
+        events.forEach(ev => {
+            // Prepend to local store
+            _secNotifs.unshift({ ...ev, read: _secPanelOpen });
+            if (!_secPanelOpen) _secUnread++;
+            if (SHOW_TOAST_FOR.includes(ev.event)) {
+                showSecToast(ev);
+                if (ev.severity === 'critical' || ev.severity === 'crit') newCritical++;
+            }
+        });
+
+        // Trim to 200 stored
+        if (_secNotifs.length > 200) _secNotifs = _secNotifs.slice(0, 200);
+        localStorage.setItem('sec_notifs', JSON.stringify(_secNotifs));
+
+        if (newCritical > 0) secBeep('critical');
+        else if (events.length > 0) secBeep('warn');
+
+        updateSecBadge();
+        if (_secPanelOpen) renderSecPanel();
+        document.getElementById('secPanelSub').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    } catch(e) {}
+}
+
+// Initialize from stored notifs
+updateSecBadge();
+renderSecPanel();
+
+// On first load, set last_id from server so we only get NEW events going forward
+(async function initLastId() {
+    if (_secLastId > 0) { fetchSecAlerts(); return; }
+    try {
+        const resp = await fetch(SEC_ALERTS_URL + '?after=0&limit=1', { headers: { 'Accept':'application/json' } });
+        const data = await resp.json();
+        const events = data.events || [];
+        if (events.length > 0) {
+            _secLastId = Math.max(...events.map(e => e.id));
+            localStorage.setItem('sec_last_id', _secLastId);
+        }
+    } catch(e) {}
+})();
+
+setInterval(fetchSecAlerts, 15000);
+</script>
 </body>
 </html>
