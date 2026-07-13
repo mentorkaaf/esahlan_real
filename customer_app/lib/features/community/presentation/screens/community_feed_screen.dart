@@ -1207,7 +1207,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(14),
-              child: _MediaGrid(media: p.media, postId: p.id, isOwner: p.user.isMe),
+              child: _MediaGrid(media: p.media, postId: p.id, isOwner: p.user.isMe, post: p),
             ),
           ),
 
@@ -2290,7 +2290,8 @@ class _MediaGrid extends StatelessWidget {
   final List<CommunityPostMedia> media;
   final int? postId;
   final bool isOwner;
-  const _MediaGrid({required this.media, this.postId, this.isOwner = false});
+  final CommunityPost? post;
+  const _MediaGrid({required this.media, this.postId, this.isOwner = false, this.post});
 
   void _openGallery(BuildContext context, int index) {
     final images = media.where((m) => m.type == 'image').toList();
@@ -2304,7 +2305,7 @@ class _MediaGrid extends StatelessWidget {
       final m = media[0];
       return GestureDetector(
         onTap: m.type == 'image' ? () => _openGallery(context, 0) : null,
-        child: _MediaItem(m: m, height: m.type == 'video' ? 0 : 0, postId: postId, isOwner: isOwner));
+        child: _MediaItem(m: m, height: m.type == 'video' ? 0 : 0, postId: postId, isOwner: isOwner, post: post));
     }
     if (media.length == 2) {
       return SizedBox(height: 200, child: Row(children: [
@@ -2578,7 +2579,8 @@ class _MediaItem extends ConsumerStatefulWidget {
   final double height;
   final int? postId;
   final bool isOwner;
-  const _MediaItem({required this.m, required this.height, this.postId, this.isOwner = false});
+  final CommunityPost? post;
+  const _MediaItem({required this.m, required this.height, this.postId, this.isOwner = false, this.post});
 
   @override
   ConsumerState<_MediaItem> createState() => _MediaItemState();
@@ -2825,7 +2827,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
   @override
   Widget build(BuildContext context) {
-    if (_isAudio) return _AudioPlayerCard(url: widget.m.url);
+    if (_isAudio) return _AudioPlayerCard(url: widget.m.url, thumbnail: widget.m.thumbnail, post: widget.post);
     if (_isDocument) return _DocumentCard(url: widget.m.url);
 
     // Non-owners never see transcoding posts (video_ready=false filters feed).
@@ -3038,35 +3040,45 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
 class _AudioPlayerCard extends StatefulWidget {
   final String url;
-  const _AudioPlayerCard({required this.url});
+  final String? thumbnail;
+  final CommunityPost? post;
+  const _AudioPlayerCard({required this.url, this.thumbnail, this.post});
   @override
   State<_AudioPlayerCard> createState() => _AudioPlayerCardState();
 }
 
-class _AudioPlayerCardState extends State<_AudioPlayerCard> {
+class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerProviderStateMixin {
   VideoPlayerController? _ctrl;
   bool _initialized = false;
+  late AnimationController _waveAnim;
 
   bool get _playing => _ctrl?.value.isPlaying ?? false;
   Duration get _duration => _ctrl?.value.duration ?? Duration.zero;
   Duration get _position => _ctrl?.value.position ?? Duration.zero;
+  bool get _buffering => _ctrl?.value.isBuffering ?? false;
 
   @override
   void initState() {
     super.initState();
+    _waveAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))
+      ..repeat(reverse: true);
     _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url));
     _ctrl!.initialize().then((_) {
       if (mounted) setState(() => _initialized = true);
       _ctrl!.addListener(_onUpdate);
-    }).catchError((e) {
-      debugPrint('[AudioCard] init error: $e');
-    });
+    }).catchError((e) => debugPrint('[AudioCard] init error: $e'));
   }
 
-  void _onUpdate() { if (mounted) setState(() {}); }
+  void _onUpdate() {
+    if (!mounted) return;
+    setState(() {});
+    if (_playing) { if (!_waveAnim.isAnimating) _waveAnim.repeat(reverse: true); }
+    else { _waveAnim.stop(); }
+  }
 
   @override
   void dispose() {
+    _waveAnim.dispose();
     _ctrl?.removeListener(_onUpdate);
     _ctrl?.pause();
     _ctrl?.dispose();
@@ -3075,56 +3087,199 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> {
 
   void _toggle() {
     if (!_initialized || _ctrl == null) return;
-    if (_playing) {
-      _ctrl!.pause();
-    } else {
-      _ctrl!.play();
-    }
+    _playing ? _ctrl!.pause() : _ctrl!.play();
     setState(() {});
   }
 
-  String _fmt(Duration d) => '${d.inMinutes.toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+  void _seek(double fraction) {
+    if (!_initialized || _duration == Duration.zero) return;
+    _ctrl!.seekTo(_duration * fraction);
+  }
+
+  void _skip(int seconds) {
+    if (!_initialized) return;
+    final next = _position + Duration(seconds: seconds);
+    _ctrl!.seekTo(next.isNegative ? Duration.zero : (next > _duration ? _duration : next));
+  }
+
+  String _fmt(Duration d) {
+    if (d.inHours > 0) return '${d.inHours}:${(d.inMinutes % 60).toString().padLeft(2,'0')}:${(d.inSeconds % 60).toString().padLeft(2,'0')}';
+    return '${d.inMinutes.toString().padLeft(2,'0')}:${(d.inSeconds % 60).toString().padLeft(2,'0')}';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final progress = _duration.inMilliseconds > 0 ? _position.inMilliseconds / _duration.inMilliseconds : 0.0;
+    final progress = _duration.inMilliseconds > 0
+        ? (_position.inMilliseconds / _duration.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+    final title = widget.post?.content?.isNotEmpty == true
+        ? widget.post!.content!.split('\n').first.trim()
+        : 'Audio';
+    final userName = widget.post?.user.name ?? '';
+    final hasThumbnail = widget.thumbnail != null && widget.thumbnail!.isNotEmpty;
+
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      padding: EdgeInsets.all(14),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [kOrange.withValues(alpha: 0.08), kOrange.withValues(alpha: 0.02)]),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kOrange.withValues(alpha: 0.2))),
-      child: Row(children: [
-        GestureDetector(
-          onTap: _toggle,
-          child: Container(width: 48, height: 48,
-            decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.3), blurRadius: 10)]),
-            child: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 28))),
-        SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Waveform-style bars
-          SizedBox(height: 28, child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: List.generate(30, (i) {
-              final barProgress = i / 30;
-              final isActive = barProgress <= progress;
-              final height = (8 + (i % 5) * 4.0 + (i % 3) * 3.0).clamp(6.0, 24.0);
-              return Expanded(child: Container(
-                margin: EdgeInsets.symmetric(horizontal: 0.5),
-                height: height,
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+          colors: [Color(0xFF1A1A2E), Color(0xFF2D1B4E)],
+        ),
+        boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.25), blurRadius: 24, offset: const Offset(0, 8))],
+      ),
+      child: Column(children: [
+        // ── Cover + info ─────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Cover art
+            Container(
+              width: 88, height: 88,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: const Color(0xFF2A2A40),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: hasThumbnail
+                  ? NetImage(url: widget.thumbnail!, fit: BoxFit.cover, width: 88, height: 88)
+                  : Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+                          colors: [kOrange.withValues(alpha: 0.9), const Color(0xFF7C3AED)]),
+                      ),
+                      child: const Center(child: Icon(Icons.music_note_rounded, color: Colors.white, size: 38)),
+                    ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            // Title + creator + mini waveform
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: isActive ? kOrange : kOrange.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(2))));
-            }))),
-          SizedBox(height: 6),
-          Row(children: [
-            Text(_fmt(_position), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kOrange)),
-            Spacer(),
-            Text(_fmt(_duration), style: TextStyle(fontSize: 11, color: context.colors.mutedText)),
+                  color: kOrange.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: kOrange.withValues(alpha: 0.35)),
+                ),
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.headphones_rounded, color: kOrange, size: 10),
+                  SizedBox(width: 4),
+                  Text('PODCAST', style: TextStyle(color: kOrange, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+                ]),
+              ),
+              const SizedBox(height: 8),
+              Text(title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800, height: 1.3)),
+              const SizedBox(height: 4),
+              Text(userName, style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 12),
+              // Animated waveform bars
+              AnimatedBuilder(
+                animation: _waveAnim,
+                builder: (_, __) => SizedBox(
+                  height: 22,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: List.generate(22, (i) {
+                      final barFrac = i / 22;
+                      final isActive = barFrac <= progress;
+                      final seed = (i % 7) * 2.8 + (i % 3) * 1.8;
+                      final anim = _playing ? _waveAnim.value * (i % 3 == 0 ? 7.0 : 3.5) : 0.0;
+                      final h = (5 + seed + anim).clamp(3.0, 20.0);
+                      return Expanded(child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 1),
+                        child: Container(
+                          height: h,
+                          decoration: BoxDecoration(
+                            color: isActive ? kOrange : Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      ));
+                    }),
+                  ),
+                ),
+              ),
+            ])),
           ]),
-        ])),
+        ),
+
+        const SizedBox(height: 18),
+
+        // ── Seekbar ──────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(children: [
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 3.5,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                activeTrackColor: kOrange,
+                inactiveTrackColor: Colors.white.withValues(alpha: 0.15),
+                thumbColor: Colors.white,
+                overlayColor: kOrange.withValues(alpha: 0.2),
+              ),
+              child: Slider(value: progress, onChanged: _initialized ? (v) => _seek(v) : null),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(children: [
+                Text(_fmt(_position), style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 11, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                Text(_fmt(_duration), style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 11)),
+              ]),
+            ),
+          ]),
+        ),
+
+        const SizedBox(height: 10),
+
+        // ── Controls ─────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 22),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+            // -15s
+            GestureDetector(
+              onTap: () => _skip(-15),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.replay_10_rounded, color: Colors.white.withValues(alpha: 0.7), size: 30),
+                const SizedBox(height: 2),
+                Text('15s', style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 9, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+            // Play/Pause
+            GestureDetector(
+              onTap: _toggle,
+              child: Container(
+                width: 64, height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+                    colors: [kOrange, Color(0xFFf97316)]),
+                  boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.5), blurRadius: 22, offset: const Offset(0, 6))],
+                ),
+                child: _buffering && !_initialized
+                  ? const Padding(padding: EdgeInsets.all(18),
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                  : Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 34),
+              ),
+            ),
+            // +30s
+            GestureDetector(
+              onTap: () => _skip(30),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.forward_30_rounded, color: Colors.white.withValues(alpha: 0.7), size: 30),
+                const SizedBox(height: 2),
+                Text('30s', style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 9, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          ]),
+        ),
       ]),
     );
   }
