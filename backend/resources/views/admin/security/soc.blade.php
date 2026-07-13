@@ -122,24 +122,56 @@ body[data-soc-theme="dark"] .g{background:linear-gradient(135deg,rgba(255,255,25
 .map-leg-dot{width:8px;height:8px;border-radius:50%}
 
 /* ── Timeline ────────────────────────────────────────────────────────── */
-.tl{display:flex;flex-direction:column;gap:0;max-height:380px;overflow-y:auto}
-.tl::-webkit-scrollbar{width:4px}.tl::-webkit-scrollbar-track{background:transparent}.tl::-webkit-scrollbar-thumb{background:var(--brd);border-radius:2px}
-.tl-item{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--brd)}
-.tl-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px}
+.tl{display:flex;flex-direction:column;max-height:420px;overflow-y:auto}
+.tl::-webkit-scrollbar{width:3px}.tl::-webkit-scrollbar-track{background:transparent}.tl::-webkit-scrollbar-thumb{background:var(--brd);border-radius:2px}
+.tl-item{display:flex;align-items:stretch;gap:0;padding:0;border-bottom:1px solid var(--brd);position:relative;transition:background .15s}
+.tl-item:hover{background:var(--bg3)}
+.tl-item.tl-new{animation:tlFlash .6s ease}
+@keyframes tlFlash{0%{background:rgba(255,138,0,.18)}100%{background:transparent}}
+.tl-bar{width:3px;flex-shrink:0;border-radius:0}
+.tl-inner{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;flex:1;min-width:0}
+.tl-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px}
 .tl-body{flex:1;min-width:0}
-.tl-event{font-size:12px;font-weight:500;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tl-meta{font-size:11px;color:var(--txt2);margin-top:2px}
-.tl-sev{font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:6px}
-.sev-critical{background:rgba(255,71,87,.2);color:#ff6b7a}
-.sev-high{background:rgba(255,138,0,.2);color:#ffaa44}
-.sev-medium{background:rgba(255,200,0,.2);color:#ffd44d}
-.sev-low{background:rgba(77,159,255,.2);color:#7ab8ff}
-.sev-info{background:rgba(255,255,255,.08);color:var(--txt2)}
-.icon-critical{background:rgba(255,71,87,.2);color:var(--red)}
-.icon-high{background:rgba(255,138,0,.2);color:var(--ora)}
-.icon-medium{background:rgba(255,200,0,.2);color:var(--ylw)}
-.icon-low{background:rgba(77,159,255,.2);color:var(--blu)}
+.tl-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tl-event{font-size:11.5px;font-weight:600;color:var(--txt);font-family:monospace;letter-spacing:.2px}
+.tl-sev{font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;letter-spacing:.5px;text-transform:uppercase}
+.tl-details{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px}
+.tl-chip{display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--txt2);background:var(--bg3);border:1px solid var(--brd);border-radius:5px;padding:1px 7px;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+.tl-chip i{font-size:9px;color:var(--txt3)}
+.tl-time{font-size:10px;color:var(--txt3);margin-left:auto;white-space:nowrap;flex-shrink:0}
+.tl-live-bar{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--brd);background:var(--bg3)}
+.tl-live-dot{width:6px;height:6px;border-radius:50%;background:var(--grn);box-shadow:0 0 6px var(--grn);animation:pulse 1.4s infinite}
+.sev-critical{background:rgba(229,62,62,.18);color:#f87171}
+.sev-high{background:rgba(255,138,0,.18);color:#fb923c}
+.sev-medium{background:rgba(234,179,8,.18);color:#facc15}
+.sev-low{background:rgba(59,130,246,.18);color:#60a5fa}
+.sev-info{background:var(--bg3);color:var(--txt2)}
+.sev-ok{background:rgba(0,217,126,.15);color:#34d399}
+.icon-critical{background:rgba(229,62,62,.15);color:#f87171}
+.icon-high{background:rgba(255,138,0,.15);color:#fb923c}
+.icon-medium{background:rgba(234,179,8,.15);color:#facc15}
+.icon-low{background:rgba(59,130,246,.15);color:#60a5fa}
 .icon-info{background:var(--bg3);color:var(--txt2)}
+.icon-ok{background:rgba(0,217,126,.12);color:#34d399}
+/* bar colours */
+.bar-critical{background:#ef4444}.bar-high{background:#f97316}.bar-medium{background:#eab308}
+.bar-low{background:#3b82f6}.bar-info{background:var(--txt3)}.bar-ok{background:#10b981}
+/* ── Severity Panel ──────────────────────────────────────────────────── */
+.sev-panel{display:flex;flex-direction:column;gap:0;height:100%}
+.sev-donut-wrap{display:flex;align-items:center;justify-content:center;gap:24px;padding:16px 16px 8px;flex-shrink:0}
+.sev-donut-center{text-align:center}
+.sev-donut-total{font-size:26px;font-weight:800;color:var(--txt);line-height:1}
+.sev-donut-sub{font-size:10px;color:var(--txt3);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+.sev-rows{flex:1;display:flex;flex-direction:column;gap:0;border-top:1px solid var(--brd);overflow-y:auto}
+.sev-row{display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid var(--brd);transition:background .15s}
+.sev-row:hover{background:var(--bg3)}
+.sev-row-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sev-row-label{font-size:11.5px;font-weight:600;color:var(--txt);width:64px;flex-shrink:0}
+.sev-row-bar-wrap{flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.sev-row-bar{height:100%;border-radius:3px;transition:width .6s ease}
+.sev-row-count{font-size:12px;font-weight:700;color:var(--txt);width:30px;text-align:right;flex-shrink:0}
+.sev-row-pct{font-size:10px;color:var(--txt3);width:34px;text-align:right;flex-shrink:0}
+.sev-row-trend{font-size:10px;width:20px;text-align:center;flex-shrink:0}
 
 /* ── Infra grid ──────────────────────────────────────────────────────── */
 .infra-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
@@ -432,25 +464,74 @@ body[data-soc-theme="dark"] #themeToggle .t-icon{transform:rotate(180deg)}
                 </div>
             </div>
         </div>
-        <div>
-            <div class="s-label">Security Timeline</div>
-            <div class="g" style="padding:16px;overflow:hidden;display:flex;flex-direction:column;flex:1">
+        <div style="display:flex;flex-direction:column;min-width:0">
+            <div class="s-label" style="display:flex;align-items:center;gap:10px">
+                Security Timeline
+                <span id="tlCount" style="font-size:10px;font-weight:700;background:var(--red);color:#fff;padding:1px 7px;border-radius:20px;letter-spacing:.3px">{{ count($auditLog) }}</span>
+            </div>
+            <div class="g" style="padding:0;overflow:hidden;display:flex;flex-direction:column;flex:1">
+                <div class="tl-live-bar">
+                    <div class="tl-live-dot"></div>
+                    <span style="font-size:10px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">Live Feed</span>
+                    <span style="font-size:10px;color:var(--txt3);margin-left:auto">Auto-refresh 30s</span>
+                </div>
                 <div class="tl" id="tlFeed">
                     @forelse($auditLog as $log)
                     @php
                         $sev = $log->severity ?? 'info';
-                        $iconMap = ['login.failed'=>'fa-user-xmark','login.success'=>'fa-user-check','login.blocked'=>'fa-ban','upload.rejected'=>'fa-virus','admin.quick_action'=>'fa-bolt','register'=>'fa-user-plus'];
+                        $iconMap = [
+                            'admin.login.failed'       => 'fa-user-xmark',
+                            'admin.login.success'      => 'fa-user-check',
+                            'admin.login.blocked'      => 'fa-ban',
+                            'admin.logout'             => 'fa-right-from-bracket',
+                            'admin.route.probe'        => 'fa-radar',
+                            'admin.route.blocked'      => 'fa-shield-halved',
+                            'admin.privilege.escalation'=> 'fa-user-shield',
+                            'upload.rejected'          => 'fa-virus',
+                            'admin.quick_action'       => 'fa-bolt',
+                            'register'                 => 'fa-user-plus',
+                            'login.failed'             => 'fa-user-xmark',
+                            'login.success'            => 'fa-user-check',
+                            'login.blocked'            => 'fa-ban',
+                        ];
                         $icon = $iconMap[$log->event] ?? 'fa-circle-dot';
+                        $meta = is_string($log->meta) ? json_decode($log->meta, true) : (array)($log->meta ?? []);
+                        $attempts = $meta['attempts'] ?? null;
+                        $reason   = $meta['reason'] ?? null;
+                        $retryMin = isset($meta['retry_after']) ? ceil($meta['retry_after']/60) : null;
                     @endphp
                     <div class="tl-item">
-                        <div class="tl-icon icon-{{ $sev }}"><i class="fas {{ $icon }}"></i></div>
-                        <div class="tl-body">
-                            <div class="tl-event">{{ $log->event }}<span class="tl-sev sev-{{ $sev }}">{{ strtoupper($sev) }}</span></div>
-                            <div class="tl-meta">{{ $log->ip_address ?? '—' }} &nbsp;·&nbsp; {{ $log->user_identifier ?? 'anonymous' }} &nbsp;·&nbsp; {{ $log->created_at->diffForHumans() }}</div>
+                        <div class="tl-bar bar-{{ $sev }}"></div>
+                        <div class="tl-inner">
+                            <div class="tl-icon icon-{{ $sev }}"><i class="fas {{ $icon }}"></i></div>
+                            <div class="tl-body">
+                                <div class="tl-top">
+                                    <span class="tl-event">{{ $log->event }}</span>
+                                    <span class="tl-sev sev-{{ $sev }}">{{ strtoupper($sev) }}</span>
+                                    <span class="tl-time" title="{{ $log->created_at->format('Y-m-d H:i:s') }}"><i class="fas fa-clock" style="font-size:9px;margin-right:3px"></i>{{ $log->created_at->diffForHumans() }}</span>
+                                </div>
+                                <div class="tl-details">
+                                    @if($log->ip_address)
+                                    <span class="tl-chip"><i class="fas fa-globe"></i>{{ $log->ip_address }}</span>
+                                    @endif
+                                    @if($log->user_identifier && $log->user_identifier !== 'anonymous')
+                                    <span class="tl-chip"><i class="fas fa-user"></i>{{ Str::limit($log->user_identifier, 22) }}</span>
+                                    @endif
+                                    @if($attempts)
+                                    <span class="tl-chip"><i class="fas fa-repeat"></i>{{ $attempts }} attempts</span>
+                                    @endif
+                                    @if($reason)
+                                    <span class="tl-chip"><i class="fas fa-tag"></i>{{ str_replace('_',' ',$reason) }}</span>
+                                    @endif
+                                    @if($retryMin)
+                                    <span class="tl-chip" style="color:var(--red)"><i class="fas fa-lock"></i>locked {{ $retryMin }}min</span>
+                                    @endif
+                                </div>
+                            </div>
                         </div>
                     </div>
                     @empty
-                    <div style="color:var(--txt3);font-size:12px;padding:20px 0">No audit events yet.</div>
+                    <div style="color:var(--txt3);font-size:12px;padding:24px;text-align:center"><i class="fas fa-shield-check" style="font-size:20px;margin-bottom:8px;display:block;color:var(--grn)"></i>No security events yet</div>
                     @endforelse
                 </div>
             </div>
@@ -463,11 +544,24 @@ body[data-soc-theme="dark"] #themeToggle .t-icon{transform:rotate(180deg)}
             <div class="s-sub">Hourly breakdown of authentication failures</div>
             <canvas id="hourlyChart" height="160"></canvas>
         </div>
-        <div class="g" style="padding:20px">
-            <div class="s-head">Severity Distribution</div>
-            <div class="s-sub">Event severity breakdown, last 24h</div>
-            <canvas id="sevDonut" width="160" height="160" style="display:block;margin:0 auto 12px"></canvas>
-            <div id="sevLegend" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center"></div>
+        <div class="g" style="padding:0;overflow:hidden">
+            <div style="padding:16px 16px 8px;border-bottom:1px solid var(--brd)">
+                <div class="s-head" style="margin:0 0 2px">Severity Distribution</div>
+                <div class="s-sub" style="margin:0">Event breakdown — last 24h</div>
+            </div>
+            <div class="sev-panel">
+                <div class="sev-donut-wrap">
+                    <div style="position:relative;flex-shrink:0">
+                        <canvas id="sevDonut" width="140" height="140"></canvas>
+                        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
+                            <div id="sevTotalNum" class="sev-donut-total">0</div>
+                            <div class="sev-donut-sub">events</div>
+                        </div>
+                    </div>
+                    <div id="sevQuickStats" style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:0"></div>
+                </div>
+                <div class="sev-rows" id="sevRows"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -1153,44 +1247,87 @@ function drawHourlyChart() {
 }
 drawHourlyChart();
 
-// ── Donut Chart ────────────────────────────────────────────────────────────
+// ── Severity Distribution (Donut + Rows) ───────────────────────────────────
 const _sevRaw = @json($severityData);
 const _sevItems = [
-    { label: 'Critical', key: 'critical', color: '#e53e3e' },
-    { label: 'High',     key: 'high',     color: '#E87200' },
-    { label: 'Medium',   key: 'medium',   color: '#d69e00' },
-    { label: 'Low',      key: 'low',      color: '#2b7de9' },
-    { label: 'Info',     key: 'info',     color: '#94a3b8' },
+    { label:'Critical', key:'critical', color:'#ef4444', icon:'fa-skull-crossbones' },
+    { label:'High',     key:'high',     color:'#f97316', icon:'fa-triangle-exclamation' },
+    { label:'Medium',   key:'medium',   color:'#eab308', icon:'fa-exclamation-circle' },
+    { label:'Low',      key:'low',      color:'#3b82f6', icon:'fa-info-circle' },
+    { label:'Info',     key:'info',     color:'#94a3b8', icon:'fa-circle-dot' },
+    { label:'OK',       key:'ok',       color:'#10b981', icon:'fa-circle-check' },
 ];
+
 function drawDonutChart() {
     const c = document.getElementById('sevDonut');
     if (!c) return;
     const ctx = c.getContext('2d');
-    const vals = _sevItems.map(it => _sevRaw[it.key]?.count || 0);
-    const total = vals.reduce((a, b) => a + b, 0) || 1;
-    const bg2 = cssVar('--bg2') || (isDark() ? '#0d1226' : '#ffffff');
-    ctx.clearRect(0, 0, 160, 160);
+    const W = 140, R = 56, r = 34, cx = 70, cy = 70;
+    const vals  = _sevItems.map(it => _sevRaw[it.key]?.count || 0);
+    const total = vals.reduce((a,b)=>a+b,0) || 1;
+    const bg2   = cssVar('--bg2') || (isDark() ? '#0d1226' : '#ffffff');
+
+    ctx.clearRect(0, 0, W, W);
+
+    // Gap between slices
     let angle = -Math.PI / 2;
+    const gap = 0.025;
     vals.forEach((v, i) => {
         const slice = (v / total) * Math.PI * 2;
-        if (slice > 0) {
-            ctx.beginPath(); ctx.moveTo(80, 80); ctx.arc(80, 80, 65, angle, angle + slice);
-            ctx.closePath(); ctx.fillStyle = _sevItems[i].color; ctx.fill();
-        }
+        if (slice < 0.01) { angle += slice; return; }
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, R, angle + gap/2, angle + slice - gap/2);
+        ctx.closePath();
+        ctx.fillStyle = _sevItems[i].color;
+        ctx.fill();
         angle += slice;
     });
-    ctx.beginPath(); ctx.arc(80, 80, 38, 0, Math.PI * 2);
+
+    // Center hole
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
     ctx.fillStyle = bg2; ctx.fill();
-    // Legend
-    const leg = document.getElementById('sevLegend');
-    if (leg) {
-        leg.innerHTML = '';
-        _sevItems.forEach((it, i) => {
-            if (!vals[i]) return;
-            const txt = cssVar('--txt') || (isDark() ? '#fff' : '#1a202c');
-            const txt2 = cssVar('--txt2') || (isDark() ? 'rgba(255,255,255,.5)' : '#4a5568');
-            leg.innerHTML += `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:${txt2}"><div style="width:8px;height:8px;border-radius:50%;background:${it.color}"></div>${it.label} <strong style="color:${txt}">${vals[i]}</strong></div>`;
-        });
+
+    // Update total count
+    const numEl = document.getElementById('sevTotalNum');
+    if (numEl) numEl.textContent = vals.reduce((a,b)=>a+b,0);
+
+    // Quick stats (right of donut — top 3 non-zero)
+    const qEl = document.getElementById('sevQuickStats');
+    if (qEl) {
+        const top3 = _sevItems.map((it,i)=>({...it,v:vals[i]})).filter(x=>x.v>0).slice(0,3);
+        qEl.innerHTML = top3.map(it => `
+            <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:3px;height:28px;border-radius:2px;background:${it.color};flex-shrink:0"></div>
+                <div>
+                    <div style="font-size:16px;font-weight:800;color:var(--txt);line-height:1">${it.v}</div>
+                    <div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px">${it.label}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Rows
+    const rowsEl = document.getElementById('sevRows');
+    if (rowsEl) {
+        const maxVal = Math.max(...vals, 1);
+        rowsEl.innerHTML = _sevItems.map((it,i) => {
+            const v   = vals[i];
+            const pct = Math.round((v / total) * 100);
+            const bar = Math.round((v / maxVal) * 100);
+            const trend = v > 0 ? (v > (total/6) ? '↑' : '↓') : '—';
+            const trendColor = trend==='↑' ? 'var(--red)' : (trend==='↓' ? 'var(--grn)' : 'var(--txt3)');
+            return `<div class="sev-row">
+                <div class="sev-row-dot" style="background:${it.color}"></div>
+                <div class="sev-row-label">${it.label}</div>
+                <div class="sev-row-bar-wrap">
+                    <div class="sev-row-bar" style="width:${bar}%;background:${it.color};opacity:.85"></div>
+                </div>
+                <div class="sev-row-count">${v}</div>
+                <div class="sev-row-pct">${pct}%</div>
+                <div class="sev-row-trend" style="color:${trendColor}">${trend}</div>
+            </div>`;
+        }).join('');
     }
 }
 drawDonutChart();
