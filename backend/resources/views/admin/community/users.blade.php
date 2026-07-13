@@ -545,6 +545,38 @@
 /* ═══ Spinner ════════════════════════════════════════════════════════════════ */
 .spin { border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; width: 22px; height: 22px; animation: sp .6s linear infinite; }
 @keyframes sp { to { transform: rotate(360deg); } }
+@keyframes fadeInUp { from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);} }
+
+/* ═══ Ban Badge / Button ═════════════════════════════════════════════════════ */
+.ua-ban   { background: #FEE2E2; color: #991B1B; }
+.ua-unban { background: #D1FAE5; color: #065F46; }
+.banned-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,.55);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2; backdrop-filter: blur(2px); border-radius: 18px;
+}
+.banned-badge {
+  background: #EF4444; color: #fff; font-size: 11px; font-weight: 800;
+  padding: 5px 14px; border-radius: 20px; letter-spacing: .5px;
+  display: flex; align-items: center; gap: 6px;
+  box-shadow: 0 2px 12px rgba(239,68,68,.4);
+}
+.sp-act-ban   { background: #FEE2E2; color: #991B1B; }
+.sp-act-unban { background: #D1FAE5; color: #065F46; }
+
+/* Ban Modal */
+.ban-modal-bg { display:none; position:fixed; inset:0; background:rgba(15,23,42,.6); backdrop-filter:blur(6px); z-index:10000; align-items:center; justify-content:center; }
+.ban-modal-bg.open { display:flex; }
+.ban-modal { background:#fff; border-radius:20px; padding:28px; width:400px; box-shadow:0 20px 60px rgba(0,0,0,.25); }
+.ban-modal h3 { font-size:16px; font-weight:800; color:var(--text); margin:0 0 6px; }
+.ban-modal p { font-size:12px; color:var(--muted); margin:0 0 18px; }
+.ban-modal textarea { width:100%; border:1.5px solid var(--border); border-radius:10px; padding:10px 12px; font-size:13px; color:var(--text); outline:none; resize:none; height:80px; font-family:inherit; }
+.ban-modal textarea:focus { border-color:var(--red); }
+.ban-modal-actions { display:flex; gap:8px; margin-top:16px; }
+.ban-modal-actions button { flex:1; padding:10px; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; }
+.btn-ban-confirm { background:#EF4444; color:#fff; }
+.btn-ban-confirm:hover { background:#DC2626; }
+.btn-ban-cancel  { background:var(--faint); color:var(--muted); border:1.5px solid var(--border); }
 </style>
 
 <div class="cu-page">
@@ -678,10 +710,13 @@
             ];
             $pal = $palettes[abs(crc32(($u->name ?? '').'x')) % 6];
         @endphp
-        <div class="ug-card" onclick="openPanel({{ $profile->id }}, {{ $profile->user_id }})">
+        <div class="ug-card" id="ucard-{{ $profile->id }}" onclick="openPanel({{ $profile->id }}, {{ $profile->user_id }})">
             <div class="ug-cover" style="background:linear-gradient(135deg,{{ $pal[0] }},{{ $pal[1] }});">
                 @if($profile->cover_photo)
                 <img class="ug-cover-img" src="{{ asset('storage/'.$profile->cover_photo) }}" alt="">
+                @endif
+                @if($u && $u->status === 'banned')
+                <div class="banned-overlay"><div class="banned-badge"><i class="fas fa-ban"></i> BANNED</div></div>
                 @endif
                 @if($profile->is_verified)
                 <div class="verified-crown"><i class="fas fa-check-circle"></i> Verified</div>
@@ -733,9 +768,15 @@
                     <button class="ua-btn ua-verify {{ $profile->is_verified ? 'on' : '' }}" id="vb-{{ $profile->id }}" onclick="event.stopPropagation();doVerify({{ $profile->id }},this)">
                         <i class="fas fa-{{ $profile->is_verified ? 'times' : 'check' }}"></i> {{ $profile->is_verified ? 'Unverify' : 'Verify' }}
                     </button>
-                    <button class="ua-btn ua-chat" onclick="event.stopPropagation();viewChats({{ $profile->user_id }})">
-                        <i class="fas fa-comment"></i> Chats
+                    @if($u && $u->status === 'banned')
+                    <button class="ua-btn ua-unban" id="bb-{{ $profile->id }}" onclick="event.stopPropagation();doUnban({{ $profile->user_id }},{{ $profile->id }},this)">
+                        <i class="fas fa-unlock"></i> Unban
                     </button>
+                    @else
+                    <button class="ua-btn ua-ban" id="bb-{{ $profile->id }}" onclick="event.stopPropagation();openBanModal({{ $profile->user_id }},{{ $profile->id }})">
+                        <i class="fas fa-ban"></i> Ban
+                    </button>
+                    @endif
                 </div>
             </div>
         </div>
@@ -923,8 +964,30 @@
         <div style="display:flex;align-items:center;justify-content:center;padding:80px;"><div class="spin"></div></div>
     </div>
     <div class="sp-actions" id="spActions" style="display:none;">
-        <button class="sp-act-btn sp-act-chat" onclick="viewChatsFromPanel()"><i class="fas fa-comments"></i> View Chats</button>
+        <button class="sp-act-btn sp-act-chat" onclick="viewChatsFromPanel()"><i class="fas fa-comments"></i> Chats</button>
         <button class="sp-act-btn sp-act-verify" id="spVerifyBtn" onclick="doVerifyPanel()"><i class="fas fa-check"></i> Verify</button>
+        <button class="sp-act-btn sp-act-ban" id="spBanBtn" onclick="spBanAction()"><i class="fas fa-ban"></i> Ban</button>
+    </div>
+</div>
+
+{{-- Ban Modal --}}
+<div class="ban-modal-bg" id="banModal" onclick="if(event.target===this)closeBanModal()">
+    <div class="ban-modal">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+            <div style="width:44px;height:44px;border-radius:50%;background:#FEE2E2;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fas fa-ban" style="color:#EF4444;font-size:18px;"></i>
+            </div>
+            <div>
+                <h3>Ban User</h3>
+                <p style="margin:0;">This will immediately log out the user from all devices.</p>
+            </div>
+        </div>
+        <label style="font-size:12px;font-weight:700;color:var(--text);display:block;margin-bottom:6px;">Ban Reason</label>
+        <textarea id="banReasonTxt" placeholder="e.g. Spamming, harassment, violating community guidelines..."></textarea>
+        <div class="ban-modal-actions">
+            <button class="btn-ban-cancel" onclick="closeBanModal()">Cancel</button>
+            <button class="btn-ban-confirm" onclick="confirmBan()"><i class="fas fa-ban"></i> Confirm Ban</button>
+        </div>
     </div>
 </div>
 
@@ -1060,6 +1123,12 @@ function renderPanel(d) {
     vBtn.className = `sp-act-btn sp-act-verify${p.is_verified?' on':''}`;
     vBtn.innerHTML = `<i class="fas fa-${p.is_verified?'times':'check'}"></i> ${p.is_verified?'Unverify':'Verify'}`;
     vBtn.dataset.verified = p.is_verified ? '1' : '0';
+
+    const isBanned = (p.user?.status || 'active') === 'banned';
+    const spBan = document.getElementById('spBanBtn');
+    spBan.className = `sp-act-btn sp-act-${isBanned?'unban':'ban'}`;
+    spBan.innerHTML = `<i class="fas fa-${isBanned?'unlock':'ban'}"></i> ${isBanned?'Unban':'Ban'}`;
+
     document.getElementById('spActions').style.display = 'flex';
 }
 function closePanel() {
@@ -1223,6 +1292,102 @@ function delMsg(id, btn) {
 
 function escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Ban / Unban ──────────────────────────────────────────────────────────────
+let banTargetUserId = null, banTargetProfileId = null;
+
+function openBanModal(userId, profileId) {
+    banTargetUserId = userId;
+    banTargetProfileId = profileId;
+    document.getElementById('banReasonTxt').value = '';
+    document.getElementById('banModal').classList.add('open');
+}
+function closeBanModal() {
+    document.getElementById('banModal').classList.remove('open');
+}
+function confirmBan() {
+    const reason = document.getElementById('banReasonTxt').value.trim() || 'Violated community guidelines';
+    fetch(`${B}/users/${banTargetUserId}/ban`, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ reason })
+    }).then(r=>r.json()).then(d => {
+        if (d.success) {
+            closeBanModal();
+            applyBanUI(banTargetProfileId, true);
+            showToast('🚫 User banned and immediately logged out from all devices.', 'red');
+        }
+    });
+}
+function doUnban(userId, profileId, btn) {
+    if (!confirm('Unban this user? They will be able to log in again.')) return;
+    fetch(`${B}/users/${userId}/unban`, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }
+    }).then(r=>r.json()).then(d => {
+        if (d.success) {
+            applyBanUI(profileId, false);
+            showToast('✓ User unbanned successfully.', 'green');
+        }
+    });
+}
+function applyBanUI(profileId, isBanned) {
+    // Update card overlay
+    const card = document.getElementById('ucard-'+profileId);
+    if (card) {
+        const cover = card.querySelector('.ug-cover');
+        const existing = cover.querySelector('.banned-overlay');
+        if (isBanned && !existing) {
+            const ov = document.createElement('div');
+            ov.className = 'banned-overlay';
+            ov.innerHTML = '<div class="banned-badge"><i class="fas fa-ban"></i> BANNED</div>';
+            cover.prepend(ov);
+        } else if (!isBanned && existing) {
+            existing.remove();
+        }
+        // Swap ban button
+        const bb = document.getElementById('bb-'+profileId);
+        if (bb) {
+            if (isBanned) {
+                bb.className = 'ua-btn ua-unban';
+                bb.innerHTML = '<i class="fas fa-unlock"></i> Unban';
+                bb.onclick = function(e) { e.stopPropagation(); doUnban(banTargetUserId||panelUserId, profileId, this); };
+            } else {
+                bb.className = 'ua-btn ua-ban';
+                bb.innerHTML = '<i class="fas fa-ban"></i> Ban';
+                bb.onclick = function(e) { e.stopPropagation(); openBanModal(panelUserId, profileId); };
+            }
+        }
+    }
+    // Update slide panel ban btn
+    const spBan = document.getElementById('spBanBtn');
+    if (spBan) {
+        if (isBanned) {
+            spBan.className = 'sp-act-btn sp-act-unban';
+            spBan.innerHTML = '<i class="fas fa-unlock"></i> Unban';
+        } else {
+            spBan.className = 'sp-act-btn sp-act-ban';
+            spBan.innerHTML = '<i class="fas fa-ban"></i> Ban';
+        }
+    }
+}
+function spBanAction() {
+    const spBan = document.getElementById('spBanBtn');
+    if (spBan.classList.contains('sp-act-unban')) {
+        doUnban(panelUserId, panelProfileId, spBan);
+    } else {
+        openBanModal(panelUserId, panelProfileId);
+    }
+}
+
+// ─── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, color='green') {
+    const t = document.createElement('div');
+    t.style.cssText = `position:fixed;bottom:28px;right:28px;z-index:99999;background:${color==='red'?'#EF4444':'#10B981'};color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.2);animation:fadeInUp .3s ease;`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
 }
 
 // ─── Auto-refresh ─────────────────────────────────────────────────────────────

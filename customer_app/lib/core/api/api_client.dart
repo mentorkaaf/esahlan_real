@@ -3,6 +3,18 @@ import 'package:flutter/foundation.dart';
 import '../constants/app_constants.dart';
 import '../storage/local_storage.dart';
 
+/// Fires when the server returns 403 account_banned.
+/// The router (or any listener) can watch this to force-logout UI.
+final bannedNotifier = ValueNotifier<String?>(null);
+
+/// Thrown when the server returns 403 with error=account_banned.
+class BannedException implements Exception {
+  final String message;
+  const BannedException(this.message);
+  @override
+  String toString() => message;
+}
+
 /// Thrown when the API returns 403 with a restriction payload.
 class RestrictionException implements Exception {
   final String message;
@@ -72,18 +84,34 @@ class _AuthInterceptor extends Interceptor {
     }
     if (err.response?.statusCode == 403) {
       final data = err.response?.data;
-      if (data is Map && data['restriction'] != null) {
-        handler.reject(
-          DioException(
-            requestOptions: err.requestOptions,
-            error: RestrictionException(
-              message: data['message'] ?? 'Action not allowed.',
-              restrictionType: data['restriction'] as String,
-              expiresAt: data['expires_at'] as String?,
+      if (data is Map) {
+        // Account banned — wipe token, force logout
+        if (data['error'] == 'account_banned') {
+          await LocalStorage.deleteToken();
+          bannedNotifier.value = data['message'] ?? 'Your account has been suspended.';
+          handler.reject(
+            DioException(
+              requestOptions: err.requestOptions,
+              error: BannedException(data['message'] ?? 'Your account has been suspended.'),
+              response: err.response,
+              type: DioExceptionType.badResponse,
             ),
-          ),
-        );
-        return;
+          );
+          return;
+        }
+        if (data['restriction'] != null) {
+          handler.reject(
+            DioException(
+              requestOptions: err.requestOptions,
+              error: RestrictionException(
+                message: data['message'] ?? 'Action not allowed.',
+                restrictionType: data['restriction'] as String,
+                expiresAt: data['expires_at'] as String?,
+              ),
+            ),
+          );
+          return;
+        }
       }
     }
     handler.next(err);

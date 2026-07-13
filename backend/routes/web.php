@@ -309,6 +309,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('/chats/{chatId}/messages', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'chatMessages'])->name('chats.messages');
             Route::get('/chat-monitor', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'chatMonitor'])->name('chat-monitor');
             Route::delete('/messages/{id}', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'deleteMessage'])->name('messages.delete');
+            Route::post('/users/{userId}/ban', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'banUser'])->name('users.ban');
+            Route::post('/users/{userId}/unban', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'unbanUser'])->name('users.unban');
         });
         // Trust & Safety
         Route::prefix('trust-safety')->name('trust-safety.')->group(function () {

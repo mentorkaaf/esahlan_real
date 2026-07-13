@@ -381,6 +381,32 @@ class AdminCommunityController extends Controller
         return response()->json(['chats' => $chats]);
     }
 
+    public function banUser(Request $request, $userId)
+    {
+        $user = \App\Models\User::findOrFail($userId);
+        $reason = $request->input('reason', 'Violated community guidelines');
+        $user->update(['status' => 'banned']);
+        // Revoke ALL tokens — forces immediate logout on every device
+        $user->tokens()->delete();
+        \App\Services\SecurityAuditService::log('admin.user_banned', 'warn', [
+            'banned_user_id' => $userId,
+            'reason'         => $reason,
+            'admin_id'       => auth()->id(),
+        ]);
+        return response()->json(['success' => true, 'message' => "User #{$userId} banned and logged out."]);
+    }
+
+    public function unbanUser($userId)
+    {
+        $user = \App\Models\User::findOrFail($userId);
+        $user->update(['status' => 'active']);
+        \App\Services\SecurityAuditService::log('admin.user_unbanned', 'info', [
+            'unbanned_user_id' => $userId,
+            'admin_id'         => auth()->id(),
+        ]);
+        return response()->json(['success' => true, 'message' => "User #{$userId} unbanned."]);
+    }
+
     public function deleteMessage($id)
     {
         $msg = CommunityMessage::findOrFail($id);

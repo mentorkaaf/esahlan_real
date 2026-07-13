@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../api/api_client.dart' show bannedNotifier;
 
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/onboarding_screen.dart';
@@ -266,6 +267,15 @@ final routerProvider = Provider<GoRouter>((ref) {
   // WITHOUT recreating the GoRouter instance.
   ref.listen<AsyncValue>(authStateProvider, (_, __) {
     authNotifier.notify();
+  });
+
+  // When the server returns 403 account_banned, wipe auth state + redirect.
+  bannedNotifier.addListener(() {
+    final msg = bannedNotifier.value;
+    if (msg == null) return;
+    ref.invalidate(authStateProvider);
+    authNotifier.notify();
+    bannedNotifier.value = null; // reset so it doesn't re-fire
   });
 
   return router;

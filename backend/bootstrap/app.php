@@ -32,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Sanitize text input on every API request (strip null bytes + control chars)
         $middleware->api(append: [
             \App\Http\Middleware\SanitizeInput::class,
+            \App\Http\Middleware\CheckBanned::class,
         ]);
 
         // CORS must run before everything — prepend to global stack
