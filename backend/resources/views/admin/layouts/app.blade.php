@@ -981,19 +981,44 @@ function dismissSecToast(el) {
     setTimeout(() => el.remove(), 280);
 }
 
-// Play a subtle audio click for critical alerts (uses Web Audio API — no external file)
+// Audio — unlocked on first user gesture, then reused
+let _secAudioCtx = null;
+function _getAudioCtx() {
+    if (!_secAudioCtx) {
+        try { _secAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+    }
+    if (_secAudioCtx && _secAudioCtx.state === 'suspended') {
+        _secAudioCtx.resume().catch(() => {});
+    }
+    return _secAudioCtx;
+}
+// Unlock on first click anywhere on page
+document.addEventListener('click', () => _getAudioCtx(), { once: true });
+
 function secBeep(sev) {
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.frequency.value = sev === 'critical' ? 880 : 660;
-        osc.type = 'sine';
-        gain.gain.setValueAtTime(0.12, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.35);
+        const ctx = _getAudioCtx();
+        if (!ctx || ctx.state !== 'running') return;
+        const playTone = (freq, startOffset, dur) => {
+            const osc  = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0, ctx.currentTime + startOffset);
+            gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + startOffset + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startOffset + dur);
+            osc.start(ctx.currentTime + startOffset);
+            osc.stop(ctx.currentTime + startOffset + dur);
+        };
+        if (sev === 'critical') {
+            // Two-tone urgent beep
+            playTone(880, 0,    0.12);
+            playTone(660, 0.15, 0.18);
+        } else {
+            // Single soft beep
+            playTone(660, 0, 0.2);
+        }
     } catch(e) {}
 }
 
