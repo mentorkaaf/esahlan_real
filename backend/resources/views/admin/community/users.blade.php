@@ -1159,12 +1159,18 @@ function openThread(chatId, name, rowEl) {
     fetch(`${B}/chats/${chatId}/messages`).then(r=>r.json()).then(d=>renderThread(d.messages||[], d.members||[]));
 }
 
-function renderThread(messages, members) {
+let lastMsgCount = 0;
+function renderThread(messages, members, silent = false) {
     const ta = document.getElementById('thread-area');
     if (!messages.length) {
         ta.innerHTML = '<div class="thread-placeholder"><i class="fas fa-comment-slash"></i><h4>No messages</h4><p>This conversation has no messages yet</p></div>';
+        lastMsgCount = 0;
         return;
     }
+    // silent refresh: only re-render when new messages arrive
+    if (silent && messages.length === lastMsgCount) return;
+    const wasAtBottom = ta.scrollHeight - ta.scrollTop - ta.clientHeight < 60;
+    lastMsgCount = messages.length;
     const firstId = messages[0]?.user_id;
     let lastDate = null;
     ta.innerHTML = messages.map(msg => {
@@ -1198,7 +1204,7 @@ function renderThread(messages, members) {
             ${!right?delBtn:''}
         </div>`;
     }).join('');
-    ta.scrollTop = ta.scrollHeight;
+    if (!silent || wasAtBottom) ta.scrollTop = ta.scrollHeight;
 }
 
 function delMsg(id, btn) {
@@ -1221,8 +1227,16 @@ function escHtml(s) {
 
 // ─── Auto-refresh ─────────────────────────────────────────────────────────────
 setInterval(() => {
-    if (document.getElementById('pane-chat').style.display !== 'none') loadMonitor();
-}, 5000);
+    if (document.getElementById('pane-chat').style.display === 'none') return;
+    // Refresh conversation list
+    loadMonitor();
+    // Refresh active thread silently (only re-render if new messages)
+    if (activeChatId !== null) {
+        fetch(`${B}/chats/${activeChatId}/messages`)
+            .then(r=>r.json())
+            .then(d => renderThread(d.messages||[], d.members||[], true));
+    }
+}, 3000);
 </script>
 
 @endsection
