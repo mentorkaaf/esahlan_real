@@ -8,10 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../../../core/widgets/app_shimmer.dart';
-import 'package:media_kit/media_kit.dart' show Player;
+import 'package:media_kit/media_kit.dart' show Player, Media;
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:video_player/video_player.dart';
-import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -76,6 +75,9 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     CommunityRepository().feedHeartbeat();
     _heartbeatTimer = Timer.periodic(AppConstants.feedHeartbeatInterval, (_) => CommunityRepository().feedHeartbeat());
     _subscribeNewPostFeed();
+    // Throttle VisibilityDetector callbacks to 250ms — the default 100ms fires
+    // too often during scroll and wastes CPU on setFraction calls.
+    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 250);
   }
 
   Future<void> _subscribeNewPostFeed() async {
@@ -398,6 +400,8 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
                       delegate: SliverChildBuilderDelegate(
                         (_, i) => items[i],
                         childCount: items.length,
+                        addAutomaticKeepAlives: false,
+                        addRepaintBoundaries: false, // already wrapped manually above
                       ),
                     ),
                   ];
@@ -1085,6 +1089,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
   }
 
   String _reactionEmoji(String type) => {'like': '👍', 'love': '❤️', 'haha': '😂', 'wow': '😮', 'sad': '😢', 'angry': '😡'}[type] ?? 'Like';
+  String _fmtCount(int n) => n >= 1000 ? '${(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1)}K' : '$n';
 
   @override
   Widget build(BuildContext context) {
@@ -1243,19 +1248,27 @@ class _PostCardState extends ConsumerState<_PostCard> {
           final hasStats = p.viewsCount > 0 || p.commentsCount > 0 || p.sharesCount > 0 || p.savesCount > 0;
           if (chips.isEmpty && !hasStats) return const SizedBox.shrink();
           return Padding(
-            padding: EdgeInsets.fromLTRB(14, 8, 14, 2),
-            child: Row(children: [
-              // Left: reaction emoji chips
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(children: chips.map((e) => _ReactionChip(
-                    emoji: _reactionEmoji(e.key),
-                    count: e.value,
-                    onTap: () => _showReactionsList(e.key),
-                  )).toList()),
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 2),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (chips.isNotEmpty)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: chips.map((e) {
+                    final label = _fmtCount(e.value);
+                    return GestureDetector(
+                      onTap: () => _showReactionsList(e.key),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text(_reactionEmoji(e.key), style: const TextStyle(fontSize: 14)),
+                        const SizedBox(width: 3),
+                        Text(label, style: TextStyle(color: context.colors.mutedText, fontSize: 12, fontWeight: FontWeight.w600)),
+                      ]),
+                    );
+                  }).toList(),
                 ),
-              ),
+              if (chips.isNotEmpty && hasStats) const SizedBox(height: 4),
+              Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              const Spacer(),
               // Right: 👁 views · 💬 comments · ↪ shares · 🔖 saves
               Row(mainAxisSize: MainAxisSize.min, children: [
                 if (p.viewsCount > 0) ...[
@@ -1278,7 +1291,8 @@ class _PostCardState extends ConsumerState<_PostCard> {
                 if (p.savesCount > 0)
                   _StatIcon(icon: Icons.bookmark_border_rounded, count: p.savesCount, color: const Color(0xFF8A94A6)),
               ]),
-            ]),
+            ]),  // inner Row (stats)
+            ]),  // Column
           );
         }),
 
@@ -1287,38 +1301,131 @@ class _PostCardState extends ConsumerState<_PostCard> {
     );
   }
 
-  void _showReactionsList(String type) {
-    final emoji = _reactionEmoji(type);
-    showModalBottomSheet(context: context, isScrollControlled: true,
+  void _showReactionsList(String initialType) {
+    final allChips = widget.post.reactionCounts.entries
+        .where((e) => e.value > 0)
+        .toList();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
       backgroundColor: context.colors.elevatedBg,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.5, minChildSize: 0.3, maxChildSize: 0.9, expand: false,
-        builder: (ctx, scroll) => Column(children: [
-          Container(margin: const EdgeInsets.only(top: 10), width: 38, height: 4,
-            decoration: BoxDecoration(color: context.colors.borderColor, borderRadius: BorderRadius.circular(2))),
-          Padding(padding: const EdgeInsets.all(16),
-            child: Text('$emoji Reactions', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.bodyText))),
-          Expanded(child: FutureBuilder<List<Map<String, dynamic>>>(
-            future: ref.read(communityRepoProvider).getPostReactions(widget.post.id, type: type),
-            builder: (_, snap) {
-              if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-              if (snap.hasError || snap.data == null) return Center(child: Text('Failed to load', style: TextStyle(color: context.colors.mutedText)));
-              final users = snap.data!;
-              if (users.isEmpty) return Center(child: Text('No reactions yet', style: TextStyle(color: context.colors.mutedText)));
-              return ListView.builder(controller: scroll, itemCount: users.length, itemBuilder: (_, i) {
-                final u = users[i];
-                return ListTile(
-                  leading: CircleNetImage(url: u['avatar'] as String?, size: 40, fallbackText: u['name'] as String? ?? '?'),
-                  title: Text(u['name'] as String? ?? '', style: TextStyle(fontWeight: FontWeight.w600, color: context.colors.bodyText)),
-                  subtitle: u['username'] != null ? Text('@${u['username']}', style: TextStyle(color: context.colors.mutedText, fontSize: 12)) : null,
-                  trailing: Text(_reactionEmoji(u['reaction_type'] as String? ?? type), style: const TextStyle(fontSize: 20)),
-                );
-              });
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          String selectedType = initialType;
+          return StatefulBuilder(
+            builder: (ctx2, setTab) {
+              return DraggableScrollableSheet(
+                initialChildSize: 0.55,
+                minChildSize: 0.35,
+                maxChildSize: 0.9,
+                expand: false,
+                builder: (_, scroll) => Column(children: [
+                  // Drag handle
+                  Container(
+                    margin: const EdgeInsets.only(top: 10),
+                    width: 38, height: 4,
+                    decoration: BoxDecoration(
+                      color: context.colors.borderColor,
+                      borderRadius: BorderRadius.circular(2)),
+                  ),
+                  const SizedBox(height: 12),
+                  // Emoji tabs row — each type tappable
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: allChips.map((e) {
+                        final isSelected = e.key == selectedType;
+                        return GestureDetector(
+                          onTap: () => setTab(() => selectedType = e.key),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected ? kOrange.withValues(alpha: 0.12) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected ? kOrange : context.colors.borderColor,
+                                width: isSelected ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Text(_reactionEmoji(e.key), style: const TextStyle(fontSize: 18)),
+                              const SizedBox(width: 6),
+                              Text(
+                                _fmtCount(e.value),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: isSelected ? kOrange : context.colors.mutedText,
+                                ),
+                              ),
+                            ]),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Divider(height: 1, color: context.colors.borderColor),
+                  // Users list for selected type
+                  Expanded(
+                    child: FutureBuilder<List<Map<String, dynamic>>>(
+                      key: ValueKey(selectedType),
+                      future: ref.read(communityRepoProvider)
+                          .getPostReactions(widget.post.id, type: selectedType),
+                      builder: (_, snap) {
+                        if (snap.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (snap.hasError || snap.data == null) {
+                          return Center(child: Text('Failed to load',
+                              style: TextStyle(color: context.colors.mutedText)));
+                        }
+                        final users = snap.data!;
+                        if (users.isEmpty) {
+                          return Center(child: Text('No reactions yet',
+                              style: TextStyle(color: context.colors.mutedText)));
+                        }
+                        return ListView.builder(
+                          controller: scroll,
+                          itemCount: users.length,
+                          itemBuilder: (_, i) {
+                            final u = users[i];
+                            return ListTile(
+                              leading: CircleNetImage(
+                                  url: u['avatar'] as String?,
+                                  size: 40,
+                                  fallbackText: u['name'] as String? ?? '?'),
+                              title: Text(u['name'] as String? ?? '',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: context.colors.bodyText)),
+                              subtitle: u['username'] != null
+                                  ? Text('@${u['username']}',
+                                      style: TextStyle(
+                                          color: context.colors.mutedText,
+                                          fontSize: 12))
+                                  : null,
+                              trailing: Text(_reactionEmoji(selectedType),
+                                  style: const TextStyle(fontSize: 20)),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ]),
+              );
             },
-          )),
-        ]),
-      ));
+          );
+        },
+      ),
+    );
   }
 
   void _showShareDialog() {
@@ -1584,53 +1691,6 @@ class _ExpandableTextState extends State<_ExpandableText> {
   }
 }
 
-class _EngagementChip extends StatelessWidget {
-  final String emoji;
-  final int count;
-  const _EngagementChip({required this.emoji, required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    final label = count >= 1000 ? '${(count / 1000).toStringAsFixed(1)}K' : '$count';
-    return Padding(
-      padding: EdgeInsets.only(right: 10),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text(emoji, style: TextStyle(fontSize: 13)),
-        SizedBox(width: 3),
-        Text(label, style: TextStyle(color: Color(0xFF8A94A6), fontSize: 12, fontWeight: FontWeight.w600)),
-      ]),
-    );
-  }
-}
-
-class _ReactionChip extends StatelessWidget {
-  final String emoji;
-  final int count;
-  final VoidCallback onTap;
-  const _ReactionChip({required this.emoji, required this.count, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final label = count >= 1000 ? '${(count / 1000).toStringAsFixed(1)}K' : '$count';
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: context.colors.surfaceBg,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: context.colors.borderColor, width: 1),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(emoji, style: const TextStyle(fontSize: 14)),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(color: context.colors.bodyText, fontSize: 12, fontWeight: FontWeight.w700)),
-        ]),
-      ),
-    );
-  }
-}
 
 // Isolated action bar: owns reaction picker state + save state.
 // Extracted so that like/save/share taps only rebuild this small widget,
@@ -2746,8 +2806,12 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (!_ready || _controller == null) return;
     setState(() => _paused = !_paused);
     if (_paused) {
+      // Clear fraction so this video is no longer a dominant candidate —
+      // otherwise the stale high fraction blocks videos below from autoplaying.
+      _pool.setFraction(_previewUrl, 0);
       _pool.pause(_previewUrl);
     } else {
+      _pool.setFraction(_previewUrl, _lastFraction);
       _pool.play(_previewUrl);
       _controller!.player.setVolume(_globalMuted ? 0 : 100);
     }
@@ -2980,41 +3044,43 @@ class _AudioPlayerCard extends StatefulWidget {
 }
 
 class _AudioPlayerCardState extends State<_AudioPlayerCard> {
-  final _player = ap.AudioPlayer();
-  bool _playing = false;
-  bool _loaded = false;
-  Duration _duration = Duration.zero;
-  Duration _position = Duration.zero;
+  VideoPlayerController? _ctrl;
+  bool _initialized = false;
+
+  bool get _playing => _ctrl?.value.isPlaying ?? false;
+  Duration get _duration => _ctrl?.value.duration ?? Duration.zero;
+  Duration get _position => _ctrl?.value.position ?? Duration.zero;
 
   @override
   void initState() {
     super.initState();
-    _player.onDurationChanged.listen((d) { if (mounted) setState(() => _duration = d); });
-    _player.onPositionChanged.listen((p) { if (mounted) setState(() => _position = p); });
-    _player.onPlayerComplete.listen((_) { if (mounted) setState(() { _playing = false; _position = Duration.zero; }); });
-    _player.onPlayerStateChanged.listen((s) { if (mounted) setState(() => _playing = s == ap.PlayerState.playing); });
-    _preload();
+    _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+    _ctrl!.initialize().then((_) {
+      if (mounted) setState(() => _initialized = true);
+      _ctrl!.addListener(_onUpdate);
+    }).catchError((e) {
+      debugPrint('[AudioCard] init error: $e');
+    });
   }
 
-  void _preload() async {
-    try {
-      await _player.setSourceUrl(widget.url);
-      _loaded = true;
-    } catch (_) {}
-  }
+  void _onUpdate() { if (mounted) setState(() {}); }
 
   @override
-  void dispose() { _player.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl?.removeListener(_onUpdate);
+    _ctrl?.pause();
+    _ctrl?.dispose();
+    super.dispose();
+  }
 
-  void _toggle() async {
+  void _toggle() {
+    if (!_initialized || _ctrl == null) return;
     if (_playing) {
-      await _player.pause();
-    } else if (_loaded) {
-      await _player.resume();
+      _ctrl!.pause();
     } else {
-      await _player.play(ap.UrlSource(widget.url));
-      _loaded = true;
+      _ctrl!.play();
     }
+    setState(() {});
   }
 
   String _fmt(Duration d) => '${d.inMinutes.toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';

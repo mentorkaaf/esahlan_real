@@ -207,16 +207,6 @@ if (!function_exists('proxy_storage_file')) {
             $headers['Content-Range'] = "bytes {$start}-{$end}/{$size}";
         }
 
-        // For video/audio files let Nginx serve the bytes via X-Accel-Redirect
-        // (the /x-storage/ internal alias). PHP only sends the headers — zero
-        // PHP streaming overhead, Range requests handled natively by Nginx.
-        if (in_array($mime, ['video/mp4', 'video/webm', 'audio/mpeg', 'application/vnd.apple.mpegurl', 'video/mp2t'])) {
-            $accelPath = '/x-storage/' . $path;
-            return response('', $statusCode, array_merge($headers, [
-                'X-Accel-Redirect' => $accelPath,
-            ]));
-        }
-
         $capturedStart = $start;
         $capturedLength = $length;
 

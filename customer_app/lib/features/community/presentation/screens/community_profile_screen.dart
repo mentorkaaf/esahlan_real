@@ -17,6 +17,7 @@ import 'highlight_viewer_screen.dart';
 import 'transparency_center_screen.dart';
 import 'copyright_screen.dart';
 import 'settings_screen.dart';
+import 'community_feed_screen.dart' show PostDetailScreen;
 
 // ── Profile entry points ────────────────────────────────────────────────
 class CommunityProfileScreen extends ConsumerWidget {
@@ -1098,7 +1099,7 @@ class _PostsGridState extends ConsumerState<_PostsGrid> with AutomaticKeepAliveC
             final isVideo = media?.type == 'video';
             final imgUrl = isVideo ? media?.thumbnail : media?.url;
             return GestureDetector(
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _PostDetailScreen(post: p))),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PostDetailScreen(post: p))),
               child: Container(
                 color: c.borderColor,
                 child: Stack(children: [
@@ -1281,7 +1282,7 @@ class _PostListGrid extends StatelessWidget {
         final isVideo = media?.type == 'video';
         final imgUrl = isVideo ? media?.thumbnail : media?.url;
         return GestureDetector(
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _PostDetailScreen(post: p))),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PostDetailScreen(post: p))),
           child: Container(
             color: c.borderColor,
             child: Stack(children: [
@@ -1297,37 +1298,3 @@ class _PostListGrid extends StatelessWidget {
   }
 }
 
-// ── Simple post detail ─────────────────────────────────────────────────
-class _PostDetailScreen extends StatelessWidget {
-  final CommunityPost post;
-  const _PostDetailScreen({required this.post});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Post'), backgroundColor: c.cardBg, foregroundColor: c.navyText),
-      backgroundColor: c.scaffoldBg,
-      body: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(padding: const EdgeInsets.all(12), child: Row(children: [
-          CircleNetImage(url: post.user.avatar, size: 40, fallbackText: post.user.name),
-          const SizedBox(width: 10),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(post.user.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-            Text(post.createdAt.toString().substring(0, 16), style: TextStyle(color: c.mutedText, fontSize: 12)),
-          ])),
-        ])),
-        if (post.content != null && post.content!.isNotEmpty)
-          Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), child: Text(post.content!, style: const TextStyle(fontSize: 15, height: 1.4))),
-        for (final m in post.media)
-          if (m.type == 'image') NetImage(url: m.url, fit: BoxFit.fitWidth, width: double.infinity),
-        Padding(padding: const EdgeInsets.all(12), child: Row(children: [
-          Icon(Icons.thumb_up_alt_rounded, size: 16, color: c.mutedText), const SizedBox(width: 4),
-          Text('${post.likesCount}', style: TextStyle(color: c.mutedText, fontSize: 13)), const SizedBox(width: 16),
-          Icon(Icons.chat_bubble_outline_rounded, size: 16, color: c.mutedText), const SizedBox(width: 4),
-          Text('${post.commentsCount}', style: TextStyle(color: c.mutedText, fontSize: 13)),
-        ])),
-      ])),
-    );
-  }
-}
