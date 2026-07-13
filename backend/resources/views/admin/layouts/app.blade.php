@@ -1006,7 +1006,7 @@ function secBeep(sev) {
             osc.type = 'sine';
             osc.frequency.value = freq;
             gain.gain.setValueAtTime(0, ctx.currentTime + startOffset);
-            gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + startOffset + 0.01);
+            gain.gain.linearRampToValueAtTime(0.9, ctx.currentTime + startOffset + 0.01);
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startOffset + dur);
             osc.start(ctx.currentTime + startOffset);
             osc.stop(ctx.currentTime + startOffset + dur);
