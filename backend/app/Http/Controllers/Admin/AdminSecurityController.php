@@ -217,9 +217,23 @@ class AdminSecurityController extends Controller
             ->selectRaw('HOUR(created_at) as hour, COUNT(*) as count')
             ->groupBy('hour')->get()->keyBy('hour');
 
+        $rawAll = SecurityAuditLog::where('created_at', '>=', $now->copy()->subDay())
+            ->selectRaw('HOUR(created_at) as hour, COUNT(*) as count')
+            ->groupBy('hour')->get()->keyBy('hour');
+
+        $rawCritical = SecurityAuditLog::where('created_at', '>=', $now->copy()->subDay())
+            ->where('severity', 'critical')
+            ->selectRaw('HOUR(created_at) as hour, COUNT(*) as count')
+            ->groupBy('hour')->get()->keyBy('hour');
+
         $hourlyData = [];
         for ($h = 0; $h < 24; $h++) {
-            $hourlyData[] = ['hour' => $h, 'count' => $raw->get($h)?->count ?? 0];
+            $hourlyData[] = [
+                'hour'     => $h,
+                'count'    => $raw->get($h)?->count ?? 0,
+                'all'      => $rawAll->get($h)?->count ?? 0,
+                'critical' => $rawCritical->get($h)?->count ?? 0,
+            ];
         }
 
         $eventBreakdown = SecurityAuditLog::where('created_at', '>=', $now->copy()->subDay())

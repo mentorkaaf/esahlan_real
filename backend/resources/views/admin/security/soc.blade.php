@@ -539,10 +539,52 @@ body[data-soc-theme="dark"] #themeToggle .t-icon{transform:rotate(180deg)}
     </div>
 
     <div class="g2">
-        <div class="g" style="padding:20px">
-            <div class="s-head">Failed Logins — Last 24 Hours</div>
-            <div class="s-sub">Hourly breakdown of authentication failures</div>
-            <canvas id="hourlyChart" height="160"></canvas>
+        <div class="g" style="padding:0;overflow:hidden">
+            @php
+                $totalFailed = array_sum(array_column($hourlyData,'count'));
+                $peakHour    = collect($hourlyData)->sortByDesc('count')->first();
+                $currentH    = (int)now()->format('H');
+                $currentFail = collect($hourlyData)->firstWhere('hour', $currentH)['count'] ?? 0;
+                $avgFail     = $totalFailed > 0 ? round($totalFailed/24,1) : 0;
+                $criticalH   = collect($hourlyData)->sortByDesc('critical')->first();
+            @endphp
+            <div style="padding:16px 18px 10px;border-bottom:1px solid var(--brd)">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px">
+                    <div>
+                        <div class="s-head" style="margin:0 0 2px">Failed Logins — Last 24h</div>
+                        <div class="s-sub" style="margin:0">Hourly authentication failure analysis</div>
+                    </div>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap">
+                        <div style="text-align:center;padding:6px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:8px">
+                            <div style="font-size:18px;font-weight:800;color:#ef4444;line-height:1">{{ $totalFailed }}</div>
+                            <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px;margin-top:1px">Total</div>
+                        </div>
+                        <div style="text-align:center;padding:6px 12px;background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.2);border-radius:8px">
+                            <div style="font-size:18px;font-weight:800;color:#f97316;line-height:1">{{ $peakHour['count'] ?? 0 }}</div>
+                            <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px;margin-top:1px">Peak {{ str_pad($peakHour['hour']??0,2,'0',STR_PAD_LEFT) }}:00</div>
+                        </div>
+                        <div style="text-align:center;padding:6px 12px;background:var(--bg3);border:1px solid var(--brd);border-radius:8px">
+                            <div style="font-size:18px;font-weight:800;color:var(--txt);line-height:1">{{ $currentFail }}</div>
+                            <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px;margin-top:1px">This Hour</div>
+                        </div>
+                        <div style="text-align:center;padding:6px 12px;background:var(--bg3);border:1px solid var(--brd);border-radius:8px">
+                            <div style="font-size:18px;font-weight:800;color:var(--txt);line-height:1">{{ $avgFail }}</div>
+                            <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px;margin-top:1px">Avg/hr</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div style="padding:16px 18px 8px">
+                <div style="display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--txt2)"><div style="width:12px;height:3px;border-radius:2px;background:#ef4444"></div>Failed Logins</div>
+                    <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--txt2)"><div style="width:12px;height:3px;border-radius:2px;background:#94a3b8;opacity:.6"></div>All Events</div>
+                    <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--txt2)"><div style="width:10px;height:10px;border-radius:3px;background:rgba(239,68,68,.2)"></div>Critical</div>
+                </div>
+                <div style="position:relative">
+                    <canvas id="hourlyChart" height="180"></canvas>
+                    <div id="hlTooltip" style="display:none;position:absolute;pointer-events:none;background:var(--bg2);border:1px solid var(--brd);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--txt);box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:110px;z-index:10"></div>
+                </div>
+            </div>
         </div>
         <div class="g" style="padding:0;overflow:hidden">
             <div style="padding:16px 16px 8px;border-bottom:1px solid var(--brd)">
@@ -1212,40 +1254,157 @@ function drawGauge(score) {
 }
 drawGauge({{ $securityScore }});
 
-// ── Hourly Bar Chart ───────────────────────────────────────────────────────
-const _hourlyData = @json(array_column($hourlyData, 'count'));
+// ── Advanced Hourly Login Chart ────────────────────────────────────────────
+const _hourlyRaw  = @json($hourlyData);
+const _hFailed    = _hourlyRaw.map(r => r.count);
+const _hAll       = _hourlyRaw.map(r => r.all);
+const _hCritical  = _hourlyRaw.map(r => r.critical);
+const _hCurrentHr = new Date().getHours();
+
+let _hlCanvas = null, _hlPad = null, _hlCw = 0, _hlCh = 0, _hlH = 0;
+
 function drawHourlyChart() {
     const c = document.getElementById('hourlyChart');
     if (!c) return;
+    _hlCanvas = c;
     const ctx = c.getContext('2d');
-    const data = _hourlyData;
-    const W = c.offsetWidth || c.parentElement.offsetWidth, H = 160;
+    const W = c.offsetWidth || c.parentElement.offsetWidth;
+    const H = 180;
     c.width = W; c.height = H;
-    const max = Math.max(...data, 1);
-    const pad = { t: 10, r: 10, b: 28, l: 30 };
+    const pad = { t: 14, r: 12, b: 32, l: 36 };
     const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+    _hlPad = pad; _hlCw = cw; _hlCh = ch; _hlH = H;
+    const n = 24;
+    const maxFail = Math.max(..._hFailed, 1);
+    const maxAll  = Math.max(..._hAll, 1);
+    const combined = Math.max(maxFail, maxAll);
     ctx.clearRect(0, 0, W, H);
-    ctx.strokeStyle = gridColor(); ctx.lineWidth = 1;
+
+    // ── Grid ──────────────────────────────────────────────────────────
+    const gridC = gridColor();
+    const lblC  = labelColor();
+    ctx.strokeStyle = gridC; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
     for (let i = 0; i <= 4; i++) {
         const y = pad.t + ch - (i / 4) * ch;
         ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+        ctx.fillStyle = lblC; ctx.font = '9px system-ui'; ctx.textAlign = 'right';
+        ctx.fillText(Math.round((i / 4) * combined), pad.l - 5, y + 3);
     }
-    data.forEach((v, i) => {
-        const bw = Math.max(2, cw / data.length - 3);
-        const x = pad.l + (i / data.length) * cw + (cw / data.length - bw) / 2;
-        const bh = (v / max) * ch || 2;
+    ctx.setLineDash([]);
+
+    // ── Current hour highlight column ─────────────────────────────────
+    const slotW = cw / n;
+    const chx = pad.l + _hCurrentHr * slotW;
+    ctx.fillStyle = isDark() ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.04)';
+    ctx.fillRect(chx, pad.t, slotW, ch);
+
+    // ── All-events area (faint, behind) ───────────────────────────────
+    ctx.beginPath();
+    _hAll.forEach((v, i) => {
+        const x = pad.l + (i + .5) * slotW;
+        const y = pad.t + ch - (v / combined) * ch;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.lineTo(pad.l + 23.5 * slotW, pad.t + ch);
+    ctx.lineTo(pad.l + .5 * slotW, pad.t + ch);
+    ctx.closePath();
+    const grdAll = ctx.createLinearGradient(0, pad.t, 0, pad.t + ch);
+    grdAll.addColorStop(0, isDark() ? 'rgba(148,163,184,.12)' : 'rgba(100,116,139,.08)');
+    grdAll.addColorStop(1, 'rgba(148,163,184,.01)');
+    ctx.fillStyle = grdAll; ctx.fill();
+    ctx.beginPath();
+    _hAll.forEach((v, i) => {
+        const x = pad.l + (i + .5) * slotW;
+        const y = pad.t + ch - (v / combined) * ch;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = isDark() ? 'rgba(148,163,184,.35)' : 'rgba(100,116,139,.3)';
+    ctx.lineWidth = 1.5; ctx.lineJoin = 'round'; ctx.stroke();
+
+    // ── Critical overlay bars (thin, red-tinted) ─────────────────────
+    _hCritical.forEach((v, i) => {
+        if (!v) return;
+        const bw = Math.max(2, slotW - 4);
+        const x  = pad.l + i * slotW + (slotW - bw) / 2;
+        const bh = (v / combined) * ch;
+        ctx.fillStyle = 'rgba(239,68,68,.18)';
+        ctx.fillRect(x, pad.t, bw, ch);
+    });
+
+    // ── Failed logins bars ────────────────────────────────────────────
+    const peakIdx = _hFailed.indexOf(Math.max(..._hFailed));
+    _hFailed.forEach((v, i) => {
+        const bw = Math.max(2, slotW - 4);
+        const x  = pad.l + i * slotW + (slotW - bw) / 2;
+        const bh = Math.max(v > 0 ? 3 : 0, (v / combined) * ch);
+        const isPeak = i === peakIdx && v > 0;
+        const isCurrent = i === _hCurrentHr;
         const grd = ctx.createLinearGradient(0, pad.t + ch - bh, 0, pad.t + ch);
-        grd.addColorStop(0, 'rgba(229,62,62,.9)'); grd.addColorStop(1, 'rgba(229,62,62,.15)');
+        if (isPeak) {
+            grd.addColorStop(0, 'rgba(239,68,68,1)');
+            grd.addColorStop(1, 'rgba(239,68,68,.4)');
+        } else if (isCurrent) {
+            grd.addColorStop(0, 'rgba(239,68,68,.85)');
+            grd.addColorStop(1, 'rgba(239,68,68,.25)');
+        } else {
+            grd.addColorStop(0, 'rgba(239,68,68,.75)');
+            grd.addColorStop(1, 'rgba(239,68,68,.1)');
+        }
         ctx.fillStyle = grd;
         ctx.beginPath(); ctx.roundRect(x, pad.t + ch - bh, bw, bh, [3, 3, 0, 0]); ctx.fill();
+
+        // Peak crown
+        if (isPeak && v > 0) {
+            ctx.fillStyle = '#ef4444';
+            ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center';
+            ctx.fillText('▲' + v, x + bw / 2, pad.t + ch - bh - 4);
+        }
     });
-    ctx.fillStyle = labelColor(); ctx.font = '10px system-ui'; ctx.textAlign = 'center';
-    for (let i = 0; i < 24; i += 4) {
-        const x = pad.l + (i / data.length) * cw + cw / (data.length * 2);
-        ctx.fillText(i + ':00', x, H - 6);
+
+    // ── X-axis labels ─────────────────────────────────────────────────
+    ctx.fillStyle = lblC; ctx.font = '9.5px system-ui'; ctx.textAlign = 'center';
+    for (let i = 0; i < 24; i += 3) {
+        const x = pad.l + (i + .5) * slotW;
+        ctx.fillText(String(i).padStart(2,'0') + 'h', x, H - 10);
     }
+    // current hour tick
+    ctx.fillStyle = '#ef4444'; ctx.font = 'bold 9px system-ui';
+    ctx.fillText('NOW', pad.l + (_hCurrentHr + .5) * slotW, H - 10);
 }
 drawHourlyChart();
+
+// ── Tooltip on mouse move ──────────────────────────────────────────────────
+document.getElementById('hourlyChart')?.addEventListener('mousemove', function(e) {
+    const tip = document.getElementById('hlTooltip');
+    if (!tip || !_hlPad) return;
+    const rect = this.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const slotW = _hlCw / 24;
+    const idx = Math.floor((mx - _hlPad.l) / slotW);
+    if (idx < 0 || idx > 23) { tip.style.display='none'; return; }
+    const failed   = _hFailed[idx]   || 0;
+    const all      = _hAll[idx]       || 0;
+    const critical = _hCritical[idx]  || 0;
+    const isNow    = idx === _hCurrentHr;
+    tip.innerHTML = `
+        <div style="font-weight:700;margin-bottom:5px;color:var(--txt)">
+            ${String(idx).padStart(2,'0')}:00 – ${String(idx+1).padStart(2,'0')}:00
+            ${isNow ? '<span style="color:#ef4444;font-size:9px;margin-left:4px">● NOW</span>' : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+            <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#ef4444">Failed Logins</span><strong>${failed}</strong></div>
+            <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--txt2)">All Events</span><strong>${all}</strong></div>
+            ${critical ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#f97316">Critical</span><strong>${critical}</strong></div>` : ''}
+        </div>`;
+    tip.style.display = 'block';
+    const tx = Math.min(mx + 12, rect.width - 130);
+    const ty = Math.max(4, e.clientY - rect.top - 60);
+    tip.style.left = tx + 'px'; tip.style.top = ty + 'px';
+});
+document.getElementById('hourlyChart')?.addEventListener('mouseleave', () => {
+    const tip = document.getElementById('hlTooltip');
+    if (tip) tip.style.display = 'none';
+});
 
 // ── Severity Distribution (Donut + Rows) ───────────────────────────────────
 const _sevRaw = @json($severityData);
