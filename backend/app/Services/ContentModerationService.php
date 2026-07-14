@@ -363,9 +363,15 @@ class ContentModerationService
         // but very LOW torso skin. Bikini/nude has HIGH torso + lower skin.
         // Suppress score heavily when face dominates and torso is low.
         $bodyScore = max($ratioTorso, $ratioLower * 0.90, $ratioCenter * 0.95);
+
+        // Portrait: face clearly visible, low torso
         $isFacePortrait = ($ratioFace >= 0.22 && $ratioTorso < $ratioFace * 1.20 && $ratioTorso < 0.32);
-        if ($isFacePortrait) {
-            $bodyScore *= 0.35; // face portrait — heavily discount
+        // Hijab portrait: hijab covers face zone → face≈0, but lower body also bare=0
+        // Bikini/nude always has lower > 0.08 (thighs/legs visible)
+        $isHijabPortrait = ($ratioFace < 0.08 && $ratioLower < 0.08 && $ratioTorso < 0.42);
+
+        if ($isFacePortrait || $isHijabPortrait) {
+            $bodyScore *= 0.35;
         }
 
         Log::info('[Moderation] GD skin ratios', [
@@ -374,7 +380,7 @@ class ContentModerationService
             'lower'   => round($ratioLower,  3),
             'center'  => round($ratioCenter, 3),
             'body'    => round($bodyScore,   3),
-            'portrait'=> $isFacePortrait,
+            'portrait'=> $isFacePortrait || $isHijabPortrait,
         ]);
 
         if ($bodyScore > 0.65) return 0.97; // explicit/nude — block
