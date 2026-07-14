@@ -25,6 +25,7 @@ class CommunityStoryController extends Controller
         $mediaFiles = $request->hasFile('media') ? [$request->file('media')] : [];
         $modResult = \App\Services\ContentModerationService::moderatePost($request->text_content, $mediaFiles);
         if ($modResult['action'] === 'block') {
+            \App\Services\StrikeService::addStrike(auth()->id(), $modResult['reason'], null);
             return response()->json(['status' => 'error', 'message' => 'Content blocked: ' . $modResult['reason']], 422);
         }
 

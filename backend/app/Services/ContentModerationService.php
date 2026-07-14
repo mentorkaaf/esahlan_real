@@ -44,9 +44,9 @@ class ContentModerationService
             'image_scan'       => true,
             'video_scan'       => true,
             'auto_block'       => false,
-            'review_all_media' => false,
-            'block_threshold'  => 0.80,
-            'review_threshold' => 0.50,
+            'review_all_media' => true,
+            'block_threshold'  => 0.65,
+            'review_threshold' => 0.15,
         ];
     }
 
@@ -137,48 +137,59 @@ class ContentModerationService
         return ['safe' => true, 'score' => 0, 'action' => 'allow', 'reason' => ''];
     }
 
-    // ── Image: Google Vision SafeSearch ───────────────────────────────────────
+    // ── Image: Google Vision SafeSearch + GD skin detection (dual-layer) ────────
 
     public static function scanImage(string $filePath): float
     {
         $apiKey = config('services.google.vision_key');
+
+        // Always run GD skin detection as a baseline
+        $gdScore = self::analyzeImageGd($filePath);
+
         if (!$apiKey) {
-            Log::warning('[Moderation] Google Vision API key missing — falling back to GD scan');
-            return self::analyzeImageGd($filePath);
+            Log::warning('[Moderation] Google Vision API key missing — using GD scan only');
+            return $gdScore;
         }
 
+        $visionScore = 0.0;
         try {
             $imageData = @file_get_contents($filePath);
             if (!$imageData) {
                 Log::warning('[Moderation] Cannot read image file: ' . $filePath);
-                return 0;
+                // GD already ran; fall through to max()
+            } else {
+                $response = Http::timeout(20)->post(
+                    'https://vision.googleapis.com/v1/images:annotate?key=' . $apiKey,
+                    [
+                        'requests' => [[
+                            'image'    => ['content' => base64_encode($imageData)],
+                            'features' => [['type' => 'SAFE_SEARCH_DETECTION']],
+                        ]],
+                    ]
+                );
+
+                if (!$response->successful()) {
+                    Log::warning('[Moderation] Google Vision API error', [
+                        'status' => $response->status(),
+                        'body'   => $response->body(),
+                    ]);
+                } else {
+                    $annotation = $response->json('responses.0.safeSearchAnnotation') ?? [];
+                    $visionScore = self::safeSearchScore($annotation);
+                }
             }
-
-            $response = Http::timeout(20)->post(
-                'https://vision.googleapis.com/v1/images:annotate?key=' . $apiKey,
-                [
-                    'requests' => [[
-                        'image'    => ['content' => base64_encode($imageData)],
-                        'features' => [['type' => 'SAFE_SEARCH_DETECTION']],
-                    ]],
-                ]
-            );
-
-            if (!$response->successful()) {
-                Log::warning('[Moderation] Google Vision API error', [
-                    'status' => $response->status(),
-                    'body'   => $response->body(),
-                ]);
-                return 0;
-            }
-
-            $annotation = $response->json('responses.0.safeSearchAnnotation') ?? [];
-            return self::safeSearchScore($annotation);
-
         } catch (\Throwable $e) {
             Log::warning('[Moderation] Google Vision exception: ' . $e->getMessage());
-            return 0;
         }
+
+        // Take the worst-case score from both detectors
+        $finalScore = max($visionScore, $gdScore);
+        Log::info('[Moderation] dual-scan result', [
+            'vision' => $visionScore,
+            'gd'     => $gdScore,
+            'final'  => $finalScore,
+        ]);
+        return $finalScore;
     }
 
     /**
@@ -192,7 +203,7 @@ class ContentModerationService
         $racy     = self::$LIKELIHOOD[$annotation['racy']     ?? 'UNKNOWN'] ?? 0;
         $violence = self::$LIKELIHOOD[$annotation['violence'] ?? 'UNKNOWN'] ?? 0;
 
-        $score = max($adult, $racy * 0.85, $violence * 0.70);
+        $score = max($adult, $racy, $violence * 0.75);
 
         Log::info('[Moderation] SafeSearch', [
             'adult'    => $annotation['adult']    ?? '?',
@@ -214,11 +225,24 @@ class ContentModerationService
         @mkdir($tmpDir, 0755, true);
 
         try {
-            // Extract 5 evenly-spaced frames (at 10s intervals, max 5)
-            $framePattern = $tmpDir . '/frame_%02d.jpg';
+            // Get video duration first so we can sample evenly
+            $probeOut = shell_exec(sprintf(
+                'ffprobe -v error -show_entries format=duration -of csv=p=0 %s 2>/dev/null',
+                escapeshellarg($videoPath)
+            ));
+            $duration = (float) trim($probeOut ?? '0');
+
+            // Sample every 2 seconds, max 15 frames — covers the full video
+            // including mid-section where explicit content usually appears
+            $interval = max(1, $duration > 0 ? min(2, (int)($duration / 15)) : 2);
+            $maxFrames = min(15, $duration > 0 ? (int)($duration / $interval) + 1 : 15);
+
+            $framePattern = $tmpDir . '/frame_%03d.jpg';
             $cmd = sprintf(
-                'ffmpeg -i %s -vf "select=\'not(mod(n,120))\'" -vsync vfr -frames:v 5 %s -loglevel error 2>&1',
+                'ffmpeg -i %s -vf "fps=1/%d" -q:v 3 -frames:v %d %s -loglevel error 2>&1',
                 escapeshellarg($videoPath),
+                $interval,
+                $maxFrames,
                 escapeshellarg($framePattern)
             );
             exec($cmd, $out, $code);
@@ -236,17 +260,19 @@ class ContentModerationService
             }
 
             if (empty($frames)) {
-                Log::warning('[Moderation] No frames extracted from video: ' . $videoPath);
-                return 0;
+                Log::warning('[Moderation] No frames extracted from video — defaulting to review: ' . $videoPath);
+                return 0.55; // fail-safe: no frames → flag for review
             }
+
+            Log::info('[Moderation] video frames extracted', ['count' => count($frames), 'duration' => $duration, 'interval' => $interval]);
 
             $maxScore = 0;
             foreach ($frames as $frame) {
                 $score = self::scanImage($frame);
                 Log::info('[Moderation] video frame scan', ['frame' => basename($frame), 'score' => $score]);
                 if ($score > $maxScore) $maxScore = $score;
-                // Short-circuit: already flagged
-                if ($maxScore >= 0.80) break;
+                // Short-circuit: clearly explicit
+                if ($maxScore >= 0.68) break;
             }
 
             return $maxScore;
@@ -273,7 +299,7 @@ class ContentModerationService
         return ['safe' => true, 'score' => $score, 'action' => 'allow', 'reason' => 'Content is safe'];
     }
 
-    // GD fallback — only used when Vision key is missing
+    // GD skin detection — full body + upper-body region + dark skin tone support
     private static function analyzeImageGd(string $filePath): float
     {
         if (!function_exists('imagecreatefromstring')) return 0;
@@ -283,23 +309,104 @@ class ContentModerationService
         if (!$img) return 0;
 
         $w = imagesx($img); $h = imagesy($img);
-        $stepX = max(1, (int)($w / 80)); $stepY = max(1, (int)($h / 80));
-        $skin = 0; $total = 0;
+        $stepX = max(1, (int)($w / 100)); $stepY = max(1, (int)($h / 100));
+
+        $skinTotal = $skinFace = $skinTorso = $skinLower = $skinCenter = 0;
+        $total = $faceTotal = $torsoTotal = $lowerTotal = $centerTotal = 0;
+
+        // Face zone: top 28% (head/neck in portrait)
+        // Torso zone: 28%–72% (chest/stomach — bikini area)
+        // Lower zone: 72%–100% (thighs/legs)
+        $faceBottom  = (int)($h * 0.28);
+        $torsoBottom = (int)($h * 0.72);
+        $cxMin = (int)($w * 0.20); $cxMax = (int)($w * 0.80);
 
         for ($x = 0; $x < $w; $x += $stepX) {
             for ($y = 0; $y < $h; $y += $stepY) {
                 $rgb = imagecolorat($img, $x, $y);
-                $r = ($rgb >> 16) & 0xFF; $g = ($rgb >> 8) & 0xFF; $b = $rgb & 0xFF;
-                if ($r > 95 && $g > 40 && $b > 20 && $r > $g && $r > $b && abs($r - $g) > 15 && $r - $b > 15) $skin++;
+                $r = ($rgb >> 16) & 0xFF;
+                $g = ($rgb >> 8)  & 0xFF;
+                $b = $rgb         & 0xFF;
+
+                $isSkin = self::isSkinPixel($r, $g, $b);
                 $total++;
+                if ($isSkin) $skinTotal++;
+
+                if ($y < $faceBottom) {
+                    $faceTotal++;
+                    if ($isSkin) $skinFace++;
+                } elseif ($y < $torsoBottom) {
+                    $torsoTotal++;
+                    if ($isSkin) $skinTorso++;
+                } else {
+                    $lowerTotal++;
+                    if ($isSkin) $skinLower++;
+                }
+
+                if ($x >= $cxMin && $x <= $cxMax && $y >= $faceBottom && $y < $torsoBottom) {
+                    $centerTotal++;
+                    if ($isSkin) $skinCenter++;
+                }
             }
         }
+
         imagedestroy($img);
         if ($total === 0) return 0;
-        $ratio = $skin / $total;
-        if ($ratio > 0.65) return 0.93;
-        if ($ratio > 0.50) return 0.82;
-        if ($ratio > 0.35) return 0.55;
-        return 0.05;
+
+        $ratioFull   = $skinTotal / $total;
+        $ratioFace   = $faceTotal   > 0 ? $skinFace   / $faceTotal   : 0;
+        $ratioTorso  = $torsoTotal  > 0 ? $skinTorso  / $torsoTotal  : 0;
+        $ratioLower  = $lowerTotal  > 0 ? $skinLower  / $lowerTotal  : 0;
+        $ratioCenter = $centerTotal > 0 ? $skinCenter / $centerTotal : 0;
+
+        // Portrait/face detection: hijab or clothed portraits have face skin
+        // but very LOW torso skin. Bikini/nude has HIGH torso + lower skin.
+        // Suppress score heavily when face dominates and torso is low.
+        $bodyScore = max($ratioTorso, $ratioLower * 0.90, $ratioCenter * 0.95);
+        $isFacePortrait = ($ratioFace >= 0.22 && $ratioTorso < $ratioFace * 1.20 && $ratioTorso < 0.32);
+        if ($isFacePortrait) {
+            $bodyScore *= 0.35; // face portrait — heavily discount
+        }
+
+        Log::info('[Moderation] GD skin ratios', [
+            'face'    => round($ratioFace,   3),
+            'torso'   => round($ratioTorso,  3),
+            'lower'   => round($ratioLower,  3),
+            'center'  => round($ratioCenter, 3),
+            'body'    => round($bodyScore,   3),
+            'portrait'=> $isFacePortrait,
+        ]);
+
+        if ($bodyScore > 0.65) return 0.97; // explicit/nude — block
+        if ($bodyScore > 0.48) return 0.85; // very revealing — block
+        if ($bodyScore > 0.30) return 0.75; // bikini/revealing — block
+        if ($bodyScore > 0.18) return 0.22; // borderline — allow
+        return 0.05;                    // normal (hijab, clothed) — safe
+    }
+
+    // Returns true for a wide range of human skin tones (light → dark)
+    private static function isSkinPixel(int $r, int $g, int $b): bool
+    {
+        // Exclude near-white, near-black, near-grey pixels
+        if ($r < 40 || $g < 30 || $b < 20) return false;
+        if ($r > 250 && $g > 250 && $b > 250) return false;
+        if (abs($r - $g) < 8 && abs($g - $b) < 8) return false; // grey
+
+        // HSV-based skin check (covers light to dark skin tones)
+        $maxC = max($r, $g, $b);
+        $minC = min($r, $g, $b);
+        if ($maxC === 0) return false;
+
+        $h = 0;
+        $s = ($maxC - $minC) / $maxC;
+        $v = $maxC / 255.0;
+
+        if ($maxC === $r) $h = 60 * (($g - $b) / ($maxC - $minC + 0.001));
+        elseif ($maxC === $g) $h = 60 * (2 + ($b - $r) / ($maxC - $minC + 0.001));
+        else $h = 60 * (4 + ($r - $g) / ($maxC - $minC + 0.001));
+        if ($h < 0) $h += 360;
+
+        // Skin hue range: ~0°–25° (peach/brown/tan) with enough saturation
+        return ($h >= 0 && $h <= 25 && $s >= 0.15 && $s <= 0.90 && $v >= 0.20);
     }
 }

@@ -642,6 +642,18 @@
             <div class="sub">Other: {{ $stats['other_gender'] }}</div>
         </div>
     </div>
+    <div class="sf-card">
+        <div class="sf-icon" style="background:linear-gradient(135deg,#FEE2E2,#FECACA);">
+            <i class="fas fa-bolt" style="color:#DC2626;"></i>
+        </div>
+        <div>
+            <div class="label">Strikes / Restricted</div>
+            <div class="val" style="font-size:15px;font-weight:800;">
+                <span style="color:#DC2626;">{{ $stats['restricted'] }}</span> <span style="font-size:12px;color:var(--muted);">restricted</span>
+            </div>
+            <div class="sub">{{ $stats['struck'] }} users with strikes</div>
+        </div>
+    </div>
 </div>
 
 {{-- ══ TABS ══════════════════════════════════════════════════════════════════════ --}}
@@ -717,6 +729,13 @@
                 @endif
                 @if($u && $u->status === 'banned')
                 <div class="banned-overlay"><div class="banned-badge"><i class="fas fa-ban"></i> BANNED</div></div>
+                @elseif($u && $u->status === 'restricted')
+                <div class="banned-overlay" style="background:rgba(234,88,12,.55);"><div class="banned-badge" style="background:#EA580C;"><i class="fas fa-exclamation-triangle"></i> RESTRICTED</div></div>
+                @endif
+                @if(($profile->strike_count ?? 0) > 0)
+                <div style="position:absolute;top:8px;left:8px;background:{{ ($profile->strike_count ?? 0) >= 3 ? '#EF4444' : (($profile->strike_count ?? 0) == 2 ? '#F97316' : '#EAB308') }};color:#fff;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:800;display:flex;align-items:center;gap:4px;z-index:3;">
+                    <i class="fas fa-bolt"></i> {{ $profile->strike_count }}/3
+                </div>
                 @endif
                 @if($profile->is_verified)
                 <div class="verified-crown"><i class="fas fa-check-circle"></i> Verified</div>
@@ -771,6 +790,10 @@
                     @if($u && $u->status === 'banned')
                     <button class="ua-btn ua-unban" id="bb-{{ $profile->id }}" onclick="event.stopPropagation();doUnban({{ $profile->user_id }},{{ $profile->id }},this)">
                         <i class="fas fa-unlock"></i> Unban
+                    </button>
+                    @elseif($u && $u->status === 'restricted')
+                    <button class="ua-btn" style="background:#FEF3C7;color:#92400E;" id="bb-{{ $profile->id }}" onclick="event.stopPropagation();doUnrestrict({{ $profile->user_id }},{{ $profile->id }},this)">
+                        <i class="fas fa-unlock-alt"></i> Unrestrict
                     </button>
                     @else
                     <button class="ua-btn ua-ban" id="bb-{{ $profile->id }}" onclick="event.stopPropagation();openBanModal({{ $profile->user_id }},{{ $profile->id }})">
@@ -1116,6 +1139,7 @@ function renderPanel(d) {
             </div>
         </div>
         ${interests ? `<div class="sp-section"><div class="sp-section-title">Interests</div><div style="line-height:2;">${interests}</div></div>` : ''}
+        ${buildStrikesSection(d.strikes||[], d.strike_count||0)}
         ${posts ? `<div class="sp-section"><div class="sp-section-title">Recent Posts</div>${posts}</div>` : ''}
     `;
 
@@ -1124,10 +1148,23 @@ function renderPanel(d) {
     vBtn.innerHTML = `<i class="fas fa-${p.is_verified?'times':'check'}"></i> ${p.is_verified?'Unverify':'Verify'}`;
     vBtn.dataset.verified = p.is_verified ? '1' : '0';
 
-    const isBanned = (p.user?.status || 'active') === 'banned';
+    const userStatus = u.status || 'active';
+    const isBanned     = userStatus === 'banned';
+    const isRestricted = userStatus === 'restricted';
     const spBan = document.getElementById('spBanBtn');
-    spBan.className = `sp-act-btn sp-act-${isBanned?'unban':'ban'}`;
-    spBan.innerHTML = `<i class="fas fa-${isBanned?'unlock':'ban'}"></i> ${isBanned?'Unban':'Ban'}`;
+    if (isRestricted) {
+        spBan.className = 'sp-act-btn';
+        spBan.style.cssText = 'background:#FEF3C7;color:#92400E;flex:1;';
+        spBan.innerHTML = '<i class="fas fa-unlock-alt"></i> Unrestrict';
+        spBan.onclick = () => doUnrestrict(panelUserId, panelProfileId, null, true);
+    } else {
+        spBan.style.cssText = '';
+        spBan.className = `sp-act-btn sp-act-${isBanned?'unban':'ban'}`;
+        spBan.innerHTML = `<i class="fas fa-${isBanned?'unlock':'ban'}"></i> ${isBanned?'Unban':'Ban'}`;
+        spBan.onclick = isBanned
+            ? () => doUnban(panelUserId, panelProfileId, spBan)
+            : () => spBanAction();
+    }
 
     document.getElementById('spActions').style.display = 'flex';
 }
@@ -1317,6 +1354,61 @@ function confirmBan() {
             closeBanModal();
             applyBanUI(banTargetProfileId, true);
             showToast('🚫 User banned and immediately logged out from all devices.', 'red');
+        }
+    });
+}
+function buildStrikesSection(strikes, count) {
+    if (!count) return '';
+    const colors = ['#EAB308','#F97316','#EF4444'];
+    const color  = colors[Math.min(count-1, 2)];
+    const rows = strikes.map(s => {
+        const d = new Date(s.created_at);
+        const when = d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+            <div style="width:28px;height:28px;background:#FEE2E2;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fas fa-bolt" style="color:#EF4444;font-size:11px;"></i>
+            </div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:600;color:var(--text);">${s.reason}</div>
+                <div style="font-size:11px;color:var(--muted);">${when}</div>
+            </div>
+        </div>`;
+    }).join('');
+    const bars = [1,2,3].map(i =>
+        `<div style="flex:1;height:6px;border-radius:3px;background:${i<=count?color:'var(--border)'}"></div>`
+    ).join('');
+    return `<div class="sp-section">
+        <div class="sp-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+            <span><i class="fas fa-bolt" style="color:${color};margin-right:6px;"></i>Strikes (${count}/3)</span>
+            <button onclick="doClearStrikes()" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:20px;background:var(--faint);color:var(--muted);cursor:pointer;">Clear Strikes</button>
+        </div>
+        <div style="display:flex;gap:4px;margin-bottom:12px;">${bars}</div>
+        ${count>=3?`<div style="background:#FEE2E2;color:#991B1B;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;margin-bottom:10px;"><i class="fas fa-exclamation-triangle"></i> Account is RESTRICTED</div>`:''}
+        ${rows}
+    </div>`;
+}
+function doUnrestrict(userId, profileId, btn, fromPanel) {
+    if (!confirm('Unrestrict this user? All their strikes will be cleared and they can post again.')) return;
+    fetch(`${B}/users/${userId}/unrestrict`, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }
+    }).then(r=>r.json()).then(d => {
+        if (d.success) {
+            showToast('✓ User unrestricted and strikes cleared.', 'green');
+            if (fromPanel) { openPanel(panelProfileId, panelUserId); }
+            else { applyBanUI(profileId, false); }
+        }
+    });
+}
+function doClearStrikes() {
+    if (!panelUserId || !confirm('Clear all strikes for this user?')) return;
+    fetch(`${B}/users/${panelUserId}/clear-strikes`, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }
+    }).then(r=>r.json()).then(d => {
+        if (d.success) {
+            showToast('✓ Strikes cleared.', 'green');
+            openPanel(panelProfileId, panelUserId);
         }
     });
 }

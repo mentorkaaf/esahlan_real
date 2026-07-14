@@ -49,6 +49,12 @@ class CommunityPostController extends Controller
         );
 
         if ($moderation['action'] === 'block') {
+            // Issue a strike to the uploader
+            \App\Services\StrikeService::addStrike(
+                auth()->id(),
+                $moderation['reason'],
+                null
+            );
             return response()->json([
                 'status' => 'error',
                 'message' => 'Your post was blocked: ' . $moderation['reason'],

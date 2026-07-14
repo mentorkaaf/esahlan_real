@@ -311,6 +311,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::delete('/messages/{id}', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'deleteMessage'])->name('messages.delete');
             Route::post('/users/{userId}/ban', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'banUser'])->name('users.ban');
             Route::post('/users/{userId}/unban', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'unbanUser'])->name('users.unban');
+            Route::post('/users/{userId}/unrestrict', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'unrestrictUser'])->name('users.unrestrict');
+            Route::post('/users/{userId}/clear-strikes', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'clearStrikes'])->name('users.clear-strikes');
         });
         // Trust & Safety
         Route::prefix('trust-safety')->name('trust-safety.')->group(function () {

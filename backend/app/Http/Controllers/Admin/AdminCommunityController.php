@@ -250,7 +250,23 @@ class AdminCommunityController extends Controller
             $query->where('onboarding_completed', (bool)$request->onboarded);
         }
 
+        if ($request->status) {
+            $query->whereHas('user', fn($u) => $u->where('status', $request->status));
+        }
+
         $users = $query->latest()->paginate(24);
+
+        // Attach strike counts
+        $userIds = $users->pluck('user_id')->toArray();
+        $strikeCounts = \DB::table('user_strikes')
+            ->whereIn('user_id', $userIds)
+            ->selectRaw('user_id, COUNT(*) as total')
+            ->groupBy('user_id')
+            ->pluck('total', 'user_id');
+
+        $users->each(function($profile) use ($strikeCounts) {
+            $profile->strike_count = $strikeCounts[$profile->user_id] ?? 0;
+        });
 
         $stats = [
             'total'        => CommunityProfile::count(),
@@ -260,6 +276,8 @@ class AdminCommunityController extends Controller
             'male'         => CommunityProfile::where('gender', 'male')->count(),
             'female'       => CommunityProfile::where('gender', 'female')->count(),
             'other_gender' => CommunityProfile::whereNotIn('gender', ['male', 'female'])->whereNotNull('gender')->count(),
+            'restricted'   => \App\Models\User::where('status', 'restricted')->count(),
+            'struck'       => \DB::table('user_strikes')->distinct('user_id')->count('user_id'),
         ];
 
         $countries = CommunityProfile::whereNotNull('country')
@@ -287,9 +305,16 @@ class AdminCommunityController extends Controller
             ->withCount('reactions as likes_count', 'comments')
             ->latest()->take(6)->get(['id','content','type','created_at','likes_count','views_count','comments_count']);
 
+        $strikes = \DB::table('user_strikes')
+            ->where('user_id', $profile->user_id)
+            ->orderByDesc('created_at')
+            ->get();
+
         return response()->json([
-            'profile' => $profile,
+            'profile'      => $profile,
             'recent_posts' => $recentPosts,
+            'strikes'      => $strikes,
+            'strike_count' => $strikes->count(),
         ]);
     }
 
@@ -405,6 +430,25 @@ class AdminCommunityController extends Controller
             'admin_id'         => auth()->id(),
         ]);
         return response()->json(['success' => true, 'message' => "User #{$userId} unbanned."]);
+    }
+
+    public function unrestrictUser($userId)
+    {
+        $user = \App\Models\User::findOrFail($userId);
+        $user->update(['status' => 'active']);
+        // Clear strikes so they get a fresh start
+        \DB::table('user_strikes')->where('user_id', $userId)->delete();
+        \App\Services\SecurityAuditService::log('admin.user_unrestricted', 'info', [
+            'user_id'  => $userId,
+            'admin_id' => auth()->id(),
+        ]);
+        return response()->json(['success' => true, 'message' => "User #{$userId} unrestricted and strikes cleared."]);
+    }
+
+    public function clearStrikes($userId)
+    {
+        \DB::table('user_strikes')->where('user_id', $userId)->delete();
+        return response()->json(['success' => true, 'message' => "Strikes cleared for user #{$userId}."]);
     }
 
     public function deleteMessage($id)
