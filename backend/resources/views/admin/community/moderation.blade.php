@@ -30,7 +30,11 @@
             </label>
             <label style="display:flex;align-items:center;gap:8px;padding:12px;background:#f9fafb;border-radius:10px;cursor:pointer;">
                 <input type="checkbox" name="image_scan" value="1" {{ $settings['image_scan'] ? 'checked' : '' }}>
-                <div><strong>Image Scan</strong><br><small style="color:#8A8A9A;">Skin-tone analysis (may flag normal photos)</small></div>
+                <div><strong>Image Scan</strong><br><small style="color:#8A8A9A;">Google Vision SafeSearch — explicit/adult/violence detection</small></div>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;padding:12px;background:#f9fafb;border-radius:10px;cursor:pointer;">
+                <input type="checkbox" name="video_scan" value="1" {{ ($settings['video_scan'] ?? true) ? 'checked' : '' }}>
+                <div><strong>Video Scan</strong><br><small style="color:#8A8A9A;">Extracts frames from video + scans each with Google Vision</small></div>
             </label>
             <label style="display:flex;align-items:center;gap:8px;padding:12px;background:#f9fafb;border-radius:10px;cursor:pointer;">
                 <input type="checkbox" name="auto_block" value="1" {{ $settings['auto_block'] ? 'checked' : '' }}>

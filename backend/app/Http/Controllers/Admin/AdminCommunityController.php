@@ -435,10 +435,11 @@ class AdminCommunityController extends Controller
             'enabled'          => $request->boolean('enabled'),
             'keyword_filter'   => $request->boolean('keyword_filter'),
             'image_scan'       => $request->boolean('image_scan'),
+            'video_scan'       => $request->boolean('video_scan'),
             'auto_block'       => $request->boolean('auto_block'),
             'review_all_media' => $request->boolean('review_all_media'),
-            'block_threshold'  => (float) ($request->block_threshold ?? 0.85),
-            'review_threshold' => (float) ($request->review_threshold ?? 0.60),
+            'block_threshold'  => (float) ($request->block_threshold ?? 0.80),
+            'review_threshold' => (float) ($request->review_threshold ?? 0.50),
         ];
         \App\Services\ContentModerationService::saveSettings($settings);
 
