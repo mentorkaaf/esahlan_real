@@ -36,7 +36,7 @@ class StoriesBar extends ConsumerWidget {
           }
           final group = groups[i - 1];
           // Only first 3 video story cards get live Player preview (memory limit)
-          final enableVideoPreview = i <= 3;
+          final enableVideoPreview = i <= 1;
           return _StoryCard(
             group: group,
             enableVideoPreview: enableVideoPreview,

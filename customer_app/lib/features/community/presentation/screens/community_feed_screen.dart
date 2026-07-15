@@ -319,7 +319,7 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
           // The old ListView + Column built ALL 30+ cards at once — this is the main perf fix.
           child: CustomScrollView(
             physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-            cacheExtent: 1500,
+            cacheExtent: 400,
             slivers: [
               SliverToBoxAdapter(child: widget.storiesState.when(
                 data: (groups) => StoriesBar(groups: groups),
@@ -1024,7 +1024,13 @@ class _PostCardState extends ConsumerState<_PostCard> {
   @override
   void initState() {
     super.initState();
-    if (!widget.post.isAd) _subscribeRealtime();
+    if (!widget.post.isAd) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) _subscribeRealtime();
+        });
+      });
+    }
   }
 
   @override
