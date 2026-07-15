@@ -495,10 +495,10 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
             : TabBarView(
                 controller: _tab,
                 children: [
-                  _PostsGrid(userId: u.id),
-                  _PostsGrid(userId: u.id, videoOnly: true),
-                  _PostsGrid(userId: u.id, type: 'audio'),
-                  _PostsGrid(userId: u.id, mediaOnly: true),
+                  _PostsGrid(userId: u.id, isMe: widget.isMe),
+                  _PostsGrid(userId: u.id, videoOnly: true, isMe: widget.isMe),
+                  _PostsGrid(userId: u.id, type: 'audio', isMe: widget.isMe),
+                  _PostsGrid(userId: u.id, mediaOnly: true, isMe: widget.isMe),
                   _SavedPostsGrid(userId: u.id, isMe: widget.isMe),
                   _LikedPostsGrid(userId: u.id),
                 ],
@@ -1063,7 +1063,8 @@ class _PostsGrid extends ConsumerStatefulWidget {
   final String? type;
   final bool mediaOnly;
   final bool videoOnly;
-  const _PostsGrid({required this.userId, this.type, this.mediaOnly = false, this.videoOnly = false});
+  final bool isMe;
+  const _PostsGrid({required this.userId, this.type, this.mediaOnly = false, this.videoOnly = false, this.isMe = false});
   @override
   ConsumerState<_PostsGrid> createState() => _PostsGridState();
 }
@@ -1100,6 +1101,24 @@ class _PostsGridState extends ConsumerState<_PostsGrid> with AutomaticKeepAliveC
             final imgUrl = isVideo ? media?.thumbnail : media?.url;
             return GestureDetector(
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PostDetailScreen(post: p))),
+              onLongPress: widget.isMe ? () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (dlg) => AlertDialog(
+                    title: const Text('Delete Post?'),
+                    content: const Text('This post will be permanently deleted.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(dlg, false), child: const Text('Cancel')),
+                      TextButton(onPressed: () => Navigator.pop(dlg, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                    ],
+                  ),
+                );
+                if (confirmed != true || !mounted) return;
+                await ref.read(communityRepoProvider).deletePost(p.id);
+                ref.invalidate(communityProfilePostsProvider(widget.userId));
+                ref.read(communityFeedProvider.notifier).removePost(p.id);
+                ref.read(communityExploreProvider.notifier).removePost(p.id);
+              } : null,
               child: Container(
                 color: c.borderColor,
                 child: Stack(children: [

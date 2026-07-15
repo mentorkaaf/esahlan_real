@@ -515,7 +515,11 @@ class _TrendingTab extends ConsumerWidget {
               ]))))];
             return [SliverList(
               delegate: SliverChildBuilderDelegate(
-                (_, i) => RepaintBoundary(child: _PostCard(post: posts[i], onDelete: () {})),
+                (_, i) => RepaintBoundary(child: _PostCard(post: posts[i], onDelete: () {
+                  ref.read(communityRepoProvider).deletePost(posts[i].id);
+                  ref.read(communityExploreProvider.notifier).removePost(posts[i].id);
+                  ref.read(communityFeedProvider.notifier).removePost(posts[i].id);
+                })),
                 childCount: posts.length,
               ),
             )];
@@ -3476,12 +3480,12 @@ class _CopyrightQuickClaimState extends State<_CopyrightQuickClaim> {
 
 // ── Public post detail screen — reuses _PostCard for full feed-identical UX ──
 // Used from profile, saved, liked, and any other non-feed context.
-class PostDetailScreen extends StatelessWidget {
+class PostDetailScreen extends ConsumerWidget {
   final CommunityPost post;
   const PostDetailScreen({super.key, required this.post});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     return Scaffold(
       backgroundColor: c.scaffoldBg,
@@ -3498,7 +3502,13 @@ class PostDetailScreen extends StatelessWidget {
           const SizedBox(height: 8),
           _PostCard(
             post: post,
-            onDelete: () => Navigator.pop(context),
+            onDelete: () {
+              ref.read(communityRepoProvider).deletePost(post.id);
+              ref.read(communityFeedProvider.notifier).removePost(post.id);
+              ref.read(communityExploreProvider.notifier).removePost(post.id);
+              ref.invalidate(communityProfilePostsProvider(post.user.id));
+              Navigator.pop(context);
+            },
           ),
           const SizedBox(height: 24),
         ]),
