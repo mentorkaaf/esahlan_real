@@ -1,18 +1,18 @@
-﻿import 'dart:math' show pi;
+﻿import 'dart:io';
+import 'dart:math' show pi;
 import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import '../../data/models/community_models.dart';
-import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
 import '../screens/community_shell.dart';
 import '../screens/community_story_viewer.dart';
 import '../services/story_pool.dart';
+import '../services/story_upload_service.dart';
 
 class StoriesBar extends ConsumerWidget {
   final List<StoryGroup> groups;
@@ -20,18 +20,22 @@ class StoriesBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final myProfile = ref.watch(communityMyProfileProvider);
+    final myProfile    = ref.watch(communityMyProfileProvider);
+    final uploadState  = ref.watch(storyUploadProvider);
+    final showPending  = uploadState.isActive || uploadState.status == StoryUploadStatus.error;
 
     // Pre-warm the story pool as soon as groups are visible.
-    // Controllers start initializing in the background before the user taps.
     StoryPool.prewarm(groups);
+
+    // Total slots: Create card + optional Sharing card + story groups
+    final pendingOffset = showPending ? 1 : 0;
 
     return SizedBox(
       height: 200,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        itemCount: groups.length + 1,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        itemCount: groups.length + 1 + pendingOffset,
         itemBuilder: (ctx, i) {
           if (i == 0) {
             return _CreateStoryCard(
@@ -39,15 +43,17 @@ class StoriesBar extends ConsumerWidget {
               coverPhoto: myProfile.valueOrNull?.coverPhoto,
             );
           }
-          final group    = groups[i - 1];
-          final groupIdx = i - 1;
-          final enableVideoPreview = i <= 1;
+          // "Sharing..." card right after Create card
+          if (showPending && i == 1) {
+            return _PendingStoryCard(state: uploadState);
+          }
+          final groupIdx = i - 1 - pendingOffset;
+          final group    = groups[groupIdx];
+          final enableVideoPreview = (i - pendingOffset) <= 1;
           return _StoryCard(
             group: group,
             enableVideoPreview: enableVideoPreview,
             onTap: () {
-              // Shift pool window to this story index NOW (before push)
-              // so the first video is loading during the push animation.
               StoryPool.prewarm(groups);
               final firstVideoUrl = group.stories
                   .where((s) => s.type == 'video' && (s.mediaUrl ?? '').isNotEmpty)
@@ -68,6 +74,70 @@ class StoriesBar extends ConsumerWidget {
   }
 }
 
+// ── "Sharing..." placeholder card ─────────────────────────────────────────────
+
+class _PendingStoryCard extends StatelessWidget {
+  final StoryUploadState state;
+  const _PendingStoryCard({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final localPath = state.localFilePath;
+    final isVideo   = state.storyType == 'video';
+    final isError   = state.status == StoryUploadStatus.error;
+
+    return Container(
+      width: 120,
+      margin: const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: const Color(0xFF1A1B2E),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(fit: StackFit.expand, children: [
+        // Local file preview (image only — video shows icon)
+        if (localPath != null && !isVideo)
+          Image.file(File(localPath), fit: BoxFit.cover)
+        else
+          Container(color: const Color(0xFF1A1B2E)),
+
+        // Dark overlay
+        Container(color: Colors.black.withValues(alpha: 0.5)),
+
+        // Spinner or error icon in center
+        Center(
+          child: isError
+            ? const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 32)
+            : SizedBox(
+                width: 32, height: 32,
+                child: CircularProgressIndicator(
+                  value: state.progress > 0 ? state.progress : null,
+                  color: kOrange,
+                  strokeWidth: 2.5,
+                ),
+              ),
+        ),
+
+        // "Sharing..." label at bottom
+        Positioned(
+          left: 8, right: 8, bottom: 10,
+          child: Text(
+            isError ? 'Failed' : 'Sharing...',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isError ? Colors.redAccent : Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ── Create story card ──────────────────────────────────────────────────────────
+
 class _CreateStoryCard extends ConsumerWidget {
   final String? avatar;
   final String? coverPhoto;
@@ -77,9 +147,10 @@ class _CreateStoryCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
       onTap: () async {
-        final created = await Navigator.push<bool>(context,
+        // No longer awaiting true/false — upload happens in background.
+        // storyUploadProvider handles refresh via ref.invalidate internally.
+        await Navigator.push(context,
           MaterialPageRoute(builder: (_) => const _CreateStoryScreen()));
-        if (created == true) ref.invalidate(communityStoriesProvider);
       },
       child: Container(
         width: 120,
@@ -408,19 +479,17 @@ class _VideoStoryPreviewState extends State<_VideoStoryPreview> {
 
 // ── Create Story Screen ────────────────────────────────────────────────────────
 
-class _CreateStoryScreen extends StatefulWidget {
+class _CreateStoryScreen extends ConsumerStatefulWidget {
   const _CreateStoryScreen();
   @override
-  State<_CreateStoryScreen> createState() => _CreateStoryScreenState();
+  ConsumerState<_CreateStoryScreen> createState() => _CreateStoryScreenState();
 }
 
-class _CreateStoryScreenState extends State<_CreateStoryScreen> {
-  final _repo = CommunityRepository();
+class _CreateStoryScreenState extends ConsumerState<_CreateStoryScreen> {
   final _picker = ImagePicker();
   final _textCtrl = TextEditingController();
   XFile? _mediaFile;
   String _storyType = 'text';
-  bool _posting = false;
   Color _bgColor = const Color(0xFF140465);
 
   static const _bgColors = [
@@ -441,33 +510,23 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
     final vid = await _picker.pickVideo(source: ImageSource.gallery,
         maxDuration: const Duration(seconds: 60));
     if (vid == null) return;
-    // No on-device compression — server ProcessStoryVideoJob handles it.
     setState(() { _mediaFile = vid; _storyType = 'video'; });
   }
 
-  Future<void> _post() async {
+  void _post() {
     if (_storyType == 'text' && _textCtrl.text.trim().isEmpty) return;
-    setState(() => _posting = true);
-    try {
-      MultipartFile? mediaFile;
-      if (_mediaFile != null) {
-        mediaFile = await MultipartFile.fromFile(
-          _mediaFile!.path,
-          filename: _mediaFile!.name,
-        );
-      }
-      await _repo.createStory(
-        type: _storyType,
-        textContent: _storyType == 'text' ? _textCtrl.text.trim() : null,
-        bgColor: '#${_bgColor.value.toRadixString(16).substring(2).toUpperCase()}',
-        mediaFile: mediaFile,
-      );
-      if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-    } finally {
-      if (mounted) setState(() => _posting = false);
-    }
+    if ((_storyType == 'image' || _storyType == 'video') && _mediaFile == null) return;
+
+    // Fire upload in background — user can continue using the app immediately.
+    // StoriesBar shows a "Sharing..." card while it runs.
+    ref.read(storyUploadProvider.notifier).upload(
+      type: _storyType,
+      localFilePath: _mediaFile?.path,
+      textContent: _storyType == 'text' ? _textCtrl.text.trim() : null,
+      bgColor: '#${_bgColor.value.toRadixString(16).substring(2).toUpperCase()}',
+    );
+
+    Navigator.pop(context);
   }
 
   @override
@@ -476,20 +535,18 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
       backgroundColor: _storyType == 'text' ? _bgColor : Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.transparent, elevation: 0,
-        leading: IconButton(icon: Icon(Icons.close_rounded, color: Colors.white), onPressed: () => Navigator.pop(context)),
-        title: Text('Add Story', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        leading: IconButton(icon: const Icon(Icons.close_rounded, color: Colors.white), onPressed: () => Navigator.pop(context)),
+        title: const Text('Add Story', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         actions: [
-          Padding(padding: EdgeInsets.only(right: 12),
+          Padding(padding: const EdgeInsets.only(right: 12),
             child: ElevatedButton(
-              onPressed: _posting ? null : _post,
+              onPressed: _post,
               style: ElevatedButton.styleFrom(
                 backgroundColor: kOrange, foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-              child: _posting
-                ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : Text('Share', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: const Text('Share', style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ),
         ],

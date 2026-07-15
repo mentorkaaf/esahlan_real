@@ -36,6 +36,8 @@ class _StoryViewerState extends State<StoryViewer> {
 
   // The controller currently borrowed from the pool (null for image/text stories)
   VideoPlayerController? _ctrl;
+  // True when _ctrl is an orphan (not from pool) — dispose it on detach
+  bool _ctrlIsOrphan = false;
 
   // Prevents a stale awaitReady callback from activating after navigation
   String? _activeUrl;
@@ -102,19 +104,22 @@ class _StoryViewerState extends State<StoryViewer> {
       final ctrl = _pool.ready(url);
       if (ctrl != null) {
         // Already initialized — attach and play with zero latency
-        _attachAndPlay(ctrl, url);
-      } else {
-        // Not yet ready — show thumbnail, wait async
+        _attachAndPlay(ctrl, url, isOrphan: false);
+      } else if (poolIdx >= 0) {
+        // In pool but not ready yet — show thumbnail, wait async
         setState(() {});
         _pool.awaitReady(url).then((ctrl) {
-          if (!mounted || _activeUrl != url) return; // navigated away
+          if (!mounted || _activeUrl != url) return;
           if (ctrl != null) {
-            _attachAndPlay(ctrl, url);
+            _attachAndPlay(ctrl, url, isOrphan: false);
           } else {
-            // Network error — thumbnail stays, small retry indicator shown
             if (mounted) setState(() {});
           }
         });
+      } else {
+        // Fresh story not in pool (just uploaded) — create a one-off controller.
+        // The pool never knew this URL, so we own and dispose this controller.
+        _activateOrphan(url);
       }
     } else {
       // Image / text — no controller needed
@@ -123,9 +128,29 @@ class _StoryViewerState extends State<StoryViewer> {
     }
   }
 
-  void _attachAndPlay(VideoPlayerController ctrl, String url) {
+  void _activateOrphan(String url) {
+    _detach();
+    setState(() {}); // show loading indicator while initializing
+    final ctrl = VideoPlayerController.networkUrl(
+      Uri.parse(url),
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
+    );
+    ctrl.initialize().then((_) {
+      if (!mounted || _activeUrl != url) {
+        ctrl.dispose();
+        return;
+      }
+      _attachAndPlay(ctrl, url, isOrphan: true);
+    }).catchError((_) {
+      if (mounted && _activeUrl == url) setState(() {});
+      ctrl.dispose();
+    });
+  }
+
+  void _attachAndPlay(VideoPlayerController ctrl, String url, {required bool isOrphan}) {
     _detach();
     _ctrl = ctrl;
+    _ctrlIsOrphan = isOrphan;
     ctrl.setVolume(1.0);
     ctrl.seekTo(Duration.zero);
     ctrl.setLooping(false);
@@ -137,10 +162,16 @@ class _StoryViewerState extends State<StoryViewer> {
   void _detach() {
     if (_ctrl != null) {
       _ctrl!.removeListener(_onProgress);
-      // Return to pool: mute and pause so it doesn't interfere
-      _ctrl!.setVolume(0);
-      _ctrl!.pause();
+      if (_ctrlIsOrphan) {
+        // Orphan — we own it, dispose it
+        _ctrl!.dispose();
+      } else {
+        // Pool ctrl — return it (mute and pause for reuse)
+        _ctrl!.setVolume(0);
+        _ctrl!.pause();
+      }
       _ctrl = null;
+      _ctrlIsOrphan = false;
     }
   }
 
