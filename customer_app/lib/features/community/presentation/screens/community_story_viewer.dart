@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
 import '../screens/community_shell.dart';
@@ -22,27 +24,25 @@ class _StoryViewerState extends State<StoryViewer> {
   late int _groupIndex;
   int _storyIndex = 0;
 
-  final _repo         = CommunityRepository();
-  final _commentCtrl  = TextEditingController();
+  final _repo        = CommunityRepository();
+  final _commentCtrl = TextEditingController();
   bool _showCommentInput = false;
   bool _paused           = false;
   bool _advancing        = false;
 
-  // Singleton pool — pre-warmed by stories bar before viewer opens
   final _pool = StoryPool.instance;
-
-  // story.mediaUrl → index inside pool.urls
   late final Map<String, int> _urlToPoolIdx;
 
-  // The controller currently borrowed from the pool (null for image/text stories)
-  VideoPlayerController? _ctrl;
-  // True when _ctrl is an orphan (not from pool) — dispose it on detach
+  // media_kit player/controller for the active video story
+  Player?          _player;
+  VideoController? _videoController;
   bool _ctrlIsOrphan = false;
+  StreamSubscription<Duration>? _positionSub;
 
-  // Prevents a stale awaitReady callback from activating after navigation
+  // Guard stale async callbacks after story navigation
   String? _activeUrl;
 
-  // ── Lifecycle ────────────────────────────────────────────────────────────────
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   @override
   void initState() {
@@ -56,14 +56,12 @@ class _StoryViewerState extends State<StoryViewer> {
   @override
   void dispose() {
     _detach();
-    // Do NOT call pool.releaseAll() — controllers stay initialized so the
-    // next open of the viewer is instant (pool window survives across sessions).
     _commentCtrl.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
-  // ── Video index ──────────────────────────────────────────────────────────────
+  // ── Video index ────────────────────────────────────────────────────────────
 
   void _buildVideoIndex() {
     final urlMap = <String, int>{};
@@ -73,12 +71,8 @@ class _StoryViewerState extends State<StoryViewer> {
     _urlToPoolIdx = urlMap;
   }
 
-  // ── Story activation ─────────────────────────────────────────────────────────
+  // ── Story activation ───────────────────────────────────────────────────────
 
-  /// Called every time the current story changes.
-  /// Detaches old controller, tells pool to shift window, attaches new controller
-  /// immediately if it's already ready, or waits asynchronously (thumbnail shows
-  /// in the meantime — never a blank screen).
   void _activateStory() {
     _repo.viewStory(_currentStory.id);
     _advancing = false;
@@ -86,8 +80,7 @@ class _StoryViewerState extends State<StoryViewer> {
 
     final story = _currentStory;
 
-    // Precache thumbnail into Flutter's image cache immediately so it shows
-    // without flicker while the video loads.
+    // Precache thumbnail
     final thumb = story.thumbnail ?? (story.type == 'image' ? story.mediaUrl : null);
     if (thumb != null) precacheImage(CachedNetworkImageProvider(thumb), context);
 
@@ -98,31 +91,25 @@ class _StoryViewerState extends State<StoryViewer> {
       _activeUrl = url;
       final poolIdx = _urlToPoolIdx[url] ?? _pool.indexOf(url);
 
-      // Shift the pool window: initializes this + next 3 + prev 1 in background
       if (poolIdx >= 0) _pool.advance(poolIdx);
 
-      final ctrl = _pool.ready(url);
-      if (ctrl != null) {
-        // Already initialized — attach and play with zero latency
-        _attachAndPlay(ctrl, url, isOrphan: false);
+      final pair = _pool.ready(url);
+      if (pair != null) {
+        _attachAndPlay(pair.$1, pair.$2, url, isOrphan: false);
       } else if (poolIdx >= 0) {
-        // In pool but not ready yet — show thumbnail, wait async
         setState(() {});
-        _pool.awaitReady(url).then((ctrl) {
+        _pool.awaitReady(url).then((pair) {
           if (!mounted || _activeUrl != url) return;
-          if (ctrl != null) {
-            _attachAndPlay(ctrl, url, isOrphan: false);
+          if (pair != null) {
+            _attachAndPlay(pair.$1, pair.$2, url, isOrphan: false);
           } else {
             if (mounted) setState(() {});
           }
         });
       } else {
-        // Fresh story not in pool (just uploaded) — create a one-off controller.
-        // The pool never knew this URL, so we own and dispose this controller.
         _activateOrphan(url);
       }
     } else {
-      // Image / text — no controller needed
       _detach();
       setState(() {});
     }
@@ -130,67 +117,65 @@ class _StoryViewerState extends State<StoryViewer> {
 
   void _activateOrphan(String url) {
     _detach();
-    setState(() {}); // show loading indicator while initializing
-    final ctrl = VideoPlayerController.networkUrl(
-      Uri.parse(url),
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
-    );
-    ctrl.initialize().then((_) {
-      if (!mounted || _activeUrl != url) {
-        ctrl.dispose();
-        return;
-      }
-      _attachAndPlay(ctrl, url, isOrphan: true);
+    setState(() {});
+    final player     = Player(configuration: const PlayerConfiguration(bufferSize: 16 * 1024 * 1024));
+    final controller = VideoController(player);
+    player.open(Media(url), play: false).then((_) {
+      if (!mounted || _activeUrl != url) { player.dispose(); return; }
+      _attachAndPlay(player, controller, url, isOrphan: true);
     }).catchError((_) {
+      player.dispose();
       if (mounted && _activeUrl == url) setState(() {});
-      ctrl.dispose();
     });
   }
 
-  void _attachAndPlay(VideoPlayerController ctrl, String url, {required bool isOrphan}) {
+  void _attachAndPlay(Player player, VideoController controller, String url, {required bool isOrphan}) {
     _detach();
-    _ctrl = ctrl;
-    _ctrlIsOrphan = isOrphan;
-    ctrl.setVolume(1.0);
-    ctrl.seekTo(Duration.zero);
-    ctrl.setLooping(false);
-    ctrl.play();
-    ctrl.addListener(_onProgress);
+    _player          = player;
+    _videoController = controller;
+    _ctrlIsOrphan    = isOrphan;
+
+    player.setVolume(100);
+    player.seek(Duration.zero);
+    player.play();
+
+    _positionSub = player.stream.position.listen(_onPosition);
     if (mounted) setState(() {});
   }
 
   void _detach() {
-    if (_ctrl != null) {
-      _ctrl!.removeListener(_onProgress);
+    _positionSub?.cancel();
+    _positionSub = null;
+
+    if (_player != null) {
       if (_ctrlIsOrphan) {
-        // Orphan — we own it, dispose it
-        _ctrl!.dispose();
+        _player!.dispose();
       } else {
-        // Pool ctrl — return it (mute and pause for reuse)
-        _ctrl!.setVolume(0);
-        _ctrl!.pause();
+        // Return pool slot to idle
+        _pool.returnSlot(_activeUrl ?? '');
       }
-      _ctrl = null;
-      _ctrlIsOrphan = false;
+      _player          = null;
+      _videoController = null;
+      _ctrlIsOrphan    = false;
     }
   }
 
-  void _onProgress() {
+  void _onPosition(Duration pos) {
     if (_advancing || _paused) return;
-    final c = _ctrl;
-    if (c == null || !c.value.isInitialized) return;
-    final dur = c.value.duration.inMilliseconds;
-    final pos = c.value.position.inMilliseconds;
-    // Advance 400 ms before the end so there's no pause between stories
-    if (dur > 0 && pos >= dur - 400 && !c.value.isBuffering) {
+    final player = _player;
+    if (player == null) return;
+    final dur = player.state.duration;
+    if (dur > Duration.zero &&
+        pos >= dur - const Duration(milliseconds: 400) &&
+        !player.state.buffering) {
       _advancing = true;
       _nextStory();
     }
   }
 
-  // ── Navigation ────────────────────────────────────────────────────────────────
+  // ── Navigation ─────────────────────────────────────────────────────────────
 
-  StoryGroup get _currentGroup => widget.groups[_groupIndex];
+  StoryGroup    get _currentGroup => widget.groups[_groupIndex];
   CommunityStory get _currentStory => _currentGroup.stories[_storyIndex];
 
   void _nextStory() {
@@ -213,25 +198,27 @@ class _StoryViewerState extends State<StoryViewer> {
     if (_storyIndex > 0) {
       setState(() => _storyIndex--);
     } else if (_groupIndex > 0) {
-      setState(() { _groupIndex--; _storyIndex = widget.groups[_groupIndex].stories.length - 1; });
+      setState(() {
+        _groupIndex--;
+        _storyIndex = widget.groups[_groupIndex].stories.length - 1;
+      });
     } else return;
     _activateStory();
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────────
+  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final group  = _currentGroup;
-    final story  = _currentStory;
+    final group   = _currentGroup;
+    final story   = _currentStory;
     final isVideo = story.type == 'video';
-    final ctrlReady = _ctrl != null && _ctrl!.value.isInitialized;
+    final ready   = _videoController != null;
 
     return Scaffold(
       backgroundColor: Colors.black,
       resizeToAvoidBottomInset: false,
       body: GestureDetector(
-        // Tap: left third → previous, right two-thirds → next
         onTapUp: (d) {
           if (_showCommentInput) {
             FocusScope.of(context).unfocus();
@@ -241,22 +228,21 @@ class _StoryViewerState extends State<StoryViewer> {
           final w = MediaQuery.of(context).size.width;
           if (d.localPosition.dx < w * 0.35) _prevStory(); else _nextStory();
         },
-        // Long-press: pause while held
         onLongPressStart: (_) {
           _paused = true;
-          _ctrl?.pause();
+          _player?.pause();
         },
         onLongPressEnd: (_) {
           _paused = false;
-          if (ctrlReady) _ctrl?.play();
+          if (ready) _player?.play();
         },
         child: Stack(fit: StackFit.expand, children: [
 
-          // ── Story content ────────────────────────────────────────────────
-          _buildContent(story, ctrlReady),
+          // ── Story content ──────────────────────────────────────────────────
+          _buildContent(story, ready),
 
-          // ── Thin loading stripe (subtle — only shown while video loads) ──
-          if (isVideo && !ctrlReady && story.mediaUrl?.isNotEmpty == true)
+          // ── Subtle loading stripe (only while video initialises) ───────────
+          if (isVideo && !ready && story.mediaUrl?.isNotEmpty == true)
             Positioned(
               bottom: 0, left: 0, right: 0,
               child: LinearProgressIndicator(
@@ -265,7 +251,7 @@ class _StoryViewerState extends State<StoryViewer> {
               ),
             ),
 
-          // ── Progress bars ────────────────────────────────────────────────
+          // ── Progress bars ──────────────────────────────────────────────────
           Positioned(
             top: MediaQuery.of(context).padding.top + 6,
             left: 8, right: 8,
@@ -279,7 +265,7 @@ class _StoryViewerState extends State<StoryViewer> {
                     done:          i < _storyIndex,
                     isVideo:       isVideo && i == _storyIndex,
                     imageDuration: const Duration(seconds: 5),
-                    ctrl:          isVideo && i == _storyIndex ? _ctrl : null,
+                    player:        isVideo && i == _storyIndex ? _player : null,
                     onDone:        i == _storyIndex ? _nextStory : null,
                   ),
                 ),
@@ -287,7 +273,7 @@ class _StoryViewerState extends State<StoryViewer> {
             ),
           ),
 
-          // ── Header ────────────────────────────────────────────────────────
+          // ── Header ─────────────────────────────────────────────────────────
           Positioned(
             top: MediaQuery.of(context).padding.top + 22,
             left: 12, right: 12,
@@ -321,7 +307,7 @@ class _StoryViewerState extends State<StoryViewer> {
             ]),
           ),
 
-          // ── Location ──────────────────────────────────────────────────────
+          // ── Location ───────────────────────────────────────────────────────
           if (story.location != null)
             Positioned(bottom: 68, left: 20,
               child: Row(children: [
@@ -331,7 +317,7 @@ class _StoryViewerState extends State<StoryViewer> {
                     style: const TextStyle(color: Colors.white70, fontSize: 12)),
               ])),
 
-          // ── Bottom action bar ─────────────────────────────────────────────
+          // ── Bottom action bar ──────────────────────────────────────────────
           Positioned(
             bottom: 0, left: 0, right: 0,
             child: Container(
@@ -412,13 +398,12 @@ class _StoryViewerState extends State<StoryViewer> {
     );
   }
 
-  // ── Content layers ────────────────────────────────────────────────────────────
+  // ── Content layers ─────────────────────────────────────────────────────────
 
   static const _bgGradient = BoxDecoration(gradient: LinearGradient(
       begin: Alignment.topLeft, end: Alignment.bottomRight,
       colors: [Color(0xFF1A0533), Color(0xFF0D1B2A)]));
 
-  // Stable per-user accent colour so "no-thumbnail" stories aren't just black.
   Color _userAccent(int userId) {
     const palette = [
       Color(0xFF1A237E), Color(0xFF004D40), Color(0xFF311B92),
@@ -428,7 +413,7 @@ class _StoryViewerState extends State<StoryViewer> {
     return palette[userId % palette.length];
   }
 
-  Widget _buildContent(CommunityStory story, bool ctrlReady) {
+  Widget _buildContent(CommunityStory story, bool ready) {
     if (story.type == 'text') {
       final bg = story.bgColor != null
           ? Color(int.parse('0xFF${story.bgColor!.replaceFirst('#', '')}'))
@@ -447,11 +432,11 @@ class _StoryViewerState extends State<StoryViewer> {
     if (story.type == 'video') {
       final group = _currentGroup;
       return Stack(fit: StackFit.expand, children: [
-        // 1. Solid accent based on user ID — never pure black, even before thumbnail
+        // Accent background — never pure black while loading
         Container(color: _userAccent(group.user.id)),
 
-        // 2. User avatar centred — shows instantly, gives context while loading
-        if (!ctrlReady && story.thumbnail == null)
+        // Avatar placeholder while video loads
+        if (!ready && story.thumbnail == null)
           Center(child: CircleAvatar(
             radius: 48,
             backgroundImage: group.user.avatar != null
@@ -464,7 +449,7 @@ class _StoryViewerState extends State<StoryViewer> {
                 : null,
           )),
 
-        // 3. Thumbnail — loads immediately from CachedNetworkImage cache
+        // Thumbnail — shows instantly from cache while player opens
         if (story.thumbnail != null)
           CachedNetworkImage(
             imageUrl: story.thumbnail!,
@@ -474,18 +459,15 @@ class _StoryViewerState extends State<StoryViewer> {
             errorWidget: (_, __, ___) => const SizedBox.shrink(),
           ),
 
-        // 4. Video — appears over thumbnail once controller is ready (80 ms fade)
-        if (ctrlReady)
+        // media_kit Video widget — hardware-decoded, appears over thumbnail
+        if (ready)
           AnimatedOpacity(
             opacity: 1.0,
             duration: const Duration(milliseconds: 80),
-            child: FittedBox(
+            child: Video(
+              controller: _videoController!,
               fit: BoxFit.cover,
-              child: SizedBox(
-                width:  _ctrl!.value.size.width,
-                height: _ctrl!.value.size.height,
-                child:  VideoPlayer(_ctrl!),
-              ),
+              controls: NoVideoControls,
             ),
           ),
       ]);
@@ -507,7 +489,7 @@ class _StoryViewerState extends State<StoryViewer> {
     ]);
   }
 
-  // ── Actions ───────────────────────────────────────────────────────────────────
+  // ── Actions ────────────────────────────────────────────────────────────────
 
   void _sendReaction(String emoji) {
     _repo.reactToStory(_currentStory.id, emoji);
@@ -566,8 +548,7 @@ class _StoryViewerState extends State<StoryViewer> {
           ),
           if (group.user.isMe) ListTile(
             leading: const Icon(Icons.delete_rounded, color: Colors.red),
-            title: const Text('Delete Story',
-                style: TextStyle(color: Colors.red)),
+            title: const Text('Delete Story', style: TextStyle(color: Colors.red)),
             onTap: () async {
               Navigator.pop(c);
               await _repo.deleteStory(story.id);
@@ -591,8 +572,7 @@ class _StoryViewerState extends State<StoryViewer> {
         builder: (c, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const SizedBox(height: 200,
-                child: Center(
-                    child: CircularProgressIndicator(color: kOrange)));
+                child: Center(child: CircularProgressIndicator(color: kOrange)));
           }
           final viewers = snap.data ?? [];
           return Column(mainAxisSize: MainAxisSize.min, children: [
@@ -605,8 +585,7 @@ class _StoryViewerState extends State<StoryViewer> {
               child: Row(children: [
                 const Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
                 const SizedBox(width: 8),
-                Text('${viewers.length} '
-                    '${viewers.length == 1 ? 'viewer' : 'viewers'}',
+                Text('${viewers.length} ${viewers.length == 1 ? 'viewer' : 'viewers'}',
                     style: const TextStyle(color: Colors.white,
                         fontWeight: FontWeight.w700, fontSize: 16)),
               ])),
@@ -658,11 +637,11 @@ class _StoryViewerState extends State<StoryViewer> {
 // ── Progress Bar ───────────────────────────────────────────────────────────────
 
 class _ProgressBar extends StatefulWidget {
-  final bool    active;
-  final bool    done;
-  final bool    isVideo;
-  final Duration imageDuration;
-  final VideoPlayerController? ctrl;
+  final bool          active;
+  final bool          done;
+  final bool          isVideo;
+  final Duration      imageDuration;
+  final Player?       player;
   final VoidCallback? onDone;
 
   const _ProgressBar({
@@ -671,7 +650,7 @@ class _ProgressBar extends StatefulWidget {
     required this.done,
     required this.isVideo,
     required this.imageDuration,
-    this.ctrl,
+    this.player,
     this.onDone,
   });
 
@@ -682,15 +661,16 @@ class _ProgressBar extends StatefulWidget {
 class _ProgressBarState extends State<_ProgressBar>
     with SingleTickerProviderStateMixin {
   AnimationController? _anim;
+  StreamSubscription<Duration>? _posSub;
+  Duration _pos = Duration.zero;
+  Duration _dur = Duration.zero;
 
   @override
   void initState() {
     super.initState();
     if (!widget.active) return;
-    if (widget.isVideo) {
-      // Video progress is driven by the controller.
-      // NEVER start a countdown timer for video stories.
-      if (widget.ctrl != null) widget.ctrl!.addListener(_rebuild);
+    if (widget.isVideo && widget.player != null) {
+      _subscribePlayer(widget.player!);
     } else {
       _startTimer();
     }
@@ -699,38 +679,45 @@ class _ProgressBarState extends State<_ProgressBar>
   @override
   void didUpdateWidget(_ProgressBar old) {
     super.didUpdateWidget(old);
-    // Wire / rewire listener when the controller reference changes.
-    if (widget.isVideo && old.ctrl != widget.ctrl) {
-      old.ctrl?.removeListener(_rebuild);
-      if (widget.ctrl != null) widget.ctrl!.addListener(_rebuild);
+    if (widget.isVideo && old.player != widget.player) {
+      _posSub?.cancel();
+      _posSub = null;
+      if (widget.player != null && widget.active) _subscribePlayer(widget.player!);
     }
+  }
+
+  void _subscribePlayer(Player player) {
+    _dur = player.state.duration;
+    _pos = player.state.position;
+    _posSub = player.stream.position.listen((pos) {
+      if (!mounted) return;
+      setState(() {
+        _pos = pos;
+        _dur = player.state.duration;
+      });
+    });
   }
 
   void _startTimer() {
     _anim = AnimationController(vsync: this, duration: widget.imageDuration)
-      ..addListener(_rebuild)
+      ..addListener(() { if (mounted) setState(() {}); })
       ..addStatusListener((s) {
         if (s == AnimationStatus.completed) widget.onDone?.call();
       })
       ..forward();
   }
 
-  void _rebuild() { if (mounted) setState(() {}); }
-
   @override
   void dispose() {
-    widget.ctrl?.removeListener(_rebuild);
+    _posSub?.cancel();
     _anim?.dispose();
     super.dispose();
   }
 
   double get _fraction {
     if (widget.isVideo) {
-      final c = widget.ctrl;
-      if (c == null || !c.value.isInitialized) return 0.0;
-      final dur = c.value.duration.inMilliseconds;
-      if (dur <= 0) return 0.0;
-      return (c.value.position.inMilliseconds / dur).clamp(0.0, 1.0);
+      if (_dur <= Duration.zero) return 0.0;
+      return (_pos.inMilliseconds / _dur.inMilliseconds).clamp(0.0, 1.0);
     }
     return _anim?.value ?? 0.0;
   }

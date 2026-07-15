@@ -1,30 +1,39 @@
 import 'dart:async';
-import 'package:video_player/video_player.dart';
+import 'package:flutter/foundation.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import '../../data/models/community_models.dart';
 
-/// Singleton sliding-window pool of pre-initialized VideoPlayerControllers.
+/// Singleton sliding-window pool of pre-initialized media_kit Players for story videos.
 ///
-/// Call [StoryPool.prewarm] as soon as StoryGroup data is available
-/// (from the stories bar) so controllers are ready before the viewer opens.
-/// The viewer then calls [advance] to shift the window to the tapped story.
+/// Uses the same engine as the feed VideoPool (ExoPlayer on Android,
+/// AVPlayer on iOS) — hardware-accelerated, fast startup, no black screen.
 ///
 /// Window: current-1 behind + current+3 ahead (5 slots max).
 class StoryPool {
   StoryPool._();
 
-  // ── Singleton ─────────────────────────────────────────────────────────────
-
   static StoryPool? _instance;
   static StoryPool get instance => _instance ??= StoryPool._();
 
-  /// Extract all video URLs from groups (flat, in display order) and
-  /// immediately start initializing the first story's controller.
-  /// Call this from the stories bar whenever groups update.
+  static const _kBehind   = 1;
+  static const _kAhead    = 3;
+  static const _kMaxSlots = 5;
+
+  List<String>          _urls   = [];
+  final Map<String, _Slot> _slots = {};
+  int _center = -1;
+
+  // ── Public API ────────────────────────────────────────────────────────────
+
+  List<String> get urls => List.unmodifiable(_urls);
+
+  /// Called from the stories bar/provider whenever groups update.
   static void prewarm(List<StoryGroup> groups) {
     final urls = _extractUrls(groups);
     final pool = instance;
     pool._updateUrls(urls);
-    if (urls.isNotEmpty) pool.advance(0);
+    if (urls.isNotEmpty && pool._center < 0) pool.advance(0);
   }
 
   static List<String> _extractUrls(List<StoryGroup> groups) {
@@ -41,24 +50,8 @@ class StoryPool {
     return result;
   }
 
-  // ── State ─────────────────────────────────────────────────────────────────
-
-  List<String> _urls = [];
-  final Map<String, _Slot> _slots = {};
-  int _center = -1;
-
-  static const _kBehind = 1;
-  static const _kAhead  = 3;
-
-  // ── Public API ────────────────────────────────────────────────────────────
-
-  /// All video story URLs in flat display order.
-  List<String> get urls => List.unmodifiable(_urls);
-
-  /// Shift window to [centerIdx]. Call this:
-  ///   - from the stories bar tap handler (before Navigator.push) to start
-  ///     warming at the correct story index
-  ///   - from the viewer on every story navigation
+  /// Shift window to [centerIdx]. Call before opening the viewer and on
+  /// every story navigation inside the viewer.
   void advance(int centerIdx) {
     if (_urls.isEmpty) return;
     _center = centerIdx.clamp(0, _urls.length - 1);
@@ -66,36 +59,48 @@ class StoryPool {
     _warmUp();
   }
 
-  /// Returns the controller immediately if already initialized; null if loading.
-  VideoPlayerController? ready(String url) {
+  int indexOf(String url) => _urls.indexOf(url);
+
+  /// Returns (player, controller) immediately if the slot is ready, or null.
+  (Player, VideoController)? ready(String url) {
     final s = _slots[url];
-    return (s != null && s.isReady) ? s.ctrl : null;
+    return (s != null && s.isReady) ? (s.player, s.controller) : null;
   }
 
-  /// Waits up to [timeout] for the controller to be initialized.
-  /// Returns null on timeout or error.
-  Future<VideoPlayerController?> awaitReady(
+  /// Waits up to [timeout] for the slot to be ready.
+  Future<(Player, VideoController)?> awaitReady(
     String url, {
-    Duration timeout = const Duration(seconds: 10),
+    Duration timeout = const Duration(seconds: 12),
   }) async {
     var s = _slots[url];
     if (s == null) {
+      _makeRoom();
       s = _Slot(url);
       _slots[url] = s;
-      s.init();
+      unawaited(s.init());
     }
     try {
-      await s.ready.future.timeout(timeout);
+      await s.readyCompleter.future.timeout(timeout);
     } catch (_) {}
-    return s.isReady ? s.ctrl : null;
+    return s.isReady ? (s.player, s.controller) : null;
   }
 
-  /// Index of [url] in the flat URL list, or -1 if not found.
-  int indexOf(String url) => _urls.indexOf(url);
+  /// Returns the player immediately if slot exists (even not fully ready yet),
+  /// for seekTo / volume calls before awaiting readiness.
+  Player? playerFor(String url) => _slots[url]?.player;
 
-  /// Dispose all slots (called when viewer closes). Singleton remains alive
-  /// for the next open — slots are just cleared so they can be re-initialized.
-  void releaseAll() {
+  /// Dispose a borrowed controller and return it to idle state for reuse.
+  void returnSlot(String url) {
+    final s = _slots[url];
+    if (s == null || !s.isReady) return;
+    s.player.pause();
+    s.player.setVolume(0);
+    s.player.seek(Duration.zero);
+  }
+
+  /// Dispose all slots on app shutdown (not called on viewer close — pool
+  /// survives across viewer sessions for instant re-open).
+  void disposeAll() {
     for (final s in _slots.values) s.dispose();
     _slots.clear();
     _center = -1;
@@ -105,22 +110,35 @@ class StoryPool {
 
   void _updateUrls(List<String> urls) {
     if (_listEquals(_urls, urls)) return;
-    // URL list changed (new story posted etc.) — evict all stale slots.
-    final stale = _slots.keys
-        .where((u) => !urls.contains(u))
-        .toList();
+    final stale = _slots.keys.where((u) => !urls.contains(u)).toList();
     for (final u in stale) {
       _slots[u]!.dispose();
       _slots.remove(u);
     }
     _urls = urls;
-    _center = -1;
   }
 
   bool _listEquals(List<String> a, List<String> b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) if (a[i] != b[i]) return false;
     return true;
+  }
+
+  void _makeRoom({String? protect}) {
+    while (_slots.length >= _kMaxSlots) {
+      String? victim;
+      int maxDist = -1;
+      for (final url in _slots.keys) {
+        if (url == protect) continue;
+        final i    = _urls.indexOf(url);
+        final dist = (i < 0 || _center < 0) ? 999 : (i - _center).abs();
+        if (dist > maxDist) { maxDist = dist; victim = url; }
+      }
+      if (victim == null) break;
+      _slots[victim]!.dispose();
+      _slots.remove(victim);
+      debugPrint('[StoryPool] evicted ${victim.split('/').last}');
+    }
   }
 
   void _evict() {
@@ -134,6 +152,7 @@ class StoryPool {
     for (final u in dead) {
       _slots[u]!.dispose();
       _slots.remove(u);
+      debugPrint('[StoryPool] evicted ${u.split('/').last}');
     }
   }
 
@@ -152,9 +171,11 @@ class StoryPool {
     for (final idx in priority) {
       final url = _urls[idx];
       if (!_slots.containsKey(url)) {
+        _makeRoom(protect: url);
         final s = _Slot(url);
         _slots[url] = s;
-        s.init();
+        unawaited(s.init());
+        debugPrint('[StoryPool] warming ${url.split('/').last}');
       }
     }
   }
@@ -166,31 +187,34 @@ class _Slot {
   _Slot(this.url);
 
   final String url;
-  final ready = Completer<void>();
+  final readyCompleter = Completer<void>();
 
-  late VideoPlayerController ctrl;
+  late final Player player;
+  late final VideoController controller;
+
   bool isReady = false;
   bool _dead   = false;
 
-  void init() {
-    ctrl = VideoPlayerController.networkUrl(
-      Uri.parse(url),
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
-    );
-    ctrl.initialize().then((_) {
-      if (_dead) return;
+  Future<void> init() async {
+    player     = Player(configuration: const PlayerConfiguration(bufferSize: 16 * 1024 * 1024));
+    controller = VideoController(player);
+    try {
+      await player.open(Media(url), play: false);
+      if (_dead) { player.dispose(); return; }
+      await player.setVolume(0);
+      await player.seek(Duration.zero);
       isReady = true;
-      ctrl.setVolume(0);
-      ctrl.seekTo(Duration.zero);
-      if (!ready.isCompleted) ready.complete();
-    }).catchError((e) {
-      if (!ready.isCompleted) ready.completeError(e);
-    });
+      if (!readyCompleter.isCompleted) readyCompleter.complete();
+      debugPrint('[StoryPool] ready ${url.split('/').last}');
+    } catch (e) {
+      if (!readyCompleter.isCompleted) readyCompleter.completeError(e);
+      debugPrint('[StoryPool] failed ${url.split('/').last} — $e');
+    }
   }
 
   void dispose() {
     _dead   = true;
     isReady = false;
-    try { ctrl.dispose(); } catch (_) {}
+    try { player.dispose(); } catch (_) {}
   }
 }
