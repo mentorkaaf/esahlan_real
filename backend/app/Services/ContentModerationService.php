@@ -269,10 +269,13 @@ class ContentModerationService
             $maxScore = 0;
             foreach ($frames as $frame) {
                 $score = self::scanImage($frame);
-                Log::info('[Moderation] video frame scan', ['frame' => basename($frame), 'score' => $score]);
-                if ($score > $maxScore) $maxScore = $score;
-                // Short-circuit: clearly explicit
-                if ($maxScore >= 0.68) break;
+                // For video frames, only treat as explicit if score >= 0.85
+                // (nude/bikini). Scores 0.75 from borderline frames are discounted
+                // to avoid blocking normal videos (news, podcasts, city aerials).
+                $frameScore = $score >= 0.85 ? $score : $score * 0.60;
+                Log::info('[Moderation] video frame scan', ['frame' => basename($frame), 'score' => $score, 'adjusted' => $frameScore]);
+                if ($frameScore > $maxScore) $maxScore = $frameScore;
+                if ($maxScore >= 0.85) break;
             }
 
             return $maxScore;
