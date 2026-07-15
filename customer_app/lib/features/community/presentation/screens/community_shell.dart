@@ -20,6 +20,14 @@ import '../../../../core/services/realtime_client.dart';
 
 final communityNavIndexProvider = StateProvider<int>((ref) => 0);
 
+// Persists onboarding status across CommunityShell recreations.
+// null = not yet fetched, true/false = cached API result.
+final _communityOnboardingCacheProvider = StateProvider<bool?>((ref) => null);
+
+// Persist "already preloaded" flags so re-entering the tab doesn't re-trigger preload.
+final _feedPreloadedProvider  = StateProvider<bool>((ref) => false);
+final _reelsPreloadedProvider = StateProvider<bool>((ref) => false);
+
 // ── eSahlan brand palette (shared across the whole community module) ──────────
 const kOrange = Color(0xFFFF8A00);     // brand orange
 const kNavy = Color(0xFF140465);       // brand navy (cards/accents)
@@ -39,8 +47,6 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
 
   bool? _onboardingDone;
   DateTime? _backgroundedAt;
-  bool _feedPreloaded = false;
-  bool _reelsPreloaded = false;
   void Function(dynamic)? _inboxListener;
   void Function(dynamic)? _typingListener;
   void Function(dynamic)? _notifListener;
@@ -89,8 +95,8 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
   }
 
   void _silentPreloadFeed(List<CommunityPost> posts) {
-    if (_feedPreloaded) return;
-    _feedPreloaded = true;
+    if (ref.read(_feedPreloadedProvider)) return;
+    ref.read(_feedPreloadedProvider.notifier).state = true;
     final urls = posts
         .expand((p) => p.media)
         .where((m) => m.type == 'video')
@@ -104,8 +110,8 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
   }
 
   void _silentPreloadReels(List<CommunityPost> reels) {
-    if (_reelsPreloaded) return;
-    _reelsPreloaded = true;
+    if (ref.read(_reelsPreloadedProvider)) return;
+    ref.read(_reelsPreloadedProvider.notifier).state = true;
     final urls = reels
         .map((r) => r.media.isNotEmpty ? r.media.first.mp4DirectUrl : '')
         .where((u) => u.isNotEmpty)
@@ -177,7 +183,7 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
       final awayFor = _backgroundedAt == null ? Duration.zero : DateTime.now().difference(_backgroundedAt!);
       _backgroundedAt = null;
       if (awayFor > AppConstants.presenceAwayThreshold) {
-        _feedPreloaded = false; // allow re-preload for the refreshed feed
+        ref.read(_feedPreloadedProvider.notifier).state = false; // allow re-preload for the refreshed feed
         ref.read(communityFeedProvider.notifier).load(refresh: true);
         // Do NOT refresh reels on resume — it resets the provider to loading,
         // which wipes _cachedItems in ReelsScreen and disposes all reel cards.
@@ -188,10 +194,20 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
   }
 
   void _checkOnboarding() async {
+    // Use the cached result from a previous shell instance — avoids a round-trip
+    // API call (and the blank loading screen it causes) every time the user
+    // navigates away from and back to the community tab.
+    final cached = ref.read(_communityOnboardingCacheProvider);
+    if (cached != null) {
+      setState(() => _onboardingDone = cached);
+      return;
+    }
     try {
       final done = await ref.read(communityRepoProvider).checkOnboarding();
+      ref.read(_communityOnboardingCacheProvider.notifier).state = done;
       if (mounted) setState(() => _onboardingDone = done);
     } catch (_) {
+      ref.read(_communityOnboardingCacheProvider.notifier).state = true;
       if (mounted) setState(() => _onboardingDone = true);
     }
   }
