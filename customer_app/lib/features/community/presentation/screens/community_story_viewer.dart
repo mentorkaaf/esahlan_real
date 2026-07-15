@@ -30,6 +30,7 @@ class _StoryViewerState extends State<StoryViewer> {
   VideoPlayerController? _ctrl;
   bool _initialized = false;
   bool _videoError  = false;
+  bool _advancing   = false; // guard: prevent _onProgress firing _nextStory twice
 
   // 1-slot preload: next story's controller ready before user swipes
   VideoPlayerController? _nextCtrl;
@@ -85,6 +86,7 @@ class _StoryViewerState extends State<StoryViewer> {
 
   void _loadCurrentStory() {
     _repo.viewStory(_currentStory.id);
+    _advancing = false;
     setState(() { _initialized = false; _videoError = false; });
 
     // Precache thumbnail immediately so there's something to show
@@ -148,11 +150,15 @@ class _StoryViewerState extends State<StoryViewer> {
     Future.delayed(const Duration(seconds: 1), _preloadNext);
   }
 
-  VideoPlayerController _makeController(String url) =>
+  VideoPlayerController _makeController(String url, {bool forPreload = false}) =>
       VideoPlayerController.networkUrl(Uri.parse(url),
-          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false));
+          videoPlayerOptions: VideoPlayerOptions(
+            // Preload controllers must NOT steal audio focus from the active video
+            mixWithOthers: forPreload,
+          ));
 
   void _onProgress() {
+    if (_advancing) return;
     final c = _ctrl;
     if (c == null || !c.value.isInitialized) return;
     final pos = c.value.position;
@@ -160,6 +166,7 @@ class _StoryViewerState extends State<StoryViewer> {
     if (dur.inMilliseconds > 0 &&
         pos.inMilliseconds >= dur.inMilliseconds - 300 &&
         !c.value.isBuffering) {
+      _advancing = true;
       _nextStory();
     }
   }
@@ -184,7 +191,7 @@ class _StoryViewerState extends State<StoryViewer> {
     _nextCtrl = null;
     _nextUrl  = null;
 
-    final ctrl = _makeController(url);
+    final ctrl = _makeController(url, forPreload: true);
     try {
       await ctrl.initialize();
     } catch (_) {
@@ -195,7 +202,7 @@ class _StoryViewerState extends State<StoryViewer> {
 
     _nextCtrl = ctrl;
     _nextUrl  = url;
-    // Keep volume 0 and paused — just buffered
+    // Keep volume 0 and paused — just buffered, must not steal audio focus
     await ctrl.setVolume(0);
     await ctrl.pause();
     await ctrl.seekTo(Duration.zero);
@@ -411,8 +418,11 @@ class _StoryViewerState extends State<StoryViewer> {
             ),
           ),
 
-        // Tiny spinner while buffering (only if no thumbnail)
-        if (!_initialized && !_videoError && story.thumbnail == null)
+        // Spinner while loading or buffering
+        if (!_initialized && !_videoError)
+          const Center(child: SizedBox(width: 32, height: 32,
+              child: CircularProgressIndicator(color: Colors.white70, strokeWidth: 2.5))),
+        if (_initialized && _ctrl != null && _ctrl!.value.isBuffering)
           const Center(child: SizedBox(width: 24, height: 24,
               child: CircularProgressIndicator(color: Colors.white38, strokeWidth: 2))),
 
