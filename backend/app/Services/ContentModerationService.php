@@ -397,10 +397,10 @@ class ContentModerationService
             'portrait'=> $isFacePortrait || $isHijabPortrait,
         ]);
 
-        if ($bodyScore > 0.65) return 0.97; // nude/explicit — block
-        if ($bodyScore > 0.48) return 0.60; // very revealing — review only (not block)
-        if ($bodyScore > 0.30) return 0.40; // bikini/revealing — review only
-        if ($bodyScore > 0.18) return 0.20; // borderline — allow
+        if ($bodyScore > 0.82) return 0.97; // nude/explicit — block (both torso+lower very high)
+        if ($bodyScore > 0.60) return 0.60; // very revealing — review only (not block)
+        if ($bodyScore > 0.38) return 0.40; // somewhat revealing — review only
+        if ($bodyScore > 0.22) return 0.20; // borderline — allow
         return 0.05;                         // normal (clothed, hijab) — safe
     }
 

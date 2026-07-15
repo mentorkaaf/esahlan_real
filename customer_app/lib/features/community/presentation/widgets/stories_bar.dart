@@ -1,6 +1,5 @@
 ﻿import 'dart:math' show pi;
 import 'dart:typed_data';
-import 'package:video_compress/video_compress.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/widgets/network_image_widget.dart';
@@ -405,7 +404,6 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
   XFile? _mediaFile;
   String _storyType = 'text';
   bool _posting = false;
-  bool _trimming = false;
   Color _bgColor = const Color(0xFF140465);
 
   static const _bgColors = [
@@ -423,36 +421,11 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
   }
 
   Future<void> _pickVideo() async {
-    final vid = await _picker.pickVideo(source: ImageSource.gallery);
+    final vid = await _picker.pickVideo(source: ImageSource.gallery,
+        maxDuration: const Duration(seconds: 60));
     if (vid == null) return;
-
-    final info = await VideoCompress.getMediaInfo(vid.path);
-    final durationSec = ((info.duration ?? 0) / 1000).round();
-
-    setState(() => _trimming = true);
-    try {
-      // Always compress on-device to ~480p before uploading.
-      // This reduces upload from potentially 50-200 MB to 2-8 MB,
-      // making stories appear near-instantly for viewers.
-      final compressed = await VideoCompress.compressVideo(
-        vid.path,
-        quality: VideoQuality.LowQuality,
-        startTime: 0,
-        duration: durationSec > 60 ? 60 : null,
-        includeAudio: true,
-        deleteOrigin: false,
-      );
-      if (mounted) {
-        setState(() {
-          _mediaFile = XFile(compressed?.path ?? vid.path);
-          _storyType = 'video';
-          _trimming = false;
-        });
-      }
-    } catch (_) {
-      // Fallback: use original (server will still compress it)
-      if (mounted) setState(() { _mediaFile = vid; _storyType = 'video'; _trimming = false; });
-    }
+    // No on-device compression — server ProcessStoryVideoJob handles it.
+    setState(() { _mediaFile = vid; _storyType = 'video'; });
   }
 
   Future<void> _post() async {
@@ -491,7 +464,7 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
         actions: [
           Padding(padding: EdgeInsets.only(right: 12),
             child: ElevatedButton(
-              onPressed: (_posting || _trimming) ? null : _post,
+              onPressed: _posting ? null : _post,
               style: ElevatedButton.styleFrom(
                 backgroundColor: kOrange, foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -511,11 +484,7 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
                 child: TextField(controller: _textCtrl, maxLines: null, textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
                   decoration: const InputDecoration.collapsed(hintText: 'Type something...', hintStyle: TextStyle(color: Colors.white54, fontSize: 22)))))
-            : _trimming
-              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  CircularProgressIndicator(color: Colors.white), SizedBox(height: 16),
-                  Text('Compressing video...', style: TextStyle(color: Colors.white70, fontSize: 15))]))
-              : _mediaFile != null
+            : _mediaFile != null
               ? _storyType == 'video'
                 ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Icon(Icons.videocam_rounded, color: Colors.white, size: 80), SizedBox(height: 12),
@@ -531,8 +500,8 @@ class _CreateStoryScreenState extends State<_CreateStoryScreen> {
           child: Column(children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
               _TypeBtn(icon: Icons.text_fields_rounded, label: 'Text', active: _storyType == 'text', onTap: () => setState(() { _storyType = 'text'; _mediaFile = null; })),
-              _TypeBtn(icon: Icons.photo_rounded, label: 'Photo', active: _storyType == 'image', onTap: _trimming ? null : _pickImage),
-              _TypeBtn(icon: Icons.videocam_rounded, label: 'Video', active: _storyType == 'video', onTap: _trimming ? null : _pickVideo),
+              _TypeBtn(icon: Icons.photo_rounded, label: 'Photo', active: _storyType == 'image', onTap: _pickImage),
+              _TypeBtn(icon: Icons.videocam_rounded, label: 'Video', active: _storyType == 'video', onTap: _pickVideo),
             ]),
             if (_storyType == 'text') ...[
               SizedBox(height: 12),
