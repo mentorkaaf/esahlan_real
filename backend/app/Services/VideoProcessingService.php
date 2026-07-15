@@ -64,7 +64,7 @@ class VideoProcessingService
         $thumbFull = storage_path('app/public/' . $thumbPath);
         $seekAt    = $duration > 5 ? '00:00:03' : '00:00:01';
         exec(sprintf(
-            '%s ffmpeg -threads 0 -ss %s -i %s -vframes 1 -q:v 4 -vf scale=640:-2 -y %s 2>/dev/null',
+            '%s ffmpeg -threads 2 -ss %s -i %s -vframes 1 -q:v 4 -vf scale=640:-2 -y %s 2>/dev/null',
             self::NICE, $seekAt, escapeshellarg($inputPath), escapeshellarg($thumbFull)
         ));
         if (file_exists($thumbFull)) $results['thumbnail'] = $thumbPath;
@@ -82,7 +82,7 @@ class VideoProcessingService
         // balloon the file. On slow mobile networks the first 3s of a 1-min reel
         // goes from ~4 MB → ~600 KB, starting playback 5-6× faster.
         exec(sprintf(
-            '%s ffmpeg -threads 0 -i %s %s -c:v libx264 -preset veryfast -crf %d -maxrate 1600k -bufsize 3200k -c:a aac -b:a 96k -movflags +faststart -y %s 2>/dev/null',
+            '%s ffmpeg -threads 2 -i %s %s -c:v libx264 -preset veryfast -crf %d -maxrate 1600k -bufsize 3200k -c:a aac -b:a 96k -movflags +faststart -y %s 2>/dev/null',
             self::NICE, escapeshellarg($inputPath), $scaleFilter, $crf, escapeshellarg($optFull)
         ), $_, $code);
 
@@ -180,7 +180,7 @@ class VideoProcessingService
         $baseFlag = $hlsBaseUrl ? ' -hls_base_url ' . escapeshellarg($hlsBaseUrl) : '';
 
         $cmd = sprintf(
-            '%s ffmpeg -threads 0 -i %s -vf %s -c:v libx264 -preset veryfast -crf %d '
+            '%s ffmpeg -threads 2 -i %s -vf %s -c:v libx264 -preset veryfast -crf %d '
             . '-sc_threshold 0 -force_key_frames "expr:gte(t,n_forced*%d)" '
             . '-c:a aac -b:a %s '
             . '-hls_time %d -hls_list_size 0 -hls_segment_type mpegts'
@@ -310,7 +310,7 @@ class VideoProcessingService
         // H.264 baseline profile + Fast Start = instant progressive playback on mobile.
         // CRF 26 at 720p gives excellent quality (~1.5 Mbps). AAC 96k for clear audio.
         exec(sprintf(
-            '%s ffmpeg -threads 0 -i %s %s -vf %s '
+            '%s ffmpeg -threads 2 -i %s %s -vf %s '
             . '-c:v libx264 -profile:v baseline -level 3.1 '
             . '-preset veryfast -crf 26 -maxrate 1500k -bufsize 3000k '
             . '-c:a aac -b:a 96k -ar 44100 '
@@ -335,7 +335,7 @@ class VideoProcessingService
         $thumbRelPath = "{$dir}/{$name}/thumb.jpg";
         $thumbFull    = storage_path('app/public/' . $thumbRelPath);
         exec(sprintf(
-            '%s ffmpeg -threads 0 -ss 1 -i %s -vframes 1 -q:v 5 -vf scale=360:-2 -y %s 2>/dev/null',
+            '%s ffmpeg -threads 2 -ss 1 -i %s -vframes 1 -q:v 5 -vf scale=360:-2 -y %s 2>/dev/null',
             self::NICE,
             escapeshellarg($outFull),
             escapeshellarg($thumbFull)
