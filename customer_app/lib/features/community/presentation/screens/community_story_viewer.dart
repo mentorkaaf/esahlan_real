@@ -613,14 +613,26 @@ class _ProgressBarState extends State<_ProgressBar>
   void initState() {
     super.initState();
     if (!widget.active) return;
-    if (widget.isVideo && widget.ctrl != null) {
-      widget.ctrl!.addListener(_rebuild);
+    if (widget.isVideo) {
+      // Video progress is driven by the controller — never start a timer.
+      // ctrl may be null while the video is still initializing; didUpdateWidget
+      // will wire up the listener once the controller is available.
+      if (widget.ctrl != null) widget.ctrl!.addListener(_rebuild);
     } else {
       _anim = AnimationController(vsync: this, duration: widget.imageDuration)
         ..addStatusListener((s) {
           if (s == AnimationStatus.completed) widget.onDone?.call();
         })
         ..forward();
+    }
+  }
+
+  @override
+  void didUpdateWidget(_ProgressBar old) {
+    super.didUpdateWidget(old);
+    if (widget.isVideo && old.ctrl != widget.ctrl) {
+      old.ctrl?.removeListener(_rebuild);
+      if (widget.ctrl != null) widget.ctrl!.addListener(_rebuild);
     }
   }
 
