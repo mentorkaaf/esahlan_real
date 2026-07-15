@@ -28,12 +28,10 @@ class _StoryViewerState extends State<StoryViewer> {
   bool _paused           = false;
   bool _advancing        = false;
 
-  // Pool — manages pre-initialized controllers for all video stories
-  late final StoryPool _pool;
+  // Singleton pool — pre-warmed by stories bar before viewer opens
+  final _pool = StoryPool.instance;
 
-  // All video story URLs in flat display order (across all groups)
-  late final List<String> _videoUrls;
-  // story.mediaUrl → index inside _videoUrls
+  // story.mediaUrl → index inside pool.urls
   late final Map<String, int> _urlToPoolIdx;
 
   // The controller currently borrowed from the pool (null for image/text stories)
@@ -50,14 +48,14 @@ class _StoryViewerState extends State<StoryViewer> {
     _groupIndex = widget.initialGroupIndex;
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _buildVideoIndex();
-    _pool = StoryPool(_videoUrls);
     _activateStory();
   }
 
   @override
   void dispose() {
     _detach();
-    _pool.dispose();
+    // Release pool slots but keep singleton alive for next open
+    _pool.releaseAll();
     _commentCtrl.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
@@ -66,20 +64,10 @@ class _StoryViewerState extends State<StoryViewer> {
   // ── Video index ──────────────────────────────────────────────────────────────
 
   void _buildVideoIndex() {
-    final urls    = <String>[];
-    final urlMap  = <String, int>{};
-    for (final group in widget.groups) {
-      for (final story in group.stories) {
-        if (story.type == 'video') {
-          final url = story.mediaUrl ?? '';
-          if (url.isNotEmpty && !urlMap.containsKey(url)) {
-            urlMap[url] = urls.length;
-            urls.add(url);
-          }
-        }
-      }
+    final urlMap = <String, int>{};
+    for (var i = 0; i < _pool.urls.length; i++) {
+      urlMap[_pool.urls[i]] = i;
     }
-    _videoUrls    = urls;
     _urlToPoolIdx = urlMap;
   }
 
@@ -106,10 +94,10 @@ class _StoryViewerState extends State<StoryViewer> {
       if (url.isEmpty) { setState(() {}); return; }
 
       _activeUrl = url;
-      final poolIdx = _urlToPoolIdx[url] ?? 0;
+      final poolIdx = _urlToPoolIdx[url] ?? _pool.indexOf(url);
 
       // Shift the pool window: initializes this + next 3 + prev 1 in background
-      _pool.advance(poolIdx);
+      if (poolIdx >= 0) _pool.advance(poolIdx);
 
       final ctrl = _pool.ready(url);
       if (ctrl != null) {
@@ -399,6 +387,16 @@ class _StoryViewerState extends State<StoryViewer> {
       begin: Alignment.topLeft, end: Alignment.bottomRight,
       colors: [Color(0xFF1A0533), Color(0xFF0D1B2A)]));
 
+  // Stable per-user accent colour so "no-thumbnail" stories aren't just black.
+  Color _userAccent(int userId) {
+    const palette = [
+      Color(0xFF1A237E), Color(0xFF004D40), Color(0xFF311B92),
+      Color(0xFF880E4F), Color(0xFF1B5E20), Color(0xFF0D47A1),
+      Color(0xFF4A148C), Color(0xFF212121),
+    ];
+    return palette[userId % palette.length];
+  }
+
   Widget _buildContent(CommunityStory story, bool ctrlReady) {
     if (story.type == 'text') {
       final bg = story.bgColor != null
@@ -416,11 +414,26 @@ class _StoryViewerState extends State<StoryViewer> {
     }
 
     if (story.type == 'video') {
+      final group = _currentGroup;
       return Stack(fit: StackFit.expand, children: [
-        // 1. Dark gradient — never pure black
-        Container(decoration: _bgGradient),
+        // 1. Solid accent based on user ID — never pure black, even before thumbnail
+        Container(color: _userAccent(group.user.id)),
 
-        // 2. Thumbnail — visible instantly, covered by video once ready
+        // 2. User avatar centred — shows instantly, gives context while loading
+        if (!ctrlReady && story.thumbnail == null)
+          Center(child: CircleAvatar(
+            radius: 48,
+            backgroundImage: group.user.avatar != null
+                ? CachedNetworkImageProvider(group.user.avatar!) : null,
+            backgroundColor: Colors.white12,
+            child: group.user.avatar == null
+                ? Text(group.user.name[0].toUpperCase(),
+                    style: const TextStyle(fontSize: 36,
+                        fontWeight: FontWeight.bold, color: Colors.white))
+                : null,
+          )),
+
+        // 3. Thumbnail — loads immediately from CachedNetworkImage cache
         if (story.thumbnail != null)
           CachedNetworkImage(
             imageUrl: story.thumbnail!,
@@ -430,7 +443,7 @@ class _StoryViewerState extends State<StoryViewer> {
             errorWidget: (_, __, ___) => const SizedBox.shrink(),
           ),
 
-        // 3. Video — crossfades over thumbnail once controller is initialized
+        // 4. Video — appears over thumbnail once controller is ready (80 ms fade)
         if (ctrlReady)
           AnimatedOpacity(
             opacity: 1.0,

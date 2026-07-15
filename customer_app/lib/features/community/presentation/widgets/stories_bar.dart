@@ -12,6 +12,7 @@ import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
 import '../screens/community_shell.dart';
 import '../screens/community_story_viewer.dart';
+import '../services/story_pool.dart';
 
 class StoriesBar extends ConsumerWidget {
   final List<StoryGroup> groups;
@@ -20,6 +21,10 @@ class StoriesBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final myProfile = ref.watch(communityMyProfileProvider);
+
+    // Pre-warm the story pool as soon as groups are visible.
+    // Controllers start initializing in the background before the user taps.
+    StoryPool.prewarm(groups);
 
     return SizedBox(
       height: 200,
@@ -34,14 +39,28 @@ class StoriesBar extends ConsumerWidget {
               coverPhoto: myProfile.valueOrNull?.coverPhoto,
             );
           }
-          final group = groups[i - 1];
-          // Only first 3 video story cards get live Player preview (memory limit)
+          final group    = groups[i - 1];
+          final groupIdx = i - 1;
           final enableVideoPreview = i <= 1;
           return _StoryCard(
             group: group,
             enableVideoPreview: enableVideoPreview,
-            onTap: () => Navigator.push(ctx,
-              MaterialPageRoute(builder: (_) => StoryViewer(groups: groups, initialGroupIndex: i - 1))),
+            onTap: () {
+              // Shift pool window to this story index NOW (before push)
+              // so the first video is loading during the push animation.
+              StoryPool.prewarm(groups);
+              final firstVideoUrl = group.stories
+                  .where((s) => s.type == 'video' && (s.mediaUrl ?? '').isNotEmpty)
+                  .map((s) => s.mediaUrl!)
+                  .firstOrNull;
+              if (firstVideoUrl != null) {
+                final idx = StoryPool.instance.indexOf(firstVideoUrl);
+                if (idx >= 0) StoryPool.instance.advance(idx);
+              }
+              Navigator.push(ctx,
+                MaterialPageRoute(builder: (_) =>
+                    StoryViewer(groups: groups, initialGroupIndex: groupIdx)));
+            },
           );
         },
       ),

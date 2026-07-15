@@ -38,6 +38,24 @@ class CommunityStoryController extends Controller
                 return response()->json(['status' => 'error', 'message' => $check['reason']], 422);
             }
             $rawPath  = $file->store('community/stories', 'public');
+
+            // For video: immediately re-mux with Fast Start (no re-encode, ~1-2s).
+            // This moves the MOOV atom to the front of the file so Flutter/ExoPlayer
+            // can start progressive playback without downloading the whole file.
+            if ($request->type === 'video') {
+                $rawFull   = storage_path('app/public/' . $rawPath);
+                $fsPath    = preg_replace('/\.[^.]+$/', '_fs.mp4', $rawPath);
+                $fsFull    = storage_path('app/public/' . $fsPath);
+                @mkdir(dirname($fsFull), 0755, true);
+                exec('ffmpeg -i ' . escapeshellarg($rawFull)
+                    . ' -c copy -movflags +faststart -y '
+                    . escapeshellarg($fsFull) . ' 2>/dev/null');
+                if (file_exists($fsFull) && filesize($fsFull) > 0) {
+                    @unlink($rawFull);   // raw (no faststart) no longer needed
+                    $rawPath = $fsPath;  // downstream job uses faststart file
+                }
+            }
+
             $mediaUrl = cdn_url($rawPath);
         }
 
