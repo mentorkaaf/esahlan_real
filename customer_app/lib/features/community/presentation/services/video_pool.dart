@@ -71,7 +71,7 @@ class VideoPool {
 
   static const _maxSlots     = 6;   // more pre-loaded players
   static const _evictDist    = 7;   // keep further videos in memory longer
-  static const _preloadAhead = 3;   // preload 3 ahead
+  static const _preloadAhead = 4;   // preload 4 ahead
   static const _dominant     = 0.5;
 
   // ── Public API ────────────────────────────────────────────────────────────

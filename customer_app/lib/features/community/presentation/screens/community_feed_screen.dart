@@ -319,7 +319,7 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
           // The old ListView + Column built ALL 30+ cards at once — this is the main perf fix.
           child: CustomScrollView(
             physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-            cacheExtent: 400,
+            cacheExtent: 1500,
             slivers: [
               SliverToBoxAdapter(child: widget.storiesState.when(
                 data: (groups) => StoriesBar(groups: groups),
