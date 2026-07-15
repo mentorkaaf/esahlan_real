@@ -291,10 +291,10 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
 
   @override
   Widget build(BuildContext context) {
-    // Watch at top level so suggestions/reels updates don't cause extra rebuilds
-    // inside the data callback when the feed itself hasn't changed.
-    final suggestions = ref.watch(communitySuggestionsProvider).valueOrNull ?? [];
-    final reels       = ref.watch(communityReelsProvider).valueOrNull ?? [];
+    // Only watch the feed provider here. suggestions and reels are watched
+    // inside their own slot widgets (_SuggestionsSlot, _ReelsSlot) so that
+    // when those providers update they rebuild only their own small widget —
+    // not this entire method and the 30-item list it constructs.
 
     return ColoredBox(
       color: context.colors.scaffoldBg,
@@ -360,11 +360,11 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
                 if (adUrls.isNotEmpty) AdVideoManager.instance.preload(adUrls);
               });
 
-                  // Build widget object list — SliverList calls .build() lazily
-                  // only for visible items, so this is fast (no tree inflation).
+                  // Build widget list — SliverList builds lazily (visible items only).
+                  // Suggestion + reel slots watch their own providers internally so
+                  // a background fetch of either never triggers this loop again.
                   int postsSinceLastAd = 999;
                   final items = <Widget>[];
-                  final followable = suggestions.where((u) => !u.isMe && !u.isFollowing).toList();
                   for (var i = 0; i < posts.length; i++) {
                     final post = posts[i];
                     if (post.isAd && postsSinceLastAd < 3) continue;
@@ -375,21 +375,13 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
                         ref.read(communityFeedProvider.notifier).removePost(posts[i].id);
                       },
                     )));
-                    if (i == 4 && followable.isNotEmpty) {
-                      items.add(_PeopleYouMayKnow(users: followable.take(10).toList()));
+                    if (i == 4)  items.add(const _SuggestionsSlot(batchOffset: 0));
+                    if (i == 8)  items.add(const _ReelsSlot(batchOffset: 0));
+                    if (i > 12 && (i - 12) % 10 == 0) {
+                      items.add(_SuggestionsSlot(batchOffset: ((i - 12) ~/ 10) * 5));
                     }
-                    if (i == 8 && reels.isNotEmpty) {
-                      items.add(_ReelsCarousel(reels: reels.take(6).toList()));
-                    }
-                    if (i > 12 && (i - 12) % 10 == 0 && followable.length > 10) {
-                      final offset = ((i - 12) ~/ 10) * 5;
-                      final batch = followable.skip(offset).take(10).toList();
-                      if (batch.isNotEmpty) items.add(_PeopleYouMayKnow(users: batch));
-                    }
-                    if (i > 16 && (i - 16) % 12 == 0 && reels.length > 6) {
-                      final offset = ((i - 16) ~/ 12) * 4;
-                      final batch = reels.skip(offset).take(6).toList();
-                      if (batch.isNotEmpty) items.add(_ReelsCarousel(reels: batch));
+                    if (i > 16 && (i - 16) % 12 == 0) {
+                      items.add(_ReelsSlot(batchOffset: ((i - 16) ~/ 12) * 4));
                     }
                   }
                   final hasMore = ref.watch(communityFeedProvider.notifier).hasMore;
@@ -1008,6 +1000,33 @@ class _EmptyFeed extends ConsumerWidget {
 
 // â”€â”€ Post Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+// Holds all realtime-mutable counts for one post.
+// A single ValueNotifier<_PostCounters> replaces 6 individual setState() calls —
+// only the stats row rebuilds when any count changes, not the whole card.
+class _PostCounters {
+  final int views, likes, comments, shares, saves;
+  final Map<String, int> reactions;
+  const _PostCounters({
+    required this.views,
+    required this.likes,
+    required this.comments,
+    required this.shares,
+    required this.saves,
+    required this.reactions,
+  });
+  _PostCounters copyWith({
+    int? views, int? likes, int? comments, int? shares, int? saves,
+    Map<String, int>? reactions,
+  }) => _PostCounters(
+    views:     views     ?? this.views,
+    likes:     likes     ?? this.likes,
+    comments:  comments  ?? this.comments,
+    shares:    shares    ?? this.shares,
+    saves:     saves     ?? this.saves,
+    reactions: reactions ?? this.reactions,
+  );
+}
+
 class _PostCard extends ConsumerStatefulWidget {
   final CommunityPost post;
   final VoidCallback onDelete;
@@ -1020,11 +1039,21 @@ class _PostCard extends ConsumerStatefulWidget {
 class _PostCardState extends ConsumerState<_PostCard> {
   String get _postChannel => 'community.post.${widget.post.id}';
   final Map<String, void Function(dynamic)> _realtimeListeners = {};
+  late final ValueNotifier<_PostCounters> _counters;
 
   @override
   void initState() {
     super.initState();
-    if (!widget.post.isAd) {
+    final p = widget.post;
+    _counters = ValueNotifier(_PostCounters(
+      views:     p.viewsCount,
+      likes:     p.likesCount,
+      comments:  p.commentsCount,
+      shares:    p.sharesCount,
+      saves:     p.savesCount,
+      reactions: Map.from(p.reactionCounts),
+    ));
+    if (!p.isAd) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) Future.delayed(const Duration(milliseconds: 300), () {
           if (mounted) _subscribeRealtime();
@@ -1035,6 +1064,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
 
   @override
   void dispose() {
+    _counters.dispose();
     for (final entry in _realtimeListeners.entries) {
       RealtimeClient.instance.removeListener(_postChannel, entry.key, entry.value);
     }
@@ -1049,34 +1079,39 @@ class _PostCardState extends ConsumerState<_PostCard> {
 
     on('post.likes_changed', (data) {
       if (!mounted) return;
-      setState(() {
-        widget.post.likesCount = data['likes_count'] as int;
-        final rc = data['reaction_counts'];
-        if (rc is Map) {
-          widget.post.reactionCounts = Map<String, int>.from(
-              rc.map((k, v) => MapEntry(k.toString(), (v as num).toInt())));
-        }
-      });
+      widget.post.likesCount = data['likes_count'] as int;
+      final rc = data['reaction_counts'];
+      Map<String, int>? reactions;
+      if (rc is Map) {
+        reactions = Map<String, int>.from(rc.map((k, v) => MapEntry(k.toString(), (v as num).toInt())));
+        widget.post.reactionCounts = reactions;
+      }
+      _counters.value = _counters.value.copyWith(likes: widget.post.likesCount, reactions: reactions);
     });
     on('post.views_changed', (data) {
       if (!mounted) return;
-      setState(() => widget.post.viewsCount = data['views_count'] as int);
+      widget.post.viewsCount = data['views_count'] as int;
+      _counters.value = _counters.value.copyWith(views: widget.post.viewsCount);
     });
     on('post.comment_added', (data) {
       if (!mounted) return;
-      setState(() => widget.post.commentsCount = data['comments_count'] as int);
+      widget.post.commentsCount = data['comments_count'] as int;
+      _counters.value = _counters.value.copyWith(comments: widget.post.commentsCount);
     });
     on('post.comment_removed', (data) {
       if (!mounted) return;
-      setState(() => widget.post.commentsCount = data['comments_count'] as int);
+      widget.post.commentsCount = data['comments_count'] as int;
+      _counters.value = _counters.value.copyWith(comments: widget.post.commentsCount);
     });
     on('post.shares_changed', (data) {
       if (!mounted) return;
-      setState(() => widget.post.sharesCount = data['shares_count'] as int);
+      widget.post.sharesCount = data['shares_count'] as int;
+      _counters.value = _counters.value.copyWith(shares: widget.post.sharesCount);
     });
     on('post.saves_changed', (data) {
       if (!mounted) return;
-      setState(() => widget.post.savesCount = data['saves_count'] as int);
+      widget.post.savesCount = data['saves_count'] as int;
+      _counters.value = _counters.value.copyWith(saves: widget.post.savesCount);
     });
   }
 
@@ -1253,58 +1288,61 @@ class _PostCardState extends ConsumerState<_PostCard> {
           ),
 
         // Per-reaction emoji breakdown row (left) + stats row (right)
-        Builder(builder: (_) {
-          final chips = p.reactionCounts.entries.where((e) => e.value > 0).toList();
-          final hasStats = p.viewsCount > 0 || p.commentsCount > 0 || p.sharesCount > 0 || p.savesCount > 0;
-          if (chips.isEmpty && !hasStats) return const SizedBox.shrink();
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 2),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (chips.isNotEmpty)
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: chips.map((e) {
-                    final label = _fmtCount(e.value);
-                    return GestureDetector(
-                      onTap: () => _showReactionsList(e.key),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Text(_reactionEmoji(e.key), style: const TextStyle(fontSize: 14)),
-                        const SizedBox(width: 3),
-                        Text(label, style: TextStyle(color: context.colors.mutedText, fontSize: 12, fontWeight: FontWeight.w600)),
-                      ]),
-                    );
-                  }).toList(),
-                ),
-              if (chips.isNotEmpty && hasStats) const SizedBox(height: 4),
-              Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-              const Spacer(),
-              // Right: 👁 views · 💬 comments · ↪ shares · 🔖 saves
-              Row(mainAxisSize: MainAxisSize.min, children: [
-                if (p.viewsCount > 0) ...[
-                  _StatIcon(icon: Icons.remove_red_eye_outlined, count: p.viewsCount, color: const Color(0xFF8A94A6)),
-                  const SizedBox(width: 10),
-                ],
-                if (p.commentsCount > 0) ...[
-                  _StatIcon(
-                    icon: Icons.mode_comment_outlined,
-                    count: p.commentsCount,
-                    color: const Color(0xFF8A94A6),
-                    onTap: () => showCommentsSheet(context, p.id, initialCount: p.commentsCount, commentsDisabled: p.commentsDisabled),
+        // ValueListenableBuilder: only this subtree rebuilds on realtime count changes.
+        ValueListenableBuilder<_PostCounters>(
+          valueListenable: _counters,
+          builder: (_, counts, __) {
+            final chips = counts.reactions.entries.where((e) => e.value > 0).toList();
+            final hasStats = counts.views > 0 || counts.comments > 0 || counts.shares > 0 || counts.saves > 0;
+            if (chips.isEmpty && !hasStats) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 2),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if (chips.isNotEmpty)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: chips.map((e) {
+                      final label = _fmtCount(e.value);
+                      return GestureDetector(
+                        onTap: () => _showReactionsList(e.key),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text(_reactionEmoji(e.key), style: const TextStyle(fontSize: 14)),
+                          const SizedBox(width: 3),
+                          Text(label, style: TextStyle(color: context.colors.mutedText, fontSize: 12, fontWeight: FontWeight.w600)),
+                        ]),
+                      );
+                    }).toList(),
                   ),
-                  const SizedBox(width: 10),
-                ],
-                if (p.sharesCount > 0) ...[
-                  _StatIcon(icon: Icons.reply_rounded, count: p.sharesCount, color: const Color(0xFF8A94A6)),
-                  const SizedBox(width: 10),
-                ],
-                if (p.savesCount > 0)
-                  _StatIcon(icon: Icons.bookmark_border_rounded, count: p.savesCount, color: const Color(0xFF8A94A6)),
+                if (chips.isNotEmpty && hasStats) const SizedBox(height: 4),
+                Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                  const Spacer(),
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (counts.views > 0) ...[
+                      _StatIcon(icon: Icons.remove_red_eye_outlined, count: counts.views, color: const Color(0xFF8A94A6)),
+                      const SizedBox(width: 10),
+                    ],
+                    if (counts.comments > 0) ...[
+                      _StatIcon(
+                        icon: Icons.mode_comment_outlined,
+                        count: counts.comments,
+                        color: const Color(0xFF8A94A6),
+                        onTap: () => showCommentsSheet(context, p.id, initialCount: counts.comments, commentsDisabled: p.commentsDisabled),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    if (counts.shares > 0) ...[
+                      _StatIcon(icon: Icons.reply_rounded, count: counts.shares, color: const Color(0xFF8A94A6)),
+                      const SizedBox(width: 10),
+                    ],
+                    if (counts.saves > 0)
+                      _StatIcon(icon: Icons.bookmark_border_rounded, count: counts.saves, color: const Color(0xFF8A94A6)),
+                  ]),
+                ]),
               ]),
-            ]),  // inner Row (stats)
-            ]),  // Column
-          );
-        }),
+            );
+          },
+        ),
 
         _PostActionBar(post: p, onShare: _showShareDialog),
       ]),
@@ -2063,6 +2101,40 @@ class _BusinessesTab extends StatelessWidget {
 }
 
 // People you may know — Facebook-style horizontal cards
+// ── Isolated feed slots ───────────────────────────────────────────────────────
+//
+// These widgets each watch ONE provider internally. When suggestions or reels
+// arrive from the network, only the slot rebuilds — not the 30-item feed list.
+
+class _SuggestionsSlot extends ConsumerWidget {
+  final int batchOffset;
+  const _SuggestionsSlot({required this.batchOffset});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final all = ref.watch(communitySuggestionsProvider).valueOrNull ?? [];
+    final followable = all.where((u) => !u.isMe && !u.isFollowing).toList();
+    final batch = followable.skip(batchOffset).take(10).toList();
+    if (batch.isEmpty) return const SizedBox.shrink();
+    return _PeopleYouMayKnow(users: batch);
+  }
+}
+
+class _ReelsSlot extends ConsumerWidget {
+  final int batchOffset;
+  const _ReelsSlot({required this.batchOffset});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final all = ref.watch(communityReelsProvider).valueOrNull ?? [];
+    final batch = all.skip(batchOffset).take(6).toList();
+    if (batch.isEmpty) return const SizedBox.shrink();
+    return _ReelsCarousel(reels: batch);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _PeopleYouMayKnow extends ConsumerWidget {
   final List<CommunityUser> users;
   const _PeopleYouMayKnow({required this.users});
