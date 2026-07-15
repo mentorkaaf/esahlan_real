@@ -43,10 +43,10 @@ class ContentModerationService
             'keyword_filter'   => true,
             'image_scan'       => true,
             'video_scan'       => true,
-            'auto_block'       => false,
-            'review_all_media' => true,
-            'block_threshold'  => 0.65,
-            'review_threshold' => 0.15,
+            'auto_block'       => true,
+            'review_all_media' => false,
+            'block_threshold'  => 0.90,  // only truly explicit content (nude/sex)
+            'review_threshold' => 0.50,
         ];
     }
 
@@ -397,11 +397,11 @@ class ContentModerationService
             'portrait'=> $isFacePortrait || $isHijabPortrait,
         ]);
 
-        if ($bodyScore > 0.65) return 0.97; // explicit/nude — block
-        if ($bodyScore > 0.48) return 0.85; // very revealing — block
-        if ($bodyScore > 0.30) return 0.75; // bikini/revealing — block
-        if ($bodyScore > 0.18) return 0.22; // borderline — allow
-        return 0.05;                    // normal (hijab, clothed) — safe
+        if ($bodyScore > 0.65) return 0.97; // nude/explicit — block
+        if ($bodyScore > 0.48) return 0.60; // very revealing — review only (not block)
+        if ($bodyScore > 0.30) return 0.40; // bikini/revealing — review only
+        if ($bodyScore > 0.18) return 0.20; // borderline — allow
+        return 0.05;                         // normal (clothed, hijab) — safe
     }
 
     // Returns true for a wide range of human skin tones (light → dark)
