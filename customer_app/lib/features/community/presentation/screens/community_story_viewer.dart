@@ -54,8 +54,8 @@ class _StoryViewerState extends State<StoryViewer> {
   @override
   void dispose() {
     _detach();
-    // Release pool slots but keep singleton alive for next open
-    _pool.releaseAll();
+    // Do NOT call pool.releaseAll() — controllers stay initialized so the
+    // next open of the viewer is instant (pool window survives across sessions).
     _commentCtrl.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();

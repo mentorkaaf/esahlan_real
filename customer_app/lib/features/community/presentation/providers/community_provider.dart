@@ -4,6 +4,7 @@ import '../../../../core/theme/theme_x.dart';
 import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
 import '../../../../core/api/module_api_service.dart';
+import '../services/story_pool.dart';
 
 extension _CacheFor on Ref {
   void cacheFor(Duration d) {
@@ -104,7 +105,13 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<CommunityPost>>> {
 
 // ── Stories provider ───────────────────────────────────────────────────────
 final communityStoriesProvider =
-    FutureProvider<List<StoryGroup>>((ref) => _repo.getStories());
+    FutureProvider<List<StoryGroup>>((ref) async {
+  final groups = await _repo.getStories();
+  // Pre-warm story video pool as soon as stories data arrives —
+  // controllers start initializing before the user taps any story card.
+  if (groups.isNotEmpty) StoryPool.prewarm(groups);
+  return groups;
+});
 
 // ── Suggestions provider ───────────────────────────────────────────────────
 final communitySuggestionsProvider =
