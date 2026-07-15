@@ -267,6 +267,7 @@ class ContentModerationService
             Log::info('[Moderation] video frames extracted', ['count' => count($frames), 'duration' => $duration, 'interval' => $interval]);
 
             $maxScore = 0;
+            $highScoreCount = 0; // require 2+ explicit frames to block
             foreach ($frames as $frame) {
                 $score = self::scanImage($frame);
                 // For video frames, only treat as explicit if score >= 0.85
@@ -275,7 +276,17 @@ class ContentModerationService
                 $frameScore = $score >= 0.85 ? $score : $score * 0.60;
                 Log::info('[Moderation] video frame scan', ['frame' => basename($frame), 'score' => $score, 'adjusted' => $frameScore]);
                 if ($frameScore > $maxScore) $maxScore = $frameScore;
-                if ($maxScore >= 0.85) break;
+                if ($frameScore >= 0.85) {
+                    $highScoreCount++;
+                    // Need at least 2 explicit frames to confirm — prevents single-frame false positives
+                    if ($highScoreCount >= 2) break;
+                }
+            }
+
+            // Single high-scoring frame is likely a false positive — downgrade to review
+            if ($maxScore >= 0.85 && $highScoreCount < 2) {
+                Log::info('[Moderation] single high-score frame — downgrading to review', ['score' => $maxScore]);
+                return 0.75;
             }
 
             return $maxScore;
