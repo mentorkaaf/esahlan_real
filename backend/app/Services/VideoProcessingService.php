@@ -338,8 +338,8 @@ class VideoProcessingService
             $result['thumbnail_path'] = $thumbRelPath;
         }
 
-        // Delete raw upload
-        if ($inputPath !== $outFull) @unlink($inputPath);
+        // Keep raw upload so stale Flutter clients (fetched URL before job ran) can still play it.
+        // Raw story files expire with the story (24 h) and are cleaned by the pruning command.
 
         Log::info("[VideoProcessingService::processStory] {$storagePath} {$width}x{$height} {$duration}s → {$outRelPath}");
         return $result;

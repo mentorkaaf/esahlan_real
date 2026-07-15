@@ -30,9 +30,10 @@ class _StoryViewerState extends State<StoryViewer> {
   VideoPlayerController? _ctrl;
   bool _initialized = false;
   bool _videoError  = false;
-  bool _advancing   = false; // guard: prevent _onProgress firing _nextStory twice
+  bool _advancing   = false;
+  bool _paused      = false; // hold-to-pause state
 
-  // 1-slot preload: next story's controller ready before user swipes
+  // 1-slot preload
   VideoPlayerController? _nextCtrl;
   String?               _nextUrl;
 
@@ -111,18 +112,26 @@ class _StoryViewerState extends State<StoryViewer> {
     _ctrl = null;
   }
 
+  VideoPlayerController _makeController(String url) =>
+      VideoPlayerController.networkUrl(
+        Uri.parse(url),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
+      );
+
   Future<void> _startVideo(String url) async {
     _disposeActive();
+    _paused = false;
 
     VideoPlayerController ctrl;
+    bool wasPreloaded = false;
 
-    // Reuse preloaded controller if URL matches — instant start
     if (_nextCtrl != null && _nextUrl == url) {
+      // Reuse preloaded controller — instant start
       ctrl = _nextCtrl!;
       _nextCtrl = null;
       _nextUrl  = null;
+      wasPreloaded = true;
     } else {
-      // Cancel stale preload
       _nextCtrl?.dispose();
       _nextCtrl = null;
       _nextUrl  = null;
@@ -142,30 +151,26 @@ class _StoryViewerState extends State<StoryViewer> {
     _ctrl = ctrl;
     ctrl.addListener(_onProgress);
     await ctrl.setLooping(false);
+    if (wasPreloaded) {
+      // Restore volume (preload sets it to 0) and seek to start
+      await ctrl.setVolume(1.0);
+      await ctrl.seekTo(Duration.zero);
+    }
     await ctrl.play();
 
+    if (!mounted) return;
     setState(() => _initialized = true);
 
-    // Preload next story after a short delay so we don't compete with current
     Future.delayed(const Duration(seconds: 1), _preloadNext);
   }
 
-  VideoPlayerController _makeController(String url, {bool forPreload = false}) =>
-      VideoPlayerController.networkUrl(Uri.parse(url),
-          videoPlayerOptions: VideoPlayerOptions(
-            // Preload controllers must NOT steal audio focus from the active video
-            mixWithOthers: forPreload,
-          ));
-
   void _onProgress() {
-    if (_advancing) return;
+    if (_advancing || _paused) return;
     final c = _ctrl;
     if (c == null || !c.value.isInitialized) return;
-    final pos = c.value.position;
-    final dur = c.value.duration;
-    if (dur.inMilliseconds > 0 &&
-        pos.inMilliseconds >= dur.inMilliseconds - 300 &&
-        !c.value.isBuffering) {
+    final dur = c.value.duration.inMilliseconds;
+    final pos = c.value.position.inMilliseconds;
+    if (dur > 0 && pos >= dur - 400 && !c.value.isBuffering) {
       _advancing = true;
       _nextStory();
     }
@@ -174,7 +179,6 @@ class _StoryViewerState extends State<StoryViewer> {
   Future<void> _preloadNext() async {
     if (!mounted) return;
 
-    // Find next video URL
     String? url;
     if (_storyIndex < _currentGroup.stories.length - 1) {
       final s = _currentGroup.stories[_storyIndex + 1];
@@ -186,12 +190,11 @@ class _StoryViewerState extends State<StoryViewer> {
 
     if (url == null || url == _nextUrl) return;
 
-    // Dispose stale preload
     _nextCtrl?.dispose();
     _nextCtrl = null;
     _nextUrl  = null;
 
-    final ctrl = _makeController(url, forPreload: true);
+    final ctrl = _makeController(url);
     try {
       await ctrl.initialize();
     } catch (_) {
@@ -202,7 +205,6 @@ class _StoryViewerState extends State<StoryViewer> {
 
     _nextCtrl = ctrl;
     _nextUrl  = url;
-    // Keep volume 0 and paused — just buffered, must not steal audio focus
     await ctrl.setVolume(0);
     await ctrl.pause();
     await ctrl.seekTo(Duration.zero);
@@ -220,7 +222,7 @@ class _StoryViewerState extends State<StoryViewer> {
       backgroundColor: Colors.black,
       resizeToAvoidBottomInset: false,
       body: GestureDetector(
-        onTapDown: (d) {
+        onTapUp: (d) {
           if (_showCommentInput) {
             FocusScope.of(context).unfocus();
             setState(() => _showCommentInput = false);
@@ -228,6 +230,14 @@ class _StoryViewerState extends State<StoryViewer> {
           }
           final w = MediaQuery.of(context).size.width;
           if (d.globalPosition.dx < w * 0.35) _prevStory(); else _nextStory();
+        },
+        onLongPressStart: (_) {
+          _paused = true;
+          _ctrl?.pause();
+        },
+        onLongPressEnd: (_) {
+          _paused = false;
+          if (_initialized) _ctrl?.play();
         },
         child: Stack(fit: StackFit.expand, children: [
 
@@ -427,8 +437,17 @@ class _StoryViewerState extends State<StoryViewer> {
               child: CircularProgressIndicator(color: Colors.white38, strokeWidth: 2))),
 
         if (_videoError)
-          const Center(child: Icon(Icons.play_circle_outline_rounded,
-              color: Colors.white38, size: 56)),
+          Center(child: GestureDetector(
+            onTap: () {
+              setState(() { _videoError = false; _initialized = false; });
+              if (story.mediaUrl != null) _startVideo(story.mediaUrl!);
+            },
+            child: Column(mainAxisSize: MainAxisSize.min, children: const [
+              Icon(Icons.refresh_rounded, color: Colors.white70, size: 48),
+              SizedBox(height: 8),
+              Text('Tap to retry', style: TextStyle(color: Colors.white54, fontSize: 13)),
+            ]),
+          )),
       ]);
     }
 
