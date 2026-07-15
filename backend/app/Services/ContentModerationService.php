@@ -413,6 +413,7 @@ class ContentModerationService
         if ($h < 0) $h += 360;
 
         // Skin hue range: ~0°–25° (peach/brown/tan) with enough saturation
-        return ($h >= 0 && $h <= 25 && $s >= 0.15 && $s <= 0.90 && $v >= 0.20);
+        // s>=0.25 filters out desaturated browns (buildings, sand, soil, aerial views)
+        return ($h >= 0 && $h <= 25 && $s >= 0.25 && $s <= 0.90 && $v >= 0.20);
     }
 }
