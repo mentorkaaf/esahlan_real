@@ -293,10 +293,13 @@ class VideoProcessingService
         $height   = (int)($vStream['height'] ?? 1920);
         $duration = (float)($info['format']['duration'] ?? 0);
 
-        // Scale: limit short side to 480px → portrait 480×854, landscape 854×480
-        // Most stories are portrait (9:16). ceil to even numbers for libx264.
+        // Scale: cap short side at 720 px → portrait 720×1280, landscape 1280×720.
+        // Use even numbers (required by libx264). Downscale only — never upscale.
         $land        = $width >= $height;
-        $scaleFilter = $land ? 'scale=-2:480' : 'scale=480:-2';
+        $shortSide   = $land ? $height : $width;
+        $scaleFilter = $shortSide > 720
+            ? ($land ? 'scale=-2:720' : 'scale=720:-2')
+            : 'scale=trunc(iw/2)*2:trunc(ih/2)*2'; // keep original, ensure even dims
 
         // Trim to 60 s max
         $durationFlag = $duration > 60 ? '-t 60' : '';
@@ -304,10 +307,14 @@ class VideoProcessingService
         $outRelPath = "{$dir}/{$name}/story.mp4";
         $outFull    = storage_path('app/public/' . $outRelPath);
 
+        // H.264 baseline profile + Fast Start = instant progressive playback on mobile.
+        // CRF 26 at 720p gives excellent quality (~1.5 Mbps). AAC 96k for clear audio.
         exec(sprintf(
             '%s ffmpeg -threads 0 -i %s %s -vf %s '
-            . '-c:v libx264 -preset veryfast -crf 30 -maxrate 600k -bufsize 1200k '
-            . '-c:a aac -b:a 64k -movflags +faststart -y %s 2>/dev/null',
+            . '-c:v libx264 -profile:v baseline -level 3.1 '
+            . '-preset veryfast -crf 26 -maxrate 1500k -bufsize 3000k '
+            . '-c:a aac -b:a 96k -ar 44100 '
+            . '-movflags +faststart -y %s 2>/dev/null',
             self::NICE,
             escapeshellarg($inputPath),
             $durationFlag,
