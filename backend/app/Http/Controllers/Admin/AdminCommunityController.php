@@ -20,28 +20,70 @@ class AdminCommunityController extends Controller
 {
     public function index()
     {
+        $now   = Carbon::now();
+        $today = Carbon::today();
+        $week  = Carbon::now()->subDays(7);
+        $month = Carbon::now()->subDays(30);
+
+        // ── Core counts ──────────────────────────────────────────────────────
         $stats = [
-            'profiles'      => CommunityProfile::count(),
-            'posts'         => CommunityPost::count(),
-            'groups'        => CommunityGroup::count(),
-            'reports'       => CommunityReport::where('status', 'pending')->count(),
-            'stories_today' => CommunityStory::whereDate('created_at', today())->count(),
-            'messages_today'=> CommunityMessage::whereDate('created_at', today())->count(),
+            'members'          => CommunityProfile::count(),
+            'members_today'    => CommunityProfile::whereDate('created_at', $today)->count(),
+            'members_week'     => CommunityProfile::where('created_at', '>=', $week)->count(),
+
+            'posts'            => CommunityPost::count(),
+            'posts_today'      => CommunityPost::whereDate('created_at', $today)->count(),
+            'posts_week'       => CommunityPost::where('created_at', '>=', $week)->count(),
+
+            'stories_today'    => CommunityStory::whereDate('created_at', $today)->count(),
+            'stories_week'     => CommunityStory::where('created_at', '>=', $week)->count(),
+
+            'messages_today'   => CommunityMessage::whereDate('created_at', $today)->count(),
+            'messages_week'    => CommunityMessage::where('created_at', '>=', $week)->count(),
+
+            'reports_pending'  => CommunityReport::where('status', 'pending')->count(),
+            'reports_total'    => CommunityReport::count(),
+
+            'groups'           => CommunityGroup::count(),
+            'active_chats'     => CommunityChat::where('updated_at', '>=', Carbon::now()->subHours(24))->count(),
+
+            'total_views'      => CommunityPost::sum('views_count'),
+            'total_reactions'  => \Illuminate\Support\Facades\DB::table('community_post_reactions')->count(),
+            'total_comments'   => \Illuminate\Support\Facades\DB::table('community_comments')->count(),
         ];
 
+        // ── Post type breakdown ──────────────────────────────────────────────
+        $postTypes = CommunityPost::selectRaw('type, count(*) as cnt')
+            ->groupBy('type')->pluck('cnt', 'type');
+
+        // ── Daily posts last 7 days ──────────────────────────────────────────
+        $dailyPosts = CommunityPost::selectRaw('DATE(created_at) as date, COUNT(*) as cnt')
+            ->where('created_at', '>=', $week)
+            ->groupBy('date')
+            ->orderBy('date')
+            ->pluck('cnt', 'date');
+
+        // ── Top active users ─────────────────────────────────────────────────
+        $topUsers = CommunityProfile::with('user')
+            ->withCount(['user as posts_count' => fn($q) =>
+                $q->selectRaw('count(*)')->from('community_posts')
+                  ->whereColumn('user_id', 'community_profiles.user_id')
+            ])
+            ->orderByDesc('followers_count')
+            ->take(5)->get();
+
+        // ── Recent posts ─────────────────────────────────────────────────────
         $recentPosts = CommunityPost::with(['user', 'media'])
-            ->withCount('reactions as likes_count', 'comments', 'reports')
-            ->latest()
-            ->take(10)
-            ->get();
+            ->withCount('reactions as likes_count', 'comments')
+            ->latest()->take(8)->get();
 
-        $pendingReports = CommunityReport::with('reporter')
+        // ── Pending reports ──────────────────────────────────────────────────
+        $pendingReports = CommunityReport::with(['reporter'])
             ->where('status', 'pending')
-            ->latest()
-            ->take(8)
-            ->get();
+            ->latest()->take(6)->get();
 
-        return view('admin.community.index', compact('stats', 'recentPosts', 'pendingReports'));
+        return view('admin.community.index',
+            compact('stats', 'postTypes', 'dailyPosts', 'topUsers', 'recentPosts', 'pendingReports'));
     }
 
     // ── Posts ──────────────────────────────────────────────────────────────────
