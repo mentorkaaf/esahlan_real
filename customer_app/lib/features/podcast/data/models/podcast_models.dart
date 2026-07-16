@@ -71,12 +71,14 @@ class PodcastEpisode {
   final String? publishedAt;
   final String? description;
   final PodcastMini? podcast;
+  final int? episodeNumber;
 
   const PodcastEpisode({required this.id, required this.title, required this.slug,
       this.coverImage, required this.duration, required this.durationFmt,
       required this.playCount, required this.likeCount, this.commentCount = 0,
       this.audioUrl, required this.isLiked, required this.isSaved,
-      required this.resumePosition, this.publishedAt, this.description, this.podcast});
+      required this.resumePosition, this.publishedAt, this.description,
+      this.podcast, this.episodeNumber});
 
   factory PodcastEpisode.fromJson(Map<String, dynamic> j) => PodcastEpisode(
       id: j['id'], title: j['title'] ?? '', slug: j['slug'] ?? '',
@@ -92,6 +94,7 @@ class PodcastEpisode {
       resumePosition: j['resume_position'] ?? 0,
       publishedAt: j['published_at'],
       description: j['description'],
+      episodeNumber: j['episode_number'],
       podcast: j['podcast'] != null ? PodcastMini.fromJson(j['podcast']) : null);
 
   double get progressRatio =>

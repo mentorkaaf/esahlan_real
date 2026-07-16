@@ -40,9 +40,16 @@ class PodcastController extends Controller
             ->with(['category:id,name,icon,color','user:id,name,avatar'])
             ->firstOrFail();
 
-        $episodes = $podcast->episodes()
-            ->select('id','podcast_id','title','slug','cover_image','duration','play_count','like_count','published_at','episode_number','season')
+        $rawEpisodes = $podcast->episodes()
+            ->select('id','podcast_id','title','slug','cover_image','duration','play_count','like_count','published_at','episode_number','season','audio_url')
             ->paginate(20);
+
+        $episodes = $rawEpisodes->through(function ($ep) use ($podcast) {
+            $arr = $ep->toArray();
+            $arr['audio_url']   = $this->mediaUrl($ep->audio_url);
+            $arr['cover_image'] = $this->mediaUrl($ep->cover_image ?? $podcast->cover_image);
+            return $arr;
+        });
 
         return response()->json([
             'status'      => 'success',

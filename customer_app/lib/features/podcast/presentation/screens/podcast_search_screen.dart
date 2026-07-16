@@ -30,16 +30,25 @@ class _PodcastSearchScreenState extends State<PodcastSearchScreen> {
   String          _lastQ   = '';
   List<String>    _recent  = [];
 
-  static const _trending = [
-    'Halkaan Podcast', 'Dhiirigelin Show', 'Xogmaal Podcast',
-    'Ganacsi Podcast', 'Kobac Podcast', 'Caafimaad',
-  ];
+  List<String> _trending = [];
 
   @override
   void initState() {
     super.initState();
     _loadRecent();
+    _loadTrending();
     _ctrl.addListener(() => setState(() {}));
+  }
+
+  Future<void> _loadTrending() async {
+    try {
+      final cats = await _repo.getCategories();
+      if (mounted) {
+        setState(() => _trending = cats.take(6).map((c) => c.name).toList());
+      }
+    } catch (_) {
+      // silent — trending stays empty
+    }
   }
 
   @override
@@ -324,12 +333,27 @@ class _PodcastTile extends StatelessWidget {
   );
 }
 
-class _EpisodeTile extends StatelessWidget {
+class _EpisodeTile extends StatefulWidget {
   final PodcastEpisode episode;
   const _EpisodeTile({required this.episode});
+  @override
+  State<_EpisodeTile> createState() => _EpisodeTileState();
+}
 
-  void _play(BuildContext context) {
-    PodcastAudioService.instance.play(episode);
+class _EpisodeTileState extends State<_EpisodeTile> {
+  bool _loading = false;
+  final _repo = PodcastRepository();
+
+  Future<void> _play() async {
+    if (_loading) return;
+    PodcastEpisode ep = widget.episode;
+    if (ep.audioUrl == null || ep.audioUrl!.isEmpty) {
+      setState(() => _loading = true);
+      try { ep = await _repo.getEpisode(ep.slug); } catch (_) {}
+      if (mounted) setState(() => _loading = false);
+    }
+    await PodcastAudioService.instance.play(ep);
+    if (!mounted) return;
     Navigator.of(context).push(PageRouteBuilder(
       pageBuilder: (_, __, ___) => const EpisodePlayerScreen(),
       transitionsBuilder: (_, anim, __, child) => SlideTransition(
@@ -350,25 +374,28 @@ class _EpisodeTile extends StatelessWidget {
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: episode.coverImage != null
-            ? Image.network(episode.coverImage!, width: 52, height: 52, fit: BoxFit.cover,
+        child: widget.episode.coverImage != null
+            ? Image.network(widget.episode.coverImage!, width: 52, height: 52, fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => _CoverPlaceholder())
             : _CoverPlaceholder(),
       ),
-      title: Text(episode.title,
+      title: Text(widget.episode.title,
           style: const TextStyle(color: _kNavy, fontSize: 14, fontWeight: FontWeight.w700),
           maxLines: 2, overflow: TextOverflow.ellipsis),
-      subtitle: Text('${episode.podcast?.title ?? ''} · ${episode.durationFmt}',
+      subtitle: Text('${widget.episode.podcast?.title ?? ''} · ${widget.episode.durationFmt}',
           style: const TextStyle(color: Colors.grey, fontSize: 11)),
       trailing: GestureDetector(
-        onTap: () => _play(context),
+        onTap: _play,
         child: Container(
           width: 36, height: 36,
           decoration: const BoxDecoration(color: _kOrange, shape: BoxShape.circle),
-          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+          child: _loading
+              ? const Padding(padding: EdgeInsets.all(10),
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              : const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
         ),
       ),
-      onTap: () => _play(context),
+      onTap: _play,
     ),
   );
 }
