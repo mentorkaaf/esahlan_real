@@ -50,4 +50,29 @@ class PodcastRepository {
     final r = await _dio.post('/podcast/episodes/$id/save');
     return r.data['saved'] == true;
   }
+
+  Future<Map<String, dynamic>> search(String q, {String type = 'all', int page = 1}) async {
+    final r = await _dio.get('/podcast/search', queryParameters: {'q': q, 'type': type, 'page': page});
+    return r.data;
+  }
+
+  Future<Map<String, dynamic>> getRecommendations() async {
+    final r = await _dio.get('/podcast/recommendations');
+    return r.data['data'];
+  }
+
+  Future<Map<String, dynamic>> createShow(Map<String, dynamic> data) async {
+    final r = await _dio.post('/podcast/shows', data: data);
+    return r.data;
+  }
+
+  Future<Map<String, dynamic>> getRssPreview(String url) async {
+    final r = await _dio.post('/podcast/rss-import', data: {'url': url});
+    return r.data;
+  }
+
+  Future<List<dynamic>> getMyShows() async {
+    final r = await _dio.get('/podcast/my-shows');
+    return r.data['data'] as List;
+  }
 }

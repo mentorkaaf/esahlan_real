@@ -14,6 +14,7 @@ import 'core/services/location_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/connectivity_wrapper.dart';
 import 'firebase_options.dart';
+import 'features/podcast/presentation/services/podcast_audio_service.dart';
 
 // Cold-start deep link captured before runApp()
 String? _coldStartDeepLink;
@@ -25,6 +26,7 @@ String? _coldStartDeepLink;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+  PodcastAudioService.instance.init();
 
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);

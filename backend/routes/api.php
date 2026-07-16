@@ -20,6 +20,8 @@ use App\Http\Controllers\Api\Podcast\PodcastFeedController;
 use App\Http\Controllers\Api\Podcast\PodcastCategoryController;
 use App\Http\Controllers\Api\Podcast\PodcastController;
 use App\Http\Controllers\Api\Podcast\PodcastEpisodeController;
+use App\Http\Controllers\Api\Podcast\PodcastSearchController;
+use App\Http\Controllers\Api\Podcast\PodcastPublishController;
 
 
 use Illuminate\Support\Facades\Route;
@@ -667,6 +669,16 @@ Route::prefix('v1/elearning')->group(function () {
         Route::post('episodes/{id}/play',        [PodcastEpisodeController::class, 'recordPlay']);
         Route::post('episodes/{id}/like',        [PodcastEpisodeController::class, 'like']);
         Route::post('episodes/{id}/save',        [PodcastEpisodeController::class, 'save']);
+
+        // Phase 3 — Search + Recommendations + Publish
+        Route::get('search',                     [PodcastSearchController::class,  'search']);
+        Route::get('recommendations',            [PodcastSearchController::class,  'recommendations']);
+        Route::get('my-shows',                   [PodcastPublishController::class, 'myShows']);
+        Route::post('shows',                     [PodcastPublishController::class, 'createShow']);
+        Route::put('shows/{id}',                 [PodcastPublishController::class, 'updateShow']);
+        Route::post('shows/{id}/episodes',       [PodcastPublishController::class, 'publishEpisode']);
+        Route::delete('episodes/{id}',           [PodcastPublishController::class, 'deleteEpisode']);
+        Route::post('rss-import',                [PodcastPublishController::class, 'rssImport']);
     });
 });
 

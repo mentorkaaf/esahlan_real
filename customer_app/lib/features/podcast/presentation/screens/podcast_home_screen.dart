@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/podcast_models.dart';
 import '../providers/podcast_provider.dart';
+import '../services/podcast_audio_service.dart';
+import 'episode_player_screen.dart';
+import 'podcast_search_screen.dart';
+import 'create_podcast_screen.dart';
 
 class PodcastHomeScreen extends ConsumerWidget {
   const PodcastHomeScreen({super.key});
@@ -92,8 +96,12 @@ class _PodcastAppBar extends StatelessWidget {
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.bookmark_border_rounded, color: Colors.white70),
-          onPressed: () {},
+          icon: const Icon(Icons.search_rounded, color: Colors.white70),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PodcastSearchScreen())),
+        ),
+        IconButton(
+          icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white70),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreatePodcastScreen())),
         ),
       ],
     );
@@ -108,7 +116,7 @@ class _SearchBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: GestureDetector(
-        onTap: () {},
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PodcastSearchScreen())),
         child: Container(
           height: 44,
           decoration: BoxDecoration(
@@ -187,9 +195,23 @@ class _ContinueCard extends StatelessWidget {
   final ContinueListeningItem item;
   const _ContinueCard({required this.item});
 
+  void _play(BuildContext context) {
+    PodcastAudioService.instance.play(item.episode);
+    Navigator.of(context).push(PageRouteBuilder(
+      pageBuilder: (_, __, ___) => const EpisodePlayerScreen(),
+      transitionsBuilder: (_, anim, __, child) => SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+        child: child,
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: () => _play(context),
+      child: Container(
       width: 280,
       margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(
@@ -239,6 +261,7 @@ class _ContinueCard extends StatelessWidget {
             child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 22),
           ),
         ],
+      ),
       ),
     );
   }
@@ -467,9 +490,23 @@ class _EpisodeCard extends StatelessWidget {
   final PodcastEpisode episode;
   const _EpisodeCard({required this.episode});
 
+  void _play(BuildContext context) {
+    PodcastAudioService.instance.play(episode);
+    Navigator.of(context).push(PageRouteBuilder(
+      pageBuilder: (_, __, ___) => const EpisodePlayerScreen(),
+      transitionsBuilder: (_, anim, __, child) => SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+        child: child,
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: () => _play(context),
+      child: Container(
       width: 140,
       margin: const EdgeInsets.only(right: 12),
       child: Column(
@@ -522,6 +559,7 @@ class _EpisodeCard extends StatelessWidget {
               style: const TextStyle(color: Color(0xFF6B6B80), fontSize: 10),
             ),
         ],
+      ),
       ),
     );
   }

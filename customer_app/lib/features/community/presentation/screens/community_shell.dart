@@ -17,6 +17,8 @@ import '../services/background_upload_service.dart';
 import '../services/video_pool.dart';
 import 'dart:async';
 import '../../../../core/services/realtime_client.dart';
+import '../../../podcast/presentation/widgets/podcast_mini_player.dart';
+import '../../../podcast/presentation/services/podcast_audio_service.dart';
 
 final communityNavIndexProvider = StateProvider<int>((ref) => 0);
 
@@ -243,13 +245,22 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
     return Scaffold(
       body: Column(children: [
         const UploadProgressBanner(),
-        Expanded(child: IndexedStack(
-          index: idx,
-          children: const [
-            CommunityFeedScreen(),
-            ReelsScreen(),
-            CommunityChatListScreen(),
-            CommunityMyProfileScreen(),
+        Expanded(child: Stack(
+          children: [
+            IndexedStack(
+              index: idx,
+              children: const [
+                CommunityFeedScreen(),
+                ReelsScreen(),
+                CommunityChatListScreen(),
+                CommunityMyProfileScreen(),
+              ],
+            ),
+            // Mini player floats above nav bar
+            Positioned(
+              left: 0, right: 0, bottom: 0,
+              child: const PodcastMiniPlayer(),
+            ),
           ],
         )),
       ]),

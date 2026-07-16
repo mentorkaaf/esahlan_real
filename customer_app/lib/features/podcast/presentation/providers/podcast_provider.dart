@@ -11,3 +11,7 @@ final podcastHomeProvider = FutureProvider.autoDispose<PodcastHomeData>((ref) {
 final podcastCategoriesProvider = FutureProvider.autoDispose<List<PodcastCategory>>((ref) {
   return _repo.getCategories();
 });
+
+final podcastRecommendationsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
+  return _repo.getRecommendations();
+});
