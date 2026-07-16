@@ -75,9 +75,9 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     CommunityRepository().feedHeartbeat();
     _heartbeatTimer = Timer.periodic(AppConstants.feedHeartbeatInterval, (_) => CommunityRepository().feedHeartbeat());
     _subscribeNewPostFeed();
-    // Throttle VisibilityDetector callbacks to 250ms — the default 100ms fires
-    // too often during scroll and wastes CPU on setFraction calls.
-    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 250);
+    // Throttle VisibilityDetector callbacks to 400ms — reduces native calls
+    // during fast scroll while still catching dominant-video switches quickly.
+    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 400);
   }
 
   Future<void> _subscribeNewPostFeed() async {
@@ -2679,6 +2679,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   bool _paused = false;
   bool _visible = false;
   bool _loadFailed = false;
+  bool? _lastMutedState; // guard: only call setVolume when mute state actually changes
   double _lastFraction = 0;
   final _key = UniqueKey();
   final _pool = VideoPool.feed;
@@ -2686,6 +2687,10 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   StreamSubscription<dynamic>? _playerSub;
   StreamSubscription<dynamic>? _bufferingSub;
   StreamSubscription<dynamic>? _videoParamsSub;
+
+  // ValueNotifiers: update only the overlay subtree, not the whole _MediaItem.
+  final _isPlaying   = ValueNotifier<bool>(false);
+  final _isBuffering = ValueNotifier<bool>(false);
 
   // Controls auto-hide (Facebook-style: show on tap, hide after 3s)
   bool _showControls = false;
@@ -2722,11 +2727,15 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     _playerSub?.cancel();
     _bufferingSub?.cancel();
     _videoParamsSub?.cancel();
-    _playerSub = ctrl.player.stream.playing.listen((_) {
-      if (mounted) setState(() {});
+    // Update ValueNotifiers instead of setState — only the overlay subtree rebuilds.
+    _isPlaying.value   = ctrl.player.state.playing;
+    _isBuffering.value = ctrl.player.state.buffering;
+    _lastMutedState    = null; // force volume sync on next visibility callback
+    _playerSub = ctrl.player.stream.playing.listen((v) {
+      _isPlaying.value = v;
     });
-    _bufferingSub = ctrl.player.stream.buffering.listen((_) {
-      if (mounted) setState(() {});
+    _bufferingSub = ctrl.player.stream.buffering.listen((v) {
+      _isBuffering.value = v;
     });
     _videoParamsSub = ctrl.player.stream.videoParams.listen((vp) {
       if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) {
@@ -2822,6 +2831,8 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     _playerSub?.cancel();
     _bufferingSub?.cancel();
     _videoParamsSub?.cancel();
+    _isPlaying.dispose();
+    _isBuffering.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -2863,9 +2874,10 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (_isVideo && _previewUrl.isNotEmpty && !_paused) {
       _pool.setFraction(_previewUrl, fraction);
       if (fraction > 0.15) _pool.setActiveUrl(_previewUrl);
-      // Restore volume after pool pause/pauseOthers — pool sets vol=0 on pause
-      // but doesn't restore it when the video becomes dominant again.
-      if (_ready && _controller != null && fraction > 0.5) {
+      // Restore volume only when mute state actually changes — avoids a native
+      // setVolume platform-channel call on every 400ms visibility callback.
+      if (_ready && _controller != null && fraction > 0.5 && _lastMutedState != _globalMuted) {
+        _lastMutedState = _globalMuted;
         _controller!.player.setVolume(_globalMuted ? 0 : 100);
       }
     }
@@ -3011,11 +3023,17 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
               ),
             ),
 
-            // Re-buffering indicator (only during actual stall, not initial load)
-            if (_ready && _controller != null && _controller!.player.state.buffering)
-              Positioned(bottom: 50, right: 12,
-                child: SizedBox(width: 18, height: 18,
-                  child: CircularProgressIndicator(color: kOrange, strokeWidth: 2))),
+            // Re-buffering indicator — ValueListenableBuilder so only this tiny
+            // widget rebuilds when buffering state changes, not the whole card.
+            if (_ready && _controller != null)
+              ValueListenableBuilder<bool>(
+                valueListenable: _isBuffering,
+                builder: (_, buffering, __) => buffering
+                  ? Positioned(bottom: 50, right: 12,
+                      child: SizedBox(width: 18, height: 18,
+                        child: CircularProgressIndicator(color: kOrange, strokeWidth: 2)))
+                  : const SizedBox.shrink(),
+              ),
 
             // Global mute button — always visible (top-right corner, like Facebook)
             if (_ready && _controller != null)
