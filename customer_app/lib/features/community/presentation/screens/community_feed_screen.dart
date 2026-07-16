@@ -31,6 +31,7 @@ import 'copyright_screen.dart';
 import '../../../../core/widgets/realtime_status_banner.dart';
 import 'business_page_detail_screen.dart';
 import 'community_search_screen.dart';
+import '../../../podcast/presentation/screens/podcast_home_screen.dart';
 
 class CommunityFeedScreen extends ConsumerStatefulWidget {
   const CommunityFeedScreen({super.key});
@@ -193,7 +194,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
               unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
               tabs: const [
                 Tab(icon: Icon(Icons.home_rounded, size: 20), text: 'For You'),
-                Tab(icon: Icon(Icons.local_fire_department_rounded, size: 20), text: 'Trending'),
+                Tab(icon: Icon(Icons.podcasts_rounded, size: 20), text: 'Podcast'),
                 Tab(icon: Icon(Icons.people_rounded, size: 20), text: 'People'),
                 Tab(icon: Icon(Icons.store_rounded, size: 20), text: 'Business'),
               ],
@@ -204,7 +205,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
           controller: _tabCtrl,
           children: [
             _FeedTab(feedState: feedState, storiesState: storiesState),
-            _TrendingTab(),
+            const PodcastHomeScreen(),
             _PeopleTab(),
             const _BusinessesTab(),
           ],
@@ -3153,8 +3154,9 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerPro
   final _durationVN  = ValueNotifier<Duration>(Duration.zero);
   final _bufferingVN = ValueNotifier<bool>(false);
 
-  bool get _playing  => _ctrl?.value.isPlaying   ?? false;
-  Duration get _duration => _ctrl?.value.duration ?? Duration.zero;
+  bool get _playing   => _ctrl?.value.isPlaying  ?? false;
+  Duration get _duration  => _ctrl?.value.duration  ?? Duration.zero;
+  Duration get _position  => _positionVN.value;
 
   @override
   void initState() {

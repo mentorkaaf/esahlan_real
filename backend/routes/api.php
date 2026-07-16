@@ -16,6 +16,10 @@ use App\Http\Controllers\Api\Community\CommunityHighlightController;
 use App\Http\Controllers\Api\Community\CommunityBusinessPageController;
 use App\Http\Controllers\Api\Community\CommunityAdController;
 use App\Http\Controllers\Api\Community\CommunityBlockController;
+use App\Http\Controllers\Api\Podcast\PodcastFeedController;
+use App\Http\Controllers\Api\Podcast\PodcastCategoryController;
+use App\Http\Controllers\Api\Podcast\PodcastController;
+use App\Http\Controllers\Api\Podcast\PodcastEpisodeController;
 
 
 use Illuminate\Support\Facades\Route;
@@ -648,6 +652,21 @@ Route::prefix('v1/elearning')->group(function () {
             Route::get('submissions', [ELearningInstructorApiController::class, 'reviewSubmissions']);
             Route::put('submissions/{id}/grade', [ELearningInstructorApiController::class, 'gradeSubmission']);
         });
+    });
+
+    // ─── Podcast Platform ────────────────────────────────────────────────
+    Route::prefix('podcast')->group(function () {
+        Route::get('home',                       [PodcastFeedController::class,    'home']);
+        Route::get('categories',                 [PodcastCategoryController::class,'index']);
+        Route::get('categories/{slug}',          [PodcastCategoryController::class,'show']);
+        Route::get('shows/{slug}',               [PodcastController::class,        'show']);
+        Route::get('following',                  [PodcastController::class,        'following']);
+        Route::get('episodes/{slug}',            [PodcastEpisodeController::class, 'show']);
+        Route::get('saved',                      [PodcastEpisodeController::class, 'saved']);
+        Route::post('shows/{id}/follow',         [PodcastController::class,        'follow']);
+        Route::post('episodes/{id}/play',        [PodcastEpisodeController::class, 'recordPlay']);
+        Route::post('episodes/{id}/like',        [PodcastEpisodeController::class, 'like']);
+        Route::post('episodes/{id}/save',        [PodcastEpisodeController::class, 'save']);
     });
 });
 
