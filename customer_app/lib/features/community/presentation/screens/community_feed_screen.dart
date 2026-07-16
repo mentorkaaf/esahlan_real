@@ -3147,16 +3147,19 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerPro
   bool _initialized = false;
   late AnimationController _waveAnim;
 
-  bool get _playing => _ctrl?.value.isPlaying ?? false;
+  // ValueNotifiers: only the subscribed subtree rebuilds — no full-card setState.
+  final _playingVN   = ValueNotifier<bool>(false);
+  final _positionVN  = ValueNotifier<Duration>(Duration.zero);
+  final _durationVN  = ValueNotifier<Duration>(Duration.zero);
+  final _bufferingVN = ValueNotifier<bool>(false);
+
+  bool get _playing  => _ctrl?.value.isPlaying   ?? false;
   Duration get _duration => _ctrl?.value.duration ?? Duration.zero;
-  Duration get _position => _ctrl?.value.position ?? Duration.zero;
-  bool get _buffering => _ctrl?.value.isBuffering ?? false;
 
   @override
   void initState() {
     super.initState();
-    _waveAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))
-      ..repeat(reverse: true);
+    _waveAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
     _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url));
     _ctrl!.initialize().then((_) {
       if (mounted) setState(() => _initialized = true);
@@ -3166,14 +3169,24 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerPro
 
   void _onUpdate() {
     if (!mounted) return;
-    setState(() {});
-    if (_playing) { if (!_waveAnim.isAnimating) _waveAnim.repeat(reverse: true); }
-    else { _waveAnim.stop(); }
+    _playingVN.value   = _ctrl?.value.isPlaying   ?? false;
+    _positionVN.value  = _ctrl?.value.position    ?? Duration.zero;
+    _durationVN.value  = _ctrl?.value.duration    ?? Duration.zero;
+    _bufferingVN.value = _ctrl?.value.isBuffering ?? false;
+    if (_playingVN.value) {
+      if (!_waveAnim.isAnimating) _waveAnim.repeat(reverse: true);
+    } else {
+      _waveAnim.stop();
+    }
   }
 
   @override
   void dispose() {
     _waveAnim.dispose();
+    _playingVN.dispose();
+    _positionVN.dispose();
+    _durationVN.dispose();
+    _bufferingVN.dispose();
     _ctrl?.removeListener(_onUpdate);
     _ctrl?.pause();
     _ctrl?.dispose();
@@ -3183,7 +3196,7 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerPro
   void _toggle() {
     if (!_initialized || _ctrl == null) return;
     _playing ? _ctrl!.pause() : _ctrl!.play();
-    setState(() {});
+    // No setState — _onUpdate fires and updates ValueNotifiers
   }
 
   void _seek(double fraction) {
@@ -3204,9 +3217,6 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerPro
 
   @override
   Widget build(BuildContext context) {
-    final progress = _duration.inMilliseconds > 0
-        ? (_position.inMilliseconds / _duration.inMilliseconds).clamp(0.0, 1.0)
-        : 0.0;
     final title = widget.post?.content?.isNotEmpty == true
         ? widget.post!.content!.split('\n').first.trim()
         : 'Audio';
@@ -3272,32 +3282,41 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerPro
               const SizedBox(height: 4),
               Text(userName, style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.w500)),
               const SizedBox(height: 12),
-              // Animated waveform bars
+              // Animated waveform — AnimatedBuilder drives 60fps when playing;
+              // Listenable.merge also picks up position/playing changes from ValueNotifiers.
               AnimatedBuilder(
-                animation: _waveAnim,
-                builder: (_, __) => SizedBox(
-                  height: 22,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: List.generate(22, (i) {
-                      final barFrac = i / 22;
-                      final isActive = barFrac <= progress;
-                      final seed = (i % 7) * 2.8 + (i % 3) * 1.8;
-                      final anim = _playing ? _waveAnim.value * (i % 3 == 0 ? 7.0 : 3.5) : 0.0;
-                      final h = (5 + seed + anim).clamp(3.0, 20.0);
-                      return Expanded(child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 1),
-                        child: Container(
-                          height: h,
-                          decoration: BoxDecoration(
-                            color: isActive ? kOrange : Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(3),
+                animation: Listenable.merge([_waveAnim, _positionVN, _playingVN]),
+                builder: (_, __) {
+                  final pos  = _positionVN.value;
+                  final dur  = _durationVN.value;
+                  final prog = dur.inMilliseconds > 0
+                      ? (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0)
+                      : 0.0;
+                  final isPlaying = _playingVN.value;
+                  return SizedBox(
+                    height: 22,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: List.generate(22, (i) {
+                        final barFrac = i / 22;
+                        final isActive = barFrac <= prog;
+                        final seed = (i % 7) * 2.8 + (i % 3) * 1.8;
+                        final anim = isPlaying ? _waveAnim.value * (i % 3 == 0 ? 7.0 : 3.5) : 0.0;
+                        final h = (5 + seed + anim).clamp(3.0, 20.0);
+                        return Expanded(child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 1),
+                          child: Container(
+                            height: h,
+                            decoration: BoxDecoration(
+                              color: isActive ? kOrange : Colors.white.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
                           ),
-                        ),
-                      ));
-                    }),
-                  ),
-                ),
+                        ));
+                      }),
+                    ),
+                  );
+                },
               ),
             ])),
           ]),
@@ -3305,31 +3324,40 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerPro
 
         const SizedBox(height: 18),
 
-        // ── Seekbar ──────────────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(children: [
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 3.5,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
-                activeTrackColor: kOrange,
-                inactiveTrackColor: Colors.white.withValues(alpha: 0.15),
-                thumbColor: Colors.white,
-                overlayColor: kOrange.withValues(alpha: 0.2),
-              ),
-              child: Slider(value: progress, onChanged: _initialized ? (v) => _seek(v) : null),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Row(children: [
-                Text(_fmt(_position), style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 11, fontWeight: FontWeight.w600)),
-                const Spacer(),
-                Text(_fmt(_duration), style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 11)),
+        // ── Seekbar — only this subtree rebuilds on position changes ─────
+        ValueListenableBuilder<Duration>(
+          valueListenable: _positionVN,
+          builder: (_, pos, __) {
+            final dur  = _durationVN.value;
+            final prog = dur.inMilliseconds > 0
+                ? (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0)
+                : 0.0;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(children: [
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 3.5,
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                    activeTrackColor: kOrange,
+                    inactiveTrackColor: Colors.white.withValues(alpha: 0.15),
+                    thumbColor: Colors.white,
+                    overlayColor: kOrange.withValues(alpha: 0.2),
+                  ),
+                  child: Slider(value: prog, onChanged: _initialized ? (v) => _seek(v) : null),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(children: [
+                    Text(_fmt(pos), style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 11, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    Text(_fmt(dur), style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 11)),
+                  ]),
+                ),
               ]),
-            ),
-          ]),
+            );
+          },
         ),
 
         const SizedBox(height: 10),
@@ -3347,21 +3375,27 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerPro
                 Text('15s', style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 9, fontWeight: FontWeight.w600)),
               ]),
             ),
-            // Play/Pause
-            GestureDetector(
-              onTap: _toggle,
-              child: Container(
-                width: 64, height: 64,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    colors: [kOrange, Color(0xFFf97316)]),
-                  boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.5), blurRadius: 22, offset: const Offset(0, 6))],
+            // Play/Pause — only this button rebuilds on playing/buffering change
+            ValueListenableBuilder<bool>(
+              valueListenable: _playingVN,
+              builder: (_, isPlaying, __) => ValueListenableBuilder<bool>(
+                valueListenable: _bufferingVN,
+                builder: (_, buffering, __) => GestureDetector(
+                  onTap: _toggle,
+                  child: Container(
+                    width: 64, height: 64,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+                        colors: [kOrange, Color(0xFFf97316)]),
+                      boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.5), blurRadius: 22, offset: const Offset(0, 6))],
+                    ),
+                    child: buffering && !_initialized
+                      ? const Padding(padding: EdgeInsets.all(18),
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                      : Icon(isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 34),
+                  ),
                 ),
-                child: _buffering && !_initialized
-                  ? const Padding(padding: EdgeInsets.all(18),
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                  : Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 34),
               ),
             ),
             // +30s

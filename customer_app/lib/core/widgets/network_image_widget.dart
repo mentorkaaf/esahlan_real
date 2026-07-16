@@ -113,7 +113,7 @@ class NetImage extends StatelessWidget {
       height: height,
       memCacheWidth: cacheW,
       fadeInDuration: const Duration(milliseconds: 200),
-      placeholder: (_, __) => placeholder ?? const _Shimmer(),
+      placeholder: (_, __) => RepaintBoundary(child: placeholder ?? const _Shimmer()),
       errorWidget: (_, __, ___) => fallback,
     );
   }
