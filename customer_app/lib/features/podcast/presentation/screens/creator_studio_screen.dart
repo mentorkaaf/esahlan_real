@@ -17,10 +17,20 @@ class CreatorStudioScreen extends StatefulWidget {
 class _CreatorStudioScreenState extends State<CreatorStudioScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabs;
+  final _myShowsKey = GlobalKey<_MyShowsTabState>();
+
   @override
   void initState() { super.initState(); _tabs = TabController(length: 2, vsync: this); }
   @override
   void dispose() { _tabs.dispose(); super.dispose(); }
+
+  void _onUploadSuccess() {
+    _tabs.animateTo(1);
+    // Small delay to let the tab switch complete before refreshing
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _myShowsKey.currentState?._load();
+    });
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -40,8 +50,14 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen>
       ),
     ),
     body: TabBarView(controller: _tabs, children: [
-      _UploadTab(onShowsTab: () => _tabs.animateTo(1)),
-      _MyShowsTab(onUploadTab: () => _tabs.animateTo(0)),
+      _UploadTab(
+        onShowsTab: () => _tabs.animateTo(1),
+        onUploadSuccess: _onUploadSuccess,
+      ),
+      _MyShowsTab(
+        key: _myShowsKey,
+        onUploadTab: () => _tabs.animateTo(0),
+      ),
     ]),
   );
 }
@@ -50,7 +66,8 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen>
 
 class _UploadTab extends StatefulWidget {
   final VoidCallback onShowsTab;
-  const _UploadTab({required this.onShowsTab});
+  final VoidCallback onUploadSuccess;
+  const _UploadTab({required this.onShowsTab, required this.onUploadSuccess});
   @override
   State<_UploadTab> createState() => _UploadTabState();
 }
@@ -116,9 +133,12 @@ class _UploadTabState extends State<_UploadTab> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Episode uploaded successfully!'), backgroundColor: Colors.green));
+          content: Text('Episode uploaded successfully!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2)));
       _titleCtrl.clear(); _descCtrl.clear();
-      setState(() { _audioFile = null; _audioName = null; _coverFile = null; });
+      setState(() { _audioFile = null; _audioName = null; _coverFile = null; _selectedCategory = null; });
+      widget.onUploadSuccess();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -436,7 +456,7 @@ class _UploadTabState extends State<_UploadTab> {
 
 class _MyShowsTab extends StatefulWidget {
   final VoidCallback onUploadTab;
-  const _MyShowsTab({required this.onUploadTab});
+  const _MyShowsTab({super.key, required this.onUploadTab});
   @override
   State<_MyShowsTab> createState() => _MyShowsTabState();
 }

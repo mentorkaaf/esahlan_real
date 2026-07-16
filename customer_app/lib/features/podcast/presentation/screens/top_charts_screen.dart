@@ -38,7 +38,10 @@ class _TopChartsScreenState extends State<TopChartsScreen> with SingleTickerProv
     if (mounted) setState(() => _loading = true);
     try {
       final d = await _repo.getTopCharts(type: type);
-      final list = ((d['data'] as List? ?? []))
+      // paginator: d['data']['data'], or flat list: d['data']
+      final raw = d['data'];
+      final items = raw is Map ? (raw['data'] as List? ?? []) : (raw as List? ?? []);
+      final list = items
           .map((e) => PodcastEpisode.fromJson(Map<String, dynamic>.from(e))).toList();
       if (mounted) setState(() { _cache[type] = list; _loading = false; });
     } catch (_) {
@@ -80,13 +83,28 @@ class _TopChartsScreenState extends State<TopChartsScreen> with SingleTickerProv
   );
 }
 
-class _ChartTile extends StatelessWidget {
+class _ChartTile extends StatefulWidget {
   final int rank;
   final PodcastEpisode episode;
   const _ChartTile({required this.rank, required this.episode});
+  @override
+  State<_ChartTile> createState() => _ChartTileState();
+}
 
-  void _play(BuildContext context) {
-    PodcastAudioService.instance.play(episode);
+class _ChartTileState extends State<_ChartTile> {
+  bool _loading = false;
+  final _repo = PodcastRepository();
+
+  Future<void> _play() async {
+    if (_loading) return;
+    PodcastEpisode ep = widget.episode;
+    if (ep.audioUrl == null || ep.audioUrl!.isEmpty) {
+      setState(() => _loading = true);
+      try { ep = await _repo.getEpisode(ep.slug); } catch (_) {}
+      if (mounted) setState(() => _loading = false);
+    }
+    await PodcastAudioService.instance.play(ep);
+    if (!mounted) return;
     Navigator.of(context).push(PageRouteBuilder(
       pageBuilder: (_, __, ___) => const EpisodePlayerScreen(),
       transitionsBuilder: (_, anim, __, child) => SlideTransition(
@@ -99,38 +117,42 @@ class _ChartTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: () => _play(context),
+    onTap: _play,
     child: Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
           boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 6)]),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(children: [
-        SizedBox(width: 32, child: Text('$rank', style: TextStyle(
+        SizedBox(width: 32, child: Text('${widget.rank}', style: TextStyle(
           fontSize: 18, fontWeight: FontWeight.w900,
-          color: rank <= 3 ? kOrange : Colors.grey.shade400,
+          color: widget.rank <= 3 ? kOrange : Colors.grey.shade400,
         ))),
         ClipRRect(borderRadius: BorderRadius.circular(10),
-            child: PodcastCover(url: episode.coverImage, width: 52, height: 52)),
+            child: PodcastCover(url: widget.episode.coverImage, width: 52, height: 52)),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(episode.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+          Text(widget.episode.title, maxLines: 1, overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: kNavy, fontSize: 13, fontWeight: FontWeight.w700)),
-          if (episode.podcast != null)
-            Text(episode.podcast!.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+          if (widget.episode.podcast != null)
+            Text(widget.episode.podcast!.title, maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Colors.grey, fontSize: 11)),
           const SizedBox(height: 2),
           Row(children: [
             const Icon(Icons.headset_rounded, size: 11, color: kOrange),
             const SizedBox(width: 3),
-            Text(_fmt(episode.playCount), style: const TextStyle(color: kOrange, fontSize: 10, fontWeight: FontWeight.w600)),
+            Text(_fmt(widget.episode.playCount), style: const TextStyle(color: kOrange, fontSize: 10, fontWeight: FontWeight.w600)),
             const SizedBox(width: 10),
             const Icon(Icons.access_time_rounded, size: 11, color: Colors.grey),
             const SizedBox(width: 3),
-            Text(episode.durationFmt, style: const TextStyle(color: Colors.grey, fontSize: 10)),
+            Text(widget.episode.durationFmt, style: const TextStyle(color: Colors.grey, fontSize: 10)),
           ]),
         ])),
-        const Icon(Icons.play_circle_fill_rounded, color: kOrange, size: 34),
+        _loading
+            ? const SizedBox(width: 34, height: 34,
+                child: Padding(padding: EdgeInsets.all(8),
+                    child: CircularProgressIndicator(color: kOrange, strokeWidth: 2)))
+            : const Icon(Icons.play_circle_fill_rounded, color: kOrange, size: 34),
       ]),
     ),
   );
