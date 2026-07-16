@@ -74,8 +74,12 @@
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-primary" title="Edit"
-                                            onclick='openEditModal({{ json_encode(["id"=>$cat->id,"name"=>$cat->name,"icon"=>$cat->icon,"color"=>$cat->color,"cover_image"=>$cat->cover_image]) }})'>
+                                    <button class="btn btn-outline-primary btn-edit" title="Edit"
+                                            data-id="{{ $cat->id }}"
+                                            data-name="{{ e($cat->name) }}"
+                                            data-icon="{{ e($cat->icon) }}"
+                                            data-color="{{ e($cat->color) }}"
+                                            data-cover="{{ $cat->cover_image ? asset('storage/'.$cat->cover_image) : '' }}">
                                         <i class="fas fa-pencil"></i>
                                     </button>
                                     <button class="btn {{ $cat->is_active ? "btn-outline-warning" : "btn-outline-success" }}"
@@ -160,6 +164,27 @@ const CSRF = '{{ csrf_token() }}';
 let editingId = null;
 let isCreate  = false;
 
+const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+
+document.querySelectorAll('.btn-edit').forEach(btn => {
+    btn.addEventListener('click', function() {
+        isCreate  = false;
+        editingId = this.dataset.id;
+        document.getElementById('editModalTitle').textContent = 'Edit Category';
+        document.getElementById('editName').value        = this.dataset.name  || '';
+        document.getElementById('editIcon').value        = this.dataset.icon  || '';
+        document.getElementById('editColor').value       = this.dataset.color || '';
+        document.getElementById('editColorPicker').value = this.dataset.color || '#FF8A00';
+        document.getElementById('iconPreview').className = 'fas fa-' + (this.dataset.icon || 'podcast');
+        document.getElementById('editMethod').value      = 'PUT';
+        const cover = this.dataset.cover;
+        document.getElementById('currentCover').innerHTML = cover
+            ? `<img src="${cover}" height="40" class="rounded me-2"><small class="text-muted">current image</small>`
+            : '';
+        editModal.show();
+    });
+});
+
 function openCreateModal() {
     isCreate = true;
     editingId = null;
@@ -168,24 +193,7 @@ function openCreateModal() {
     document.getElementById('iconPreview').className = 'fas fa-podcast';
     document.getElementById('currentCover').innerHTML = '';
     document.getElementById('editMethod').value = 'POST';
-    new bootstrap.Modal(document.getElementById('editModal')).show();
-}
-
-function openEditModal(cat) {
-    isCreate  = false;
-    editingId = cat.id;
-    document.getElementById('editModalTitle').textContent = 'Edit Category';
-    document.getElementById('editName').value  = cat.name  ?? '';
-    document.getElementById('editIcon').value  = cat.icon  ?? '';
-    document.getElementById('editColor').value = cat.color ?? '';
-    document.getElementById('editColorPicker').value = cat.color ?? '#FF8A00';
-    document.getElementById('iconPreview').className = 'fas fa-' + (cat.icon || 'podcast');
-    document.getElementById('editMethod').value = 'PUT';
-    const coverDiv = document.getElementById('currentCover');
-    coverDiv.innerHTML = cat.cover_image
-        ? `<img src="/storage/${cat.cover_image}" height="40" class="rounded"> <small class="text-muted ms-1">current image</small>`
-        : '';
-    new bootstrap.Modal(document.getElementById('editModal')).show();
+    editModal.show();
 }
 
 document.getElementById('editForm').addEventListener('submit', async function(e) {
