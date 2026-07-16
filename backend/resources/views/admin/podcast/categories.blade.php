@@ -102,57 +102,66 @@
     </div>
 </div>
 
-{{-- Edit Modal --}}
-<div class="modal fade" id="editModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header" style="background:#07003B">
-                <h5 class="modal-title text-white fw-bold" id="editModalTitle">Edit Category</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="editForm" enctype="multipart/form-data">
-                @csrf
-                <input type="hidden" id="editMethod" name="_method" value="PUT">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="editName" name="name" required>
-                    </div>
-                    <div class="row g-3 mb-3">
-                        <div class="col-6">
-                            <label class="form-label fw-semibold">Icon <small class="text-muted">(Font Awesome name)</small></label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i id="iconPreview" class="fas fa-podcast"></i></span>
-                                <input type="text" class="form-control" id="editIcon" name="icon"
-                                       placeholder="e.g. microphone"
-                                       oninput="document.getElementById('iconPreview').className='fas fa-'+this.value">
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-semibold">Color</label>
-                            <div class="input-group">
-                                <input type="color" class="form-control form-control-color" id="editColorPicker"
-                                       oninput="document.getElementById('editColor').value=this.value">
-                                <input type="text" class="form-control" id="editColor" name="color"
-                                       placeholder="#FF8A00" maxlength="7"
-                                       oninput="document.getElementById('editColorPicker').value=this.value">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Cover Image <small class="text-muted">(optional — replaces icon)</small></label>
-                        <input type="file" class="form-control" id="editCoverImage" name="cover_image" accept="image/*">
-                        <div id="currentCover" class="mt-2"></div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn text-white fw-bold" style="background:#FF8A00">
-                        <i class="fas fa-save me-1"></i>Save Changes
-                    </button>
-                </div>
-            </form>
+{{-- Custom Popup Modal --}}
+<div id="catModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:14px;width:100%;max-width:480px;margin:0 16px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;">
+        <div style="background:#07003B;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;">
+            <h5 id="editModalTitle" style="color:#fff;margin:0;font-weight:800;font-size:16px;">Edit Category</h5>
+            <button onclick="closeModal()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1;">&times;</button>
         </div>
+        <form id="editForm" enctype="multipart/form-data" style="padding:22px;">
+            @csrf
+            <input type="hidden" id="editMethod" name="_method" value="PUT">
+
+            <div style="margin-bottom:16px;">
+                <label style="display:block;font-weight:700;font-size:13px;color:#07003B;margin-bottom:6px;">Name <span style="color:red">*</span></label>
+                <input type="text" id="editName" name="name" required
+                       style="width:100%;padding:10px 14px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;">
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+                <div>
+                    <label style="display:block;font-weight:700;font-size:13px;color:#07003B;margin-bottom:6px;">Icon <span style="font-weight:400;color:#888;">(FA name)</span></label>
+                    <div style="display:flex;align-items:center;border:1.5px solid #e0e0e0;border-radius:8px;overflow:hidden;">
+                        <span style="padding:0 12px;background:#f5f5f5;height:40px;display:flex;align-items:center;">
+                            <i id="iconPreview" class="fas fa-podcast" style="color:#FF8A00;"></i>
+                        </span>
+                        <input type="text" id="editIcon" name="icon" placeholder="e.g. microphone"
+                               style="flex:1;padding:10px 12px;border:none;font-size:13px;outline:none;"
+                               oninput="document.getElementById('iconPreview').className='fas fa-'+this.value">
+                    </div>
+                </div>
+                <div>
+                    <label style="display:block;font-weight:700;font-size:13px;color:#07003B;margin-bottom:6px;">Color</label>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <input type="color" id="editColorPicker" value="#FF8A00"
+                               style="width:40px;height:40px;border:none;border-radius:6px;cursor:pointer;padding:2px;"
+                               oninput="document.getElementById('editColor').value=this.value">
+                        <input type="text" id="editColor" name="color" placeholder="#FF8A00" maxlength="7"
+                               style="flex:1;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;"
+                               oninput="if(this.value.length===7)document.getElementById('editColorPicker').value=this.value">
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <label style="display:block;font-weight:700;font-size:13px;color:#07003B;margin-bottom:6px;">Cover Image <span style="font-weight:400;color:#888;">(optional)</span></label>
+                <input type="file" id="editCoverImage" name="cover_image" accept="image/*"
+                       style="width:100%;padding:8px;border:1.5px dashed #e0e0e0;border-radius:8px;font-size:13px;box-sizing:border-box;">
+                <div id="currentCover" style="margin-top:8px;"></div>
+            </div>
+
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <button type="button" onclick="closeModal()"
+                        style="padding:10px 22px;border:1.5px solid #ccc;background:#fff;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">
+                    Cancel
+                </button>
+                <button type="submit"
+                        style="padding:10px 24px;background:#FF8A00;color:#fff;border:none;border-radius:8px;font-weight:800;cursor:pointer;font-size:14px;">
+                    <i class="fas fa-save" style="margin-right:6px;"></i>Save Changes
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -164,7 +173,11 @@ const CSRF = '{{ csrf_token() }}';
 let editingId = null;
 let isCreate  = false;
 
-const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+const overlay = document.getElementById('catModalOverlay');
+
+function showModal() { overlay.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+function closeModal() { overlay.style.display = 'none'; document.body.style.overflow = ''; }
+overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
 
 document.querySelectorAll('.btn-edit').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -179,9 +192,9 @@ document.querySelectorAll('.btn-edit').forEach(btn => {
         document.getElementById('editMethod').value      = 'PUT';
         const cover = this.dataset.cover;
         document.getElementById('currentCover').innerHTML = cover
-            ? `<img src="${cover}" height="40" class="rounded me-2"><small class="text-muted">current image</small>`
+            ? `<img src="${cover}" height="40" style="border-radius:6px;margin-right:8px;"><small style="color:#888;">current image</small>`
             : '';
-        editModal.show();
+        showModal();
     });
 });
 
@@ -193,7 +206,7 @@ function openCreateModal() {
     document.getElementById('iconPreview').className = 'fas fa-podcast';
     document.getElementById('currentCover').innerHTML = '';
     document.getElementById('editMethod').value = 'POST';
-    editModal.show();
+    showModal();
 }
 
 document.getElementById('editForm').addEventListener('submit', async function(e) {
@@ -212,12 +225,8 @@ document.getElementById('editForm').addEventListener('submit', async function(e)
             body: fd,
         });
         const d = await r.json();
-        if (d.success) {
-            bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
-            location.reload();
-        } else {
-            alert(d.message || 'Error saving');
-        }
+        if (d.success) { closeModal(); location.reload(); }
+        else alert(d.message || 'Error saving');
     } catch (err) { alert('Network error'); }
 });
 
