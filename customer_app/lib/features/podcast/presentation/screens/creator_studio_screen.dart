@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../data/repositories/podcast_repository.dart';
 
-const kNavy   = Color(0xFF07003B);
-const kOrange = Color(0xFFFF8A00);
+const _kNavy   = Color(0xFF07003B);
+const _kOrange = Color(0xFFFF8A00);
+const _kBg     = Color(0xFFF0F2F5);
 
 class CreatorStudioScreen extends StatefulWidget {
   const CreatorStudioScreen({super.key});
@@ -20,63 +24,108 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF0F2F5),
+    backgroundColor: _kBg,
     appBar: AppBar(
-      backgroundColor: kNavy,
-      title: const Text('Creator Studio', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+      backgroundColor: _kNavy,
+      title: const Text('Creator Studio',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
       iconTheme: const IconThemeData(color: Colors.white),
       bottom: TabBar(
         controller: _tabs,
-        indicatorColor: kOrange,
+        indicatorColor: _kOrange,
+        indicatorWeight: 3,
         labelColor: Colors.white,
         unselectedLabelColor: Colors.white54,
         tabs: const [Tab(text: 'Upload Audio'), Tab(text: 'My Shows')],
       ),
     ),
     body: TabBarView(controller: _tabs, children: [
-      const _UploadTab(),
+      _UploadTab(onShowsTab: () => _tabs.animateTo(1)),
       _MyShowsTab(),
     ]),
   );
 }
 
-// ─── Upload Tab ──────────────────────────────────────────────────────────────
+// ─── Upload Tab ───────────────────────────────────────────────────────────────
 
 class _UploadTab extends StatefulWidget {
-  const _UploadTab();
+  final VoidCallback onShowsTab;
+  const _UploadTab({required this.onShowsTab});
   @override
   State<_UploadTab> createState() => _UploadTabState();
 }
 
 class _UploadTabState extends State<_UploadTab> {
-  final _titleCtrl  = TextEditingController();
-  final _descCtrl   = TextEditingController();
-  final _formKey    = GlobalKey<FormState>();
+  final _titleCtrl = TextEditingController();
+  final _descCtrl  = TextEditingController();
+  final _formKey   = GlobalKey<FormState>();
+  final _repo      = PodcastRepository();
+
   String? _selectedCategory;
-  String  _privacy  = 'public';
+  String  _privacy   = 'public';
   bool    _uploading = false;
+  File?   _audioFile;
+  String? _audioName;
+  File?   _coverFile;
 
   final _categories = [
     'Business', 'Education', 'Religion', 'Technology',
-    'Health', 'News', 'Science', 'Finance', 'Music',
-    'Sports', 'Stories', 'Motivation', 'Entertainment', 'Lifestyle',
+    'Health', 'Finance', 'Comedy', 'Sports', 'Politics',
+    'Motivation', 'Lifestyle', 'News', 'Entertainment',
+    'Science', 'History', 'Kids', 'Audiobooks', 'Languages',
   ];
 
   @override
-  void dispose() {
-    _titleCtrl.dispose();
-    _descCtrl.dispose();
-    super.dispose();
+  void dispose() { _titleCtrl.dispose(); _descCtrl.dispose(); super.dispose(); }
+
+  Future<void> _pickAudio() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.audio,
+      allowMultiple: false,
+    );
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        _audioFile = File(result.files.single.path!);
+        _audioName = result.files.single.name;
+      });
+    }
   }
 
-  void _publish() {
+  Future<void> _pickCover() async {
+    final picker = ImagePicker();
+    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (img != null) setState(() => _coverFile = File(img.path));
+  }
+
+  Future<void> _publish() async {
     if (!_formKey.currentState!.validate()) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Uploading from device is coming soon — use RSS import or API'),
-        backgroundColor: kOrange,
-      ),
-    );
+    if (_audioFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Please select an audio file'), backgroundColor: Colors.red));
+      return;
+    }
+    setState(() => _uploading = true);
+    try {
+      await _repo.uploadEpisode(
+        audioFile: _audioFile!,
+        coverFile: _coverFile,
+        title: _titleCtrl.text.trim(),
+        description: _descCtrl.text.trim(),
+        category: _selectedCategory ?? '',
+        privacy: _privacy,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Episode uploaded successfully!'), backgroundColor: Colors.green));
+      _titleCtrl.clear(); _descCtrl.clear();
+      setState(() { _audioFile = null; _audioName = null; _coverFile = null; });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Upload failed: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
   }
 
   @override
@@ -86,43 +135,72 @@ class _UploadTabState extends State<_UploadTab> {
       key: _formKey,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-        // Upload audio box
+        // ── Audio File Picker ──
         GestureDetector(
-          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('File picker coming soon'), backgroundColor: kNavy)),
+          onTap: _pickAudio,
           child: Container(
-            height: 120,
+            height: 110,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: kOrange.withAlpha(80), style: BorderStyle.solid, width: 1.5),
+              border: Border.all(
+                  color: _audioFile != null ? _kOrange : _kOrange.withAlpha(60),
+                  width: 1.5),
             ),
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.cloud_upload_rounded, size: 44, color: kOrange),
-              const SizedBox(height: 8),
-              const Text('Upload Audio', style: TextStyle(color: kNavy, fontWeight: FontWeight.w700, fontSize: 14)),
-              const Text('MP3, WAV, M4A (Max 200MB)', style: TextStyle(color: Colors.grey, fontSize: 11)),
-            ]),
+            child: _audioFile != null
+                ? Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Container(
+                      width: 48, height: 48,
+                      decoration: const BoxDecoration(color: _kOrange, shape: BoxShape.circle),
+                      child: const Icon(Icons.audio_file_rounded, color: Colors.white, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(_audioName ?? '', style: const TextStyle(
+                          color: _kNavy, fontWeight: FontWeight.w700, fontSize: 13),
+                          maxLines: 2, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 4),
+                      const Text('Tap to change file',
+                          style: TextStyle(color: Colors.grey, fontSize: 11)),
+                    ])),
+                    const SizedBox(width: 12),
+                  ])
+                : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.cloud_upload_rounded, size: 40, color: _kOrange),
+                    const SizedBox(height: 8),
+                    const Text('Upload Audio File',
+                        style: TextStyle(color: _kNavy, fontWeight: FontWeight.w700, fontSize: 14)),
+                    const SizedBox(height: 2),
+                    const Text('MP3, WAV, M4A (Max 200MB)',
+                        style: TextStyle(color: Colors.grey, fontSize: 11)),
+                  ]),
           ),
         ),
 
         const SizedBox(height: 16),
 
-        // Title
+        // ── Title ──
         _label('Title'),
-        _field(controller: _titleCtrl, hint: 'Enter audio title',
-            validator: (v) => v == null || v.isEmpty ? 'Title is required' : null),
+        TextFormField(
+          controller: _titleCtrl,
+          validator: (v) => v == null || v.isEmpty ? 'Title is required' : null,
+          decoration: _inputDec('Enter audio title'),
+        ),
 
         const SizedBox(height: 12),
 
-        // Description
+        // ── Description ──
         _label('Description'),
-        _field(controller: _descCtrl, hint: 'Tell us about your audio',
-            maxLines: 4, validator: null),
+        TextFormField(
+          controller: _descCtrl,
+          maxLines: 4,
+          decoration: _inputDec('Tell listeners about this episode...'),
+        ),
 
         const SizedBox(height: 12),
 
-        // Category
+        // ── Category ──
         _label('Category'),
         Container(
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10),
@@ -134,32 +212,45 @@ class _UploadTabState extends State<_UploadTab> {
               value: _selectedCategory,
               hint: const Text('Select category', style: TextStyle(color: Colors.grey)),
               onChanged: (v) => setState(() => _selectedCategory = v),
-              items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              items: _categories.map((c) =>
+                  DropdownMenuItem(value: c, child: Text(c))).toList(),
             ),
           ),
         ),
 
         const SizedBox(height: 12),
 
-        // Cover Image
+        // ── Cover Image ──
         _label('Cover Image'),
         GestureDetector(
-          onTap: () {},
+          onTap: _pickCover,
           child: Container(
-            height: 60,
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey.shade200)),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.add_photo_alternate_rounded, color: kOrange),
-              const SizedBox(width: 8),
-              const Text('Upload cover image', style: TextStyle(color: kOrange, fontWeight: FontWeight.w600)),
-            ]),
+            height: 70,
+            decoration: BoxDecoration(
+              color: Colors.white, borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: _coverFile != null
+                ? Row(children: [
+                    const SizedBox(width: 12),
+                    ClipRRect(borderRadius: BorderRadius.circular(8),
+                        child: Image.file(_coverFile!, width: 48, height: 48, fit: BoxFit.cover)),
+                    const SizedBox(width: 12),
+                    const Text('Cover selected — tap to change',
+                        style: TextStyle(color: _kNavy, fontWeight: FontWeight.w600, fontSize: 13)),
+                  ])
+                : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.add_photo_alternate_rounded, color: _kOrange),
+                    const SizedBox(width: 8),
+                    const Text('Upload cover image',
+                        style: TextStyle(color: _kOrange, fontWeight: FontWeight.w600)),
+                  ]),
           ),
         ),
 
         const SizedBox(height: 12),
 
-        // Privacy
+        // ── Privacy ──
         _label('Privacy'),
         Container(
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10),
@@ -171,30 +262,31 @@ class _UploadTabState extends State<_UploadTab> {
               value: _privacy,
               onChanged: (v) => setState(() => _privacy = v!),
               items: const [
-                DropdownMenuItem(value: 'public', child: Text('Public')),
+                DropdownMenuItem(value: 'public',  child: Text('Public')),
                 DropdownMenuItem(value: 'private', child: Text('Private')),
               ],
             ),
           ),
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
 
-        // RSS Import section
+        // ── RSS Import ──
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: kNavy.withAlpha(10),
+            color: _kNavy.withAlpha(8),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: kNavy.withAlpha(30)),
+            border: Border.all(color: _kNavy.withAlpha(25)),
           ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Row(children: [
-              Icon(Icons.rss_feed_rounded, color: kNavy, size: 18),
+              Icon(Icons.rss_feed_rounded, color: _kNavy, size: 16),
               SizedBox(width: 6),
-              Text('RSS Feed Import', style: TextStyle(color: kNavy, fontWeight: FontWeight.w700, fontSize: 13)),
+              Text('RSS Feed Import',
+                  style: TextStyle(color: _kNavy, fontWeight: FontWeight.w700, fontSize: 13)),
             ]),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             const Text('Import your existing podcast from any RSS feed URL.',
                 style: TextStyle(color: Colors.grey, fontSize: 11)),
             const SizedBox(height: 10),
@@ -202,8 +294,9 @@ class _UploadTabState extends State<_UploadTab> {
               onTap: () => _showRssDialog(context),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(color: kNavy, borderRadius: BorderRadius.circular(8)),
-                child: const Text('Import from RSS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+                decoration: BoxDecoration(color: _kNavy, borderRadius: BorderRadius.circular(8)),
+                child: const Text('Import from RSS',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
               ),
             ),
           ]),
@@ -211,23 +304,23 @@ class _UploadTabState extends State<_UploadTab> {
 
         const SizedBox(height: 24),
 
-        // Publish button
+        // ── Publish ──
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
             onPressed: _uploading ? null : _publish,
             style: ElevatedButton.styleFrom(
-              backgroundColor: kOrange, foregroundColor: Colors.white,
+              backgroundColor: _kOrange, foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: _uploading
                 ? const SizedBox(width: 20, height: 20,
                     child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Text('Publish', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                : const Text('Publish',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
           ),
         ),
-
         const SizedBox(height: 40),
       ]),
     ),
@@ -238,16 +331,19 @@ class _UploadTabState extends State<_UploadTab> {
     showDialog(
       context: ctx,
       builder: (_) => AlertDialog(
-        title: const Text('RSS Feed Import', style: TextStyle(color: kNavy, fontWeight: FontWeight.w800)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('RSS Feed Import',
+            style: TextStyle(color: _kNavy, fontWeight: FontWeight.w800)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Enter your podcast RSS feed URL:', style: TextStyle(color: Colors.grey)),
+          const Text('Enter your podcast RSS feed URL:',
+              style: TextStyle(color: Colors.grey, fontSize: 13)),
           const SizedBox(height: 12),
           TextField(
             controller: ctrl,
             decoration: const InputDecoration(
               hintText: 'https://your-podcast.com/feed.rss',
               border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.rss_feed_rounded, color: kOrange),
+              prefixIcon: Icon(Icons.rss_feed_rounded, color: _kOrange),
             ),
           ),
         ]),
@@ -259,7 +355,8 @@ class _UploadTabState extends State<_UploadTab> {
               Navigator.pop(ctx);
               _showRssPreview(ctx, ctrl.text);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _kOrange, foregroundColor: Colors.white),
             child: const Text('Preview'),
           ),
         ],
@@ -269,89 +366,70 @@ class _UploadTabState extends State<_UploadTab> {
 
   void _showRssPreview(BuildContext ctx, String url) async {
     showDialog(
-      context: ctx,
-      barrierDismissible: false,
+      context: ctx, barrierDismissible: false,
       builder: (_) => const AlertDialog(
         content: Row(children: [
-          CircularProgressIndicator(color: kOrange),
+          CircularProgressIndicator(color: _kOrange),
           SizedBox(width: 16),
           Text('Loading RSS feed...'),
         ]),
       ),
     );
-
     try {
       final repo = PodcastRepository();
       final data = await repo.getRssPreview(url);
       if (ctx.mounted) Navigator.pop(ctx);
       if (!ctx.mounted) return;
-
       showDialog(
         context: ctx,
         builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text(data['title'] ?? 'RSS Preview',
-              style: const TextStyle(color: kNavy, fontWeight: FontWeight.w800)),
-          content: SingleChildScrollView(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (data['description'] != null)
-                Text(data['description'], style: const TextStyle(color: Colors.grey, fontSize: 12)),
-              const SizedBox(height: 8),
-              Text('${(data['episodes'] as List?)?.length ?? 0} episodes found',
-                  style: const TextStyle(color: kOrange, fontWeight: FontWeight.w700)),
-            ]),
-          ),
+              style: const TextStyle(color: _kNavy, fontWeight: FontWeight.w800)),
+          content: SingleChildScrollView(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (data['description'] != null)
+              Text(data['description'],
+                  style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            const SizedBox(height: 8),
+            Text('${(data['episodes'] as List?)?.length ?? 0} episodes found',
+                style: const TextStyle(color: _kOrange, fontWeight: FontWeight.w700)),
+          ])),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx),
-              style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _kOrange, foregroundColor: Colors.white),
               child: const Text('Import'),
             ),
           ],
         ),
       );
     } catch (e) {
-      if (ctx.mounted) { Navigator.pop(ctx); }
-      if (ctx.mounted) {
-        ScaffoldMessenger.of(ctx).showSnackBar(
-          SnackBar(content: Text('Failed to load RSS: $e'), backgroundColor: Colors.red),
-        );
-      }
+      if (ctx.mounted) Navigator.pop(ctx);
+      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
     }
   }
 
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 6),
-    child: Text(text, style: const TextStyle(color: kNavy, fontWeight: FontWeight.w700, fontSize: 13)),
+    child: Text(text,
+        style: const TextStyle(color: _kNavy, fontWeight: FontWeight.w700, fontSize: 13)),
   );
 
-  Widget _field({required TextEditingController controller, required String hint,
-      int maxLines = 1, String? Function(String?)? validator}) {
-    return TextFormField(
-      controller: controller,
-      maxLines: maxLines,
-      validator: validator,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.grey),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade200),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade200),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: kOrange),
-        ),
-      ),
-    );
-  }
+  InputDecoration _inputDec(String hint) => InputDecoration(
+    hintText: hint, hintStyle: const TextStyle(color: Colors.grey),
+    filled: true, fillColor: Colors.white,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey.shade200)),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey.shade200)),
+    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: _kOrange)),
+  );
 }
 
 // ─── My Shows Tab ─────────────────────────────────────────────────────────────
@@ -365,64 +443,107 @@ class _MyShowsTabState extends State<_MyShowsTab> {
   final _repo = PodcastRepository();
   List<dynamic> _shows = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() { super.initState(); _load(); }
 
   Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
     try {
       final d = await _repo.getMyShows();
       if (mounted) setState(() { _shows = d; _loading = false; });
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: kOrange));
-    if (_shows.isEmpty) return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.podcasts_rounded, size: 60, color: Colors.grey),
+    if (_loading) return const Center(child: CircularProgressIndicator(color: _kOrange));
+    if (_error != null) return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const Icon(Icons.error_outline_rounded, color: Colors.red, size: 48),
       const SizedBox(height: 12),
-      const Text('No shows yet', style: TextStyle(color: Colors.grey, fontSize: 15)),
+      Text(_error!, style: const TextStyle(color: Colors.grey), textAlign: TextAlign.center),
       const SizedBox(height: 16),
-      ElevatedButton(
-        onPressed: () {},
-        style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-        child: const Text('Create Your First Show'),
+      ElevatedButton(onPressed: _load,
+          style: ElevatedButton.styleFrom(backgroundColor: _kOrange, foregroundColor: Colors.white),
+          child: const Text('Retry')),
+    ]));
+
+    if (_shows.isEmpty) return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(
+        width: 80, height: 80,
+        decoration: BoxDecoration(
+            color: _kNavy.withAlpha(10), shape: BoxShape.circle),
+        child: const Icon(Icons.podcasts_rounded, size: 40, color: _kNavy),
+      ),
+      const SizedBox(height: 16),
+      const Text('No shows yet',
+          style: TextStyle(color: _kNavy, fontSize: 17, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 6),
+      const Text('Upload your first episode to get started',
+          style: TextStyle(color: Colors.grey, fontSize: 13)),
+      const SizedBox(height: 20),
+      ElevatedButton.icon(
+        onPressed: () => DefaultTabController.of(context).animateTo(0),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _kOrange, foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Create Your First Show',
+            style: TextStyle(fontWeight: FontWeight.w700)),
       ),
     ]));
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _shows.length,
-      itemBuilder: (_, i) {
-        final show = _shows[i] as Map<String, dynamic>;
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 6)]),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            leading: ClipRRect(borderRadius: BorderRadius.circular(8),
-                child: Container(width: 52, height: 52,
-                    color: kNavy.withAlpha(20),
-                    child: const Icon(Icons.podcasts_rounded, color: kNavy))),
-            title: Text(show['title'] ?? '', style: const TextStyle(color: kNavy, fontWeight: FontWeight.w700)),
-            subtitle: Text('${show['total_episodes'] ?? 0} episodes · ${show['total_followers'] ?? 0} followers',
-                style: const TextStyle(color: Colors.grey, fontSize: 11)),
-            trailing: PopupMenuButton<String>(
-              onSelected: (_) {},
-              itemBuilder: (_) => [
-                const PopupMenuItem(value: 'edit', child: Text('Edit Show')),
-                const PopupMenuItem(value: 'episode', child: Text('Add Episode')),
-                const PopupMenuItem(value: 'stats', child: Text('View Stats')),
-              ],
+    return RefreshIndicator(
+      onRefresh: _load, color: _kOrange,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _shows.length,
+        itemBuilder: (_, i) {
+          final show = _shows[i] as Map<String, dynamic>;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 6)]),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              leading: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: show['cover_image'] != null
+                    ? Image.network(show['cover_image'], width: 56, height: 56, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _showCoverPlaceholder())
+                    : _showCoverPlaceholder(),
+              ),
+              title: Text(show['title'] ?? '',
+                  style: const TextStyle(color: _kNavy, fontWeight: FontWeight.w700)),
+              subtitle: Text(
+                  '${show['total_episodes'] ?? 0} episodes · ${show['total_followers'] ?? 0} followers',
+                  style: const TextStyle(color: Colors.grey, fontSize: 11)),
+              trailing: PopupMenuButton<String>(
+                onSelected: (_) {},
+                icon: const Icon(Icons.more_vert_rounded, color: _kNavy),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Edit Show')),
+                  PopupMenuItem(value: 'episode', child: Text('Add Episode')),
+                  PopupMenuItem(value: 'stats', child: Text('View Stats')),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
+
+  Widget _showCoverPlaceholder() => Container(
+    width: 56, height: 56,
+    decoration: BoxDecoration(
+        color: _kNavy.withAlpha(15), borderRadius: BorderRadius.circular(10)),
+    child: const Icon(Icons.podcasts_rounded, color: _kNavy, size: 28),
+  );
 }

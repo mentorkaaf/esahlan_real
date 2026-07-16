@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart' as dio_pkg;
 import '../../../../core/api/api_client.dart';
 import '../models/podcast_models.dart';
 
@@ -140,6 +141,29 @@ class PodcastRepository {
 
   Future<Map<String, dynamic>> getRssPreview(String url) async {
     final r = await _dio.post('/podcast/rss-import', data: {'url': url});
+    return r.data;
+  }
+
+  Future<Map<String, dynamic>> uploadEpisode({
+    required dynamic audioFile,
+    dynamic coverFile,
+    required String title,
+    required String description,
+    required String category,
+    required String privacy,
+  }) async {
+    final formData = dio_pkg.FormData.fromMap({
+      'title': title,
+      'description': description,
+      'category': category,
+      'privacy': privacy,
+      'audio': await dio_pkg.MultipartFile.fromFile(
+          audioFile.path, filename: audioFile.path.split('/').last),
+      if (coverFile != null)
+        'cover_image': await dio_pkg.MultipartFile.fromFile(
+            coverFile.path, filename: coverFile.path.split('/').last),
+    });
+    final r = await _dio.post('/podcast/episodes', data: formData);
     return r.data;
   }
 }

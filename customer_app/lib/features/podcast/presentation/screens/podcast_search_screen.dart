@@ -1,32 +1,73 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/podcast_models.dart';
 import '../../data/repositories/podcast_repository.dart';
 import '../services/podcast_audio_service.dart';
 import 'episode_player_screen.dart';
 
+const _kBg     = Color(0xFFF5F6FA);
+const _kNavy   = Color(0xFF07003B);
+const _kOrange = Color(0xFFFF8A00);
+const _kPurple = Color(0xFF7C3AED);
+const _prefKey = 'podcast_recent_searches';
+
 class PodcastSearchScreen extends StatefulWidget {
   const PodcastSearchScreen({super.key});
-
   @override
   State<PodcastSearchScreen> createState() => _PodcastSearchScreenState();
 }
 
 class _PodcastSearchScreenState extends State<PodcastSearchScreen> {
-  final _ctrl   = TextEditingController();
-  final _repo   = PodcastRepository();
-  Timer?        _debounce;
-  bool          _loading  = false;
-  String        _tab      = 'all';
-  List<Podcast> _podcasts = [];
+  final _ctrl     = TextEditingController();
+  final _repo     = PodcastRepository();
+  final _focus    = FocusNode();
+  Timer?          _debounce;
+  bool            _loading  = false;
+  String          _tab      = 'all';
+  List<Podcast>   _podcasts = [];
   List<PodcastEpisode> _episodes = [];
-  String        _lastQ   = '';
+  String          _lastQ   = '';
+  List<String>    _recent  = [];
+
+  static const _trending = [
+    'Halkaan Podcast', 'Dhiirigelin Show', 'Xogmaal Podcast',
+    'Ganacsi Podcast', 'Kobac Podcast', 'Caafimaad',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecent();
+    _ctrl.addListener(() => setState(() {}));
+  }
 
   @override
   void dispose() {
     _ctrl.dispose();
+    _focus.dispose();
     _debounce?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadRecent() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() => _recent = prefs.getStringList(_prefKey) ?? []);
+  }
+
+  Future<void> _saveRecent(String q) async {
+    final prefs = await SharedPreferences.getInstance();
+    _recent.remove(q);
+    _recent.insert(0, q);
+    if (_recent.length > 8) _recent = _recent.sublist(0, 8);
+    await prefs.setStringList(_prefKey, _recent);
+    setState(() {});
+  }
+
+  Future<void> _clearRecent() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefKey);
+    setState(() => _recent = []);
   }
 
   void _onChanged(String v) {
@@ -39,146 +80,248 @@ class _PodcastSearchScreenState extends State<PodcastSearchScreen> {
   }
 
   Future<void> _search(String q) async {
+    if (q.isEmpty) return;
     if (q == _lastQ) return;
     _lastQ = q;
     setState(() => _loading = true);
+    await _saveRecent(q);
     try {
       final r = await _repo.search(q, type: _tab);
       if (!mounted) return;
       setState(() {
-        _podcasts = (r['podcasts']?['data'] as List? ?? []).map((e) => Podcast.fromJson(e)).toList();
-        _episodes = (r['episodes']?['data'] as List? ?? []).map((e) => PodcastEpisode.fromJson(e)).toList();
+        _podcasts = (r['podcasts']?['data'] as List? ?? [])
+            .map((e) => Podcast.fromJson(e)).toList();
+        _episodes = (r['episodes']?['data'] as List? ?? [])
+            .map((e) => PodcastEpisode.fromJson(e)).toList();
       });
     } catch (_) {} finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0A0F),
-        titleSpacing: 0,
-        leading: const BackButton(color: Colors.white70),
-        title: TextField(
-          controller: _ctrl,
-          autofocus: true,
-          onChanged: _onChanged,
-          style: const TextStyle(color: Colors.white, fontSize: 15),
-          decoration: InputDecoration(
-            hintText: 'Podcast, episode, subject...',
-            hintStyle: const TextStyle(color: Color(0xFF6B6B80)),
-            border: InputBorder.none,
-            suffixIcon: _ctrl.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 18),
-                    onPressed: () { _ctrl.clear(); setState(() { _podcasts = []; _episodes = []; _lastQ = ''; }); })
-                : null,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(40),
-          child: Row(
-            children: [
-              const SizedBox(width: 16),
-              for (final t in [('all','Waxkasta'), ('podcast','Podcast'), ('episode','Episode')])
-                GestureDetector(
-                  onTap: () { setState(() { _tab = t.$1; _lastQ = ''; }); _search(_ctrl.text.trim()); },
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _tab == t.$1 ? const Color(0xFF7C3AED) : const Color(0xFF1C1C28),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(t.$2, style: TextStyle(
-                      color: _tab == t.$1 ? Colors.white : Colors.white60,
-                      fontSize: 12, fontWeight: FontWeight.w600,
-                    )),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF7C3AED), strokeWidth: 2))
-          : _buildResults(),
-    );
+  void _submitSearch(String q) {
+    q = q.trim();
+    if (q.length < 2) return;
+    _search(q);
+    _focus.unfocus();
   }
 
-  Widget _buildResults() {
-    if (_ctrl.text.trim().length < 2) {
-      return const Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.search_rounded, color: Color(0xFF3A3A4A), size: 56),
-          SizedBox(height: 12),
-          Text('Wax raadi...', style: TextStyle(color: Color(0xFF6B6B80), fontSize: 15)),
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: _kBg,
+    appBar: AppBar(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _kNavy, size: 20),
+        onPressed: () => Navigator.pop(context),
+      ),
+      titleSpacing: 0,
+      title: Container(
+        height: 42,
+        margin: const EdgeInsets.only(right: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0F2F5),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: _kOrange.withAlpha(80), width: 1.5),
+        ),
+        child: Row(children: [
+          const SizedBox(width: 12),
+          const Icon(Icons.search_rounded, color: _kOrange, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: _ctrl,
+              focusNode: _focus,
+              autofocus: true,
+              onChanged: _onChanged,
+              onSubmitted: _submitSearch,
+              textInputAction: TextInputAction.search,
+              style: const TextStyle(color: _kNavy, fontSize: 14),
+              decoration: const InputDecoration(
+                hintText: 'Search podcasts, episodes, creators...',
+                hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
+                border: InputBorder.none,
+                isDense: true,
+              ),
+            ),
+          ),
+          if (_ctrl.text.isNotEmpty)
+            GestureDetector(
+              onTap: () {
+                _ctrl.clear();
+                setState(() { _podcasts = []; _episodes = []; _lastQ = ''; });
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10),
+                child: Icon(Icons.close_rounded, color: Colors.grey, size: 18),
+              ),
+            ),
         ]),
-      );
-    }
-    if (_podcasts.isEmpty && _episodes.isEmpty) {
-      return Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.podcasts_rounded, color: Color(0xFF3A3A4A), size: 56),
-          const SizedBox(height: 12),
-          Text('"${_ctrl.text}" lama helin', style: const TextStyle(color: Color(0xFF6B6B80), fontSize: 15)),
+      ),
+    ),
+    body: Column(children: [
+      // Filter chips
+      Container(
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: Row(children: [
+          for (final t in [('all', 'Waxkasta'), ('podcast', 'Podcast'), ('episode', 'Episode')])
+            GestureDetector(
+              onTap: () {
+                setState(() { _tab = t.$1; _lastQ = ''; });
+                if (_ctrl.text.trim().length >= 2) _search(_ctrl.text.trim());
+              },
+              child: Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                decoration: BoxDecoration(
+                  color: _tab == t.$1 ? _kPurple : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _tab == t.$1 ? _kPurple : Colors.grey.shade300,
+                  ),
+                ),
+                child: Text(t.$2, style: TextStyle(
+                  color: _tab == t.$1 ? Colors.white : Colors.grey.shade600,
+                  fontSize: 13, fontWeight: FontWeight.w600,
+                )),
+              ),
+            ),
         ]),
-      );
-    }
+      ),
+      const Divider(height: 1, color: Color(0xFFEEEEEE)),
+      Expanded(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator(color: _kOrange, strokeWidth: 2))
+            : _ctrl.text.trim().length < 2
+                ? _buildEmptyState()
+                : _buildResults(),
+      ),
+    ]),
+  );
 
+  Widget _buildEmptyState() => ListView(
+    padding: const EdgeInsets.all(20),
+    children: [
+      // Recent Searches
+      if (_recent.isNotEmpty) ...[
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          const Text('Recent Searches',
+              style: TextStyle(color: _kNavy, fontSize: 15, fontWeight: FontWeight.w800)),
+          GestureDetector(
+            onTap: _clearRecent,
+            child: const Text('Clear all',
+                style: TextStyle(color: _kOrange, fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+        ]),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8, runSpacing: 8,
+          children: _recent.map((q) => GestureDetector(
+            onTap: () { _ctrl.text = q; _onChanged(q); },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [BoxShadow(color: Colors.black.withAlpha(6), blurRadius: 4)],
+              ),
+              child: Text(q, style: const TextStyle(color: _kNavy, fontSize: 13, fontWeight: FontWeight.w600)),
+            ),
+          )).toList(),
+        ),
+        const SizedBox(height: 28),
+      ],
+
+      // Trending Searches
+      const Text('Trending Searches',
+          style: TextStyle(color: _kNavy, fontSize: 15, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 12),
+      ..._trending.map((q) => GestureDetector(
+        onTap: () { _ctrl.text = q; _onChanged(q); },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 4),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
+          ),
+          child: Row(children: [
+            const Icon(Icons.search_rounded, color: Colors.grey, size: 18),
+            const SizedBox(width: 12),
+            Expanded(child: Text(q,
+                style: const TextStyle(color: _kNavy, fontSize: 14, fontWeight: FontWeight.w500))),
+            const Icon(Icons.north_west_rounded, color: Colors.grey, size: 14),
+          ]),
+        ),
+      )),
+    ],
+  );
+
+  Widget _buildResults() {
+    if (_podcasts.isEmpty && _episodes.isEmpty) {
+      return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.podcasts_rounded, color: Colors.grey, size: 56),
+        const SizedBox(height: 12),
+        Text('"${_ctrl.text}" lama helin',
+            style: const TextStyle(color: Colors.grey, fontSize: 15)),
+      ]));
+    }
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
         if (_podcasts.isNotEmpty) ...[
-          const _SectionLabel('Podcast-yada'),
+          _sectionLabel('Podcasts'),
           ..._podcasts.map((p) => _PodcastTile(podcast: p)),
         ],
         if (_episodes.isNotEmpty) ...[
-          const _SectionLabel('Episodes'),
+          _sectionLabel('Episodes'),
           ..._episodes.map((e) => _EpisodeTile(episode: e)),
         ],
       ],
     );
   }
-}
 
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
-    child: Text(text, style: const TextStyle(color: Color(0xFF6B6B80), fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+  Widget _sectionLabel(String text) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+    child: Text(text, style: const TextStyle(
+        color: _kNavy, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
   );
 }
+
+// ─── Tiles ───────────────────────────────────────────────────────────────────
 
 class _PodcastTile extends StatelessWidget {
   final Podcast podcast;
   const _PodcastTile({required this.podcast});
-
   @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    decoration: BoxDecoration(
+        color: Colors.white, borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withAlpha(6), blurRadius: 4)]),
+    child: ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: podcast.coverImage != null
-            ? Image.network(podcast.coverImage!, width: 52, height: 52, fit: BoxFit.cover, errorBuilder: (_,__,___) => _Cover())
-            : _Cover(),
+            ? Image.network(podcast.coverImage!, width: 52, height: 52, fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _CoverPlaceholder())
+            : _CoverPlaceholder(),
       ),
       title: Row(children: [
-        Expanded(child: Text(podcast.title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
-        if (podcast.isVerified) const Icon(Icons.verified_rounded, color: Color(0xFF7C3AED), size: 14),
+        Expanded(child: Text(podcast.title,
+            style: const TextStyle(color: _kNavy, fontSize: 14, fontWeight: FontWeight.w700),
+            maxLines: 1, overflow: TextOverflow.ellipsis)),
+        if (podcast.isVerified)
+          const Icon(Icons.verified_rounded, color: _kPurple, size: 14),
       ]),
       subtitle: Text('${podcast.totalEpisodes} episodes · ⭐ ${podcast.rating}',
-          style: const TextStyle(color: Color(0xFF6B6B80), fontSize: 11)),
-      trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
-      onTap: () {},
-    );
-  }
+          style: const TextStyle(color: Colors.grey, fontSize: 11)),
+      trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+    ),
+  );
 }
 
 class _EpisodeTile extends StatelessWidget {
@@ -198,38 +341,43 @@ class _EpisodeTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    decoration: BoxDecoration(
+        color: Colors.white, borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withAlpha(6), blurRadius: 4)]),
+    child: ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: episode.coverImage != null
-            ? Image.network(episode.coverImage!, width: 52, height: 52, fit: BoxFit.cover, errorBuilder: (_,__,___) => _Cover())
-            : _Cover(),
+            ? Image.network(episode.coverImage!, width: 52, height: 52, fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _CoverPlaceholder())
+            : _CoverPlaceholder(),
       ),
-      title: Text(episode.title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600), maxLines: 2, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        '${episode.podcast?.title ?? ''} · ${episode.durationFmt}',
-        style: const TextStyle(color: Color(0xFF6B6B80), fontSize: 11),
-      ),
+      title: Text(episode.title,
+          style: const TextStyle(color: _kNavy, fontSize: 14, fontWeight: FontWeight.w700),
+          maxLines: 2, overflow: TextOverflow.ellipsis),
+      subtitle: Text('${episode.podcast?.title ?? ''} · ${episode.durationFmt}',
+          style: const TextStyle(color: Colors.grey, fontSize: 11)),
       trailing: GestureDetector(
         onTap: () => _play(context),
         child: Container(
           width: 36, height: 36,
-          decoration: const BoxDecoration(color: Color(0xFF7C3AED), shape: BoxShape.circle),
+          decoration: const BoxDecoration(color: _kOrange, shape: BoxShape.circle),
           child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
         ),
       ),
       onTap: () => _play(context),
-    );
-  }
+    ),
+  );
 }
 
-class _Cover extends StatelessWidget {
+class _CoverPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     width: 52, height: 52,
-    color: const Color(0xFF1C1C28),
-    child: const Icon(Icons.podcasts_rounded, color: Color(0xFF3A3A4A), size: 24),
+    decoration: BoxDecoration(color: _kNavy.withAlpha(15), borderRadius: BorderRadius.circular(8)),
+    child: const Icon(Icons.podcasts_rounded, color: _kNavy, size: 24),
   );
 }
