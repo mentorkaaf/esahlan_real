@@ -156,9 +156,11 @@ class PodcastPublishController extends Controller
             'privacy'     => 'in:public,private',
         ]);
 
-        // Reuse latest show or auto-create one
-        $podcast = Podcast::where('user_id', auth()->id())->latest()->first();
-        if (!$podcast) {
+        // Reuse latest show or auto-create one (withTrashed handles soft-deleted shows)
+        $podcast = Podcast::withTrashed()->where('user_id', auth()->id())->latest()->first();
+        if ($podcast?->trashed()) {
+            $podcast->restore();
+        } elseif (!$podcast) {
             $cat = PodcastCategory::where('is_active', true)->first();
             $podcast = Podcast::create([
                 'user_id'     => auth()->id(),
