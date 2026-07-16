@@ -2695,7 +2695,6 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   bool _paused = false;
   bool _visible = false;
   bool _loadFailed = false;
-  bool? _lastMutedState; // guard: only call setVolume when mute state actually changes
   double _lastFraction = 0;
   final _key = UniqueKey();
   final _pool = VideoPool.feed;
@@ -2746,7 +2745,6 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     // Update ValueNotifiers instead of setState — only the overlay subtree rebuilds.
     _isPlaying.value   = ctrl.player.state.playing;
     _isBuffering.value = ctrl.player.state.buffering;
-    _lastMutedState    = null; // force volume sync on next visibility callback
     _playerSub = ctrl.player.stream.playing.listen((v) {
       _isPlaying.value = v;
     });
@@ -2890,10 +2888,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (_isVideo && _previewUrl.isNotEmpty && !_paused) {
       _pool.setFraction(_previewUrl, fraction);
       if (fraction > 0.15) _pool.setActiveUrl(_previewUrl);
-      // Restore volume only when mute state actually changes — avoids a native
-      // setVolume platform-channel call on every 400ms visibility callback.
-      if (_ready && _controller != null && fraction > 0.5 && _lastMutedState != _globalMuted) {
-        _lastMutedState = _globalMuted;
+      if (_ready && _controller != null && fraction > 0.5) {
         _controller!.player.setVolume(_globalMuted ? 0 : 100);
       }
     }
@@ -3022,7 +3017,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                     Positioned.fill(
                       child: AnimatedOpacity(
                         opacity: _hasFrame ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 200),
+                        duration: const Duration(milliseconds: 80),
                         child: Video(
                           controller: _controller!,
                           fit: BoxFit.contain,

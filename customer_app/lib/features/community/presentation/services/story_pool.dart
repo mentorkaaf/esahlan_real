@@ -168,13 +168,21 @@ class StoryPool {
     }
     if (_center - 1 >= lo) priority.add(_center - 1);
 
+    var delay = 0;
     for (final idx in priority) {
       final url = _urls[idx];
       if (!_slots.containsKey(url)) {
         _makeRoom(protect: url);
         final s = _Slot(url);
         _slots[url] = s;
-        unawaited(s.init());
+        if (delay == 0) {
+          unawaited(s.init());
+        } else {
+          Future.delayed(Duration(milliseconds: delay * 200), () {
+            if (!s._dead) unawaited(s.init());
+          });
+        }
+        delay++;
         debugPrint('[StoryPool] warming ${url.split('/').last}');
       }
     }

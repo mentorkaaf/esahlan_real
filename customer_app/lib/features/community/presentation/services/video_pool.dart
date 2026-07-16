@@ -182,10 +182,19 @@ class VideoPool {
     if (_urls.isEmpty) return;
     final from = (pivot - 1          ).clamp(0, _urls.length - 1);
     final to   = (pivot + _preloadAhead).clamp(0, _urls.length - 1);
+    var delay = 0;
     for (var i = from; i <= to; i++) {
       final url = _urls[i];
       if (url.isEmpty || isReady(url) || isLoading(url)) continue;
-      _preload(url);
+      if (delay == 0) {
+        _preload(url);
+      } else {
+        final u = url;
+        Future.delayed(Duration(milliseconds: delay * 180), () {
+          if (!isReady(u) && !isLoading(u)) _preload(u);
+        });
+      }
+      delay++;
     }
   }
 
