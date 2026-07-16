@@ -656,7 +656,10 @@ Route::prefix('v1/elearning')->group(function () {
         });
     });
 
-    // ─── Podcast Platform ────────────────────────────────────────────────
+});
+
+// ─── Podcast Platform ─────────────────────────────────────────────────────────
+Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::prefix('podcast')->group(function () {
         Route::get('home',                       [PodcastFeedController::class,    'home']);
         Route::get('categories',                 [PodcastCategoryController::class,'index']);
@@ -669,8 +672,6 @@ Route::prefix('v1/elearning')->group(function () {
         Route::post('episodes/{id}/play',        [PodcastEpisodeController::class, 'recordPlay']);
         Route::post('episodes/{id}/like',        [PodcastEpisodeController::class, 'like']);
         Route::post('episodes/{id}/save',        [PodcastEpisodeController::class, 'save']);
-
-        // Phase 3 — Search + Recommendations + Publish
         Route::get('search',                     [PodcastSearchController::class,  'search']);
         Route::get('recommendations',            [PodcastSearchController::class,  'recommendations']);
         Route::get('my-shows',                   [PodcastPublishController::class, 'myShows']);
