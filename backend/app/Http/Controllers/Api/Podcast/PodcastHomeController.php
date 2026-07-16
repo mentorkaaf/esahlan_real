@@ -73,7 +73,7 @@ class PodcastHomeController extends Controller
         $rooms = DB::table('podcast_live_rooms as r')
             ->join('users as u', 'u.id', 'r.host_id')
             ->where('r.status', 'live')
-            ->select('r.*', 'u.name as host_name', 'u.profile_photo_path as host_avatar')
+            ->select('r.*', 'u.name as host_name', 'u.avatar as host_avatar')
             ->orderByDesc('r.listener_count')
             ->limit(10)
             ->get();
@@ -229,7 +229,7 @@ class PodcastHomeController extends Controller
     {
         return Podcast::published()
             ->where('is_verified', true)
-            ->with('user:id,name,profile_photo_path')
+            ->with('user:id,name,avatar')
             ->select('id','title','slug','cover_image','user_id','total_followers','is_verified')
             ->orderByDesc('total_followers')
             ->limit(10)
@@ -239,7 +239,7 @@ class PodcastHomeController extends Controller
                 'title'         => $p->title,
                 'slug'          => $p->slug,
                 'cover_image'   => $this->media($p->cover_image),
-                'user'          => $p->user ? ['name' => $p->user->name, 'avatar' => $this->media($p->user->profile_photo_path)] : null,
+                'user'          => $p->user ? ['name' => $p->user->name, 'avatar' => $this->media($p->user->avatar)] : null,
                 'followers'     => $p->total_followers,
                 'is_verified'   => true,
             ])
