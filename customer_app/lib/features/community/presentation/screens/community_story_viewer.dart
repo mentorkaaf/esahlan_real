@@ -95,13 +95,13 @@ class _StoryViewerState extends State<StoryViewer> {
 
       final pair = _pool.ready(url);
       if (pair != null) {
-        _attachAndPlay(pair.$1, pair.$2, url, isOrphan: false);
+        unawaited(_attachAndPlay(pair.$1, pair.$2, url, isOrphan: false));
       } else if (poolIdx >= 0) {
         setState(() {});
         _pool.awaitReady(url).then((pair) {
           if (!mounted || _activeUrl != url) return;
           if (pair != null) {
-            _attachAndPlay(pair.$1, pair.$2, url, isOrphan: false);
+            unawaited(_attachAndPlay(pair.$1, pair.$2, url, isOrphan: false));
           } else {
             if (mounted) setState(() {});
           }
@@ -122,20 +122,22 @@ class _StoryViewerState extends State<StoryViewer> {
     final controller = VideoController(player);
     player.open(Media(url), play: false).then((_) {
       if (!mounted || _activeUrl != url) { player.dispose(); return; }
-      _attachAndPlay(player, controller, url, isOrphan: true);
+      unawaited(_attachAndPlay(player, controller, url, isOrphan: true));
     }).catchError((_) {
       player.dispose();
       if (mounted && _activeUrl == url) setState(() {});
     });
   }
 
-  void _attachAndPlay(Player player, VideoController controller, String url, {required bool isOrphan}) {
+  Future<void> _attachAndPlay(Player player, VideoController controller, String url, {required bool isOrphan}) async {
     _detach();
     _player          = player;
     _videoController = controller;
     _ctrlIsOrphan    = isOrphan;
 
-    player.setVolume(100);
+    // Await setVolume so audio is guaranteed at 100 before play() sends audio frames.
+    await player.setVolume(100);
+    if (!mounted || _activeUrl != url) return;
     player.seek(Duration.zero);
     player.play();
 

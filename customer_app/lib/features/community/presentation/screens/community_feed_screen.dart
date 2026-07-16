@@ -2690,8 +2690,8 @@ bool _globalMuted = false;
 class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObserver {
   VideoController? _controller;
   bool _ready = false;
-  bool _hasFrame = false;
   bool _initStarted = false;
+  final _hasFrame = ValueNotifier<bool>(false);
   bool _paused = false;
   bool _visible = false;
   bool _loadFailed = false;
@@ -2752,19 +2752,13 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       _isBuffering.value = v;
     });
     _videoParamsSub = ctrl.player.stream.videoParams.listen((vp) {
-      if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) {
-        setState(() => _hasFrame = true);
-      }
+      if (!_hasFrame.value && (vp.w ?? 0) > 0) _hasFrame.value = true;
     });
-    // Re-check immediately: videoParams may have fired before we subscribed
-    // (broadcast stream — missed events are not replayed).
-    if (!_hasFrame && (ctrl.player.state.width ?? 0) > 0 && mounted) {
-      setState(() => _hasFrame = true);
-    }
-    // Fallback: if videoParams never fires (codec quirk / platform edge case),
-    // reveal the video after 600 ms so we don't stay stuck on thumbnail forever.
+    // Re-check immediately in case videoParams already fired before subscribe.
+    if (!_hasFrame.value && (ctrl.player.state.width ?? 0) > 0) _hasFrame.value = true;
+    // Fallback: reveal after 600ms if videoParams never fires (codec quirk).
     Future.delayed(const Duration(milliseconds: 600), () {
-      if (mounted && _ready && !_hasFrame) setState(() => _hasFrame = true);
+      if (mounted && _ready && !_hasFrame.value) _hasFrame.value = true;
     });
   }
 
@@ -2818,7 +2812,8 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     final cached = _pool.controller(url);
     if (cached != null && mounted) {
       cached.player.setVolume(_globalMuted ? 0 : 100);
-      setState(() { _controller = cached; _ready = true; _loadFailed = false; _hasFrame = (cached.player.state.width ?? 0) > 0; });
+      _hasFrame.value = (cached.player.state.width ?? 0) > 0;
+      setState(() { _controller = cached; _ready = true; _loadFailed = false; });
       _attachPlayerListeners(cached);
       if (!_paused) _pool.setFraction(url, _lastFraction);
       return;
@@ -2828,7 +2823,8 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     final ctrl = await _pool.preload(url);
     if (ctrl != null && mounted && _pool.isReady(url)) {
       ctrl.player.setVolume(_globalMuted ? 0 : 100);
-      setState(() { _controller = ctrl; _ready = true; _loadFailed = false; _hasFrame = (ctrl.player.state.width ?? 0) > 0; });
+      _hasFrame.value = (ctrl.player.state.width ?? 0) > 0;
+      setState(() { _controller = ctrl; _ready = true; _loadFailed = false; });
       _attachPlayerListeners(ctrl);
       if (!_paused) _pool.setFraction(url, _lastFraction);
     } else if (ctrl != null && mounted) {
@@ -2847,6 +2843,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     _videoParamsSub?.cancel();
     _isPlaying.dispose();
     _isBuffering.dispose();
+    _hasFrame.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -2869,7 +2866,8 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       _bufferingSub?.cancel();
       _initStarted = false;
       _loadFailed = false;
-      setState(() { _controller = null; _ready = false; _hasFrame = false; });
+      _hasFrame.value = false;
+      setState(() { _controller = null; _ready = false; });
     }
 
     // ── Preload trigger (>5%) ──────────────────────────────────────────────
@@ -2889,7 +2887,10 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       _pool.setFraction(_previewUrl, fraction);
       if (fraction > 0.15) _pool.setActiveUrl(_previewUrl);
       if (_ready && _controller != null && fraction > 0.5) {
-        _controller!.player.setVolume(_globalMuted ? 0 : 100);
+        final want = _globalMuted ? 0.0 : 100.0;
+        if ((_controller!.player.state.volume - want).abs() > 1.0) {
+          _controller!.player.setVolume(want);
+        }
       }
     }
 
@@ -3012,12 +3013,17 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                           )
                         : Container(color: const Color(0xFF1A1A2E)),
                   ),
-                  // Video fades in when the first frame is decoded (thumbnail stays visible until then)
+                  // Video fades in when the first frame is decoded (thumbnail stays visible until then).
+                  // ValueListenableBuilder ensures only this Opacity widget rebuilds — not the whole card.
                   if (_ready && _controller != null)
                     Positioned.fill(
-                      child: AnimatedOpacity(
-                        opacity: _hasFrame ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 80),
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: _hasFrame,
+                        builder: (_, hasFrame, child) => AnimatedOpacity(
+                          opacity: hasFrame ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 80),
+                          child: child,
+                        ),
                         child: Video(
                           controller: _controller!,
                           fit: BoxFit.contain,

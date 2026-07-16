@@ -175,10 +175,12 @@ class StoryPool {
         _makeRoom(protect: url);
         final s = _Slot(url);
         _slots[url] = s;
-        if (delay == 0) {
+        // First 2 slots (current + next) init immediately for instant playback.
+        // Remaining slots stagger to spread JNI cost.
+        if (delay < 2) {
           unawaited(s.init());
         } else {
-          Future.delayed(Duration(milliseconds: delay * 200), () {
+          Future.delayed(Duration(milliseconds: (delay - 1) * 220), () {
             if (!s._dead) unawaited(s.init());
           });
         }
