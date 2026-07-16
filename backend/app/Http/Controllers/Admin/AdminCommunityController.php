@@ -64,11 +64,7 @@ class AdminCommunityController extends Controller
             ->pluck('cnt', 'date');
 
         // ── Top active users ─────────────────────────────────────────────────
-        $topUsers = CommunityProfile::with('user')
-            ->withCount(['user as posts_count' => fn($q) =>
-                $q->selectRaw('count(*)')->from('community_posts')
-                  ->whereColumn('user_id', 'community_profiles.user_id')
-            ])
+        $topUsers = CommunityProfile::with('user:id,name,avatar')
             ->orderByDesc('followers_count')
             ->take(5)->get();
 

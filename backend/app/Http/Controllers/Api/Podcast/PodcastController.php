@@ -37,7 +37,7 @@ class PodcastController extends Controller
 
         $podcast = Podcast::published()
             ->where('slug', $slug)
-            ->with(['category:id,name,icon,color','user:id,name,profile_photo_path'])
+            ->with(['category:id,name,icon,color','user:id,name,avatar'])
             ->firstOrFail();
 
         $episodes = $podcast->episodes()

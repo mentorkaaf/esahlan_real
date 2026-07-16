@@ -34,7 +34,7 @@ class PodcastFeedController extends Controller
     private function getFeatured(): array
     {
         return Podcast::published()->featured()
-            ->with(['category:id,name,icon,color', 'user:id,name,profile_photo_path'])
+            ->with(['category:id,name,icon,color', 'user:id,name,avatar'])
             ->select('id','title','slug','cover_image','description','category_id','user_id',
                      'total_episodes','total_followers','rating','is_verified')
             ->latest('updated_at')

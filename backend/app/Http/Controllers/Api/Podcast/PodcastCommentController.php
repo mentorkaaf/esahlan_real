@@ -19,7 +19,7 @@ class PodcastCommentController extends Controller
             ->whereNull('c.deleted_at')
             ->select(
                 'c.id','c.body','c.likes','c.is_pinned','c.created_at','c.parent_id',
-                'u.id as user_id','u.name as user_name','u.profile_photo_path as user_avatar'
+                'u.id as user_id','u.name as user_name','u.avatar as user_avatar'
             )
             ->orderByDesc('c.is_pinned')
             ->orderByDesc('c.created_at')
@@ -65,7 +65,7 @@ class PodcastCommentController extends Controller
             ->join('users as u', 'u.id', 'c.user_id')
             ->where('c.parent_id', $commentId)
             ->whereNull('c.deleted_at')
-            ->select('c.id','c.body','c.likes','c.created_at','u.id as user_id','u.name as user_name','u.profile_photo_path as user_avatar')
+            ->select('c.id','c.body','c.likes','c.created_at','u.id as user_id','u.name as user_name','u.avatar as user_avatar')
             ->orderBy('c.created_at')
             ->get()
             ->map(fn($c) => array_merge((array)$c, [
@@ -97,7 +97,7 @@ class PodcastCommentController extends Controller
         $comment = DB::table('podcast_comments as c')
             ->join('users as u', 'u.id', 'c.user_id')
             ->where('c.id', $id)
-            ->select('c.*','u.name as user_name','u.profile_photo_path as user_avatar')
+            ->select('c.*','u.name as user_name','u.avatar as user_avatar')
             ->first();
 
         return response()->json(['status' => 'success', 'comment' => $comment], 201);
