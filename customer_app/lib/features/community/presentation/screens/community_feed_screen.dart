@@ -323,8 +323,8 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
             slivers: [
               SliverToBoxAdapter(child: widget.storiesState.when(
                 data: (groups) => StoriesBar(groups: groups),
-                loading: () => const SizedBox(height: 100),
-                error: (_, __) => const SizedBox.shrink(),
+                loading: () => const SizedBox(height: 200), // matches StoriesBar exact height
+                error: (_, __) => const SizedBox(height: 200),
               )),
               const SliverToBoxAdapter(child: _CreatePostBar()),
               const SliverToBoxAdapter(child: SizedBox(height: 4)),
@@ -2109,29 +2109,45 @@ class _BusinessesTab extends StatelessWidget {
 // arrive from the network, only the slot rebuilds — not the 30-item feed list.
 
 class _SuggestionsSlot extends ConsumerWidget {
+  // Must match _PeopleYouMayKnow exact height (14+20+10+220+8+8 margin = 280)
+  static const _kH = 280.0;
   final int batchOffset;
   const _SuggestionsSlot({required this.batchOffset});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final all = ref.watch(communitySuggestionsProvider).valueOrNull ?? [];
+    final async = ref.watch(communitySuggestionsProvider);
+    // Reserve exact height while loading — prevents 0→280 scroll jump
+    if (async.isLoading) return const SizedBox(height: _kH);
+    final all = async.valueOrNull ?? [];
     final followable = all.where((u) => !u.isMe && !u.isFollowing).toList();
     final batch = followable.skip(batchOffset).take(10).toList();
-    if (batch.isEmpty) return const SizedBox.shrink();
-    return _PeopleYouMayKnow(users: batch);
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+      child: batch.isEmpty ? const SizedBox.shrink() : _PeopleYouMayKnow(users: batch),
+    );
   }
 }
 
 class _ReelsSlot extends ConsumerWidget {
+  // Must match _ReelsCarousel exact height (14+20+10+200+8 margin = 252)
+  static const _kH = 252.0;
   final int batchOffset;
   const _ReelsSlot({required this.batchOffset});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final all = ref.watch(communityReelsProvider).valueOrNull ?? [];
+    final async = ref.watch(communityReelsProvider);
+    // Reserve exact height while loading — prevents 0→252 scroll jump
+    if (async.isLoading) return const SizedBox(height: _kH);
+    final all = async.valueOrNull ?? [];
     final batch = all.skip(batchOffset).take(6).toList();
-    if (batch.isEmpty) return const SizedBox.shrink();
-    return _ReelsCarousel(reels: batch);
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+      child: batch.isEmpty ? const SizedBox.shrink() : _ReelsCarousel(reels: batch),
+    );
   }
 }
 
