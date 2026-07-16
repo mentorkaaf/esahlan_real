@@ -1,343 +1,507 @@
 @extends('admin.layouts.app')
 @section('title', 'Community Dashboard')
 
-@section('content')
-<div class="p-6 space-y-6">
+@push('styles')
+<style>
+  .cm-page { background:#F8F9FC; min-height:100vh; padding:28px 32px; }
 
-  {{-- ── Header ──────────────────────────────────────────────────────────────── --}}
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  /* ── Stat cards ── */
+  .cm-card {
+    background:#fff; border-radius:18px; padding:24px;
+    border:1px solid #EAECF0; box-shadow:0 1px 3px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
+    transition:box-shadow .2s, transform .2s;
+  }
+  .cm-card:hover { box-shadow:0 4px 16px rgba(7,0,59,.09); transform:translateY(-1px); }
+
+  .cm-metric-value {
+    font-size:32px; font-weight:800; line-height:1.1; letter-spacing:-1px; color:#101828;
+  }
+  .cm-metric-label { font-size:13px; color:#667085; font-weight:500; margin-top:4px; }
+
+  .cm-badge-up   { background:#ECFDF3; color:#027A48; font-size:12px; font-weight:700; padding:3px 10px; border-radius:100px; }
+  .cm-badge-warn { background:#FFF4ED; color:#B54708; font-size:12px; font-weight:700; padding:3px 10px; border-radius:100px; }
+  .cm-badge-gray { background:#F2F4F7; color:#667085; font-size:12px; font-weight:600; padding:3px 10px; border-radius:100px; }
+
+  /* ── Section card ── */
+  .cm-section {
+    background:#fff; border-radius:18px;
+    border:1px solid #EAECF0; box-shadow:0 1px 3px rgba(16,24,40,.06);
+    overflow:hidden;
+  }
+  .cm-section-hdr {
+    padding:18px 24px; border-bottom:1px solid #F2F4F7;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .cm-section-title { font-size:14px; font-weight:800; color:#101828; }
+  .cm-section-sub   { font-size:12px; color:#667085; margin-top:1px; }
+
+  /* ── Table ── */
+  .cm-table { width:100%; border-collapse:collapse; }
+  .cm-table th {
+    padding:10px 20px; font-size:11px; font-weight:700; color:#667085;
+    text-transform:uppercase; letter-spacing:.6px; background:#F9FAFB;
+    border-bottom:1px solid #F2F4F7; text-align:left;
+  }
+  .cm-table td { padding:14px 20px; border-bottom:1px solid #F9FAFB; vertical-align:middle; }
+  .cm-table tr:last-child td { border-bottom:none; }
+  .cm-table tr:hover td { background:#F9FAFB; }
+
+  /* ── Type pill ── */
+  .type-pill { font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; }
+
+  /* ── Avatar ── */
+  .cm-avatar {
+    width:36px; height:36px; border-radius:50%; object-fit:cover;
+    background:linear-gradient(135deg,#07003B,#FF8A00);
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:13px; font-weight:800; flex-shrink:0;
+  }
+
+  /* ── Progress bar ── */
+  .cm-progress { background:#F2F4F7; border-radius:4px; height:6px; overflow:hidden; }
+  .cm-progress-fill { height:100%; border-radius:4px; transition:width .4s; }
+
+  /* ── Action btn ── */
+  .cm-btn-icon {
+    width:32px; height:32px; border-radius:8px; border:1.5px solid;
+    display:inline-flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:12px; transition:all .15s; background:transparent;
+  }
+
+  /* ── Scrollbar ── */
+  .cm-scroll::-webkit-scrollbar { width:4px; }
+  .cm-scroll::-webkit-scrollbar-thumb { background:#E5E7EB; border-radius:4px; }
+
+  /* ── Link ── */
+  .cm-link { color:#FF8A00; font-size:12px; font-weight:700; text-decoration:none; }
+  .cm-link:hover { text-decoration:underline; }
+
+  /* ── Divider ── */
+  .cm-divider { border:none; border-top:1px solid #F2F4F7; margin:0; }
+</style>
+@endpush
+
+@section('content')
+<div class="cm-page">
+
+  {{-- ══════════════ HEADER ══════════════ --}}
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;gap:16px;flex-wrap:wrap">
     <div>
-      <h1 class="text-2xl font-black text-navy flex items-center gap-2.5">
-        <span class="w-9 h-9 rounded-xl flex items-center justify-content-center shrink-0"
-              style="background:linear-gradient(135deg,#07003B,#FF8A00)">
-          <i class="fas fa-users text-white text-sm"></i>
-        </span>
-        Community Monitor
-      </h1>
-      <p class="text-slate-400 text-xs mt-1">Real-time overview · {{ now()->format('D, d M Y · H:i') }}</p>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <div style="width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#07003B,#FF8A00);display:flex;align-items:center;justify-content:center">
+          <i class="fas fa-chart-line" style="color:#fff;font-size:15px"></i>
+        </div>
+        <h1 style="font-size:22px;font-weight:900;color:#101828;letter-spacing:-.5px;margin:0">Community Dashboard</h1>
+      </div>
+      <p style="font-size:13px;color:#667085;margin:0">
+        Live metrics · {{ now()->format('l, d M Y') }} &nbsp;·&nbsp;
+        <span style="color:#12B76A;font-weight:600">● Active</span>
+      </p>
     </div>
-    <div class="flex gap-2 flex-wrap">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
       <a href="{{ route('admin.community.posts') }}"
-         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
-         style="background:#07003B">
-        <i class="fas fa-file-alt text-xs"></i> Posts
+         style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:#07003B;color:#fff;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none">
+        <i class="fas fa-file-alt" style="font-size:11px"></i> Manage Posts
       </a>
       <a href="{{ route('admin.community.reports') }}"
-         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold"
-         style="background:#FF8A0015;color:#FF8A00">
-        <i class="fas fa-flag text-xs"></i> Reports
-        @if($stats['reports_pending'] > 0)
-          <span class="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none font-black">
-            {{ $stats['reports_pending'] }}
-          </span>
+         style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:#fff;color:#344054;border:1.5px solid #D0D5DD;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none">
+        <i class="fas fa-flag" style="font-size:11px;color:#F04438"></i> Reports
+        @if($stats['reports_pending']>0)
+          <span style="background:#F04438;color:#fff;border-radius:100px;padding:1px 7px;font-size:11px;font-weight:800">{{ $stats['reports_pending'] }}</span>
         @endif
       </a>
       <a href="{{ route('admin.community.moderation') }}"
-         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">
-        <i class="fas fa-shield-alt text-xs"></i> Moderation
+         style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:#fff;color:#344054;border:1.5px solid #D0D5DD;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none">
+        <i class="fas fa-shield-alt" style="font-size:11px"></i> Moderation
       </a>
     </div>
   </div>
 
-  {{-- ── KPI Cards ────────────────────────────────────────────────────────────── --}}
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+  {{-- ══════════════ KPI ROW ══════════════ --}}
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px">
 
-    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:-translate-y-0.5 transition-transform">
-      <div class="flex items-start justify-between mb-3">
-        <div class="w-10 h-10 rounded-xl flex items-center justify-content-center" style="background:#07003B12">
-          <i class="fas fa-users text-navy"></i>
+    {{-- Members --}}
+    <div class="cm-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="width:42px;height:42px;border-radius:12px;background:#EEF4FF;display:flex;align-items:center;justify-content:center">
+          <i class="fas fa-users" style="color:#3538CD;font-size:17px"></i>
         </div>
-        <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">
-          +{{ $stats['members_today'] }} today
-        </span>
+        <span class="cm-badge-up"><i class="fas fa-arrow-up" style="font-size:9px"></i> +{{ $stats['members_today'] }} today</span>
       </div>
-      <p class="text-3xl font-black text-navy">{{ number_format($stats['members']) }}</p>
-      <p class="text-xs text-slate-400 mt-0.5 font-medium">Total Members</p>
-      <div class="mt-3 pt-3 border-t border-slate-50 text-xs text-slate-400 flex items-center gap-1">
-        <i class="fas fa-calendar-week"></i> +{{ $stats['members_week'] }} this week
+      <div class="cm-metric-value">{{ number_format($stats['members']) }}</div>
+      <div class="cm-metric-label">Total Members</div>
+      <hr class="cm-divider" style="margin:14px 0">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#667085">
+        <i class="fas fa-calendar-week" style="color:#D0D5DD"></i>
+        +{{ $stats['members_week'] }} joined this week
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:-translate-y-0.5 transition-transform">
-      <div class="flex items-start justify-between mb-3">
-        <div class="w-10 h-10 rounded-xl flex items-center justify-content-center" style="background:#FF8A0012">
-          <i class="fas fa-file-alt" style="color:#FF8A00"></i>
+    {{-- Posts --}}
+    <div class="cm-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="width:42px;height:42px;border-radius:12px;background:#FFF4ED;display:flex;align-items:center;justify-content:center">
+          <i class="fas fa-file-alt" style="color:#FF8A00;font-size:17px"></i>
         </div>
-        <span class="text-xs font-bold px-2 py-0.5 rounded-full" style="background:#FFF3E0;color:#FF8A00">
-          +{{ $stats['posts_today'] }} today
-        </span>
+        <span class="cm-badge-up"><i class="fas fa-arrow-up" style="font-size:9px"></i> +{{ $stats['posts_today'] }} today</span>
       </div>
-      <p class="text-3xl font-black" style="color:#FF8A00">{{ number_format($stats['posts']) }}</p>
-      <p class="text-xs text-slate-400 mt-0.5 font-medium">Total Posts</p>
-      <div class="mt-3 pt-3 border-t border-slate-50 text-xs text-slate-400 flex items-center gap-1">
-        <i class="fas fa-calendar-week"></i> +{{ $stats['posts_week'] }} this week
+      <div class="cm-metric-value" style="color:#FF8A00">{{ number_format($stats['posts']) }}</div>
+      <div class="cm-metric-label">Total Posts</div>
+      <hr class="cm-divider" style="margin:14px 0">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#667085">
+        <i class="fas fa-calendar-week" style="color:#D0D5DD"></i>
+        +{{ $stats['posts_week'] }} posts this week
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:-translate-y-0.5 transition-transform">
-      <div class="flex items-start justify-between mb-3">
-        <div class="w-10 h-10 rounded-xl flex items-center justify-content-center bg-purple-50">
-          <i class="fas fa-heart text-purple-500"></i>
+    {{-- Engagement --}}
+    <div class="cm-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="width:42px;height:42px;border-radius:12px;background:#F4F3FF;display:flex;align-items:center;justify-content:center">
+          <i class="fas fa-heart" style="color:#7A5AF8;font-size:17px"></i>
         </div>
-        <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600">
-          {{ number_format($stats['total_comments']) }} cmts
-        </span>
+        <span class="cm-badge-gray">{{ number_format($stats['total_comments']) }} comments</span>
       </div>
-      <p class="text-3xl font-black text-purple-600">{{ number_format($stats['total_reactions']) }}</p>
-      <p class="text-xs text-slate-400 mt-0.5 font-medium">Total Reactions</p>
-      <div class="mt-3 pt-3 border-t border-slate-50 text-xs text-slate-400 flex items-center gap-1">
-        <i class="fas fa-eye"></i> {{ number_format($stats['total_views']) }} total views
+      <div class="cm-metric-value" style="color:#7A5AF8">{{ number_format($stats['total_reactions']) }}</div>
+      <div class="cm-metric-label">Total Reactions</div>
+      <hr class="cm-divider" style="margin:14px 0">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#667085">
+        <i class="fas fa-eye" style="color:#D0D5DD"></i>
+        {{ number_format($stats['total_views']) }} total views
       </div>
     </div>
 
-    <div class="rounded-2xl p-5 shadow-sm border hover:-translate-y-0.5 transition-transform
-                {{ $stats['reports_pending'] > 0 ? 'bg-red-50 border-red-100' : 'bg-white border-slate-100' }}">
-      <div class="flex items-start justify-between mb-3">
-        <div class="w-10 h-10 rounded-xl flex items-center justify-content-center
-                    {{ $stats['reports_pending'] > 0 ? 'bg-red-100' : 'bg-slate-50' }}">
-          <i class="fas fa-flag {{ $stats['reports_pending'] > 0 ? 'text-red-500' : 'text-slate-400' }}"></i>
+    {{-- Reports --}}
+    <div class="cm-card" style="{{ $stats['reports_pending']>0 ? 'border-color:#FEE4E2;background:#FFFBFA' : '' }}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="width:42px;height:42px;border-radius:12px;background:{{ $stats['reports_pending']>0 ? '#FEE4E2' : '#F2F4F7' }};display:flex;align-items:center;justify-content:center">
+          <i class="fas fa-flag" style="color:{{ $stats['reports_pending']>0 ? '#F04438' : '#98A2B3' }};font-size:17px"></i>
         </div>
-        @if($stats['reports_pending'] > 0)
-          <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 animate-pulse">Needs action</span>
+        @if($stats['reports_pending']>0)
+          <span class="cm-badge-warn">⚠ Needs review</span>
         @else
-          <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">All clear</span>
+          <span class="cm-badge-up">✓ All clear</span>
         @endif
       </div>
-      <p class="text-3xl font-black {{ $stats['reports_pending'] > 0 ? 'text-red-500' : 'text-slate-300' }}">
-        {{ $stats['reports_pending'] }}
-      </p>
-      <p class="text-xs mt-0.5 font-medium {{ $stats['reports_pending'] > 0 ? 'text-red-400' : 'text-slate-400' }}">
-        Pending Reports
-      </p>
-      <div class="mt-3 pt-3 border-t {{ $stats['reports_pending'] > 0 ? 'border-red-100' : 'border-slate-50' }}">
-        <a href="{{ route('admin.community.reports') }}"
-           class="text-xs font-bold flex items-center gap-1 hover:underline
-                  {{ $stats['reports_pending'] > 0 ? 'text-red-500' : 'text-slate-400' }}">
-          Review reports <i class="fas fa-arrow-right text-xs"></i>
-        </a>
-      </div>
+      <div class="cm-metric-value" style="color:{{ $stats['reports_pending']>0 ? '#F04438' : '#98A2B3' }}">{{ $stats['reports_pending'] }}</div>
+      <div class="cm-metric-label">Pending Reports</div>
+      <hr class="cm-divider" style="margin:14px 0;border-color:{{ $stats['reports_pending']>0 ? '#FEE4E2' : '#F2F4F7' }}">
+      <a href="{{ route('admin.community.reports') }}"
+         style="font-size:12px;font-weight:700;color:{{ $stats['reports_pending']>0 ? '#F04438' : '#667085' }};text-decoration:none;display:flex;align-items:center;gap:4px">
+        Review reports <i class="fas fa-chevron-right" style="font-size:9px"></i>
+      </a>
     </div>
-
   </div>
 
-  {{-- ── Chart + Breakdown + Top Users ───────────────────────────────────────── --}}
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  {{-- ══════════════ MIDDLE ROW ══════════════ --}}
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;margin-bottom:20px">
 
-    {{-- Bar chart --}}
-    <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-      <div class="flex items-center justify-between mb-5">
+    {{-- ── Bar Chart ── --}}
+    <div class="cm-section">
+      <div class="cm-section-hdr">
         <div>
-          <h3 class="font-black text-navy text-sm">Post Activity</h3>
-          <p class="text-xs text-slate-400">Posts per day — last 7 days</p>
+          <div class="cm-section-title">Post Activity</div>
+          <div class="cm-section-sub">Daily posts — last 7 days</div>
         </div>
-      </div>
-      @php
-        $days   = collect(range(6,0))->map(fn($i) => now()->subDays($i)->format('Y-m-d'));
-        $maxVal = $dailyPosts->max() ?: 1;
-      @endphp
-      <div class="flex items-end gap-2" style="height:120px">
-        @foreach($days as $day)
-          @php $cnt = $dailyPosts[$day] ?? 0; $pct = max(4, round(($cnt/$maxVal)*100)); @endphp
-          <div class="flex-1 flex flex-col items-center gap-1" style="height:100%">
-            <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;width:100%">
-              <div style="height:{{ $pct }}%;background:linear-gradient(180deg,#FF8A00,#07003B);border-radius:6px 6px 0 0;min-height:4px;width:100%"
-                   title="{{ $cnt }} posts on {{ $day }}"></div>
-            </div>
-            <span class="text-xs text-slate-400" style="font-size:10px">{{ \Carbon\Carbon::parse($day)->format('D') }}</span>
+        <div style="display:flex;gap:20px">
+          <div style="text-align:center">
+            <div style="font-size:18px;font-weight:800;color:#101828">{{ $stats['stories_today'] }}</div>
+            <div style="font-size:11px;color:#667085">Stories today</div>
           </div>
-        @endforeach
+          <div style="text-align:center">
+            <div style="font-size:18px;font-weight:800;color:#FF8A00">{{ $stats['messages_today'] }}</div>
+            <div style="font-size:11px;color:#667085">Messages</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:18px;font-weight:800;color:#7A5AF8">{{ $stats['active_chats'] }}</div>
+            <div style="font-size:11px;color:#667085">Active chats</div>
+          </div>
+        </div>
       </div>
 
-      <div class="mt-5 pt-4 border-t border-slate-50 grid grid-cols-3 gap-4 text-center">
-        <div>
-          <p class="text-xl font-black text-navy">{{ $stats['stories_today'] }}</p>
-          <p class="text-xs text-slate-400">Stories today</p>
-        </div>
-        <div>
-          <p class="text-xl font-black" style="color:#FF8A00">{{ $stats['messages_today'] }}</p>
-          <p class="text-xs text-slate-400">Messages today</p>
-        </div>
-        <div>
-          <p class="text-xl font-black text-purple-500">{{ $stats['active_chats'] }}</p>
-          <p class="text-xs text-slate-400">Active chats 24h</p>
-        </div>
+      <div style="padding:24px">
+        @php
+          $days   = collect(range(6,0))->map(fn($i) => now()->subDays($i)->format('Y-m-d'));
+          $vals   = $days->map(fn($d) => $dailyPosts[$d] ?? 0);
+          $maxVal = $vals->max() ?: 1;
+          $svgH   = 140;
+          $svgW   = 560;
+          $barW   = 48;
+          $gap    = ($svgW - count($days)*$barW) / (count($days)+1);
+        @endphp
+        <svg viewBox="0 0 {{ $svgW }} {{ $svgH + 30 }}" style="width:100%;overflow:visible">
+          {{-- Grid lines --}}
+          @foreach([0,0.25,0.5,0.75,1] as $frac)
+            @php $y = $svgH - $svgH * $frac; @endphp
+            <line x1="0" y1="{{ $y }}" x2="{{ $svgW }}" y2="{{ $y }}"
+                  stroke="#F2F4F7" stroke-width="1"/>
+            @if($frac > 0)
+              <text x="-4" y="{{ $y + 4 }}" text-anchor="end" font-size="10" fill="#98A2B3">
+                {{ round($maxVal * $frac) }}
+              </text>
+            @endif
+          @endforeach
+
+          {{-- Bars --}}
+          @foreach($days as $i => $day)
+            @php
+              $cnt = $vals[$i];
+              $barH = max(4, round(($cnt / $maxVal) * $svgH));
+              $x = $gap + $i * ($barW + $gap);
+              $y = $svgH - $barH;
+              $dayLabel = \Carbon\Carbon::parse($day)->format('D');
+              $isToday = $day === now()->format('Y-m-d');
+            @endphp
+            <defs>
+              <linearGradient id="bg{{ $i }}" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="{{ $isToday ? '#FF8A00' : '#07003B' }}" stop-opacity="1"/>
+                <stop offset="100%" stop-color="{{ $isToday ? '#FFBB5C' : '#3538CD' }}" stop-opacity=".7"/>
+              </linearGradient>
+            </defs>
+            <rect x="{{ $x }}" y="{{ $y }}" width="{{ $barW }}" height="{{ $barH }}"
+                  rx="6" fill="url(#bg{{ $i }})"/>
+            @if($cnt > 0)
+              <text x="{{ $x + $barW/2 }}" y="{{ $y - 5 }}"
+                    text-anchor="middle" font-size="11" font-weight="700"
+                    fill="{{ $isToday ? '#FF8A00' : '#344054' }}">{{ $cnt }}</text>
+            @endif
+            <text x="{{ $x + $barW/2 }}" y="{{ $svgH + 18 }}"
+                  text-anchor="middle" font-size="11" fill="{{ $isToday ? '#FF8A00' : '#98A2B3' }}"
+                  font-weight="{{ $isToday ? '700' : '500' }}">{{ $dayLabel }}</text>
+          @endforeach
+        </svg>
       </div>
     </div>
 
-    <div class="space-y-4">
-      {{-- Content breakdown --}}
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-        <h3 class="font-black text-navy text-sm mb-4">Content Breakdown</h3>
-        @php
-          $typeColors = ['video'=>'#FF8A00','image'=>'#7C3AED','text'=>'#07003B','reel'=>'#10b981'];
-          $typeIcons  = ['video'=>'fa-video','image'=>'fa-image','text'=>'fa-align-left','reel'=>'fa-film'];
-          $total = $postTypes->sum() ?: 1;
-        @endphp
-        <div class="space-y-3">
+    {{-- ── Content Breakdown + Top Creators ── --}}
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      {{-- Content Breakdown --}}
+      <div class="cm-section">
+        <div class="cm-section-hdr">
+          <div class="cm-section-title">Content Breakdown</div>
+        </div>
+        <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+          @php
+            $typeConf = [
+              'video' => ['#FF8A00','#FFF4ED','fa-video'],
+              'image' => ['#7A5AF8','#F4F3FF','fa-image'],
+              'text'  => ['#07003B','#EEF4FF','fa-align-left'],
+              'reel'  => ['#12B76A','#ECFDF3','fa-film'],
+              'audio' => ['#F04438','#FEF3F2','fa-microphone'],
+            ];
+            $total = $postTypes->sum() ?: 1;
+          @endphp
           @forelse($postTypes as $type => $cnt)
-            @php $pct = round(($cnt/$total)*100); $col = $typeColors[$type] ?? '#ccc'; @endphp
+            @php [$col,$bg,$ico] = $typeConf[$type] ?? ['#667085','#F2F4F7','fa-file']; $pct = round(($cnt/$total)*100); @endphp
             <div>
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
-                  <i class="fas {{ $typeIcons[$type] ?? 'fa-file' }} text-xs" style="color:{{ $col }}"></i>
-                  {{ ucfirst($type) }}
-                </span>
-                <span class="text-xs font-bold text-navy">{{ $cnt }} <span class="text-slate-300">({{ $pct }}%)</span></span>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="width:28px;height:28px;border-radius:8px;background:{{ $bg }};display:flex;align-items:center;justify-content:center">
+                    <i class="fas {{ $ico }}" style="font-size:11px;color:{{ $col }}"></i>
+                  </div>
+                  <span style="font-size:13px;font-weight:600;color:#344054">{{ ucfirst($type) }}</span>
+                </div>
+                <span style="font-size:13px;font-weight:800;color:#101828">{{ $cnt }} <span style="color:#98A2B3;font-weight:500">{{ $pct }}%</span></span>
               </div>
-              <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                <div class="h-full rounded-full" style="width:{{ $pct }}%;background:{{ $col }}"></div>
+              <div class="cm-progress">
+                <div class="cm-progress-fill" style="width:{{ $pct }}%;background:{{ $col }}"></div>
               </div>
             </div>
           @empty
-            <p class="text-xs text-slate-300 text-center py-2">No posts yet</p>
+            <p style="text-align:center;color:#98A2B3;font-size:13px;padding:12px 0">No posts yet</p>
           @endforelse
         </div>
       </div>
 
       {{-- Top Creators --}}
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="font-black text-navy text-sm">Top Creators</h3>
-          <a href="{{ route('admin.community.users') }}" class="text-xs font-bold" style="color:#FF8A00">All →</a>
+      <div class="cm-section" style="flex:1">
+        <div class="cm-section-hdr">
+          <div class="cm-section-title">Top Creators</div>
+          <a href="{{ route('admin.community.users') }}" class="cm-link">View all →</a>
         </div>
-        <div class="space-y-3">
+        <div style="padding:8px 0">
           @forelse($topUsers as $i => $profile)
-          <div class="flex items-center gap-2.5">
-            <span class="text-xs font-black w-4 text-slate-300">{{ $i+1 }}</span>
-            <div class="w-7 h-7 rounded-full flex items-center justify-content-center text-white text-xs font-black shrink-0"
-                 style="background:linear-gradient(135deg,#07003B,#FF8A00)">
-              {{ strtoupper(substr($profile->user->name ?? 'U',0,1)) }}
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 20px;{{ !$loop->last ? 'border-bottom:1px solid #F9FAFB' : '' }}">
+            <span style="font-size:11px;font-weight:800;color:#D0D5DD;width:16px">{{ $i+1 }}</span>
+            @if($profile->user?->avatar)
+              <img src="{{ asset('storage/'.$profile->user->avatar) }}"
+                   style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid #F2F4F7" alt="">
+            @else
+              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#07003B,#FF8A00);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;flex-shrink:0">
+                {{ strtoupper(substr($profile->user->name ?? 'U',0,1)) }}
+              </div>
+            @endif
+            <div style="flex:1;min-width:0">
+              <p style="font-size:13px;font-weight:700;color:#101828;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                {{ $profile->user->name ?? '—' }}
+                @if($profile->is_verified)
+                  <i class="fas fa-certificate" style="color:#FF8A00;font-size:10px;margin-left:3px"></i>
+                @endif
+              </p>
+              <p style="font-size:11px;color:#667085;margin:2px 0 0">{{ number_format($profile->followers_count) }} followers</p>
             </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-xs font-bold text-navy truncate">{{ $profile->user->name ?? '—' }}</p>
-              <p class="text-xs text-slate-400">{{ number_format($profile->followers_count) }} followers</p>
-            </div>
-            @if($profile->is_verified)<i class="fas fa-certificate text-xs" style="color:#FF8A00"></i>@endif
           </div>
           @empty
-          <p class="text-xs text-slate-300 text-center py-3">No users yet</p>
+            <p style="text-align:center;color:#98A2B3;font-size:13px;padding:20px">No users yet</p>
           @endforelse
         </div>
       </div>
     </div>
   </div>
 
-  {{-- ── Recent Posts + Reports + Quick Actions ──────────────────────────────── --}}
-  <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+  {{-- ══════════════ BOTTOM ROW ══════════════ --}}
+  <div style="display:grid;grid-template-columns:1fr 380px;gap:16px">
 
-    {{-- Recent Posts feed --}}
-    <div class="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-50">
-        <h3 class="font-black text-navy text-sm flex items-center gap-2">
-          <i class="fas fa-stream text-xs" style="color:#FF8A00"></i> Recent Posts
-        </h3>
-        <a href="{{ route('admin.community.posts') }}" class="text-xs font-bold" style="color:#FF8A00">View all →</a>
-      </div>
-      <div class="divide-y divide-slate-50">
-        @forelse($recentPosts as $post)
-        <div class="px-6 py-3.5 hover:bg-slate-50 transition-colors" id="post-{{ $post->id }}">
-          <div class="flex items-start gap-3">
-            <div class="w-8 h-8 rounded-full flex items-center justify-content-center text-white text-xs font-black shrink-0"
-                 style="background:linear-gradient(135deg,#07003B,#FF8A00)">
-              {{ strtoupper(substr($post->user->name ?? 'U',0,1)) }}
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-xs font-bold text-navy">{{ $post->user->name ?? '—' }}</span>
-                @php $col = ['video'=>'#FF8A00','image'=>'#7C3AED','reel'=>'#10b981'][$post->type] ?? '#07003B'; @endphp
-                <span class="text-xs font-bold px-1.5 py-0.5 rounded"
-                      style="background:{{ $col }}18;color:{{ $col }}">{{ $post->type }}</span>
-                <span class="text-xs text-slate-300 ml-auto">{{ $post->created_at->diffForHumans() }}</span>
-              </div>
-              @if($post->content)
-              <p class="text-xs text-slate-500 mt-0.5 truncate">{{ Str::limit($post->content, 70) }}</p>
-              @endif
-              <div class="flex items-center gap-3 mt-1.5 text-xs text-slate-400">
-                <span><i class="fas fa-heart text-red-400 mr-0.5"></i>{{ $post->likes_count }}</span>
-                <span><i class="fas fa-comment text-blue-400 mr-0.5"></i>{{ $post->comments_count }}</span>
-                <span><i class="fas fa-eye text-slate-300 mr-0.5"></i>{{ number_format($post->views_count ?? 0) }}</span>
-              </div>
-            </div>
-            <button onclick="deletePost({{ $post->id }})"
-                    class="w-7 h-7 rounded-lg border border-red-100 flex items-center justify-content-center text-red-300 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all text-xs shrink-0">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
+    {{-- Recent Posts --}}
+    <div class="cm-section">
+      <div class="cm-section-hdr">
+        <div>
+          <div class="cm-section-title">Recent Posts</div>
+          <div class="cm-section-sub">Latest community content</div>
         </div>
-        @empty
-        <div class="flex flex-col items-center py-12 text-slate-300">
-          <i class="fas fa-file-alt text-3xl mb-2"></i>
-          <p class="text-sm font-semibold text-slate-400">No posts yet</p>
-        </div>
-        @endforelse
+        <a href="{{ route('admin.community.posts') }}" class="cm-link">View all →</a>
       </div>
+      <table class="cm-table">
+        <thead>
+          <tr>
+            <th>Author</th>
+            <th>Content</th>
+            <th>Type</th>
+            <th style="text-align:center">Engagement</th>
+            <th>When</th>
+            <th style="text-align:center">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          @forelse($recentPosts as $post)
+          <tr id="post-{{ $post->id }}">
+            <td>
+              <div style="display:flex;align-items:center;gap:10px">
+                @if($post->user?->avatar)
+                  <img src="{{ asset('storage/'.$post->user->avatar) }}"
+                       style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid #F2F4F7" alt="">
+                @else
+                  <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#07003B,#FF8A00);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:800;flex-shrink:0">
+                    {{ strtoupper(substr($post->user->name ?? 'U',0,1)) }}
+                  </div>
+                @endif
+                <span style="font-size:13px;font-weight:600;color:#101828;white-space:nowrap">{{ $post->user->name ?? '—' }}</span>
+              </div>
+            </td>
+            <td style="max-width:200px">
+              <p style="font-size:13px;color:#344054;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                {{ $post->content ? Str::limit($post->content, 55) : '(media only)' }}
+              </p>
+            </td>
+            <td>
+              @php
+                $typeStyle = [
+                  'video' => ['#FF8A00','#FFF4ED'],
+                  'image' => ['#7A5AF8','#F4F3FF'],
+                  'text'  => ['#344054','#F2F4F7'],
+                  'reel'  => ['#12B76A','#ECFDF3'],
+                  'audio' => ['#F04438','#FEF3F2'],
+                ][$post->type] ?? ['#667085','#F9FAFB'];
+              @endphp
+              <span class="type-pill" style="color:{{ $typeStyle[0] }};background:{{ $typeStyle[1] }}">{{ ucfirst($post->type) }}</span>
+            </td>
+            <td>
+              <div style="display:flex;align-items:center;justify-content:center;gap:12px">
+                <span style="display:flex;align-items:center;gap:4px;font-size:12px;color:#667085;font-weight:600">
+                  <i class="fas fa-heart" style="color:#F04438;font-size:10px"></i> {{ $post->likes_count }}
+                </span>
+                <span style="display:flex;align-items:center;gap:4px;font-size:12px;color:#667085;font-weight:600">
+                  <i class="fas fa-comment" style="color:#7A5AF8;font-size:10px"></i> {{ $post->comments_count }}
+                </span>
+                <span style="display:flex;align-items:center;gap:4px;font-size:12px;color:#667085;font-weight:600">
+                  <i class="fas fa-eye" style="color:#D0D5DD;font-size:10px"></i> {{ number_format($post->views_count ?? 0) }}
+                </span>
+              </div>
+            </td>
+            <td style="font-size:12px;color:#98A2B3;white-space:nowrap">{{ $post->created_at->diffForHumans() }}</td>
+            <td style="text-align:center">
+              <button onclick="deletePost({{ $post->id }})"
+                      class="cm-btn-icon" style="border-color:#FECDCA;color:#F04438"
+                      onmouseover="this.style.background='#F04438';this.style.color='#fff'"
+                      onmouseout="this.style.background='transparent';this.style.color='#F04438'">
+                <i class="fas fa-trash" style="font-size:11px"></i>
+              </button>
+            </td>
+          </tr>
+          @empty
+          <tr><td colspan="6" style="text-align:center;padding:40px;color:#98A2B3">
+            <i class="fas fa-file-alt" style="font-size:28px;display:block;margin-bottom:8px;color:#E5E7EB"></i>
+            No posts yet
+          </td></tr>
+          @endforelse
+        </tbody>
+      </table>
     </div>
 
     {{-- Right: Reports + Quick Actions --}}
-    <div class="lg:col-span-2 space-y-4">
+    <div style="display:flex;flex-direction:column;gap:16px">
 
-      <div class="bg-white rounded-2xl shadow-sm overflow-hidden border
-                  {{ $stats['reports_pending'] > 0 ? 'border-red-100' : 'border-slate-100' }}">
-        <div class="flex items-center justify-between px-5 py-4 border-b
-                    {{ $stats['reports_pending'] > 0 ? 'border-red-50 bg-red-50' : 'border-slate-50' }}">
-          <h3 class="font-black text-sm flex items-center gap-2
-                     {{ $stats['reports_pending'] > 0 ? 'text-red-600' : 'text-navy' }}">
-            <i class="fas fa-flag text-xs"></i> Pending Reports
-            @if($stats['reports_pending'] > 0)
-              <span class="w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-content-center font-black">
-                {{ $stats['reports_pending'] }}
-              </span>
-            @endif
-          </h3>
-          <a href="{{ route('admin.community.reports') }}"
-             class="text-xs font-bold {{ $stats['reports_pending'] > 0 ? 'text-red-500' : 'text-slate-400' }}">
-            All →
-          </a>
-        </div>
-        <div class="divide-y divide-slate-50">
-          @forelse($pendingReports as $report)
-          <div class="px-5 py-3 hover:bg-slate-50 transition-colors">
-            <div class="flex items-center gap-2.5">
-              <div class="w-7 h-7 rounded-full bg-red-50 flex items-center justify-content-center text-red-400 text-xs shrink-0">
-                <i class="fas fa-flag"></i>
-              </div>
-              <div class="flex-1 min-w-0">
-                <p class="text-xs font-bold text-navy truncate">{{ $report->reporter->name ?? 'Unknown' }}</p>
-                <p class="text-xs text-slate-400 truncate">{{ Str::limit($report->reason ?? $report->type ?? '—', 32) }}</p>
-              </div>
-              <span class="text-xs text-slate-300 shrink-0">{{ $report->created_at->diffForHumans(null,true) }}</span>
+      {{-- Pending Reports --}}
+      <div class="cm-section" style="{{ $stats['reports_pending']>0 ? 'border-color:#FECDCA' : '' }}">
+        <div class="cm-section-hdr" style="{{ $stats['reports_pending']>0 ? 'background:#FEF3F2;border-color:#FECDCA' : '' }}">
+          <div>
+            <div class="cm-section-title" style="{{ $stats['reports_pending']>0 ? 'color:#B42318' : '' }}">
+              <i class="fas fa-flag" style="margin-right:6px;font-size:13px"></i>
+              Pending Reports
+              @if($stats['reports_pending']>0)
+                <span style="background:#F04438;color:#fff;border-radius:100px;padding:1px 8px;font-size:11px;font-weight:800;margin-left:6px">{{ $stats['reports_pending'] }}</span>
+              @endif
             </div>
           </div>
-          @empty
-          <div class="flex flex-col items-center py-10">
-            <div class="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-content-center mb-2">
-              <i class="fas fa-check text-emerald-400 text-lg"></i>
-            </div>
-            <p class="text-sm font-semibold text-emerald-500">All clear!</p>
-            <p class="text-xs text-slate-400 mt-0.5">No pending reports</p>
-          </div>
-          @endforelse
+          <a href="{{ route('admin.community.reports') }}" class="cm-link" style="{{ $stats['reports_pending']>0 ? 'color:#B42318' : '' }}">All →</a>
         </div>
+        @forelse($pendingReports as $report)
+        <div style="padding:13px 20px;{{ !$loop->last ? 'border-bottom:1px solid #FEF3F2' : '' }};display:flex;align-items:center;gap:12px">
+          <div style="width:34px;height:34px;border-radius:50%;background:#FEF3F2;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fas fa-flag" style="color:#F04438;font-size:12px"></i>
+          </div>
+          <div style="flex:1;min-width:0">
+            <p style="font-size:13px;font-weight:700;color:#101828;margin:0">{{ $report->reporter->name ?? 'Unknown' }}</p>
+            <p style="font-size:11px;color:#667085;margin:2px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              {{ Str::limit($report->reason ?? $report->type ?? 'Report', 36) }}
+            </p>
+          </div>
+          <span style="font-size:11px;color:#98A2B3;white-space:nowrap">{{ $report->created_at->diffForHumans(null,true) }}</span>
+        </div>
+        @empty
+        <div style="display:flex;flex-direction:column;align-items:center;padding:32px 20px">
+          <div style="width:48px;height:48px;border-radius:50%;background:#ECFDF3;display:flex;align-items:center;justify-content:center;margin-bottom:10px">
+            <i class="fas fa-check" style="color:#12B76A;font-size:18px"></i>
+          </div>
+          <p style="font-size:14px;font-weight:700;color:#12B76A;margin:0">All clear!</p>
+          <p style="font-size:12px;color:#98A2B3;margin:4px 0 0">No pending reports to review</p>
+        </div>
+        @endforelse
       </div>
 
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-        <h3 class="font-black text-navy text-sm mb-4">Quick Actions</h3>
-        <div class="grid grid-cols-2 gap-2">
+      {{-- Quick Actions --}}
+      <div class="cm-section">
+        <div class="cm-section-hdr">
+          <div class="cm-section-title">Quick Actions</div>
+        </div>
+        <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
           @foreach([
-            ['route'=>'admin.community.posts',      'icon'=>'fa-file-alt',    'label'=>'Posts',      'col'=>'#07003B'],
-            ['route'=>'admin.community.users',      'icon'=>'fa-user-shield', 'label'=>'Users',      'col'=>'#7C3AED'],
-            ['route'=>'admin.community.moderation', 'icon'=>'fa-shield-alt',  'label'=>'Moderation', 'col'=>'#FF8A00'],
-            ['route'=>'admin.community.algorithm',  'icon'=>'fa-brain',       'label'=>'Algorithm',  'col'=>'#10b981'],
-            ['route'=>'admin.community.groups',     'icon'=>'fa-layer-group', 'label'=>'Groups',     'col'=>'#3b82f6'],
-            ['route'=>'admin.community-ads.index',  'icon'=>'fa-bullhorn',    'label'=>'Ads',        'col'=>'#f59e0b'],
+            ['route'=>'admin.community.posts',      'icon'=>'fa-file-alt',    'label'=>'Posts',       'col'=>'#3538CD','bg'=>'#EEF4FF'],
+            ['route'=>'admin.community.users',      'icon'=>'fa-user-shield', 'label'=>'Users',       'col'=>'#7A5AF8','bg'=>'#F4F3FF'],
+            ['route'=>'admin.community.moderation', 'icon'=>'fa-shield-alt',  'label'=>'Moderation',  'col'=>'#FF8A00','bg'=>'#FFF4ED'],
+            ['route'=>'admin.community.algorithm',  'icon'=>'fa-brain',       'label'=>'Algorithm',   'col'=>'#12B76A','bg'=>'#ECFDF3'],
+            ['route'=>'admin.community.groups',     'icon'=>'fa-layer-group', 'label'=>'Groups',      'col'=>'#2E90FA','bg'=>'#EFF8FF'],
+            ['route'=>'admin.community-ads.index',  'icon'=>'fa-bullhorn',    'label'=>'Ads & Pages', 'col'=>'#F79009','bg'=>'#FFFAEB'],
           ] as $a)
           <a href="{{ route($a['route']) }}"
-             class="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-slate-100 hover:border-slate-200 hover:-translate-y-0.5 transition-all group">
-            <div class="w-7 h-7 rounded-lg flex items-center justify-content-center shrink-0"
-                 style="background:{{ $a['col'] }}12">
-              <i class="fas {{ $a['icon'] }} text-xs" style="color:{{ $a['col'] }}"></i>
+             style="display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:12px;border:1.5px solid #F2F4F7;text-decoration:none;transition:all .15s"
+             onmouseover="this.style.borderColor='{{ $a['col'] }}30';this.style.background='{{ $a['bg'] }}'"
+             onmouseout="this.style.borderColor='#F2F4F7';this.style.background='transparent'">
+            <div style="width:32px;height:32px;border-radius:9px;background:{{ $a['bg'] }};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <i class="fas {{ $a['icon'] }}" style="font-size:12px;color:{{ $a['col'] }}"></i>
             </div>
-            <span class="text-xs font-bold text-slate-600 group-hover:text-navy transition-colors">{{ $a['label'] }}</span>
+            <span style="font-size:12px;font-weight:700;color:#344054">{{ $a['label'] }}</span>
           </a>
           @endforeach
         </div>
@@ -353,16 +517,16 @@
 <script>
 const CSRF = '{{ csrf_token() }}';
 function deletePost(id) {
-    if (!confirm('Permanently delete this post?')) return;
-    fetch(`/admin/community/posts/${id}`, {
-        method: 'DELETE',
-        headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }
-    }).then(r => {
-        if (r.ok) {
-            const el = document.getElementById('post-' + id);
-            if (el) el.remove();
-        }
-    });
+  if (!confirm('Permanently delete this post?')) return;
+  fetch(`/admin/community/posts/${id}`, {
+    method:'DELETE',
+    headers:{'X-CSRF-TOKEN':CSRF,'Accept':'application/json'}
+  }).then(r => {
+    if (r.ok) {
+      const el = document.getElementById('post-'+id);
+      if (el) { el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }
+    }
+  });
 }
 </script>
 @endpush
