@@ -560,22 +560,8 @@
             <a href="{{ route('admin.community-ads.index') }}" class="nav-link {{ request()->routeIs('admin.community-ads.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-bullhorn"></i></div> Ads & Pages
             </a>
-        </div>
-        @endif
-
-        @if($u->role === 'super_admin' || $u->role === 'admin')
-        <div class="nav-section-label">Podcast</div>
-        <div class="nav-link nav-toggle-btn {{ request()->is('admin/podcast*') ? 'open active' : '' }}"
-             onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
-            <div class="nav-icon"><i class="fas fa-podcast"></i></div>
-            Podcast
-        </div>
-        <div class="nav-submenu {{ request()->is('admin/podcast*') ? 'open' : '' }}">
-            <a href="{{ route('admin.podcast.index') }}" class="nav-link {{ request()->routeIs('admin.podcast.index') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-list"></i></div> All Podcasts
-            </a>
-            <a href="{{ route('admin.podcast.categories') }}" class="nav-link {{ request()->routeIs('admin.podcast.categories') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-tags"></i></div> Categories
+            <a href="{{ route('admin.podcast.index') }}" class="nav-link {{ request()->routeIs('admin.podcast.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-podcast"></i></div> Podcasts
             </a>
         </div>
         @endif
