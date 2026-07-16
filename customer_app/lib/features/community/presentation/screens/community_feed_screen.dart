@@ -1055,7 +1055,23 @@ class _PostCardState extends ConsumerState<_PostCard> {
     ));
     if (!p.isAd) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) Future.delayed(const Duration(milliseconds: 300), () {
+        if (!mounted) return;
+        // Precache images while card is still off-screen (in cacheExtent zone)
+        // so they are GPU-uploaded before the card scrolls fully into view.
+        final avatar = p.user.avatar;
+        if (avatar != null && avatar.isNotEmpty) {
+          precacheImage(CachedNetworkImageProvider(avatar), context);
+        }
+        for (final media in p.media) {
+          if (media.type == 'image' && media.url.isNotEmpty) {
+            precacheImage(CachedNetworkImageProvider(media.url), context);
+          }
+          if (media.thumbnail != null && media.thumbnail!.isNotEmpty) {
+            precacheImage(CachedNetworkImageProvider(media.thumbnail!), context);
+          }
+        }
+        // Defer realtime subscription so it doesn't compete with image decoding
+        Future.delayed(const Duration(milliseconds: 400), () {
           if (mounted) _subscribeRealtime();
         });
       });
@@ -2962,18 +2978,13 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     }
 
     final screenW = MediaQuery.of(context).size.width;
-    final serverAr = widget.m.aspectRatio;
-    double videoH = 300;
-    if (_ready && _controller != null) {
-      final w = _controller!.player.state.width?.toDouble();
-      final h = _controller!.player.state.height?.toDouble();
-      final ar = (w != null && h != null && h > 0) ? w / h : serverAr;
-      if (ar != null && ar > 0) videoH = (screenW / ar).clamp(200.0, 400.0);
-    } else if (serverAr != null) {
-      videoH = (screenW / serverAr).clamp(200.0, 400.0);
-    } else {
-      videoH = 300;
-    }
+    // Use a STABLE height from the very first frame — never recalculate based
+    // on _ready state. Height changes after render cause SliverList to re-layout
+    // all subsequent items, producing visible scroll jumps ("jarees").
+    // serverAr comes from the server transcoding metadata (always set after upload).
+    // Fall back to 16:9 when missing — correct for the vast majority of videos.
+    final ar     = widget.m.aspectRatio ?? (16.0 / 9.0);
+    final videoH = (screenW / ar).clamp(200.0, 400.0);
 
     final videoContent = GestureDetector(
         // Tap: show controls (Facebook-style — controls hidden by default)
