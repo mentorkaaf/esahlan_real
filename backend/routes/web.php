@@ -325,6 +325,10 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/{id}/verify',         [$pc, 'toggleVerify'])->name('verify');
             Route::delete('/{id}',              [$pc, 'destroy'])->name('destroy');
             Route::delete('/episodes/{id}',     [$pc, 'destroyEpisode'])->name('episodes.destroy');
+            Route::post('/categories',           [$pc, 'storeCategory'])->name('categories.store');
+            Route::put('/categories/{id}',       [$pc, 'updateCategory'])->name('categories.update');
+            Route::post('/categories/{id}/toggle', [$pc, 'toggleCategoryStatus'])->name('categories.toggle');
+            Route::delete('/categories/{id}',    [$pc, 'destroyCategory'])->name('categories.destroy');
         });
         // Trust & Safety
         Route::prefix('trust-safety')->name('trust-safety.')->group(function () {
