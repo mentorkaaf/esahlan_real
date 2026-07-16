@@ -712,6 +712,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('my-shows',                       [PodcastPublishController::class, 'myShows']);
         Route::post('shows',                         [PodcastPublishController::class, 'createShow']);
         Route::put('shows/{id}',                     [PodcastPublishController::class, 'updateShow']);
+        Route::post('episodes',                      [PodcastPublishController::class, 'quickPublish']);
         Route::post('shows/{id}/episodes',           [PodcastPublishController::class, 'publishEpisode']);
         Route::delete('episodes/{id}',               [PodcastPublishController::class, 'deleteEpisode']);
         Route::post('rss-import',                    [PodcastPublishController::class, 'rssImport']);

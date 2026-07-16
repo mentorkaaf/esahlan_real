@@ -144,6 +144,70 @@ class PodcastPublishController extends Controller
         return response()->json(['status' => 'success', 'episode' => $episode], 201);
     }
 
+    // POST /api/v1/podcast/episodes  (quick publish — auto-picks or creates user's show)
+    public function quickPublish(Request $request)
+    {
+        $request->validate([
+            'title'       => 'required|string|max:300',
+            'description' => 'nullable|string|max:5000',
+            'audio'       => 'required|file|mimes:mp3,m4a,ogg,wav,aac|max:204800',
+            'cover_image' => 'nullable|image|max:5120',
+            'category'    => 'nullable|string|max:100',
+            'privacy'     => 'in:public,private',
+        ]);
+
+        // Reuse latest show or auto-create one
+        $podcast = Podcast::where('user_id', auth()->id())->latest()->first();
+        if (!$podcast) {
+            $cat = PodcastCategory::where('is_active', true)->first();
+            $podcast = Podcast::create([
+                'user_id'     => auth()->id(),
+                'category_id' => $cat?->id ?? 1,
+                'title'       => auth()->user()->name . "'s Podcast",
+                'slug'        => $this->uniqueSlug(auth()->user()->name . ' podcast'),
+                'description' => null,
+                'language'    => 'so',
+                'cover_image' => null,
+                'privacy'     => $request->input('privacy', 'public'),
+                'status'      => 'active',
+                'published_at'=> now(),
+            ]);
+        }
+
+        $slug      = $this->uniqueEpisodeSlug($request->input('title'));
+        $audioPath = $request->file('audio')->store('podcasts/audio', 'public');
+        $duration  = $this->getAudioDuration($request->file('audio')->getPathname());
+        $fileSize  = $request->file('audio')->getSize();
+
+        $coverPath = $podcast->cover_image;
+        if ($request->hasFile('cover_image')) {
+            $coverPath = $request->file('cover_image')->store('podcasts/covers', 'public');
+        }
+
+        $lastEp  = $podcast->allEpisodes()->max('episode_number') ?? 0;
+        $episode = PodcastEpisode::create([
+            'podcast_id'     => $podcast->id,
+            'user_id'        => auth()->id(),
+            'title'          => $request->input('title'),
+            'slug'           => $slug,
+            'description'    => $request->input('description'),
+            'audio_url'      => $audioPath,
+            'cover_image'    => $coverPath,
+            'duration'       => $duration,
+            'file_size'      => $fileSize,
+            'episode_number' => $lastEp + 1,
+            'season'         => 1,
+            'episode_type'   => 'full',
+            'is_explicit'    => false,
+            'status'         => 'published',
+            'published_at'   => now(),
+        ]);
+
+        $podcast->increment('total_episodes');
+
+        return response()->json(['status' => 'success', 'episode' => $episode, 'podcast' => $podcast], 201);
+    }
+
     // DELETE /api/v1/podcast/episodes/{id}
     public function deleteEpisode(int $id)
     {
