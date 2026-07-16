@@ -75,9 +75,8 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     CommunityRepository().feedHeartbeat();
     _heartbeatTimer = Timer.periodic(AppConstants.feedHeartbeatInterval, (_) => CommunityRepository().feedHeartbeat());
     _subscribeNewPostFeed();
-    // Throttle VisibilityDetector callbacks to 400ms — reduces native calls
-    // during fast scroll while still catching dominant-video switches quickly.
-    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 400);
+    // Throttle VisibilityDetector callbacks — reduces native calls during fast scroll.
+    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 600);
   }
 
   Future<void> _subscribeNewPostFeed() async {
@@ -159,7 +158,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
       body: Stack(children: [
       NestedScrollView(
         controller: _scrollCtrl,
-        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        physics: const ClampingScrollPhysics(),
         headerSliverBuilder: (context, _) => [
           SliverAppBar(
             pinned: true,
@@ -318,14 +317,14 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
           // CustomScrollView + SliverList: posts are built LAZILY (only visible ones).
           // The old ListView + Column built ALL 30+ cards at once — this is the main perf fix.
           child: CustomScrollView(
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-            cacheExtent: 450,
+            physics: const AlwaysScrollableScrollPhysics(),
+            cacheExtent: 200,
             slivers: [
-              SliverToBoxAdapter(child: widget.storiesState.when(
+              SliverToBoxAdapter(child: RepaintBoundary(child: widget.storiesState.when(
                 data: (groups) => StoriesBar(groups: groups),
-                loading: () => const SizedBox(height: 200), // matches StoriesBar exact height
+                loading: () => const SizedBox(height: 200),
                 error: (_, __) => const SizedBox(height: 200),
-              )),
+              ))),
               const SliverToBoxAdapter(child: _CreatePostBar()),
               const SliverToBoxAdapter(child: SizedBox(height: 4)),
 
@@ -375,13 +374,13 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
                         ref.read(communityFeedProvider.notifier).removePost(posts[i].id);
                       },
                     )));
-                    if (i == 4)  items.add(const _SuggestionsSlot(batchOffset: 0));
-                    if (i == 8)  items.add(const _ReelsSlot(batchOffset: 0));
+                    if (i == 4)  items.add(const RepaintBoundary(child: _SuggestionsSlot(batchOffset: 0)));
+                    if (i == 8)  items.add(const RepaintBoundary(child: _ReelsSlot(batchOffset: 0)));
                     if (i > 12 && (i - 12) % 10 == 0) {
-                      items.add(_SuggestionsSlot(batchOffset: ((i - 12) ~/ 10) * 5));
+                      items.add(RepaintBoundary(child: _SuggestionsSlot(batchOffset: ((i - 12) ~/ 10) * 5)));
                     }
                     if (i > 16 && (i - 16) % 12 == 0) {
-                      items.add(_ReelsSlot(batchOffset: ((i - 16) ~/ 12) * 4));
+                      items.add(RepaintBoundary(child: _ReelsSlot(batchOffset: ((i - 16) ~/ 12) * 4)));
                     }
                   }
                   final hasMore = ref.watch(communityFeedProvider.notifier).hasMore;
@@ -2338,49 +2337,29 @@ class _ReelsCarousel extends ConsumerWidget {
   }
 }
 
-// ── Lightweight reel card preview — thumbnail + pulsing play ring (no Player) ─
+// ── Lightweight reel card preview — thumbnail + static play icon (no Player) ──
+// Was a pulsing ScaleTransition (AnimationController.repeat 1200ms).
+// With 6+ reels per carousel that's 360+ widget rebuilds/second → jank.
+// Static icon is zero per-frame cost and visually identical at rest.
 
-class _VideoReelPreview extends StatefulWidget {
+class _VideoReelPreview extends StatelessWidget {
   final String? thumbnailUrl;
   const _VideoReelPreview({this.thumbnailUrl});
 
   @override
-  State<_VideoReelPreview> createState() => _VideoReelPreviewState();
-}
-
-class _VideoReelPreviewState extends State<_VideoReelPreview>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pulse;
-  late final Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))
-      ..repeat(reverse: true);
-    _scale = Tween<double>(begin: 0.85, end: 1.0).animate(
-        CurvedAnimation(parent: _pulse, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() { _pulse.dispose(); super.dispose(); }
-
-  @override
   Widget build(BuildContext context) {
     return Stack(fit: StackFit.expand, children: [
-      if (widget.thumbnailUrl != null)
-        NetImage(url: widget.thumbnailUrl!, fit: BoxFit.cover)
+      if (thumbnailUrl != null)
+        NetImage(url: thumbnailUrl!, fit: BoxFit.cover)
       else
-        Container(color: const Color(0xFF1A1B2E)),
-      Center(child: ScaleTransition(
-        scale: _scale,
-        child: Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.black38,
-            border: Border.all(color: Colors.white70, width: 2)),
-          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24)),
+        const ColoredBox(color: Color(0xFF1A1B2E)),
+      Center(child: Container(
+        width: 40, height: 40,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.black45,
+          border: Border.all(color: Colors.white70, width: 2)),
+        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24),
       )),
     ]);
   }
@@ -2720,8 +2699,10 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    // Only register lifecycle observer for video — not needed for images/audio/docs.
+    // 30 image cards each registering an observer adds unnecessary dispatch overhead.
     if (_isVideo) {
+      WidgetsBinding.instance.addObserver(this);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         // Precache thumbnail immediately so it appears without any delay.
@@ -2846,7 +2827,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     _isPlaying.dispose();
     _isBuffering.dispose();
     _hasFrame.dispose();
-    WidgetsBinding.instance.removeObserver(this);
+    if (_isVideo) WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
