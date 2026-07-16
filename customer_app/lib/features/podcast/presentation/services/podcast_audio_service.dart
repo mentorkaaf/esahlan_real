@@ -107,6 +107,17 @@ class PodcastAudioService {
     await _player.setPlaybackRate(speed);
   }
 
+  Future<void> cycleSpeed() async {
+    const speeds = [0.75, 1.0, 1.25, 1.5, 2.0];
+    final cur  = speedNotifier.value;
+    final next = speeds[(speeds.indexOf(cur) + 1) % speeds.length];
+    await setSpeed(next);
+  }
+
+  Future<void> seek(Duration position) => seekTo(position);
+  Future<void> pause()  => _player.pause();
+  Future<void> resume() => _player.resume();
+
   Future<void> stop() async {
     if (current != null) {
       _repo.recordPlay(current!.id, positionNotifier.value.inSeconds);

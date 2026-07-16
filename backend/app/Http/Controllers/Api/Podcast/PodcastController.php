@@ -8,6 +8,28 @@ use Illuminate\Http\Request;
 
 class PodcastController extends Controller
 {
+    // GET /api/v1/podcast/shows
+    public function index(Request $request)
+    {
+        $category = $request->input('category');
+        $sort     = $request->input('sort', 'popular'); // popular|new|rating
+
+        $query = Podcast::published()->with('category:id,name,icon,color')
+            ->select('id','title','slug','cover_image','category_id','total_episodes','total_followers','rating','is_verified');
+
+        if ($category) {
+            $query->whereHas('category', fn($q) => $q->where('slug', $category));
+        }
+
+        match($sort) {
+            'new'    => $query->orderByDesc('published_at'),
+            'rating' => $query->orderByDesc('rating'),
+            default  => $query->orderByDesc('total_followers'),
+        };
+
+        return response()->json(['status' => 'success', 'data' => $query->paginate(20)]);
+    }
+
     // GET /api/v1/podcast/shows/{slug}
     public function show(Request $request, string $slug)
     {

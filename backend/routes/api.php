@@ -22,6 +22,9 @@ use App\Http\Controllers\Api\Podcast\PodcastController;
 use App\Http\Controllers\Api\Podcast\PodcastEpisodeController;
 use App\Http\Controllers\Api\Podcast\PodcastSearchController;
 use App\Http\Controllers\Api\Podcast\PodcastPublishController;
+use App\Http\Controllers\Api\Podcast\PodcastHomeController;
+use App\Http\Controllers\Api\Podcast\PodcastCommentController;
+use App\Http\Controllers\Api\Podcast\PodcastLibraryController;
 
 
 use Illuminate\Support\Facades\Route;
@@ -661,25 +664,57 @@ Route::prefix('v1/elearning')->group(function () {
 // ─── Podcast Platform ─────────────────────────────────────────────────────────
 Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::prefix('podcast')->group(function () {
-        Route::get('home',                       [PodcastFeedController::class,    'home']);
-        Route::get('categories',                 [PodcastCategoryController::class,'index']);
-        Route::get('categories/{slug}',          [PodcastCategoryController::class,'show']);
-        Route::get('shows/{slug}',               [PodcastController::class,        'show']);
-        Route::get('following',                  [PodcastController::class,        'following']);
-        Route::get('episodes/{slug}',            [PodcastEpisodeController::class, 'show']);
-        Route::get('saved',                      [PodcastEpisodeController::class, 'saved']);
-        Route::post('shows/{id}/follow',         [PodcastController::class,        'follow']);
-        Route::post('episodes/{id}/play',        [PodcastEpisodeController::class, 'recordPlay']);
-        Route::post('episodes/{id}/like',        [PodcastEpisodeController::class, 'like']);
-        Route::post('episodes/{id}/save',        [PodcastEpisodeController::class, 'save']);
-        Route::get('search',                     [PodcastSearchController::class,  'search']);
-        Route::get('recommendations',            [PodcastSearchController::class,  'recommendations']);
-        Route::get('my-shows',                   [PodcastPublishController::class, 'myShows']);
-        Route::post('shows',                     [PodcastPublishController::class, 'createShow']);
-        Route::put('shows/{id}',                 [PodcastPublishController::class, 'updateShow']);
-        Route::post('shows/{id}/episodes',       [PodcastPublishController::class, 'publishEpisode']);
-        Route::delete('episodes/{id}',           [PodcastPublishController::class, 'deleteEpisode']);
-        Route::post('rss-import',                [PodcastPublishController::class, 'rssImport']);
+        // Home + Discovery
+        Route::get('home',                           [PodcastHomeController::class,    'home']);
+        Route::get('stats',                          [PodcastHomeController::class,    'stats']);
+        Route::get('top-charts',                     [PodcastHomeController::class,    'topCharts']);
+        Route::get('live-rooms',                     [PodcastHomeController::class,    'liveRooms']);
+
+        // Categories
+        Route::get('categories',                     [PodcastCategoryController::class,'index']);
+        Route::get('categories/{slug}',              [PodcastCategoryController::class,'show']);
+
+        // Podcasts (Shows)
+        Route::get('shows',                          [PodcastController::class,        'index']);
+        Route::get('shows/{slug}',                   [PodcastController::class,        'show']);
+        Route::get('following',                      [PodcastController::class,        'following']);
+        Route::post('shows/{id}/follow',             [PodcastController::class,        'follow']);
+
+        // Episodes
+        Route::get('episodes/{slug}',                [PodcastEpisodeController::class, 'show']);
+        Route::post('episodes/{id}/play',            [PodcastEpisodeController::class, 'recordPlay']);
+        Route::post('episodes/{id}/like',            [PodcastEpisodeController::class, 'like']);
+        Route::post('episodes/{id}/save',            [PodcastEpisodeController::class, 'save']);
+
+        // Comments
+        Route::get('episodes/{id}/comments',         [PodcastCommentController::class, 'index']);
+        Route::post('episodes/{id}/comments',        [PodcastCommentController::class, 'store']);
+        Route::get('comments/{id}/replies',          [PodcastCommentController::class, 'replies']);
+        Route::post('comments/{id}/like',            [PodcastCommentController::class, 'like']);
+        Route::delete('comments/{id}',               [PodcastCommentController::class, 'destroy']);
+
+        // Library
+        Route::get('library',                        [PodcastLibraryController::class, 'index']);
+        Route::get('library/history',                [PodcastLibraryController::class, 'history']);
+        Route::get('library/queue',                  [PodcastLibraryController::class, 'queue']);
+        Route::post('library/queue/{episodeId}',     [PodcastLibraryController::class, 'addToQueue']);
+        Route::delete('library/queue/{episodeId}',   [PodcastLibraryController::class, 'removeFromQueue']);
+        Route::get('library/playlists',              [PodcastLibraryController::class, 'playlists']);
+        Route::post('library/playlists',             [PodcastLibraryController::class, 'createPlaylist']);
+        Route::post('library/playlists/{id}/episodes/{episodeId}', [PodcastLibraryController::class, 'addToPlaylist']);
+        Route::get('saved',                          [PodcastEpisodeController::class, 'saved']);
+
+        // Search + Recommendations
+        Route::get('search',                         [PodcastSearchController::class,  'search']);
+        Route::get('recommendations',                [PodcastSearchController::class,  'recommendations']);
+
+        // Creator / Publish
+        Route::get('my-shows',                       [PodcastPublishController::class, 'myShows']);
+        Route::post('shows',                         [PodcastPublishController::class, 'createShow']);
+        Route::put('shows/{id}',                     [PodcastPublishController::class, 'updateShow']);
+        Route::post('shows/{id}/episodes',           [PodcastPublishController::class, 'publishEpisode']);
+        Route::delete('episodes/{id}',               [PodcastPublishController::class, 'deleteEpisode']);
+        Route::post('rss-import',                    [PodcastPublishController::class, 'rssImport']);
     });
 });
 

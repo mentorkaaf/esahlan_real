@@ -42,7 +42,7 @@
             </label>
             <label style="display:flex;align-items:center;gap:8px;padding:12px;background:#f9fafb;border-radius:10px;cursor:pointer;">
                 <input type="checkbox" name="review_all_media" value="1" {{ $settings['review_all_media'] ? 'checked' : '' }}>
-                <div><strong>Review All Media</strong><br><small style="color:#8A8A9A;">Flag all image/video posts for review</small></div>
+                <div><strong>Review All Media</strong><br><small style="color:#8A8A9A;">⚠️ All image/video posts go to review queue before appearing in feed (recommended ON)</small></div>
             </label>
         </div>
 

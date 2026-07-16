@@ -31,7 +31,7 @@ import 'copyright_screen.dart';
 import '../../../../core/widgets/realtime_status_banner.dart';
 import 'business_page_detail_screen.dart';
 import 'community_search_screen.dart';
-import '../../../podcast/presentation/screens/podcast_home_screen.dart';
+import '../../../podcast/presentation/screens/podcast_home_screen.dart' show PodcastHomeScreen;
 
 class CommunityFeedScreen extends ConsumerStatefulWidget {
   const CommunityFeedScreen({super.key});
