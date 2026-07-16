@@ -178,7 +178,7 @@ class _PlayerBody extends StatelessWidget {
             // Skip -15
             GestureDetector(
               onTap: () => svc.skip(-15),
-              child: const Icon(Icons.replay_15_rounded, color: Colors.white70, size: 34),
+              child: const Icon(Icons.replay_10_rounded, color: Colors.white70, size: 34),
             ),
             // Play/Pause — main button
             ValueListenableBuilder<bool>(
