@@ -669,6 +669,30 @@ class _CategoriesRow extends StatelessWidget {
   );
 }
 
+IconData _catIcon(String icon) {
+  const map = {
+    'business_center': Icons.business_center_rounded,
+    'school': Icons.school_rounded,
+    'mosque': Icons.mosque_rounded,
+    'sports_soccer': Icons.sports_soccer_rounded,
+    'music_note': Icons.music_note_rounded,
+    'movie': Icons.movie_rounded,
+    'science': Icons.science_rounded,
+    'favorite': Icons.favorite_rounded,
+    'code': Icons.code_rounded,
+    'attach_money': Icons.attach_money_rounded,
+    'local_hospital': Icons.local_hospital_rounded,
+    'restaurant': Icons.restaurant_rounded,
+    'travel_explore': Icons.travel_explore_rounded,
+    'palette': Icons.palette_rounded,
+    'gavel': Icons.gavel_rounded,
+    'nature': Icons.nature_rounded,
+    'child_care': Icons.child_care_rounded,
+    'psychology': Icons.psychology_rounded,
+  };
+  return map[icon] ?? Icons.podcasts_rounded;
+}
+
 class _CatChip extends StatelessWidget {
   final PodcastCategory cat;
   const _CatChip({required this.cat});
@@ -685,7 +709,7 @@ class _CatChip extends StatelessWidget {
         width: 90, margin: const EdgeInsets.only(right: 10),
         decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14)),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Text(cat.icon, style: const TextStyle(fontSize: 24)),
+          Icon(_catIcon(cat.icon), color: kNavy, size: 26),
           const SizedBox(height: 4),
           Text(cat.name, maxLines: 1, overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,

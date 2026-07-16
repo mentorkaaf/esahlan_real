@@ -13,8 +13,11 @@ class PodcastCategory {
       required this.icon, required this.color, required this.podcastCount});
 
   factory PodcastCategory.fromJson(Map<String, dynamic> j) => PodcastCategory(
-      id: j['id'], name: j['name'] ?? '', slug: j['slug'] ?? '',
-      icon: j['icon'] ?? '🎙', color: j['color'] ?? '#FF8A00',
+      id: j['id'] ?? 0,
+      name: j['name'] ?? '',
+      slug: j['slug'] ?? '',
+      icon: j['icon'] ?? '🎙',
+      color: j['color'] ?? '#FF8A00',
       podcastCount: j['podcast_count'] ?? 0);
 }
 

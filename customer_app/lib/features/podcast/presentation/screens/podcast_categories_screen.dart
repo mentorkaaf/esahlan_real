@@ -45,6 +45,30 @@ class _CatCard extends StatelessWidget {
     catch (_) { return kOrange; }
   }
 
+  IconData _icon() {
+    const map = {
+      'business_center': Icons.business_center_rounded,
+      'school': Icons.school_rounded,
+      'mosque': Icons.mosque_rounded,
+      'sports_soccer': Icons.sports_soccer_rounded,
+      'music_note': Icons.music_note_rounded,
+      'movie': Icons.movie_rounded,
+      'science': Icons.science_rounded,
+      'favorite': Icons.favorite_rounded,
+      'code': Icons.code_rounded,
+      'attach_money': Icons.attach_money_rounded,
+      'local_hospital': Icons.local_hospital_rounded,
+      'restaurant': Icons.restaurant_rounded,
+      'travel_explore': Icons.travel_explore_rounded,
+      'palette': Icons.palette_rounded,
+      'gavel': Icons.gavel_rounded,
+      'nature': Icons.nature_rounded,
+      'child_care': Icons.child_care_rounded,
+      'psychology': Icons.psychology_rounded,
+    };
+    return map[cat.icon] ?? Icons.podcasts_rounded;
+  }
+
   @override
   Widget build(BuildContext context) {
     final bg = _bg();
@@ -58,7 +82,7 @@ class _CatCard extends StatelessWidget {
         ),
         padding: const EdgeInsets.all(14),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(cat.icon, style: const TextStyle(fontSize: 30)),
+          Icon(_icon(), color: Colors.white, size: 30),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(cat.name, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
             Text('${cat.podcastCount} podcasts', style: TextStyle(color: Colors.white.withAlpha(204), fontSize: 11)),
