@@ -41,7 +41,7 @@ class _CreatorStudioScreenState extends State<CreatorStudioScreen>
     ),
     body: TabBarView(controller: _tabs, children: [
       _UploadTab(onShowsTab: () => _tabs.animateTo(1)),
-      _MyShowsTab(),
+      _MyShowsTab(onUploadTab: () => _tabs.animateTo(0)),
     ]),
   );
 }
@@ -435,6 +435,8 @@ class _UploadTabState extends State<_UploadTab> {
 // ─── My Shows Tab ─────────────────────────────────────────────────────────────
 
 class _MyShowsTab extends StatefulWidget {
+  final VoidCallback onUploadTab;
+  const _MyShowsTab({required this.onUploadTab});
   @override
   State<_MyShowsTab> createState() => _MyShowsTabState();
 }
@@ -486,7 +488,7 @@ class _MyShowsTabState extends State<_MyShowsTab> {
           style: TextStyle(color: Colors.grey, fontSize: 13)),
       const SizedBox(height: 20),
       ElevatedButton.icon(
-        onPressed: () => DefaultTabController.of(context).animateTo(0),
+        onPressed: widget.onUploadTab,
         style: ElevatedButton.styleFrom(
           backgroundColor: _kOrange, foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
