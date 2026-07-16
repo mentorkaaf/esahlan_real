@@ -288,6 +288,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('/posts', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'posts'])->name('posts');
             Route::delete('/posts/{id}', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'deletePost'])->name('posts.delete');
             Route::post('/posts-bulk-delete', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'bulkDeletePosts'])->name('posts.bulk-delete');
+            Route::post('/posts/{id}/toggle-privacy', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'togglePostPrivacy'])->name('posts.toggle-privacy');
+            Route::post('/posts-bulk-privacy', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'bulkPrivacyPosts'])->name('posts.bulk-privacy');
             Route::get('/reports', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'reports'])->name('reports');
             Route::post('/reports/{id}/action', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'actionReport'])->name('reports.action');
             Route::get('/groups', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'groups'])->name('groups');

@@ -96,6 +96,24 @@ class AdminCommunityController extends Controller
         return back()->with('success', count($ids) . ' posts permanently deleted.');
     }
 
+    public function togglePostPrivacy($id)
+    {
+        $post = CommunityPost::findOrFail($id);
+        $post->privacy = $post->privacy === 'private' ? 'public' : 'private';
+        $post->save();
+        return back()->with('success', 'Post #' . $id . ' set to ' . $post->privacy . '.');
+    }
+
+    public function bulkPrivacyPosts(Request $request)
+    {
+        $ids     = $request->input('ids', []);
+        $privacy = $request->input('privacy', 'private');
+        if (!in_array($privacy, ['public', 'private', 'friends'])) $privacy = 'private';
+        if (empty($ids)) return back()->with('success', 'No posts selected.');
+        CommunityPost::whereIn('id', $ids)->update(['privacy' => $privacy]);
+        return back()->with('success', count($ids) . ' posts set to ' . $privacy . '.');
+    }
+
     /**
      * Hard-delete a post and everything attached to it — DB rows and the
      * actual files on disk. Admin deletes must not leave anything recoverable

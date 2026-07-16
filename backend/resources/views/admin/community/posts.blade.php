@@ -64,7 +64,7 @@
 
 .ps-card {
   background:#fff; border-radius:var(--radius); box-shadow:var(--shadow);
-  overflow:hidden; display:flex; flex-direction:column;
+  overflow:hidden; display:flex; flex-direction:column; position:relative;
   border:1.5px solid #f0f0f5; transition:box-shadow .15s, transform .1s;
 }
 .ps-card:hover { box-shadow:0 6px 24px rgba(0,0,0,.11); transform:translateY(-1px); }
@@ -170,12 +170,18 @@
 
 /* ── Bulk toolbar ───────────────────────────────────────────── */
 .bulk-bar {
-  display:none; align-items:center; gap:10px;
+  display:none; align-items:center; gap:10px; flex-wrap:wrap;
   background:#FFF7ED; border:1.5px solid var(--accent); border-radius:var(--radius);
   padding:10px 16px; margin-bottom:16px;
 }
 .bulk-bar.visible { display:flex; }
 .bulk-bar span { font-weight:700; font-size:13px; color:var(--accent); flex:1; }
+
+/* ── Privacy toggle button ──────────────────────────────────── */
+.btn-priv-pub  { background:#DCFCE7; color:#166534; }
+.btn-priv-pub:hover  { background:#166534; color:#fff; }
+.btn-priv-priv { background:#F3F4F6; color:#6B7280; }
+.btn-priv-priv:hover { background:#6B7280; color:#fff; }
 
 /* ── Post Detail Modal ──────────────────────────────────────── */
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px; }
@@ -314,16 +320,28 @@
 </div>
 
 {{-- ── Bulk Actions Bar ────────────────────────────────────────── --}}
-<form action="{{ route('admin.community.posts.bulk-delete') }}" method="POST" id="bulkForm">
+<div class="bulk-bar" id="bulkBar">
+  <span id="bulkCount">0 selected</span>
+  <button type="button" onclick="submitBulkPrivacy('private')" class="btn-filter" style="background:#6B7280;">
+    <i class="fas fa-lock"></i> Set Private
+  </button>
+  <button type="button" onclick="submitBulkPrivacy('public')" class="btn-filter" style="background:var(--success);">
+    <i class="fas fa-globe"></i> Set Public
+  </button>
+  <button type="button" onclick="submitBulkDelete()" class="btn-filter" style="background:var(--danger);">
+    <i class="fas fa-trash"></i> Delete Selected
+  </button>
+  <button type="button" onclick="clearAll()" class="btn-reset">Cancel</button>
+</div>
+
+<form action="{{ route('admin.community.posts.bulk-delete') }}" method="POST" id="bulkDeleteForm">
   @csrf
-  <div class="bulk-bar" id="bulkBar">
-    <span id="bulkCount">0 selected</span>
-    <button type="button" onclick="submitBulk()" class="btn-filter" style="background:var(--danger);">
-      <i class="fas fa-trash"></i> Delete Selected
-    </button>
-    <button type="button" onclick="clearAll()" class="btn-reset">Cancel</button>
-  </div>
-  <div id="bulkIds"></div>
+  <div id="bulkDeleteIds"></div>
+</form>
+<form action="{{ route('admin.community.posts.bulk-privacy') }}" method="POST" id="bulkPrivacyForm">
+  @csrf
+  <input type="hidden" name="privacy" id="bulkPrivacyValue" value="private">
+  <div id="bulkPrivacyIds"></div>
 </form>
 
 {{-- ── Posts Grid ──────────────────────────────────────────────── --}}
@@ -341,7 +359,7 @@
   <div class="ps-card" id="card-{{ $post->id }}">
 
     {{-- Checkbox corner --}}
-    <div style="position:absolute;top:8px;right:8px;z-index:5;display:none;" class="ps-check-abs">
+    <div style="position:absolute;top:8px;right:8px;z-index:5;" class="ps-check-abs">
       <input type="checkbox" class="post-check" value="{{ $post->id }}" onchange="onCheck()" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;">
     </div>
 
@@ -444,6 +462,14 @@
         <button class="btn-icon btn-view" title="View Details" onclick="openModal({{ $post->id }})">
           <i class="fas fa-eye"></i>
         </button>
+        <form method="POST" action="{{ route('admin.community.posts.toggle-privacy', $post->id) }}" style="display:contents;">
+          @csrf
+          <button type="submit"
+            class="btn-icon {{ $post->privacy === 'private' ? 'btn-priv-pub' : 'btn-priv-priv' }}"
+            title="{{ $post->privacy === 'private' ? 'Make Public' : 'Make Private' }}">
+            <i class="fas {{ $post->privacy === 'private' ? 'fa-lock-open' : 'fa-lock' }}"></i>
+          </button>
+        </form>
         <form method="POST" action="{{ route('admin.community.posts.delete', $post->id) }}" onsubmit="return confirm('Delete this post?')" style="display:contents;">
           @csrf @method('DELETE')
           <button type="submit" class="btn-icon btn-del" title="Delete"><i class="fas fa-trash"></i></button>
@@ -602,18 +628,32 @@ function clearAll() {
   document.querySelectorAll('.post-check').forEach(c => c.checked = false);
   document.getElementById('bulkBar').classList.remove('visible');
 }
-function submitBulk() {
-  var checked = document.querySelectorAll('.post-check:checked');
-  if (!checked.length) return;
-  if (!confirm('Delete ' + checked.length + ' selected posts permanently?')) return;
-  var container = document.getElementById('bulkIds');
+function _getCheckedIds() {
+  return Array.from(document.querySelectorAll('.post-check:checked')).map(c => c.value);
+}
+function _fillIds(container, ids) {
   container.innerHTML = '';
-  checked.forEach(c => {
+  ids.forEach(id => {
     var inp = document.createElement('input');
-    inp.type = 'hidden'; inp.name = 'ids[]'; inp.value = c.value;
+    inp.type = 'hidden'; inp.name = 'ids[]'; inp.value = id;
     container.appendChild(inp);
   });
-  document.getElementById('bulkForm').submit();
+}
+function submitBulkDelete() {
+  var ids = _getCheckedIds();
+  if (!ids.length) return;
+  if (!confirm('Delete ' + ids.length + ' selected posts permanently?')) return;
+  _fillIds(document.getElementById('bulkDeleteIds'), ids);
+  document.getElementById('bulkDeleteForm').submit();
+}
+function submitBulkPrivacy(privacy) {
+  var ids = _getCheckedIds();
+  if (!ids.length) return;
+  var label = privacy === 'private' ? 'PRIVATE (hide from feed)' : 'PUBLIC (show in feed)';
+  if (!confirm('Set ' + ids.length + ' posts to ' + label + '?')) return;
+  document.getElementById('bulkPrivacyValue').value = privacy;
+  _fillIds(document.getElementById('bulkPrivacyIds'), ids);
+  document.getElementById('bulkPrivacyForm').submit();
 }
 
 // ── Escape key closes modal ────────────────────────────────────
