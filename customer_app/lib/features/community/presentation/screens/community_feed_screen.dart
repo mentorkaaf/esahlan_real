@@ -319,7 +319,7 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
           // The old ListView + Column built ALL 30+ cards at once — this is the main perf fix.
           child: CustomScrollView(
             physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-            cacheExtent: 800,
+            cacheExtent: 450,
             slivers: [
               SliverToBoxAdapter(child: widget.storiesState.when(
                 data: (groups) => StoriesBar(groups: groups),
@@ -1056,21 +1056,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
     if (!p.isAd) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        // Precache images while card is still off-screen (in cacheExtent zone)
-        // so they are GPU-uploaded before the card scrolls fully into view.
-        final avatar = p.user.avatar;
-        if (avatar != null && avatar.isNotEmpty) {
-          precacheImage(CachedNetworkImageProvider(avatar), context);
-        }
-        for (final media in p.media) {
-          if (media.type == 'image' && media.url.isNotEmpty) {
-            precacheImage(CachedNetworkImageProvider(media.url), context);
-          }
-          if (media.thumbnail != null && media.thumbnail!.isNotEmpty) {
-            precacheImage(CachedNetworkImageProvider(media.thumbnail!), context);
-          }
-        }
-        // Defer realtime subscription so it doesn't compete with image decoding
+        // Defer realtime subscription — don't compete with first-frame rendering
         Future.delayed(const Duration(milliseconds: 400), () {
           if (mounted) _subscribeRealtime();
         });
@@ -2885,7 +2871,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     // ── Report fraction to pool — pool plays the most-visible URL (>60%) ───
     if (_isVideo && _previewUrl.isNotEmpty && !_paused) {
       _pool.setFraction(_previewUrl, fraction);
-      if (fraction > 0.15) _pool.setActiveUrl(_previewUrl);
+      if (fraction > 0.4) _pool.setActiveUrl(_previewUrl);
       if (_ready && _controller != null && fraction > 0.5) {
         final want = _globalMuted ? 0.0 : 100.0;
         if ((_controller!.player.state.volume - want).abs() > 1.0) {

@@ -63,6 +63,7 @@ class VideoPool {
   final _controllers = <String, VideoController>{};
   final _loading     = <String, Future<VideoController?>>{};
   final _fractions   = <String, double>{};
+  final _urlIdx      = <String, int>{}; // O(1) url→index lookup
 
   List<String> _urls        = [];
   int          _windowIndex = -1;
@@ -84,27 +85,34 @@ class VideoPool {
   int  get windowIndex => _windowIndex;
   int  get liveCount   => _controllers.length + _loading.length;
 
+  void _rebuildIdx(List<String> urls) {
+    _urlIdx.clear();
+    for (var i = 0; i < urls.length; i++) _urlIdx[urls[i]] = i;
+  }
+
   // Called every time the feed state changes (page 1, 2, …).
   void setFeedUrls(List<String> urls) {
     _urls = urls;
+    _rebuildIdx(urls);
     if (urls.isEmpty) return;
     int pivot = _windowIndex >= 0 ? _windowIndex : 0;
     if (_activeUrl != null) {
-      final ai = urls.indexOf(_activeUrl!);
-      if (ai >= 0) pivot = ai;
+      final ai = _urlIdx[_activeUrl!];
+      if (ai != null) pivot = ai;
     }
     _rebuild(pivot);
   }
 
   void setWindow(List<String> urls, int index) {
     _urls = urls;
+    _rebuildIdx(urls);
     _rebuild(index);
   }
 
   void setActiveUrl(String url) {
     if (url.isEmpty) return;
-    final idx = _urls.indexOf(url);
-    if (idx >= 0) _rebuild(idx);
+    final idx = _urlIdx[url];           // O(1) lookup
+    if (idx != null) _rebuild(idx);
     else if (!isReady(url) && !isLoading(url)) _preload(url);
   }
 
@@ -157,6 +165,7 @@ class VideoPool {
     _players.clear();
     _controllers.clear();
     _fractions.clear();
+    _urlIdx.clear();
     _urls        = [];
     _windowIndex = -1;
   }
@@ -164,6 +173,7 @@ class VideoPool {
   // ── Private — window ──────────────────────────────────────────────────────
 
   void _rebuild(int pivot) {
+    if (_windowIndex == pivot) return; // already built for this index — skip evict+preload
     _windowIndex = pivot;
     _evictFar(pivot);
     _preloadNearby(pivot);
@@ -172,7 +182,7 @@ class VideoPool {
   void _evictFar(int pivot) {
     final evict = _controllers.keys.where((url) {
       if (url == _activeUrl || url == _pendingPlay) return false;
-      final i = _urls.indexOf(url);
+      final i = _urlIdx[url] ?? -1;
       return i < 0 || (i - pivot).abs() > _evictDist;
     }).toList();
     for (final url in evict) _evict(url);
@@ -182,19 +192,10 @@ class VideoPool {
     if (_urls.isEmpty) return;
     final from = (pivot - 1          ).clamp(0, _urls.length - 1);
     final to   = (pivot + _preloadAhead).clamp(0, _urls.length - 1);
-    var delay = 0;
     for (var i = from; i <= to; i++) {
       final url = _urls[i];
       if (url.isEmpty || isReady(url) || isLoading(url)) continue;
-      if (delay == 0) {
-        _preload(url);
-      } else {
-        final u = url;
-        Future.delayed(Duration(milliseconds: delay * 180), () {
-          if (!isReady(u) && !isLoading(u)) _preload(u);
-        });
-      }
-      delay++;
+      _preload(url);
     }
   }
 
