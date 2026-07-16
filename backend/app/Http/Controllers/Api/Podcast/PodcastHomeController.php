@@ -37,7 +37,7 @@ class PodcastHomeController extends Controller
                 'new_releases'       => $this->newReleases(),
                 'trending_today'     => $this->trendingToday(),
                 'recommended'        => $this->recommended($userId),
-                'top_charts'         => $this->topCharts(),
+                'top_charts'         => $this->topChartsHome(),
                 'live_rooms'         => $this->liveRooms(),
                 'categories'         => $this->featuredCategories(),
                 'verified_creators'  => $this->verifiedCreators(),
@@ -204,7 +204,7 @@ class PodcastHomeController extends Controller
             ->toArray();
     }
 
-    private function topCharts(): array
+    private function topChartsHome(): array
     {
         return PodcastEpisode::published()
             ->with('podcast:id,title,slug,cover_image,is_verified')
