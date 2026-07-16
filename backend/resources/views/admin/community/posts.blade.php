@@ -306,6 +306,15 @@
   </form>
 </div>
 
+{{-- ── Select All row ──────────────────────────────────────────── --}}
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:700;color:#555;user-select:none;">
+    <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
+    Select All
+  </label>
+  <span style="font-size:12px;color:#8A8A9A;">{{ $posts->count() }} posts on this page</span>
+</div>
+
 {{-- ── Type Quick Tabs ─────────────────────────────────────────── --}}
 <div class="type-tabs">
   <a href="{{ route('admin.community.posts') }}" class="type-tab {{ !request('type') ? 'active' : '' }}">
@@ -624,8 +633,14 @@ function onCheck() {
   document.getElementById('bulkCount').textContent = checked.length + ' selected';
   bar.classList.toggle('visible', checked.length > 0);
 }
+function toggleSelectAll(master) {
+  document.querySelectorAll('.post-check').forEach(c => c.checked = master.checked);
+  onCheck();
+}
 function clearAll() {
   document.querySelectorAll('.post-check').forEach(c => c.checked = false);
+  var sa = document.getElementById('selectAll');
+  if (sa) sa.checked = false;
   document.getElementById('bulkBar').classList.remove('visible');
 }
 function _getCheckedIds() {
