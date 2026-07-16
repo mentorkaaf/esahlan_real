@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/podcast_models.dart';
@@ -10,49 +11,79 @@ import 'all_podcasts_screen.dart';
 import 'podcast_categories_screen.dart';
 import 'top_charts_screen.dart';
 import 'podcast_search_screen.dart';
-import 'create_podcast_screen.dart';
+import 'creator_studio_screen.dart';
 import 'podcast_library_screen.dart';
+import 'live_audio_screen.dart';
 
-// Brand colors (eSahlan)
 const kNavy   = Color(0xFF07003B);
 const kOrange = Color(0xFFFF8A00);
 const kBg     = Color(0xFFF0F2F5);
 
-class PodcastHomeScreen extends ConsumerStatefulWidget {
-  const PodcastHomeScreen({super.key});
-  @override
-  ConsumerState<PodcastHomeScreen> createState() => _PodcastHomeScreenState();
+IconData podcastCatIcon(String icon) {
+  const map = {
+    'business_center': Icons.business_center_rounded,
+    'school': Icons.school_rounded,
+    'mosque': Icons.mosque_rounded,
+    'sports_soccer': Icons.sports_soccer_rounded,
+    'music_note': Icons.music_note_rounded,
+    'movie': Icons.movie_rounded,
+    'science': Icons.science_rounded,
+    'favorite': Icons.favorite_rounded,
+    'code': Icons.code_rounded,
+    'attach_money': Icons.attach_money_rounded,
+    'local_hospital': Icons.local_hospital_rounded,
+    'restaurant': Icons.restaurant_rounded,
+    'travel_explore': Icons.travel_explore_rounded,
+    'palette': Icons.palette_rounded,
+    'gavel': Icons.gavel_rounded,
+    'nature': Icons.nature_rounded,
+    'child_care': Icons.child_care_rounded,
+    'psychology': Icons.psychology_rounded,
+    'stories': Icons.auto_stories_rounded,
+    'motivation': Icons.emoji_events_rounded,
+    'entertainment': Icons.theaters_rounded,
+    'finance': Icons.trending_up_rounded,
+    'lifestyle': Icons.spa_rounded,
+    'health': Icons.health_and_safety_rounded,
+    'technology': Icons.memory_rounded,
+    'news': Icons.newspaper_rounded,
+  };
+  return map[icon] ?? Icons.podcasts_rounded;
 }
 
-class _PodcastHomeScreenState extends ConsumerState<PodcastHomeScreen> {
-  int _heroCurrent = 0;
-  final _heroCtrl = PageController(viewportFraction: 1.0);
+class PodcastHomeScreen extends ConsumerWidget {
+  const PodcastHomeScreen({super.key});
 
   @override
-  void dispose() {
-    _heroCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final homeAsync = ref.watch(podcastHomeProvider);
 
     return Scaffold(
       backgroundColor: kBg,
       body: homeAsync.when(
         loading: () => const _HomeLoading(),
-        error: (e, _) => _HomeError(onRetry: () => ref.invalidate(podcastHomeProvider)),
-        data: (data) => _buildContent(data),
+        error: (e, st) => _HomeError(
+          error: e.toString(),
+          onRetry: () => ref.invalidate(podcastHomeProvider),
+        ),
+        data: (data) => _HomeContent(data: data),
       ),
     );
   }
+}
 
-  Widget _buildContent(PodcastHomeData data) {
+// ─── Main content ──────────────────────────────────────────────────────────────
+
+class _HomeContent extends StatelessWidget {
+  final PodcastHomeData data;
+  const _HomeContent({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
     return CustomScrollView(
-      physics: const ClampingScrollPhysics(),
+      physics: const BouncingScrollPhysics(),
       slivers: [
-        // ── AppBar ──────────────────────────────────────────────────────────
+        // ── App Bar ────────────────────────────────────────────────────────
         SliverAppBar(
           backgroundColor: kNavy,
           pinned: true,
@@ -64,97 +95,104 @@ class _PodcastHomeScreenState extends ConsumerState<PodcastHomeScreen> {
             const Text('Audio & Podcast',
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
             const Spacer(),
-            _AppBarBtn(icon: Icons.search_rounded, onTap: () => _push(const PodcastSearchScreen())),
-            _AppBarBtn(icon: Icons.notifications_outlined, onTap: () {}),
-            _AppBarBtn(icon: Icons.account_circle_outlined, onTap: () {}),
+            _IBtn(icon: Icons.search_rounded, onTap: () => _push(context, const PodcastSearchScreen())),
+            _IBtn(icon: Icons.notifications_outlined, onTap: () {}),
+            _IBtn(icon: Icons.mic_external_on_rounded, color: kOrange,
+                onTap: () => _push(context, const CreatorStudioScreen())),
           ]),
         ),
 
-        // ── Hero Banner ─────────────────────────────────────────────────────
-        if (data.heroFeatured.isNotEmpty)
-          SliverToBoxAdapter(child: _HeroBanner(
-            podcasts: data.heroFeatured,
-            current: _heroCurrent,
-            ctrl: _heroCtrl,
-            onPageChanged: (i) => setState(() => _heroCurrent = i),
-            onExplore: () => _push(const AllPodcastsScreen()),
-            onCreate: () => _push(const CreatePodcastScreen()),
-          )),
-
-        // ── Stats Bar ────────────────────────────────────────────────────────
-        SliverToBoxAdapter(child: _StatsBar(
-          stats: data.stats,
-          onAllPodcasts: () => _push(const AllPodcastsScreen()),
-          onCategories:  () => _push(const PodcastCategoriesScreen()),
-          onTopCharts:   () => _push(const TopChartsScreen()),
-          onLive:        () {},
+        // ── Hero Banner ────────────────────────────────────────────────────
+        SliverToBoxAdapter(child: _HeroBanner(
+          podcasts: data.heroFeatured,
+          onExplore: () => _push(context, const AllPodcastsScreen()),
+          onCreate: () => _push(context, const CreatorStudioScreen()),
         )),
 
-        // ── Continue Listening ───────────────────────────────────────────────
+        // ── Stats Bar ──────────────────────────────────────────────────────
+        SliverToBoxAdapter(child: _StatsBar(
+          stats: data.stats,
+          onAllPodcasts: () => _push(context, const AllPodcastsScreen()),
+          onCategories:  () => _push(context, const PodcastCategoriesScreen()),
+          onTopCharts:   () => _push(context, const TopChartsScreen()),
+          onLive:        () => _push(context, const LiveAudioScreen()),
+        )),
+
+        // ── Continue Listening ─────────────────────────────────────────────
         if (data.continueListening.isNotEmpty) ...[
-          _header('Sii Dhegeyso', onSeeAll: () => _push(const PodcastLibraryScreen())),
-          SliverToBoxAdapter(child: _ContinueListeningRow(items: data.continueListening)),
+          _sectionHeader(context, 'Sii Dhegeyso',
+              onSeeAll: () => _push(context, const PodcastLibraryScreen())),
+          SliverToBoxAdapter(child: _ContinueRow(items: data.continueListening)),
         ],
 
-        // ── Popular Podcasts ─────────────────────────────────────────────────
+        // ── Popular Podcasts ───────────────────────────────────────────────
         if (data.popularPodcasts.isNotEmpty) ...[
-          _header('Popular Podcasts', onSeeAll: () => _push(const AllPodcastsScreen())),
-          SliverToBoxAdapter(child: _PodcastCardRow(podcasts: data.popularPodcasts)),
+          _sectionHeader(context, 'Popular Podcasts',
+              onSeeAll: () => _push(context, const AllPodcastsScreen())),
+          SliverToBoxAdapter(child: _PodcastRow(podcasts: data.popularPodcasts)),
         ],
 
-        // ── Top Charts ───────────────────────────────────────────────────────
+        // ── Top Charts ─────────────────────────────────────────────────────
         if (data.topCharts.isNotEmpty) ...[
-          _header('Top Charts', onSeeAll: () => _push(const TopChartsScreen())),
+          _sectionHeader(context, 'Top Charts',
+              onSeeAll: () => _push(context, const TopChartsScreen())),
           SliverToBoxAdapter(child: _TopChartsList(episodes: data.topCharts, limit: 5)),
         ],
 
-        // ── New Releases ─────────────────────────────────────────────────────
+        // ── New Releases ───────────────────────────────────────────────────
         if (data.newReleases.isNotEmpty) ...[
-          _header('New Releases', badge: 'NEW', onSeeAll: () {}),
-          SliverToBoxAdapter(child: _EpisodeCardRow(episodes: data.newReleases)),
+          _sectionHeader(context, 'New Releases', badge: 'NEW', onSeeAll: () {}),
+          SliverToBoxAdapter(child: _EpisodeRow(episodes: data.newReleases)),
         ],
 
-        // ── Trending Today ───────────────────────────────────────────────────
+        // ── Trending ───────────────────────────────────────────────────────
         if (data.trendingToday.isNotEmpty) ...[
-          _header('Trending Maanta', onSeeAll: () {}),
-          SliverToBoxAdapter(child: _EpisodeCardRow(episodes: data.trendingToday)),
+          _sectionHeader(context, 'Trending Maanta', onSeeAll: () {}),
+          SliverToBoxAdapter(child: _EpisodeRow(episodes: data.trendingToday)),
         ],
 
-        // ── Categories ──────────────────────────────────────────────────────
+        // ── Categories ─────────────────────────────────────────────────────
         if (data.categories.isNotEmpty) ...[
-          _header('Categories', onSeeAll: () => _push(const PodcastCategoriesScreen())),
+          _sectionHeader(context, 'Categories',
+              onSeeAll: () => _push(context, const PodcastCategoriesScreen())),
           SliverToBoxAdapter(child: _CategoriesRow(categories: data.categories)),
         ],
 
-        // ── Recommended ──────────────────────────────────────────────────────
+        // ── Recommended ────────────────────────────────────────────────────
         if (data.recommended.isNotEmpty) ...[
-          _header('Kuu Taliya', onSeeAll: () {}),
-          SliverToBoxAdapter(child: _PodcastCardRow(podcasts: data.recommended)),
+          _sectionHeader(context, 'Kuu Taliya', onSeeAll: () {}),
+          SliverToBoxAdapter(child: _PodcastRow(podcasts: data.recommended)),
         ],
 
-        // ── Verified Creators ─────────────────────────────────────────────────
-        if (data.verifiedCreators.isNotEmpty) ...[
-          _header('Verified Creators', onSeeAll: () {}),
-          SliverToBoxAdapter(child: _VerifiedCreatorsRow(creators: data.verifiedCreators)),
+        // ── Live Audio ─────────────────────────────────────────────────────
+        if (data.liveRooms.isNotEmpty) ...[
+          _sectionHeader(context, 'Live Audio',
+              badge: 'LIVE', onSeeAll: () => _push(context, const LiveAudioScreen())),
+          SliverToBoxAdapter(child: _LiveRow(rooms: data.liveRooms,
+              onJoin: (r) => _push(context, const LiveAudioScreen()))),
         ],
 
-        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        const SliverToBoxAdapter(child: SizedBox(height: 120)),
       ],
     );
   }
 
-  Widget _header(String title, {String? badge, VoidCallback? onSeeAll}) {
+  SliverToBoxAdapter _sectionHeader(BuildContext ctx, String title,
+      {String? badge, VoidCallback? onSeeAll}) {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
         child: Row(children: [
           Text(title,
-              style: const TextStyle(color: kNavy, fontSize: 16, fontWeight: FontWeight.w800)),
+              style: const TextStyle(color: kNavy, fontSize: 15, fontWeight: FontWeight.w800)),
           if (badge != null) ...[
             const SizedBox(width: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(4)),
+              decoration: BoxDecoration(
+                color: badge == 'LIVE' ? Colors.red : kOrange,
+                borderRadius: BorderRadius.circular(4),
+              ),
               child: Text(badge, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
             ),
           ],
@@ -169,101 +207,210 @@ class _PodcastHomeScreenState extends ConsumerState<PodcastHomeScreen> {
     );
   }
 
-  void _push(Widget screen) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
-  }
+  void _push(BuildContext ctx, Widget screen) =>
+      Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => screen));
 }
 
 // ─── Hero Banner ──────────────────────────────────────────────────────────────
 
-class _HeroBanner extends StatelessWidget {
+class _HeroBanner extends StatefulWidget {
   final List<Podcast> podcasts;
-  final int current;
-  final PageController ctrl;
-  final ValueChanged<int> onPageChanged;
   final VoidCallback onExplore;
   final VoidCallback onCreate;
+  const _HeroBanner({required this.podcasts, required this.onExplore, required this.onCreate});
+  @override
+  State<_HeroBanner> createState() => _HeroBannerState();
+}
 
-  const _HeroBanner({required this.podcasts, required this.current,
-      required this.ctrl, required this.onPageChanged,
-      required this.onExplore, required this.onCreate});
+class _HeroBannerState extends State<_HeroBanner> {
+  int _cur = 0;
+  final _ctrl = PageController();
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
+    // If no featured podcasts → show default hero
+    if (widget.podcasts.isEmpty) {
+      return _DefaultHero(onExplore: widget.onExplore, onCreate: widget.onCreate);
+    }
+
     return SizedBox(
-      height: 220,
-      child: Stack(
-        children: [
-          PageView.builder(
-            controller: ctrl,
-            onPageChanged: onPageChanged,
-            itemCount: podcasts.length,
-            itemBuilder: (_, i) => _HeroSlide(podcast: podcasts[i],
-                onExplore: onExplore, onCreate: onCreate),
-          ),
-          Positioned(
-            bottom: 12, left: 0, right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(podcasts.length, (i) => AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: current == i ? 20 : 6, height: 6,
-                margin: const EdgeInsets.symmetric(horizontal: 2),
-                decoration: BoxDecoration(
-                  color: current == i ? kOrange : Colors.white54,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              )),
-            ),
-          ),
-        ],
-      ),
+      height: 230,
+      child: Stack(children: [
+        PageView.builder(
+          controller: _ctrl,
+          itemCount: widget.podcasts.length,
+          onPageChanged: (i) => setState(() => _cur = i),
+          itemBuilder: (_, i) {
+            final p = widget.podcasts[i];
+            return _PodcastHeroSlide(podcast: p,
+                onExplore: widget.onExplore, onCreate: widget.onCreate);
+          },
+        ),
+        if (widget.podcasts.length > 1)
+          Positioned(bottom: 14, left: 0, right: 0,
+              child: Row(mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(widget.podcasts.length, (i) =>
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: _cur == i ? 18 : 6, height: 6,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: _cur == i ? kOrange : Colors.white38,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    )))),
+      ]),
     );
   }
 }
 
-class _HeroSlide extends StatelessWidget {
-  final Podcast podcast;
+class _DefaultHero extends StatelessWidget {
   final VoidCallback onExplore;
   final VoidCallback onCreate;
-
-  const _HeroSlide({required this.podcast, required this.onExplore, required this.onCreate});
+  const _DefaultHero({required this.onExplore, required this.onCreate});
 
   @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        PodcastCover(url: podcast.coverImage, width: double.infinity, height: 220, radius: 0),
-        Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter, end: Alignment.bottomCenter,
-              colors: [Color(0x88000000), Color(0xEE07003B)],
-              stops: [0.0, 1.0],
+  Widget build(BuildContext context) => Container(
+    height: 230,
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        colors: [Color(0xFF140465), Color(0xFF07003B), Color(0xFF1a0080)],
+        begin: Alignment.topLeft, end: Alignment.bottomRight,
+      ),
+    ),
+    child: Stack(children: [
+      // Decorative circles
+      Positioned(right: -30, top: -30,
+          child: Container(width: 180, height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: kOrange.withAlpha(20),
+              ))),
+      Positioned(right: 20, top: 10,
+          child: Container(width: 100, height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: kOrange.withAlpha(15),
+              ))),
+      // Waveform decoration
+      Positioned(right: 16, top: 0, bottom: 0,
+          child: _WaveDecoration()),
+      // Mic icon
+      Positioned(right: 24, top: 30,
+          child: Icon(Icons.mic_rounded, size: 70, color: kOrange.withAlpha(180))),
+      // Content
+      Positioned(left: 20, right: 120, bottom: 30, top: 20,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: kOrange.withAlpha(40),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text('eSahlan Audio', style: TextStyle(color: kOrange, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
             ),
-          ),
-        ),
-        Positioned(
-          left: 20, right: 20, bottom: 32,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Welcome to', style: TextStyle(color: Colors.white70, fontSize: 12)),
-            const Text('Audio & Podcast',
-                style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, height: 1.1)),
-            const SizedBox(height: 4),
-            const Text('Discover, listen and share amazing audio content.',
-                style: TextStyle(color: Colors.white60, fontSize: 11)),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+            const Text('Welcome to\nAudio & Podcast',
+                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, height: 1.15)),
+            const SizedBox(height: 6),
+            const Text('Discover, listen and share\namazing audio content.',
+                style: TextStyle(color: Colors.white54, fontSize: 11)),
+            const SizedBox(height: 16),
             Row(children: [
               _HeroBtn(label: 'Explore', filled: true, onTap: onExplore),
               const SizedBox(width: 10),
               _HeroBtn(label: '🎙 Create Audio', filled: false, onTap: onCreate),
             ]),
-          ]),
-        ),
-      ],
-    );
+          ])),
+    ]),
+  );
+}
+
+class _WaveDecoration extends StatefulWidget {
+  @override
+  State<_WaveDecoration> createState() => _WaveDecorationState();
+}
+
+class _WaveDecorationState extends State<_WaveDecoration> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat();
   }
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _ctrl,
+    builder: (_, __) => CustomPaint(
+      size: const Size(80, 230),
+      painter: _WavePainter(tick: _ctrl.value),
+    ),
+  );
+}
+
+class _WavePainter extends CustomPainter {
+  final double tick;
+  final _rng = math.Random(7);
+  _WavePainter({required this.tick});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    const bars = 18;
+    final barW = size.width / (bars * 1.6);
+    final gap = barW * 0.6;
+    for (var i = 0; i < bars; i++) {
+      final baseH = 20.0 + _rng.nextDouble() * 60;
+      final wave = math.sin(tick * math.pi * 2 + i * 0.4);
+      final h = baseH * (0.7 + 0.3 * wave.abs());
+      final x = i * (barW + gap);
+      final y = (size.height - h) / 2;
+      paint.color = kOrange.withAlpha((60 + i * 5).clamp(40, 100));
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(x, y, barW, h), const Radius.circular(2)),
+        paint,
+      );
+    }
+  }
+  @override
+  bool shouldRepaint(_WavePainter old) => old.tick != tick;
+}
+
+class _PodcastHeroSlide extends StatelessWidget {
+  final Podcast podcast;
+  final VoidCallback onExplore;
+  final VoidCallback onCreate;
+  const _PodcastHeroSlide({required this.podcast, required this.onExplore, required this.onCreate});
+
+  @override
+  Widget build(BuildContext context) => Stack(fit: StackFit.expand, children: [
+    PodcastCover(url: podcast.coverImage, width: double.infinity, height: 230, radius: 0),
+    Container(decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter, end: Alignment.bottomCenter,
+        colors: [Color(0x44000000), Color(0xEE07003B)],
+      ),
+    )),
+    Positioned(left: 20, right: 20, bottom: 28,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(podcast.title,
+              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+          if (podcast.category != null)
+            Text(podcast.category!.name, style: const TextStyle(color: Colors.white60, fontSize: 12)),
+          const SizedBox(height: 12),
+          Row(children: [
+            _HeroBtn(label: 'Explore', filled: true, onTap: onExplore),
+            const SizedBox(width: 10),
+            _HeroBtn(label: '🎙 Create Audio', filled: false, onTap: onCreate),
+          ]),
+        ])),
+  ]);
 }
 
 class _HeroBtn extends StatelessWidget {
@@ -280,11 +427,12 @@ class _HeroBtn extends StatelessWidget {
       decoration: BoxDecoration(
         color: filled ? kOrange : Colors.transparent,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: filled ? kOrange : Colors.white54),
+        border: Border.all(color: filled ? kOrange : Colors.white38),
       ),
-      child: Text(label,
-          style: TextStyle(color: filled ? Colors.white : Colors.white70,
-              fontSize: 12, fontWeight: FontWeight.w700)),
+      child: Text(label, style: TextStyle(
+        color: filled ? Colors.white : Colors.white70,
+        fontSize: 12, fontWeight: FontWeight.w700,
+      )),
     ),
   );
 }
@@ -293,52 +441,39 @@ class _HeroBtn extends StatelessWidget {
 
 class _StatsBar extends StatelessWidget {
   final PodcastStats stats;
-  final VoidCallback onAllPodcasts;
-  final VoidCallback onCategories;
-  final VoidCallback onTopCharts;
-  final VoidCallback onLive;
-
+  final VoidCallback onAllPodcasts, onCategories, onTopCharts, onLive;
   const _StatsBar({required this.stats, required this.onAllPodcasts,
       required this.onCategories, required this.onTopCharts, required this.onLive});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _StatChip(icon: Icons.podcasts_rounded, label: 'All Podcasts',
-              value: _fmt(stats.totalPodcasts), onTap: onAllPodcasts),
-          _StatChip(icon: Icons.category_outlined, label: 'Categories',
-              value: '${stats.totalCategories}', onTap: onCategories),
-          _StatChip(icon: Icons.bar_chart_rounded, label: 'Top Charts',
-              value: _fmt(stats.totalEpisodes), onTap: onTopCharts),
-          _StatChip(icon: Icons.new_releases_outlined, label: 'New Releases',
-              value: _fmt(stats.newThisWeek), onTap: () {}),
-          _StatChip(icon: Icons.sensors_rounded, label: 'Live Audio',
-              value: '${stats.liveRooms}', onTap: onLive, live: stats.liveRooms > 0),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    color: Colors.white,
+    padding: const EdgeInsets.symmetric(vertical: 12),
+    child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+      _StatItem(icon: Icons.podcasts_rounded, label: 'All Podcasts',
+          value: _k(stats.totalPodcasts), onTap: onAllPodcasts),
+      _StatItem(icon: Icons.category_rounded, label: 'Categories',
+          value: '${stats.totalCategories}', onTap: onCategories),
+      _StatItem(icon: Icons.bar_chart_rounded, label: 'Top Charts',
+          value: _k(stats.totalEpisodes), onTap: onTopCharts),
+      _StatItem(icon: Icons.new_releases_rounded, label: 'New Releases',
+          value: _k(stats.newThisWeek), onTap: () {}),
+      _StatItem(icon: Icons.sensors_rounded, label: 'Live Audio',
+          value: '${stats.liveRooms}', onTap: onLive,
+          dot: stats.liveRooms > 0),
+    ]),
+  );
 
-  String _fmt(int n) {
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
-    return '$n';
-  }
+  String _k(int n) => n >= 1000 ? '${(n/1000).toStringAsFixed(1)}K' : '$n';
 }
 
-class _StatChip extends StatelessWidget {
+class _StatItem extends StatelessWidget {
   final IconData icon;
-  final String label;
-  final String value;
+  final String label, value;
   final VoidCallback onTap;
-  final bool live;
-
-  const _StatChip({required this.icon, required this.label,
-      required this.value, required this.onTap, this.live = false});
+  final bool dot;
+  const _StatItem({required this.icon, required this.label,
+      required this.value, required this.onTap, this.dot = false});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
@@ -346,7 +481,7 @@ class _StatChip extends StatelessWidget {
     child: Column(mainAxisSize: MainAxisSize.min, children: [
       Stack(children: [
         Icon(icon, color: kNavy, size: 26),
-        if (live) Positioned(right: 0, top: 0,
+        if (dot) Positioned(right: 0, top: 0,
             child: Container(width: 7, height: 7,
                 decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
       ]),
@@ -357,11 +492,11 @@ class _StatChip extends StatelessWidget {
   );
 }
 
-// ─── Continue Listening ──────────────────────────────────────────────────────
+// ─── Continue Listening ───────────────────────────────────────────────────────
 
-class _ContinueListeningRow extends StatelessWidget {
+class _ContinueRow extends StatelessWidget {
   final List<ContinueItem> items;
-  const _ContinueListeningRow({required this.items});
+  const _ContinueRow({required this.items});
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -379,15 +514,14 @@ class _ContinueCard extends StatelessWidget {
   final ContinueItem item;
   const _ContinueCard({required this.item});
 
-  void _play(BuildContext context) {
+  void _play(BuildContext ctx) {
     PodcastAudioService.instance.play(item.episode);
-    Navigator.of(context).push(PageRouteBuilder(
+    Navigator.of(ctx).push(PageRouteBuilder(
       pageBuilder: (_, __, ___) => const EpisodePlayerScreen(),
-      transitionsBuilder: (_, anim, __, child) => SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
-            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
-        child: child,
-      ),
+      transitionsBuilder: (_, a, __, child) => SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0,1), end: Offset.zero)
+            .animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
+        child: child),
     ));
   }
 
@@ -395,20 +529,15 @@ class _ContinueCard extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
     onTap: () => _play(context),
     child: Container(
-      width: 290,
-      margin: const EdgeInsets.only(right: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withAlpha(13), blurRadius: 8, offset: const Offset(0,2))],
-      ),
+      width: 290, margin: const EdgeInsets.only(right: 12),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
+          boxShadow: [BoxShadow(color: Colors.black.withAlpha(13), blurRadius: 8)]),
       child: Row(children: [
-        ClipRRect(
-          borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-          child: PodcastCover(url: item.episode.coverImage, width: 90, height: 90),
-        ),
+        ClipRRect(borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+            child: PodcastCover(url: item.episode.coverImage, width: 90, height: 90)),
         const SizedBox(width: 10),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center, children: [
           Text(item.episode.title, maxLines: 2, overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: kNavy, fontSize: 12, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
@@ -416,73 +545,65 @@ class _ContinueCard extends StatelessWidget {
             value: item.progress / 100,
             backgroundColor: const Color(0xFFE5E7EB),
             valueColor: const AlwaysStoppedAnimation<Color>(kOrange),
-            minHeight: 3,
-            borderRadius: BorderRadius.circular(2),
+            minHeight: 3, borderRadius: BorderRadius.circular(2),
           ),
           const SizedBox(height: 4),
           Text('${item.progress}% · ${item.episode.durationFmt}',
               style: const TextStyle(color: Colors.grey, fontSize: 10)),
         ])),
-        Container(
-          margin: const EdgeInsets.only(right: 10),
-          width: 34, height: 34,
-          decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
-          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
-        ),
+        Container(margin: const EdgeInsets.only(right: 10), width: 32, height: 32,
+            decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
+            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18)),
       ]),
     ),
   );
 }
 
-// ─── Podcast Card Row ─────────────────────────────────────────────────────────
+// ─── Podcast Row ──────────────────────────────────────────────────────────────
 
-class _PodcastCardRow extends StatelessWidget {
+class _PodcastRow extends StatelessWidget {
   final List<Podcast> podcasts;
-  const _PodcastCardRow({required this.podcasts});
+  const _PodcastRow({required this.podcasts});
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 195,
+    height: 185,
     child: ListView.builder(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: podcasts.length,
-      itemBuilder: (_, i) => _PodcastCard(podcast: podcasts[i]),
+      itemBuilder: (_, i) => _PodCard(podcast: podcasts[i]),
     ),
   );
 }
 
-class _PodcastCard extends StatelessWidget {
+class _PodCard extends StatelessWidget {
   final Podcast podcast;
-  const _PodcastCard({required this.podcast});
+  const _PodCard({required this.podcast});
 
   @override
   Widget build(BuildContext context) => Container(
-    width: 130,
-    margin: const EdgeInsets.only(right: 12),
+    width: 130, margin: const EdgeInsets.only(right: 12),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Stack(children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: PodcastCover(url: podcast.coverImage, width: 130, height: 130),
-        ),
+        ClipRRect(borderRadius: BorderRadius.circular(12),
+            child: PodcastCover(url: podcast.coverImage, width: 130, height: 130)),
         if (podcast.isVerified) Positioned(top: 6, right: 6,
-          child: Container(
-            padding: const EdgeInsets.all(2),
-            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-            child: const Icon(Icons.verified_rounded, color: kOrange, size: 14),
-          )),
+            child: Container(padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                child: const Icon(Icons.verified_rounded, color: kOrange, size: 13))),
       ]),
-      const SizedBox(height: 6),
+      const SizedBox(height: 5),
       Text(podcast.title, maxLines: 1, overflow: TextOverflow.ellipsis,
           style: const TextStyle(color: kNavy, fontSize: 12, fontWeight: FontWeight.w700)),
-      Text(podcast.category?.name ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: Colors.grey, fontSize: 10)),
+      if (podcast.category != null)
+        Text(podcast.category!.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.grey, fontSize: 10)),
       const SizedBox(height: 2),
       Row(children: [
         const Icon(Icons.headset_rounded, color: kOrange, size: 11),
-        const SizedBox(width: 3),
-        Text(_fmt(podcast.totalFollowers),
+        const SizedBox(width: 2),
+        Text(_k(podcast.totalFollowers),
             style: const TextStyle(color: kOrange, fontSize: 10, fontWeight: FontWeight.w600)),
         const SizedBox(width: 6),
         const Icon(Icons.mic_rounded, size: 11, color: Colors.grey),
@@ -492,40 +613,39 @@ class _PodcastCard extends StatelessWidget {
     ]),
   );
 
-  String _fmt(int n) => n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}K' : '$n';
+  String _k(int n) => n >= 1000 ? '${(n/1000).toStringAsFixed(1)}K' : '$n';
 }
 
-// ─── Episode Card Row ─────────────────────────────────────────────────────────
+// ─── Episode Row ──────────────────────────────────────────────────────────────
 
-class _EpisodeCardRow extends StatelessWidget {
+class _EpisodeRow extends StatelessWidget {
   final List<PodcastEpisode> episodes;
-  const _EpisodeCardRow({required this.episodes});
+  const _EpisodeRow({required this.episodes});
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 190,
+    height: 185,
     child: ListView.builder(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: episodes.length,
-      itemBuilder: (_, i) => _EpisodeCard(episode: episodes[i]),
+      itemBuilder: (_, i) => _EpCard(episode: episodes[i]),
     ),
   );
 }
 
-class _EpisodeCard extends StatelessWidget {
+class _EpCard extends StatelessWidget {
   final PodcastEpisode episode;
-  const _EpisodeCard({required this.episode});
+  const _EpCard({required this.episode});
 
-  void _play(BuildContext context) {
+  void _play(BuildContext ctx) {
     PodcastAudioService.instance.play(episode);
-    Navigator.of(context).push(PageRouteBuilder(
+    Navigator.of(ctx).push(PageRouteBuilder(
       pageBuilder: (_, __, ___) => const EpisodePlayerScreen(),
-      transitionsBuilder: (_, anim, __, child) => SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
-            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
-        child: child,
-      ),
+      transitionsBuilder: (_, a, __, child) => SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0,1), end: Offset.zero)
+            .animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
+        child: child),
     ));
   }
 
@@ -533,28 +653,24 @@ class _EpisodeCard extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
     onTap: () => _play(context),
     child: Container(
-      width: 140,
-      margin: const EdgeInsets.only(right: 12),
+      width: 140, margin: const EdgeInsets.only(right: 12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Stack(children: [
           ClipRRect(borderRadius: BorderRadius.circular(12),
               child: PodcastCover(url: episode.coverImage, width: 140, height: 130)),
           Positioned(bottom: 6, right: 6,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.black.withAlpha(179), borderRadius: BorderRadius.circular(6)),
-              child: Text(episode.durationFmt,
-                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
-            )),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withAlpha(160), borderRadius: BorderRadius.circular(5)),
+                child: Text(episode.durationFmt,
+                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)))),
           Positioned(bottom: 6, left: 6,
-            child: Container(
-              padding: const EdgeInsets.all(5),
-              decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
-              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 13),
-            )),
+              child: Container(padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
+                  child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 12))),
         ]),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         Text(episode.title, maxLines: 2, overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: kNavy, fontSize: 11, fontWeight: FontWeight.w700, height: 1.3)),
         if (episode.podcast != null)
@@ -579,37 +695,33 @@ class _TopChartsList extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          color: Colors.white, borderRadius: BorderRadius.circular(14),
           boxShadow: [BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 8)],
         ),
         child: Column(
-          children: show.asMap().entries.map((entry) {
-            final rank = entry.key + 1;
-            final ep   = entry.value;
-            return _ChartTile(rank: rank, episode: ep, isLast: rank == show.length);
-          }).toList(),
+          children: show.asMap().entries.map((e) =>
+            _ChartRow(rank: e.key + 1, episode: e.value, isLast: e.key == show.length - 1)
+          ).toList(),
         ),
       ),
     );
   }
 }
 
-class _ChartTile extends StatelessWidget {
+class _ChartRow extends StatelessWidget {
   final int rank;
   final PodcastEpisode episode;
   final bool isLast;
-  const _ChartTile({required this.rank, required this.episode, required this.isLast});
+  const _ChartRow({required this.rank, required this.episode, required this.isLast});
 
-  void _play(BuildContext context) {
+  void _play(BuildContext ctx) {
     PodcastAudioService.instance.play(episode);
-    Navigator.of(context).push(PageRouteBuilder(
+    Navigator.of(ctx).push(PageRouteBuilder(
       pageBuilder: (_, __, ___) => const EpisodePlayerScreen(),
-      transitionsBuilder: (_, anim, __, child) => SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
-            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
-        child: child,
-      ),
+      transitionsBuilder: (_, a, __, child) => SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0,1), end: Offset.zero)
+            .animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
+        child: child),
     ));
   }
 
@@ -620,11 +732,10 @@ class _ChartTile extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Row(children: [
-          SizedBox(width: 28,
-            child: Text('$rank', style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w900,
-              color: rank <= 3 ? kOrange : Colors.grey.shade400,
-            ))),
+          SizedBox(width: 26,
+              child: Text('$rank', style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w900,
+                color: rank <= 3 ? kOrange : Colors.grey.shade400))),
           ClipRRect(borderRadius: BorderRadius.circular(8),
               child: PodcastCover(url: episode.coverImage, width: 44, height: 44)),
           const SizedBox(width: 10),
@@ -635,20 +746,19 @@ class _ChartTile extends StatelessWidget {
                 style: const TextStyle(color: Colors.grey, fontSize: 11)),
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(episode.durationFmt,
-                style: const TextStyle(color: Colors.grey, fontSize: 11)),
-            Text(_fmt(episode.playCount),
+            Text(episode.durationFmt, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+            Text(_k(episode.playCount),
                 style: const TextStyle(color: kOrange, fontSize: 10, fontWeight: FontWeight.w700)),
           ]),
           const SizedBox(width: 8),
           const Icon(Icons.play_circle_fill_rounded, color: kOrange, size: 30),
         ]),
       ),
-      if (!isLast) Divider(height: 1, indent: 56, endIndent: 14, color: Colors.grey.shade100),
+      if (!isLast) Divider(height: 1, indent: 54, endIndent: 14, color: Colors.grey.shade100),
     ]),
   );
 
-  String _fmt(int n) => n >= 1000 ? '${(n/1000).toStringAsFixed(1)}K' : '$n';
+  String _k(int n) => n >= 1000 ? '${(n/1000).toStringAsFixed(1)}K' : '$n';
 }
 
 // ─── Categories Row ───────────────────────────────────────────────────────────
@@ -659,7 +769,7 @@ class _CategoriesRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 80,
+    height: 82,
     child: ListView.builder(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -669,176 +779,185 @@ class _CategoriesRow extends StatelessWidget {
   );
 }
 
-IconData _catIcon(String icon) {
-  const map = {
-    'business_center': Icons.business_center_rounded,
-    'school': Icons.school_rounded,
-    'mosque': Icons.mosque_rounded,
-    'sports_soccer': Icons.sports_soccer_rounded,
-    'music_note': Icons.music_note_rounded,
-    'movie': Icons.movie_rounded,
-    'science': Icons.science_rounded,
-    'favorite': Icons.favorite_rounded,
-    'code': Icons.code_rounded,
-    'attach_money': Icons.attach_money_rounded,
-    'local_hospital': Icons.local_hospital_rounded,
-    'restaurant': Icons.restaurant_rounded,
-    'travel_explore': Icons.travel_explore_rounded,
-    'palette': Icons.palette_rounded,
-    'gavel': Icons.gavel_rounded,
-    'nature': Icons.nature_rounded,
-    'child_care': Icons.child_care_rounded,
-    'psychology': Icons.psychology_rounded,
-  };
-  return map[icon] ?? Icons.podcasts_rounded;
-}
-
 class _CatChip extends StatelessWidget {
   final PodcastCategory cat;
   const _CatChip({required this.cat});
 
-  @override
-  Widget build(BuildContext context) {
-    Color bg;
-    try { bg = Color(int.parse(cat.color.replaceFirst('#', '0xFF'))).withAlpha(26); }
-    catch (_) { bg = kOrange.withAlpha(26); }
-
-    return GestureDetector(
-      onTap: () {},
-      child: Container(
-        width: 90, margin: const EdgeInsets.only(right: 10),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14)),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(_catIcon(cat.icon), color: kNavy, size: 26),
-          const SizedBox(height: 4),
-          Text(cat.name, maxLines: 1, overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: kNavy, fontSize: 10, fontWeight: FontWeight.w700)),
-          Text('${cat.podcastCount}',
-              style: const TextStyle(color: Colors.grey, fontSize: 9)),
-        ]),
-      ),
-    );
+  Color _bg() {
+    try { return Color(int.parse(cat.color.replaceFirst('#', '0xFF'))).withAlpha(30); }
+    catch (_) { return kOrange.withAlpha(30); }
   }
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => const PodcastCategoriesScreen())),
+    child: Container(
+      width: 88, margin: const EdgeInsets.only(right: 10),
+      decoration: BoxDecoration(color: _bg(), borderRadius: BorderRadius.circular(14)),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(podcastCatIcon(cat.icon), color: kNavy, size: 24),
+        const SizedBox(height: 4),
+        Text(cat.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: kNavy, fontSize: 10, fontWeight: FontWeight.w700)),
+        Text('${cat.podcastCount}',
+            style: const TextStyle(color: Colors.grey, fontSize: 9)),
+      ]),
+    ),
+  );
 }
 
-// ─── Verified Creators ───────────────────────────────────────────────────────
+// ─── Live Row ─────────────────────────────────────────────────────────────────
 
-class _VerifiedCreatorsRow extends StatelessWidget {
-  final List<dynamic> creators;
-  const _VerifiedCreatorsRow({required this.creators});
+class _LiveRow extends StatelessWidget {
+  final List<dynamic> rooms;
+  final Function(dynamic) onJoin;
+  const _LiveRow({required this.rooms, required this.onJoin});
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 100,
+    height: 110,
     child: ListView.builder(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: creators.length,
+      itemCount: rooms.length,
       itemBuilder: (_, i) {
-        final c = creators[i] as Map<String, dynamic>;
-        return _CreatorChip(creator: c);
+        final r = rooms[i] as Map<String, dynamic>;
+        return _LiveCard(room: r, onJoin: () => onJoin(r));
       },
     ),
   );
 }
 
-class _CreatorChip extends StatelessWidget {
-  final Map<String, dynamic> creator;
-  const _CreatorChip({required this.creator});
+class _LiveCard extends StatelessWidget {
+  final Map<String, dynamic> room;
+  final VoidCallback onJoin;
+  const _LiveCard({required this.room, required this.onJoin});
 
   @override
   Widget build(BuildContext context) => Container(
-    width: 80, margin: const EdgeInsets.only(right: 14),
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Stack(children: [
-        ClipRRect(borderRadius: BorderRadius.circular(30),
-            child: PodcastCover(url: creator['cover_image'], width: 56, height: 56)),
-        const Positioned(right: 0, bottom: 0,
-          child: Icon(Icons.verified_rounded, color: kOrange, size: 16)),
+    width: 230, margin: const EdgeInsets.only(right: 12),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+        colors: [Color(0xFF07003B), Color(0xFF1a0080)],
+        begin: Alignment.topLeft, end: Alignment.bottomRight,
+      ),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    padding: const EdgeInsets.all(12),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(4)),
+            child: const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800))),
+        const SizedBox(width: 6),
+        const Icon(Icons.people_rounded, color: Colors.white54, size: 13),
+        const SizedBox(width: 3),
+        Text('${room['listener_count'] ?? 0}',
+            style: const TextStyle(color: Colors.white54, fontSize: 11)),
       ]),
-      const SizedBox(height: 4),
-      Text(creator['title'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: kNavy, fontSize: 10, fontWeight: FontWeight.w700)),
-      Text(_fmt(creator['followers'] ?? 0),
-          style: const TextStyle(color: Colors.grey, fontSize: 9)),
+      const SizedBox(height: 6),
+      Text(room['title'] ?? 'Live Session',
+          maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+      Text(room['host_name'] ?? '',
+          style: const TextStyle(color: Colors.white54, fontSize: 11)),
+      const Spacer(),
+      GestureDetector(
+        onTap: onJoin,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(20)),
+          child: const Text('Join', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+        ),
+      ),
     ]),
   );
-
-  String _fmt(dynamic n) {
-    final v = n is int ? n : (n as num).toInt();
-    return v >= 1000 ? '${(v/1000).toStringAsFixed(1)}K' : '$v';
-  }
 }
 
-// ─── AppBar Button ────────────────────────────────────────────────────────────
+// ─── Helper widgets ───────────────────────────────────────────────────────────
 
-class _AppBarBtn extends StatelessWidget {
+class _IBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-  const _AppBarBtn({required this.icon, required this.onTap});
+  final Color color;
+  const _IBtn({required this.icon, required this.onTap, this.color = Colors.white});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Icon(icon, color: Colors.white, size: 22),
+      child: Icon(icon, color: color, size: 22),
     ),
   );
 }
 
-// ─── Shared Loading/Error ─────────────────────────────────────────────────────
+// ─── Loading / Error ──────────────────────────────────────────────────────────
 
 class _HomeLoading extends StatelessWidget {
   const _HomeLoading();
 
   @override
-  Widget build(BuildContext context) => Container(
-    color: kBg,
-    child: Column(children: [
-      Container(height: 220, color: kNavy.withAlpha(200)),
-      const SizedBox(height: 12),
-      _shimmer(100, double.infinity),
-      const SizedBox(height: 16),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(children: [
-          _shimmer(130, 130), const SizedBox(width: 12),
-          _shimmer(130, 130), const SizedBox(width: 12),
-          _shimmer(130, 130),
-        ]),
+  Widget build(BuildContext context) => Column(children: [
+    Container(height: 230, decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        colors: [Color(0xFF140465), Color(0xFF07003B)],
+        begin: Alignment.topLeft, end: Alignment.bottomRight,
       ),
+    )),
+    const SizedBox(height: 12),
+    _shimmer(100, double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16)),
+    const SizedBox(height: 16),
+    _shimmerRow(),
+  ]);
+
+  Widget _shimmerRow() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: Row(children: [
+      _shimmer(130, 130), const SizedBox(width: 12),
+      _shimmer(130, 130), const SizedBox(width: 12),
+      _shimmer(130, 130),
     ]),
   );
 
-  Widget _shimmer(double h, double w) => Container(
-    height: h, width: w,
-    decoration: BoxDecoration(
-      color: Colors.grey.shade200,
-      borderRadius: BorderRadius.circular(12),
-    ),
+  Widget _shimmer(double h, double w, {EdgeInsets? padding}) => Padding(
+    padding: padding ?? EdgeInsets.zero,
+    child: Container(height: h, width: w,
+        decoration: BoxDecoration(color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(12))),
   );
 }
 
 class _HomeError extends StatelessWidget {
+  final String error;
   final VoidCallback onRetry;
-  const _HomeError({required this.onRetry});
+  const _HomeError({required this.error, required this.onRetry});
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.wifi_off_rounded, size: 56, color: Colors.grey),
-      const SizedBox(height: 12),
-      const Text('Xiriirka kuma guulaysanin', style: TextStyle(color: kNavy, fontSize: 15, fontWeight: FontWeight.w600)),
-      const SizedBox(height: 16),
-      ElevatedButton(
-        onPressed: onRetry,
-        style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-        child: const Text('Isku Day'),
-      ),
-    ]),
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.wifi_off_rounded, size: 56, color: Colors.grey),
+        const SizedBox(height: 12),
+        const Text('Xiriirka kuma guulaysanin',
+            style: TextStyle(color: kNavy, fontSize: 15, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        Text(error, style: const TextStyle(color: Colors.grey, fontSize: 11),
+            textAlign: TextAlign.center, maxLines: 3, overflow: TextOverflow.ellipsis),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: onRetry,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: kOrange, foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            minimumSize: const Size(160, 44),
+          ),
+          child: const Text('Isku Day', style: TextStyle(fontWeight: FontWeight.w700)),
+        ),
+      ]),
+    ),
   );
 }

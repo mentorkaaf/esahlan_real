@@ -316,6 +316,16 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/users/{userId}/unrestrict', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'unrestrictUser'])->name('users.unrestrict');
             Route::post('/users/{userId}/clear-strikes', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'clearStrikes'])->name('users.clear-strikes');
         });
+        // Podcast Management
+        Route::prefix('podcast')->name('podcast.')->group(function () {
+            $pc = \App\Http\Controllers\Admin\AdminPodcastController::class;
+            Route::get('/',                     [$pc, 'index'])->name('index');
+            Route::get('/categories',           [$pc, 'categories'])->name('categories');
+            Route::get('/{id}',                 [$pc, 'show'])->name('show');
+            Route::post('/{id}/verify',         [$pc, 'toggleVerify'])->name('verify');
+            Route::delete('/{id}',              [$pc, 'destroy'])->name('destroy');
+            Route::delete('/episodes/{id}',     [$pc, 'destroyEpisode'])->name('episodes.destroy');
+        });
         // Trust & Safety
         Route::prefix('trust-safety')->name('trust-safety.')->group(function () {
             $c = \App\Http\Controllers\Admin\AdminTrustSafetyController::class;

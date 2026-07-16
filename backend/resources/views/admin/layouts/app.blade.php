@@ -563,6 +563,23 @@
         </div>
         @endif
 
+        @if($u->role === 'super_admin' || $u->role === 'admin')
+        <div class="nav-section-label">Podcast</div>
+        <div class="nav-link nav-toggle-btn {{ request()->is('admin/podcast*') ? 'open active' : '' }}"
+             onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+            <div class="nav-icon"><i class="fas fa-podcast"></i></div>
+            Podcast
+        </div>
+        <div class="nav-submenu {{ request()->is('admin/podcast*') ? 'open' : '' }}">
+            <a href="{{ route('admin.podcast.index') }}" class="nav-link {{ request()->routeIs('admin.podcast.index') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-list"></i></div> All Podcasts
+            </a>
+            <a href="{{ route('admin.podcast.categories') }}" class="nav-link {{ request()->routeIs('admin.podcast.categories') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-tags"></i></div> Categories
+            </a>
+        </div>
+        @endif
+
         @if($u->canManageModule('community') || $u->role === 'super_admin' || $u->role === 'admin')
         <div class="nav-section-label">Trust & Safety</div>
         <a href="{{ route('admin.trust-safety.dashboard') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.dashboard') ? 'active' : '' }}">
