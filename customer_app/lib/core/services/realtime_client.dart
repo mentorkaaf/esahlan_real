@@ -52,32 +52,32 @@ class RealtimeClient {
 
   Future<void> connect() async {
     if (_state == RealtimeConnectionState.connected || _state == RealtimeConnectionState.connecting) {
-      debugPrint('[Realtime] connect() skipped — already $_state');
+      if (kDebugMode) debugPrint('[Realtime] connect() skipped — already $_state');
       return;
     }
     _intentionallyDisconnected = false;
     _setState(RealtimeConnectionState.connecting);
-    debugPrint('[Realtime] Connecting to $_wsUrl');
+    if (kDebugMode) debugPrint('[Realtime] Connecting to $_wsUrl');
 
     try {
       _socket = WebSocketChannel.connect(Uri.parse(_wsUrl));
       await _socket!.ready;
-      debugPrint('[Realtime] Socket ready, waiting for connection_established...');
+      if (kDebugMode) debugPrint('[Realtime] Socket ready, waiting for connection_established...');
 
       _socketSub = _socket!.stream.listen(
         _onMessage,
         onDone: () {
-          debugPrint('[Realtime] Socket closed');
+          if (kDebugMode) debugPrint('[Realtime] Socket closed');
           if (!_intentionallyDisconnected) _scheduleReconnect();
         },
         onError: (e) {
-          debugPrint('[Realtime] Socket error: $e');
+          if (kDebugMode) debugPrint('[Realtime] Socket error: $e');
           if (!_intentionallyDisconnected) _scheduleReconnect();
         },
         cancelOnError: true,
       );
     } catch (e) {
-      debugPrint('[Realtime] Connect failed: $e');
+      if (kDebugMode) debugPrint('[Realtime] Connect failed: $e');
       _scheduleReconnect();
     }
   }
@@ -95,7 +95,7 @@ class RealtimeClient {
           _socketId = (data as Map)['socket_id'] as String?;
           _reconnectAttempts = 0;
           _setState(RealtimeConnectionState.connected);
-          debugPrint('[Realtime] CONNECTED, socket_id=$_socketId. Resubscribing to: $_subscribedChannels');
+          if (kDebugMode) debugPrint('[Realtime] CONNECTED, socket_id=$_socketId. Resubscribing to: $_subscribedChannels');
           _startPing();
           // Re-subscribe to any channels that were active before a reconnect.
           for (final ch in List.of(_subscribedChannels)) {
@@ -103,33 +103,34 @@ class RealtimeClient {
           }
           break;
         case 'pusher:error':
-          debugPrint('[Realtime] Server error: $data');
+          if (kDebugMode) debugPrint('[Realtime] Server error: $data');
           break;
         case 'pusher:pong':
           break;
         case 'pusher_internal:subscription_succeeded':
         case 'pusher:subscription_succeeded':
-          debugPrint('[Realtime] Subscription confirmed: $channel');
+          if (kDebugMode) debugPrint('[Realtime] Subscription confirmed: $channel');
           break;
         default:
-          debugPrint('[Realtime] Message: event=$event channel=$channel data=$data');
           if (channel != null && event != null) {
             final handlers = _listeners[channel]?[event];
-            debugPrint('[Realtime] -> ${handlers?.length ?? 0} handler(s) registered for $channel/$event '
-                '(known channels: ${_listeners.keys.toList()})');
+            if (kDebugMode) {
+              debugPrint('[Realtime] event=$event channel=$channel '
+                  '→ ${handlers?.length ?? 0} handler(s)');
+            }
             if (handlers != null) {
               for (final cb in List.of(handlers)) {
                 try {
                   cb(data);
                 } catch (e) {
-                  debugPrint('[Realtime] Listener error on $channel/$event: $e');
+                  if (kDebugMode) debugPrint('[Realtime] Listener error on $channel/$event: $e');
                 }
               }
             }
           }
       }
     } catch (e) {
-      debugPrint('[Realtime] Failed to parse message: $e');
+      if (kDebugMode) debugPrint('[Realtime] Failed to parse message: $e');
     }
   }
 
@@ -150,18 +151,18 @@ class RealtimeClient {
 
   void _send(Map<String, dynamic> payload) {
     if (_socket == null) {
-      debugPrint('[Realtime] _send() called with no socket — dropped: $payload');
+      if (kDebugMode) debugPrint('[Realtime] _send() called with no socket — dropped: $payload');
       return;
     }
     _socket!.sink.add(jsonEncode(payload));
   }
 
   Future<void> _sendSubscribe(String channelName) async {
-    debugPrint('[Realtime] Subscribing to $channelName (state=$_state)');
+    if (kDebugMode) debugPrint('[Realtime] Subscribing to $channelName (state=$_state)');
     if (channelName.startsWith('private-') || channelName.startsWith('presence-')) {
       final auth = await _authorize(channelName);
       if (auth == null) {
-        debugPrint('[Realtime] Skipping subscribe to $channelName — auth failed');
+        if (kDebugMode) debugPrint('[Realtime] Skipping subscribe to $channelName — auth failed');
         return;
       }
       _send({
@@ -187,7 +188,7 @@ class RealtimeClient {
       );
       return Map<String, dynamic>.from(response.data as Map);
     } catch (e) {
-      debugPrint('[Realtime] Channel auth failed for $channelName: $e');
+      if (kDebugMode) debugPrint('[Realtime] Channel auth failed for $channelName: $e');
       return null;
     }
   }
@@ -203,7 +204,7 @@ class RealtimeClient {
     final base = min(30, pow(2, min(_reconnectAttempts, 6)).toInt());
     final jitter = Random().nextInt(1000);
     final delay = Duration(seconds: base, milliseconds: jitter);
-    debugPrint('[Realtime] Reconnecting in ${delay.inSeconds}s (attempt $_reconnectAttempts)');
+    if (kDebugMode) debugPrint('[Realtime] Reconnecting in ${delay.inSeconds}s (attempt $_reconnectAttempts)');
     _reconnectTimer = Timer(delay, connect);
   }
 
@@ -217,7 +218,7 @@ class RealtimeClient {
   /// each call just adds another listener; the underlying subscription is
   /// only sent once per channel.
   Future<void> listen(String channelName, String eventName, void Function(dynamic data) onEvent) async {
-    debugPrint('[Realtime] listen($channelName, $eventName) — current state=$_state');
+    if (kDebugMode) debugPrint('[Realtime] listen($channelName, $eventName) — current state=$_state');
     if (_state != RealtimeConnectionState.connected) await connect();
 
     final channelMap = _listeners.putIfAbsent(channelName, () => {});
@@ -228,11 +229,10 @@ class RealtimeClient {
       if (_state == RealtimeConnectionState.connected) {
         await _sendSubscribe(channelName);
       } else {
-        debugPrint('[Realtime] Deferred subscribe for $channelName — state is $_state, '
-            'will subscribe once connection_established fires');
+        if (kDebugMode) debugPrint('[Realtime] Deferred subscribe for $channelName — waiting for connection');
       }
     } else {
-      debugPrint('[Realtime] $channelName already subscribed, just added a new $eventName listener');
+      if (kDebugMode) debugPrint('[Realtime] $channelName already subscribed, added listener for $eventName');
     }
   }
 

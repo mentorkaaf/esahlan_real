@@ -12,6 +12,15 @@ import '../providers/community_provider.dart';
 import 'community_shell.dart';
 import '../../../../core/widgets/restriction_dialog.dart';
 
+// Minute-bucketed timeago cache — same pattern as feed screen.
+// Eliminates repeated string formatting for unchanged timestamps on every rebuild.
+final _taCache = <String, String>{};
+String _fmtTimeago(DateTime dt, {String locale = 'en'}) {
+  final m = DateTime.now().millisecondsSinceEpoch ~/ 60000;
+  final k = '${dt.millisecondsSinceEpoch}:$m:$locale';
+  return _taCache.putIfAbsent(k, () => timeago.format(dt, locale: locale));
+}
+
 class CommunityChatScreen extends ConsumerStatefulWidget {
   final CommunityChat chat;
   const CommunityChatScreen({super.key, required this.chat});
@@ -335,7 +344,7 @@ class _MessageBubble extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      timeago.format(msg.createdAt, locale: 'en_short'),
+                      _fmtTimeago(msg.createdAt, locale: 'en_short'),
                       style: TextStyle(color: context.colors.mutedText, fontSize: 11),
                     ),
                     if (isMe) ...[

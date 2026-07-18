@@ -68,11 +68,15 @@ class ApiClient {
 }
 
 class _AuthInterceptor extends Interceptor {
+  // In-memory cache avoids a secure-storage disk read on every API request.
+  // Cleared on 401 so the next request fetches the fresh token from storage.
+  static String? _cachedToken;
+
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
-    final token = await LocalStorage.getToken();
-    if (token != null) {
-      options.headers['Authorization'] = 'Bearer $token';
+    _cachedToken ??= await LocalStorage.getToken();
+    if (_cachedToken != null) {
+      options.headers['Authorization'] = 'Bearer $_cachedToken';
     }
     handler.next(options);
   }
@@ -80,6 +84,7 @@ class _AuthInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     if (err.response?.statusCode == 401) {
+      _cachedToken = null; // force re-read from storage on next request
       await LocalStorage.deleteToken();
     }
     if (err.response?.statusCode == 403) {

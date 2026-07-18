@@ -16,6 +16,13 @@ import '../../data/models/community_models.dart';
 import '../../data/repositories/community_repository.dart';
 import '../screens/community_shell.dart';
 
+final _taCache = <String, String>{};
+String _fmtTimeago(DateTime dt) {
+  final m = DateTime.now().millisecondsSinceEpoch ~/ 60000;
+  final k = '${dt.millisecondsSinceEpoch}:$m';
+  return _taCache.putIfAbsent(k, () => timeago.format(dt));
+}
+
 class CommentsSheet extends ConsumerStatefulWidget {
   final int postId;
   final int initialCount;
@@ -469,7 +476,7 @@ class _CommentTileState extends State<_CommentTile> {
           ]),
           SizedBox(height: 2),
           Row(children: [
-            Text(timeago.format(comment.createdAt), style: TextStyle(color: c.mutedText, fontSize: 11)),
+            Text(_fmtTimeago(comment.createdAt), style: TextStyle(color: c.mutedText, fontSize: 11)),
             SizedBox(width: 14),
             GestureDetector(onTap: widget.onReply,
               child: Text('Reply', style: TextStyle(color: c.mutedText, fontSize: 11, fontWeight: FontWeight.w700))),

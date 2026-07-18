@@ -8,6 +8,13 @@ import '../providers/community_provider.dart';
 import 'community_shell.dart';
 import 'community_chat_screen.dart';
 
+final _taCache = <String, String>{};
+String _fmtTimeago(DateTime dt, {String locale = 'en'}) {
+  final m = DateTime.now().millisecondsSinceEpoch ~/ 60000;
+  final k = '${dt.millisecondsSinceEpoch}:$m:$locale';
+  return _taCache.putIfAbsent(k, () => timeago.format(dt, locale: locale));
+}
+
 class CommunityChatListScreen extends ConsumerStatefulWidget {
   const CommunityChatListScreen({super.key});
 
@@ -154,7 +161,7 @@ class _ChatTile extends ConsumerWidget {
         ),
         if (lastMsgTime != null)
           Text(
-            timeago.format(lastMsgTime, locale: 'en_short'),
+            _fmtTimeago(lastMsgTime, locale: 'en_short'),
             style: TextStyle(
               color: isTyping ? kOrange : (hasUnread ? kOrange : context.colors.mutedText),
               fontSize: 12,

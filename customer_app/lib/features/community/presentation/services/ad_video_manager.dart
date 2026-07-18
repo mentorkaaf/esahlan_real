@@ -18,9 +18,12 @@ class AdVideoManager {
   static final instance = AdVideoManager._();
 
 
-  final _controllers = <String, VideoPlayerController>{};
+  static const _kMaxControllers = 8; // cap memory: 8 ad controllers max
+
+  final _controllers    = <String, VideoPlayerController>{};
+  final _insertionOrder = <String>[]; // LRU eviction: evict oldest when over cap
   // Keeps one Future per URL so concurrent calls share a single download.
-  final _futures     = <String, Future<VideoPlayerController?>>{};
+  final _futures        = <String, Future<VideoPlayerController?>>{};
 
   // ── Public API ────────────────────────────────────────────────────────────
 
@@ -51,10 +54,21 @@ class AdVideoManager {
       try { c.pause(); c.dispose(); } catch (_) {}
     }
     _controllers.clear();
+    _insertionOrder.clear();
     _futures.clear();
   }
 
   // ── Private ───────────────────────────────────────────────────────────────
+
+  void _evictIfNeeded() {
+    while (_controllers.length >= _kMaxControllers && _insertionOrder.isNotEmpty) {
+      final oldest = _insertionOrder.removeAt(0);
+      final c = _controllers.remove(oldest);
+      try { c?.pause(); c?.dispose(); } catch (_) {}
+      _futures.remove(oldest);
+      if (kDebugMode) debugPrint('[AdVideoManager] evicted: $oldest');
+    }
+  }
 
   Future<VideoPlayerController?> _init(String url) async {
     try {
@@ -65,11 +79,13 @@ class AdVideoManager {
       await ctrl.initialize();
       ctrl.setLooping(true);
       ctrl.setVolume(0);
+      _evictIfNeeded();
       _controllers[url] = ctrl;
-      debugPrint('[AdVideoManager] ready: $url');
+      _insertionOrder.add(url);
+      if (kDebugMode) debugPrint('[AdVideoManager] ready: $url');
       return ctrl;
     } catch (e) {
-      debugPrint('[AdVideoManager] failed: $url — $e');
+      if (kDebugMode) debugPrint('[AdVideoManager] failed: $url — $e');
       _futures.remove(url); // allow retry on next awaitController call
       return null;
     }

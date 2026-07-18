@@ -118,7 +118,7 @@ class _StoryViewerState extends State<StoryViewer> {
   void _activateOrphan(String url) {
     _detach();
     setState(() {});
-    final player     = Player(configuration: const PlayerConfiguration(bufferSize: 16 * 1024 * 1024));
+    final player     = Player(configuration: const PlayerConfiguration(bufferSize: 8 * 1024 * 1024));
     final controller = VideoController(player);
     player.open(Media(url), play: false).then((_) {
       if (!mounted || _activeUrl != url) { player.dispose(); return; }

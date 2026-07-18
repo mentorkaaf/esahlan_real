@@ -106,6 +106,9 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<CommunityPost>>> {
 // ── Stories provider ───────────────────────────────────────────────────────
 final communityStoriesProvider =
     FutureProvider<List<StoryGroup>>((ref) async {
+  // Keep stories alive for 5 minutes — avoids a network reload every time
+  // the user switches tabs and returns to the feed within that window.
+  ref.cacheFor(const Duration(minutes: 5));
   final groups = await _repo.getStories();
   // Pre-warm story video pool as soon as stories data arrives —
   // controllers start initializing before the user taps any story card.

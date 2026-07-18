@@ -11,6 +11,13 @@ import 'package:go_router/go_router.dart';
 import 'community_shell.dart';
 import 'community_chat_screen.dart';
 
+final _taCache = <String, String>{};
+String _fmtTimeago(DateTime dt) {
+  final m = DateTime.now().millisecondsSinceEpoch ~/ 60000;
+  final k = '${dt.millisecondsSinceEpoch}:$m';
+  return _taCache.putIfAbsent(k, () => timeago.format(dt));
+}
+
 class CommunityNotificationsScreen extends ConsumerStatefulWidget {
   const CommunityNotificationsScreen({super.key});
 
@@ -281,7 +288,7 @@ class _NotifTileState extends ConsumerState<_NotifTile> {
                 ),
               ),
               SizedBox(height: 3),
-              Text(timeago.format(notif.createdAt),
+              Text(_fmtTimeago(notif.createdAt),
                   style: TextStyle(
                     color: notif.isRead ? const Color(0xFF9CA3AF) : kOrange,
                     fontSize: 12,

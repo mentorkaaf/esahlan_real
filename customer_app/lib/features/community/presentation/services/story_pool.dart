@@ -20,8 +20,9 @@ class StoryPool {
   static const _kAhead    = 3;
   static const _kMaxSlots = 5;
 
-  List<String>          _urls   = [];
-  final Map<String, _Slot> _slots = {};
+  List<String>             _urls   = [];
+  final Map<String, int>   _urlIdx = {}; // O(1) url→index lookup
+  final Map<String, _Slot> _slots  = {};
   int _center = -1;
 
   // ── Public API ────────────────────────────────────────────────────────────
@@ -50,6 +51,11 @@ class StoryPool {
     return result;
   }
 
+  void _rebuildIdx(List<String> urls) {
+    _urlIdx.clear();
+    for (var i = 0; i < urls.length; i++) _urlIdx[urls[i]] = i;
+  }
+
   /// Shift window to [centerIdx]. Call before opening the viewer and on
   /// every story navigation inside the viewer.
   void advance(int centerIdx) {
@@ -59,7 +65,8 @@ class StoryPool {
     _warmUp();
   }
 
-  int indexOf(String url) => _urls.indexOf(url);
+  /// O(1) index lookup (was O(n) indexOf).
+  int indexOf(String url) => _urlIdx[url] ?? -1;
 
   /// Returns (player, controller) immediately if the slot is ready, or null.
   (Player, VideoController)? ready(String url) {
@@ -103,6 +110,8 @@ class StoryPool {
   void disposeAll() {
     for (final s in _slots.values) s.dispose();
     _slots.clear();
+    _urlIdx.clear();
+    _urls   = [];
     _center = -1;
   }
 
@@ -110,12 +119,14 @@ class StoryPool {
 
   void _updateUrls(List<String> urls) {
     if (_listEquals(_urls, urls)) return;
-    final stale = _slots.keys.where((u) => !urls.contains(u)).toList();
+    final urlSet = urls.toSet();
+    final stale  = _slots.keys.where((u) => !urlSet.contains(u)).toList();
     for (final u in stale) {
       _slots[u]!.dispose();
       _slots.remove(u);
     }
     _urls = urls;
+    _rebuildIdx(urls);
   }
 
   bool _listEquals(List<String> a, List<String> b) {
@@ -130,14 +141,14 @@ class StoryPool {
       int maxDist = -1;
       for (final url in _slots.keys) {
         if (url == protect) continue;
-        final i    = _urls.indexOf(url);
+        final i    = _urlIdx[url] ?? -1; // O(1)
         final dist = (i < 0 || _center < 0) ? 999 : (i - _center).abs();
         if (dist > maxDist) { maxDist = dist; victim = url; }
       }
       if (victim == null) break;
       _slots[victim]!.dispose();
       _slots.remove(victim);
-      debugPrint('[StoryPool] evicted ${victim.split('/').last}');
+      if (kDebugMode) debugPrint('[StoryPool] evicted ${victim.split('/').last}');
     }
   }
 
@@ -146,13 +157,13 @@ class StoryPool {
     final lo = (_center - _kBehind).clamp(0, _urls.length - 1);
     final hi = (_center + _kAhead).clamp(0, _urls.length - 1);
     final dead = _slots.keys.where((u) {
-      final i = _urls.indexOf(u);
+      final i = _urlIdx[u] ?? -1; // O(1)
       return i < 0 || i < lo || i > hi;
     }).toList();
     for (final u in dead) {
       _slots[u]!.dispose();
       _slots.remove(u);
-      debugPrint('[StoryPool] evicted ${u.split('/').last}');
+      if (kDebugMode) debugPrint('[StoryPool] evicted ${u.split('/').last}');
     }
   }
 
@@ -185,7 +196,7 @@ class StoryPool {
           });
         }
         delay++;
-        debugPrint('[StoryPool] warming ${url.split('/').last}');
+        if (kDebugMode) debugPrint('[StoryPool] warming ${url.split('/').last}');
       }
     }
   }
@@ -206,7 +217,9 @@ class _Slot {
   bool _dead   = false;
 
   Future<void> init() async {
-    player     = Player(configuration: const PlayerConfiguration(bufferSize: 16 * 1024 * 1024));
+    // 8 MB buffer — matches feed VideoPool (6×8MB=48MB). Stories use at most
+    // 5 slots → 40MB peak. Reduced from prior 16MB×5=80MB.
+    player     = Player(configuration: const PlayerConfiguration(bufferSize: 8 * 1024 * 1024));
     controller = VideoController(player);
     try {
       await player.open(Media(url), play: false);
@@ -215,10 +228,10 @@ class _Slot {
       await player.seek(Duration.zero);
       isReady = true;
       if (!readyCompleter.isCompleted) readyCompleter.complete();
-      debugPrint('[StoryPool] ready ${url.split('/').last}');
+      if (kDebugMode) debugPrint('[StoryPool] ready ${url.split('/').last}');
     } catch (e) {
       if (!readyCompleter.isCompleted) readyCompleter.completeError(e);
-      debugPrint('[StoryPool] failed ${url.split('/').last} — $e');
+      if (kDebugMode) debugPrint('[StoryPool] failed ${url.split('/').last} — $e');
     }
   }
 
