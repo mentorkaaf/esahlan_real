@@ -17,6 +17,10 @@ import '../widgets/comments_sheet.dart';
 import '../widgets/video_ad_overlay.dart';
 import '../../../../core/services/realtime_client.dart';
 import 'community_shell.dart';
+import '../../../podcast/data/models/podcast_models.dart' show PodcastEpisode;
+import '../../../podcast/data/repositories/podcast_repository.dart' show PodcastRepository;
+import '../../../podcast/presentation/services/podcast_audio_service.dart' show PodcastAudioService;
+import '../../../podcast/presentation/screens/episode_player_screen.dart' show EpisodePlayerScreen;
 
 // Unified reel item — community post, eRent reel, or ad
 class _ReelItem {
@@ -324,6 +328,15 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
                       ad: item.adData!,
                       isActive: isPageActive,
                       key: ValueKey('reelad_$i'),
+                    ),
+                  );
+                }
+                if (item.communityPost?.isPodcast == true) {
+                  return RepaintBoundary(
+                    child: _PodcastReelFullCard(
+                      post: item.communityPost!,
+                      isActive: isPageActive,
+                      key: ValueKey('pod_${item.communityPost!.id}'),
                     ),
                   );
                 }
@@ -1154,6 +1167,282 @@ class _ReelAdCardState extends ConsumerState<_ReelAdCard> {
             style: TextStyle(
                 color: color, fontSize: 11, fontWeight: FontWeight.w600)),
       ]);
+}
+
+// ── Podcast full-screen reel card ──────────────────────────────────────────────
+
+class _PodcastReelFullCard extends StatefulWidget {
+  final CommunityPost post;
+  final bool isActive;
+  const _PodcastReelFullCard({super.key, required this.post, required this.isActive});
+  @override
+  State<_PodcastReelFullCard> createState() => _PodcastReelFullCardState();
+}
+
+class _PodcastReelFullCardState extends State<_PodcastReelFullCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _wave;
+  PodcastEpisode? _episode;
+  bool _loading = true;
+
+  Map<String, dynamic> get _pod => widget.post.podcast ?? {};
+
+  PodcastAudioService get _svc => PodcastAudioService.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _wave = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..repeat(reverse: true);
+    _loadAndPlay();
+  }
+
+  @override
+  void didUpdateWidget(_PodcastReelFullCard old) {
+    super.didUpdateWidget(old);
+    if (widget.isActive && !old.isActive && _episode != null) {
+      _svc.play(_episode!);
+    } else if (!widget.isActive && old.isActive) {
+      _svc.pause();
+    }
+  }
+
+  Future<void> _loadAndPlay() async {
+    final slug = _pod['episode_slug'] as String? ?? '';
+    if (slug.isEmpty) { setState(() => _loading = false); return; }
+    try {
+      final ep = await PodcastRepository().getEpisode(slug);
+      if (!mounted) return;
+      setState(() { _episode = ep; _loading = false; });
+      if (widget.isActive) await _svc.play(ep);
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _wave.dispose();
+    super.dispose();
+  }
+
+  String _fmt(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '${d.inHours > 0 ? '${d.inHours}:' : ''}$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cover    = _pod['episode_cover'] as String?;
+    final epTitle  = _episode?.title ?? (_pod['episode_title'] as String? ?? '');
+    final podTitle = _episode?.podcast?.title ?? (_pod['podcast_title'] as String? ?? '');
+    final size     = MediaQuery.of(context).size;
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(children: [
+        if (cover != null)
+          Positioned.fill(child: CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover,
+              errorWidget: (_, __, ___) => const SizedBox.shrink())),
+        Positioned.fill(child: Container(color: Colors.black.withValues(alpha: 0.72))),
+
+        SafeArea(
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _svc.playingNotifier,
+            builder: (_, playing, __) => ValueListenableBuilder<Duration>(
+              valueListenable: _svc.positionNotifier,
+              builder: (_, position, __) => ValueListenableBuilder<Duration>(
+                valueListenable: _svc.durationNotifier,
+                builder: (_, duration, __) => Column(children: [
+                  const SizedBox(height: 32),
+                  // Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF8A00).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFFF8A00).withValues(alpha: 0.6)),
+                    ),
+                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.podcasts_rounded, color: Color(0xFFFF8A00), size: 14),
+                      SizedBox(width: 6),
+                      Text('PODCAST', style: TextStyle(color: Color(0xFFFF8A00), fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                    ]),
+                  ),
+                  const SizedBox(height: 40),
+
+                  // Cover art
+                  Container(
+                    width: size.width * 0.6, height: size.width * 0.6,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 30, offset: const Offset(0, 10))],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: cover != null
+                        ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => _CoverPlaceholder())
+                        : _CoverPlaceholder(),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Title
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Column(children: [
+                      Text(epTitle, textAlign: TextAlign.center, maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, height: 1.3)),
+                      const SizedBox(height: 8),
+                      Text(podTitle, textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white60, fontSize: 14)),
+                    ]),
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Waveform
+                  SizedBox(height: 48,
+                    child: AnimatedBuilder(
+                      animation: _wave,
+                      builder: (_, __) => CustomPaint(
+                        size: Size(size.width * 0.7, 48),
+                        painter: _WavePainter(progress: _wave.value, playing: playing),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Progress
+                  if (duration > Duration.zero) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Column(children: [
+                        SliderTheme(
+                          data: SliderThemeData(
+                            trackHeight: 3,
+                            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                            activeTrackColor: const Color(0xFFFF8A00),
+                            inactiveTrackColor: Colors.white24,
+                            thumbColor: Colors.white,
+                            overlayColor: const Color(0xFFFF8A00).withValues(alpha: 0.2),
+                          ),
+                          child: Slider(
+                            value: position.inMilliseconds.clamp(0, duration.inMilliseconds).toDouble(),
+                            max: duration.inMilliseconds.toDouble(),
+                            onChanged: (v) => _svc.seek(Duration(milliseconds: v.toInt())),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                            Text(_fmt(position), style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                            Text(_fmt(duration), style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                          ]),
+                        ),
+                      ]),
+                    ),
+                    const SizedBox(height: 20),
+                  ] else
+                    const SizedBox(height: 36),
+
+                  // Controls
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    IconButton(
+                      icon: const Icon(Icons.replay_10_rounded, color: Colors.white70, size: 36),
+                      onPressed: () => _svc.seek(position - const Duration(seconds: 15)),
+                    ),
+                    const SizedBox(width: 20),
+                    GestureDetector(
+                      onTap: () {
+                        if (_loading) return;
+                        if (playing) _svc.pause(); else _svc.resume();
+                      },
+                      child: Container(
+                        width: 72, height: 72,
+                        decoration: const BoxDecoration(color: Color(0xFFFF8A00), shape: BoxShape.circle),
+                        child: _loading
+                            ? const Center(child: SizedBox(width: 24, height: 24,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)))
+                            : Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                color: Colors.white, size: 40),
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    IconButton(
+                      icon: const Icon(Icons.forward_30_rounded, color: Colors.white70, size: 36),
+                      onPressed: () => _svc.seek(position + const Duration(seconds: 30)),
+                    ),
+                  ]),
+                  const SizedBox(height: 24),
+
+                  // Open full player
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).push(PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => const EpisodePlayerScreen(),
+                      transitionsBuilder: (_, a, __, child) => SlideTransition(
+                        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+                            .animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
+                        child: child),
+                    )),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white30),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.open_in_full_rounded, color: Colors.white70, size: 16),
+                        SizedBox(width: 8),
+                        Text('Open Full Player', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
+                      ]),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _CoverPlaceholder extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+    color: const Color(0xFF1a0060),
+    child: const Icon(Icons.podcasts_rounded, color: Color(0xFFFF8A00), size: 80),
+  );
+}
+
+class _WavePainter extends CustomPainter {
+  final double progress;
+  final bool playing;
+  const _WavePainter({required this.progress, required this.playing});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFFF8A00).withValues(alpha: playing ? 0.9 : 0.3)
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    const bars = 20;
+    final barW  = size.width / (bars * 1.6);
+    final gap   = barW * 0.6;
+    final total = bars * barW + (bars - 1) * gap;
+    final startX = (size.width - total) / 2;
+    final heights = [0.2,0.5,0.8,0.4,1.0,0.6,0.3,0.9,0.5,0.7,0.4,0.8,0.3,0.6,1.0,0.5,0.4,0.7,0.3,0.5];
+    for (var i = 0; i < bars; i++) {
+      final phase = playing ? (progress + i / bars) % 1.0 : 0.3;
+      final h = size.height * heights[i] * (playing ? (0.4 + 0.6 * phase) : 0.3);
+      final x = startX + i * (barW + gap) + barW / 2;
+      canvas.drawLine(Offset(x, (size.height - h) / 2), Offset(x, (size.height + h) / 2), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WavePainter old) => old.progress != progress || old.playing != playing;
 }
 
 // ── eRent reel card ────────────────────────────────────────────────────────────

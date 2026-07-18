@@ -81,7 +81,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     _heartbeatTimer = Timer.periodic(AppConstants.feedHeartbeatInterval, (_) => CommunityRepository().feedHeartbeat());
     _subscribeNewPostFeed();
     // Throttle VisibilityDetector callbacks — reduces native calls during fast scroll.
-    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 400);
+    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 600);
   }
 
   Future<void> _subscribeNewPostFeed() async {
@@ -292,6 +292,13 @@ class _FeedTab extends ConsumerStatefulWidget {
 
 class _FeedTabState extends ConsumerState<_FeedTab> {
   int _lastLoadMs = 0;
+  Timer? _scrollEndTimer;
+
+  @override
+  void dispose() {
+    _scrollEndTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -304,6 +311,20 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
       color: context.colors.scaffoldBg,
       child: NotificationListener<ScrollNotification>(
         onNotification: (n) {
+          // Gate video operations during scroll — this is the core jank fix.
+          // Native player calls (pause/play/setVolume) compete with scroll
+          // physics when they fire mid-frame. By setting feedScrolling=true,
+          // _onVisibilityChanged skips ALL player ops until scroll settles.
+          if (n is ScrollStartNotification) {
+            VideoPool.feedScrolling = true;
+            _scrollEndTimer?.cancel();
+          } else if (n is ScrollEndNotification) {
+            // Short delay lets the final fling decelerate before we activate.
+            _scrollEndTimer?.cancel();
+            _scrollEndTimer = Timer(const Duration(milliseconds: 80), () {
+              VideoPool.feedScrolling = false;
+            });
+          }
           if (n is ScrollUpdateNotification) {
             final m = n.metrics;
             if (m.pixels >= m.maxScrollExtent - 800) {
@@ -323,7 +344,7 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
           // The old ListView + Column built ALL 30+ cards at once — this is the main perf fix.
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            cacheExtent: 800,
+            cacheExtent: 300,
             slivers: [
               SliverToBoxAdapter(child: RepaintBoundary(child: widget.storiesState.when(
                 data: (groups) => StoriesBar(groups: groups),
@@ -3122,35 +3143,39 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     final fraction = info.visibleFraction;
     _lastFraction = fraction;
 
+    // ── Scroll guard — skip ALL player ops while scrolling ─────────────────
+    // Native player calls (setVolume/pause/play) compete with scroll physics
+    // on the same frame. Only update _lastFraction above; act after scroll stops.
+    if (VideoPool.feedScrolling) return;
+
     // ── Stale-controller guard ─────────────────────────────────────────────
     if (_ready && _controller != null && !_pool.isReady(_previewUrl)) {
       _playerSub?.cancel();
       _bufferingSub?.cancel();
       _initStarted = false;
       _loadFailed = false;
-      _hasFrame.value = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() { _controller = null; _ready = false; });
+        if (mounted) {
+          _hasFrame.value = false;
+          setState(() { _controller = null; _ready = false; });
+        }
       });
     }
 
     // ── Preload trigger (>5%) ──────────────────────────────────────────────
     if (fraction > 0.05 && _isVideo && !_ready && !_initStarted && !_loadFailed) {
       _initStarted = true;
-      // Defer to next frame so video init doesn't compete with scroll physics.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !_ready) _initVideo();
         else if (mounted && _ready) _initStarted = false;
       });
     }
-    // Reset error state when item drops below trigger threshold — eliminates
-    // the 0.01–0.05 dead band where items were stuck permanently.
     if (fraction < 0.05 && _loadFailed) {
       _loadFailed = false;
       _initStarted = false;
     }
 
-    // ── Report fraction to pool — pool plays the most-visible URL (>60%) ───
+    // ── Report fraction to pool — pool plays the most-visible URL ──────────
     if (_isVideo && _previewUrl.isNotEmpty && !_paused) {
       _pool.setFraction(_previewUrl, fraction);
       if (fraction > 0.4) _pool.setActiveUrl(_previewUrl);

@@ -55,6 +55,11 @@ class VideoPool {
   static final feed  = VideoPool._(id: 'feed',  loop: true);
   static final reels = VideoPool._(id: 'reels', loop: false);
 
+  /// Set true while feed ListView is scrolling. Visibility callbacks read this
+  /// to skip ALL player operations during scroll — prevents jank from native
+  /// player calls competing with scroll physics on the same frame.
+  static bool feedScrolling = false;
+
   final bool _loop;
 
   final String _id;
