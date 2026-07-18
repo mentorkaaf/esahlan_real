@@ -55,10 +55,6 @@ class VideoPool {
   static final feed  = VideoPool._(id: 'feed',  loop: true);
   static final reels = VideoPool._(id: 'reels', loop: false);
 
-  /// Set true while feed ListView is scrolling. Visibility callbacks read this
-  /// to skip ALL player operations during scroll — prevents jank from native
-  /// player calls competing with scroll physics on the same frame.
-  static bool feedScrolling = false;
 
   final bool _loop;
 
@@ -124,7 +120,7 @@ class VideoPool {
       if (_windowIndex == idx) return;
       // Debounce rapid calls during fast scroll — only rebuild once scroll settles.
       _rebuildDebounce?.cancel();
-      _rebuildDebounce = Timer(const Duration(milliseconds: 120), () => _rebuild(idx));
+      _rebuildDebounce = Timer(const Duration(milliseconds: 80), () => _rebuild(idx));
     } else if (!isReady(url) && !isLoading(url)) {
       _preload(url);
     }
@@ -133,9 +129,10 @@ class VideoPool {
   void setFraction(String url, double fraction) {
     if (url.isEmpty) return;
     if (fraction <= 0) _fractions.remove(url); else _fractions[url] = fraction;
-    // Debounce dominant-video update so player ops don't fire on every scroll frame.
+    // Batch simultaneous setFraction calls (VisibilityDetector fires all visible
+    // items at once) into one _updateDominant call to reduce JNI player ops.
     _dominantDebounce?.cancel();
-    _dominantDebounce = Timer(const Duration(milliseconds: 150), _updateDominant);
+    _dominantDebounce = Timer(const Duration(milliseconds: 50), _updateDominant);
   }
 
   Future<VideoController?> preload(String url) => _preload(url);
@@ -166,11 +163,6 @@ class VideoPool {
     for (final p in _players.values) { p.setVolume(0); p.pause(); }
   }
 
-  /// Pauses all players WITHOUT clearing _activeUrl/_fractions so
-  /// _updateDominant can immediately resume the right video after scroll.
-  void pauseForScroll() {
-    for (final p in _players.values) { p.setVolume(0); p.pause(); }
-  }
 
   Future<void> reactivate(String url) async {
     if (url.isEmpty) return;

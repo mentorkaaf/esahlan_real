@@ -81,7 +81,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     _heartbeatTimer = Timer.periodic(AppConstants.feedHeartbeatInterval, (_) => CommunityRepository().feedHeartbeat());
     _subscribeNewPostFeed();
     // Throttle VisibilityDetector callbacks — reduces native calls during fast scroll.
-    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 600);
+    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 200);
   }
 
   Future<void> _subscribeNewPostFeed() async {
@@ -292,13 +292,6 @@ class _FeedTab extends ConsumerStatefulWidget {
 
 class _FeedTabState extends ConsumerState<_FeedTab> {
   int _lastLoadMs = 0;
-  Timer? _scrollEndTimer;
-
-  @override
-  void dispose() {
-    _scrollEndTimer?.cancel();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -311,19 +304,6 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
       color: context.colors.scaffoldBg,
       child: NotificationListener<ScrollNotification>(
         onNotification: (n) {
-          // Gate visibility-based player ops during scroll.
-          if (n is ScrollStartNotification) {
-            VideoPool.feedScrolling = true;
-            _scrollEndTimer?.cancel();
-          } else if (n is ScrollEndNotification) {
-            _scrollEndTimer?.cancel();
-            _scrollEndTimer = Timer(const Duration(milliseconds: 80), () {
-              VideoPool.feedScrolling = false;
-              // Immediately re-evaluate visibility so the right video plays
-              // without waiting up to 600ms for the next VisibilityDetector tick.
-              VisibilityDetectorController.instance.notifyNow();
-            });
-          }
           if (n is ScrollUpdateNotification) {
             final m = n.metrics;
             if (m.pixels >= m.maxScrollExtent - 800) {
@@ -343,7 +323,7 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
           // The old ListView + Column built ALL 30+ cards at once — this is the main perf fix.
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            cacheExtent: 300,
+            cacheExtent: 800,
             slivers: [
               SliverToBoxAdapter(child: RepaintBoundary(child: widget.storiesState.when(
                 data: (groups) => StoriesBar(groups: groups),
@@ -393,7 +373,7 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
                     final post = posts[i];
                     if (post.isAd && postsSinceLastAd < 3) continue;
                     if (post.isAd) { postsSinceLastAd = 0; } else { postsSinceLastAd++; }
-                    items.add(RepaintBoundary(child: _PostCard(post: posts[i],
+                    items.add(RepaintBoundary(key: ValueKey('post_${posts[i].id}'), child: _PostCard(post: posts[i],
                       onDelete: () {
                         ref.read(communityRepoProvider).deletePost(posts[i].id);
                         ref.read(communityFeedProvider.notifier).removePost(posts[i].id);
@@ -416,7 +396,7 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
                       delegate: SliverChildBuilderDelegate(
                         (_, i) => items[i],
                         childCount: items.length,
-                        addAutomaticKeepAlives: true,
+                        addAutomaticKeepAlives: false,
                         addRepaintBoundaries: false, // already wrapped manually above
                       ),
                     ),
@@ -2960,13 +2940,7 @@ class _MediaItem extends ConsumerStatefulWidget {
 // Global mute state — like Facebook: unmuting one video unmutes all subsequent ones.
 bool _globalMuted = false;
 
-class _MediaItemState extends ConsumerState<_MediaItem>
-    with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
-  // Keep video items alive in the SliverList — prevents build/dispose churn
-  // when scrolling, which was causing jank as initState + observer registration
-  // + VisibilityDetector setup ran every time a video re-entered the viewport.
-  @override
-  bool get wantKeepAlive => _isVideo;
+class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObserver {
   VideoController? _controller;
   bool _ready = false;
   bool _initStarted = false;
@@ -3148,11 +3122,6 @@ class _MediaItemState extends ConsumerState<_MediaItem>
     final fraction = info.visibleFraction;
     _lastFraction = fraction;
 
-    // ── Scroll guard — skip ALL player ops while scrolling ─────────────────
-    // Native player calls (setVolume/pause/play) compete with scroll physics
-    // on the same frame. Only update _lastFraction above; act after scroll stops.
-    if (VideoPool.feedScrolling) return;
-
     // ── Stale-controller guard ─────────────────────────────────────────────
     if (_ready && _controller != null && !_pool.isReady(_previewUrl)) {
       _playerSub?.cancel();
@@ -3231,7 +3200,6 @@ class _MediaItemState extends ConsumerState<_MediaItem>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // required for AutomaticKeepAliveClientMixin
     if (_isAudio) return _AudioPlayerCard(url: widget.m.url, thumbnail: widget.m.thumbnail, post: widget.post);
     if (_isDocument) return _DocumentCard(url: widget.m.url);
 
