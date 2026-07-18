@@ -20,7 +20,7 @@ import 'community_shell.dart';
 import '../../../podcast/data/models/podcast_models.dart' show PodcastEpisode;
 import '../../../podcast/data/repositories/podcast_repository.dart' show PodcastRepository;
 import '../../../podcast/presentation/services/podcast_audio_service.dart' show PodcastAudioService;
-import '../../../podcast/presentation/screens/episode_player_screen.dart' show EpisodePlayerScreen;
+import '../../../podcast/presentation/screens/podcast_detail_screen.dart' show PodcastDetailScreen;
 
 // Unified reel item — community post, eRent reel, or ad
 class _ReelItem {
@@ -1376,25 +1376,26 @@ class _PodcastReelFullCardState extends State<_PodcastReelFullCard>
                   ]),
                   const SizedBox(height: 24),
 
-                  // Open full player
+                  // Full Podcast → podcast profile + all episodes
                   GestureDetector(
-                    onTap: () => Navigator.of(context).push(PageRouteBuilder(
-                      pageBuilder: (_, __, ___) => const EpisodePlayerScreen(),
-                      transitionsBuilder: (_, a, __, child) => SlideTransition(
-                        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
-                            .animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
-                        child: child),
-                    )),
+                    onTap: () {
+                      final slug = _pod['podcast_slug'] as String? ?? '';
+                      if (slug.isEmpty) return;
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => PodcastDetailScreen(slug: slug),
+                      ));
+                    },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white30),
+                        color: const Color(0xFFFF8A00).withValues(alpha: 0.15),
+                        border: Border.all(color: const Color(0xFFFF8A00).withValues(alpha: 0.6)),
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.open_in_full_rounded, color: Colors.white70, size: 16),
+                        Icon(Icons.podcasts_rounded, color: Color(0xFFFF8A00), size: 16),
                         SizedBox(width: 8),
-                        Text('Open Full Player', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
+                        Text('Full Podcast', style: TextStyle(color: Color(0xFFFF8A00), fontSize: 13, fontWeight: FontWeight.w700)),
                       ]),
                     ),
                   ),

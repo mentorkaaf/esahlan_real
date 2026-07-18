@@ -256,11 +256,13 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
                 CommunityMyProfileScreen(),
               ],
             ),
-            // Mini player floats above nav bar
-            Positioned(
-              left: 0, right: 0, bottom: 0,
-              child: const PodcastMiniPlayer(),
-            ),
+            // Mini player floats above nav bar — hidden on Reels tab (idx==1)
+            // because the reel card has its own built-in audio controls.
+            if (idx != 1)
+              Positioned(
+                left: 0, right: 0, bottom: 0,
+                child: const PodcastMiniPlayer(),
+              ),
           ],
         )),
       ]),
