@@ -3218,18 +3218,22 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       _initStarted = false;
     }
 
-    // ── Report fraction to pool — skip during active scroll ──────────────
-    // While scrolling, the rasterizer holds the GPU thread; creating/cancelling
-    // Timers (setFraction→_dominantDebounce, setActiveUrl→_rebuildDebounce)
-    // for every visible card competes with it and causes perceived jank.
-    // Pool ops resume 150ms after scroll stops via VisibilityDetectorController.notifyNow().
+    // ── Report fraction to pool ───────────────────────────────────────────
     if (_isVideo && _previewUrl.isNotEmpty && !_paused) {
-      if (!_feedScrolling) {
-        _pool.setFraction(_previewUrl, fraction);
-        if (fraction > 0.4) _pool.setActiveUrl(_previewUrl);
+      // Always update fraction — this lets _updateDominant pause cards that
+      // scroll out of view (fraction→0) even while scrolling is active.
+      _pool.setFraction(_previewUrl, fraction);
+
+      // setActiveUrl is an eager _doPlay trigger. Suppress it during scroll
+      // so we don't fire redundant JNI play/pause cycles while the rasterizer
+      // is compositing. _updateDominant (via setFraction debounce) still
+      // handles natural dominant changes. notifyNow() on ScrollEnd re-fires
+      // visibility so setActiveUrl runs once cleanly after the finger lifts.
+      if (!_feedScrolling && fraction > 0.4) {
+        _pool.setActiveUrl(_previewUrl);
       }
-      // Volume sync is a direct JNI call (no Timer) — always safe to run.
-      if (_ready && _controller != null && fraction > 0.5 && !_feedScrolling) {
+
+      if (_ready && _controller != null && fraction > 0.5) {
         final want = _globalMuted ? 0.0 : 100.0;
         if ((_controller!.player.state.volume - want).abs() > 1.0) {
           _controller!.player.setVolume(want);
