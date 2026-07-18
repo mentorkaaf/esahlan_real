@@ -3309,16 +3309,19 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                         : Container(color: const Color(0xFF1A1A2E)),
                   ),
                   // Video fades in when the first frame is decoded (thumbnail stays visible until then).
-                  // During feed scroll, the Video (Texture) widget is removed from the compositor
-                  // entirely — the Player keeps playing; only GPU rendering is paused. The thumbnail
-                  // above shows through, keeping the card visually stable with zero Texture overhead.
-                  // When scroll stops (80ms debounce), the Video widget is restored instantly.
+                  // During feed scroll, the Video (Texture) widget is replaced by an opaque dark
+                  // container — same colour as the card background (0xFF0A0A0A). This covers the
+                  // thumbnail (eliminating the zoom that appeared when thumbnail/cover showed through)
+                  // AND removes the Texture layer from the GPU compositor, cutting compositing
+                  // overhead to zero. The Player keeps playing; only the rendered surface changes.
+                  // When scroll stops (80ms debounce), the Video widget is restored.
                   if (_ready && _controller != null)
                     Positioned.fill(
                       child: ValueListenableBuilder<bool>(
                         valueListenable: VideoPool.feedScrollingNotifier,
-                        builder: (_, scrolling, child) =>
-                            scrolling ? const SizedBox.shrink() : child!,
+                        builder: (_, scrolling, child) => scrolling
+                            ? const ColoredBox(color: Color(0xFF0A0A0A))
+                            : child!,
                         child: ValueListenableBuilder<bool>(
                           valueListenable: _hasFrame,
                           builder: (_, hasFrame, child) => AnimatedOpacity(
@@ -3373,11 +3376,14 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                   ),
                 )),
 
-            // Controls overlay — visible only on tap, auto-hides after 3s (Facebook-style)
-            if (_ready && _controller != null)
+            // Controls overlay — shown only when _showControls is true (tap toggles).
+            // Kept OUT of the widget tree when hidden so the StreamBuilder inside
+            // does not listen to player.stream.position (which fires every ~200ms
+            // during playback) and cause periodic repaints during normal scroll.
+            if (_ready && _controller != null && _showControls)
               Positioned.fill(
                 child: AnimatedOpacity(
-                  opacity: _showControls ? 1.0 : 0.0,
+                  opacity: 1.0,
                   duration: const Duration(milliseconds: 200),
                   child: Stack(children: [
                     // Dim overlay
