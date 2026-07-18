@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../data/repositories/podcast_repository.dart';
+import '../widgets/podcast_cover.dart';
 
 const _kNavy   = Color(0xFF07003B);
 const _kOrange = Color(0xFFFF8A00);
@@ -534,12 +535,22 @@ class _MyShowsTabState extends State<_MyShowsTab> {
                 boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 6)]),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              leading: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: show['cover_image'] != null
-                    ? Image.network(show['cover_image'], width: 56, height: 56, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _showCoverPlaceholder())
-                    : _showCoverPlaceholder(),
+              leading: GestureDetector(
+                onTap: () => _editCoverImage(show),
+                child: Stack(children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: show['cover_image'] != null
+                        ? PodcastCover(url: show['cover_image'], width: 56, height: 56)
+                        : _showCoverPlaceholder(),
+                  ),
+                  Positioned(right: 0, bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(color: _kOrange, shape: BoxShape.circle),
+                      child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 10),
+                    )),
+                ]),
               ),
               title: Text(show['title'] ?? '',
                   style: const TextStyle(color: _kNavy, fontWeight: FontWeight.w700)),
@@ -547,17 +558,130 @@ class _MyShowsTabState extends State<_MyShowsTab> {
                   '${show['total_episodes'] ?? 0} episodes · ${show['total_followers'] ?? 0} followers',
                   style: const TextStyle(color: Colors.grey, fontSize: 11)),
               trailing: PopupMenuButton<String>(
-                onSelected: (_) {},
+                onSelected: (action) {
+                  if (action == 'edit') _editShow(show);
+                  if (action == 'episode') widget.onUploadTab();
+                },
                 icon: const Icon(Icons.more_vert_rounded, color: _kNavy),
                 itemBuilder: (_) => const [
                   PopupMenuItem(value: 'edit', child: Text('Edit Show')),
                   PopupMenuItem(value: 'episode', child: Text('Add Episode')),
-                  PopupMenuItem(value: 'stats', child: Text('View Stats')),
                 ],
               ),
             ),
           );
         },
+      ),
+    );
+  }
+
+  Future<void> _editCoverImage(Map<String, dynamic> show) async {
+    final picker = ImagePicker();
+    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (img == null || !mounted) return;
+    final file = File(img.path);
+    final id = show['id'] as int;
+    try {
+      await _repo.updateShow(id, coverFile: file);
+      _load();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Cover updated!'), backgroundColor: Colors.green));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed: $e'), backgroundColor: Colors.red));
+    }
+  }
+
+  void _editShow(Map<String, dynamic> show) {
+    final titleCtrl = TextEditingController(text: show['title'] ?? '');
+    File? newCover;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20,
+              MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Edit Show',
+                style: TextStyle(color: _kNavy, fontSize: 17, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 16),
+            // Cover image picker
+            GestureDetector(
+              onTap: () async {
+                final picker = ImagePicker();
+                final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                if (img != null) setModal(() => newCover = File(img.path));
+              },
+              child: Row(children: [
+                Stack(children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: newCover != null
+                        ? Image.file(newCover!, width: 72, height: 72, fit: BoxFit.cover)
+                        : (show['cover_image'] != null
+                            ? PodcastCover(url: show['cover_image'], width: 72, height: 72)
+                            : Container(width: 72, height: 72,
+                                decoration: BoxDecoration(
+                                    color: _kNavy.withAlpha(15),
+                                    borderRadius: BorderRadius.circular(12)),
+                                child: const Icon(Icons.podcasts_rounded, color: _kNavy, size: 32))),
+                  ),
+                  Positioned(right: 0, bottom: 0,
+                    child: Container(padding: const EdgeInsets.all(5),
+                        decoration: const BoxDecoration(color: _kOrange, shape: BoxShape.circle),
+                        child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 13))),
+                ]),
+                const SizedBox(width: 14),
+                const Text('Tap to change cover image',
+                    style: TextStyle(color: _kNavy, fontSize: 13, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+            const SizedBox(height: 16),
+            // Title
+            const Text('Show Title',
+                style: TextStyle(color: _kNavy, fontWeight: FontWeight.w700, fontSize: 13)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: titleCtrl,
+              decoration: InputDecoration(
+                hintText: 'Enter show title',
+                filled: true, fillColor: const Color(0xFFF0F2F5),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _kOrange, foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  try {
+                    await _repo.updateShow(show['id'] as int,
+                        title: titleCtrl.text.trim().isNotEmpty ? titleCtrl.text.trim() : null,
+                        coverFile: newCover);
+                    _load();
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Show updated!'), backgroundColor: Colors.green));
+                  } catch (e) {
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text('Failed: $e'), backgroundColor: Colors.red));
+                  }
+                },
+                child: const Text('Save Changes',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+              ),
+            ),
+          ]),
+        ),
       ),
     );
   }

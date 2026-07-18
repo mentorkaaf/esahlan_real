@@ -8,6 +8,7 @@ import '../services/podcast_audio_service.dart';
 import '../widgets/podcast_cover.dart';
 import 'episode_player_screen.dart';
 import 'all_podcasts_screen.dart';
+import 'podcast_detail_screen.dart';
 import 'podcast_categories_screen.dart';
 import 'top_charts_screen.dart';
 import 'podcast_search_screen.dart';
@@ -510,13 +511,28 @@ class _ContinueRow extends StatelessWidget {
   );
 }
 
-class _ContinueCard extends StatelessWidget {
+class _ContinueCard extends StatefulWidget {
   final ContinueItem item;
   const _ContinueCard({required this.item});
+  @override
+  State<_ContinueCard> createState() => _ContinueCardState();
+}
 
-  void _play(BuildContext ctx) {
-    PodcastAudioService.instance.play(item.episode);
-    Navigator.of(ctx).push(PageRouteBuilder(
+class _ContinueCardState extends State<_ContinueCard> {
+  bool _loading = false;
+  final _repo = PodcastRepository();
+
+  Future<void> _play() async {
+    if (_loading) return;
+    PodcastEpisode ep = widget.item.episode;
+    if (ep.audioUrl == null || ep.audioUrl!.isEmpty) {
+      setState(() => _loading = true);
+      try { ep = await _repo.getEpisode(ep.slug); } catch (_) {}
+      if (mounted) setState(() => _loading = false);
+    }
+    await PodcastAudioService.instance.play(ep);
+    if (!mounted) return;
+    Navigator.of(context).push(PageRouteBuilder(
       pageBuilder: (_, __, ___) => const EpisodePlayerScreen(),
       transitionsBuilder: (_, a, __, child) => SlideTransition(
         position: Tween<Offset>(begin: const Offset(0,1), end: Offset.zero)
@@ -527,33 +543,36 @@ class _ContinueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: () => _play(context),
+    onTap: _play,
     child: Container(
       width: 290, margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
           boxShadow: [BoxShadow(color: Colors.black.withAlpha(13), blurRadius: 8)]),
       child: Row(children: [
         ClipRRect(borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-            child: PodcastCover(url: item.episode.coverImage, width: 90, height: 90)),
+            child: PodcastCover(url: widget.item.episode.coverImage, width: 90, height: 90)),
         const SizedBox(width: 10),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center, children: [
-          Text(item.episode.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+          Text(widget.item.episode.title, maxLines: 2, overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: kNavy, fontSize: 12, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           LinearProgressIndicator(
-            value: item.progress / 100,
+            value: widget.item.progress / 100,
             backgroundColor: const Color(0xFFE5E7EB),
             valueColor: const AlwaysStoppedAnimation<Color>(kOrange),
             minHeight: 3, borderRadius: BorderRadius.circular(2),
           ),
           const SizedBox(height: 4),
-          Text('${item.progress}% · ${item.episode.durationFmt}',
+          Text('${widget.item.progress}% · ${widget.item.episode.durationFmt}',
               style: const TextStyle(color: Colors.grey, fontSize: 10)),
         ])),
         Container(margin: const EdgeInsets.only(right: 10), width: 32, height: 32,
             decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
-            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18)),
+            child: _loading
+                ? const Padding(padding: EdgeInsets.all(8),
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18)),
       ]),
     ),
   );
@@ -582,7 +601,10 @@ class _PodCard extends StatelessWidget {
   const _PodCard({required this.podcast});
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => PodcastDetailScreen(slug: podcast.slug))),
+    child: Container(
     width: 130, margin: const EdgeInsets.only(right: 12),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Stack(children: [
@@ -611,7 +633,7 @@ class _PodCard extends StatelessWidget {
         Text('${podcast.totalEpisodes}', style: const TextStyle(color: Colors.grey, fontSize: 10)),
       ]),
     ]),
-  );
+  ));
 
   String _k(int n) => n >= 1000 ? '${(n/1000).toStringAsFixed(1)}K' : '$n';
 }
@@ -634,13 +656,28 @@ class _EpisodeRow extends StatelessWidget {
   );
 }
 
-class _EpCard extends StatelessWidget {
+class _EpCard extends StatefulWidget {
   final PodcastEpisode episode;
   const _EpCard({required this.episode});
+  @override
+  State<_EpCard> createState() => _EpCardState();
+}
 
-  void _play(BuildContext ctx) {
-    PodcastAudioService.instance.play(episode);
-    Navigator.of(ctx).push(PageRouteBuilder(
+class _EpCardState extends State<_EpCard> {
+  bool _loading = false;
+  final _repo = PodcastRepository();
+
+  Future<void> _play() async {
+    if (_loading) return;
+    PodcastEpisode ep = widget.episode;
+    if (ep.audioUrl == null || ep.audioUrl!.isEmpty) {
+      setState(() => _loading = true);
+      try { ep = await _repo.getEpisode(ep.slug); } catch (_) {}
+      if (mounted) setState(() => _loading = false);
+    }
+    await PodcastAudioService.instance.play(ep);
+    if (!mounted) return;
+    Navigator.of(context).push(PageRouteBuilder(
       pageBuilder: (_, __, ___) => const EpisodePlayerScreen(),
       transitionsBuilder: (_, a, __, child) => SlideTransition(
         position: Tween<Offset>(begin: const Offset(0,1), end: Offset.zero)
@@ -651,30 +688,33 @@ class _EpCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: () => _play(context),
+    onTap: _play,
     child: Container(
       width: 140, margin: const EdgeInsets.only(right: 12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Stack(children: [
           ClipRRect(borderRadius: BorderRadius.circular(12),
-              child: PodcastCover(url: episode.coverImage, width: 140, height: 130)),
+              child: PodcastCover(url: widget.episode.coverImage, width: 140, height: 130)),
           Positioned(bottom: 6, right: 6,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.black.withAlpha(160), borderRadius: BorderRadius.circular(5)),
-                child: Text(episode.durationFmt,
+                child: Text(widget.episode.durationFmt,
                     style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)))),
           Positioned(bottom: 6, left: 6,
               child: Container(padding: const EdgeInsets.all(4),
                   decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
-                  child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 12))),
+                  child: _loading
+                      ? const SizedBox(width: 12, height: 12,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 12))),
         ]),
         const SizedBox(height: 5),
-        Text(episode.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+        Text(widget.episode.title, maxLines: 2, overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: kNavy, fontSize: 11, fontWeight: FontWeight.w700, height: 1.3)),
-        if (episode.podcast != null)
-          Text(episode.podcast!.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+        if (widget.episode.podcast != null)
+          Text(widget.episode.podcast!.title, maxLines: 1, overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: Colors.grey, fontSize: 10)),
       ]),
     ),
@@ -708,15 +748,30 @@ class _TopChartsList extends StatelessWidget {
   }
 }
 
-class _ChartRow extends StatelessWidget {
+class _ChartRow extends StatefulWidget {
   final int rank;
   final PodcastEpisode episode;
   final bool isLast;
   const _ChartRow({required this.rank, required this.episode, required this.isLast});
+  @override
+  State<_ChartRow> createState() => _ChartRowState();
+}
 
-  void _play(BuildContext ctx) {
-    PodcastAudioService.instance.play(episode);
-    Navigator.of(ctx).push(PageRouteBuilder(
+class _ChartRowState extends State<_ChartRow> {
+  bool _loading = false;
+  final _repo = PodcastRepository();
+
+  Future<void> _play() async {
+    if (_loading) return;
+    PodcastEpisode ep = widget.episode;
+    if (ep.audioUrl == null || ep.audioUrl!.isEmpty) {
+      setState(() => _loading = true);
+      try { ep = await _repo.getEpisode(ep.slug); } catch (_) {}
+      if (mounted) setState(() => _loading = false);
+    }
+    await PodcastAudioService.instance.play(ep);
+    if (!mounted) return;
+    Navigator.of(context).push(PageRouteBuilder(
       pageBuilder: (_, __, ___) => const EpisodePlayerScreen(),
       transitionsBuilder: (_, a, __, child) => SlideTransition(
         position: Tween<Offset>(begin: const Offset(0,1), end: Offset.zero)
@@ -727,34 +782,38 @@ class _ChartRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: () => _play(context),
+    onTap: _play,
     child: Column(children: [
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Row(children: [
           SizedBox(width: 26,
-              child: Text('$rank', style: TextStyle(
+              child: Text('${widget.rank}', style: TextStyle(
                 fontSize: 16, fontWeight: FontWeight.w900,
-                color: rank <= 3 ? kOrange : Colors.grey.shade400))),
+                color: widget.rank <= 3 ? kOrange : Colors.grey.shade400))),
           ClipRRect(borderRadius: BorderRadius.circular(8),
-              child: PodcastCover(url: episode.coverImage, width: 44, height: 44)),
+              child: PodcastCover(url: widget.episode.coverImage, width: 44, height: 44)),
           const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(episode.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+            Text(widget.episode.title, maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: kNavy, fontSize: 13, fontWeight: FontWeight.w600)),
-            Text(episode.podcast?.title ?? '',
+            Text(widget.episode.podcast?.title ?? '',
                 style: const TextStyle(color: Colors.grey, fontSize: 11)),
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(episode.durationFmt, style: const TextStyle(color: Colors.grey, fontSize: 11)),
-            Text(_k(episode.playCount),
+            Text(widget.episode.durationFmt, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+            Text(_k(widget.episode.playCount),
                 style: const TextStyle(color: kOrange, fontSize: 10, fontWeight: FontWeight.w700)),
           ]),
           const SizedBox(width: 8),
-          const Icon(Icons.play_circle_fill_rounded, color: kOrange, size: 30),
+          _loading
+              ? const SizedBox(width: 30, height: 30,
+                  child: Padding(padding: EdgeInsets.all(6),
+                      child: CircularProgressIndicator(color: kOrange, strokeWidth: 2)))
+              : const Icon(Icons.play_circle_fill_rounded, color: kOrange, size: 30),
         ]),
       ),
-      if (!isLast) Divider(height: 1, indent: 54, endIndent: 14, color: Colors.grey.shade100),
+      if (!widget.isLast) Divider(height: 1, indent: 54, endIndent: 14, color: Colors.grey.shade100),
     ]),
   );
 

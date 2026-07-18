@@ -269,6 +269,9 @@ class CommunityPost {
   Map<String, int> reactionCounts;
   final String moderationStatus;
 
+  // Podcast card fields (type == 'podcast')
+  final Map<String, dynamic>? podcast;
+
   // Shared post
   final Map<String, dynamic>? sharedPost;
   // Page & Ad fields
@@ -305,6 +308,7 @@ class CommunityPost {
     this.isSaved = false,
     this.reactionCounts = const {},
     this.moderationStatus = 'approved',
+    this.podcast,
     this.sharedPost,
     this.pageId,
     this.page,
@@ -363,6 +367,7 @@ class CommunityPost {
         reactionCounts: (j['reaction_counts'] as Map<String, dynamic>?)
                 ?.map((k, v) => MapEntry(k, (v as num).toInt())) ?? {},
         moderationStatus: j['moderation_status'] as String? ?? 'approved',
+        podcast: j['podcast'] as Map<String, dynamic>?,
         sharedPost: j['shared_post'] as Map<String, dynamic>?,
         pageId: j['page_id'] as int?,
         page: j['page'] as Map<String, dynamic>?,
@@ -371,6 +376,7 @@ class CommunityPost {
   bool get isLiked => userReaction != null;
   bool get hasMedia => media.isNotEmpty;
   bool get isVideo => type == 'video' || type == 'reel';
+  bool get isPodcast => type == 'podcast';
   CommunityPostMedia? get firstMedia => media.isNotEmpty ? media.first : null;
 }
 

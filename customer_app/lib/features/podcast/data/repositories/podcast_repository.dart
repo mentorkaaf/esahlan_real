@@ -144,6 +144,18 @@ class PodcastRepository {
     return r.data;
   }
 
+  Future<Map<String, dynamic>> updateShow(int id, {String? title, dynamic coverFile}) async {
+    final formData = dio_pkg.FormData.fromMap({
+      if (title != null) 'title': title,
+      if (coverFile != null)
+        'cover_image': await dio_pkg.MultipartFile.fromFile(
+            coverFile.path, filename: coverFile.path.split('/').last),
+      '_method': 'PUT',
+    });
+    final r = await _dio.post('/podcast/shows/$id', data: formData);
+    return r.data;
+  }
+
   Future<Map<String, dynamic>> uploadEpisode({
     required dynamic audioFile,
     dynamic coverFile,

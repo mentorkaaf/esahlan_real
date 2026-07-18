@@ -9,6 +9,7 @@ use App\Services\InteractionTracker;
 use App\Services\PrivacyService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\Community\CommunityAdController;
+use App\Models\PodcastEpisode;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\DB;
 
@@ -72,6 +73,8 @@ class CommunityFeedController extends Controller
 
         // Inject ads
         $transformed = $this->injectFeedAds($transformed, $userId);
+        // Inject podcast episode cards (1 every 6 posts)
+        $transformed = $this->injectPodcastCards($transformed, $userId);
 
         $total = CommunityPost::whereNull('group_id')
             ->where('privacy', '!=', 'private')
@@ -137,6 +140,7 @@ class CommunityFeedController extends Controller
 
         $transformed = $merged->map(fn ($p) => $this->transformPost($p, $userId, $followingIdsArr, $savedPostIds))->toArray();
         $transformed = $this->injectFeedAds($transformed, $userId);
+        $transformed = $this->injectPodcastCards($transformed, $userId);
 
         InteractionTracker::trackImpressions($userId, $merged->pluck('id')->toArray());
 
@@ -149,6 +153,155 @@ class CommunityFeedController extends Controller
     }
 
     // ─── Inject ads with proper spacing ────────────────────────────────
+    // ─── Podcast feed cards ───────────────────────────────────────────────────
+    // Injects 1 podcast episode card every 6 posts (positions 6, 12, 18 …).
+    private function injectPodcastCards(array $transformed, int $userId): array
+    {
+        $frequency = 6;
+        $maxCards  = 3;
+        if (count($transformed) < $frequency) return $transformed;
+
+        // Pick trending published episodes from the last 7 days
+        $episodes = PodcastEpisode::with('podcast')
+            ->where('status', 'published')
+            ->where('created_at', '>', now()->subDays(7))
+            ->orderByDesc('play_count')
+            ->limit($maxCards)
+            ->get();
+
+        if ($episodes->isEmpty()) return $transformed;
+
+        $cards = $episodes->map(fn ($ep) => $this->podcastCard($ep))->values()->toArray();
+
+        $positions = [];
+        for ($i = 1; $i <= min($maxCards, count($cards)); $i++) {
+            $pos = $i * $frequency;
+            if ($pos >= count($transformed)) break;
+            $positions[] = $pos;
+        }
+
+        foreach (array_reverse(array_keys($positions)) as $k) {
+            array_splice($transformed, $positions[$k], 0, [$cards[$k]]);
+        }
+
+        return $transformed;
+    }
+
+    // ─── Podcast audio reels ──────────────────────────────────────────────────
+    // Injects 1 podcast audio reel every 5 reels (positions 5, 10 …).
+    private function injectPodcastReels(array $transformed, int $userId): array
+    {
+        $frequency = 5;
+        $maxCards  = 2;
+        if (count($transformed) < $frequency) return $transformed;
+
+        $episodes = PodcastEpisode::with('podcast')
+            ->where('status', 'published')
+            ->where('created_at', '>', now()->subDays(14))
+            ->orderByDesc('play_count')
+            ->limit($maxCards)
+            ->get();
+
+        if ($episodes->isEmpty()) return $transformed;
+
+        $cards = $episodes->map(fn ($ep) => array_merge($this->podcastCard($ep), ['is_podcast_reel' => true]))->values()->toArray();
+
+        $positions = [];
+        for ($i = 1; $i <= min($maxCards, count($cards)); $i++) {
+            $pos = $i * $frequency;
+            if ($pos >= count($transformed)) break;
+            $positions[] = $pos;
+        }
+
+        foreach (array_reverse(array_keys($positions)) as $k) {
+            array_splice($transformed, $positions[$k], 0, [$cards[$k]]);
+        }
+
+        return $transformed;
+    }
+
+    private function podcastCard(PodcastEpisode $ep): array
+    {
+        $mediaUrl = fn (?string $p) => $p
+            ? (str_starts_with($p, 'http') ? $p : url('/api/v1/media?f=' . ltrim($p, '/')))
+            : null;
+
+        $cover = $mediaUrl($ep->cover_image ?? $ep->podcast?->cover_image);
+        $host  = $ep->podcast?->user ?? null;
+
+        return [
+            'id'            => -(1000000 + $ep->id), // negative — no clash with post IDs
+            'type'          => 'podcast',
+            'content'       => $ep->description,
+            'location'      => null,
+            'feeling'       => null,
+            'privacy'       => 'public',
+            'is_pinned'     => false,
+            'comments_disabled' => true,
+            'views_count'   => $ep->play_count ?? 0,
+            'likes_count'   => $ep->like_count ?? 0,
+            'comments_count'=> 0,
+            'shares_count'  => 0,
+            'saves_count'   => 0,
+            'poll_options'  => [],
+            'created_at'    => $ep->published_at ?? $ep->created_at,
+            'media'         => [],
+            'user'          => [
+                'id'              => $host?->id ?? 0,
+                'name'            => $ep->podcast?->title ?? 'Podcast',
+                'username'        => $host?->username ?? null,
+                'avatar'          => $cover,
+                'is_verified'     => false,
+                'is_business'     => false,
+                'followers_count' => $ep->podcast?->total_followers ?? 0,
+                'following_count' => 0,
+                'posts_count'     => $ep->podcast?->total_episodes ?? 0,
+                'is_following'    => false,
+                'is_me'           => false,
+                'cover_photo'     => null,
+                'bio'             => null,
+                'location'        => null,
+                'website'         => null,
+                'views_count'     => 0,
+                'likes_count'     => 0,
+                'joined_at'       => null,
+                'is_top_creator'  => false,
+                'badges'          => [],
+                'interests'       => [],
+            ],
+            'user_reaction'     => null,
+            'is_saved'          => false,
+            'reaction_counts'   => (object)[],
+            'moderation_status' => 'approved',
+            'shared_post'       => null,
+            'page_id'           => null,
+            'page'              => null,
+            // Podcast-specific fields
+            'podcast' => [
+                'episode_slug'         => $ep->slug,
+                'episode_title'        => $ep->title,
+                'episode_cover'        => $cover,
+                'episode_audio_url'    => $mediaUrl($ep->audio_url),
+                'episode_duration'     => $ep->duration ?? 0,
+                'episode_duration_fmt' => $this->fmtDuration($ep->duration ?? 0),
+                'episode_play_count'   => $ep->play_count ?? 0,
+                'episode_number'       => $ep->episode_number ?? 1,
+                'podcast_title'        => $ep->podcast?->title ?? '',
+                'podcast_slug'         => $ep->podcast?->slug ?? '',
+            ],
+        ];
+    }
+
+    private function fmtDuration(int $secs): string
+    {
+        $h = intdiv($secs, 3600);
+        $m = intdiv($secs % 3600, 60);
+        $s = $secs % 60;
+        return $h > 0
+            ? sprintf('%d:%02d:%02d', $h, $m, $s)
+            : sprintf('%d:%02d', $m, $s);
+    }
+
     private function injectFeedAds(array $transformed, int $userId): array
     {
         $adSettings = json_decode(\DB::table('settings')->where('key', 'ad_display_settings')->value('value') ?? '{}', true) ?? [];
@@ -496,6 +649,8 @@ class CommunityFeedController extends Controller
             $pos = min(3, count($transformed));
             array_splice($transformed, $pos, 0, [$ad]);
         }
+        // Inject podcast audio reels (1 every 5 reels)
+        $transformed = $this->injectPodcastReels($transformed, $userId);
 
         $totalReels = CommunityPost::whereIn('type', ['reel', 'video'])->where('privacy', 'public')->count();
 

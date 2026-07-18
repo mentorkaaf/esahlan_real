@@ -69,6 +69,8 @@ class VideoPool {
   int          _windowIndex = -1;
   String?      _activeUrl;
   String?      _pendingPlay;
+  Timer?       _rebuildDebounce;
+  Timer?       _dominantDebounce;
 
   static const _maxSlots     = 6;   // more pre-loaded players
   static const _evictDist    = 7;   // keep further videos in memory longer
@@ -111,15 +113,24 @@ class VideoPool {
 
   void setActiveUrl(String url) {
     if (url.isEmpty) return;
-    final idx = _urlIdx[url];           // O(1) lookup
-    if (idx != null) _rebuild(idx);
-    else if (!isReady(url) && !isLoading(url)) _preload(url);
+    final idx = _urlIdx[url];
+    if (idx != null) {
+      // Skip if already the active window — no work needed.
+      if (_windowIndex == idx) return;
+      // Debounce rapid calls during fast scroll — only rebuild once scroll settles.
+      _rebuildDebounce?.cancel();
+      _rebuildDebounce = Timer(const Duration(milliseconds: 120), () => _rebuild(idx));
+    } else if (!isReady(url) && !isLoading(url)) {
+      _preload(url);
+    }
   }
 
   void setFraction(String url, double fraction) {
     if (url.isEmpty) return;
     if (fraction <= 0) _fractions.remove(url); else _fractions[url] = fraction;
-    _updateDominant();
+    // Debounce dominant-video update so player ops don't fire on every scroll frame.
+    _dominantDebounce?.cancel();
+    _dominantDebounce = Timer(const Duration(milliseconds: 150), _updateDominant);
   }
 
   Future<VideoController?> preload(String url) => _preload(url);
@@ -158,6 +169,8 @@ class VideoPool {
   }
 
   void disposeAll() {
+    _rebuildDebounce?.cancel();
+    _dominantDebounce?.cancel();
     _activeUrl   = null;
     _pendingPlay = null;
     _loading.clear();

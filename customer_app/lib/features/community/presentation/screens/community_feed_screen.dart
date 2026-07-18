@@ -32,6 +32,10 @@ import '../../../../core/widgets/realtime_status_banner.dart';
 import 'business_page_detail_screen.dart';
 import 'community_search_screen.dart';
 import '../../../podcast/presentation/screens/podcast_home_screen.dart' show PodcastHomeScreen;
+import '../../../podcast/data/models/podcast_models.dart' show PodcastEpisode;
+import '../../../podcast/data/repositories/podcast_repository.dart' show PodcastRepository;
+import '../../../podcast/presentation/services/podcast_audio_service.dart' show PodcastAudioService;
+import '../../../podcast/presentation/screens/episode_player_screen.dart' show EpisodePlayerScreen;
 
 class CommunityFeedScreen extends ConsumerStatefulWidget {
   const CommunityFeedScreen({super.key});
@@ -77,7 +81,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     _heartbeatTimer = Timer.periodic(AppConstants.feedHeartbeatInterval, (_) => CommunityRepository().feedHeartbeat());
     _subscribeNewPostFeed();
     // Throttle VisibilityDetector callbacks — reduces native calls during fast scroll.
-    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 600);
+    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 400);
   }
 
   Future<void> _subscribeNewPostFeed() async {
@@ -319,7 +323,7 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
           // The old ListView + Column built ALL 30+ cards at once — this is the main perf fix.
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            cacheExtent: 200,
+            cacheExtent: 800,
             slivers: [
               SliverToBoxAdapter(child: RepaintBoundary(child: widget.storiesState.when(
                 data: (groups) => StoriesBar(groups: groups),
@@ -621,6 +625,269 @@ class _PersonTileState extends ConsumerState<_PersonTile> {
       ),
     );
   }
+}
+
+// ── Podcast Feed Card ─────────────────────────────────────────────────────────
+class _PodcastFeedCard extends StatefulWidget {
+  final CommunityPost post;
+  const _PodcastFeedCard({required this.post});
+  @override
+  State<_PodcastFeedCard> createState() => _PodcastFeedCardState();
+}
+
+class _PodcastFeedCardState extends State<_PodcastFeedCard> {
+  bool _loading = false;
+
+  Map<String, dynamic> get _pod => widget.post.podcast ?? {};
+
+  Future<void> _play() async {
+    if (_loading) return;
+    final slug = _pod['episode_slug'] as String? ?? '';
+    if (slug.isEmpty) return;
+    setState(() => _loading = true);
+    try {
+      final ep = await PodcastRepository().getEpisode(slug);
+      await PodcastAudioService.instance.play(ep);
+      if (!mounted) return;
+      Navigator.of(context).push(PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const EpisodePlayerScreen(),
+        transitionsBuilder: (_, a, __, child) => SlideTransition(
+          position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+              .animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
+          child: child),
+      ));
+    } catch (_) {} finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cover    = _pod['episode_cover'] as String?;
+    final epTitle  = _pod['episode_title'] as String? ?? '';
+    final podTitle = _pod['podcast_title'] as String? ?? '';
+    final durFmt   = _pod['episode_duration_fmt'] as String? ?? '';
+    final plays    = _pod['episode_play_count'] as int? ?? 0;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF07003B), Color(0xFF1a0060)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8)],
+      ),
+      child: Row(children: [
+        // Cover art
+        ClipRRect(
+          borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
+          child: cover != null
+              ? CachedNetworkImage(imageUrl: cover, width: 100, height: 100, fit: BoxFit.cover,
+                  errorWidget: (_, __, ___) => _PodcastCoverPlaceholder())
+              : _PodcastCoverPlaceholder(),
+        ),
+        // Info
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              // Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF8A00).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: const Color(0xFFFF8A00).withValues(alpha: 0.5)),
+                ),
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.podcasts_rounded, color: Color(0xFFFF8A00), size: 10),
+                  SizedBox(width: 4),
+                  Text('PODCAST', style: TextStyle(color: Color(0xFFFF8A00), fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                ]),
+              ),
+              const SizedBox(height: 6),
+              Text(epTitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700, height: 1.3)),
+              const SizedBox(height: 3),
+              Text(podTitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white60, fontSize: 11)),
+              const SizedBox(height: 8),
+              Row(children: [
+                const Icon(Icons.access_time_rounded, color: Colors.white38, size: 11),
+                const SizedBox(width: 3),
+                Text(durFmt, style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                const SizedBox(width: 10),
+                const Icon(Icons.headset_rounded, color: Colors.white38, size: 11),
+                const SizedBox(width: 3),
+                Text(plays >= 1000 ? '${(plays/1000).toStringAsFixed(1)}K' : '$plays',
+                    style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: _play,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF8A00),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: _loading
+                        ? const SizedBox(width: 12, height: 12,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.play_arrow_rounded, color: Colors.white, size: 14),
+                            SizedBox(width: 3),
+                            Text('Listen', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                          ]),
+                  ),
+                ),
+              ]),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _PodcastCoverPlaceholder extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 100, height: 100, color: const Color(0xFF1a0060),
+    child: const Icon(Icons.podcasts_rounded, color: Color(0xFFFF8A00), size: 40),
+  );
+}
+
+// ── Podcast Reel Card (in horizontal reels carousel) ──────────────────────────
+class _PodcastReelCard extends StatefulWidget {
+  final CommunityPost post;
+  const _PodcastReelCard({required this.post});
+  @override
+  State<_PodcastReelCard> createState() => _PodcastReelCardState();
+}
+
+class _PodcastReelCardState extends State<_PodcastReelCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _wave;
+  bool _loading = false;
+
+  Map<String, dynamic> get _pod => widget.post.podcast ?? {};
+
+  @override
+  void initState() {
+    super.initState();
+    _wave = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() { _wave.dispose(); super.dispose(); }
+
+  Future<void> _play() async {
+    if (_loading) return;
+    final slug = _pod['episode_slug'] as String? ?? '';
+    if (slug.isEmpty) return;
+    setState(() => _loading = true);
+    try {
+      final ep = await PodcastRepository().getEpisode(slug);
+      await PodcastAudioService.instance.play(ep);
+      if (!mounted) return;
+      Navigator.of(context).push(PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const EpisodePlayerScreen(),
+        transitionsBuilder: (_, a, __, child) => SlideTransition(
+          position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+              .animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
+          child: child),
+      ));
+    } catch (_) {} finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cover    = _pod['episode_cover'] as String?;
+    final epTitle  = _pod['episode_title'] as String? ?? '';
+    final podTitle = _pod['podcast_title'] as String? ?? '';
+
+    return GestureDetector(
+      onTap: _play,
+      child: Container(
+        width: 120, margin: const EdgeInsets.only(right: 8),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+            color: const Color(0xFF07003B)),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(fit: StackFit.expand, children: [
+          // Cover background (blurred)
+          if (cover != null)
+            Opacity(opacity: 0.3,
+              child: CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover,
+                  errorWidget: (_, __, ___) => const SizedBox.shrink())),
+          // Dark gradient
+          Container(decoration: const BoxDecoration(gradient: LinearGradient(
+            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            colors: [Colors.transparent, Colors.black87]))),
+          // Waveform animation
+          Positioned(top: 16, left: 0, right: 0,
+            child: AnimatedBuilder(
+              animation: _wave,
+              builder: (_, __) => CustomPaint(
+                size: const Size(double.infinity, 40),
+                painter: _WaveformPainter(progress: _wave.value),
+              ),
+            )),
+          // Podcast badge
+          Positioned(top: 6, left: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(color: const Color(0xFFFF8A00), borderRadius: BorderRadius.circular(4)),
+              child: const Text('🎙', style: TextStyle(fontSize: 9)),
+            )),
+          // Loading indicator
+          if (_loading)
+            const Center(child: SizedBox(width: 24, height: 24,
+                child: CircularProgressIndicator(color: Color(0xFFFF8A00), strokeWidth: 2))),
+          // Info bottom
+          Positioned(bottom: 8, left: 8, right: 8,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text(epTitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700, height: 1.2)),
+              const SizedBox(height: 2),
+              Text(podTitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white60, fontSize: 9)),
+            ])),
+        ]),
+      ),
+    );
+  }
+}
+
+class _WaveformPainter extends CustomPainter {
+  final double progress;
+  const _WaveformPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFFF8A00).withValues(alpha: 0.8)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    const bars = 12;
+    final barW  = size.width / (bars * 1.8);
+    final gap   = barW * 0.8;
+    final total = bars * barW + (bars - 1) * gap;
+    final startX = (size.width - total) / 2;
+    final heights = [0.3, 0.6, 0.9, 0.5, 0.8, 1.0, 0.7, 0.4, 0.9, 0.6, 0.3, 0.5];
+    for (var i = 0; i < bars; i++) {
+      final phase = (progress + i / bars) % 1.0;
+      final h = size.height * heights[i] * (0.5 + 0.5 * phase);
+      final x = startX + i * (barW + gap) + barW / 2;
+      canvas.drawLine(Offset(x, (size.height - h) / 2), Offset(x, (size.height + h) / 2), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WaveformPainter old) => old.progress != progress;
 }
 
 // ── Ad Card ───────────────────────────────────────────────────────────────────
@@ -1144,6 +1411,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
 
     // â”€â”€ Ad Card â”€â”€
     if (p.isAd) return _AdCard(post: p);
+    if (p.isPodcast) return _PodcastFeedCard(post: p);
 
     final c = context.colors;
     return Container(
@@ -2278,6 +2546,9 @@ class _ReelsCarousel extends ConsumerWidget {
             itemCount: reels.length,
             itemBuilder: (_, i) {
               final reel = reels[i];
+              // Podcast audio reel — show waveform card, tap → podcast player
+              if (reel.isPodcast) return _PodcastReelCard(post: reel);
+
               final media = reel.media.isNotEmpty ? reel.media.first : null;
               final thumb = media?.thumbnail ?? media?.url;
               return GestureDetector(
@@ -2797,9 +3068,16 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (cached != null && mounted) {
       cached.player.setVolume(_globalMuted ? 0 : 100);
       _hasFrame.value = (cached.player.state.width ?? 0) > 0;
-      setState(() { _controller = cached; _ready = true; _loadFailed = false; });
-      _attachPlayerListeners(cached);
-      if (!_paused) _pool.setFraction(url, _lastFraction);
+      // Defer setState to after the current scroll frame to avoid jank.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _pool.isReady(url)) {
+          setState(() { _controller = cached; _ready = true; _loadFailed = false; });
+          _attachPlayerListeners(cached);
+          if (!_paused) _pool.setFraction(url, _lastFraction);
+        } else {
+          _initStarted = false;
+        }
+      });
       return;
     }
 
@@ -2851,13 +3129,19 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       _initStarted = false;
       _loadFailed = false;
       _hasFrame.value = false;
-      setState(() { _controller = null; _ready = false; });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() { _controller = null; _ready = false; });
+      });
     }
 
     // ── Preload trigger (>5%) ──────────────────────────────────────────────
     if (fraction > 0.05 && _isVideo && !_ready && !_initStarted && !_loadFailed) {
       _initStarted = true;
-      _initVideo();
+      // Defer to next frame so video init doesn't compete with scroll physics.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_ready) _initVideo();
+        else if (mounted && _ready) _initStarted = false;
+      });
     }
     // Reset error state when item drops below trigger threshold — eliminates
     // the 0.01–0.05 dead band where items were stuck permanently.
