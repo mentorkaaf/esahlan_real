@@ -166,6 +166,12 @@ class VideoPool {
     for (final p in _players.values) { p.setVolume(0); p.pause(); }
   }
 
+  /// Pauses all players WITHOUT clearing _activeUrl/_fractions so
+  /// _updateDominant can immediately resume the right video after scroll.
+  void pauseForScroll() {
+    for (final p in _players.values) { p.setVolume(0); p.pause(); }
+  }
+
   Future<void> reactivate(String url) async {
     if (url.isEmpty) return;
     if (isReady(url)) { _doPlay(url); return; }

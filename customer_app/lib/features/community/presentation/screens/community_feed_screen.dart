@@ -311,18 +311,19 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
       color: context.colors.scaffoldBg,
       child: NotificationListener<ScrollNotification>(
         onNotification: (n) {
-          // Gate video operations during scroll — this is the core jank fix.
-          // Native player calls (pause/play/setVolume) compete with scroll
-          // physics when they fire mid-frame. By setting feedScrolling=true,
-          // _onVisibilityChanged skips ALL player ops until scroll settles.
+          // Pause videos during scroll so 30fps frame updates don't compete
+          // with scroll physics on the GPU/UI thread — this is the core jank fix.
           if (n is ScrollStartNotification) {
             VideoPool.feedScrolling = true;
+            VideoPool.feed.pauseForScroll();
             _scrollEndTimer?.cancel();
           } else if (n is ScrollEndNotification) {
-            // Short delay lets the final fling decelerate before we activate.
             _scrollEndTimer?.cancel();
-            _scrollEndTimer = Timer(const Duration(milliseconds: 80), () {
+            _scrollEndTimer = Timer(const Duration(milliseconds: 100), () {
               VideoPool.feedScrolling = false;
+              // Force immediate visibility evaluation so the right video
+              // resumes without waiting up to 600ms for the next timer tick.
+              VisibilityDetectorController.instance.notifyNow();
             });
           }
           if (n is ScrollUpdateNotification) {
