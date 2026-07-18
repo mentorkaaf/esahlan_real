@@ -47,6 +47,14 @@ String _fmtTimeago(DateTime dt) {
   return _timeagoCache.putIfAbsent(k, () => timeago.format(dt));
 }
 
+// ── Scroll gate ───────────────────────────────────────────────────────────────
+// During active scroll the rasterizer is busy compositing frames. Suppressing
+// pool operations (Timer cancel/create per visible card) removes Dart event-loop
+// contention that competes with the rasterizer and causes perceived jank.
+// Reset to false 150ms after scroll stops, then force a final visibility pass.
+bool _feedScrolling = false;
+Timer? _scrollIdleTimer;
+
 class CommunityFeedScreen extends ConsumerStatefulWidget {
   const CommunityFeedScreen({super.key});
 
@@ -90,8 +98,9 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     CommunityRepository().feedHeartbeat();
     _heartbeatTimer = Timer.periodic(AppConstants.feedHeartbeatInterval, (_) => CommunityRepository().feedHeartbeat());
     _subscribeNewPostFeed();
-    // Throttle VisibilityDetector callbacks — reduces native calls during fast scroll.
-    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 200);
+    // Throttle VisibilityDetector callbacks — 300ms reduces platform callback
+    // frequency vs prior 200ms, giving the rasterizer more headroom per frame.
+    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 300);
   }
 
   Future<void> _subscribeNewPostFeed() async {
@@ -355,6 +364,19 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
       color: context.colors.scaffoldBg,
       child: NotificationListener<ScrollNotification>(
         onNotification: (n) {
+          // Scroll gate: suppress pool Timer churn while rasterizer is busy.
+          if (n is ScrollStartNotification) {
+            _feedScrolling = true;
+            _scrollIdleTimer?.cancel();
+          } else if (n is ScrollEndNotification) {
+            _scrollIdleTimer?.cancel();
+            _scrollIdleTimer = Timer(const Duration(milliseconds: 150), () {
+              _feedScrolling = false;
+              // Force one final visibility pass so the dominant card activates.
+              VisibilityDetectorController.instance.notifyNow();
+            });
+          }
+          // Pagination trigger.
           if (n is ScrollUpdateNotification) {
             final m = n.metrics;
             if (m.pixels >= m.maxScrollExtent - 800) {
@@ -3196,11 +3218,18 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       _initStarted = false;
     }
 
-    // ── Report fraction to pool — pool plays the most-visible URL ──────────
+    // ── Report fraction to pool — skip during active scroll ──────────────
+    // While scrolling, the rasterizer holds the GPU thread; creating/cancelling
+    // Timers (setFraction→_dominantDebounce, setActiveUrl→_rebuildDebounce)
+    // for every visible card competes with it and causes perceived jank.
+    // Pool ops resume 150ms after scroll stops via VisibilityDetectorController.notifyNow().
     if (_isVideo && _previewUrl.isNotEmpty && !_paused) {
-      _pool.setFraction(_previewUrl, fraction);
-      if (fraction > 0.4) _pool.setActiveUrl(_previewUrl);
-      if (_ready && _controller != null && fraction > 0.5) {
+      if (!_feedScrolling) {
+        _pool.setFraction(_previewUrl, fraction);
+        if (fraction > 0.4) _pool.setActiveUrl(_previewUrl);
+      }
+      // Volume sync is a direct JNI call (no Timer) — always safe to run.
+      if (_ready && _controller != null && fraction > 0.5 && !_feedScrolling) {
         final want = _globalMuted ? 0.0 : 100.0;
         if ((_controller!.player.state.volume - want).abs() > 1.0) {
           _controller!.player.setVolume(want);

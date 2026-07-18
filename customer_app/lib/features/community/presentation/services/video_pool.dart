@@ -124,7 +124,7 @@ class VideoPool {
     // Batch simultaneous setFraction calls (VisibilityDetector fires all visible
     // items at once) into one _updateDominant call to reduce JNI player ops.
     _dominantDebounce?.cancel();
-    _dominantDebounce = Timer(const Duration(milliseconds: 50), _updateDominant);
+    _dominantDebounce = Timer(const Duration(milliseconds: 100), _updateDominant);
   }
 
   Future<VideoController?> preload(String url) => _preload(url);
