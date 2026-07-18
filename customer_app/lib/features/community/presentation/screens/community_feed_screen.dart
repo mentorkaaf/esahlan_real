@@ -146,17 +146,24 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
   Widget build(BuildContext context) {
     final feedState = ref.watch(communityFeedProvider);
     final storiesState = ref.watch(communityStoriesProvider);
-    final unread = ref.watch(communityUnreadCountProvider);
+    // NOTE: communityUnreadCountProvider intentionally NOT watched here.
+    // It fires on every realtime notification, which would rebuild _FeedTab
+    // and reconstruct the 30+ post widget list mid-scroll → jank/shake.
+    // The badge is handled by _NotifBadgeBtn which watches its own provider.
 
-    // Detect new posts added while scrolled down
-    feedState.whenData((posts) {
-      final firstId = posts.isNotEmpty ? posts.first.id : 0;
-      if (_lastFirstPostId > 0 && firstId != _lastFirstPostId && _scrollCtrl.hasClients && _scrollCtrl.offset > 200) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && !_hasNewPosts) setState(() => _hasNewPosts = true);
-        });
-      }
-      _lastFirstPostId = firstId;
+    // Detect new posts arriving while user is scrolled down (show "new posts" pill).
+    // ref.listen does NOT trigger a rebuild of this method — correct side-effect pattern.
+    ref.listen<AsyncValue<List<CommunityPost>>>(communityFeedProvider, (_, next) {
+      next.whenData((posts) {
+        final firstId = posts.isNotEmpty ? posts.first.id : 0;
+        if (_lastFirstPostId > 0 && firstId != _lastFirstPostId &&
+            _scrollCtrl.hasClients && _scrollCtrl.offset > 200) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && !_hasNewPosts) setState(() => _hasNewPosts = true);
+          });
+        }
+        _lastFirstPostId = firstId;
+      });
     });
 
     return Scaffold(
@@ -180,11 +187,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
             ),
             actions: [
               _AppBarBtn(icon: Icons.search_rounded, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunitySearchScreen()))),
-              _AppBarBtn(
-                icon: Icons.notifications_rounded,
-                badge: unread > 0 ? unread : null,
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityNotificationsScreen())),
-              ),
+              const _NotifBadgeBtn(),
               _AppBarBtn(icon: Icons.home_rounded, onTap: () => context.go('/home')),
               SizedBox(width: 4),
             ],
@@ -236,6 +239,21 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
       ),
       Positioned(top: 0, left: 0, right: 0, child: SafeArea(bottom: false, child: RealtimeStatusBanner())),
       ]),
+    );
+  }
+}
+
+// Watches communityUnreadCountProvider in its OWN build — isolated from the
+// main feed build so realtime notification updates never rebuild _FeedTab.
+class _NotifBadgeBtn extends ConsumerWidget {
+  const _NotifBadgeBtn();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(communityUnreadCountProvider);
+    return _AppBarBtn(
+      icon: Icons.notifications_rounded,
+      badge: unread > 0 ? unread : null,
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityNotificationsScreen())),
     );
   }
 }
@@ -3086,9 +3104,18 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (ctrl != null && mounted && _pool.isReady(url)) {
       ctrl.player.setVolume(_globalMuted ? 0 : 100);
       _hasFrame.value = (ctrl.player.state.width ?? 0) > 0;
-      setState(() { _controller = ctrl; _ready = true; _loadFailed = false; });
-      _attachPlayerListeners(ctrl);
-      if (!_paused) _pool.setFraction(url, _lastFraction);
+      // Defer setState to the next frame boundary — the network response can
+      // arrive during a scroll frame; firing setState synchronously here would
+      // insert a widget rebuild into an in-progress layout pass → jank/flash.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _pool.isReady(url)) {
+          setState(() { _controller = ctrl; _ready = true; _loadFailed = false; });
+          _attachPlayerListeners(ctrl);
+          if (!_paused) _pool.setFraction(url, _lastFraction);
+        } else {
+          _initStarted = false;
+        }
+      });
     } else if (ctrl != null && mounted) {
       _initStarted = false;
     } else if (mounted) {
@@ -3153,12 +3180,8 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (_isVideo && _previewUrl.isNotEmpty && !_paused) {
       _pool.setFraction(_previewUrl, fraction);
       if (fraction > 0.4) _pool.setActiveUrl(_previewUrl);
-      if (_ready && _controller != null && fraction > 0.5) {
-        final want = _globalMuted ? 0.0 : 100.0;
-        if ((_controller!.player.state.volume - want).abs() > 1.0) {
-          _controller!.player.setVolume(want);
-        }
-      }
+      // Volume is set once in _initVideo/_doPlay — do NOT call setVolume here.
+      // Calling it every 200ms is a needless JNI round-trip during scroll.
     }
 
     // ── Watch-time tracking ────────────────────────────────────────────────
