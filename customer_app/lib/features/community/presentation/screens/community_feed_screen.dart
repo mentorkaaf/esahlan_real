@@ -291,16 +291,7 @@ class _FeedTab extends ConsumerStatefulWidget {
 }
 
 class _FeedTabState extends ConsumerState<_FeedTab> {
-  int    _lastLoadMs    = 0;
-  Timer? _scrollEndTimer;
-
-  @override
-  void dispose() {
-    _scrollEndTimer?.cancel();
-    // Reset notifier so re-entering the feed doesn't start in scrolling=true state.
-    VideoPool.feedScrollingNotifier.value = false;
-    super.dispose();
-  }
+  int _lastLoadMs = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -313,25 +304,6 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
       color: context.colors.scaffoldBg,
       child: NotificationListener<ScrollNotification>(
         onNotification: (n) {
-          // ── Scroll-state tracking for smooth video rendering ──────────────
-          // While the list is scrolling we swap the GPU-heavy Video (Texture)
-          // widget for a static thumbnail. The Player keeps playing — only the
-          // compositor layer is removed. This eliminates Texture frame updates
-          // competing with scroll animation on the GPU.
-          if (n is ScrollStartNotification) {
-            if (!VideoPool.feedScrollingNotifier.value) {
-              VideoPool.feedScrollingNotifier.value = true;
-            }
-            _scrollEndTimer?.cancel();
-          } else if (n is ScrollEndNotification) {
-            _scrollEndTimer?.cancel();
-            // 80ms delay: let the momentum animation fully settle before
-            // re-introducing the Video texture into the compositor.
-            _scrollEndTimer = Timer(const Duration(milliseconds: 80), () {
-              if (mounted) VideoPool.feedScrollingNotifier.value = false;
-            });
-          }
-          // ── Pagination ────────────────────────────────────────────────────
           if (n is ScrollUpdateNotification) {
             final m = n.metrics;
             if (m.pixels >= m.maxScrollExtent - 800) {
@@ -3309,31 +3281,20 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
                         : Container(color: const Color(0xFF1A1A2E)),
                   ),
                   // Video fades in when the first frame is decoded (thumbnail stays visible until then).
-                  // During feed scroll, the Video (Texture) widget is replaced by an opaque dark
-                  // container — same colour as the card background (0xFF0A0A0A). This covers the
-                  // thumbnail (eliminating the zoom that appeared when thumbnail/cover showed through)
-                  // AND removes the Texture layer from the GPU compositor, cutting compositing
-                  // overhead to zero. The Player keeps playing; only the rendered surface changes.
-                  // When scroll stops (80ms debounce), the Video widget is restored.
+                  // ValueListenableBuilder ensures only this Opacity widget rebuilds — not the whole card.
                   if (_ready && _controller != null)
                     Positioned.fill(
                       child: ValueListenableBuilder<bool>(
-                        valueListenable: VideoPool.feedScrollingNotifier,
-                        builder: (_, scrolling, child) => scrolling
-                            ? const ColoredBox(color: Color(0xFF0A0A0A))
-                            : child!,
-                        child: ValueListenableBuilder<bool>(
-                          valueListenable: _hasFrame,
-                          builder: (_, hasFrame, child) => AnimatedOpacity(
-                            opacity: hasFrame ? 1.0 : 0.0,
-                            duration: const Duration(milliseconds: 80),
-                            child: child,
-                          ),
-                          child: Video(
-                            controller: _controller!,
-                            fit: BoxFit.contain,
-                            controls: NoVideoControls,
-                          ),
+                        valueListenable: _hasFrame,
+                        builder: (_, hasFrame, child) => AnimatedOpacity(
+                          opacity: hasFrame ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 80),
+                          child: child,
+                        ),
+                        child: Video(
+                          controller: _controller!,
+                          fit: BoxFit.contain,
+                          controls: NoVideoControls,
                         ),
                       ),
                     ),
