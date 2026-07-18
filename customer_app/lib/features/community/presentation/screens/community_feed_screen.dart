@@ -3104,18 +3104,9 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (ctrl != null && mounted && _pool.isReady(url)) {
       ctrl.player.setVolume(_globalMuted ? 0 : 100);
       _hasFrame.value = (ctrl.player.state.width ?? 0) > 0;
-      // Defer setState to the next frame boundary — the network response can
-      // arrive during a scroll frame; firing setState synchronously here would
-      // insert a widget rebuild into an in-progress layout pass → jank/flash.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _pool.isReady(url)) {
-          setState(() { _controller = ctrl; _ready = true; _loadFailed = false; });
-          _attachPlayerListeners(ctrl);
-          if (!_paused) _pool.setFraction(url, _lastFraction);
-        } else {
-          _initStarted = false;
-        }
-      });
+      setState(() { _controller = ctrl; _ready = true; _loadFailed = false; });
+      _attachPlayerListeners(ctrl);
+      if (!_paused) _pool.setFraction(url, _lastFraction);
     } else if (ctrl != null && mounted) {
       _initStarted = false;
     } else if (mounted) {
@@ -3180,8 +3171,12 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (_isVideo && _previewUrl.isNotEmpty && !_paused) {
       _pool.setFraction(_previewUrl, fraction);
       if (fraction > 0.4) _pool.setActiveUrl(_previewUrl);
-      // Volume is set once in _initVideo/_doPlay — do NOT call setVolume here.
-      // Calling it every 200ms is a needless JNI round-trip during scroll.
+      if (_ready && _controller != null && fraction > 0.5) {
+        final want = _globalMuted ? 0.0 : 100.0;
+        if ((_controller!.player.state.volume - want).abs() > 1.0) {
+          _controller!.player.setVolume(want);
+        }
+      }
     }
 
     // ── Watch-time tracking ────────────────────────────────────────────────
