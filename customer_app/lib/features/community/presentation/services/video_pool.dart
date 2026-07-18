@@ -55,6 +55,12 @@ class VideoPool {
   static final feed  = VideoPool._(id: 'feed',  loop: true);
   static final reels = VideoPool._(id: 'reels', loop: false);
 
+  // True while the feed list is actively scrolling.
+  // _MediaItemState watches this to swap the GPU-heavy Video widget for a
+  // lightweight thumbnail during scroll, eliminating Texture-layer compositing
+  // overhead. The Player keeps playing — only rendering is paused.
+  static final feedScrollingNotifier = ValueNotifier<bool>(false);
+
 
   final bool _loop;
 
