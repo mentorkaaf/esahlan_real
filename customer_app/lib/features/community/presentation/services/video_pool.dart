@@ -29,17 +29,10 @@ Future<String?> _getCachedPath(String url) async {
   return null;
 }
 
-/// Caches a video to disk AFTER it has been played (called from _evict).
-/// Never called while the video is actively streaming — avoids bandwidth split.
-void _cacheAfterEvict(String url) {
-  // Only cache if not already cached
-  _videoCache.getFileFromCache(url).then((existing) {
-    if (existing == null) {
-      _videoCache.downloadFile(url).catchError((_) {});
-      debugPrint('[cache] queued ${url.split('/').last}');
-    }
-  }).catchError((_) {});
-}
+/// Disabled: was triggering background video downloads on every scroll eviction,
+/// competing for bandwidth with active streaming and causing network jank.
+/// Re-enable only with WiFi detection + idle guard.
+void _cacheAfterEvict(String url) {}
 
 // ── VideoPool ─────────────────────────────────────────────────────────────────
 //
@@ -241,10 +234,9 @@ class VideoPool {
 
       final player = Player(
         configuration: const PlayerConfiguration(
-          // 32 MB buffer — reduces rebuffering on slow/mobile networks.
-          // Each preloaded player gets its own buffer, so total memory for
-          // _maxSlots=6 players ≈ 6×32MB=192MB peak (not all filled at once).
-          bufferSize: 32 * 1024 * 1024,
+          // 8 MB buffer — sufficient for smooth playback on mobile networks.
+          // 6 players × 8MB = 48MB peak vs prior 192MB, reducing GC pressure.
+          bufferSize: 8 * 1024 * 1024,
         ),
       );
       final controller = VideoController(player);
@@ -287,7 +279,7 @@ class VideoPool {
     int maxDist = -1;
     for (final url in _controllers.keys) {
       if (url == _activeUrl || url == _pendingPlay || url == protect) continue;
-      final i    = _urls.isEmpty ? -1 : _urls.indexOf(url);
+      final i    = _urlIdx[url] ?? -1;
       final dist = (i < 0 || _windowIndex < 0) ? 999 : (i - _windowIndex).abs();
       if (dist > maxDist) { maxDist = dist; victim = url; }
     }

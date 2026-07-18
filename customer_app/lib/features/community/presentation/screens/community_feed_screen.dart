@@ -144,15 +144,10 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
 
   @override
   Widget build(BuildContext context) {
-    final feedState = ref.watch(communityFeedProvider);
-    final storiesState = ref.watch(communityStoriesProvider);
-    // NOTE: communityUnreadCountProvider intentionally NOT watched here.
-    // It fires on every realtime notification, which would rebuild _FeedTab
-    // and reconstruct the 30+ post widget list mid-scroll → jank/shake.
-    // The badge is handled by _NotifBadgeBtn which watches its own provider.
-
-    // Detect new posts arriving while user is scrolled down (show "new posts" pill).
-    // ref.listen does NOT trigger a rebuild of this method — correct side-effect pattern.
+    // Neither communityFeedProvider nor communityStoriesProvider are watched here.
+    // _FeedTab watches them directly inside its own state — breaking the
+    // parent→child rebuild chain. Parent rebuilds (_hasNewPosts, scroll listener)
+    // no longer force _FeedTabState.build() to run.
     ref.listen<AsyncValue<List<CommunityPost>>>(communityFeedProvider, (_, next) {
       next.whenData((posts) {
         final firstId = posts.isNotEmpty ? posts.first.id : 0;
@@ -176,7 +171,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
             pinned: true,
             floating: true,
             elevation: 0,
-            
+
             title: RichText(
               text: TextSpan(
                 children: [
@@ -210,11 +205,11 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
         ],
         body: TabBarView(
           controller: _tabCtrl,
-          children: [
-            _FeedTab(feedState: feedState, storiesState: storiesState),
-            const PodcastHomeScreen(),
+          children: const [
+            _FeedTab(),          // const → Flutter skips update() when parent rebuilds
+            PodcastHomeScreen(),
             _PeopleTab(),
-            const _BusinessesTab(),
+            _BusinessesTab(),
           ],
         ),
       ),
@@ -299,10 +294,18 @@ class _AppBarBtn extends StatelessWidget {
   }
 }
 
+// Slot-plan entries — cheap value objects, no Widget allocation until delegate fires.
+sealed class _FeedSlot { const _FeedSlot(); }
+class _PostSlot  extends _FeedSlot { final int postIdx; const _PostSlot(this.postIdx); }
+class _SuggSlot  extends _FeedSlot { final int offset;  const _SuggSlot(this.offset); }
+class _ReelSlot  extends _FeedSlot { final int offset;  const _ReelSlot(this.offset); }
+class _LoadSlot  extends _FeedSlot { const _LoadSlot(); }
+
 class _FeedTab extends ConsumerStatefulWidget {
-  final AsyncValue<List<CommunityPost>> feedState;
-  final AsyncValue<List<StoryGroup>> storiesState;
-  const _FeedTab({required this.feedState, required this.storiesState});
+  // No parameters — const allows Flutter to skip element.update() when parent rebuilds
+  // (e.g. _hasNewPosts pill, scroll listener setState). _FeedTabState.build() only runs
+  // when communityFeedProvider or communityStoriesProvider actually change.
+  const _FeedTab();
 
   @override
   ConsumerState<_FeedTab> createState() => _FeedTabState();
@@ -310,13 +313,33 @@ class _FeedTab extends ConsumerStatefulWidget {
 
 class _FeedTabState extends ConsumerState<_FeedTab> {
   int _lastLoadMs = 0;
+  // Slot plan: recomputed only when posts list identity changes.
+  // Stores cheap ints/markers — actual Widget objects are built lazily by the delegate.
+  List<_FeedSlot> _slots = const [];
+  List<CommunityPost>? _lastPosts;
+
+  List<_FeedSlot> _buildSlots(List<CommunityPost> posts, bool hasMore) {
+    final s = <_FeedSlot>[];
+    int postsSinceLastAd = 999;
+    for (var i = 0; i < posts.length; i++) {
+      final post = posts[i];
+      if (post.isAd && postsSinceLastAd < 3) continue;
+      if (post.isAd) { postsSinceLastAd = 0; } else { postsSinceLastAd++; }
+      s.add(_PostSlot(i));
+      if (i == 4)  s.add(const _SuggSlot(0));
+      if (i == 8)  s.add(const _ReelSlot(0));
+      if (i > 12 && (i - 12) % 10 == 0) s.add(_SuggSlot(((i - 12) ~/ 10) * 5));
+      if (i > 16 && (i - 16) % 12 == 0) s.add(_ReelSlot(((i - 16) ~/ 12) * 4));
+    }
+    s.add(const _LoadSlot());
+    return s;
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Only watch the feed provider here. suggestions and reels are watched
-    // inside their own slot widgets (_SuggestionsSlot, _ReelsSlot) so that
-    // when those providers update they rebuild only their own small widget —
-    // not this entire method and the 30-item list it constructs.
+    final feedState    = ref.watch(communityFeedProvider);
+    final storiesState = ref.watch(communityStoriesProvider);
+    final hasMore      = ref.watch(communityFeedProvider.notifier).hasMore;
 
     return ColoredBox(
       color: context.colors.scaffoldBg,
@@ -337,13 +360,11 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
         child: RefreshIndicator(
           color: kOrange,
           onRefresh: () => ref.read(communityFeedProvider.notifier).refresh(),
-          // CustomScrollView + SliverList: posts are built LAZILY (only visible ones).
-          // The old ListView + Column built ALL 30+ cards at once — this is the main perf fix.
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             cacheExtent: 800,
             slivers: [
-              SliverToBoxAdapter(child: RepaintBoundary(child: widget.storiesState.when(
+              SliverToBoxAdapter(child: RepaintBoundary(child: storiesState.when(
                 data: (groups) => StoriesBar(groups: groups),
                 loading: () => const SizedBox(height: 200),
                 error: (_, __) => const SizedBox(height: 200),
@@ -351,71 +372,67 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
               const SliverToBoxAdapter(child: _CreatePostBar()),
               const SliverToBoxAdapter(child: SizedBox(height: 4)),
 
-              ...widget.feedState.when<List<Widget>>(
+              ...feedState.when<List<Widget>>(
                 data: (posts) {
                   if (posts.isEmpty) return [const SliverToBoxAdapter(child: _EmptyFeed())];
 
-              // Register regular post video URLs in the pool (ads are separate).
-              // Preload ad videos via AdPreloader so they don't compete for pool slots.
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                final videoUrls = posts.expand((p) {
-                  if (p.isAd) return <String>[];
-                  return p.media
-                      .where((m) => m.type == 'video')
-                      .map((m) => m.mp4DirectUrl)
-                      .where((u) => u.isNotEmpty);
-                }).toList();
-                VideoPool.feed.setFeedUrls(videoUrls);
-                // Only initialise the window on first data arrival (windowIndex == -1).
-                // Subsequent calls (page 2, 3 …) must NOT reset to index 0 — that
-                // would evict the currently-visible controller mid-scroll and kill the
-                // playing video. After first init, setActiveUrl() called from
-                // _onVisibilityChanged keeps the window correctly centred.
-                if (VideoPool.feed.windowIndex < 0 && videoUrls.isNotEmpty) {
-                  VideoPool.feed.setWindow(videoUrls, 0);
-                }
-
-                final adUrls = posts
-                    .where((p) => p.isAd && p.adType == 'video' && p.adMediaUrl != null)
-                    .map((p) => p.adMediaUrl!)
-                    .toList();
-                if (adUrls.isNotEmpty) AdVideoManager.instance.preload(adUrls);
-              });
-
-                  // Build widget list — SliverList builds lazily (visible items only).
-                  // Suggestion + reel slots watch their own providers internally so
-                  // a background fetch of either never triggers this loop again.
-                  int postsSinceLastAd = 999;
-                  final items = <Widget>[];
-                  for (var i = 0; i < posts.length; i++) {
-                    final post = posts[i];
-                    if (post.isAd && postsSinceLastAd < 3) continue;
-                    if (post.isAd) { postsSinceLastAd = 0; } else { postsSinceLastAd++; }
-                    items.add(RepaintBoundary(key: ValueKey('post_${posts[i].id}'), child: _PostCard(post: posts[i],
-                      onDelete: () {
-                        ref.read(communityRepoProvider).deletePost(posts[i].id);
-                        ref.read(communityFeedProvider.notifier).removePost(posts[i].id);
-                      },
-                    )));
-                    if (i == 4)  items.add(const RepaintBoundary(child: _SuggestionsSlot(batchOffset: 0)));
-                    if (i == 8)  items.add(const RepaintBoundary(child: _ReelsSlot(batchOffset: 0)));
-                    if (i > 12 && (i - 12) % 10 == 0) {
-                      items.add(RepaintBoundary(child: _SuggestionsSlot(batchOffset: ((i - 12) ~/ 10) * 5)));
+                  // Register video URLs with pool — runs after the frame so it
+                  // never blocks rendering of the current frame.
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    final videoUrls = posts.expand((p) {
+                      if (p.isAd) return <String>[];
+                      return p.media
+                          .where((m) => m.type == 'video')
+                          .map((m) => m.mp4DirectUrl)
+                          .where((u) => u.isNotEmpty);
+                    }).toList();
+                    VideoPool.feed.setFeedUrls(videoUrls);
+                    if (VideoPool.feed.windowIndex < 0 && videoUrls.isNotEmpty) {
+                      VideoPool.feed.setWindow(videoUrls, 0);
                     }
-                    if (i > 16 && (i - 16) % 12 == 0) {
-                      items.add(RepaintBoundary(child: _ReelsSlot(batchOffset: ((i - 16) ~/ 12) * 4)));
-                    }
+                    final adUrls = posts
+                        .where((p) => p.isAd && p.adType == 'video' && p.adMediaUrl != null)
+                        .map((p) => p.adMediaUrl!)
+                        .toList();
+                    if (adUrls.isNotEmpty) AdVideoManager.instance.preload(adUrls);
+                  });
+
+                  // Rebuild slot plan only when the posts list reference changes
+                  // (pagination appended new data). Identity check is O(1).
+                  if (!identical(posts, _lastPosts)) {
+                    _lastPosts = posts;
+                    _slots = _buildSlots(posts, hasMore);
                   }
-                  final hasMore = ref.watch(communityFeedProvider.notifier).hasMore;
-                  items.add(_FeedLoadMore(hasMore: hasMore));
 
                   return [
                     SliverList(
                       delegate: SliverChildBuilderDelegate(
-                        (_, i) => items[i],
-                        childCount: items.length,
+                        (_, i) {
+                          final slot = _slots[i];
+                          if (slot is _PostSlot) {
+                            final post = posts[slot.postIdx];
+                            return RepaintBoundary(
+                              key: ValueKey('post_${post.id}'),
+                              child: _PostCard(
+                                post: post,
+                                onDelete: () {
+                                  ref.read(communityRepoProvider).deletePost(post.id);
+                                  ref.read(communityFeedProvider.notifier).removePost(post.id);
+                                },
+                              ),
+                            );
+                          }
+                          if (slot is _SuggSlot) {
+                            return RepaintBoundary(child: _SuggestionsSlot(batchOffset: slot.offset));
+                          }
+                          if (slot is _ReelSlot) {
+                            return RepaintBoundary(child: _ReelsSlot(batchOffset: slot.offset));
+                          }
+                          return _FeedLoadMore(hasMore: hasMore);
+                        },
+                        childCount: _slots.length,
                         addAutomaticKeepAlives: false,
-                        addRepaintBoundaries: false, // already wrapped manually above
+                        addRepaintBoundaries: false,
                       ),
                     ),
                   ];
@@ -549,6 +566,7 @@ class _TrendingTab extends ConsumerWidget {
 }
 
 class _PeopleTab extends ConsumerWidget {
+  const _PeopleTab();
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final suggestionsAsync = ref.watch(communitySuggestionsProvider);
@@ -1134,7 +1152,7 @@ class _CreatePostBar extends ConsumerWidget {
       decoration: BoxDecoration(
         color: c.cardBg,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 14, offset: const Offset(0, 3))],
+        border: Border.all(color: c.borderColor.withValues(alpha: 0.5), width: 0.5),
       ),
       child: Column(
         children: [
@@ -1341,8 +1359,11 @@ class _PostCardState extends ConsumerState<_PostCard> {
     if (!p.isAd) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        // Defer realtime subscription — don't compete with first-frame rendering
-        Future.delayed(const Duration(milliseconds: 400), () {
+        // Stagger subscriptions by post id to spread the WebSocket subscription
+        // burst: 30 posts × 5 events all subscribing at t=400ms = 150 platform
+        // calls in one batch. Spread over 400–700ms using id modulo.
+        final stagger = 400 + (p.id % 10) * 30;
+        Future.delayed(Duration(milliseconds: stagger), () {
           if (mounted) _subscribeRealtime();
         });
       });
@@ -1437,7 +1458,10 @@ class _PostCardState extends ConsumerState<_PostCard> {
       decoration: BoxDecoration(
         color: c.cardBg,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 1))],
+        // No BoxShadow: each shadow with blurRadius > 0 forces a GPU saveLayer.
+        // With 5-7 cards visible that's 5-7 unnecessary saveLayer ops per frame.
+        // Subtle border provides visual separation without GPU cost.
+        border: Border.all(color: c.borderColor.withValues(alpha: 0.6), width: 0.5),
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -2403,16 +2427,15 @@ class _SuggestionsSlot extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(communitySuggestionsProvider);
-    // Reserve exact height while loading — prevents 0→280 scroll jump
+    // Reserve exact height while loading — prevents layout jump.
     if (async.isLoading) return const SizedBox(height: _kH);
     final all = async.valueOrNull ?? [];
     final followable = all.where((u) => !u.isMe && !u.isFollowing).toList();
     final batch = followable.skip(batchOffset).take(10).toList();
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-      child: batch.isEmpty ? const SizedBox.shrink() : _PeopleYouMayKnow(users: batch),
-    );
+    // No AnimatedSize: size animation during scroll forces layout passes every
+    // frame for 250ms — competes with scroll rendering.
+    if (batch.isEmpty) return const SizedBox.shrink();
+    return _PeopleYouMayKnow(users: batch);
   }
 }
 
@@ -2425,15 +2448,11 @@ class _ReelsSlot extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(communityReelsProvider);
-    // Reserve exact height while loading — prevents 0→252 scroll jump
     if (async.isLoading) return const SizedBox(height: _kH);
     final all = async.valueOrNull ?? [];
     final batch = all.skip(batchOffset).take(6).toList();
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-      child: batch.isEmpty ? const SizedBox.shrink() : _ReelsCarousel(reels: batch),
-    );
+    if (batch.isEmpty) return const SizedBox.shrink();
+    return _ReelsCarousel(reels: batch);
   }
 }
 
@@ -3086,16 +3105,13 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     if (cached != null && mounted) {
       cached.player.setVolume(_globalMuted ? 0 : 100);
       _hasFrame.value = (cached.player.state.width ?? 0) > 0;
-      // Defer setState to after the current scroll frame to avoid jank.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _pool.isReady(url)) {
-          setState(() { _controller = cached; _ready = true; _loadFailed = false; });
-          _attachPlayerListeners(cached);
-          if (!_paused) _pool.setFraction(url, _lastFraction);
-        } else {
-          _initStarted = false;
-        }
-      });
+      // setState immediately: the fast path means the controller is already
+      // ready — no network wait. A synchronous setState here is safe and
+      // avoids the 1-frame race where _pool.isReady(url) can flip false
+      // (eviction) between the postFrameCallback schedule and its execution.
+      setState(() { _controller = cached; _ready = true; _loadFailed = false; });
+      _attachPlayerListeners(cached);
+      if (!_paused) _pool.setFraction(url, _lastFraction);
       return;
     }
 
@@ -3450,6 +3466,7 @@ class _AudioPlayerCard extends StatefulWidget {
 class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerProviderStateMixin {
   VideoPlayerController? _ctrl;
   bool _initialized = false;
+  bool _initStarted = false; // guard: init only once, only when visible
   late AnimationController _waveAnim;
 
   // ValueNotifiers: only the subscribed subtree rebuilds — no full-card setState.
@@ -3466,10 +3483,21 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerPro
   void initState() {
     super.initState();
     _waveAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    // Controller is NOT initialized here — only when the card becomes visible.
+    // Initializing in initState means every audio card in cacheExtent (up to 3)
+    // starts a VideoPlayerController.initialize() immediately, competing with
+    // scroll rendering and VideoPool media_kit players for network + CPU.
+  }
+
+  void _initIfNeeded() {
+    if (_initStarted || _initialized) return;
+    _initStarted = true;
     _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url));
     _ctrl!.initialize().then((_) {
-      if (mounted) setState(() => _initialized = true);
-      _ctrl!.addListener(_onUpdate);
+      if (mounted) {
+        setState(() => _initialized = true);
+        _ctrl!.addListener(_onUpdate);
+      }
     }).catchError((e) => debugPrint('[AudioCard] init error: $e'));
   }
 
@@ -3529,7 +3557,12 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerPro
     final userName = widget.post?.user.name ?? '';
     final hasThumbnail = widget.thumbnail != null && widget.thumbnail!.isNotEmpty;
 
-    return Container(
+    return VisibilityDetector(
+      key: ValueKey('audio_${widget.url.hashCode}'),
+      onVisibilityChanged: (info) {
+        if (info.visibleFraction > 0.3) _initIfNeeded();
+      },
+      child: Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
@@ -3537,7 +3570,9 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerPro
           begin: Alignment.topLeft, end: Alignment.bottomRight,
           colors: [Color(0xFF1A1A2E), Color(0xFF2D1B4E)],
         ),
-        boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.25), blurRadius: 24, offset: const Offset(0, 8))],
+        // No BoxShadow: blurRadius 24 with a colored shadow requires a very large
+        // Gaussian kernel — one of the most expensive single GPU ops in the feed.
+        border: Border.all(color: kOrange.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(children: [
         // ── Cover + info ─────────────────────────────────────────────
@@ -3716,7 +3751,7 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerPro
           ]),
         ),
       ]),
-    );
+    ));
   }
 }
 
