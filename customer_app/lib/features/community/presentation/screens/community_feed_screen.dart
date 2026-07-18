@@ -37,6 +37,16 @@ import '../../../podcast/data/repositories/podcast_repository.dart' show Podcast
 import '../../../podcast/presentation/services/podcast_audio_service.dart' show PodcastAudioService;
 import '../../../podcast/presentation/screens/episode_player_screen.dart' show EpisodePlayerScreen;
 
+// ── Timeago cache ─────────────────────────────────────────────────────────────
+// timeago.format() is called for every visible post card on every build.
+// Bucketed by current minute — cache entries auto-refresh, never stale >60s.
+final _timeagoCache = <String, String>{};
+String _fmtTimeago(DateTime dt) {
+  final m = DateTime.now().millisecondsSinceEpoch ~/ 60000;
+  final k = '${dt.millisecondsSinceEpoch}:$m';
+  return _timeagoCache.putIfAbsent(k, () => timeago.format(dt));
+}
+
 class CommunityFeedScreen extends ConsumerStatefulWidget {
   const CommunityFeedScreen({super.key});
 
@@ -713,7 +723,7 @@ class _PodcastFeedCardState extends State<_PodcastFeedCard> {
           begin: Alignment.topLeft, end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8)],
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06), width: 0.5),
       ),
       child: Row(children: [
         // Cover art
@@ -721,6 +731,7 @@ class _PodcastFeedCardState extends State<_PodcastFeedCard> {
           borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
           child: cover != null
               ? CachedNetworkImage(imageUrl: cover, width: 100, height: 100, fit: BoxFit.cover,
+                  memCacheWidth: 200, memCacheHeight: 200,
                   errorWidget: (_, __, ___) => _PodcastCoverPlaceholder())
               : _PodcastCoverPlaceholder(),
         ),
@@ -852,12 +863,13 @@ class _PodcastReelCardState extends State<_PodcastReelCard>
         width: 120, margin: const EdgeInsets.only(right: 8),
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
             color: const Color(0xFF07003B)),
-        clipBehavior: Clip.antiAlias,
+        clipBehavior: Clip.hardEdge,
         child: Stack(fit: StackFit.expand, children: [
           // Cover background (blurred)
           if (cover != null)
             Opacity(opacity: 0.3,
               child: CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover,
+                  memCacheWidth: 240,
                   errorWidget: (_, __, ___) => const SizedBox.shrink())),
           // Dark gradient
           Container(decoration: const BoxDecoration(gradient: LinearGradient(
@@ -1492,7 +1504,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
                   Row(children: [
                     Icon(Icons.public_rounded, size: 12, color: context.colors.mutedText),
                     SizedBox(width: 3),
-                    Text(timeago.format(p.createdAt), style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
+                    Text(_fmtTimeago(p.createdAt), style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
                     if (p.location != null) ...[
                       Text(' Â· ', style: TextStyle(color: context.colors.mutedText, fontSize: 12)),
                       Icon(Icons.location_on_rounded, size: 12, color: context.colors.mutedText),
@@ -1531,7 +1543,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
                 SizedBox(width: 8),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text((p.sharedPost!['user'] as Map?)?['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.bodyText)),
-                  Text(p.sharedPost!['created_at'] != null ? timeago.format(DateTime.tryParse('${p.sharedPost!['created_at']}') ?? DateTime.now()) : '', style: TextStyle(fontSize: 11, color: context.colors.mutedText)),
+                  Text(p.sharedPost!['created_at'] != null ? _fmtTimeago(DateTime.tryParse('${p.sharedPost!['created_at']}') ?? DateTime.now()) : '', style: TextStyle(fontSize: 11, color: context.colors.mutedText)),
                 ])),
               ])),
               if (p.sharedPost!['content'] != null)
@@ -1562,8 +1574,9 @@ class _PostCardState extends ConsumerState<_PostCard> {
         if (p.media.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
+            child: Container(
+              clipBehavior: Clip.hardEdge,
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
               child: _MediaGrid(media: p.media, postId: p.id, isOwner: p.user.isMe, post: p),
             ),
           ),
@@ -2510,7 +2523,7 @@ class _SuggestionCardState extends ConsumerState<_SuggestionCard> {
       width: 160, margin: EdgeInsets.only(right: 8),
       decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(14),
         border: Border.all(color: context.colors.borderColor)),
-      clipBehavior: Clip.antiAlias,
+      clipBehavior: Clip.hardEdge,
       child: Column(children: [
         // Cover/avatar area
         Stack(children: [
@@ -2518,7 +2531,7 @@ class _SuggestionCardState extends ConsumerState<_SuggestionCard> {
             onTap: () => context.push('/community/profile/${u.id}'),
             child: SizedBox(height: 100, width: double.infinity,
               child: u.avatar != null
-                ? NetImage(url: u.avatar!, fit: BoxFit.cover)
+                ? NetImage(url: u.avatar!, fit: BoxFit.cover, targetWidth: 320)
                 : Container(color: kOrange.withValues(alpha: 0.1),
                     child: Center(child: Text(u.name[0].toUpperCase(),
                       style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: kOrange)))))),
@@ -2596,7 +2609,7 @@ class _ReelsCarousel extends ConsumerWidget {
                 child: Container(
                   width: 120, margin: const EdgeInsets.only(right: 8),
                   decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), color: const Color(0xFF1A1B2E)),
-                  clipBehavior: Clip.antiAlias,
+                  clipBehavior: Clip.hardEdge,
                   child: Stack(fit: StackFit.expand, children: [
                     _VideoReelPreview(thumbnailUrl: thumb),
 
@@ -2659,7 +2672,7 @@ class _VideoReelPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(fit: StackFit.expand, children: [
       if (thumbnailUrl != null)
-        NetImage(url: thumbnailUrl!, fit: BoxFit.cover)
+        NetImage(url: thumbnailUrl!, fit: BoxFit.cover, targetWidth: 240)
       else
         const ColoredBox(color: Color(0xFF1A1B2E)),
       Center(child: Container(
@@ -3582,14 +3595,12 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerPro
             // Cover art
             Container(
               width: 88, height: 88,
+              clipBehavior: Clip.hardEdge,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
                 color: const Color(0xFF2A2A40),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))],
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: hasThumbnail
+              child: hasThumbnail
                   ? NetImage(url: widget.thumbnail!, fit: BoxFit.cover, width: 88, height: 88)
                   : Container(
                       decoration: BoxDecoration(
@@ -3598,7 +3609,6 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerPro
                       ),
                       child: const Center(child: Icon(Icons.music_note_rounded, color: Colors.white, size: 38)),
                     ),
-              ),
             ),
             const SizedBox(width: 14),
             // Title + creator + mini waveform
@@ -3729,7 +3739,6 @@ class _AudioPlayerCardState extends State<_AudioPlayerCard> with SingleTickerPro
                       shape: BoxShape.circle,
                       gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
                         colors: [kOrange, Color(0xFFf97316)]),
-                      boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.5), blurRadius: 22, offset: const Offset(0, 6))],
                     ),
                     child: buffering && !_initialized
                       ? const Padding(padding: EdgeInsets.all(18),
