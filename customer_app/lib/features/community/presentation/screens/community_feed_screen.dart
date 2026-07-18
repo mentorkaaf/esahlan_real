@@ -311,18 +311,16 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
       color: context.colors.scaffoldBg,
       child: NotificationListener<ScrollNotification>(
         onNotification: (n) {
-          // Pause videos during scroll so 30fps frame updates don't compete
-          // with scroll physics on the GPU/UI thread — this is the core jank fix.
+          // Gate visibility-based player ops during scroll.
           if (n is ScrollStartNotification) {
             VideoPool.feedScrolling = true;
-            VideoPool.feed.pauseForScroll();
             _scrollEndTimer?.cancel();
           } else if (n is ScrollEndNotification) {
             _scrollEndTimer?.cancel();
-            _scrollEndTimer = Timer(const Duration(milliseconds: 100), () {
+            _scrollEndTimer = Timer(const Duration(milliseconds: 80), () {
               VideoPool.feedScrolling = false;
-              // Force immediate visibility evaluation so the right video
-              // resumes without waiting up to 600ms for the next timer tick.
+              // Immediately re-evaluate visibility so the right video plays
+              // without waiting up to 600ms for the next VisibilityDetector tick.
               VisibilityDetectorController.instance.notifyNow();
             });
           }
@@ -418,7 +416,7 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
                       delegate: SliverChildBuilderDelegate(
                         (_, i) => items[i],
                         childCount: items.length,
-                        addAutomaticKeepAlives: false,
+                        addAutomaticKeepAlives: true,
                         addRepaintBoundaries: false, // already wrapped manually above
                       ),
                     ),
@@ -2962,7 +2960,13 @@ class _MediaItem extends ConsumerStatefulWidget {
 // Global mute state — like Facebook: unmuting one video unmutes all subsequent ones.
 bool _globalMuted = false;
 
-class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObserver {
+class _MediaItemState extends ConsumerState<_MediaItem>
+    with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
+  // Keep video items alive in the SliverList — prevents build/dispose churn
+  // when scrolling, which was causing jank as initState + observer registration
+  // + VisibilityDetector setup ran every time a video re-entered the viewport.
+  @override
+  bool get wantKeepAlive => _isVideo;
   VideoController? _controller;
   bool _ready = false;
   bool _initStarted = false;
@@ -3227,6 +3231,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // required for AutomaticKeepAliveClientMixin
     if (_isAudio) return _AudioPlayerCard(url: widget.m.url, thumbnail: widget.m.thumbnail, post: widget.post);
     if (_isDocument) return _DocumentCard(url: widget.m.url);
 
