@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+:root {
+  --esahlan-primary: #FF8A00;
+  --esahlan-navy: #07003B;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
