@@ -47,9 +47,6 @@ String _fmtTimeago(DateTime dt) {
   return _timeagoCache.putIfAbsent(k, () => timeago.format(dt));
 }
 
-// notifyNow() after scroll stops so the dominant card activates immediately.
-Timer? _scrollIdleTimer;
-
 class CommunityFeedScreen extends ConsumerStatefulWidget {
   const CommunityFeedScreen({super.key});
 
@@ -93,9 +90,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     CommunityRepository().feedHeartbeat();
     _heartbeatTimer = Timer.periodic(AppConstants.feedHeartbeatInterval, (_) => CommunityRepository().feedHeartbeat());
     _subscribeNewPostFeed();
-    // 200ms VisibilityDetector interval — fast enough for preload triggers
-    // without flooding the Dart event loop. _dominantDebounce (100ms) inside
-    // VideoPool batches the JNI player ops so scroll stays smooth.
+    // Throttle VisibilityDetector callbacks — reduces native calls during fast scroll.
     VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 200);
   }
 
@@ -360,20 +355,6 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
       color: context.colors.scaffoldBg,
       child: NotificationListener<ScrollNotification>(
         onNotification: (n) {
-          // Suppress JNI play/pause during scroll; restore after.
-          // notifyNow() refreshes fractions so setScrolling(false) finds
-          // the correct dominant card and plays it instantly.
-          if (n is ScrollStartNotification) {
-            VideoPool.feed.setScrolling(true);
-            _scrollIdleTimer?.cancel();
-          } else if (n is ScrollEndNotification) {
-            _scrollIdleTimer?.cancel();
-            _scrollIdleTimer = Timer(const Duration(milliseconds: 80), () {
-              VisibilityDetectorController.instance.notifyNow();
-              VideoPool.feed.setScrolling(false);
-            });
-          }
-          // Pagination trigger.
           if (n is ScrollUpdateNotification) {
             final m = n.metrics;
             if (m.pixels >= m.maxScrollExtent - 800) {
@@ -3215,19 +3196,10 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       _initStarted = false;
     }
 
-    // ── Report fraction to pool ───────────────────────────────────────────
+    // ── Report fraction to pool — pool plays the most-visible URL ──────────
     if (_isVideo && _previewUrl.isNotEmpty && !_paused) {
-      // Always update fraction — this lets _updateDominant pause cards that
-      // scroll out of view (fraction→0) even while scrolling is active.
       _pool.setFraction(_previewUrl, fraction);
-
-      // setActiveUrl shifts the preload window (±4 ahead) so arriving videos
-      // are already buffered. Always call it — the 80ms _rebuildDebounce
-      // inside the pool batches rapid calls during fast scroll automatically.
-      if (fraction > 0.4) {
-        _pool.setActiveUrl(_previewUrl);
-      }
-
+      if (fraction > 0.4) _pool.setActiveUrl(_previewUrl);
       if (_ready && _controller != null && fraction > 0.5) {
         final want = _globalMuted ? 0.0 : 100.0;
         if ((_controller!.player.state.volume - want).abs() > 1.0) {

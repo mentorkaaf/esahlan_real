@@ -64,7 +64,6 @@ class VideoPool {
   String?      _pendingPlay;
   Timer?       _rebuildDebounce;
   Timer?       _dominantDebounce;
-  bool         _scrolling   = false;
 
   static const _maxSlots     = 6;   // more pre-loaded players
   static const _evictDist    = 7;   // keep further videos in memory longer
@@ -125,7 +124,7 @@ class VideoPool {
     // Batch simultaneous setFraction calls (VisibilityDetector fires all visible
     // items at once) into one _updateDominant call to reduce JNI player ops.
     _dominantDebounce?.cancel();
-    _dominantDebounce = Timer(const Duration(milliseconds: 100), _updateDominant);
+    _dominantDebounce = Timer(const Duration(milliseconds: 50), _updateDominant);
   }
 
   Future<VideoController?> preload(String url) => _preload(url);
@@ -142,19 +141,6 @@ class VideoPool {
   }
 
   void play(String url) => _doPlay(url);
-
-  /// Called by the scroll layer to suppress JNI play/pause during active
-  /// scroll. Preloading (_preloadNearby via setActiveUrl) is never suppressed.
-  /// When scrolling stops, fires _updateDominant immediately so the correct
-  /// card plays without waiting for the next _dominantDebounce tick.
-  void setScrolling(bool scrolling) {
-    if (_scrolling == scrolling) return;
-    _scrolling = scrolling;
-    if (!scrolling) {
-      _dominantDebounce?.cancel();
-      _updateDominant();
-    }
-  }
 
   void pause(String url) {
     _players[url]?.setVolume(0);
@@ -182,7 +168,6 @@ class VideoPool {
     _dominantDebounce?.cancel();
     _activeUrl   = null;
     _pendingPlay = null;
-    _scrolling   = false;
     _loading.clear();
     for (final p in _players.values) { try { p.dispose(); } catch (_) {} }
     _players.clear();
@@ -324,11 +309,6 @@ class VideoPool {
     _activeUrl   = url;
     _pendingPlay = url;
 
-    // During scroll, skip the JNI play/pause calls entirely.
-    // _pendingPlay is set so _doInit completion or setScrolling(false)
-    // will trigger playback the instant the rasterizer is free.
-    if (_scrolling) return;
-
     final player = _players[url];
     if (player != null) {
       _pendingPlay = null;
@@ -354,18 +334,12 @@ class VideoPool {
       if (e.value > bestF) { best = e.key; bestF = e.value; }
     }
     if (best == null) {
-      // During scroll: keep playing — user might have flicked fast past the
-      // threshold temporarily. After scroll: pause the active player.
-      if (!_scrolling && _activeUrl != null) {
+      // Nothing above dominance threshold — pause whatever is currently active
+      if (_activeUrl != null) {
         _players[_activeUrl!]?.setVolume(0);
         _players[_activeUrl!]?.pause();
         _activeUrl = null;
       }
-      return;
-    }
-    // During scroll: track the best candidate but defer JNI play/pause.
-    if (_scrolling) {
-      _pendingPlay = best;
       return;
     }
     if (best == _activeUrl) return;
