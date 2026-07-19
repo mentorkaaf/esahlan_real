@@ -47,12 +47,7 @@ String _fmtTimeago(DateTime dt) {
   return _timeagoCache.putIfAbsent(k, () => timeago.format(dt));
 }
 
-// Scroll-phase VisibilityDetector interval management.
-// During scroll the updateInterval is raised to 500ms so _updateDominant
-// (which does JNI player ops) fires at ≤2Hz instead of 4-5Hz — removing
-// the main source of Dart↔platform contention during frame composition.
-// After scroll the interval drops back to 300ms and notifyNow() fires one
-// clean pass so the dominant card activates instantly on finger lift.
+// notifyNow() after scroll stops so the dominant card activates immediately.
 Timer? _scrollIdleTimer;
 
 class CommunityFeedScreen extends ConsumerStatefulWidget {
@@ -98,9 +93,10 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     CommunityRepository().feedHeartbeat();
     _heartbeatTimer = Timer.periodic(AppConstants.feedHeartbeatInterval, (_) => CommunityRepository().feedHeartbeat());
     _subscribeNewPostFeed();
-    // Throttle VisibilityDetector callbacks — 300ms reduces platform callback
-    // frequency vs prior 200ms, giving the rasterizer more headroom per frame.
-    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 300);
+    // 200ms VisibilityDetector interval — fast enough for preload triggers
+    // without flooding the Dart event loop. _dominantDebounce (100ms) inside
+    // VideoPool batches the JNI player ops so scroll stays smooth.
+    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 200);
   }
 
   Future<void> _subscribeNewPostFeed() async {
@@ -364,17 +360,12 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
       color: context.colors.scaffoldBg,
       child: NotificationListener<ScrollNotification>(
         onNotification: (n) {
-          // Raise updateInterval during scroll → _updateDominant fires ≤2Hz.
-          // Lower it back + notifyNow() so the dominant card activates immediately.
-          if (n is ScrollStartNotification) {
-            VisibilityDetectorController.instance.updateInterval =
-                const Duration(milliseconds: 500);
+          // Snap a final visibility pass 80ms after scroll stops so the
+          // dominant card plays immediately without waiting for the next
+          // 200ms VisibilityDetector tick.
+          if (n is ScrollEndNotification) {
             _scrollIdleTimer?.cancel();
-          } else if (n is ScrollEndNotification) {
-            _scrollIdleTimer?.cancel();
-            _scrollIdleTimer = Timer(const Duration(milliseconds: 150), () {
-              VisibilityDetectorController.instance.updateInterval =
-                  const Duration(milliseconds: 300);
+            _scrollIdleTimer = Timer(const Duration(milliseconds: 80), () {
               VisibilityDetectorController.instance.notifyNow();
             });
           }
