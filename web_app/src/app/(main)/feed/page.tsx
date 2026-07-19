@@ -78,14 +78,14 @@ function PostCard({ post, onLike }: { post: CommunityPost; onLike: () => void })
       )}
 
       {/* Media */}
-      {post.media.length > 0 && (
+      {(post.media ?? []).length > 0 && (
         <MediaGrid media={post.media} />
       )}
 
       {/* Hashtags */}
-      {post.hashtags.length > 0 && (
+      {(post.hashtags ?? []).length > 0 && (
         <div className="px-4 pt-2 pb-1 flex flex-wrap gap-1">
-          {post.hashtags.slice(0, 5).map(tag => (
+          {(post.hashtags ?? []).slice(0, 5).map(tag => (
             <span key={tag} className="text-xs text-[#FF8A00] font-semibold">#{tag}</span>
           ))}
         </div>
