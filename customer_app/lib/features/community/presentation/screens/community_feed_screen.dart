@@ -360,13 +360,17 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
       color: context.colors.scaffoldBg,
       child: NotificationListener<ScrollNotification>(
         onNotification: (n) {
-          // Snap a final visibility pass 80ms after scroll stops so the
-          // dominant card plays immediately without waiting for the next
-          // 200ms VisibilityDetector tick.
-          if (n is ScrollEndNotification) {
+          // Suppress JNI play/pause during scroll; restore after.
+          // notifyNow() refreshes fractions so setScrolling(false) finds
+          // the correct dominant card and plays it instantly.
+          if (n is ScrollStartNotification) {
+            VideoPool.feed.setScrolling(true);
+            _scrollIdleTimer?.cancel();
+          } else if (n is ScrollEndNotification) {
             _scrollIdleTimer?.cancel();
             _scrollIdleTimer = Timer(const Duration(milliseconds: 80), () {
               VisibilityDetectorController.instance.notifyNow();
+              VideoPool.feed.setScrolling(false);
             });
           }
           // Pagination trigger.
