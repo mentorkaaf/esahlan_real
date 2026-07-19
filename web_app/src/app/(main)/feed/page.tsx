@@ -47,7 +47,8 @@ export default function FeedPage() {
 }
 
 function PostCard({ post, onLike }: { post: CommunityPost; onLike: () => void }) {
-  const avatar = mediaUrl(post.profile.avatar);
+  const profile = post.profile ?? { avatar: undefined, display_name: 'Unknown', username: 'unknown' };
+  const avatar = mediaUrl(profile.avatar);
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
 
   return (
@@ -56,15 +57,15 @@ function PostCard({ post, onLike }: { post: CommunityPost; onLike: () => void })
       <div className="flex items-center gap-3 px-4 py-3">
         <div className="w-9 h-9 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 shrink-0">
           {avatar
-            ? <img src={avatar} alt={post.profile.display_name} className="w-full h-full object-cover" />
+            ? <img src={avatar} alt={profile.display_name} className="w-full h-full object-cover" />
             : <div className="w-full h-full flex items-center justify-center text-sm font-bold text-gray-500">
-                {post.profile.display_name[0]}
+                {profile.display_name[0]}
               </div>
           }
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{post.profile.display_name}</p>
-          <p className="text-xs text-gray-400">@{post.profile.username} · {timeAgo}</p>
+          <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{profile.display_name}</p>
+          <p className="text-xs text-gray-400">@{profile.username} · {timeAgo}</p>
         </div>
         {post.is_ad && (
           <span className="text-[10px] font-bold bg-[#FF8A00]/10 text-[#FF8A00] px-2 py-0.5 rounded-full">Ad</span>
