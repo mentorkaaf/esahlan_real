@@ -1795,8 +1795,8 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
           _PayCard(title: 'Payment Method', icon: Icons.payment_rounded,
             child: Column(children: [
               _PayMethodTile(
-                label: 'Wallet Balance',
-                sub: 'Deducted from your eSahlan wallet',
+                label: 'ePay Balance',
+                sub: 'Deducted from your eSahlan ePay',
                 icon: Icons.account_balance_wallet_rounded,
                 color: context.colors.navyText, selected: _payMethod == 'wallet',
                 onTap: () => setState(() => _payMethod = 'wallet'),

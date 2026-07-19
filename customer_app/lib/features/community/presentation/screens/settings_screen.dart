@@ -49,7 +49,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _SM('data_saver',    'Data Saver',         Icons.data_saver_on_outlined,          Color(0xFF10B981), 'Save data and control media quality'),
     _SM('video',         'Video Settings',     Icons.play_circle_outline_rounded,     Color(0xFFEF4444), 'Manage video playback preferences'),
     _SM('messages',      'Messages',           Icons.chat_bubble_outline_rounded,     Color(0xFF3B82F6), 'Manage your messaging preferences'),
-    _SM('wallet',        'Wallet',             Icons.account_balance_wallet_outlined,  Color(0xFFFF8A00), 'Manage your wallet and transactions'),
+    _SM('wallet',        'ePay',               Icons.account_balance_wallet_outlined,  Color(0xFFFF8A00), 'Manage your ePay and transactions'),
     _SM('creator_studio','Creator Studio',     Icons.auto_awesome_rounded,            Color(0xFFF59E0B), 'Analytics, earnings and creator tools'),
     _SM('business',      'Business Center',    Icons.business_center_outlined,        Color(0xFF3B82F6), 'Manage your business and shop'),
     _SM('safety',        'Community Safety',   Icons.security_rounded,                Color(0xFF10B981), 'Hidden words, content filters'),
@@ -680,7 +680,7 @@ class _WalletState extends ConsumerState<WalletSettingsScreen> {
 
     return Scaffold(
       backgroundColor: c.scaffoldBg,
-      appBar: _bar(context, 'Wallet'),
+      appBar: _bar(context, 'ePay'),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         Container(
           padding: const EdgeInsets.all(20),
@@ -800,7 +800,7 @@ class _DepositSheetState extends ConsumerState<_DepositSheet> {
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 20, 20, bottom + 24),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Deposit to Wallet', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: c.bodyText)),
+        Text('Deposit to ePay', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: c.bodyText)),
         const SizedBox(height: 20),
         TextField(controller: _phone, decoration: InputDecoration(labelText: 'Phone Number', prefixIcon: const Icon(Icons.phone_outlined), hintText: '61XXXXXXX'),
           keyboardType: TextInputType.phone, style: TextStyle(color: c.bodyText)),
@@ -851,7 +851,7 @@ class _WithdrawSheetState extends ConsumerState<_WithdrawSheet> {
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 24),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Withdraw from Wallet', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: c.bodyText)),
+        Text('Withdraw from ePay', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: c.bodyText)),
         const SizedBox(height: 20),
         TextField(controller: _amount, decoration: const InputDecoration(labelText: 'Amount (USD)', prefixIcon: Icon(Icons.attach_money_rounded)),
           keyboardType: const TextInputType.numberWithOptions(decimal: true), style: TextStyle(color: c.bodyText)),

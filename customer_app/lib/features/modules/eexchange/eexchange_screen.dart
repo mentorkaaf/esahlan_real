@@ -414,7 +414,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
         Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
       ]),
       const SizedBox(height: 12),
-      _payOption('wallet',    'Wallet',     Icons.account_balance_wallet_outlined, 'Deducted from your wallet balance'),
+      _payOption('wallet',    'ePay',       Icons.account_balance_wallet_outlined, 'Deducted from your ePay balance'),
       const SizedBox(height: 10),
       _payOption('waafi_pay', 'Waafi Pay',  Icons.phone_android_rounded,           'EVC / eDahab / Jeep / Premier'),
     ]),

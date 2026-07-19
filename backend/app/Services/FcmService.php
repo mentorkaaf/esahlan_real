@@ -153,7 +153,7 @@ class FcmService
     // ── Wallet / withdrawal helpers ───────────────────────────────────────────
     public static function sendWalletCredit(string $t, float $a, float $b): bool
     {
-        return self::sendToToken($t, 'Wallet Topped Up', '$' . number_format($a, 2) . ' added. Balance: $' . number_format($b, 2), ['type' => 'wallet_credit', 'amount' => (string) $a, 'balance' => (string) $b, 'deep_link' => '/wallet']);
+        return self::sendToToken($t, 'ePay Topped Up', '$' . number_format($a, 2) . ' added. Balance: $' . number_format($b, 2), ['type' => 'wallet_credit', 'amount' => (string) $a, 'balance' => (string) $b, 'deep_link' => '/wallet']);
     }
 
     public static function sendWithdrawalApproved(string $t, float $a): bool

@@ -368,7 +368,7 @@ class _CreateAdScreenState extends ConsumerState<CreateAdScreen> {
         // Payment
         _sectionLabel('Payment Method'),
         Row(children: [
-          _chip('Wallet', Icons.account_balance_wallet_rounded, _payment == 'wallet', () => setState(() => _payment = 'wallet')),
+          _chip('ePay',   Icons.account_balance_wallet_rounded, _payment == 'wallet', () => setState(() => _payment = 'wallet')),
           SizedBox(width: 10),
           _chip('Waafi Pay', Icons.phone_android_rounded, _payment == 'waafi_pay', () => setState(() => _payment = 'waafi_pay')),
         ]),

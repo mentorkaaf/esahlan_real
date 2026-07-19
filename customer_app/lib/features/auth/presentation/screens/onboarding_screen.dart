@@ -31,8 +31,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
     _OnboardPage(
       emoji: '💳',
-      title: 'Pay with EVC Plus or Wallet',
-      subtitle: 'Multiple payment options including Waafi Pay, cash on delivery, and your eSahlan wallet.',
+      title: 'Pay with EVC Plus or ePay',
+      subtitle: 'Multiple payment options including Waafi Pay, cash on delivery, and your eSahlan ePay.',
       color: Color(0xFF4CAF50),
     ),
   ];

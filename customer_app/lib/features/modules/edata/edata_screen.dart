@@ -914,7 +914,7 @@ class _OrderSummaryStep extends StatelessWidget {
             Row(children: [
               Expanded(child: _PayTile(
                 icon: Icons.account_balance_wallet_rounded,
-                label: 'Wallet', subtitle: 'Pay from balance',
+                label: 'ePay', subtitle: 'Pay from balance',
                 selected: payMethod == 'wallet',
                 color: providerColor,
                 onTap: () => onPayMethodChanged('wallet'),

@@ -989,7 +989,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                        const Text('eSahlan Wallet',
+                        const Text('eSahlan ePay',
                             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                         Text('Balance: \$${widget.walletBalance.toStringAsFixed(2)}',
                             style: TextStyle(

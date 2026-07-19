@@ -2507,7 +2507,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         const SizedBox(height: 12),
         ...[
           ('waafi',  '📱', 'Waafi Pay',  'EVC / eDahab / Jeep / Premier'),
-          ('wallet', '👛', 'Wallet',     'Pay from your balance'),
+          ('wallet', '👛', 'ePay',       'Pay from your ePay balance'),
         ].map((m) => _PaymentOption(
           id: m.$1, icon: m.$2, label: m.$3, subtitle: m.$4,
           selected: _payment == m.$1,

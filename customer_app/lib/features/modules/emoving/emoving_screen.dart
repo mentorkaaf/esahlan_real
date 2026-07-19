@@ -1883,7 +1883,7 @@ class _ScheduleStep extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _PaymentTile(
-                        label: 'Wallet',
+                        label: 'ePay',
                         icon: Icons.account_balance_wallet_rounded,
                         selected: paymentMethod == 'wallet',
                         onTap: () => onPaymentChanged('wallet'),
@@ -2094,7 +2094,7 @@ class _ConfirmStep extends ConsumerWidget {
                     _ConfirmRow(
                         icon: Icons.payment_rounded,
                         label: 'Payment',
-                        value: paymentMethod == 'wallet' ? 'Wallet' : 'Waafi Pay'),
+                        value: paymentMethod == 'wallet' ? 'ePay' : 'Waafi Pay'),
                   ],
                 ),
                 if (notes.isNotEmpty) ...[

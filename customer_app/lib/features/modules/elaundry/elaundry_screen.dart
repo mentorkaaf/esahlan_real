@@ -375,7 +375,7 @@ class _OrderConfirmPageState extends State<_OrderConfirmPage> {
           Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: c.navyText)),
           const SizedBox(height: 10),
           Row(children: [
-            Expanded(child: _PayChip(label: 'Wallet',    icon: Icons.account_balance_wallet_rounded, selected: _payMethod == 'wallet',    onTap: () => setState(() => _payMethod = 'wallet'))),
+            Expanded(child: _PayChip(label: 'ePay',      icon: Icons.account_balance_wallet_rounded, selected: _payMethod == 'wallet',    onTap: () => setState(() => _payMethod = 'wallet'))),
             const SizedBox(width: 10),
             Expanded(child: _PayChip(label: 'Waafi Pay', icon: Icons.phone_android_rounded,          selected: _payMethod == 'waafi_pay', onTap: () => setState(() => _payMethod = 'waafi_pay'))),
           ]),

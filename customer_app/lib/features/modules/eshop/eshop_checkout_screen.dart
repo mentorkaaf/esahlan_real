@@ -277,7 +277,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
 
         // ── Payment Method ────────────────────────────────────────
         _section('Payment Method', Icons.payment_outlined, children: [
-          _paymentOption('wallet',    'Wallet',    Icons.account_balance_wallet_outlined, 'Pay from your wallet balance'),
+          _paymentOption('wallet',    'ePay',      Icons.account_balance_wallet_outlined, 'Pay from your ePay balance'),
           const SizedBox(height: 10),
           _paymentOption('waafi_pay', 'Waafi Pay', Icons.phone_android_rounded,           'EVC / eDahab / Jeep / Premier'),
         ]),

@@ -557,7 +557,7 @@ class _HealthPayRow extends StatelessWidget {
       Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
       const SizedBox(height: 8),
       Row(children: [
-        Expanded(child: _HealthPayChip(label: 'Wallet',    icon: Icons.account_balance_wallet_rounded, selected: payMethod == 'wallet',    onTap: () => onChanged('wallet'))),
+        Expanded(child: _HealthPayChip(label: 'ePay',      icon: Icons.account_balance_wallet_rounded, selected: payMethod == 'wallet',    onTap: () => onChanged('wallet'))),
         const SizedBox(width: 10),
         Expanded(child: _HealthPayChip(label: 'Waafi Pay', icon: Icons.phone_android_rounded,          selected: payMethod == 'waafi_pay', onTap: () => onChanged('waafi_pay'))),
       ]),

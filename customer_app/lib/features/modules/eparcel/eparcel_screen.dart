@@ -335,7 +335,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
                   const SizedBox(height: 14),
                   // Payment method
                   Row(children: [
-                    Expanded(child: _PayTile(label: 'Wallet',    icon: Icons.account_balance_wallet_rounded, selected: _payMethod == 'wallet',    color: AppColors.primary,        onTap: () => setState(() => _payMethod = 'wallet'))),
+                    Expanded(child: _PayTile(label: 'ePay',      icon: Icons.account_balance_wallet_rounded, selected: _payMethod == 'wallet',    color: AppColors.primary,        onTap: () => setState(() => _payMethod = 'wallet'))),
                     const SizedBox(width: 10),
                     Expanded(child: _PayTile(label: 'Waafi Pay', icon: Icons.phone_android_rounded,          selected: _payMethod == 'waafi_pay', color: const Color(0xFFFF8A00), onTap: () => setState(() => _payMethod = 'waafi_pay'))),
                   ]),

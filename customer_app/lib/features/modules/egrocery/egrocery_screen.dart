@@ -685,7 +685,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
 
         // Payment
         _section('Payment Method', Icons.payment_outlined, children: [
-          _paymentOption('wallet', 'Wallet', Icons.account_balance_wallet_outlined, 'Pay from wallet'),
+          _paymentOption('wallet', 'ePay',   Icons.account_balance_wallet_outlined, 'Pay from ePay balance'),
           const SizedBox(height: 10),
           _paymentOption('waafi_pay', 'Waafi Pay', Icons.phone_android_rounded, 'EVC / eDahab'),
         ]),

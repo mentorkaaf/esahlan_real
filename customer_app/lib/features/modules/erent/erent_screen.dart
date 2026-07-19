@@ -1397,7 +1397,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
       const SizedBox(height: 12),
       Row(children: [
         Expanded(child: _PayBtn(
-            label: 'Wallet', icon: Icons.account_balance_wallet_outlined,
+            label: 'ePay', icon: Icons.account_balance_wallet_outlined,
             selected: _payMethod == 'wallet', color: _accentColor,
             onTap: () => setState(() => _payMethod = 'wallet'))),
         const SizedBox(width: 12),
@@ -1827,7 +1827,7 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
       SizedBox(height: 12),
       Row(children: [
         Expanded(child: _PayBtn(
-            label: 'Wallet', icon: Icons.account_balance_wallet_outlined,
+            label: 'ePay', icon: Icons.account_balance_wallet_outlined,
             selected: _payMethod == 'wallet', color: context.colors.navyText,
             onTap: () => setState(() => _payMethod = 'wallet'))),
         const SizedBox(width: 12),
