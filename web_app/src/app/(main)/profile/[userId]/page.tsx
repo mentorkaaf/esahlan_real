@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import EditProfileModal from '@/components/EditProfileModal';
 import { api, mediaUrl } from '@/lib/api';
 import { CommunityProfile, CommunityPost, PostMedia } from '@/types';
 import { useAuthStore } from '@/store/auth';
@@ -15,6 +16,7 @@ export default function ProfilePage() {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -89,6 +91,14 @@ export default function ProfilePage() {
   const coverSrc    = coverPreview  ?? mediaUrl(profile.cover_photo) ?? '';
 
   return (
+    <>
+    {editOpen && profile && (
+      <EditProfileModal
+        profile={profile}
+        onClose={() => setEditOpen(false)}
+        onSaved={updated => setProfile(updated)}
+      />
+    )}
     <div className="max-w-2xl mx-auto pb-10">
       {/* Cover photo */}
       <div className="relative h-44 bg-gradient-to-br from-[#07003B] to-[#1E3A6E] overflow-hidden group">
@@ -163,7 +173,10 @@ export default function ProfilePage() {
         {/* Actions */}
         <div className="flex gap-2 mt-16">
           {isMe ? (
-            <button className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            <button
+              onClick={() => setEditOpen(true)}
+              className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
               Edit Profile
             </button>
           ) : (
@@ -216,6 +229,7 @@ export default function ProfilePage() {
         </div>
       )}
     </div>
+    </>
   );
 }
 

@@ -95,7 +95,7 @@ export default function ChatListPage() {
   );
 }
 
-function Avatar({ profile, size = 40 }: { profile: { avatar?: string; display_name: string }; size?: number }) {
+function Avatar({ profile, size = 40 }: { profile: { avatar?: string; display_name?: string; name?: string }; size?: number }) {
   const src = mediaUrl(profile.avatar);
   const s = `${size}px`;
   return (
@@ -103,7 +103,7 @@ function Avatar({ profile, size = 40 }: { profile: { avatar?: string; display_na
       {src
         ? <img src={src} alt={profile.display_name} className="w-full h-full object-cover" />
         : <div className="w-full h-full flex items-center justify-center text-sm font-bold text-gray-500">
-            {profile.display_name[0]?.toUpperCase()}
+            {(profile.display_name ?? profile.name ?? '?')[0]?.toUpperCase()}
           </div>
       }
     </div>

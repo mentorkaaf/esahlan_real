@@ -105,7 +105,7 @@ export default function ChatPage() {
             <div className="w-9 h-9 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 shrink-0">
               {mediaUrl(otherUser.avatar)
                 ? <img src={mediaUrl(otherUser.avatar)} alt={otherUser.display_name} className="w-full h-full object-cover" />
-                : <div className="w-full h-full flex items-center justify-center text-sm font-bold text-gray-500">{otherUser.display_name[0]}</div>
+                : <div className="w-full h-full flex items-center justify-center text-sm font-bold text-gray-500">{(otherUser.display_name ?? otherUser.name ?? '?')[0]}</div>
               }
             </div>
             <div>
