@@ -46,10 +46,21 @@ export default function FeedPage() {
   );
 }
 
+function safeDate(val: string | null | undefined): string {
+  if (!val) return '';
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? '' : formatDistanceToNow(d, { addSuffix: true });
+}
+
 function PostCard({ post, onLike }: { post: CommunityPost; onLike: () => void }) {
   const profile = post.profile ?? { avatar: undefined, display_name: 'Unknown', username: 'unknown' };
+  const displayName = profile.display_name || 'Unknown';
   const avatar = mediaUrl(profile.avatar);
-  const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
+  const timeAgo = safeDate(post.created_at);
+  const media = post.media ?? [];
+  const hashtags = post.hashtags ?? [];
+  const liked = post.is_liked ?? false;
+  const saved = post.is_saved ?? false;
 
   return (
     <article className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
@@ -57,15 +68,15 @@ function PostCard({ post, onLike }: { post: CommunityPost; onLike: () => void })
       <div className="flex items-center gap-3 px-4 py-3">
         <div className="w-9 h-9 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 shrink-0">
           {avatar
-            ? <img src={avatar} alt={profile.display_name} className="w-full h-full object-cover" />
+            ? <img src={avatar} alt={displayName} className="w-full h-full object-cover" />
             : <div className="w-full h-full flex items-center justify-center text-sm font-bold text-gray-500">
-                {profile.display_name[0]}
+                {displayName[0] ?? '?'}
               </div>
           }
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{profile.display_name}</p>
-          <p className="text-xs text-gray-400">@{profile.username} · {timeAgo}</p>
+          <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{displayName}</p>
+          <p className="text-xs text-gray-400">@{profile.username}{timeAgo ? ` · ${timeAgo}` : ''}</p>
         </div>
         {post.is_ad && (
           <span className="text-[10px] font-bold bg-[#FF8A00]/10 text-[#FF8A00] px-2 py-0.5 rounded-full">Ad</span>
@@ -78,14 +89,12 @@ function PostCard({ post, onLike }: { post: CommunityPost; onLike: () => void })
       )}
 
       {/* Media */}
-      {(post.media ?? []).length > 0 && (
-        <MediaGrid media={post.media} />
-      )}
+      {media.length > 0 && <MediaGrid media={media} />}
 
       {/* Hashtags */}
-      {(post.hashtags ?? []).length > 0 && (
+      {hashtags.length > 0 && (
         <div className="px-4 pt-2 pb-1 flex flex-wrap gap-1">
-          {(post.hashtags ?? []).slice(0, 5).map(tag => (
+          {hashtags.slice(0, 5).map(tag => (
             <span key={tag} className="text-xs text-[#FF8A00] font-semibold">#{tag}</span>
           ))}
         </div>
@@ -95,28 +104,28 @@ function PostCard({ post, onLike }: { post: CommunityPost; onLike: () => void })
       <div className="flex items-center gap-1 px-3 py-2 border-t border-gray-50 dark:border-gray-800">
         <ActionBtn
           onClick={onLike}
-          active={post.is_liked}
+          active={liked}
           activeColor="text-red-500"
-          icon={<HeartIcon filled={post.is_liked} />}
-          count={post.likes_count}
+          icon={<HeartIcon filled={liked} />}
+          count={post.likes_count ?? 0}
         />
         <ActionBtn
           icon={<CommentIcon />}
-          count={post.comments_count}
+          count={post.comments_count ?? 0}
         />
         <ActionBtn
           icon={<ShareIcon />}
-          count={post.shares_count}
+          count={post.shares_count ?? 0}
         />
         <div className="flex-1" />
         <ActionBtn
-          active={post.is_saved}
+          active={saved}
           activeColor="text-[#FF8A00]"
-          icon={<SaveIcon filled={post.is_saved} />}
-          count={post.saves_count}
+          icon={<SaveIcon filled={saved} />}
+          count={post.saves_count ?? 0}
         />
         <span className="text-xs text-gray-300 mx-2">·</span>
-        <span className="text-xs text-gray-400">{fmtCount(post.views_count)} views</span>
+        <span className="text-xs text-gray-400">{fmtCount(post.views_count ?? 0)} views</span>
       </div>
     </article>
   );
