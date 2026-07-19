@@ -1,12 +1,12 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api, mediaUrl } from '@/lib/api';
 import { CommunityProfile, CommunityPost, PostMedia } from '@/types';
 import { useAuthStore } from '@/store/auth';
 
 interface ProfileResponse {
-  data: CommunityProfile & { posts?: CommunityPost[] };
+  data: CommunityProfile;
 }
 
 export default function ProfilePage() {
@@ -15,6 +15,12 @@ export default function ProfilePage() {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const { user: me } = useAuthStore();
   const router = useRouter();
   const isMe = String(me?.id) === userId;
@@ -26,8 +32,8 @@ export default function ProfilePage() {
         api.get<{ data: CommunityPost[] }>(`/community/profile/${userId}/posts?per_page=30`),
       ]);
       setProfile(profRes.data);
-      setFollowing(profRes.data.is_following);
-      setPosts(postsRes.data);
+      setFollowing(profRes.data.is_following ?? false);
+      setPosts(Array.isArray(postsRes.data) ? postsRes.data : []);
     } catch {}
     setLoading(false);
   }, [userId]);
@@ -37,11 +43,34 @@ export default function ProfilePage() {
   async function toggleFollow() {
     if (!profile) return;
     setFollowing(f => !f);
+    try { await api.post(`/community/follow/${userId}`); }
+    catch { setFollowing(f => !f); }
+  }
+
+  async function uploadAvatar(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarPreview(URL.createObjectURL(file));
+    setUploadingAvatar(true);
     try {
-      await api.post(`/community/follow/${userId}`);
-    } catch {
-      setFollowing(f => !f);
-    }
+      const form = new FormData();
+      form.append('avatar', file);
+      await api.postForm('/community/profile/avatar', form);
+    } catch {}
+    setUploadingAvatar(false);
+  }
+
+  async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCoverPreview(URL.createObjectURL(file));
+    setUploadingCover(true);
+    try {
+      const form = new FormData();
+      form.append('cover_photo', file);
+      await api.postForm('/community/profile', form);
+    } catch {}
+    setUploadingCover(false);
   }
 
   if (loading) return (
@@ -54,33 +83,85 @@ export default function ProfilePage() {
     <div className="flex items-center justify-center h-full text-gray-400">Profile not found</div>
   );
 
-  // backend transformUser() uses `name`, profile-endpoint may use `display_name`
   const displayName = profile.name ?? profile.display_name ?? 'Unknown';
   const username    = profile.username ?? '';
-  const avatar = mediaUrl(profile.avatar);
-  const cover  = mediaUrl(profile.cover_photo);
+  const avatarSrc   = avatarPreview ?? mediaUrl(profile.avatar) ?? '';
+  const coverSrc    = coverPreview  ?? mediaUrl(profile.cover_photo) ?? '';
 
   return (
     <div className="max-w-2xl mx-auto pb-10">
-      {/* Cover */}
-      <div className="relative h-40 bg-gradient-to-br from-[#07003B] to-[#1E3A6E] overflow-hidden">
-        {cover && <img src={cover} alt="" className="w-full h-full object-cover" />}
-        <button onClick={() => router.back()} className="absolute top-4 left-4 w-8 h-8 bg-black/30 rounded-full flex items-center justify-center text-white">
+      {/* Cover photo */}
+      <div className="relative h-44 bg-gradient-to-br from-[#07003B] to-[#1E3A6E] overflow-hidden group">
+        {coverSrc && <img src={coverSrc} alt="" className="w-full h-full object-cover" />}
+
+        {/* Back button */}
+        <button
+          onClick={() => router.back()}
+          className="absolute top-4 left-4 w-8 h-8 bg-black/40 rounded-full flex items-center justify-center text-white z-10"
+        >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
+
+        {/* Cover edit button (only me) */}
+        {isMe && (
+          <>
+            <button
+              onClick={() => coverInputRef.current?.click()}
+              disabled={uploadingCover}
+              className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/50 hover:bg-black/70 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur transition-colors"
+            >
+              {uploadingCover ? (
+                <div className="w-3 h-3 border border-white/50 border-t-white rounded-full animate-spin" />
+              ) : (
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              )}
+              Change Cover
+            </button>
+            <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={uploadCover} />
+          </>
+        )}
       </div>
 
-      {/* Avatar + actions */}
-      <div className="px-4 -mt-12 flex items-end justify-between mb-4">
-        <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white dark:border-gray-950 bg-gray-200 dark:bg-gray-700 shrink-0">
-          {avatar
-            ? <img src={avatar} alt={displayName} className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center text-3xl font-black text-gray-400">{displayName[0]}</div>
-          }
+      {/* Avatar + action buttons row */}
+      <div className="px-4 -mt-14 flex items-end justify-between mb-4">
+        {/* Avatar */}
+        <div className="relative shrink-0">
+          <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white dark:border-gray-950 bg-gray-200 dark:bg-gray-700">
+            {avatarSrc
+              ? <img src={avatarSrc} alt={displayName} className="w-full h-full object-cover" />
+              : <div className="w-full h-full flex items-center justify-center text-3xl font-black text-gray-400">{displayName[0] ?? '?'}</div>
+            }
+            {uploadingAvatar && (
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full">
+                <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              </div>
+            )}
+          </div>
+          {/* Camera button on avatar (only me) */}
+          {isMe && (
+            <>
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="absolute bottom-0 right-0 w-7 h-7 bg-[#FF8A00] border-2 border-white dark:border-gray-950 rounded-full flex items-center justify-center"
+              >
+                <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+              <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={uploadAvatar} />
+            </>
+          )}
         </div>
-        <div className="flex gap-2 mt-14">
+
+        {/* Actions */}
+        <div className="flex gap-2 mt-16">
           {isMe ? (
             <button className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
               Edit Profile
@@ -90,9 +171,7 @@ export default function ProfilePage() {
               <button
                 onClick={toggleFollow}
                 className={`px-5 py-2 rounded-xl text-sm font-bold transition-colors ${
-                  following
-                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
-                    : 'bg-[#FF8A00] text-white'
+                  following ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200' : 'bg-[#FF8A00] text-white'
                 }`}
               >
                 {following ? 'Following' : 'Follow'}
@@ -118,14 +197,13 @@ export default function ProfilePage() {
             </svg>
           )}
         </div>
-        <p className="text-sm text-gray-400">@{username}</p>
+        {username && <p className="text-sm text-gray-400">@{username}</p>}
         {profile.bio && <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 leading-relaxed">{profile.bio}</p>}
 
-        {/* Stats */}
         <div className="flex gap-6 mt-4">
-          <Stat label="Posts" value={profile.posts_count} />
-          <Stat label="Followers" value={profile.followers_count} />
-          <Stat label="Following" value={profile.following_count} />
+          <Stat label="Posts" value={profile.posts_count ?? 0} />
+          <Stat label="Followers" value={profile.followers_count ?? 0} />
+          <Stat label="Following" value={profile.following_count ?? 0} />
         </div>
       </div>
 
@@ -134,9 +212,7 @@ export default function ProfilePage() {
         <div className="text-center py-16 text-gray-400 text-sm">No posts yet</div>
       ) : (
         <div className="grid grid-cols-3 gap-0.5">
-          {posts.map(post => (
-            <PostThumb key={post.id} post={post} />
-          ))}
+          {posts.map(post => <PostThumb key={post.id} post={post} />)}
         </div>
       )}
     </div>
@@ -156,9 +232,9 @@ function PostThumb({ post }: { post: CommunityPost }) {
   const media: PostMedia | undefined = (post.media ?? [])[0];
   const thumb = media?.thumbnail ?? media?.thumbnail_url ?? media?.url;
   return (
-    <div className="aspect-square overflow-hidden bg-gray-100 dark:bg-gray-800 relative">
+    <div className="aspect-square overflow-hidden bg-gray-100 dark:bg-gray-800 relative group cursor-pointer">
       {thumb
-        ? <img src={mediaUrl(thumb)} alt="" className="w-full h-full object-cover" />
+        ? <img src={mediaUrl(thumb)} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
         : <div className="w-full h-full flex items-center justify-center">
             <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -167,9 +243,7 @@ function PostThumb({ post }: { post: CommunityPost }) {
       }
       {media?.type === 'video' && (
         <div className="absolute top-2 right-2">
-          <svg className="w-4 h-4 text-white drop-shadow" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z" />
-          </svg>
+          <svg className="w-4 h-4 text-white drop-shadow" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
         </div>
       )}
       {(post.media ?? []).length > 1 && (
@@ -186,5 +260,5 @@ function PostThumb({ post }: { post: CommunityPost }) {
 function fmtN(n: number): string {
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
   if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-  return String(n);
+  return String(n ?? 0);
 }
