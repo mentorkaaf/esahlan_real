@@ -7,11 +7,11 @@ export interface User {
   role: string;
 }
 
+// Matches backend transformUser() output
 export interface CommunityProfile {
   id: number;
-  user_id: number;
-  username: string;
-  display_name: string;
+  name: string;           // backend field (display name)
+  username?: string;
   bio?: string;
   avatar?: string;
   cover_photo?: string;
@@ -20,13 +20,19 @@ export interface CommunityProfile {
   posts_count: number;
   is_following: boolean;
   is_verified: boolean;
+  is_business?: boolean;
+  // legacy alias used in profile-endpoint responses
+  display_name?: string;
+  user_id?: number;
 }
 
+// Matches backend transformPost() media shape
 export interface PostMedia {
   id: number;
   type: 'image' | 'video';
   url: string;
-  thumbnail_url?: string;
+  thumbnail?: string;      // backend field
+  thumbnail_url?: string;  // alias used in some endpoints
   hls_url?: string;
   mp4_direct_url?: string;
   width?: number;
@@ -35,23 +41,28 @@ export interface PostMedia {
   transcoding_status?: string;
 }
 
+// Matches backend transformPost() output
 export interface CommunityPost {
   id: number;
   content?: string;
   type: 'post' | 'reel' | 'image';
-  profile: CommunityProfile;
+  user?: CommunityProfile;    // backend field name
+  profile?: CommunityProfile; // alias used in some responses
   media: PostMedia[];
   likes_count: number;
   comments_count: number;
   shares_count: number;
   saves_count: number;
   views_count: number;
-  is_liked: boolean;
-  is_saved: boolean;
-  hashtags: string[];
+  is_liked?: boolean;
+  is_saved?: boolean;
+  user_reaction?: string;
+  hashtags?: string[];
   created_at: string;
   is_ad?: boolean;
   ad?: CommunityAd;
+  page_id?: number;
+  page?: { id: number; name: string; avatar?: string };
 }
 
 export interface CommunityAd {

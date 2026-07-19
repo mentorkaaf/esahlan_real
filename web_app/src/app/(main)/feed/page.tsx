@@ -53,9 +53,11 @@ function safeDate(val: string | null | undefined): string {
 }
 
 function PostCard({ post, onLike }: { post: CommunityPost; onLike: () => void }) {
-  const profile = post.profile ?? { avatar: undefined, display_name: 'Unknown', username: 'unknown' };
-  const displayName = profile.display_name || 'Unknown';
-  const avatar = mediaUrl(profile.avatar);
+  // backend returns `user`, some endpoints return `profile` — normalise
+  const profile = post.user ?? post.profile ?? null;
+  const displayName = profile?.name ?? profile?.display_name ?? 'Unknown';
+  const username   = profile?.username ?? 'unknown';
+  const avatar = mediaUrl(profile?.avatar);
   const timeAgo = safeDate(post.created_at);
   const media = post.media ?? [];
   const hashtags = post.hashtags ?? [];
@@ -76,7 +78,7 @@ function PostCard({ post, onLike }: { post: CommunityPost; onLike: () => void })
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{displayName}</p>
-          <p className="text-xs text-gray-400">@{profile.username}{timeAgo ? ` · ${timeAgo}` : ''}</p>
+          <p className="text-xs text-gray-400">@{username}{timeAgo ? ` · ${timeAgo}` : ''}</p>
         </div>
         {post.is_ad && (
           <span className="text-[10px] font-bold bg-[#FF8A00]/10 text-[#FF8A00] px-2 py-0.5 rounded-full">Ad</span>
@@ -139,7 +141,7 @@ function MediaGrid({ media }: { media: CommunityPost['media'] }) {
     return (
       <VideoPlayer
         url={first.mp4_direct_url ?? first.hls_url ?? first.url}
-        thumbnail={first.thumbnail_url}
+        thumbnail={first.thumbnail ?? first.thumbnail_url}
       />
     );
   }

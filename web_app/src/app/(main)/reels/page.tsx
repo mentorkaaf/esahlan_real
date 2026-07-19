@@ -66,10 +66,13 @@ export default function ReelsPage() {
 function ReelCard({ reel, index, active }: { reel: CommunityPost; index: number; active: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
-  const [liked, setLiked] = useState(reel.is_liked);
-  const [likes, setLikes] = useState(reel.likes_count);
-  const media = reel.media[0];
+  const [liked, setLiked] = useState(reel.is_liked ?? false);
+  const [likes, setLikes] = useState(reel.likes_count ?? 0);
+  const media = (reel.media ?? [])[0];
   const videoUrl = media?.mp4_direct_url ?? media?.hls_url ?? media?.url ?? '';
+  const reelUser = reel.user ?? reel.profile ?? null;
+  const reelName = reelUser?.name ?? reelUser?.display_name ?? 'Unknown';
+  const reelUsername = reelUser?.username ?? 'unknown';
 
   useEffect(() => {
     const v = videoRef.current;
@@ -116,7 +119,7 @@ function ReelCard({ reel, index, active }: { reel: CommunityPost; index: number;
           loop
           playsInline
           muted={muted}
-          poster={media.thumbnail_url ? mediaUrl(media.thumbnail_url) : undefined}
+          poster={media.thumbnail ?? media.thumbnail_url ? mediaUrl(media.thumbnail ?? media.thumbnail_url!) : undefined}
           className="absolute inset-0 w-full h-full object-cover"
         />
       ) : media ? (
@@ -131,9 +134,9 @@ function ReelCard({ reel, index, active }: { reel: CommunityPost; index: number;
         {/* Avatar */}
         <div className="relative">
           <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white bg-gray-800">
-            {reel.profile.avatar
-              ? <img src={mediaUrl(reel.profile.avatar)} alt="" className="w-full h-full object-cover" />
-              : <div className="w-full h-full flex items-center justify-center text-white font-bold text-sm">{reel.profile.display_name[0]}</div>
+            {reelUser?.avatar
+              ? <img src={mediaUrl(reelUser.avatar)} alt="" className="w-full h-full object-cover" />
+              : <div className="w-full h-full flex items-center justify-center text-white font-bold text-sm">{reelName[0] ?? '?'}</div>
             }
           </div>
           <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-[#FF8A00] rounded-full flex items-center justify-center">
@@ -194,11 +197,11 @@ function ReelCard({ reel, index, active }: { reel: CommunityPost; index: number;
 
       {/* Bottom info */}
       <div className="absolute bottom-6 left-4 right-16">
-        <p className="text-white font-bold text-sm">@{reel.profile.username}</p>
+        <p className="text-white font-bold text-sm">@{reelUsername}</p>
         {reel.content && <p className="text-white/80 text-sm mt-1 line-clamp-2">{reel.content}</p>}
-        {reel.hashtags.length > 0 && (
+        {(reel.hashtags ?? []).length > 0 && (
           <p className="text-[#FF8A00] text-xs mt-1 font-semibold">
-            {reel.hashtags.slice(0, 3).map(t => `#${t}`).join(' ')}
+            {(reel.hashtags ?? []).slice(0, 3).map(t => `#${t}`).join(' ')}
           </p>
         )}
       </div>
