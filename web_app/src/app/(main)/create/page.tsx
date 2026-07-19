@@ -37,8 +37,16 @@ export default function CreatePage() {
     setPosting(true);
     setError('');
     try {
+      // Backend type: text | image | video | reel
+      const hasVideo = files.some(f => f.type.startsWith('video'));
+      const hasImage = files.some(f => f.type.startsWith('image'));
+      let backendType: string = 'text';
+      if (type === 'reel') backendType = 'reel';
+      else if (hasVideo) backendType = 'video';
+      else if (hasImage) backendType = 'image';
+
       const form = new FormData();
-      form.append('type', type);
+      form.append('type', backendType);
       form.append('content', content);
       files.forEach(f => form.append('media[]', f));
       await api.postForm('/community/posts', form);
