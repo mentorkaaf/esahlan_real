@@ -4,7 +4,7 @@
 
 <div class="page-header">
     <div>
-        <h1 class="page-title">Wallet Transactions</h1>
+        <h1 class="page-title">ePay Transactions</h1>
         <ul class="breadcrumb">
             <li><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
             <li><a href="{{ route('admin.finance.index') }}">Finance</a></li>
@@ -50,7 +50,7 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Wallet Owner</th>
+                    <th>ePay Owner</th>
                     <th>Type</th>
                     <th>Amount</th>
                     <th>Description</th>

@@ -81,7 +81,7 @@
         </div>
 
         <div class="card">
-            <div class="card-header"><span><i class="fas fa-wallet" style="color:var(--primary);margin-right:8px;"></i>Wallet</span></div>
+            <div class="card-header"><span><i class="fas fa-wallet" style="color:var(--primary);margin-right:8px;"></i>ePay</span></div>
             <div class="card-body">
                 <div style="text-align:center;padding:20px;">
                     <div style="font-size:36px;font-weight:700;color:var(--primary);">

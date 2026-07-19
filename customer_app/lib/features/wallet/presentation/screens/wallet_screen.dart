@@ -102,7 +102,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
       pinned: true,
       backgroundColor: AppColors.secondary,
       foregroundColor: Colors.white,
-      title: const Text('My Wallet', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+      title: const Text('My ePay', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: const BoxDecoration(
@@ -233,7 +233,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
             const SizedBox(height: 12),
             Text('No transactions yet', style: TextStyle(fontWeight: FontWeight.w700, color: context.colors.navyText)),
             const SizedBox(height: 4),
-            const Text('Top up your wallet to get started', style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
+            const Text('Top up your ePay to get started', style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
           ]),
         ),
       );
@@ -273,9 +273,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
             SizedBox(height: 20),
-            Text('Top Up Wallet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: context.colors.navyText)),
+            Text('Top Up ePay', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: context.colors.navyText)),
             const SizedBox(height: 4),
-            const Text('Add money to your eSahlan wallet via Waafi Pay', style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
+            const Text('Add money to your eSahlan ePay via Waafi Pay', style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
             const SizedBox(height: 20),
             TextField(
               controller: ctrl,
@@ -319,13 +319,13 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                     context,
                     amount: amount,
                     type: 'topup',
-                    description: 'eSahlan Wallet Top Up',
+                    description: 'eSahlan ePay Top Up',
                   );
                   if (result?.success == true) {
                     ref.refresh(walletProvider);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Wallet topped up with \$${amount.toStringAsFixed(2)}!'), backgroundColor: Colors.green),
+                        SnackBar(content: Text('ePay topped up with \$${amount.toStringAsFixed(2)}!'), backgroundColor: Colors.green),
                       );
                     }
                   }

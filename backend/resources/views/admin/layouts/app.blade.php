@@ -425,7 +425,7 @@
             @if($__pOrd > 0)<span class="nav-badge">{{ $__pOrd }}</span>@endif
         </a>
         <a href="{{ route('admin.wallet.index') }}" class="nav-link {{ request()->routeIs('admin.wallet.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-wallet"></i></div> Wallet
+            <div class="nav-icon"><i class="fas fa-wallet"></i></div> ePay
         </a>
         <a href="{{ route('admin.dispatch') }}" class="nav-link {{ request()->routeIs('admin.dispatch') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-map-marked-alt"></i></div> Dispatch

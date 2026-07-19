@@ -224,7 +224,7 @@ textarea.nf-input { resize:vertical; min-height:80px; }
                     <i class="fas fa-home"></i> Home
                 </button>
                 <button type="button" class="dl-chip" data-val="/wallet" onclick="selectDeepLink(this)">
-                    <i class="fas fa-wallet"></i> Wallet
+                    <i class="fas fa-wallet"></i> ePay
                 </button>
                 <button type="button" class="dl-chip" data-val="/orders" onclick="selectDeepLink(this)">
                     <i class="fas fa-shopping-bag"></i> Orders

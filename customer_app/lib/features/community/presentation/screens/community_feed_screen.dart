@@ -47,12 +47,12 @@ String _fmtTimeago(DateTime dt) {
   return _timeagoCache.putIfAbsent(k, () => timeago.format(dt));
 }
 
-// ── Scroll gate ───────────────────────────────────────────────────────────────
-// During active scroll the rasterizer is busy compositing frames. Suppressing
-// pool operations (Timer cancel/create per visible card) removes Dart event-loop
-// contention that competes with the rasterizer and causes perceived jank.
-// Reset to false 150ms after scroll stops, then force a final visibility pass.
-bool _feedScrolling = false;
+// Scroll-phase VisibilityDetector interval management.
+// During scroll the updateInterval is raised to 500ms so _updateDominant
+// (which does JNI player ops) fires at ≤2Hz instead of 4-5Hz — removing
+// the main source of Dart↔platform contention during frame composition.
+// After scroll the interval drops back to 300ms and notifyNow() fires one
+// clean pass so the dominant card activates instantly on finger lift.
 Timer? _scrollIdleTimer;
 
 class CommunityFeedScreen extends ConsumerStatefulWidget {
@@ -364,15 +364,17 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
       color: context.colors.scaffoldBg,
       child: NotificationListener<ScrollNotification>(
         onNotification: (n) {
-          // Scroll gate: suppress pool Timer churn while rasterizer is busy.
+          // Raise updateInterval during scroll → _updateDominant fires ≤2Hz.
+          // Lower it back + notifyNow() so the dominant card activates immediately.
           if (n is ScrollStartNotification) {
-            _feedScrolling = true;
+            VisibilityDetectorController.instance.updateInterval =
+                const Duration(milliseconds: 500);
             _scrollIdleTimer?.cancel();
           } else if (n is ScrollEndNotification) {
             _scrollIdleTimer?.cancel();
             _scrollIdleTimer = Timer(const Duration(milliseconds: 150), () {
-              _feedScrolling = false;
-              // Force one final visibility pass so the dominant card activates.
+              VisibilityDetectorController.instance.updateInterval =
+                  const Duration(milliseconds: 300);
               VisibilityDetectorController.instance.notifyNow();
             });
           }
@@ -3224,12 +3226,10 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
       // scroll out of view (fraction→0) even while scrolling is active.
       _pool.setFraction(_previewUrl, fraction);
 
-      // setActiveUrl is an eager _doPlay trigger. Suppress it during scroll
-      // so we don't fire redundant JNI play/pause cycles while the rasterizer
-      // is compositing. _updateDominant (via setFraction debounce) still
-      // handles natural dominant changes. notifyNow() on ScrollEnd re-fires
-      // visibility so setActiveUrl runs once cleanly after the finger lifts.
-      if (!_feedScrolling && fraction > 0.4) {
+      // setActiveUrl shifts the preload window (±4 ahead) so arriving videos
+      // are already buffered. Always call it — the 80ms _rebuildDebounce
+      // inside the pool batches rapid calls during fast scroll automatically.
+      if (fraction > 0.4) {
         _pool.setActiveUrl(_previewUrl);
       }
 

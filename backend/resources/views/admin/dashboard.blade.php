@@ -551,8 +551,8 @@
         <div class="kpi-icon indigo"><i class="fas fa-wallet"></i></div>
         <div class="kpi-body">
             <div class="kpi-val">${{ number_format($totalWalletBalance,0) }}</div>
-            <div class="kpi-label">Wallet Balance</div>
-            <div class="kpi-sub muted"><i class="fas fa-users"></i> {{ $walletCount }} active wallets</div>
+            <div class="kpi-label">ePay Balance</div>
+            <div class="kpi-sub muted"><i class="fas fa-users"></i> {{ $walletCount }} active ePay accounts</div>
         </div>
     </div>
 

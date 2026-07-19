@@ -44,7 +44,7 @@
         <div class="stat-icon-wrap purple"><i class="fas fa-wallet"></i></div>
         <div class="stat-body">
             <div class="stat-value">${{ number_format($stats['wallet_balances'],0) }}</div>
-            <div class="stat-label">Wallet Balances</div>
+            <div class="stat-label">ePay Balances</div>
         </div>
     </div>
 </div>

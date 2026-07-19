@@ -1,16 +1,16 @@
 @extends('admin.layouts.app')
-@section('title', 'Wallet Management')
+@section('title', 'ePay Management')
 
 @section('content')
 <div class="page-header">
     <div>
-        <h1 class="page-title">Wallet Management</h1>
-        <ul class="breadcrumb"><li><span>Finance</span></li><li><span>Wallets</span></li></ul>
+        <h1 class="page-title">ePay Management</h1>
+        <ul class="breadcrumb"><li><span>Finance</span></li><li><span>ePay</span></li></ul>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
         <a href="{{ route('admin.wallet.transactions') }}" class="btn btn-outline-primary"><i class="fas fa-list"></i> All Transactions</a>
         <a href="{{ route('admin.wallet.withdrawals') }}" class="btn btn-outline-warning"><i class="fas fa-money-bill-wave"></i> Withdrawals</a>
-        <button class="btn btn-danger" onclick="document.getElementById('bulkResetModal').style.display='flex'"><i class="fas fa-undo"></i> Reset All Wallets</button>
+        <button class="btn btn-danger" onclick="document.getElementById('bulkResetModal').style.display='flex'"><i class="fas fa-undo"></i> Reset All ePay</button>
         <a href="{{ route('admin.wallet.settings') }}" class="btn btn-outline-secondary"><i class="fas fa-cog"></i> Payment Settings</a>
     </div>
 </div>
@@ -33,14 +33,14 @@
         <div style="font-size:26px;font-weight:900;color:#E74C3C">${{ number_format($stats['pending_withdrawals'],2) }}</div>
     </div>
     <div class="stat-card" style="background:#fff;border:1.5px solid #f0f1f5;border-radius:14px;padding:20px">
-        <div style="font-size:12px;color:#8A8A9A;margin-bottom:6px">Users with Wallets</div>
+        <div style="font-size:12px;color:#8A8A9A;margin-bottom:6px">Users with ePay</div>
         <div style="font-size:26px;font-weight:900;color:#1565C0">{{ number_format($stats['user_count']) }}</div>
     </div>
 </div>
 
 {{-- Manual Credit Form --}}
 <div style="background:#fff;border-radius:14px;border:1.5px solid #f0f1f5;padding:20px;margin-bottom:24px">
-    <h3 style="margin:0 0 16px;font-size:16px;font-weight:800;color:#07003B"><i class="fas fa-plus-circle" style="color:#FF8A00;margin-right:8px"></i>Manual Wallet Credit</h3>
+    <h3 style="margin:0 0 16px;font-size:16px;font-weight:800;color:#07003B"><i class="fas fa-plus-circle" style="color:#FF8A00;margin-right:8px"></i>Manual ePay Credit</h3>
     <form method="POST" action="{{ route('admin.wallet.credit') }}" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
         @csrf
         <div style="flex:2;min-width:200px">
@@ -69,7 +69,7 @@
 {{-- Users Table --}}
 <div style="background:#fff;border-radius:14px;border:1.5px solid #f0f1f5;overflow:hidden">
     <div style="padding:16px 20px;border-bottom:1px solid #f0f1f5;font-weight:800;font-size:15px;color:#07003B">
-        User Wallets <span style="font-size:12px;font-weight:400;color:#8A8A9A;margin-left:8px">{{ $users->total() }} users</span>
+        ePay Accounts <span style="font-size:12px;font-weight:400;color:#8A8A9A;margin-left:8px">{{ $users->total() }} users</span>
     </div>
     <table style="width:100%;border-collapse:collapse">
         <thead>
@@ -126,13 +126,13 @@
                 <i class="fas fa-exclamation-triangle" style="color:#E74C3C;font-size:20px"></i>
             </div>
             <div>
-                <div style="font-weight:800;font-size:16px;color:#07003B">Reset All Wallets</div>
+                <div style="font-weight:800;font-size:16px;color:#07003B">Reset All ePay</div>
                 <div style="font-size:12px;color:#8A8A9A">This will set ALL user balances to $0.00</div>
             </div>
         </div>
         <div style="background:#fce4ec;border-radius:10px;padding:14px;margin-bottom:18px;font-size:13px;color:#c62828;">
             <i class="fas fa-warning" style="margin-right:6px"></i>
-            <strong>Warning:</strong> This action cannot be undone. All user wallet balances will be debited to zero. Transaction records will be kept.
+            <strong>Warning:</strong> This action cannot be undone. All user ePay balances will be debited to zero. Transaction records will be kept.
         </div>
         <form action="{{ route('admin.wallet.bulk-reset') }}" method="POST">
             @csrf
@@ -140,7 +140,7 @@
                 <button type="button" onclick="document.getElementById('bulkResetModal').style.display='none'"
                         style="flex:1;padding:12px;border:1.5px solid #e0e0e0;border-radius:10px;background:#fff;font-weight:700;cursor:pointer">Cancel</button>
                 <button type="submit"
-                        style="flex:1;padding:12px;border:none;border-radius:10px;background:#E74C3C;color:#fff;font-weight:700;cursor:pointer">Reset All Wallets</button>
+                        style="flex:1;padding:12px;border:none;border-radius:10px;background:#E74C3C;color:#fff;font-weight:700;cursor:pointer">Reset All ePay</button>
             </div>
         </form>
     </div>
@@ -149,7 +149,7 @@
 {{-- Single Wallet Reset Modal --}}
 <div id="resetWalletModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
     <div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:90%;">
-        <div style="font-weight:800;font-size:16px;color:#07003B;margin-bottom:6px">Reset Wallet</div>
+        <div style="font-weight:800;font-size:16px;color:#07003B;margin-bottom:6px">Reset ePay</div>
         <div id="resetWalletMsg" style="font-size:13px;color:#8A8A9A;margin-bottom:18px"></div>
         <form id="resetWalletForm" method="POST">
             @csrf
@@ -199,7 +199,7 @@
 <script>
 function openResetWallet(userId, name, balance) {
     document.getElementById('resetWalletForm').action = '/admin/wallet/reset/' + userId;
-    document.getElementById('resetWalletMsg').textContent = 'Reset ' + name + '\'s wallet ($' + balance + ') to $0.00?';
+    document.getElementById('resetWalletMsg').textContent = 'Reset ' + name + '\'s ePay ($' + balance + ') to $0.00?';
     document.getElementById('resetWalletModal').style.display = 'flex';
 }
 function openResetPin(userId, name) {

@@ -1,12 +1,12 @@
 @extends('admin.layouts.app')
-@section('title', 'Wallet Transactions')
+@section('title', 'ePay Transactions')
 
 @section('content')
 <div class="page-header">
     <div>
-        <h1 class="page-title">Wallet Transactions</h1>
+        <h1 class="page-title">ePay Transactions</h1>
         <ul class="breadcrumb">
-            <li><a href="{{ route('admin.wallet.index') }}">Wallets</a></li>
+            <li><a href="{{ route('admin.wallet.index') }}">ePay</a></li>
             @if($filterUser)<li><a href="{{ route('admin.wallet.transactions') }}">All Transactions</a></li><li><span>{{ $filterUser->name }}</span></li>
             @else<li><span>Transactions</span></li>@endif
         </ul>

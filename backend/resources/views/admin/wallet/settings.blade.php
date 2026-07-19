@@ -5,7 +5,7 @@
 <div class="page-header">
     <div>
         <h1 class="page-title">Payment Gateway Settings</h1>
-        <ul class="breadcrumb"><li><span>Finance</span></li><li><a href="{{ route('admin.wallet.index') }}">Wallets</a></li><li><span>Settings</span></li></ul>
+        <ul class="breadcrumb"><li><span>Finance</span></li><li><a href="{{ route('admin.wallet.index') }}">ePay</a></li><li><span>Settings</span></li></ul>
     </div>
 </div>
 
@@ -68,7 +68,7 @@
             <li>Visit <strong>docs.waafipay.com</strong> to register as a merchant</li>
             <li>Obtain your <strong>Merchant UID</strong>, <strong>API User ID</strong>, and <strong>API Key</strong></li>
             <li>For testing: use sandbox credentials from Waafi Pay portal</li>
-            <li>After saving, users can top up wallets and pay via Waafi Pay</li>
+            <li>After saving, users can top up ePay and pay via Waafi Pay</li>
         </ol>
     </div>
 </div>

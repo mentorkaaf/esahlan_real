@@ -5,7 +5,7 @@
 <div class="page-header">
     <div>
         <h1 class="page-title">Withdrawal Requests</h1>
-        <ul class="breadcrumb"><li><a href="{{ route('admin.wallet.index') }}">Wallets</a></li><li><span>Withdrawals</span></li></ul>
+        <ul class="breadcrumb"><li><a href="{{ route('admin.wallet.index') }}">ePay</a></li><li><span>Withdrawals</span></li></ul>
     </div>
 </div>
 
