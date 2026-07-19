@@ -55,8 +55,8 @@ export default function ProfilePage() {
   );
 
   // backend transformUser() uses `name`, profile-endpoint may use `display_name`
-  const displayName = profile.name ?? displayName ?? 'Unknown';
-  const username    = username ?? '';
+  const displayName = profile.name ?? profile.display_name ?? 'Unknown';
+  const username    = profile.username ?? '';
   const avatar = mediaUrl(profile.avatar);
   const cover  = mediaUrl(profile.cover_photo);
 
