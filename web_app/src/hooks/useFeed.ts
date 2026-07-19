@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { api } from '@/lib/api';
 import { CommunityPost, FeedResponse } from '@/types';
 
@@ -9,23 +9,30 @@ export function useFeed() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadingRef = useRef(false);
+  const pageRef = useRef(1);
 
   const load = useCallback(async (reset = false) => {
-    if (loading) return;
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     setError(null);
     try {
-      const p = reset ? 1 : page;
+      const p = reset ? 1 : pageRef.current;
       const res = await api.get<FeedResponse>(`/community/feed?page=${p}&per_page=20`);
-      setPosts(prev => reset ? res.data : [...prev, ...res.data]);
-      setHasMore(res.meta.current_page < res.meta.last_page);
+      const items: CommunityPost[] = Array.isArray(res.data) ? res.data : [];
+      setPosts(prev => reset ? items : [...prev, ...items]);
+      const meta = res.meta ?? { current_page: p, last_page: 1, total: items.length };
+      setHasMore(meta.current_page < meta.last_page);
+      pageRef.current = p + 1;
       setPage(p + 1);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to load feed');
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
-  }, [loading, page]);
+  }, []);
 
   const refresh = useCallback(() => {
     setPage(1);

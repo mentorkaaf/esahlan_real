@@ -22,7 +22,6 @@ async function request<T>(
     method,
     headers,
     body: formData ?? (body ? JSON.stringify(body) : undefined),
-    credentials: 'include',
   });
 
   if (res.status === 401) {
