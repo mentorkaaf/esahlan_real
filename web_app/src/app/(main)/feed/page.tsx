@@ -4,6 +4,7 @@ import { useFeed } from '@/hooks/useFeed';
 import { CommunityPost } from '@/types';
 import { mediaUrl } from '@/lib/api';
 import { formatDistanceToNow } from 'date-fns';
+import StoriesBar from '@/components/StoriesBar';
 
 export default function FeedPage() {
   const { posts, loading, error, hasMore, load, likePost } = useFeed();
@@ -22,7 +23,9 @@ export default function FeedPage() {
   }, [hasMore, loading, load]);
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6">
+    <div className="max-w-2xl mx-auto">
+      <StoriesBar />
+      <div className="px-4 py-6">
       <h1 className="text-xl font-black text-gray-900 dark:text-white mb-6">Feed</h1>
 
       {error && (
@@ -42,6 +45,7 @@ export default function FeedPage() {
       )}
 
       <div ref={sentinel} className="h-4" />
+      </div>
     </div>
   );
 }

@@ -5,11 +5,23 @@ import Link from 'next/link';
 import { useAuthStore } from '@/store/auth';
 
 const NAV = [
-  { href: '/feed',    label: 'Feed',    icon: HomeIcon },
-  { href: '/reels',   label: 'Reels',   icon: ReelIcon },
-  { href: '/chat',    label: 'Chat',    icon: ChatIcon },
-  { href: '/epay',   label: 'ePay',    icon: WalletIcon },
-  { href: '/profile', label: 'Profile', icon: ProfileIcon },
+  { href: '/feed',          label: 'Feed',    icon: HomeIcon },
+  { href: '/explore',       label: 'Explore', icon: SearchIcon },
+  { href: '/reels',         label: 'Reels',   icon: ReelIcon },
+  { href: '/create',        label: 'Create',  icon: CreateIcon },
+  { href: '/chat',          label: 'Chat',    icon: ChatIcon },
+  { href: '/notifications', label: 'Notifs',  icon: BellIcon },
+  { href: '/epay',          label: 'ePay',    icon: WalletIcon },
+  { href: '/profile',       label: 'Profile', icon: ProfileIcon },
+];
+
+// Mobile nav shows only 5 key items
+const MOBILE_NAV = [
+  { href: '/feed',          label: 'Feed',    icon: HomeIcon },
+  { href: '/explore',       label: 'Explore', icon: SearchIcon },
+  { href: '/create',        label: 'Create',  icon: CreateIcon },
+  { href: '/notifications', label: 'Notifs',  icon: BellIcon },
+  { href: '/profile',       label: 'Profile', icon: ProfileIcon },
 ];
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -65,20 +77,29 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         {children}
       </main>
 
-      {/* Bottom nav — mobile */}
+      {/* Bottom nav — mobile (5 items only) */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex z-50">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {MOBILE_NAV.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);
+          const isCreate = href === '/create';
           return (
             <Link
               key={href}
               href={href}
               className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-semibold transition-colors ${
-                active ? 'text-[#FF8A00]' : 'text-gray-400'
+                isCreate ? '' : active ? 'text-[#FF8A00]' : 'text-gray-400'
               }`}
             >
-              <Icon className="w-5 h-5" />
-              {label}
+              {isCreate ? (
+                <div className="w-9 h-9 bg-[#FF8A00] rounded-xl flex items-center justify-center -mt-1">
+                  <Icon className="w-5 h-5 text-white" />
+                </div>
+              ) : (
+                <>
+                  <Icon className="w-5 h-5" />
+                  {label}
+                </>
+              )}
             </Link>
           );
         })}
@@ -138,6 +159,27 @@ function ProfileIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    </svg>
+  );
+}
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+  );
+}
+function CreateIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+    </svg>
+  );
+}
+function BellIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
     </svg>
   );
 }
