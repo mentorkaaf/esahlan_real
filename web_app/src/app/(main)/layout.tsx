@@ -13,13 +13,9 @@ const NAV = [
 ];
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loadFromStorage } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
-
-  useEffect(() => {
-    loadFromStorage();
-  }, [loadFromStorage]);
 
   useEffect(() => {
     if (!isAuthenticated) router.replace('/login');
