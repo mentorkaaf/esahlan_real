@@ -54,6 +54,9 @@ export default function ProfilePage() {
     <div className="flex items-center justify-center h-full text-gray-400">Profile not found</div>
   );
 
+  // backend transformUser() uses `name`, profile-endpoint may use `display_name`
+  const displayName = profile.name ?? displayName ?? 'Unknown';
+  const username    = username ?? '';
   const avatar = mediaUrl(profile.avatar);
   const cover  = mediaUrl(profile.cover_photo);
 
@@ -73,8 +76,8 @@ export default function ProfilePage() {
       <div className="px-4 -mt-12 flex items-end justify-between mb-4">
         <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white dark:border-gray-950 bg-gray-200 dark:bg-gray-700 shrink-0">
           {avatar
-            ? <img src={avatar} alt={profile.display_name} className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center text-3xl font-black text-gray-400">{profile.display_name[0]}</div>
+            ? <img src={avatar} alt={displayName} className="w-full h-full object-cover" />
+            : <div className="w-full h-full flex items-center justify-center text-3xl font-black text-gray-400">{displayName[0]}</div>
           }
         </div>
         <div className="flex gap-2 mt-14">
@@ -108,14 +111,14 @@ export default function ProfilePage() {
       {/* Info */}
       <div className="px-4 mb-5">
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-black text-gray-900 dark:text-white">{profile.display_name}</h1>
+          <h1 className="text-xl font-black text-gray-900 dark:text-white">{displayName}</h1>
           {profile.is_verified && (
             <svg className="w-5 h-5 text-[#FF8A00]" viewBox="0 0 24 24" fill="currentColor">
               <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           )}
         </div>
-        <p className="text-sm text-gray-400">@{profile.username}</p>
+        <p className="text-sm text-gray-400">@{username}</p>
         {profile.bio && <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 leading-relaxed">{profile.bio}</p>}
 
         {/* Stats */}
@@ -150,8 +153,8 @@ function Stat({ label, value }: { label: string; value: number }) {
 }
 
 function PostThumb({ post }: { post: CommunityPost }) {
-  const media: PostMedia | undefined = post.media[0];
-  const thumb = media?.thumbnail_url ?? media?.url;
+  const media: PostMedia | undefined = (post.media ?? [])[0];
+  const thumb = media?.thumbnail ?? media?.thumbnail_url ?? media?.url;
   return (
     <div className="aspect-square overflow-hidden bg-gray-100 dark:bg-gray-800 relative">
       {thumb
@@ -169,7 +172,7 @@ function PostThumb({ post }: { post: CommunityPost }) {
           </svg>
         </div>
       )}
-      {post.media.length > 1 && (
+      {(post.media ?? []).length > 1 && (
         <div className="absolute top-2 right-2">
           <svg className="w-4 h-4 text-white drop-shadow" fill="currentColor" viewBox="0 0 24 24">
             <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z" />
