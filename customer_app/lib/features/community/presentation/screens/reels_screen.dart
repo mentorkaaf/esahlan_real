@@ -1,5 +1,6 @@
 ﻿import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import 'package:flutter/material.dart';
@@ -275,9 +276,28 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen>
         title: Text('Reels',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         actions: [
-          IconButton(
-            icon: Icon(Icons.videocam_outlined, color: Colors.white),
-            onPressed: () {},
+          GestureDetector(
+            onTap: () => context.push('/live'),
+            child: Container(
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.live_tv, color: Colors.white, size: 16),
+                  SizedBox(width: 4),
+                  Text('Go Live',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
           ),
         ],
       ),

@@ -1225,6 +1225,7 @@ class _CreatePostBar extends ConsumerWidget {
                 _PostTypeBtn(icon: Icons.videocam_rounded, label: 'Video', color: kOrange, type: 'video'),
                 _PostTypeBtn(icon: Icons.bar_chart_rounded, label: 'Poll', color: const Color(0xFF8B5CF6), type: 'poll'),
                 _PostTypeBtn(icon: Icons.emoji_emotions_rounded, label: 'Feeling', color: const Color(0xFFF59E0B), type: 'text'),
+                _LiveBtn(),
               ],
             ),
           ),
@@ -1269,6 +1270,40 @@ class _PostTypeBtn extends ConsumerWidget {
             Icon(icon, color: color, size: 20),
             SizedBox(width: 5),
             Text(label, style: TextStyle(color: context.colors.bodyText, fontSize: 12, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LiveBtn extends StatelessWidget {
+  const _LiveBtn();
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => context.push('/live'),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: const Text('LIVE',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5)),
+            ),
+            const SizedBox(width: 5),
+            Text('Live',
+                style: TextStyle(color: context.colors.bodyText, fontSize: 12, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
