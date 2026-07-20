@@ -291,15 +291,14 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
                     _frontCamera = !_frontCamera;
                     if (mounted) setState(() {});
                     try {
-                      // Get the existing video track and switch camera position directly
-                      final pub = _room.localParticipant?.videoTrackPublications.values
-                          .firstOrNull;
-                      final track = pub?.track;
+                      final pos = _frontCamera ? CameraPosition.front : CameraPosition.back;
+                      // Use setCameraPosition on the existing track — no unpublish needed
+                      final track = _room.localParticipant
+                          ?.videoTrackPublications.firstOrNull?.track;
                       if (track is LocalVideoTrack) {
-                        await track.switchCamera();
+                        await track.setCameraPosition(pos);
                       } else {
                         // Fallback: disable then re-enable with new position
-                        final pos = _frontCamera ? CameraPosition.front : CameraPosition.back;
                         await _room.localParticipant?.setCameraEnabled(false);
                         await Future.delayed(const Duration(milliseconds: 500));
                         await _room.localParticipant?.setCameraEnabled(true,
