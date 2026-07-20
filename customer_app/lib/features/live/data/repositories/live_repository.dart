@@ -120,4 +120,52 @@ class LiveRepository {
   Future<void> muteGuest(int roomId, int userId, {bool muted = true}) async {
     await _dio.post('/live/rooms/$roomId/guest/$userId/mute', data: {'muted': muted});
   }
+
+  // ── Stats ──────────────────────────────────────────────────────────────────
+
+  Future<LiveStats> getStats(int roomId) async {
+    final res = await _dio.get('/live/rooms/$roomId/stats');
+    return LiveStats.fromJson(Map<String, dynamic>.from(res.data['data'] as Map));
+  }
+
+  Future<int> likeRoom(int roomId) async {
+    final res = await _dio.post('/live/rooms/$roomId/like');
+    return res.data['data']['total_likes'] ?? 0;
+  }
+
+  // ── Leaderboard ────────────────────────────────────────────────────────────
+
+  Future<List<LeaderboardEntry>> getRoomLeaderboard(int roomId, {String period = 'all'}) async {
+    final res  = await _dio.get('/live/rooms/$roomId/leaderboard', queryParameters: {'period': period});
+    final list = res.data['data'] as List? ?? [];
+    return list.map((e) => LeaderboardEntry.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+  }
+
+  // ── Moderation ─────────────────────────────────────────────────────────────
+
+  Future<LiveRoomSettings> getSettings(int roomId) async {
+    final res = await _dio.get('/live/rooms/$roomId/settings');
+    return LiveRoomSettings.fromJson(Map<String, dynamic>.from(res.data['data'] as Map));
+  }
+
+  Future<LiveRoomSettings> updateSettings(int roomId, Map<String, dynamic> data) async {
+    final res = await _dio.patch('/live/rooms/$roomId/settings', data: data);
+    return LiveRoomSettings.fromJson(Map<String, dynamic>.from(res.data['data'] as Map));
+  }
+
+  Future<void> muteChatUser(int roomId, int userId, {int minutes = 0}) async {
+    await _dio.post('/live/rooms/$roomId/chat/$userId/mute', data: {'minutes': minutes});
+  }
+
+  Future<void> unmuteChatUser(int roomId, int userId) async {
+    await _dio.delete('/live/rooms/$roomId/chat/$userId/mute');
+  }
+
+  Future<void> pinMessage(int roomId, int messageId) async {
+    await _dio.post('/live/rooms/$roomId/chat/pin/$messageId');
+  }
+
+  Future<void> unpinMessage(int roomId) async {
+    await _dio.delete('/live/rooms/$roomId/chat/pin');
+  }
 }

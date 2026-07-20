@@ -32,6 +32,9 @@ use App\Http\Controllers\Api\Live\LiveRoomController;
 use App\Http\Controllers\Api\Live\GiftController;
 use App\Http\Controllers\Api\Live\CoinController;
 use App\Http\Controllers\Api\Live\LiveGuestController;
+use App\Http\Controllers\Api\Live\LiveStatsController;
+use App\Http\Controllers\Api\Live\LiveLeaderboardController;
+use App\Http\Controllers\Api\Live\LiveModerationController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
@@ -761,6 +764,22 @@ Route::prefix('v1/live')->middleware('auth:sanctum')->group(function () {
     Route::post('rooms/{id}/guest/reject/{requestId}', [LiveGuestController::class, 'reject']);
     Route::post('rooms/{id}/guest/{userId}/remove', [LiveGuestController::class, 'remove']);
     Route::post('rooms/{id}/guest/{userId}/mute',   [LiveGuestController::class, 'mute']);
+
+    // Stats + likes
+    Route::get('rooms/{id}/stats',   [LiveStatsController::class, 'stats']);
+    Route::post('rooms/{id}/like',   [LiveStatsController::class, 'like']);
+
+    // Leaderboard
+    Route::get('rooms/{id}/leaderboard', [LiveLeaderboardController::class, 'room']);
+    Route::get('leaderboard/global',     [LiveLeaderboardController::class, 'global']);
+
+    // Moderation
+    Route::get('rooms/{id}/settings',                      [LiveModerationController::class, 'settings']);
+    Route::patch('rooms/{id}/settings',                    [LiveModerationController::class, 'updateSettings']);
+    Route::post('rooms/{id}/chat/{userId}/mute',           [LiveModerationController::class, 'muteUser']);
+    Route::delete('rooms/{id}/chat/{userId}/mute',         [LiveModerationController::class, 'unmuteUser']);
+    Route::post('rooms/{id}/chat/pin/{messageId}',         [LiveModerationController::class, 'pinMessage']);
+    Route::delete('rooms/{id}/chat/pin',                   [LiveModerationController::class, 'unpinMessage']);
 });
 
     // Admin engagement generator

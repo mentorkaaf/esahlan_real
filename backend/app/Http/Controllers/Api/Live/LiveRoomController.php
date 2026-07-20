@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api\Live;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendLiveNotificationJob;
 use App\Models\GiftTransaction;
+use App\Models\LiveChatMute;
 use App\Models\LiveRoom;
 use App\Models\LiveRoomMessage;
+use App\Models\LiveRoomSetting;
 use App\Models\LiveRoomViewer;
 use App\Services\LiveKitService;
 use App\Services\RealtimeService;
@@ -155,16 +157,37 @@ class LiveRoomController extends Controller
     public function message(Request $request, int $id)
     {
         $room = LiveRoom::where('id', $id)->where('status', 'live')->firstOrFail();
+        $user = auth()->user();
+
+        // Moderation checks
+        $settings = LiveRoomSetting::forRoom($id);
+
+        if ($settings->comments_disabled && $room->host_id !== $user->id) {
+            return response()->json(['status' => 'error', 'message' => 'Comments are disabled'], 403);
+        }
+
+        // Chat-muted check
+        $mute = LiveChatMute::where('live_room_id', $id)->where('user_id', $user->id)->first();
+        if ($mute && $mute->isActive()) {
+            return response()->json(['status' => 'error', 'message' => 'You are muted in this stream'], 403);
+        }
 
         $request->validate(['message' => 'required|string|max:300']);
 
-        $user = auth()->user();
+        // Blocked words filter
+        $msg = $request->message;
+        if (!empty($settings->blocked_words)) {
+            foreach ($settings->blocked_words as $word) {
+                $msg = str_ireplace($word, str_repeat('*', strlen($word)), $msg);
+            }
+        }
+
         $p    = $user->communityProfile;
 
         $msg = LiveRoomMessage::create([
             'live_room_id' => $id,
             'user_id'      => $user->id,
-            'message'      => $request->message,
+            'message'      => $msg,
         ]);
 
         RealtimeService::toPublic("live.{$id}", 'live.chat', [

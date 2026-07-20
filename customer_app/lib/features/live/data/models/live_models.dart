@@ -270,3 +270,108 @@ class GiftEvent {
     required this.senderAvatar,
   });
 }
+
+class LiveStats {
+  final int viewerCount;
+  final int peakViewers;
+  final int coinsEarned;
+  final int giftsReceived;
+  final int likes;
+  final int messages;
+  final int newFollowers;
+  final int durationSeconds;
+  final LiveRoomSettings settings;
+
+  const LiveStats({
+    required this.viewerCount,
+    required this.peakViewers,
+    required this.coinsEarned,
+    required this.giftsReceived,
+    required this.likes,
+    required this.messages,
+    required this.newFollowers,
+    required this.durationSeconds,
+    required this.settings,
+  });
+
+  factory LiveStats.fromJson(Map<String, dynamic> j) => LiveStats(
+        viewerCount:     j['viewer_count']     ?? 0,
+        peakViewers:     j['peak_viewers']     ?? 0,
+        coinsEarned:     j['coins_earned']     ?? 0,
+        giftsReceived:   j['gifts_received']   ?? 0,
+        likes:           j['likes']            ?? 0,
+        messages:        j['messages']         ?? 0,
+        newFollowers:    j['new_followers']    ?? 0,
+        durationSeconds: j['duration_seconds'] ?? 0,
+        settings: LiveRoomSettings.fromJson(
+            Map<String, dynamic>.from(j['settings'] as Map? ?? {})),
+      );
+}
+
+class LiveRoomSettings {
+  final bool slowMode;
+  final int slowModeSeconds;
+  final bool followersOnly;
+  final bool commentsDisabled;
+  final List<String> blockedWords;
+
+  const LiveRoomSettings({
+    required this.slowMode,
+    required this.slowModeSeconds,
+    required this.followersOnly,
+    required this.commentsDisabled,
+    required this.blockedWords,
+  });
+
+  factory LiveRoomSettings.fromJson(Map<String, dynamic> j) => LiveRoomSettings(
+        slowMode:         j['slow_mode'] == true,
+        slowModeSeconds:  j['slow_mode_seconds'] ?? 30,
+        followersOnly:    j['followers_only'] == true,
+        commentsDisabled: j['comments_disabled'] == true,
+        blockedWords: (j['blocked_words'] as List? ?? []).cast<String>(),
+      );
+}
+
+class LeaderboardEntry {
+  final int rank;
+  final int userId;
+  final String name;
+  final String username;
+  final String avatar;
+  final int totalCoins;
+  final int totalGifts;
+
+  const LeaderboardEntry({
+    required this.rank,
+    required this.userId,
+    required this.name,
+    required this.username,
+    required this.avatar,
+    required this.totalCoins,
+    required this.totalGifts,
+  });
+
+  factory LeaderboardEntry.fromJson(Map<String, dynamic> j) => LeaderboardEntry(
+        rank:       j['rank']         ?? 0,
+        userId:     j['user_id']      ?? 0,
+        name:       j['name']         ?? '',
+        username:   j['username']     ?? '',
+        avatar:     j['avatar']       ?? '',
+        totalCoins: j['total_coins']  ?? j['earned_coins'] ?? 0,
+        totalGifts: j['total_gifts']  ?? 0,
+      );
+}
+
+class PinnedMessage {
+  final int? messageId;
+  final String message;
+  final String username;
+
+  const PinnedMessage({this.messageId, required this.message, required this.username});
+
+  factory PinnedMessage.fromJson(Map<String, dynamic> j) => PinnedMessage(
+        messageId: j['message_id'] as int?,
+        message:   j['message']   ?? '',
+        username:  j['username']  ?? '',
+      );
+}

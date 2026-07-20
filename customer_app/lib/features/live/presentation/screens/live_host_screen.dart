@@ -7,6 +7,9 @@ import '../../data/repositories/live_repository.dart';
 import '../widgets/gift_animation_overlay.dart';
 import '../widgets/live_chat_overlay.dart';
 import '../widgets/live_guest_widget.dart';
+import '../widgets/live_host_dashboard.dart';
+import '../widgets/live_leaderboard_sheet.dart';
+import '../widgets/live_moderation_panel.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/services/realtime_client.dart';
 
@@ -27,6 +30,9 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
   bool _frontCamera = true;
   int _viewerCount = 0;
   int _duration = 0;
+  int _totalLikes = 0;
+  bool _showDashboard = false;
+  LiveRoomSettings? _settings;
   Timer? _timer;
   final _giftEvents = <GiftEvent>[];
   final _guestRequests = <GuestRequest>[];
@@ -74,6 +80,17 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
         return;
       }
     }
+
+    // Load initial settings
+    try {
+      final s = await _repo.getSettings(widget.session.room.id);
+      if (mounted) setState(() => _settings = s);
+    } catch (_) {}
+
+    // Live likes from Reverb
+    await RealtimeClient.instance.listen(_reverbChannel, 'live.liked', (data) {
+      if (mounted) setState(() => _totalLikes = (data as Map?)?['total_likes'] as int? ?? _totalLikes);
+    });
 
     // Subscribe to gift events via Reverb
     await RealtimeClient.instance.listen(
@@ -266,6 +283,69 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    // Dashboard toggle
+                    GestureDetector(
+                      onTap: () => setState(() => _showDashboard = !_showDashboard),
+                      child: Container(
+                        padding: const EdgeInsets.all(7),
+                        margin: const EdgeInsets.only(right: 6),
+                        decoration: BoxDecoration(
+                          color: _showDashboard
+                              ? Colors.orange.withValues(alpha: 0.3)
+                              : Colors.black45,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        child: const Text('📊', style: TextStyle(fontSize: 14)),
+                      ),
+                    ),
+                    // Leaderboard
+                    GestureDetector(
+                      onTap: () => showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        isScrollControlled: true,
+                        builder: (_) => LiveLeaderboardSheet(roomId: widget.session.room.id),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(7),
+                        margin: const EdgeInsets.only(right: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black45,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        child: const Text('🏆', style: TextStyle(fontSize: 14)),
+                      ),
+                    ),
+                    // Moderation
+                    GestureDetector(
+                      onTap: () {
+                        final s = _settings ?? LiveRoomSettings(
+                          slowMode: false, slowModeSeconds: 30,
+                          followersOnly: false, commentsDisabled: false, blockedWords: []);
+                        showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => LiveModerationPanel(
+                            roomId: widget.session.room.id,
+                            initial: s,
+                            onUpdated: (updated) => setState(() => _settings = updated),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(7),
+                        margin: const EdgeInsets.only(right: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black45,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        child: const Text('🛡️', style: TextStyle(fontSize: 14)),
+                      ),
+                    ),
                     // End button
                     GestureDetector(
                       onTap: _endLive,
@@ -309,6 +389,14 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
               },
             ),
 
+          // Host dashboard overlay
+          if (_showDashboard)
+            LiveHostDashboard(
+              roomId: widget.session.room.id,
+              totalLikes: _totalLikes,
+              onClose: () => setState(() => _showDashboard = false),
+            ),
+
           // Chat overlay (left side, above bottom controls)
           Positioned(
             bottom: 110,
@@ -317,6 +405,7 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
             child: LiveChatOverlay(
               roomId: widget.session.room.id,
               reverbChannel: _reverbChannel,
+              isHost: true,
             ),
           ),
 
