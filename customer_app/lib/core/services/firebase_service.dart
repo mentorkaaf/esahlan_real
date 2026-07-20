@@ -6,6 +6,8 @@ import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
+import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -16,14 +18,43 @@ import '../theme/app_theme.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BACKGROUND HANDLER — must be top-level, called in native isolate
-// Registered via FirebaseMessaging.onBackgroundMessage() in main() before runApp()
 // ─────────────────────────────────────────────────────────────────────────────
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  // Notifications with a 'notification' object are displayed by Android system.
-  // Data-only messages land here too — no manual display needed unless desired.
-  debugPrint('[FCM:BG] Received: ${message.messageId}');
+  if (message.data['type'] == 'incoming_call') {
+    await _showCallkitIncoming(message.data);
+  }
+}
+
+Future<void> _showCallkitIncoming(Map<String, dynamic> data) async {
+  final callType = data['call_type'] ?? 'audio';
+  await FlutterCallkitIncoming.showCallkitIncoming(CallKitParams(
+    id: data['call_id'] ?? '',
+    nameCaller: data['caller_name'] ?? '',
+    appName: 'eSahlan',
+    avatar: data['caller_avatar'],
+    handle: data['caller_name'] ?? '',
+    type: callType == 'video' ? 1 : 0,
+    duration: 30000,
+    textAccept: 'Accept',
+    textDecline: 'Decline',
+    extra: <String, dynamic>{
+      'call_id': data['call_id'] ?? '',
+      'call_type': callType,
+      'caller_name': data['caller_name'] ?? '',
+      'caller_avatar': data['caller_avatar'] ?? '',
+      'livekit_url': data['livekit_url'] ?? '',
+    },
+    android: const AndroidParams(
+      isCustomNotification: true,
+      isShowLogo: false,
+      ringtonePath: 'system_ringtone_default',
+      backgroundColor: '#1A0A2E',
+      actionColor: '#FF6600',
+      isShowFullLockedScreen: true,
+    ),
+  ));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -112,9 +143,6 @@ class FirebaseService {
   // ── Notification tap callback (foreground local notifications) ─────────────
   void Function(String deepLink)? onDeepLink;
 
-  // ── Incoming call callback — fired when FCM data has type=incoming_call ────
-  void Function(Map<String, dynamic> payload)? onIncomingCall;
-
   void _onNotificationTap(NotificationResponse response) {
     if (response.payload == null || response.payload!.isEmpty) return;
     try {
@@ -135,9 +163,9 @@ class FirebaseService {
     debugPrint('[FCM:FG] Title: ${message.notification?.title} | Body: ${message.notification?.body}');
     debugPrint('[FCM:FG] Data: ${message.data}');
 
-    // Handle incoming call — show full-screen UI instead of a notification
+    // Handle incoming call — show native callkit overlay
     if (message.data['type'] == 'incoming_call') {
-      onIncomingCall?.call(Map<String, dynamic>.from(message.data));
+      await _showCallkitIncoming(Map<String, dynamic>.from(message.data));
       return;
     }
 

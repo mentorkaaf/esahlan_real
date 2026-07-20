@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../data/models/call_models.dart';
 import '../../data/repositories/call_repository.dart';
 import '../../../../core/utils/media_url.dart';
@@ -46,6 +47,12 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
     if (_processing) return;
     setState(() => _processing = true);
     try {
+      final isVideo = (widget.payload['call_type'] ?? '') == 'video';
+      if (isVideo) {
+        await [Permission.camera, Permission.microphone].request();
+      } else {
+        await Permission.microphone.request();
+      }
       final callId = int.parse(widget.payload['call_id'].toString());
       final session = await _repo.acceptCall(callId);
       if (mounted) {

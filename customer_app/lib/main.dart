@@ -2,6 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
+import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 
@@ -14,15 +16,12 @@ import 'core/services/location_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/connectivity_wrapper.dart';
 import 'firebase_options.dart';
+import 'features/calls/data/repositories/call_repository.dart';
 import 'features/podcast/presentation/services/podcast_audio_service.dart';
 
 // Cold-start notification data captured before runApp()
 String? _coldStartDeepLink;
-Map<String, dynamic>? _coldStartCallPayload;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// main() — keep lean: only native-level setup + runApp()
-// flutter_local_notifications must NOT be initialized here (plugin not bound yet)
 // ─────────────────────────────────────────────────────────────────────────────
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,21 +30,15 @@ void main() async {
 
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-    // Native-level FCM setup: background handler + iOS foreground options
     await FirebaseService.setupBeforeRunApp();
 
-    // Capture cold-start notification tap (app was killed)
+    // Cold-start: app was killed, user tapped a regular notification
     final initial = await FirebaseMessaging.instance.getInitialMessage();
-    if (initial != null) {
-      if (initial.data['type'] == 'incoming_call') {
-        _coldStartCallPayload = Map<String, dynamic>.from(initial.data);
-        debugPrint('[FCM] Cold-start incoming call: ${initial.data['caller_name']}');
-      } else {
-        _coldStartDeepLink = initial.data['deep_link'] as String?;
-        debugPrint('[FCM] Cold-start deep link: $_coldStartDeepLink');
-      }
+    if (initial != null && initial.data['type'] != 'incoming_call') {
+      _coldStartDeepLink = initial.data['deep_link'] as String?;
+      debugPrint('[FCM] Cold-start deep link: $_coldStartDeepLink');
     }
+    // incoming_call cold-start is handled by flutter_callkit_incoming events below
   } catch (e) {
     debugPrint('[Firebase] Pre-runApp error: $e');
   }
@@ -76,15 +69,9 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Post-frame: plugin registry is fully bound after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // 1. Initialize flutter_local_notifications + onMessage listener
       await FirebaseService().initialize();
-
-      // 2. Wire up deep-link navigation (router is ready by now)
       _setupNotificationNavigation();
-
-      // 3. Request notification permission (300ms after init so UI is stable)
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) FirebaseService().requestPermissionIfNeeded();
       });
@@ -100,67 +87,31 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Re-upload token in case it was rotated while app was backgrounded
       FirebaseService().refreshTokenIfNeeded();
     }
   }
 
   void _setupNotificationNavigation() {
+    final router = ref.read(routerProvider);
+
     void navigate(String path) {
       try {
-        ref.read(routerProvider).push(path);
-        debugPrint('[Nav] Navigated to: $path');
+        router.push(path);
       } catch (e) {
-        debugPrint('[Nav] Error navigating to $path: $e');
+        debugPrint('[Nav] Error: $path — $e');
       }
     }
 
-    // Foreground local-notification tap
+    // Regular deep-link from foreground notification tap
     FirebaseService().onDeepLink = navigate;
 
-    // Incoming call (foreground) — navigate to full-screen call UI
-    FirebaseService().onIncomingCall = (payload) {
-      try {
-        ref.read(routerProvider).push('/calls/incoming', extra: payload);
-      } catch (e) {
-        debugPrint('[Nav] Incoming call nav error: $e');
-      }
-    };
-
-    // Background tap (app was minimised, user tapped the FCM banner)
+    // Background tap — regular notification
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      if (message.data['type'] == 'incoming_call') {
-        try {
-          ref.read(routerProvider).push(
-            '/calls/incoming',
-            extra: Map<String, dynamic>.from(message.data),
-          );
-        } catch (e) {
-          debugPrint('[Nav] BG incoming call nav error: $e');
-        }
-        return;
-      }
       final dl = message.data['deep_link'] as String?;
-      debugPrint('[FCM] onMessageOpenedApp deep_link: $dl');
       if (dl != null && dl.isNotEmpty) navigate(dl);
     });
 
-    // Cold-start tap (app was fully killed) — incoming call
-    if (_coldStartCallPayload != null) {
-      final payload = _coldStartCallPayload!;
-      _coldStartCallPayload = null;
-      Future.delayed(const Duration(milliseconds: 1500), () {
-        if (mounted) {
-          try {
-            ref.read(routerProvider).push('/calls/incoming', extra: payload);
-          } catch (e) {
-            debugPrint('[Nav] Cold-start call nav error: $e');
-          }
-        }
-      });
-    }
-
-    // Cold-start tap — deep link
+    // Cold-start deep link
     if (_coldStartDeepLink != null) {
       final dl = _coldStartDeepLink!;
       _coldStartDeepLink = null;
@@ -168,6 +119,49 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
         if (mounted) navigate(dl);
       });
     }
+
+    // ── flutter_callkit_incoming events ────────────────────────────────────
+    FlutterCallkitIncoming.onEvent.listen((CallEvent? event) async {
+      if (event == null || !mounted) return;
+      debugPrint('[CallKit] Event: ${event.event}');
+
+      switch (event.event) {
+        case Event.actionCallAccept:
+          // User accepted from native call screen — accept via API + go to call
+          final callIdStr = event.body?['extra']?['call_id']?.toString() ?? '';
+          final callId = int.tryParse(callIdStr) ?? 0;
+          if (callId > 0) {
+            try {
+              final session = await CallRepository().acceptCall(callId);
+              if (mounted) router.push('/calls/active', extra: session);
+            } catch (e) {
+              debugPrint('[CallKit] Accept error: $e');
+            }
+          }
+          break;
+
+        case Event.actionCallDecline:
+          // User declined from native call screen
+          final callIdStr = event.body?['extra']?['call_id']?.toString() ?? '';
+          final callId = int.tryParse(callIdStr) ?? 0;
+          if (callId > 0) {
+            try { await CallRepository().rejectCall(callId); } catch (_) {}
+          }
+          break;
+
+        case Event.actionCallTimeout:
+          // Auto-missed after 30s
+          final callIdStr = event.body?['extra']?['call_id']?.toString() ?? '';
+          final callId = int.tryParse(callIdStr) ?? 0;
+          if (callId > 0) {
+            try { await CallRepository().rejectCall(callId); } catch (_) {}
+          }
+          break;
+
+        default:
+          break;
+      }
+    });
   }
 
   @override

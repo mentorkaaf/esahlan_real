@@ -4,6 +4,7 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../data/models/live_models.dart';
 import '../../data/repositories/live_repository.dart';
 import '../widgets/gift_animation_overlay.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/services/realtime_client.dart';
 
 class LiveHostScreen extends StatefulWidget {
@@ -39,8 +40,11 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
   String get _reverbChannel => 'presence-live.${widget.session.room.id}';
 
   Future<void> _connect() async {
+    await [Permission.camera, Permission.microphone].request();
     _room = Room();
     _listener = _room.createListener()
+      ..on<LocalTrackPublishedEvent>((_) => setState(() {}))
+      ..on<LocalTrackUnpublishedEvent>((_) => setState(() {}))
       ..on<ParticipantConnectedEvent>((_) => setState(() => _viewerCount++))
       ..on<ParticipantDisconnectedEvent>((_) => setState(() {
             if (_viewerCount > 0) _viewerCount--;
@@ -112,8 +116,8 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
       ),
     );
     if (confirmed != true) return;
-    await _repo.endRoom(widget.session.room.id);
-    await _room.disconnect();
+    try { await _repo.endRoom(widget.session.room.id); } catch (_) {}
+    try { await _room.disconnect(); } catch (_) {}
     if (mounted) Navigator.of(context).pop();
   }
 

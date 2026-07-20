@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../data/models/call_models.dart';
 import '../../data/repositories/call_repository.dart';
 import '../../../../core/utils/media_url.dart';
@@ -37,6 +38,14 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
   }
 
   Future<void> _connect() async {
+    // Request permissions before connecting
+    final isVideo = widget.session.call.type == 'video';
+    if (isVideo) {
+      await [Permission.camera, Permission.microphone].request();
+    } else {
+      await Permission.microphone.request();
+    }
+
     _room = Room();
     _listener = _room.createListener();
 
@@ -45,6 +54,7 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
       ..on<ParticipantDisconnectedEvent>((_) => setState(() {}))
       ..on<TrackSubscribedEvent>((_) => setState(() {}))
       ..on<TrackUnsubscribedEvent>((_) => setState(() {}))
+      ..on<LocalTrackPublishedEvent>((_) => setState(() {}))
       ..on<RoomDisconnectedEvent>((_) => _onDisconnected());
 
     await _room.connect(
@@ -56,10 +66,14 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
       ),
     );
 
-    if (widget.session.call.type == 'video') {
+    if (isVideo) {
       await _room.localParticipant?.setCameraEnabled(true);
     }
     await _room.localParticipant?.setMicrophoneEnabled(true);
+
+    // Enable speaker by default so both sides can hear
+    await Hardware.instance.setSpeakerphoneOn(true);
+    _speakerOn = true;
 
     setState(() => _connected = true);
   }
