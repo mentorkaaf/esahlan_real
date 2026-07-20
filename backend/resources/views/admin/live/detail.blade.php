@@ -1,5 +1,5 @@
-@extends('admin.layouts.app')
-@section('title', 'Live Room — ' . $room->title)
+﻿@extends('admin.layouts.app')
+@section('title', 'Live Room â€” ' . $room->title)
 
 @push('styles')
 <style>
@@ -31,7 +31,7 @@
     <div style="flex:1;">
       <h1 style="font-size:20px;font-weight:900;color:#101828;margin:0;">{{ $room->title }}</h1>
       <div style="color:#667085;font-size:13px;margin-top:3px;">
-        Room #{{ $room->id }} · Started {{ $room->created_at->format('M d Y, H:i') }}
+        Room #{{ $room->id }} Â· Started {{ $room->created_at->format('M d Y, H:i') }}
       </div>
     </div>
     <div>
@@ -84,7 +84,7 @@
         </div>
         <div style="flex:1;">
           <div style="font-size:16px;font-weight:800;color:#101828;">{{ $host?->name }}</div>
-          <div style="font-size:12px;color:#667085;margin-top:2px;">@{{ $host?->communityProfile?->username ?? '-' }}</div>
+          <div style="font-size:12px;color:#667085;margin-top:2px;">&#64;{{ $host?->communityProfile?->username ?? '-' }}</div>
           <div style="font-size:12px;color:#667085;">{{ $host?->email }}</div>
         </div>
       </div>
@@ -112,7 +112,7 @@
               <div style="font-size:13px;font-weight:700;">{{ $gs->gift?->name }}</div>
               <div style="font-size:11px;color:#667085;">{{ $gs->qty }} sent</div>
             </div>
-            <div style="font-size:14px;font-weight:800;color:#7F56D9;">{{ number_format($gs->coins) }} 🪙</div>
+            <div style="font-size:14px;font-weight:800;color:#7F56D9;">{{ number_format($gs->coins) }} ðŸª™</div>
           </div>
         @endforeach
       @endif
@@ -135,7 +135,7 @@
               </div>
             </td>
             <td style="color:#667085;">{{ $v->joined_at?->format('H:i:s') }}</td>
-            <td style="color:#667085;">{{ $v->left_at?->format('H:i:s') ?? '—' }}</td>
+            <td style="color:#667085;">{{ $v->left_at?->format('H:i:s') ?? 'â€”' }}</td>
           </tr>
         @endforeach
         @if($viewers->isEmpty())
@@ -163,7 +163,7 @@
               </div>
             </td>
             <td><span style="font-size:18px;">{{ $t->gift?->emoji }}</span> {{ $t->gift?->name }}</td>
-            <td style="font-weight:700;">×{{ $t->quantity }}</td>
+            <td style="font-weight:700;">Ã—{{ $t->quantity }}</td>
             <td style="font-weight:700;color:#7F56D9;">{{ $t->coins_spent }}</td>
             <td style="color:#667085;font-size:12px;">{{ $t->created_at->format('H:i:s') }}</td>
           </tr>
@@ -178,3 +178,4 @@
   </div>
 </div>
 @endsection
+

@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Live-Banned Users')
 
 @push('styles')
@@ -18,7 +18,7 @@
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
     <a href="{{ route('admin.live.index') }}" style="color:#667085;font-size:20px;"><i class="fas fa-arrow-left"></i></a>
     <div>
-      <h1 style="font-size:22px;font-weight:900;color:#101828;margin:0;">🚫 Live-Banned Users</h1>
+      <h1 style="font-size:22px;font-weight:900;color:#101828;margin:0;">ðŸš« Live-Banned Users</h1>
       <p style="color:#667085;font-size:13px;margin:3px 0 0;">Users who are restricted from going live</p>
     </div>
   </div>
@@ -45,7 +45,7 @@
               <div style="font-weight:700;">{{ $user->name }}</div>
             </div>
           </td>
-          <td style="color:#667085;">@{{ $user->communityProfile?->username ?? '-' }}</td>
+          <td style="color:#667085;">&#64;{{ $user->communityProfile?->username ?? '-' }}</td>
           <td style="color:#667085;">{{ $user->email }}</td>
           <td style="color:#667085;font-size:12px;">{{ $user->updated_at->format('M d Y') }}</td>
           <td>
@@ -70,3 +70,4 @@
   </div>
 </div>
 @endsection
+

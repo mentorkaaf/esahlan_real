@@ -590,6 +590,14 @@
             <a href="{{ route('admin.live.banned') }}" class="nav-link {{ request()->routeIs('admin.live.banned') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-ban"></i></div> Banned Users
             </a>
+            <a href="{{ route('admin.live.reports') }}" class="nav-link {{ request()->routeIs('admin.live.reports*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-flag"></i></div> Reports
+                @php $pendingReports = \App\Models\LiveRoomReport::where('status','pending')->count(); @endphp
+                @if($pendingReports > 0)<span class="nav-badge" style="background:#D92D20;">{{ $pendingReports }}</span>@endif
+            </a>
+            <a href="{{ route('admin.live.coin-revenue') }}" class="nav-link {{ request()->routeIs('admin.live.coin-revenue') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-chart-line"></i></div> Coin Revenue
+            </a>
         </div>
         @endif
 

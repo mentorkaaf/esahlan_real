@@ -145,7 +145,7 @@
                   </div>
                   <div>
                     <div style="font-weight:700;font-size:13px;color:#101828;">{{ $host?->name }}</div>
-                    <div style="font-size:11px;color:#667085;">@{{ $host?->communityProfile?->username ?? '-' }}</div>
+                    <div style="font-size:11px;color:#667085;">&#64;{{ $host?->communityProfile?->username ?? '-' }}</div>
                   </div>
                 </div>
               </td>
@@ -213,7 +213,7 @@
                 </div>
                 <div>
                   <div style="font-weight:700;font-size:13px;">{{ $host?->name }}</div>
-                  <div style="font-size:11px;color:#667085;">@{{ $host?->communityProfile?->username ?? '-' }}</div>
+                  <div style="font-size:11px;color:#667085;">&#64;{{ $host?->communityProfile?->username ?? '-' }}</div>
                 </div>
               </div>
             </td>
@@ -287,7 +287,7 @@
               </div>
               <div>
                 <div style="font-weight:700;font-size:13px;">{{ $host?->name }}</div>
-                <div style="font-size:11px;color:#667085;">@{{ $host?->communityProfile?->username ?? '-' }}</div>
+                <div style="font-size:11px;color:#667085;">&#64;{{ $host?->communityProfile?->username ?? '-' }}</div>
               </div>
             </div>
           </td>

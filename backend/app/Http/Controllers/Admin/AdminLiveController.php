@@ -299,26 +299,26 @@ class AdminLiveController extends Controller
 
         $summary = [
             'total_purchases'  => CoinPurchase::whereBetween('created_at', [$from, $to])->count(),
-            'total_usd'        => CoinPurchase::whereBetween('created_at', [$from, $to])->sum('amount'),
-            'total_coins_sold' => CoinPurchase::whereBetween('created_at', [$from, $to])->sum('coins_given'),
+            'total_usd'        => CoinPurchase::whereBetween('created_at', [$from, $to])->sum('amount_paid'),
+            'total_coins_sold' => CoinPurchase::whereBetween('created_at', [$from, $to])->sum('coins_received'),
             'coins_in_gifts'   => GiftTransaction::whereBetween('created_at', [$from, $to])->sum('coins_spent'),
         ];
 
-        $daily = CoinPurchase::selectRaw('DATE(created_at) as date, COUNT(*) as purchases, SUM(amount) as revenue, SUM(coins_given) as coins')
+        $daily = CoinPurchase::selectRaw('DATE(created_at) as date, COUNT(*) as purchases, SUM(amount_paid) as revenue, SUM(coins_received) as coins')
             ->whereBetween('created_at', [$from, $to])
             ->groupBy('date')
             ->orderBy('date')
             ->get();
 
         $topBuyers = CoinPurchase::with('user.communityProfile')
-            ->selectRaw('user_id, COUNT(*) as purchases, SUM(amount) as total_spent, SUM(coins_given) as total_coins')
+            ->selectRaw('user_id, COUNT(*) as purchases, SUM(amount_paid) as total_spent, SUM(coins_received) as total_coins')
             ->whereBetween('created_at', [$from, $to])
             ->groupBy('user_id')
             ->orderByDesc('total_spent')
             ->limit(10)
             ->get();
 
-        $byMethod = CoinPurchase::selectRaw('payment_method, COUNT(*) as cnt, SUM(amount) as total')
+        $byMethod = CoinPurchase::selectRaw('payment_method, COUNT(*) as cnt, SUM(amount_paid) as total')
             ->whereBetween('created_at', [$from, $to])
             ->groupBy('payment_method')
             ->get();

@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Coin Transactions')
 
 @push('styles')
@@ -22,7 +22,7 @@
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
     <a href="{{ route('admin.live.index') }}" style="color:#667085;font-size:20px;"><i class="fas fa-arrow-left"></i></a>
     <div>
-      <h1 style="font-size:22px;font-weight:900;color:#101828;margin:0;">🪙 Coin Transactions</h1>
+      <h1 style="font-size:22px;font-weight:900;color:#101828;margin:0;">ðŸª™ Coin Transactions</h1>
       <p style="color:#667085;font-size:13px;margin:3px 0 0;">All gift transactions during live streams</p>
     </div>
   </div>
@@ -74,7 +74,7 @@
               </div>
               <div>
                 <div style="font-weight:700;">{{ $t->sender?->name }}</div>
-                <div style="font-size:11px;color:#667085;">@{{ $t->sender?->communityProfile?->username ?? '-' }}</div>
+                <div style="font-size:11px;color:#667085;">&#64;{{ $t->sender?->communityProfile?->username ?? '-' }}</div>
               </div>
             </div>
           </td>
@@ -90,8 +90,8 @@
             <span style="font-size:20px;">{{ $t->gift?->emoji }}</span>
             <span style="margin-left:6px;font-weight:600;">{{ $t->gift?->name }}</span>
           </td>
-          <td style="font-weight:800;color:#101828;">×{{ $t->quantity }}</td>
-          <td style="font-weight:800;color:#7F56D9;font-size:15px;">{{ $t->coins_spent }} 🪙</td>
+          <td style="font-weight:800;color:#101828;">Ã—{{ $t->quantity }}</td>
+          <td style="font-weight:800;color:#7F56D9;font-size:15px;">{{ $t->coins_spent }} ðŸª™</td>
           <td style="color:#667085;font-size:12px;">{{ $t->created_at->format('M d, H:i') }}</td>
         </tr>
       @endforeach
@@ -104,3 +104,4 @@
   </div>
 </div>
 @endsection
+

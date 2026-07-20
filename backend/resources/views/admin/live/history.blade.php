@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Live History')
 
 @push('styles')
@@ -29,7 +29,7 @@
     <a href="{{ route('admin.live.index') }}" style="color:#667085;font-size:20px;"><i class="fas fa-arrow-left"></i></a>
     <div>
       <h1 style="font-size:22px;font-weight:900;color:#101828;margin:0;">Live History</h1>
-      <p style="color:#667085;font-size:13px;margin:3px 0 0;">All live rooms — active and ended</p>
+      <p style="color:#667085;font-size:13px;margin:3px 0 0;">All live rooms â€” active and ended</p>
     </div>
   </div>
 
@@ -78,7 +78,7 @@
         @php
           $host    = $room->host;
           $durSecs = $room->ended_at && $room->created_at ? $room->created_at->diffInSeconds($room->ended_at) : 0;
-          $durStr  = $durSecs > 0 ? (floor($durSecs/60).'m '.($durSecs%60).'s') : '—';
+          $durStr  = $durSecs > 0 ? (floor($durSecs/60).'m '.($durSecs%60).'s') : 'â€”';
         @endphp
         <tr>
           <td>
@@ -88,7 +88,7 @@
               </div>
               <div>
                 <div style="font-weight:700;font-size:13px;">{{ $host?->name }}</div>
-                <div style="font-size:11px;color:#667085;">@{{ $host?->communityProfile?->username ?? '-' }}</div>
+                <div style="font-size:11px;color:#667085;">&#64;{{ $host?->communityProfile?->username ?? '-' }}</div>
               </div>
             </div>
           </td>
@@ -135,3 +135,4 @@
   </div>
 </div>
 @endsection
+
