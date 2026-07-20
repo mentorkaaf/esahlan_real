@@ -13,6 +13,8 @@ import '../widgets/coin_purchase_sheet.dart';
 import '../../../../core/services/realtime_client.dart';
 import '../widgets/stream_quality_indicator.dart';
 import '../widgets/live_leaderboard_sheet.dart';
+import '../widgets/live_battle_bar.dart';
+import '../widgets/battle_result_overlay.dart';
 
 class LiveViewerScreen extends StatefulWidget {
   final LiveRoom room;
@@ -48,6 +50,12 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
 
   final _giftEvents = <GiftEvent>[];
   final _repo = LiveRepository();
+
+  // ── PK Battle ──────────────────────────────────────────────────────────────
+  Room? _battleRoom;
+  EventsListener<RoomEvent>? _battleListener;
+  LiveBattle? _activeBattle;
+  bool _battleEnded = false;
 
   String get _reverbChannel => 'live.${widget.room.id}';
 
@@ -140,6 +148,11 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
         } catch (_) {}
       });
 
+      // PK Battle events
+      await RealtimeClient.instance.listen(_reverbChannel, 'live.battle_started', _onBattleStarted);
+      await RealtimeClient.instance.listen(_reverbChannel, 'battle.score_updated', _onBattleScoreUpdated);
+      await RealtimeClient.instance.listen(_reverbChannel, 'battle.ended', _onBattleEnded);
+
       setState(() {});
     } catch (e) {
       if (mounted) Navigator.of(context).pop();
@@ -180,6 +193,65 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
     } catch (_) {}
     _guestListener?.dispose();
     _guestRoom = null;
+  }
+
+  Future<void> _onBattleStarted(dynamic data) async {
+    if (!mounted) return;
+    try {
+      final map    = Map<String, dynamic>.from(data as Map);
+      final battle = LiveBattle.fromJson(Map<String, dynamic>.from(map['battle'] as Map));
+      final url    = map['livekit_url'] as String;
+
+      // Fetch personal viewer token for the battle room
+      final tokenData = await _repo.getBattleViewerToken(battle.id);
+      final token = tokenData['token'] as String;
+
+      final bRoom = Room();
+      _battleListener = bRoom.createListener()
+        ..on<TrackSubscribedEvent>((_) { if (mounted) setState(() {}); })
+        ..on<TrackUnsubscribedEvent>((_) { if (mounted) setState(() {}); })
+        ..on<ParticipantConnectedEvent>((_) { if (mounted) setState(() {}); })
+        ..on<ParticipantDisconnectedEvent>((_) { if (mounted) setState(() {}); });
+
+      await bRoom.connect(url, token,
+          roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true));
+
+      if (mounted) {
+        setState(() {
+          _battleRoom   = bRoom;
+          _activeBattle = battle;
+          _battleEnded  = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[Battle viewer] _onBattleStarted error: $e');
+    }
+  }
+
+  void _onBattleScoreUpdated(dynamic data) {
+    if (!mounted || _activeBattle == null) return;
+    try {
+      final map    = Map<String, dynamic>.from(data as Map);
+      final scores = (map['scores'] as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      setState(() => _activeBattle = _activeBattle!.copyWithScores(scores));
+    } catch (_) {}
+  }
+
+  void _onBattleEnded(dynamic data) {
+    if (!mounted) return;
+    try {
+      final map = Map<String, dynamic>.from(data as Map);
+      LiveBattle? ended;
+      if (map['battle'] != null) {
+        ended = LiveBattle.fromJson(Map<String, dynamic>.from(map['battle'] as Map));
+      }
+      setState(() {
+        if (ended != null) _activeBattle = ended;
+        _battleEnded = true;
+      });
+    } catch (_) {}
   }
 
   void _handleGiftEvent(dynamic data) {
@@ -349,6 +421,38 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
     final tiles = <LiveTile>[];
     if (_loading) return tiles;
 
+    // In battle mode: use the battle room participants
+    if (_battleRoom != null) {
+      final bParticipants = _battleRoom!.remoteParticipants.values.toList();
+      for (final p in bParticipants) {
+        final identity = p.identity ?? '';
+        if (!identity.startsWith('host_')) continue;
+        VideoTrack? video;
+        bool muted = true;
+        for (final pub in p.videoTrackPublications) {
+          if (pub.subscribed && pub.track != null) video = pub.track as VideoTrack;
+        }
+        for (final pub in p.audioTrackPublications) {
+          if (pub.subscribed && !pub.muted) muted = false;
+        }
+        final uid = int.tryParse(identity.replaceFirst('host_', '')) ?? 0;
+        final bp = _activeBattle?.participants
+            .where((bp) => bp.hostId == uid)
+            .firstOrNull;
+        tiles.add(LiveTile(
+          label: bp?.name ?? widget.room.host.name,
+          sublabel: bp?.username ?? widget.room.host.username,
+          video: video,
+          isMuted: muted,
+          isHost: true,
+          battleRank: bp?.rank,
+          battleScore: bp?.score,
+        ));
+      }
+      return tiles;
+    }
+
+    // Normal mode
     final participants = _room.remoteParticipants.values.toList();
     participants.sort((a, b) {
       final aHost = (a.identity ?? '').startsWith('host_') ? 0 : 1;
@@ -410,8 +514,10 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
   void dispose() {
     _listener?.dispose();
     _guestListener?.dispose();
+    _battleListener?.dispose();
     _room.dispose();
     _guestRoom?.dispose();
+    _battleRoom?.dispose();
     RealtimeClient.instance.unsubscribe(_reverbChannel);
     if (_session != null) {
       RealtimeClient.instance.unsubscribe('private-user.${_session!.userId}');
@@ -551,6 +657,27 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
               ),
             ),
           ),
+
+          // ── PK Battle bar ─────────────────────────────────────────────────
+          if (_activeBattle != null && !_battleEnded)
+            Positioned(
+              top: 100, left: 0, right: 0,
+              child: LiveBattleBar(battle: _activeBattle!),
+            ),
+
+          // ── Battle result overlay ─────────────────────────────────────────
+          if (_activeBattle != null && _battleEnded)
+            Positioned.fill(
+              child: BattleResultOverlay(
+                battle: _activeBattle!,
+                onDismiss: () => setState(() {
+                  _activeBattle = null;
+                  _battleEnded  = false;
+                  _battleRoom?.dispose();
+                  _battleRoom   = null;
+                }),
+              ),
+            ),
 
           // ── Gift animations ───────────────────────────────────────────────
           ...(_giftEvents.map((e) => GiftAnimationOverlay(event: e))),

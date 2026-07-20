@@ -7,6 +7,8 @@ class LiveTile {
   final VideoTrack? video;
   final bool isMuted;
   final bool isHost;
+  final int? battleRank;
+  final int? battleScore;
 
   const LiveTile({
     required this.label,
@@ -14,6 +16,8 @@ class LiveTile {
     this.video,
     this.isMuted = false,
     this.isHost = false,
+    this.battleRank,
+    this.battleScore,
   });
 }
 
@@ -102,8 +106,8 @@ class LiveTiledLayout extends StatelessWidget {
           ),
         ),
 
-        // Host badge
-        if (t.isHost)
+        // Host badge (only when no battle rank)
+        if (t.isHost && t.battleRank == null)
           Positioned(
             top: 8, left: 8,
             child: Container(
@@ -114,6 +118,46 @@ class LiveTiledLayout extends StatelessWidget {
               ),
               child: const Text('Host',
                   style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+            ),
+          ),
+
+        // Battle rank badge
+        if (t.battleRank != null)
+          Positioned(
+            top: 8, left: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: t.battleRank == 1 ? Colors.amber : const Color(0xFF4FC3F7),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                t.battleRank == 1 ? '👑 #1' : '#${t.battleRank}',
+                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+
+        // Battle score on tile
+        if (t.battleScore != null)
+          Positioned(
+            bottom: 32, right: 6,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('🪙', style: TextStyle(fontSize: 10)),
+                Text(
+                  t.battleScore! >= 1000
+                      ? '${(t.battleScore! / 1000).toStringAsFixed(1)}K'
+                      : '${t.battleScore}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    shadows: [Shadow(blurRadius: 3, color: Colors.black)],
+                  ),
+                ),
+              ],
             ),
           ),
 

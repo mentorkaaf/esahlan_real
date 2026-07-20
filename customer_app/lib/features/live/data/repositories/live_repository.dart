@@ -209,4 +209,42 @@ class LiveRepository {
       if (description != null) 'description': description,
     });
   }
+
+  // ── PK Battle ──────────────────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getAvailableBattleHosts(int roomId) async {
+    final res  = await _dio.get('/live/rooms/$roomId/battle/hosts');
+    final list = res.data['data'] as List? ?? [];
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> inviteToBattle(int roomId, int toRoomId) async {
+    final res = await _dio.post('/live/rooms/$roomId/battle/invite', data: {'to_room_id': toRoomId});
+    return Map<String, dynamic>.from(res.data['data'] as Map);
+  }
+
+  Future<Map<String, dynamic>> acceptBattleInvite(int inviteId) async {
+    final res = await _dio.post('/live/battle/accept/$inviteId');
+    return Map<String, dynamic>.from(res.data['data'] as Map);
+  }
+
+  Future<void> rejectBattleInvite(int inviteId) async {
+    await _dio.post('/live/battle/reject/$inviteId');
+  }
+
+  Future<Map<String, dynamic>> getBattleViewerToken(int battleId) async {
+    final res = await _dio.get('/live/battle/$battleId/viewer-token');
+    return Map<String, dynamic>.from(res.data['data'] as Map);
+  }
+
+  Future<LiveBattle?> getBattleStatus(int roomId) async {
+    final res = await _dio.get('/live/rooms/$roomId/battle/status');
+    final data = res.data['data'];
+    if (data == null) return null;
+    return LiveBattle.fromJson(Map<String, dynamic>.from(data as Map));
+  }
+
+  Future<void> endBattle(int battleId) async {
+    await _dio.post('/live/battle/$battleId/end');
+  }
 }

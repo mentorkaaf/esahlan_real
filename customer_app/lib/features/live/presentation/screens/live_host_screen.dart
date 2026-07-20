@@ -11,6 +11,9 @@ import '../widgets/live_tiled_layout.dart';
 import '../widgets/live_host_dashboard.dart';
 import '../widgets/live_leaderboard_sheet.dart';
 import '../widgets/live_moderation_panel.dart';
+import '../widgets/live_battle_bar.dart';
+import '../widgets/battle_invite_popup.dart';
+import '../widgets/battle_result_overlay.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/services/realtime_client.dart';
 
@@ -39,6 +42,12 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
   final _guestRequests = <GuestRequest>[];
   final _activeGuests = <LiveGuest>[];
   final _repo = LiveRepository();
+
+  // ── PK Battle ──────────────────────────────────────────────────────────────
+  Room? _battleRoom;
+  LiveBattle? _activeBattle;
+  BattleInvite? _pendingInvite;
+  bool _battleEnded = false;
 
   @override
   void initState() {
@@ -124,7 +133,141 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
       _onGuestsUpdated,
     );
 
+    // PK Battle — incoming invite on private channel
+    await RealtimeClient.instance.listen(
+      'private-user.${widget.session.room.host.id}',
+      'live.battle_invite',
+      _onBattleInvite,
+    );
+    // PK Battle — accepted (host A receives token for battle room)
+    await RealtimeClient.instance.listen(
+      'private-user.${widget.session.room.host.id}',
+      'live.battle_accepted',
+      _onBattleAccepted,
+    );
+    // PK Battle — score updates
+    await RealtimeClient.instance.listen(
+      _reverbChannel,
+      'battle.score_updated',
+      _onBattleScoreUpdated,
+    );
+    // PK Battle — ended
+    await RealtimeClient.instance.listen(
+      _reverbChannel,
+      'battle.ended',
+      _onBattleEnded,
+    );
+    // PK Battle — rejected
+    await RealtimeClient.instance.listen(
+      'private-user.${widget.session.room.host.id}',
+      'live.battle_rejected',
+      (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Battle invite declined'), backgroundColor: Colors.orange),
+          );
+        }
+      },
+    );
+
     setState(() {});
+  }
+
+  void _onBattleInvite(dynamic data) {
+    if (!mounted) return;
+    try {
+      final invite = BattleInvite.fromJson(Map<String, dynamic>.from(data as Map));
+      setState(() => _pendingInvite = invite);
+    } catch (_) {}
+  }
+
+  Future<void> _onBattleAccepted(dynamic data) async {
+    // Host A: received battle room token, switch LiveKit to battle room
+    if (!mounted) return;
+    try {
+      final map = Map<String, dynamic>.from(data as Map);
+      final battle = LiveBattle.fromJson(Map<String, dynamic>.from(map['battle'] as Map));
+      final hostToken   = map['host_token'] as String;
+      final livekitUrl  = map['livekit_url'] as String;
+      await _joinBattleRoom(battle, hostToken, livekitUrl);
+    } catch (e) {
+      debugPrint('[Battle] _onBattleAccepted error: $e');
+    }
+  }
+
+  Future<void> _joinBattleRoom(LiveBattle battle, String token, String livekitUrl) async {
+    try {
+      final bRoom = Room();
+      await bRoom.connect(
+        livekitUrl, token,
+        roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true),
+      );
+      await bRoom.localParticipant?.setCameraEnabled(true);
+      await bRoom.localParticipant?.setMicrophoneEnabled(true);
+      if (mounted) {
+        setState(() {
+          _battleRoom   = bRoom;
+          _activeBattle = battle;
+          _battleEnded  = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[Battle] _joinBattleRoom error: $e');
+    }
+  }
+
+  void _onBattleScoreUpdated(dynamic data) {
+    if (!mounted || _activeBattle == null) return;
+    try {
+      final map    = Map<String, dynamic>.from(data as Map);
+      final scores = (map['scores'] as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      setState(() => _activeBattle = _activeBattle!.copyWithScores(scores));
+    } catch (_) {}
+  }
+
+  void _onBattleEnded(dynamic data) {
+    if (!mounted) return;
+    try {
+      final map = Map<String, dynamic>.from(data as Map);
+      LiveBattle? ended;
+      if (map['battle'] != null) {
+        ended = LiveBattle.fromJson(Map<String, dynamic>.from(map['battle'] as Map));
+      }
+      setState(() {
+        if (ended != null) _activeBattle = ended;
+        _battleEnded = true;
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _showBattleHostSheet() async {
+    final hosts = await _repo.getAvailableBattleHosts(widget.session.room.id);
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _BattleHostSheet(
+        hosts: hosts,
+        onInvite: (toRoomId) async {
+          Navigator.pop(context);
+          try {
+            await _repo.inviteToBattle(widget.session.room.id, toRoomId);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Battle invite sent! ⚔️'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          } catch (_) {}
+        },
+      ),
+    );
   }
 
   void _onGuestRequest(dynamic data) {
@@ -205,46 +348,82 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
     _timer?.cancel();
     _listener?.dispose();
     _room.dispose();
+    _battleRoom?.dispose();
     RealtimeClient.instance.unsubscribe(_reverbChannel);
     super.dispose();
   }
 
   List<LiveTile> _buildTiles() {
     final tiles = <LiveTile>[];
+    final activeRoom = _battleRoom ?? _room;
 
     // Host local video (always first)
     VideoTrack? localVideo;
-    for (final pub in _room.localParticipant?.videoTrackPublications ?? []) {
+    for (final pub in activeRoom.localParticipant?.videoTrackPublications ?? []) {
       if (pub.track != null) localVideo = pub.track as VideoTrack;
     }
+    final myParticipant = _activeBattle?.participants
+        .where((p) => p.hostId == widget.session.room.host.id)
+        .firstOrNull;
     tiles.add(LiveTile(
       label: 'You',
       video: localVideo,
       isMuted: !_micOn,
       isHost: true,
+      battleRank: myParticipant?.rank,
+      battleScore: myParticipant?.score,
     ));
 
-    // Remote guests
-    for (final p in _room.remoteParticipants.values) {
-      final identity = p.identity ?? '';
-      if (!identity.startsWith('guest_')) continue;
-      VideoTrack? video;
-      bool muted = true;
-      for (final pub in p.videoTrackPublications) {
-        if (pub.subscribed && pub.track != null) video = pub.track as VideoTrack;
+    if (_battleRoom != null) {
+      // Battle mode: show remote hosts from battle room
+      for (final p in _battleRoom!.remoteParticipants.values) {
+        final identity = p.identity ?? '';
+        if (!identity.startsWith('host_')) continue;
+        VideoTrack? video;
+        bool muted = true;
+        for (final pub in p.videoTrackPublications) {
+          if (pub.subscribed && pub.track != null) video = pub.track as VideoTrack;
+        }
+        for (final pub in p.audioTrackPublications) {
+          if (pub.subscribed && !pub.muted) muted = false;
+        }
+        final uid = int.tryParse(identity.replaceFirst('host_', '')) ?? 0;
+        final bp = _activeBattle?.participants
+            .where((bp) => bp.hostId == uid)
+            .firstOrNull;
+        tiles.add(LiveTile(
+          label: bp?.name ?? 'Host',
+          sublabel: bp?.username != null ? '@${bp!.username}' : '',
+          video: video,
+          isMuted: muted,
+          isHost: true,
+          battleRank: bp?.rank,
+          battleScore: bp?.score,
+        ));
       }
-      for (final pub in p.audioTrackPublications) {
-        if (pub.subscribed && !pub.muted) muted = false;
+    } else {
+      // Normal mode: show guests
+      for (final p in _room.remoteParticipants.values) {
+        final identity = p.identity ?? '';
+        if (!identity.startsWith('guest_')) continue;
+        VideoTrack? video;
+        bool muted = true;
+        for (final pub in p.videoTrackPublications) {
+          if (pub.subscribed && pub.track != null) video = pub.track as VideoTrack;
+        }
+        for (final pub in p.audioTrackPublications) {
+          if (pub.subscribed && !pub.muted) muted = false;
+        }
+        final uid = int.tryParse(identity.replaceFirst('guest_', '')) ?? 0;
+        final g = _activeGuests.where((g) => g.userId == uid).firstOrNull;
+        tiles.add(LiveTile(
+          label: g?.name ?? 'Guest',
+          sublabel: g?.username ?? '',
+          video: video,
+          isMuted: muted || (g?.isMuted ?? false),
+          isHost: false,
+        ));
       }
-      final uid = int.tryParse(identity.replaceFirst('guest_', '')) ?? 0;
-      final g = _activeGuests.where((g) => g.userId == uid).firstOrNull;
-      tiles.add(LiveTile(
-        label: g?.name ?? 'Guest',
-        sublabel: g?.username ?? '',
-        video: video,
-        isMuted: muted || (g?.isMuted ?? false),
-        isHost: false,
-      ));
     }
     return tiles;
   }
@@ -320,6 +499,21 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    // PK Battle button (only when no active battle)
+                    if (_activeBattle == null)
+                      GestureDetector(
+                        onTap: _showBattleHostSheet,
+                        child: Container(
+                          padding: const EdgeInsets.all(7),
+                          margin: const EdgeInsets.only(right: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.orange.withOpacity(0.6)),
+                          ),
+                          child: const Text('⚔️', style: TextStyle(fontSize: 14)),
+                        ),
+                      ),
                     // Dashboard toggle
                     GestureDetector(
                       onTap: () => setState(() => _showDashboard = !_showDashboard),
@@ -404,6 +598,45 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
               ),
             ),
           ),
+
+          // PK Battle bar (below top bar)
+          if (_activeBattle != null && !_battleEnded)
+            Positioned(
+              top: 100,
+              left: 0,
+              right: 0,
+              child: LiveBattleBar(battle: _activeBattle!),
+            ),
+
+          // Battle result overlay
+          if (_activeBattle != null && _battleEnded)
+            Positioned.fill(
+              child: BattleResultOverlay(
+                battle: _activeBattle!,
+                onDismiss: () => setState(() {
+                  _activeBattle = null;
+                  _battleEnded  = false;
+                  _battleRoom?.dispose();
+                  _battleRoom   = null;
+                }),
+              ),
+            ),
+
+          // Battle invite popup (incoming from another host)
+          if (_pendingInvite != null)
+            Positioned(
+              top: 0, bottom: 0, left: 0, right: 0,
+              child: Center(
+                child: BattleInvitePopup(
+                  invite: _pendingInvite!,
+                  onAccepted: () async {
+                    // Accept was called inside popup — now listen for battle_accepted event
+                    setState(() => _pendingInvite = null);
+                  },
+                  onDismissed: () => setState(() => _pendingInvite = null),
+                ),
+              ),
+            ),
 
           // Gift animations
           ...(_giftEvents.map((e) => GiftAnimationOverlay(event: e))),
@@ -498,6 +731,106 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Battle Host Selection Sheet ───────────────────────────────────────────────
+
+class _BattleHostSheet extends StatelessWidget {
+  final List<Map<String, dynamic>> hosts;
+  final void Function(int toRoomId) onInvite;
+
+  const _BattleHostSheet({required this.hosts, required this.onInvite});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 16),
+        Container(
+          width: 40, height: 4,
+          decoration: BoxDecoration(
+            color: Colors.white24,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          '⚔️ Invite to PK Battle',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (hosts.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(32),
+            child: Text(
+              'No live hosts available right now',
+              style: TextStyle(color: Colors.white54),
+            ),
+          )
+        else
+          Flexible(
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              itemCount: hosts.length,
+              separatorBuilder: (_, __) => const Divider(color: Colors.white12, height: 1),
+              itemBuilder: (_, i) {
+                final h = hosts[i];
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundImage: (h['host_avatar'] as String? ?? '').isNotEmpty
+                        ? NetworkImage(h['host_avatar'] as String)
+                        : null,
+                    backgroundColor: Colors.orange.withOpacity(0.3),
+                    child: (h['host_avatar'] as String? ?? '').isEmpty
+                        ? Text(
+                            (h['host_name'] as String? ?? '?').substring(0, 1).toUpperCase(),
+                            style: const TextStyle(color: Colors.white))
+                        : null,
+                  ),
+                  title: Text(
+                    h['host_name'] as String? ?? '',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Row(
+                    children: [
+                      Text(
+                        '@${h['host_username'] ?? ''}',
+                        style: const TextStyle(color: Colors.white54, fontSize: 12),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.remove_red_eye, size: 12, color: Colors.white38),
+                      const SizedBox(width: 2),
+                      Text(
+                        '${h['viewer_count'] ?? 0}',
+                        style: const TextStyle(color: Colors.white38, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                  trailing: ElevatedButton(
+                    onPressed: () => onInvite(h['room_id'] as int),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                    ),
+                    child: const Text('Invite', style: TextStyle(fontSize: 12)),
+                  ),
+                );
+              },
+            ),
+          ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 }

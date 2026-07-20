@@ -418,6 +418,116 @@ class LeaderboardEntry {
       );
 }
 
+// ── PK Battle ────────────────────────────────────────────────────────────────
+
+class BattleParticipant {
+  final int hostId;
+  final int liveRoomId;
+  final String name;
+  final String username;
+  final String avatar;
+  final int score;
+  final int rank; // 1/2/3/4
+
+  const BattleParticipant({
+    required this.hostId,
+    required this.liveRoomId,
+    required this.name,
+    required this.username,
+    required this.avatar,
+    required this.score,
+    required this.rank,
+  });
+
+  factory BattleParticipant.fromJson(Map<String, dynamic> j) => BattleParticipant(
+        hostId:    j['host_id']      ?? 0,
+        liveRoomId: j['live_room_id'] ?? 0,
+        name:      j['name']         ?? '',
+        username:  j['username']     ?? '',
+        avatar:    j['avatar']       ?? '',
+        score:     j['score']        ?? 0,
+        rank:      j['rank']         ?? 0,
+      );
+
+  BattleParticipant copyWith({int? score, int? rank}) => BattleParticipant(
+        hostId: hostId, liveRoomId: liveRoomId, name: name,
+        username: username, avatar: avatar,
+        score: score ?? this.score,
+        rank: rank ?? this.rank,
+      );
+}
+
+class LiveBattle {
+  final int id;
+  final String status; // active/ended
+  final int durationSeconds;
+  final DateTime? endsAt;
+  final int? winnerHostId;
+  final List<BattleParticipant> participants;
+
+  const LiveBattle({
+    required this.id,
+    required this.status,
+    required this.durationSeconds,
+    this.endsAt,
+    this.winnerHostId,
+    required this.participants,
+  });
+
+  factory LiveBattle.fromJson(Map<String, dynamic> j) => LiveBattle(
+        id:              j['id']               ?? 0,
+        status:          j['status']           ?? 'active',
+        durationSeconds: j['duration_seconds'] ?? 180,
+        endsAt:          j['ends_at'] != null ? DateTime.tryParse(j['ends_at']) : null,
+        winnerHostId:    j['winner_host_id']   as int?,
+        participants: (j['participants'] as List? ?? [])
+            .map((e) => BattleParticipant.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList(),
+      );
+
+  LiveBattle copyWithScores(List<Map<String, dynamic>> scores) {
+    final updated = participants.map((p) {
+      final s = scores.firstWhere((s) => s['host_id'] == p.hostId, orElse: () => {});
+      if (s.isEmpty) return p;
+      return p.copyWith(score: s['score'] as int? ?? p.score, rank: s['rank'] as int? ?? p.rank);
+    }).toList();
+    return LiveBattle(id: id, status: status, durationSeconds: durationSeconds,
+        endsAt: endsAt, winnerHostId: winnerHostId, participants: updated);
+  }
+
+  int get totalScore => participants.fold(0, (s, p) => s + p.score);
+}
+
+class BattleInvite {
+  final int inviteId;
+  final int fromRoomId;
+  final int fromHostId;
+  final String fromName;
+  final String fromAvatar;
+  final String fromUsername;
+  final int expiresIn;
+
+  const BattleInvite({
+    required this.inviteId,
+    required this.fromRoomId,
+    required this.fromHostId,
+    required this.fromName,
+    required this.fromAvatar,
+    required this.fromUsername,
+    required this.expiresIn,
+  });
+
+  factory BattleInvite.fromJson(Map<String, dynamic> j) => BattleInvite(
+        inviteId:    j['invite_id']    ?? 0,
+        fromRoomId:  j['from_room_id'] ?? 0,
+        fromHostId:  j['from_host_id'] ?? 0,
+        fromName:    j['from_name']    ?? '',
+        fromAvatar:  j['from_avatar']  ?? '',
+        fromUsername: j['from_username'] ?? '',
+        expiresIn:   j['expires_in']   ?? 30,
+      );
+}
+
 class PinnedMessage {
   final int? messageId;
   final String message;
