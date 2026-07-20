@@ -37,6 +37,9 @@ class LiveRoomController extends Controller
         $request->validate([
             'title'     => 'required|string|max:120',
             'thumbnail' => 'nullable|string',
+            'category'  => 'nullable|string|max:40',
+            'tags'      => 'nullable|array',
+            'tags.*'    => 'string|max:30',
         ]);
 
         $hostId = auth()->id();
@@ -58,6 +61,8 @@ class LiveRoomController extends Controller
             'title'     => $request->title,
             'room_name' => $roomName,
             'thumbnail' => $request->thumbnail,
+            'category'  => $request->input('category', 'general'),
+            'tags'      => $request->input('tags', []),
         ]);
 
         $token = $this->liveKit->generateToken($roomName, "host_{$hostId}", [
@@ -229,6 +234,8 @@ class LiveRoomController extends Controller
             'title'        => $room->title,
             'room_name'    => $room->room_name,
             'thumbnail'    => $room->thumbnail,
+            'category'     => $room->category ?? 'general',
+            'tags'         => $room->tags ?? [],
             'status'       => $room->status,
             'viewer_count' => $room->viewer_count,
             'peak_viewers' => $room->peak_viewers,

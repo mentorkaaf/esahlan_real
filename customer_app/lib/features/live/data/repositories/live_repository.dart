@@ -11,6 +11,34 @@ class LiveRepository {
     return list.map((e) => LiveRoom.fromJson(e)).toList();
   }
 
+  // ── Discovery ──────────────────────────────────────────────────────────────
+
+  Future<LiveDiscovery> getDiscovery({String category = 'general', String search = ''}) async {
+    final res = await _dio.get('/live/discovery', queryParameters: {
+      'category': category,
+      if (search.isNotEmpty) 'search': search,
+    });
+    return LiveDiscovery.fromJson(Map<String, dynamic>.from(res.data['data'] as Map));
+  }
+
+  Future<List<LiveCategory>> getCategories() async {
+    final res  = await _dio.get('/live/discovery/categories');
+    final list = res.data['data'] as List? ?? [];
+    return list.map((e) => LiveCategory.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+  }
+
+  Future<List<LiveRoom>> getRecommended() async {
+    final res  = await _dio.get('/live/discovery/recommended');
+    final list = res.data['data'] as List? ?? [];
+    return list.map((e) => LiveRoom.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+  }
+
+  Future<List<LiveRoom>> searchRooms(String q) async {
+    final res  = await _dio.get('/live/discovery/search', queryParameters: {'q': q});
+    final list = res.data['data'] as List? ?? [];
+    return list.map((e) => LiveRoom.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+  }
+
   Future<List<LiveRoom>> getPastRooms() async {
     final res  = await _dio.get('/live/rooms/past');
     final data = res.data['data'];
@@ -18,8 +46,12 @@ class LiveRepository {
     return list.map((e) => LiveRoom.fromJson(e)).toList();
   }
 
-  Future<LiveSession> createRoom({required String title}) async {
-    final res = await _dio.post('/live/rooms', data: {'title': title});
+  Future<LiveSession> createRoom({required String title, String category = 'general', List<String> tags = const []}) async {
+    final res = await _dio.post('/live/rooms', data: {
+      'title':    title,
+      'category': category,
+      'tags':     tags,
+    });
     return LiveSession.fromJson(res.data['data']);
   }
 

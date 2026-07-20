@@ -24,6 +24,8 @@ class LiveRoom {
   final String title;
   final String roomName;
   final String? thumbnail;
+  final String category;
+  final List<String> tags;
   final String status;
   final int viewerCount;
   final int peakViewers;
@@ -38,6 +40,8 @@ class LiveRoom {
     required this.title,
     required this.roomName,
     this.thumbnail,
+    required this.category,
+    required this.tags,
     required this.status,
     required this.viewerCount,
     required this.peakViewers,
@@ -53,6 +57,8 @@ class LiveRoom {
         title: j['title'] ?? '',
         roomName: j['room_name'] ?? '',
         thumbnail: j['thumbnail'],
+        category: j['category'] ?? 'general',
+        tags: (j['tags'] as List? ?? []).cast<String>(),
         status: j['status'] ?? 'live',
         viewerCount: j['viewer_count'] ?? 0,
         peakViewers: j['peak_viewers'] ?? 0,
@@ -62,6 +68,53 @@ class LiveRoom {
         durationSeconds: j['duration_seconds'] as int?,
         totalGifts: j['total_gifts'] as int?,
       );
+}
+
+class LiveCategory {
+  final String key;
+  final String label;
+  final String emoji;
+  final int count;
+
+  const LiveCategory({
+    required this.key,
+    required this.label,
+    required this.emoji,
+    required this.count,
+  });
+
+  factory LiveCategory.fromJson(Map<String, dynamic> j) => LiveCategory(
+        key:   j['key']   ?? 'general',
+        label: j['label'] ?? '',
+        emoji: j['emoji'] ?? '🌐',
+        count: j['count'] ?? 0,
+      );
+}
+
+class LiveDiscovery {
+  final LiveRoom? featured;
+  final List<LiveRoom> following;
+  final List<LiveRoom> trending;
+  final List<LiveRoom> all;
+
+  const LiveDiscovery({
+    this.featured,
+    required this.following,
+    required this.trending,
+    required this.all,
+  });
+
+  factory LiveDiscovery.fromJson(Map<String, dynamic> j) => LiveDiscovery(
+        featured:  j['featured'] != null
+            ? LiveRoom.fromJson(Map<String, dynamic>.from(j['featured'] as Map))
+            : null,
+        following: _parseRooms(j['following']),
+        trending:  _parseRooms(j['trending']),
+        all:       _parseRooms(j['all']),
+      );
+
+  static List<LiveRoom> _parseRooms(dynamic v) =>
+      (v as List? ?? []).map((e) => LiveRoom.fromJson(Map<String, dynamic>.from(e as Map))).toList();
 }
 
 class LiveSession {

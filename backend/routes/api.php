@@ -35,6 +35,7 @@ use App\Http\Controllers\Api\Live\LiveGuestController;
 use App\Http\Controllers\Api\Live\LiveStatsController;
 use App\Http\Controllers\Api\Live\LiveLeaderboardController;
 use App\Http\Controllers\Api\Live\LiveModerationController;
+use App\Http\Controllers\Api\Live\LiveDiscoveryController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
@@ -772,6 +773,12 @@ Route::prefix('v1/live')->middleware('auth:sanctum')->group(function () {
     // Leaderboard
     Route::get('rooms/{id}/leaderboard', [LiveLeaderboardController::class, 'room']);
     Route::get('leaderboard/global',     [LiveLeaderboardController::class, 'global']);
+
+    // Discovery
+    Route::get('discovery',              [LiveDiscoveryController::class, 'index']);
+    Route::get('discovery/categories',   [LiveDiscoveryController::class, 'categories']);
+    Route::get('discovery/recommended',  [LiveDiscoveryController::class, 'recommended']);
+    Route::get('discovery/search',       [LiveDiscoveryController::class, 'search']);
 
     // Moderation
     Route::get('rooms/{id}/settings',                      [LiveModerationController::class, 'settings']);
