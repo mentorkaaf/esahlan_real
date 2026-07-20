@@ -8,7 +8,6 @@ use App\Models\LiveRoom;
 use App\Models\LiveRoomViewer;
 use App\Models\User;
 use App\Services\FcmService;
-use App\Services\LiveKitService;
 use App\Services\RealtimeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -16,10 +15,6 @@ use Illuminate\Support\Facades\DB;
 
 class AdminLiveController extends Controller
 {
-    public function __construct(
-        private LiveKitService  $liveKit,
-        private RealtimeService $realtime,
-    ) {}
 
     // ── Dashboard ──────────────────────────────────────────────────────────────
     public function index()
@@ -136,7 +131,7 @@ class AdminLiveController extends Controller
         $room->update(['status' => 'ended', 'ended_at' => now()]);
 
         // Broadcast live.ended so all Flutter viewers/host close the screen
-        $this->realtime->broadcast("presence-live.{$id}", 'live.ended', ['room_id' => $id]);
+        RealtimeService::toPublic("live.{$id}", 'live.ended', ['room_id' => $id]);
 
         // Notify host
         if ($room->host?->fcm_token) {
