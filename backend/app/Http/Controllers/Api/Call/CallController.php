@@ -139,7 +139,7 @@ class CallController extends Controller
             ->whereIn('status', ['ringing', 'accepted'])
             ->firstOrFail();
 
-        $duration = $call->accepted_at ? now()->diffInSeconds($call->accepted_at) : 0;
+        $duration = $call->accepted_at ? max(0, now()->diffInSeconds($call->accepted_at)) : 0;
         $call->update(['status' => 'ended', 'ended_at' => now(), 'duration' => $duration]);
 
         $otherId = $me === $call->caller_id ? $call->receiver_id : $call->caller_id;
