@@ -20,16 +20,38 @@ class GiftSheet extends StatefulWidget {
   State<GiftSheet> createState() => _GiftSheetState();
 }
 
-class _GiftSheetState extends State<GiftSheet> {
+class _GiftSheetState extends State<GiftSheet> with SingleTickerProviderStateMixin {
   GiftModel? _selected;
   int _qty = 1;
   bool _sending = false;
   late int _balance;
+  late TabController _tabCtrl;
+
+  static const _categories = ['All', 'Normal', 'Premium', 'Epic', 'Legendary'];
 
   @override
   void initState() {
     super.initState();
     _balance = widget.coinBalance;
+    _tabCtrl = TabController(length: _categories.length, vsync: this);
+    _tabCtrl.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    super.dispose();
+  }
+
+  List<GiftModel> get _filtered {
+    final cat = _categories[_tabCtrl.index].toLowerCase();
+    if (cat == 'all') return widget.gifts;
+    return widget.gifts.where((g) {
+      if (cat == 'legendary') return g.rarity == GiftRarity.legendary;
+      if (cat == 'epic')      return g.rarity == GiftRarity.epic;
+      if (cat == 'premium')   return g.category == 'premium' || g.rarity == GiftRarity.rare;
+      return g.category == 'normal' && g.rarity == GiftRarity.normal;
+    }).toList();
   }
 
   Future<void> _send() async {
@@ -60,9 +82,17 @@ class _GiftSheetState extends State<GiftSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
         );
+        setState(() => _sending = false);
       }
-    } finally {
-      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Color _rarityColor(GiftRarity r) {
+    switch (r) {
+      case GiftRarity.legendary: return const Color(0xFFFFD700);
+      case GiftRarity.epic:      return const Color(0xFFAA00FF);
+      case GiftRarity.rare:      return const Color(0xFF4FC3F7);
+      default:                   return Colors.white54;
     }
   }
 
@@ -70,122 +100,150 @@ class _GiftSheetState extends State<GiftSheet> {
   Widget build(BuildContext context) {
     final total = (_selected?.coins ?? 0) * _qty;
     final canAfford = total <= _balance;
+    final filtered = _filtered;
 
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFF1A1A2E),
+        color: Color(0xFF0F0F1A),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Handle
-          Container(
-            width: 40, height: 4,
-            decoration: BoxDecoration(
-              color: Colors.white24,
-              borderRadius: BorderRadius.circular(2),
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
             ),
           ),
-          const SizedBox(height: 16),
-
+          const SizedBox(height: 14),
           // Header
           Row(
             children: [
-              const Text('🎁 Send a Gift',
-                  style: TextStyle(
-                      color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text('🎁 Gifts',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               const Spacer(),
-              // Coin balance
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.2),
+                  color: Colors.orange.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.withOpacity(0.4)),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
                 ),
                 child: Row(
                   children: [
                     const Text('🪙', style: TextStyle(fontSize: 14)),
                     const SizedBox(width: 4),
                     Text('$_balance',
-                        style: const TextStyle(
-                            color: Colors.orange, fontWeight: FontWeight.bold)),
+                        style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
+          const SizedBox(height: 12),
+          // Category tabs
+          TabBar(
+            controller: _tabCtrl,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            indicatorColor: Colors.orange,
+            labelColor: Colors.orange,
+            unselectedLabelColor: Colors.white38,
+            dividerColor: Colors.transparent,
+            labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            tabs: _categories.map((c) => Tab(text: c)).toList(),
+          ),
+          const SizedBox(height: 10),
           // Gift grid
           SizedBox(
-            height: 160,
-            child: GridView.count(
-              crossAxisCount: 4,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              children: widget.gifts.map((g) {
-                final selected = _selected?.id == g.id;
-                return GestureDetector(
-                  onTap: () => setState(() => _selected = g),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? Colors.orange.withOpacity(0.2)
-                          : Colors.white.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: selected ? Colors.orange : Colors.transparent,
-                        width: 2,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(g.emoji, style: const TextStyle(fontSize: 28)),
-                        const SizedBox(height: 2),
-                        Text('${g.coins}',
-                            style: const TextStyle(
-                                color: Colors.orange, fontSize: 11, fontWeight: FontWeight.bold)),
-                        Text(g.name,
-                            style: const TextStyle(color: Colors.white54, fontSize: 9),
-                            overflow: TextOverflow.ellipsis),
-                      ],
-                    ),
+            height: 170,
+            child: filtered.isEmpty
+                ? const Center(child: Text('No gifts in this category', style: TextStyle(color: Colors.white38)))
+                : GridView.count(
+                    crossAxisCount: 4,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    children: filtered.map((g) {
+                      final sel = _selected?.id == g.id;
+                      final rc = _rarityColor(g.rarity);
+                      return GestureDetector(
+                        onTap: () => setState(() { _selected = g; _qty = 1; }),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          decoration: BoxDecoration(
+                            color: sel
+                                ? rc.withValues(alpha: 0.18)
+                                : Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: sel ? rc : (g.rarity != GiftRarity.normal ? rc.withValues(alpha: 0.3) : Colors.transparent),
+                              width: sel ? 2 : 1,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(g.emoji, style: const TextStyle(fontSize: 26)),
+                              const SizedBox(height: 2),
+                              Text('${g.coins} 🪙',
+                                  style: TextStyle(color: rc, fontSize: 10, fontWeight: FontWeight.bold)),
+                              Text(g.name,
+                                  style: const TextStyle(color: Colors.white54, fontSize: 9),
+                                  overflow: TextOverflow.ellipsis),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
-                );
-              }).toList(),
-            ),
           ),
-
           if (_selected != null) ...[
-            const SizedBox(height: 12),
-            // Quantity selector
+            const SizedBox(height: 10),
+            // Selected gift info
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text('Quantity: ', style: TextStyle(color: Colors.white70)),
+                Text(_selected!.emoji, style: const TextStyle(fontSize: 22)),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_selected!.name,
+                        style: TextStyle(
+                            color: _rarityColor(_selected!.rarity),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13)),
+                    Text(_selected!.rarity.name.toUpperCase(),
+                        style: TextStyle(
+                            color: _rarityColor(_selected!.rarity).withValues(alpha: 0.7),
+                            fontSize: 10,
+                            letterSpacing: 1)),
+                  ],
+                ),
+                const Spacer(),
+                // Quantity buttons
                 for (final q in [1, 5, 10, 50])
                   GestureDetector(
                     onTap: () => setState(() => _qty = q),
                     child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      margin: const EdgeInsets.only(left: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: _qty == q ? Colors.orange : Colors.white12,
-                        borderRadius: BorderRadius.circular(12),
+                        color: _qty == q ? Colors.orange : Colors.white10,
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text('×$q',
                           style: TextStyle(
-                              color: _qty == q ? Colors.white : Colors.white54,
+                              color: _qty == q ? Colors.white : Colors.white38,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold)),
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             // Send button
             SizedBox(
               width: double.infinity,
@@ -194,8 +252,8 @@ class _GiftSheetState extends State<GiftSheet> {
                 onPressed: canAfford && !_sending ? _send : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange,
-                  disabledBackgroundColor: Colors.white12,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                  disabledBackgroundColor: Colors.white10,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 child: _sending
                     ? const SizedBox(
@@ -203,15 +261,15 @@ class _GiftSheetState extends State<GiftSheet> {
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                     : Text(
                         canAfford
-                            ? 'Send ${_selected!.emoji} for $total 🪙'
-                            : 'Not enough coins',
+                            ? 'Send ${_selected!.emoji}  ×$_qty  — $total 🪙'
+                            : 'Not enough coins — tap balance to buy',
                         style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                       ),
               ),
             ),
           ],
-          const SizedBox(height: 8),
+          SizedBox(height: MediaQuery.of(context).padding.bottom),
         ],
       ),
     );

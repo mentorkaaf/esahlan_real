@@ -299,6 +299,15 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('/transactions',                 [\App\Http\Controllers\Admin\AdminLiveController::class, 'transactions'])->name('transactions');
         });
 
+        Route::prefix('coins')->name('coins.')->controller(\App\Http\Controllers\Admin\AdminCoinController::class)->group(function () {
+            Route::get('/',                    'index')->name('index');
+            Route::get('/purchases',           'purchases')->name('purchases');
+            Route::post('/packages',           'storePackage')->name('packages.store');
+            Route::put('/packages/{id}',       'updatePackage')->name('packages.update');
+            Route::post('/packages/{id}/toggle', 'togglePackage')->name('packages.toggle');
+            Route::delete('/packages/{id}',    'destroyPackage')->name('packages.destroy');
+        });
+
         Route::prefix('community')->name('community.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'index'])->name('index');
             Route::get('/posts', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'posts'])->name('posts');

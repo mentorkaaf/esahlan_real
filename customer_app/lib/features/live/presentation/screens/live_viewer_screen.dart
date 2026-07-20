@@ -6,6 +6,8 @@ import '../../data/repositories/live_repository.dart';
 import '../widgets/gift_animation_overlay.dart';
 import '../widgets/gift_sheet.dart';
 import '../widgets/live_chat_overlay.dart';
+import '../widgets/live_guest_widget.dart';
+import '../widgets/coin_purchase_sheet.dart';
 import '../../../../core/services/realtime_client.dart';
 
 class LiveViewerScreen extends StatefulWidget {
@@ -58,6 +60,13 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
         session.livekitUrl,
         session.token,
         roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true),
+      );
+
+      // Guest accepted — receive LiveKit token
+      await RealtimeClient.instance.listen(
+        'private-user.${_session!.room.host.id}',
+        'live.guest_accepted',
+        (_) {}, // handled by host screen; viewer receives on private channel below
       );
 
       // Subscribe to gift events from all viewers
@@ -115,6 +124,20 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
     await _repo.leaveRoom(widget.room.id);
     await _room.disconnect();
     if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _showCoinPurchase() async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => CoinPurchaseSheet(
+        currentBalance: _coinBalance,
+        onPurchased: (newBalance) {
+          if (mounted) setState(() => _coinBalance = newBalance);
+        },
+      ),
+    );
   }
 
   Future<void> _showGifts() async {
@@ -314,28 +337,38 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
             bottom: 24, left: 12, right: 12,
             child: Row(
               children: [
-                // Coin balance
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    children: [
-                      const Text('🪙', style: TextStyle(fontSize: 14)),
-                      const SizedBox(width: 4),
-                      Text('$_coinBalance',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ],
+                // Coin balance — tap to buy
+                GestureDetector(
+                  onTap: _showCoinPurchase,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.orange.withValues(alpha: 0.4), width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('🪙', style: TextStyle(fontSize: 14)),
+                        const SizedBox(width: 4),
+                        Text('$_coinBalance',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.add_circle_outline, color: Colors.orange, size: 14),
+                      ],
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
+                // Join stage
+                if (!_loading)
+                  JoinRequestButton(roomId: widget.room.id),
                 const Spacer(),
                 // Gift button
                 GestureDetector(
                   onTap: _showGifts,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                           colors: [Colors.orange, Colors.deepOrange]),
@@ -343,9 +376,9 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
                     ),
                     child: const Row(
                       children: [
-                        Text('🎁', style: TextStyle(fontSize: 18)),
+                        Text('🎁', style: TextStyle(fontSize: 16)),
                         SizedBox(width: 6),
-                        Text('Send Gift',
+                        Text('Gift',
                             style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,

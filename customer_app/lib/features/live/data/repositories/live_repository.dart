@@ -40,15 +40,12 @@ class LiveRepository {
     await _dio.post('/live/rooms/$roomId/message', data: {'message': message});
   }
 
+  // ── Gifts ──────────────────────────────────────────────────────────────────
+
   Future<List<GiftModel>> getGifts() async {
     final res  = await _dio.get('/live/gifts');
     final list = res.data['data'] as List? ?? [];
     return list.map((e) => GiftModel.fromJson(e)).toList();
-  }
-
-  Future<int> getCoinBalance() async {
-    final res = await _dio.get('/live/coins/balance');
-    return res.data['data']['balance'] ?? 0;
   }
 
   Future<Map<String, dynamic>> sendGift({
@@ -61,5 +58,66 @@ class LiveRepository {
       'quantity': quantity,
     });
     return res.data['data'] as Map<String, dynamic>;
+  }
+
+  // ── Coins ──────────────────────────────────────────────────────────────────
+
+  Future<int> getCoinBalance() async {
+    final res = await _dio.get('/live/coins/balance');
+    return res.data['data']['balance'] ?? 0;
+  }
+
+  Future<List<CoinPackage>> getCoinPackages() async {
+    final res  = await _dio.get('/live/coins/packages');
+    final list = res.data['data'] as List? ?? [];
+    return list.map((e) => CoinPackage.fromJson(e)).toList();
+  }
+
+  Future<Map<String, dynamic>> buyCoins({
+    required int packageId,
+    required String paymentMethod,
+    required String paymentReference,
+    Map<String, dynamic>? metadata,
+  }) async {
+    final res = await _dio.post('/live/coins/buy', data: {
+      'package_id':        packageId,
+      'payment_method':    paymentMethod,
+      'payment_reference': paymentReference,
+      ...?metadata,
+    });
+    return res.data['data'] as Map<String, dynamic>;
+  }
+
+  // ── Multi-guest ────────────────────────────────────────────────────────────
+
+  Future<List<LiveGuest>> getGuests(int roomId) async {
+    final res  = await _dio.get('/live/rooms/$roomId/guests');
+    final list = res.data['data'] as List? ?? [];
+    return list.map((e) => LiveGuest.fromJson(e)).toList();
+  }
+
+  Future<int> requestToJoin(int roomId) async {
+    final res = await _dio.post('/live/rooms/$roomId/guest/request');
+    return res.data['data']['request_id'] ?? 0;
+  }
+
+  Future<void> cancelJoinRequest(int roomId) async {
+    await _dio.post('/live/rooms/$roomId/guest/cancel');
+  }
+
+  Future<void> acceptGuest(int roomId, int requestId) async {
+    await _dio.post('/live/rooms/$roomId/guest/accept/$requestId');
+  }
+
+  Future<void> rejectGuest(int roomId, int requestId) async {
+    await _dio.post('/live/rooms/$roomId/guest/reject/$requestId');
+  }
+
+  Future<void> removeGuest(int roomId, int userId) async {
+    await _dio.post('/live/rooms/$roomId/guest/$userId/remove');
+  }
+
+  Future<void> muteGuest(int roomId, int userId, {bool muted = true}) async {
+    await _dio.post('/live/rooms/$roomId/guest/$userId/mute', data: {'muted': muted});
   }
 }

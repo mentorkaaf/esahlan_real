@@ -82,19 +82,35 @@ class LiveSession {
       );
 }
 
+enum GiftRarity { normal, rare, epic, legendary }
+
 class GiftModel {
   final int id;
   final String name;
   final String emoji;
   final String animation;
+  final String? animationUrl;
+  final String? iconUrl;
   final int coins;
+  final int hostCoins;
+  final String category;
+  final GiftRarity rarity;
+  final String? soundEffect;
+  final bool isFeatured;
 
   const GiftModel({
     required this.id,
     required this.name,
     required this.emoji,
     required this.animation,
+    this.animationUrl,
+    this.iconUrl,
     required this.coins,
+    required this.hostCoins,
+    required this.category,
+    required this.rarity,
+    this.soundEffect,
+    required this.isFeatured,
   });
 
   factory GiftModel.fromJson(Map<String, dynamic> j) => GiftModel(
@@ -102,7 +118,110 @@ class GiftModel {
         name: j['name'] ?? '',
         emoji: j['emoji'] ?? '🎁',
         animation: j['animation'] ?? 'confetti',
+        animationUrl: j['animation_url'] as String?,
+        iconUrl: j['icon_url'] as String?,
         coins: j['coins'] ?? 0,
+        hostCoins: j['host_coins'] ?? 0,
+        category: j['category'] ?? 'normal',
+        rarity: _parseRarity(j['rarity'] as String? ?? 'normal'),
+        soundEffect: j['sound_effect'] as String?,
+        isFeatured: j['is_featured'] == true,
+      );
+
+  static GiftRarity _parseRarity(String v) {
+    switch (v) {
+      case 'rare':      return GiftRarity.rare;
+      case 'epic':      return GiftRarity.epic;
+      case 'legendary': return GiftRarity.legendary;
+      default:          return GiftRarity.normal;
+    }
+  }
+}
+
+class CoinPackage {
+  final int id;
+  final String name;
+  final int coins;
+  final int bonusCoins;
+  final int totalCoins;
+  final double price;
+  final String currency;
+  final String? badgeLabel;
+  final bool isFeatured;
+
+  const CoinPackage({
+    required this.id,
+    required this.name,
+    required this.coins,
+    required this.bonusCoins,
+    required this.totalCoins,
+    required this.price,
+    required this.currency,
+    this.badgeLabel,
+    required this.isFeatured,
+  });
+
+  factory CoinPackage.fromJson(Map<String, dynamic> j) => CoinPackage(
+        id: j['id'] ?? 0,
+        name: j['name'] ?? '',
+        coins: j['coins'] ?? 0,
+        bonusCoins: j['bonus_coins'] ?? 0,
+        totalCoins: j['total_coins'] ?? j['coins'] ?? 0,
+        price: (j['price'] as num?)?.toDouble() ?? 0.0,
+        currency: j['currency'] ?? 'USD',
+        badgeLabel: j['badge_label'] as String?,
+        isFeatured: j['is_featured'] == true,
+      );
+}
+
+class LiveGuest {
+  final int userId;
+  final String name;
+  final String username;
+  final String avatar;
+  final bool isMuted;
+  final bool cameraDisabled;
+
+  const LiveGuest({
+    required this.userId,
+    required this.name,
+    required this.username,
+    required this.avatar,
+    required this.isMuted,
+    required this.cameraDisabled,
+  });
+
+  factory LiveGuest.fromJson(Map<String, dynamic> j) => LiveGuest(
+        userId: j['user_id'] ?? 0,
+        name: j['name'] ?? '',
+        username: j['username'] ?? '',
+        avatar: j['avatar'] ?? '',
+        isMuted: j['is_muted'] == true,
+        cameraDisabled: j['camera_disabled'] == true,
+      );
+}
+
+class GuestRequest {
+  final int requestId;
+  final int userId;
+  final String name;
+  final String username;
+  final String avatar;
+
+  const GuestRequest({
+    required this.requestId,
+    required this.userId,
+    required this.name,
+    required this.username,
+    required this.avatar,
+  });
+
+  factory GuestRequest.fromJson(Map<String, dynamic> j) => GuestRequest(
+        requestId: j['request_id'] ?? 0,
+        userId: j['user_id'] ?? 0,
+        name: j['name'] ?? '',
+        username: j['username'] ?? '',
+        avatar: j['avatar'] ?? '',
       );
 }
 

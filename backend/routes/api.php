@@ -30,6 +30,8 @@ use App\Http\Controllers\Api\Podcast\PodcastLibraryController;
 use App\Http\Controllers\Api\Call\CallController;
 use App\Http\Controllers\Api\Live\LiveRoomController;
 use App\Http\Controllers\Api\Live\GiftController;
+use App\Http\Controllers\Api\Live\CoinController;
+use App\Http\Controllers\Api\Live\LiveGuestController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
@@ -742,9 +744,23 @@ Route::prefix('v1/live')->middleware('auth:sanctum')->group(function () {
     Route::post('rooms/{id}/message',      [LiveRoomController::class, 'message']);
 
     Route::get('gifts',                    [GiftController::class, 'index']);
-    Route::get('coins/balance',            [GiftController::class, 'balance']);
     Route::post('rooms/{id}/gifts',        [GiftController::class, 'send']);
     Route::get('rooms/{id}/top-gifters',   [GiftController::class, 'topGifters']);
+
+    // Coins
+    Route::get('coins/balance',            [CoinController::class, 'balance']);
+    Route::get('coins/packages',           [CoinController::class, 'packages']);
+    Route::post('coins/buy',               [CoinController::class, 'buy']);
+    Route::get('coins/history',            [CoinController::class, 'history']);
+
+    // Multi-guest
+    Route::get('rooms/{id}/guests',             [LiveGuestController::class, 'index']);
+    Route::post('rooms/{id}/guest/request',     [LiveGuestController::class, 'request']);
+    Route::post('rooms/{id}/guest/cancel',      [LiveGuestController::class, 'cancel']);
+    Route::post('rooms/{id}/guest/accept/{requestId}', [LiveGuestController::class, 'accept']);
+    Route::post('rooms/{id}/guest/reject/{requestId}', [LiveGuestController::class, 'reject']);
+    Route::post('rooms/{id}/guest/{userId}/remove', [LiveGuestController::class, 'remove']);
+    Route::post('rooms/{id}/guest/{userId}/mute',   [LiveGuestController::class, 'mute']);
 });
 
     // Admin engagement generator

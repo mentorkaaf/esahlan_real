@@ -179,14 +179,30 @@ class AdminLiveController extends Controller
     public function storeGift(Request $request)
     {
         $data = $request->validate([
-            'name'      => 'required|string|max:60',
-            'emoji'     => 'required|string|max:10',
-            'animation' => 'required|string|max:30',
-            'coins'     => 'required|integer|min:1',
-            'sort'      => 'nullable|integer|min:0',
+            'name'             => 'required|string|max:60',
+            'emoji'            => 'required|string|max:10',
+            'animation'        => 'required|string|max:50',
+            'animation_url'    => 'nullable|url|max:500',
+            'icon_url'         => 'nullable|url|max:500',
+            'coins'            => 'required|integer|min:1',
+            'host_coins'       => 'nullable|integer|min:0',
+            'category'         => 'required|in:normal,premium,epic,legendary,seasonal,exclusive,vip',
+            'rarity'           => 'required|in:normal,rare,epic,legendary',
+            'sound_effect'     => 'nullable|string|max:100',
+            'sort'             => 'nullable|integer|min:0',
+            'display_priority' => 'nullable|integer|min:0',
+            'is_featured'      => 'nullable|boolean',
+            'scheduled_start'  => 'nullable|date',
+            'scheduled_end'    => 'nullable|date|after:scheduled_start',
         ]);
 
-        Gift::create(array_merge($data, ['is_active' => true, 'sort' => $data['sort'] ?? 0]));
+        Gift::create(array_merge($data, [
+            'is_active'        => true,
+            'sort'             => $data['sort'] ?? 0,
+            'display_priority' => $data['display_priority'] ?? 0,
+            'host_coins'       => $data['host_coins'] ?? (int) round($data['coins'] * 0.7),
+            'is_featured'      => $data['is_featured'] ?? false,
+        ]));
 
         return back()->with('success', 'Gift created.');
     }
@@ -195,11 +211,21 @@ class AdminLiveController extends Controller
     {
         $gift = Gift::findOrFail($id);
         $data = $request->validate([
-            'name'      => 'required|string|max:60',
-            'emoji'     => 'required|string|max:10',
-            'animation' => 'required|string|max:30',
-            'coins'     => 'required|integer|min:1',
-            'sort'      => 'nullable|integer|min:0',
+            'name'             => 'required|string|max:60',
+            'emoji'            => 'required|string|max:10',
+            'animation'        => 'required|string|max:50',
+            'animation_url'    => 'nullable|url|max:500',
+            'icon_url'         => 'nullable|url|max:500',
+            'coins'            => 'required|integer|min:1',
+            'host_coins'       => 'nullable|integer|min:0',
+            'category'         => 'required|in:normal,premium,epic,legendary,seasonal,exclusive,vip',
+            'rarity'           => 'required|in:normal,rare,epic,legendary',
+            'sound_effect'     => 'nullable|string|max:100',
+            'sort'             => 'nullable|integer|min:0',
+            'display_priority' => 'nullable|integer|min:0',
+            'is_featured'      => 'nullable|boolean',
+            'scheduled_start'  => 'nullable|date',
+            'scheduled_end'    => 'nullable|date|after_or_equal:scheduled_start',
         ]);
         $gift->update($data);
 

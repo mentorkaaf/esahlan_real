@@ -6,6 +6,7 @@ import '../../data/models/live_models.dart';
 import '../../data/repositories/live_repository.dart';
 import '../widgets/gift_animation_overlay.dart';
 import '../widgets/live_chat_overlay.dart';
+import '../widgets/live_guest_widget.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/services/realtime_client.dart';
 
@@ -28,6 +29,8 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
   int _duration = 0;
   Timer? _timer;
   final _giftEvents = <GiftEvent>[];
+  final _guestRequests = <GuestRequest>[];
+  final _activeGuests = <LiveGuest>[];
   final _repo = LiveRepository();
 
   @override
@@ -91,7 +94,39 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
       (_) { if (mounted) setState(() { if (_viewerCount > 0) _viewerCount--; }); },
     );
 
+    // Guest system — incoming requests on private-user channel
+    await RealtimeClient.instance.listen(
+      'private-user.${widget.session.room.host.id}',
+      'live.guest_request',
+      _onGuestRequest,
+    );
+    await RealtimeClient.instance.listen(
+      _reverbChannel,
+      'live.guests_updated',
+      _onGuestsUpdated,
+    );
+
     setState(() {});
+  }
+
+  void _onGuestRequest(dynamic data) {
+    if (!mounted) return;
+    try {
+      final req = GuestRequest.fromJson(Map<String, dynamic>.from(data as Map));
+      setState(() => _guestRequests.add(req));
+    } catch (_) {}
+  }
+
+  void _onGuestsUpdated(dynamic data) {
+    if (!mounted) return;
+    try {
+      final list = (data['guests'] as List? ?? []);
+      setState(() {
+        _activeGuests
+          ..clear()
+          ..addAll(list.map((e) => LiveGuest.fromJson(Map<String, dynamic>.from(e as Map))));
+      });
+    } catch (_) {}
   }
 
   void _handleGiftEvent(dynamic data) {
@@ -255,6 +290,24 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
 
           // Gift animations
           ...(_giftEvents.map((e) => GiftAnimationOverlay(event: e))),
+
+          // Active guests panel
+          if (_activeGuests.isNotEmpty)
+            LiveGuestGrid(
+              guests: _activeGuests,
+              roomId: widget.session.room.id,
+              isHost: true,
+            ),
+
+          // Guest request popups (show one at a time, top of stack)
+          if (_guestRequests.isNotEmpty)
+            GuestRequestPopup(
+              request: _guestRequests.first,
+              roomId: widget.session.room.id,
+              onHandled: () {
+                if (mounted) setState(() => _guestRequests.removeAt(0));
+              },
+            ),
 
           // Chat overlay (left side, above bottom controls)
           Positioned(
