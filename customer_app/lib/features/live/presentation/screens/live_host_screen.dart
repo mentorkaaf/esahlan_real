@@ -270,10 +270,12 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
                 _LiveControl(
                   icon: Icons.flip_camera_ios,
                   active: true,
-                  onTap: () {
+                  onTap: () async {
                     _frontCamera = !_frontCamera;
                     final pos = _frontCamera ? CameraPosition.front : CameraPosition.back;
-                    _room.localParticipant?.setCameraPosition(pos);
+                    await _room.localParticipant?.setCameraEnabled(false);
+                    await _room.localParticipant?.setCameraEnabled(true,
+                        cameraCaptureOptions: CameraCaptureOptions(cameraPosition: pos));
                     setState(() {});
                   },
                 ),

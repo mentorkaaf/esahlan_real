@@ -89,7 +89,9 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
   Future<void> _flipCamera() async {
     _frontCamera = !_frontCamera;
     final pos = _frontCamera ? CameraPosition.front : CameraPosition.back;
-    await _room.localParticipant?.setCameraPosition(pos);
+    await _room.localParticipant?.setCameraEnabled(false);
+    await _room.localParticipant?.setCameraEnabled(true,
+        cameraCaptureOptions: CameraCaptureOptions(cameraPosition: pos));
     setState(() {});
   }
 
