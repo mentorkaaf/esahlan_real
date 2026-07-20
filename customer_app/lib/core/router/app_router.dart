@@ -44,7 +44,9 @@ import '../../features/live/presentation/screens/live_rooms_screen.dart';
 import '../../features/live/presentation/screens/go_live_screen.dart';
 import '../../features/live/presentation/screens/live_host_screen.dart';
 import '../../features/live/presentation/screens/live_viewer_screen.dart';
+import '../../features/live/presentation/screens/past_lives_screen.dart';
 import '../../features/live/data/models/live_models.dart';
+import '../../features/live/data/repositories/live_repository.dart';
 
 // eLearning screens
 import '../../features/elearning/presentation/screens/elearning_screen.dart';
@@ -272,10 +274,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/live/view',
-        builder: (_, state) => LiveViewerScreen(
-          room: state.extra as LiveRoom,
-        ),
+        builder: (_, state) {
+          // Support both extra (direct) and query param (from notification deep link)
+          if (state.extra is LiveRoom) {
+            return LiveViewerScreen(room: state.extra as LiveRoom);
+          }
+          // Deep link: /live/view?room_id=123
+          final roomId = int.tryParse(state.uri.queryParameters['room_id'] ?? '');
+          return _LiveViewerLoader(roomId: roomId);
+        },
       ),
+      GoRoute(path: '/live/past', builder: (_, __) => const PastLivesScreen()),
 
       // Detail routes
       GoRoute(
@@ -322,3 +331,45 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return router;
 });
+
+// Loads a LiveRoom by ID then opens LiveViewerScreen — used for notification deep links
+class _LiveViewerLoader extends StatefulWidget {
+  final int? roomId;
+  const _LiveViewerLoader({this.roomId});
+
+  @override
+  State<_LiveViewerLoader> createState() => _LiveViewerLoaderState();
+}
+
+class _LiveViewerLoaderState extends State<_LiveViewerLoader> {
+  @override
+  void initState() {
+    super.initState();
+    _open();
+  }
+
+  Future<void> _open() async {
+    if (widget.roomId == null) {
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+    try {
+      final session = await LiveRepository().joinRoom(widget.roomId!);
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => LiveViewerScreen(room: session.room)),
+        );
+      }
+    } catch (_) {
+      if (mounted) Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(child: CircularProgressIndicator(color: Colors.orange)),
+    );
+  }
+}

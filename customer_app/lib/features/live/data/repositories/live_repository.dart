@@ -11,6 +11,13 @@ class LiveRepository {
     return list.map((e) => LiveRoom.fromJson(e)).toList();
   }
 
+  Future<List<LiveRoom>> getPastRooms() async {
+    final res  = await _dio.get('/live/rooms/past');
+    final data = res.data['data'];
+    final list = data is List ? data : (data['data'] as List? ?? []);
+    return list.map((e) => LiveRoom.fromJson(e)).toList();
+  }
+
   Future<LiveSession> createRoom({required String title}) async {
     final res = await _dio.post('/live/rooms', data: {'title': title});
     return LiveSession.fromJson(res.data['data']);

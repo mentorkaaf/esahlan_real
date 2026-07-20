@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 import '../../data/models/live_models.dart';
@@ -40,24 +41,35 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
   String get _reverbChannel => 'presence-live.${widget.session.room.id}';
 
   Future<void> _connect() async {
-    await [Permission.camera, Permission.microphone].request();
-    _room = Room();
-    _listener = _room.createListener()
-      ..on<LocalTrackPublishedEvent>((_) => setState(() {}))
-      ..on<LocalTrackUnpublishedEvent>((_) => setState(() {}))
-      ..on<ParticipantConnectedEvent>((_) => setState(() => _viewerCount++))
-      ..on<ParticipantDisconnectedEvent>((_) => setState(() {
-            if (_viewerCount > 0) _viewerCount--;
-          }));
+    try {
+      await [Permission.camera, Permission.microphone].request();
+      _room = Room();
+      _listener = _room.createListener()
+        ..on<LocalTrackPublishedEvent>((_) { if (mounted) setState(() {}); })
+        ..on<LocalTrackUnpublishedEvent>((_) { if (mounted) setState(() {}); })
+        ..on<ParticipantConnectedEvent>((_) { if (mounted) setState(() => _viewerCount++); })
+        ..on<ParticipantDisconnectedEvent>((_) {
+          if (mounted) setState(() { if (_viewerCount > 0) _viewerCount--; });
+        });
 
-    await _room.connect(
-      widget.session.livekitUrl,
-      widget.session.token,
-      roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true),
-    );
+      await _room.connect(
+        widget.session.livekitUrl,
+        widget.session.token,
+        roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true),
+      );
 
-    await _room.localParticipant?.setCameraEnabled(true);
-    await _room.localParticipant?.setMicrophoneEnabled(true);
+      await _room.localParticipant?.setCameraEnabled(true);
+      await _room.localParticipant?.setMicrophoneEnabled(true);
+    } catch (e) {
+      debugPrint('[Live] connect error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Connection failed: $e'), backgroundColor: Colors.red),
+        );
+        Navigator.of(context).pop();
+        return;
+      }
+    }
 
     // Subscribe to gift events via Reverb
     await RealtimeClient.instance.listen(
@@ -275,12 +287,18 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
                   icon: Icons.flip_camera_ios,
                   active: true,
                   onTap: () async {
+                    if (!_cameraOn) return;
                     _frontCamera = !_frontCamera;
                     final pos = _frontCamera ? CameraPosition.front : CameraPosition.back;
-                    await _room.localParticipant?.setCameraEnabled(false);
-                    await _room.localParticipant?.setCameraEnabled(true,
-                        cameraCaptureOptions: CameraCaptureOptions(cameraPosition: pos));
-                    setState(() {});
+                    try {
+                      await _room.localParticipant?.setCameraEnabled(false);
+                      await Future.delayed(const Duration(milliseconds: 300));
+                      await _room.localParticipant?.setCameraEnabled(true,
+                          cameraCaptureOptions: CameraCaptureOptions(cameraPosition: pos));
+                    } catch (e) {
+                      debugPrint('[Live] flip error: $e');
+                    }
+                    if (mounted) setState(() {});
                   },
                 ),
               ],

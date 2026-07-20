@@ -21,6 +21,8 @@ import 'features/podcast/presentation/services/podcast_audio_service.dart';
 
 // Cold-start notification data captured before runApp()
 String? _coldStartDeepLink;
+// Callkit accept captured before app is mounted
+String? _pendingCallkitCallId;
 
 // ─────────────────────────────────────────────────────────────────────────────
 void main() async {
@@ -38,7 +40,14 @@ void main() async {
       _coldStartDeepLink = initial.data['deep_link'] as String?;
       debugPrint('[FCM] Cold-start deep link: $_coldStartDeepLink');
     }
-    // incoming_call cold-start is handled by flutter_callkit_incoming events below
+    // Capture callkit accept BEFORE runApp so we don't miss the event
+    FlutterCallkitIncoming.onEvent.listen((CallEvent? event) {
+      if (event?.event == Event.actionCallAccept) {
+        _pendingCallkitCallId =
+            event?.body?['extra']?['call_id']?.toString();
+        debugPrint('[CallKit:pre] Accept captured: $_pendingCallkitCallId');
+      }
+    });
   } catch (e) {
     debugPrint('[Firebase] Pre-runApp error: $e');
   }
@@ -105,7 +114,7 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
     // Regular deep-link from foreground notification tap
     FirebaseService().onDeepLink = navigate;
 
-    // Background tap — regular notification
+    // Background tap — regular notification (includes live_started deep link)
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
       final dl = message.data['deep_link'] as String?;
       if (dl != null && dl.isNotEmpty) navigate(dl);
@@ -121,38 +130,47 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
     }
 
     // ── flutter_callkit_incoming events ────────────────────────────────────
+    Future<void> handleCallkitAccept(String callIdStr) async {
+      final callId = int.tryParse(callIdStr) ?? 0;
+      if (callId <= 0) return;
+      try {
+        final session = await CallRepository().acceptCall(callId);
+        if (mounted) router.push('/calls/active', extra: session);
+      } catch (e) {
+        debugPrint('[CallKit] Accept error: $e');
+      }
+    }
+
+    // Handle cold-start callkit accept (captured before runApp)
+    if (_pendingCallkitCallId != null) {
+      final id = _pendingCallkitCallId!;
+      _pendingCallkitCallId = null;
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted) handleCallkitAccept(id);
+      });
+    }
+
     FlutterCallkitIncoming.onEvent.listen((CallEvent? event) async {
       if (event == null || !mounted) return;
       debugPrint('[CallKit] Event: ${event.event}');
 
       switch (event.event) {
         case Event.actionCallAccept:
-          // User accepted from native call screen — accept via API + go to call
-          final callIdStr = event.body?['extra']?['call_id']?.toString() ?? '';
-          final callId = int.tryParse(callIdStr) ?? 0;
-          if (callId > 0) {
-            try {
-              final session = await CallRepository().acceptCall(callId);
-              if (mounted) router.push('/calls/active', extra: session);
-            } catch (e) {
-              debugPrint('[CallKit] Accept error: $e');
-            }
-          }
+          await handleCallkitAccept(
+              event.body?['extra']?['call_id']?.toString() ?? '');
           break;
 
         case Event.actionCallDecline:
-          // User declined from native call screen
-          final callIdStr = event.body?['extra']?['call_id']?.toString() ?? '';
-          final callId = int.tryParse(callIdStr) ?? 0;
+          final callId = int.tryParse(
+              event.body?['extra']?['call_id']?.toString() ?? '0') ?? 0;
           if (callId > 0) {
             try { await CallRepository().rejectCall(callId); } catch (_) {}
           }
           break;
 
         case Event.actionCallTimeout:
-          // Auto-missed after 30s
-          final callIdStr = event.body?['extra']?['call_id']?.toString() ?? '';
-          final callId = int.tryParse(callIdStr) ?? 0;
+          final callId = int.tryParse(
+              event.body?['extra']?['call_id']?.toString() ?? '0') ?? 0;
           if (callId > 0) {
             try { await CallRepository().rejectCall(callId); } catch (_) {}
           }

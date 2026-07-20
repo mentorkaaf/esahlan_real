@@ -29,6 +29,9 @@ class LiveRoom {
   final int peakViewers;
   final LiveHost host;
   final DateTime createdAt;
+  final DateTime? endedAt;
+  final int? durationSeconds;
+  final int? totalGifts;
 
   const LiveRoom({
     required this.id,
@@ -40,6 +43,9 @@ class LiveRoom {
     required this.peakViewers,
     required this.host,
     required this.createdAt,
+    this.endedAt,
+    this.durationSeconds,
+    this.totalGifts,
   });
 
   factory LiveRoom.fromJson(Map<String, dynamic> j) => LiveRoom(
@@ -52,6 +58,9 @@ class LiveRoom {
         peakViewers: j['peak_viewers'] ?? 0,
         host: LiveHost.fromJson(j['host'] ?? {}),
         createdAt: DateTime.tryParse(j['created_at'] ?? '') ?? DateTime.now(),
+        endedAt: j['ended_at'] != null ? DateTime.tryParse(j['ended_at']) : null,
+        durationSeconds: j['duration_seconds'] as int?,
+        totalGifts: j['total_gifts'] as int?,
       );
 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../data/models/live_models.dart';
 import '../../data/repositories/live_repository.dart';
 import '../../../../core/utils/media_url.dart';
@@ -41,6 +42,11 @@ class _LiveRoomsScreenState extends State<LiveRoomsScreen> {
         foregroundColor: Colors.white,
         title: const Text('Live', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
+          IconButton(
+            onPressed: () => context.push('/live/past'),
+            icon: const Icon(Icons.history, color: Colors.white70),
+            tooltip: 'Past Lives',
+          ),
           TextButton.icon(
             onPressed: () => Navigator.push(
               context,
