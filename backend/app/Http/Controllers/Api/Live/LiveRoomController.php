@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Api\Live;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\SendLiveNotificationJob;
+use App\Models\GiftTransaction;
 use App\Models\LiveRoom;
 use App\Models\LiveRoomViewer;
 use App\Services\LiveKitService;
@@ -11,10 +12,7 @@ use Illuminate\Http\Request;
 
 class LiveRoomController extends Controller
 {
-    public function __construct(
-        private LiveKitService  $liveKit,
-        private RealtimeService $realtime,
-    ) {}
+    public function __construct(private LiveKitService $liveKit) {}
 
     /** List active live rooms */
     public function index()
@@ -111,7 +109,7 @@ class LiveRoomController extends Controller
         ]);
 
         // Broadcast viewer joined
-        $this->realtime->broadcast("presence-live.{$id}", 'viewer.joined', [
+        RealtimeService::toPublic("live.{$id}", 'viewer.joined', [
             'user_id' => $userId,
             'viewer_count' => $count,
         ]);
@@ -144,7 +142,7 @@ class LiveRoomController extends Controller
         $count = LiveRoomViewer::where('live_room_id', $id)->whereNull('left_at')->count();
         $room->update(['viewer_count' => $count]);
 
-        $this->realtime->broadcast("presence-live.{$id}", 'viewer.left', [
+        RealtimeService::toPublic("live.{$id}", 'viewer.left', [
             'user_id'      => $userId,
             'viewer_count' => $count,
         ]);
@@ -162,7 +160,7 @@ class LiveRoomController extends Controller
 
         $room->update(['status' => 'ended', 'ended_at' => now()]);
 
-        $this->realtime->broadcast("presence-live.{$id}", 'live.ended', [
+        RealtimeService::toPublic("live.{$id}", 'live.ended', [
             'room_id' => $id,
         ]);
 
@@ -193,7 +191,7 @@ class LiveRoomController extends Controller
 
         if ($withStats && $room->ended_at && $room->created_at) {
             $data['duration_seconds'] = (int) $room->created_at->diffInSeconds($room->ended_at);
-            $data['total_gifts']      = $room->gifts()->sum('total_coins') ?? 0;
+            $data['total_gifts']      = GiftTransaction::where('live_room_id', $room->id)->sum('coins_spent');
         }
 
         return $data;

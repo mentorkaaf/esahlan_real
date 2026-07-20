@@ -27,7 +27,7 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
   bool _loading = true;
   bool _ended = false;
 
-  String get _reverbChannel => 'presence-live.${widget.room.id}';
+  String get _reverbChannel => 'live.${widget.room.id}';
 
   @override
   void initState() {

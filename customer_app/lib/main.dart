@@ -40,12 +40,11 @@ void main() async {
       _coldStartDeepLink = initial.data['deep_link'] as String?;
       debugPrint('[FCM] Cold-start deep link: $_coldStartDeepLink');
     }
-    // Capture callkit accept BEFORE runApp so we don't miss the event
+    // Capture callkit accept for cold-start (app was killed, callkit fired before State is ready)
     FlutterCallkitIncoming.onEvent.listen((CallEvent? event) {
-      if (event?.event == Event.actionCallAccept) {
-        _pendingCallkitCallId =
-            event?.body?['extra']?['call_id']?.toString();
-        debugPrint('[CallKit:pre] Accept captured: $_pendingCallkitCallId');
+      if (event?.event == Event.actionCallAccept && _pendingCallkitCallId == null) {
+        _pendingCallkitCallId = event?.body?['extra']?['call_id']?.toString();
+        debugPrint('[CallKit:pre] Cold-start capture: $_pendingCallkitCallId');
       }
     });
   } catch (e) {
@@ -73,10 +72,15 @@ class eSahlanApp extends ConsumerStatefulWidget {
 class _eSahlanAppState extends ConsumerState<eSahlanApp>
     with WidgetsBindingObserver {
 
+  StreamSubscription? _callkitSub;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // Callkit listener lives at State level — always active, even during background→foreground
+    _callkitSub = FlutterCallkitIncoming.onEvent.listen(_onCallkitEvent);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await FirebaseService().initialize();
@@ -84,13 +88,57 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) FirebaseService().requestPermissionIfNeeded();
       });
+
+      // Handle cold-start callkit accept captured before runApp
+      if (_pendingCallkitCallId != null) {
+        final id = _pendingCallkitCallId!;
+        _pendingCallkitCallId = null;
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          if (mounted) _acceptCall(id);
+        });
+      }
     });
   }
 
   @override
   void dispose() {
+    _callkitSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  // ── CallKit event handler (background + foreground) ──────────────────────
+  void _onCallkitEvent(CallEvent? event) async {
+    if (event == null || !mounted) return;
+    debugPrint('[CallKit] Event: ${event.event}');
+    switch (event.event) {
+      case Event.actionCallAccept:
+        final callId = event.body?['extra']?['call_id']?.toString() ?? '';
+        if (callId.isNotEmpty) await _acceptCall(callId);
+        break;
+      case Event.actionCallDecline:
+      case Event.actionCallTimeout:
+        final callId = int.tryParse(
+            event.body?['extra']?['call_id']?.toString() ?? '0') ?? 0;
+        if (callId > 0) {
+          try { await CallRepository().rejectCall(callId); } catch (_) {}
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  Future<void> _acceptCall(String callIdStr) async {
+    final callId = int.tryParse(callIdStr) ?? 0;
+    if (callId <= 0) return;
+    try {
+      final router = ref.read(routerProvider);
+      final session = await CallRepository().acceptCall(callId);
+      if (mounted) router.push('/calls/active', extra: session);
+    } catch (e) {
+      debugPrint('[CallKit] Accept error: $e');
+    }
   }
 
   @override
@@ -129,57 +177,7 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
       });
     }
 
-    // ── flutter_callkit_incoming events ────────────────────────────────────
-    Future<void> handleCallkitAccept(String callIdStr) async {
-      final callId = int.tryParse(callIdStr) ?? 0;
-      if (callId <= 0) return;
-      try {
-        final session = await CallRepository().acceptCall(callId);
-        if (mounted) router.push('/calls/active', extra: session);
-      } catch (e) {
-        debugPrint('[CallKit] Accept error: $e');
-      }
-    }
-
-    // Handle cold-start callkit accept (captured before runApp)
-    if (_pendingCallkitCallId != null) {
-      final id = _pendingCallkitCallId!;
-      _pendingCallkitCallId = null;
-      Future.delayed(const Duration(milliseconds: 800), () {
-        if (mounted) handleCallkitAccept(id);
-      });
-    }
-
-    FlutterCallkitIncoming.onEvent.listen((CallEvent? event) async {
-      if (event == null || !mounted) return;
-      debugPrint('[CallKit] Event: ${event.event}');
-
-      switch (event.event) {
-        case Event.actionCallAccept:
-          await handleCallkitAccept(
-              event.body?['extra']?['call_id']?.toString() ?? '');
-          break;
-
-        case Event.actionCallDecline:
-          final callId = int.tryParse(
-              event.body?['extra']?['call_id']?.toString() ?? '0') ?? 0;
-          if (callId > 0) {
-            try { await CallRepository().rejectCall(callId); } catch (_) {}
-          }
-          break;
-
-        case Event.actionCallTimeout:
-          final callId = int.tryParse(
-              event.body?['extra']?['call_id']?.toString() ?? '0') ?? 0;
-          if (callId > 0) {
-            try { await CallRepository().rejectCall(callId); } catch (_) {}
-          }
-          break;
-
-        default:
-          break;
-      }
-    });
+    // CallKit events are handled by _onCallkitEvent (set up in initState)
   }
 
   @override

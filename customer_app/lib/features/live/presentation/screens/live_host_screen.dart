@@ -38,7 +38,7 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
     });
   }
 
-  String get _reverbChannel => 'presence-live.${widget.session.room.id}';
+  String get _reverbChannel => 'live.${widget.session.room.id}';
 
   Future<void> _connect() async {
     try {
@@ -289,12 +289,22 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
                   onTap: () async {
                     if (!_cameraOn) return;
                     _frontCamera = !_frontCamera;
-                    final pos = _frontCamera ? CameraPosition.front : CameraPosition.back;
+                    if (mounted) setState(() {});
                     try {
-                      await _room.localParticipant?.setCameraEnabled(false);
-                      await Future.delayed(const Duration(milliseconds: 300));
-                      await _room.localParticipant?.setCameraEnabled(true,
-                          cameraCaptureOptions: CameraCaptureOptions(cameraPosition: pos));
+                      // Get the existing video track and switch camera position directly
+                      final pub = _room.localParticipant?.videoTrackPublications.values
+                          .firstOrNull;
+                      final track = pub?.track;
+                      if (track is LocalVideoTrack) {
+                        await track.switchCamera();
+                      } else {
+                        // Fallback: disable then re-enable with new position
+                        final pos = _frontCamera ? CameraPosition.front : CameraPosition.back;
+                        await _room.localParticipant?.setCameraEnabled(false);
+                        await Future.delayed(const Duration(milliseconds: 500));
+                        await _room.localParticipant?.setCameraEnabled(true,
+                            cameraCaptureOptions: CameraCaptureOptions(cameraPosition: pos));
+                      }
                     } catch (e) {
                       debugPrint('[Live] flip error: $e');
                     }
