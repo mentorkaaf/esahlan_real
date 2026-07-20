@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Api\Live;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendLiveNotificationJob;
 use App\Models\LiveRoom;
 use App\Models\LiveRoomViewer;
 use App\Services\LiveKitService;
@@ -59,6 +60,9 @@ class LiveRoomController extends Controller
             'canSubscribe' => true,
         ]);
 
+        // Notify followers in background
+        SendLiveNotificationJob::dispatch($room->id)->onQueue('default');
+
         return response()->json([
             'status' => 'success',
             'data'   => [
@@ -66,6 +70,21 @@ class LiveRoomController extends Controller
                 'token'      => $token,
                 'livekit_url' => $this->liveKit->serverUrl(),
             ],
+        ]);
+    }
+
+    /** List past (ended) live rooms */
+    public function past()
+    {
+        $rooms = LiveRoom::with('host.communityProfile')
+            ->where('status', 'ended')
+            ->whereNotNull('ended_at')
+            ->orderByDesc('ended_at')
+            ->paginate(20);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $rooms->map(fn($r) => $this->transformRoom($r, withStats: true)),
         ]);
     }
 
@@ -145,11 +164,11 @@ class LiveRoomController extends Controller
         return response()->json(['status' => 'success']);
     }
 
-    private function transformRoom(LiveRoom $room): array
+    private function transformRoom(LiveRoom $room, bool $withStats = false): array
     {
         $host = $room->host;
         $p    = $host?->communityProfile;
-        return [
+        $data = [
             'id'           => $room->id,
             'title'        => $room->title,
             'room_name'    => $room->room_name,
@@ -164,6 +183,14 @@ class LiveRoomController extends Controller
                 'avatar'   => $p?->avatar ?? '',
             ],
             'created_at' => $room->created_at,
+            'ended_at'   => $room->ended_at,
         ];
+
+        if ($withStats && $room->ended_at && $room->created_at) {
+            $data['duration_seconds'] = (int) $room->created_at->diffInSeconds($room->ended_at);
+            $data['total_gifts']      = $room->gifts()->sum('total_coins') ?? 0;
+        }
+
+        return $data;
     }
 }
