@@ -5,6 +5,7 @@ import '../../data/models/live_models.dart';
 import '../../data/repositories/live_repository.dart';
 import '../widgets/gift_animation_overlay.dart';
 import '../widgets/gift_sheet.dart';
+import '../widgets/live_chat_overlay.dart';
 import '../../../../core/services/realtime_client.dart';
 
 class LiveViewerScreen extends StatefulWidget {
@@ -295,6 +296,18 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
 
           // Gift animations
           ...(_giftEvents.map((e) => GiftAnimationOverlay(event: e))),
+
+          // Chat overlay (left side, above bottom bar)
+          if (!_loading)
+            Positioned(
+              bottom: 80,
+              left: 0,
+              right: 60,
+              child: LiveChatOverlay(
+                roomId: widget.room.id,
+                reverbChannel: _reverbChannel,
+              ),
+            ),
 
           // Bottom bar
           Positioned(

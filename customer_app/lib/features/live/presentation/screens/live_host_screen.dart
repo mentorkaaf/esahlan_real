@@ -5,6 +5,7 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../data/models/live_models.dart';
 import '../../data/repositories/live_repository.dart';
 import '../widgets/gift_animation_overlay.dart';
+import '../widgets/live_chat_overlay.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/services/realtime_client.dart';
 
@@ -254,6 +255,17 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
 
           // Gift animations
           ...(_giftEvents.map((e) => GiftAnimationOverlay(event: e))),
+
+          // Chat overlay (left side, above bottom controls)
+          Positioned(
+            bottom: 110,
+            left: 0,
+            right: 60,
+            child: LiveChatOverlay(
+              roomId: widget.session.room.id,
+              reverbChannel: _reverbChannel,
+            ),
+          ),
 
           // Bottom controls
           Positioned(

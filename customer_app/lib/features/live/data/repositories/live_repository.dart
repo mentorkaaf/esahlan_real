@@ -36,6 +36,10 @@ class LiveRepository {
     await _dio.post('/live/rooms/$roomId/end');
   }
 
+  Future<void> sendMessage(int roomId, String message) async {
+    await _dio.post('/live/rooms/$roomId/message', data: {'message': message});
+  }
+
   Future<List<GiftModel>> getGifts() async {
     final res  = await _dio.get('/live/gifts');
     final list = res.data['data'] as List? ?? [];

@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\SendLiveNotificationJob;
 use App\Models\GiftTransaction;
 use App\Models\LiveRoom;
+use App\Models\LiveRoomMessage;
 use App\Models\LiveRoomViewer;
 use App\Services\LiveKitService;
 use App\Services\RealtimeService;
@@ -145,6 +146,35 @@ class LiveRoomController extends Controller
         RealtimeService::toPublic("live.{$id}", 'viewer.left', [
             'user_id'      => $userId,
             'viewer_count' => $count,
+        ]);
+
+        return response()->json(['status' => 'success']);
+    }
+
+    /** Send a chat message in a live room */
+    public function message(Request $request, int $id)
+    {
+        $room = LiveRoom::where('id', $id)->where('status', 'live')->firstOrFail();
+
+        $request->validate(['message' => 'required|string|max:300']);
+
+        $user = auth()->user();
+        $p    = $user->communityProfile;
+
+        $msg = LiveRoomMessage::create([
+            'live_room_id' => $id,
+            'user_id'      => $user->id,
+            'message'      => $request->message,
+        ]);
+
+        RealtimeService::toPublic("live.{$id}", 'live.chat', [
+            'id'         => $msg->id,
+            'user_id'    => $user->id,
+            'username'   => $p?->username ?? $user->name,
+            'avatar'     => $p?->avatar ?? '',
+            'message'    => $msg->message,
+            'is_host'    => $room->host_id === $user->id,
+            'created_at' => $msg->created_at->toISOString(),
         ]);
 
         return response()->json(['status' => 'success']);

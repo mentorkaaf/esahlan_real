@@ -739,6 +739,7 @@ Route::prefix('v1/live')->middleware('auth:sanctum')->group(function () {
     Route::post('rooms/{id}/join',         [LiveRoomController::class, 'join']);
     Route::post('rooms/{id}/leave',        [LiveRoomController::class, 'leave']);
     Route::post('rooms/{id}/end',          [LiveRoomController::class, 'end']);
+    Route::post('rooms/{id}/message',      [LiveRoomController::class, 'message']);
 
     Route::get('gifts',                    [GiftController::class, 'index']);
     Route::get('coins/balance',            [GiftController::class, 'balance']);

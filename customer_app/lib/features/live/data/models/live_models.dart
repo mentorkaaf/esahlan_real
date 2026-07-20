@@ -106,6 +106,38 @@ class GiftModel {
       );
 }
 
+class LiveChatMessage {
+  final int id;
+  final int userId;
+  final String username;
+  final String avatar;
+  final String message;
+  final bool isHost;
+  final DateTime createdAt;
+
+  const LiveChatMessage({
+    required this.id,
+    required this.userId,
+    required this.username,
+    required this.avatar,
+    required this.message,
+    required this.isHost,
+    required this.createdAt,
+  });
+
+  factory LiveChatMessage.fromJson(Map<String, dynamic> j) => LiveChatMessage(
+        id: j['id'] ?? 0,
+        userId: j['user_id'] ?? 0,
+        username: j['username'] ?? '',
+        avatar: j['avatar'] ?? '',
+        message: j['message'] ?? '',
+        isHost: j['is_host'] == true,
+        createdAt: j['created_at'] != null
+            ? DateTime.tryParse(j['created_at']) ?? DateTime.now()
+            : DateTime.now(),
+      );
+}
+
 class GiftEvent {
   final GiftModel gift;
   final int quantity;
