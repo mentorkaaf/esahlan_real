@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 
 class GiftController extends Controller
 {
-    public function __construct(private RealtimeService $realtime) {}
+    public function __construct() {}
 
     /** List all available gifts */
     public function index()
@@ -53,21 +53,23 @@ class GiftController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Insufficient coins'], 402);
         }
 
-        // Record transaction
+        // Record transaction + update room coin total
         $tx = GiftTransaction::create([
-            'sender_id'   => $senderId,
-            'receiver_id' => $room->host_id,
-            'gift_id'     => $gift->id,
+            'sender_id'    => $senderId,
+            'receiver_id'  => $room->host_id,
+            'gift_id'      => $gift->id,
             'live_room_id' => $roomId,
-            'quantity'    => $request->quantity,
-            'coins_spent' => $totalCoins,
+            'quantity'     => $request->quantity,
+            'coins_spent'  => $totalCoins,
         ]);
+
+        $room->increment('total_coins_earned', $totalCoins);
 
         $sender = auth()->user();
         $p      = $sender?->communityProfile;
 
         // Broadcast gift event to room (for animations)
-        $this->realtime->broadcast("presence-live.{$roomId}", 'gift.received', [
+        RealtimeService::toPublic("live.{$roomId}", 'gift.received', [
             'gift'     => $gift->toArray(),
             'quantity' => $request->quantity,
             'sender'   => [

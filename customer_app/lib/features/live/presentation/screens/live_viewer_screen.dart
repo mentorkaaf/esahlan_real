@@ -9,6 +9,8 @@ import '../widgets/live_chat_overlay.dart';
 import '../widgets/live_guest_widget.dart';
 import '../widgets/coin_purchase_sheet.dart';
 import '../../../../core/services/realtime_client.dart';
+import '../widgets/stream_quality_indicator.dart';
+import '../widgets/live_leaderboard_sheet.dart';
 
 class LiveViewerScreen extends StatefulWidget {
   final LiveRoom room;
@@ -25,6 +27,9 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
   LiveSession? _session;
   int _viewerCount = 0;
   int _coinBalance = 0;
+  int _totalLikes = 0;
+  bool _hasLiked = false;
+  bool _isLiking = false;
   final _giftEvents = <GiftEvent>[];
   final _repo = LiveRepository();
   bool _loading = true;
@@ -95,6 +100,15 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
         (_) { if (mounted) setState(() => _ended = true); },
       );
 
+      // Like count updates
+      await RealtimeClient.instance.listen(
+        _reverbChannel,
+        'live.liked',
+        (data) {
+          if (mounted) setState(() => _totalLikes = (data as Map?)?['total_likes'] as int? ?? _totalLikes);
+        },
+      );
+
       setState(() {});
     } catch (e) {
       if (mounted) Navigator.of(context).pop();
@@ -136,6 +150,84 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
         onPurchased: (newBalance) {
           if (mounted) setState(() => _coinBalance = newBalance);
         },
+      ),
+    );
+  }
+
+  Future<void> _like() async {
+    if (_hasLiked || _isLiking) return;
+    setState(() => _isLiking = true);
+    try {
+      final total = await _repo.likeRoom(widget.room.id);
+      if (mounted) setState(() { _totalLikes = total; _hasLiked = true; });
+    } catch (_) {}
+    if (mounted) setState(() => _isLiking = false);
+  }
+
+  void _showReport() {
+    String? _reason;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Report Stream',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              const Text('Why are you reporting this stream?',
+                  style: TextStyle(color: Colors.white54, fontSize: 12)),
+              const SizedBox(height: 16),
+              ...[
+                ('spam',        '🚫', 'Spam or misleading'),
+                ('nudity',      '🔞', 'Nudity or sexual content'),
+                ('hate_speech', '💬', 'Hate speech or harassment'),
+                ('violence',    '⚠️', 'Violence or harmful content'),
+                ('other',       '🔍', 'Other'),
+              ].map((r) => RadioListTile<String>(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                value: r.$1,
+                groupValue: _reason,
+                onChanged: (v) => setS(() => _reason = v),
+                activeColor: Colors.orange,
+                title: Row(children: [
+                  Text(r.$2, style: const TextStyle(fontSize: 16)),
+                  const SizedBox(width: 8),
+                  Text(r.$3, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                ]),
+              )),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _reason == null ? null : () async {
+                    Navigator.pop(ctx);
+                    try {
+                      await _repo.reportRoom(widget.room.id, _reason!);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Report submitted. Thank you.')));
+                      }
+                    } catch (_) {}
+                  },
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  child: const Text('Submit Report', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              SizedBox(height: MediaQuery.of(ctx).padding.bottom),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -282,33 +374,59 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
                       ],
                     ),
                     const Spacer(),
+                    // Stream quality
+                    if (!_loading)
+                      StreamQualityIndicator(room: _loading ? null : _room),
+                    const SizedBox(width: 8),
                     // Viewer count
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.black45,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.remove_red_eye, color: Colors.white70, size: 14),
-                          const SizedBox(width: 4),
+                          const Icon(Icons.remove_red_eye, color: Colors.white70, size: 13),
+                          const SizedBox(width: 3),
                           Text('$_viewerCount',
-                              style: const TextStyle(color: Colors.white, fontSize: 13)),
+                              style: const TextStyle(color: Colors.white, fontSize: 12)),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
+                    // Leaderboard
+                    GestureDetector(
+                      onTap: () => showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        isScrollControlled: true,
+                        builder: (_) => LiveLeaderboardSheet(roomId: widget.room.id),
+                      ),
+                      child: Container(
+                        width: 30, height: 30,
+                        decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                        child: const Center(child: Text('🏆', style: TextStyle(fontSize: 14))),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    // Report
+                    GestureDetector(
+                      onTap: _showReport,
+                      child: Container(
+                        width: 30, height: 30,
+                        decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                        child: const Icon(Icons.flag_outlined, color: Colors.white60, size: 15),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
                     // Close
                     GestureDetector(
                       onTap: _leave,
                       child: Container(
-                        width: 32, height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.black45,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(Icons.close, color: Colors.white, size: 18),
+                        width: 30, height: 30,
+                        decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                        child: const Icon(Icons.close, color: Colors.white, size: 16),
                       ),
                     ),
                   ],
@@ -319,6 +437,45 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
 
           // Gift animations
           ...(_giftEvents.map((e) => GiftAnimationOverlay(event: e))),
+
+          // Like button — right side, TikTok-style
+          Positioned(
+            right: 12,
+            bottom: 150,
+            child: Column(
+              children: [
+                GestureDetector(
+                  onTap: _like,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 48, height: 48,
+                    decoration: BoxDecoration(
+                      color: _hasLiked
+                          ? Colors.red.withValues(alpha: 0.3)
+                          : Colors.black54,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: _hasLiked ? Colors.red : Colors.white24),
+                    ),
+                    child: Icon(
+                      _hasLiked ? Icons.favorite : Icons.favorite_border,
+                      color: _hasLiked ? Colors.red : Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                ),
+                if (_totalLikes > 0) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _totalLikes >= 1000
+                        ? '${(_totalLikes / 1000).toStringAsFixed(1)}K'
+                        : '$_totalLikes',
+                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                  ),
+                ],
+              ],
+            ),
+          ),
 
           // Chat overlay (left side, above bottom bar)
           if (!_loading)

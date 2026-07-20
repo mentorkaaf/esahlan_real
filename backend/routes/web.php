@@ -297,6 +297,9 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/gifts/{id}/toggle-status',    [\App\Http\Controllers\Admin\AdminLiveController::class, 'toggleGiftStatus'])->name('gifts.toggle');
             Route::delete('/gifts/{id}',                [\App\Http\Controllers\Admin\AdminLiveController::class, 'destroyGift'])->name('gifts.destroy');
             Route::get('/transactions',                 [\App\Http\Controllers\Admin\AdminLiveController::class, 'transactions'])->name('transactions');
+            Route::get('/reports',                      [\App\Http\Controllers\Admin\AdminLiveController::class, 'reports'])->name('reports');
+            Route::post('/reports/{reportId}/review',   [\App\Http\Controllers\Admin\AdminLiveController::class, 'reviewReport'])->name('reports.review');
+            Route::get('/coin-revenue',                 [\App\Http\Controllers\Admin\AdminLiveController::class, 'coinRevenue'])->name('coin-revenue');
         });
 
         Route::prefix('coins')->name('coins.')->controller(\App\Http\Controllers\Admin\AdminCoinController::class)->group(function () {

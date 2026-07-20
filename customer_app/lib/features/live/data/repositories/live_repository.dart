@@ -200,4 +200,13 @@ class LiveRepository {
   Future<void> unpinMessage(int roomId) async {
     await _dio.delete('/live/rooms/$roomId/chat/pin');
   }
+
+  // ── Safety ─────────────────────────────────────────────────────────────────
+
+  Future<void> reportRoom(int roomId, String reason, {String? description}) async {
+    await _dio.post('/live/rooms/$roomId/report', data: {
+      'reason':      reason,
+      if (description != null) 'description': description,
+    });
+  }
 }
