@@ -19,6 +19,7 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
   EventsListener<RoomEvent>? _listener;
   bool _micOn = true;
   bool _cameraOn = true;
+  bool _frontCamera = true;
   int _viewerCount = 0;
   int _duration = 0;
   Timer? _timer;
@@ -112,7 +113,7 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
         children: [
           // Camera preview
           if (localVideo != null)
-            Positioned.fill(child: VideoTrackRenderer(localVideo, mirror: true))
+            Positioned.fill(child: VideoTrackRenderer(localVideo))
           else
             const Positioned.fill(
               child: Center(child: CircularProgressIndicator(color: Colors.orange)),
@@ -229,7 +230,12 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
                 _LiveControl(
                   icon: Icons.flip_camera_ios,
                   active: true,
-                  onTap: () => _room.localParticipant?.switchCamera(),
+                  onTap: () {
+                    _frontCamera = !_frontCamera;
+                    final pos = _frontCamera ? CameraPosition.front : CameraPosition.back;
+                    _room.localParticipant?.setCameraPosition(pos);
+                    setState(() {});
+                  },
                 ),
               ],
             ),

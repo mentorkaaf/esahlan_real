@@ -88,7 +88,8 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
 
   Future<void> _flipCamera() async {
     _frontCamera = !_frontCamera;
-    await _room.localParticipant?.switchCamera();
+    final pos = _frontCamera ? CameraPosition.front : CameraPosition.back;
+    await _room.localParticipant?.setCameraPosition(pos);
     setState(() {});
   }
 
@@ -184,7 +185,7 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
               height: 140,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: VideoTrackRenderer(localVideo, mirror: _frontCamera),
+                child: VideoTrackRenderer(localVideo),
               ),
             ),
 
