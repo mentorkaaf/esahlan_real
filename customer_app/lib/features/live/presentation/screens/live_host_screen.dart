@@ -7,6 +7,7 @@ import '../../data/repositories/live_repository.dart';
 import '../widgets/gift_animation_overlay.dart';
 import '../widgets/live_chat_overlay.dart';
 import '../widgets/live_guest_widget.dart';
+import '../widgets/live_tiled_layout.dart';
 import '../widgets/live_host_dashboard.dart';
 import '../widgets/live_leaderboard_sheet.dart';
 import '../widgets/live_moderation_panel.dart';
@@ -208,21 +209,57 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Local video track
+  List<LiveTile> _buildTiles() {
+    final tiles = <LiveTile>[];
+
+    // Host local video (always first)
     VideoTrack? localVideo;
     for (final pub in _room.localParticipant?.videoTrackPublications ?? []) {
       if (pub.track != null) localVideo = pub.track as VideoTrack;
     }
+    tiles.add(LiveTile(
+      label: 'You',
+      video: localVideo,
+      isMuted: !_micOn,
+      isHost: true,
+    ));
+
+    // Remote guests
+    for (final p in _room.remoteParticipants.values) {
+      final identity = p.identity ?? '';
+      if (!identity.startsWith('guest_')) continue;
+      VideoTrack? video;
+      bool muted = true;
+      for (final pub in p.videoTrackPublications) {
+        if (pub.subscribed && pub.track != null) video = pub.track as VideoTrack;
+      }
+      for (final pub in p.audioTrackPublications) {
+        if (pub.subscribed && !pub.muted) muted = false;
+      }
+      final uid = int.tryParse(identity.replaceFirst('guest_', '')) ?? 0;
+      final g = _activeGuests.where((g) => g.userId == uid).firstOrNull;
+      tiles.add(LiveTile(
+        label: g?.name ?? 'Guest',
+        sublabel: g?.username ?? '',
+        video: video,
+        isMuted: muted || (g?.isMuted ?? false),
+        isHost: false,
+      ));
+    }
+    return tiles;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tiles = _buildTiles();
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Camera preview
-          if (localVideo != null)
-            Positioned.fill(child: VideoTrackRenderer(localVideo))
+          // ── TikTok-style tiled layout ──────────────────────────────────────
+          if (tiles.isNotEmpty)
+            Positioned.fill(child: LiveTiledLayout(tiles: tiles))
           else
             const Positioned.fill(
               child: Center(child: CircularProgressIndicator(color: Colors.orange)),
@@ -371,15 +408,7 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
           // Gift animations
           ...(_giftEvents.map((e) => GiftAnimationOverlay(event: e))),
 
-          // Active guests panel
-          if (_activeGuests.isNotEmpty)
-            LiveGuestGrid(
-              guests: _activeGuests,
-              roomId: widget.session.room.id,
-              isHost: true,
-            ),
-
-          // Guest request popups (show one at a time, top of stack)
+          // Guest request popup (one at a time)
           if (_guestRequests.isNotEmpty)
             GuestRequestPopup(
               request: _guestRequests.first,

@@ -142,7 +142,7 @@ class _QualityBars extends StatelessWidget {
           height: height,
           margin: const EdgeInsets.only(right: 1),
           decoration: BoxDecoration(
-            color: active ? color : Colors.white20,
+            color: active ? color : Colors.white.withOpacity(0.2),
             borderRadius: BorderRadius.circular(1),
           ),
         );

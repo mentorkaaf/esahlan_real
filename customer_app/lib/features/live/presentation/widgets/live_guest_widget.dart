@@ -2,73 +2,70 @@ import 'package:flutter/material.dart';
 import '../../data/models/live_models.dart';
 import '../../data/repositories/live_repository.dart';
 
-// ── Viewer: request to join button ───────────────────────────────────────────
+// ── Viewer: request to join button — state managed by parent ─────────────────
 
-class JoinRequestButton extends StatefulWidget {
-  final int roomId;
-  const JoinRequestButton({super.key, required this.roomId});
+enum GuestJoinStatus { none, waiting, accepted }
 
-  @override
-  State<JoinRequestButton> createState() => _JoinRequestButtonState();
-}
+class JoinRequestButton extends StatelessWidget {
+  final GuestJoinStatus status;
+  final bool loading;
+  final VoidCallback? onJoin;
+  final VoidCallback? onCancel;
 
-class _JoinRequestButtonState extends State<JoinRequestButton> {
-  final _repo = LiveRepository();
-  bool _requested = false;
-  bool _loading = false;
-
-  Future<void> _toggle() async {
-    if (_loading) return;
-    setState(() => _loading = true);
-    try {
-      if (_requested) {
-        await _repo.cancelJoinRequest(widget.roomId);
-        if (mounted) setState(() { _requested = false; _loading = false; });
-      } else {
-        await _repo.requestToJoin(widget.roomId);
-        if (mounted) setState(() { _requested = true; _loading = false; });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
+  const JoinRequestButton({
+    super.key,
+    required this.status,
+    this.loading = false,
+    this.onJoin,
+    this.onCancel,
+  });
 
   @override
   Widget build(BuildContext context) {
+    if (status == GuestJoinStatus.accepted) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.25),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.green, width: 1),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.videocam, color: Colors.green, size: 16),
+            SizedBox(width: 6),
+            Text('On Stage', style: TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      );
+    }
+
+    final isWaiting = status == GuestJoinStatus.waiting;
     return GestureDetector(
-      onTap: _toggle,
+      onTap: loading ? null : (isWaiting ? onCancel : onJoin),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: _requested
-              ? Colors.white.withValues(alpha: 0.15)
-              : Colors.orange,
+          color: isWaiting ? Colors.white.withValues(alpha: 0.15) : Colors.orange,
           borderRadius: BorderRadius.circular(20),
-          border: _requested
-              ? Border.all(color: Colors.orange, width: 1)
-              : null,
+          border: isWaiting ? Border.all(color: Colors.orange, width: 1) : null,
         ),
-        child: _loading
+        child: loading
             ? const SizedBox(
                 width: 16, height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.white))
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
             : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    _requested ? Icons.hourglass_top : Icons.people_alt_outlined,
+                    isWaiting ? Icons.hourglass_top : Icons.people_alt_outlined,
                     color: Colors.white, size: 16,
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    _requested ? 'Waiting...' : 'Join Stage',
+                    isWaiting ? 'Waiting...' : 'Join Stage',
                     style: const TextStyle(
                         color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                   ),

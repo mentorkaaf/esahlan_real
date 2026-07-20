@@ -118,17 +118,20 @@ class LiveDiscovery {
 }
 
 class LiveSession {
+  final int userId;
   final LiveRoom room;
   final String token;
   final String livekitUrl;
 
   const LiveSession({
+    required this.userId,
     required this.room,
     required this.token,
     required this.livekitUrl,
   });
 
   factory LiveSession.fromJson(Map<String, dynamic> j) => LiveSession(
+        userId: j['user_id'] ?? 0,
         room: LiveRoom.fromJson(j['room'] ?? {}),
         token: j['token'] ?? '',
         livekitUrl: j['livekit_url'] ?? '',

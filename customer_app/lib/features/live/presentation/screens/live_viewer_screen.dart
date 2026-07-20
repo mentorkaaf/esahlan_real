@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../data/models/live_models.dart';
 import '../../data/repositories/live_repository.dart';
 import '../widgets/gift_animation_overlay.dart';
 import '../widgets/gift_sheet.dart';
 import '../widgets/live_chat_overlay.dart';
 import '../widgets/live_guest_widget.dart';
+import '../widgets/live_tiled_layout.dart';
 import '../widgets/coin_purchase_sheet.dart';
 import '../../../../core/services/realtime_client.dart';
 import '../widgets/stream_quality_indicator.dart';
@@ -22,18 +24,30 @@ class LiveViewerScreen extends StatefulWidget {
 }
 
 class _LiveViewerScreenState extends State<LiveViewerScreen> {
+  // Main viewer room (subscribe only)
   late Room _room;
   EventsListener<RoomEvent>? _listener;
+
+  // Guest room (publish when accepted on stage)
+  Room? _guestRoom;
+  EventsListener<RoomEvent>? _guestListener;
+
   LiveSession? _session;
   int _viewerCount = 0;
   int _coinBalance = 0;
   int _totalLikes = 0;
   bool _hasLiked = false;
   bool _isLiking = false;
-  final _giftEvents = <GiftEvent>[];
-  final _repo = LiveRepository();
   bool _loading = true;
   bool _ended = false;
+
+  // Guest join state
+  GuestJoinStatus _guestStatus = GuestJoinStatus.none;
+  bool _guestLoading = false;
+  final List<LiveGuest> _activeGuests = [];
+
+  final _giftEvents = <GiftEvent>[];
+  final _repo = LiveRepository();
 
   String get _reverbChannel => 'live.${widget.room.id}';
 
@@ -55,8 +69,10 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
 
       _room = Room();
       _listener = _room.createListener()
-        ..on<TrackSubscribedEvent>((_) => setState(() {}))
-        ..on<TrackUnsubscribedEvent>((_) => setState(() {}))
+        ..on<TrackSubscribedEvent>((_) { if (mounted) setState(() {}); })
+        ..on<TrackUnsubscribedEvent>((_) { if (mounted) setState(() {}); })
+        ..on<ParticipantConnectedEvent>((_) { if (mounted) setState(() {}); })
+        ..on<ParticipantDisconnectedEvent>((_) { if (mounted) setState(() {}); })
         ..on<RoomDisconnectedEvent>((_) {
           if (mounted) setState(() => _ended = true);
         });
@@ -67,52 +83,103 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
         roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true),
       );
 
-      // Guest accepted — receive LiveKit token
+      final myId = session.userId;
+
+      // ── Private channel for this viewer ────────────────────────────────────
       await RealtimeClient.instance.listen(
-        'private-user.${_session!.room.host.id}',
+        'private-user.$myId',
         'live.guest_accepted',
-        (_) {}, // handled by host screen; viewer receives on private channel below
-      );
-
-      // Subscribe to gift events from all viewers
-      await RealtimeClient.instance.listen(
-        _reverbChannel,
-        'gift.received',
-        _handleGiftEvent,
-      );
-
-      // Viewer count updates
-      await RealtimeClient.instance.listen(
-        _reverbChannel,
-        'viewer.joined',
-        (_) { if (mounted) setState(() => _viewerCount++); },
+        _onGuestAccepted,
       );
       await RealtimeClient.instance.listen(
-        _reverbChannel,
-        'viewer.left',
-        (_) { if (mounted) setState(() { if (_viewerCount > 0) _viewerCount--; }); },
-      );
-
-      // Host ended the stream
-      await RealtimeClient.instance.listen(
-        _reverbChannel,
-        'live.ended',
-        (_) { if (mounted) setState(() => _ended = true); },
-      );
-
-      // Like count updates
-      await RealtimeClient.instance.listen(
-        _reverbChannel,
-        'live.liked',
-        (data) {
-          if (mounted) setState(() => _totalLikes = (data as Map?)?['total_likes'] as int? ?? _totalLikes);
+        'private-user.$myId',
+        'live.guest_rejected',
+        (_) {
+          if (mounted) {
+            setState(() { _guestStatus = GuestJoinStatus.none; _guestLoading = false; });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Request declined by host'), backgroundColor: Colors.red),
+            );
+          }
         },
       );
+      await RealtimeClient.instance.listen(
+        'private-user.$myId',
+        'live.guest_removed',
+        (_) {
+          if (mounted) {
+            _disconnectGuestRoom();
+            setState(() { _guestStatus = GuestJoinStatus.none; });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('You were removed from the stage')),
+            );
+          }
+        },
+      );
+
+      // ── Public room channel ──────────────────────────────────────────────────
+      await RealtimeClient.instance.listen(_reverbChannel, 'gift.received', _handleGiftEvent);
+      await RealtimeClient.instance.listen(_reverbChannel, 'viewer.joined',
+          (_) { if (mounted) setState(() => _viewerCount++); });
+      await RealtimeClient.instance.listen(_reverbChannel, 'viewer.left',
+          (_) { if (mounted) setState(() { if (_viewerCount > 0) _viewerCount--; }); });
+      await RealtimeClient.instance.listen(_reverbChannel, 'live.ended',
+          (_) { if (mounted) setState(() => _ended = true); });
+      await RealtimeClient.instance.listen(_reverbChannel, 'live.liked', (data) {
+        if (mounted) setState(() => _totalLikes = (data as Map?)?['total_likes'] as int? ?? _totalLikes);
+      });
+      await RealtimeClient.instance.listen(_reverbChannel, 'live.guests_updated', (data) {
+        if (!mounted) return;
+        try {
+          final list = (data as Map?)!['guests'] as List? ?? [];
+          setState(() {
+            _activeGuests
+              ..clear()
+              ..addAll(list.map((e) => LiveGuest.fromJson(Map<String, dynamic>.from(e as Map))));
+          });
+        } catch (_) {}
+      });
 
       setState(() {});
     } catch (e) {
       if (mounted) Navigator.of(context).pop();
     }
+  }
+
+  Future<void> _onGuestAccepted(dynamic data) async {
+    if (!mounted) return;
+    try {
+      final map = Map<String, dynamic>.from(data as Map);
+      final token = map['token'] as String;
+      final url = map['livekit_url'] as String;
+
+      await [Permission.camera, Permission.microphone].request();
+
+      _guestRoom = Room();
+      _guestListener = _guestRoom!.createListener()
+        ..on<LocalTrackPublishedEvent>((_) { if (mounted) setState(() {}); })
+        ..on<LocalTrackUnpublishedEvent>((_) { if (mounted) setState(() {}); })
+        ..on<RoomDisconnectedEvent>((_) {
+          if (mounted) setState(() { _guestStatus = GuestJoinStatus.none; });
+        });
+
+      await _guestRoom!.connect(url, token,
+          roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true));
+      await _guestRoom!.localParticipant?.setCameraEnabled(true);
+      await _guestRoom!.localParticipant?.setMicrophoneEnabled(true);
+
+      if (mounted) setState(() { _guestStatus = GuestJoinStatus.accepted; _guestLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _guestStatus = GuestJoinStatus.none; _guestLoading = false; });
+    }
+  }
+
+  Future<void> _disconnectGuestRoom() async {
+    try {
+      await _guestRoom?.disconnect();
+    } catch (_) {}
+    _guestListener?.dispose();
+    _guestRoom = null;
   }
 
   void _handleGiftEvent(dynamic data) {
@@ -134,24 +201,37 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
     } catch (_) {}
   }
 
+  Future<void> _requestJoinStage() async {
+    if (_guestLoading) return;
+    setState(() => _guestLoading = true);
+    try {
+      await _repo.requestToJoin(widget.room.id);
+      if (mounted) setState(() { _guestStatus = GuestJoinStatus.waiting; _guestLoading = false; });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _guestLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Future<void> _cancelJoinRequest() async {
+    if (_guestLoading) return;
+    setState(() => _guestLoading = true);
+    try {
+      await _repo.cancelJoinRequest(widget.room.id);
+      if (mounted) setState(() { _guestStatus = GuestJoinStatus.none; _guestLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _guestLoading = false);
+    }
+  }
+
   Future<void> _leave() async {
+    if (_guestStatus == GuestJoinStatus.accepted) await _disconnectGuestRoom();
     await _repo.leaveRoom(widget.room.id);
     await _room.disconnect();
     if (mounted) Navigator.of(context).pop();
-  }
-
-  Future<void> _showCoinPurchase() async {
-    await showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => CoinPurchaseSheet(
-        currentBalance: _coinBalance,
-        onPurchased: (newBalance) {
-          if (mounted) setState(() => _coinBalance = newBalance);
-        },
-      ),
-    );
   }
 
   Future<void> _like() async {
@@ -165,7 +245,7 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
   }
 
   void _showReport() {
-    String? _reason;
+    String? reason;
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1A1A2E),
@@ -185,38 +265,40 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
                   style: TextStyle(color: Colors.white54, fontSize: 12)),
               const SizedBox(height: 16),
               ...[
-                ('spam',        '🚫', 'Spam or misleading'),
-                ('nudity',      '🔞', 'Nudity or sexual content'),
+                ('spam', '🚫', 'Spam or misleading'),
+                ('nudity', '🔞', 'Nudity or sexual content'),
                 ('hate_speech', '💬', 'Hate speech or harassment'),
-                ('violence',    '⚠️', 'Violence or harmful content'),
-                ('other',       '🔍', 'Other'),
+                ('violence', '⚠️', 'Violence or harmful content'),
+                ('other', '🔍', 'Other'),
               ].map((r) => RadioListTile<String>(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                value: r.$1,
-                groupValue: _reason,
-                onChanged: (v) => setS(() => _reason = v),
-                activeColor: Colors.orange,
-                title: Row(children: [
-                  Text(r.$2, style: const TextStyle(fontSize: 16)),
-                  const SizedBox(width: 8),
-                  Text(r.$3, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                ]),
-              )),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    value: r.$1,
+                    groupValue: reason,
+                    onChanged: (v) => setS(() => reason = v),
+                    activeColor: Colors.orange,
+                    title: Row(children: [
+                      Text(r.$2, style: const TextStyle(fontSize: 16)),
+                      const SizedBox(width: 8),
+                      Text(r.$3, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                    ]),
+                  )),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _reason == null ? null : () async {
-                    Navigator.pop(ctx);
-                    try {
-                      await _repo.reportRoom(widget.room.id, _reason!);
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Report submitted. Thank you.')));
-                      }
-                    } catch (_) {}
-                  },
+                  onPressed: reason == null
+                      ? null
+                      : () async {
+                          Navigator.pop(ctx);
+                          try {
+                            await _repo.reportRoom(widget.room.id, reason!);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Report submitted. Thank you.')));
+                            }
+                          } catch (_) {}
+                        },
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
@@ -245,32 +327,95 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
         repo: _repo,
       ),
     );
-
     if (result != null) {
-      // Show gift animation
       final gift = gifts.firstWhere((g) => g.id == result['gift_id'],
           orElse: () => gifts.first);
       final event = GiftEvent(
-        gift: gift,
-        quantity: result['quantity'] ?? 1,
-        senderName: 'You',
-        senderAvatar: '',
-      );
+          gift: gift,
+          quantity: result['quantity'] ?? 1,
+          senderName: 'You',
+          senderAvatar: '');
       setState(() {
         _giftEvents.add(event);
         _coinBalance = result['new_balance'] ?? _coinBalance;
       });
-      Future.delayed(const Duration(seconds: 4), () {
-        if (mounted) setState(() => _giftEvents.remove(event));
-      });
+      Future.delayed(const Duration(seconds: 4),
+          () { if (mounted) setState(() => _giftEvents.remove(event)); });
     }
+  }
+
+  // Build TikTok-style tiles from LiveKit remote participants
+  List<LiveTile> _buildTiles() {
+    final tiles = <LiveTile>[];
+    if (_loading) return tiles;
+
+    final participants = _room.remoteParticipants.values.toList();
+    participants.sort((a, b) {
+      final aHost = (a.identity ?? '').startsWith('host_') ? 0 : 1;
+      final bHost = (b.identity ?? '').startsWith('host_') ? 0 : 1;
+      return aHost.compareTo(bHost);
+    });
+
+    for (final p in participants) {
+      final identity = p.identity ?? '';
+      VideoTrack? video;
+      bool muted = true;
+
+      for (final pub in p.videoTrackPublications) {
+        if (pub.subscribed && pub.track != null) video = pub.track as VideoTrack;
+      }
+      for (final pub in p.audioTrackPublications) {
+        if (pub.subscribed && !pub.muted) muted = false;
+      }
+
+      if (identity.startsWith('host_')) {
+        tiles.insert(0, LiveTile(
+          label: widget.room.host.name,
+          sublabel: widget.room.host.username,
+          video: video,
+          isMuted: muted,
+          isHost: true,
+        ));
+      } else if (identity.startsWith('guest_')) {
+        final uid = int.tryParse(identity.replaceFirst('guest_', '')) ?? 0;
+        final g = _activeGuests.where((g) => g.userId == uid).firstOrNull;
+        tiles.add(LiveTile(
+          label: g?.name ?? 'Guest',
+          sublabel: g?.username ?? '',
+          video: video,
+          isMuted: muted || (g?.isMuted ?? false),
+          isHost: false,
+        ));
+      }
+    }
+
+    // If this viewer is on stage, add their local video at the end
+    if (_guestStatus == GuestJoinStatus.accepted && _guestRoom != null) {
+      VideoTrack? myVideo;
+      for (final pub in _guestRoom!.localParticipant?.videoTrackPublications ?? []) {
+        if (pub.track != null) myVideo = pub.track as VideoTrack;
+      }
+      tiles.add(LiveTile(
+        label: 'You',
+        video: myVideo,
+        isMuted: false,
+        isHost: false,
+      ));
+    }
+
+    return tiles;
   }
 
   @override
   void dispose() {
     _listener?.dispose();
-    if (_session != null) _room.dispose();
+    _guestListener?.dispose();
+    _room.dispose();
+    _guestRoom?.dispose();
     RealtimeClient.instance.unsubscribe(_reverbChannel);
+    if (_session != null) {
+      RealtimeClient.instance.unsubscribe('private-user.${_session!.userId}');
+    }
     super.dispose();
   }
 
@@ -289,35 +434,25 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
                   style: TextStyle(color: Colors.white, fontSize: 18)),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Go Back'),
-              ),
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Go Back')),
             ],
           ),
         ),
       );
     }
 
-    // Remote video track
-    VideoTrack? remoteVideo;
-    for (final p in (_loading ? [] : _room.remoteParticipants.values.toList())) {
-      for (final pub in p.videoTrackPublications) {
-        if (pub.subscribed && pub.track != null) {
-          remoteVideo = pub.track as VideoTrack;
-          break;
-        }
-      }
-    }
+    final tiles = _buildTiles();
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Video
+          // ── Video area (TikTok tiled layout) ──────────────────────────────
           if (_loading)
             const Center(child: CircularProgressIndicator(color: Colors.orange))
-          else if (remoteVideo != null)
-            Positioned.fill(child: VideoTrackRenderer(remoteVideo))
+          else if (tiles.isNotEmpty)
+            Positioned.fill(child: LiveTiledLayout(tiles: tiles))
           else
             const Positioned.fill(
               child: Center(
@@ -332,7 +467,7 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
               ),
             ),
 
-          // Top bar
+          // ── Top bar ───────────────────────────────────────────────────────
           Positioned(
             top: 0, left: 0, right: 0,
             child: SafeArea(
@@ -340,62 +475,46 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: [
-                    // Host info
-                    Row(
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: Colors.orange,
+                      child: Text(
+                        widget.room.host.name.isNotEmpty
+                            ? widget.room.host.name[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: Colors.orange,
-                          child: Text(
-                            widget.room.host.name.isNotEmpty
-                                ? widget.room.host.name[0].toUpperCase()
-                                : '?',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(widget.room.host.name,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13)),
-                            const Row(
-                              children: [
-                                Icon(Icons.circle, color: Colors.red, size: 8),
-                                SizedBox(width: 4),
-                                Text('LIVE', style: TextStyle(color: Colors.red, fontSize: 11)),
-                              ],
-                            ),
-                          ],
-                        ),
+                        Text(widget.room.host.name,
+                            style: const TextStyle(
+                                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                        const Row(children: [
+                          Icon(Icons.circle, color: Colors.red, size: 8),
+                          SizedBox(width: 4),
+                          Text('LIVE', style: TextStyle(color: Colors.red, fontSize: 11)),
+                        ]),
                       ],
                     ),
                     const Spacer(),
-                    // Stream quality
-                    if (!_loading)
-                      StreamQualityIndicator(room: _loading ? null : _room),
+                    if (!_loading) StreamQualityIndicator(room: _room),
                     const SizedBox(width: 8),
                     // Viewer count
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.black45,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.remove_red_eye, color: Colors.white70, size: 13),
-                          const SizedBox(width: 3),
-                          Text('$_viewerCount',
-                              style: const TextStyle(color: Colors.white, fontSize: 12)),
-                        ],
-                      ),
+                          color: Colors.black45, borderRadius: BorderRadius.circular(20)),
+                      child: Row(children: [
+                        const Icon(Icons.remove_red_eye, color: Colors.white70, size: 13),
+                        const SizedBox(width: 3),
+                        Text('$_viewerCount',
+                            style: const TextStyle(color: Colors.white, fontSize: 12)),
+                      ]),
                     ),
                     const SizedBox(width: 6),
-                    // Leaderboard
                     GestureDetector(
                       onTap: () => showModalBottomSheet(
                         context: context,
@@ -405,27 +524,25 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
                       ),
                       child: Container(
                         width: 30, height: 30,
-                        decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                        decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
                         child: const Center(child: Text('🏆', style: TextStyle(fontSize: 14))),
                       ),
                     ),
                     const SizedBox(width: 6),
-                    // Report
                     GestureDetector(
                       onTap: _showReport,
                       child: Container(
                         width: 30, height: 30,
-                        decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                        decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
                         child: const Icon(Icons.flag_outlined, color: Colors.white60, size: 15),
                       ),
                     ),
                     const SizedBox(width: 6),
-                    // Close
                     GestureDetector(
                       onTap: _leave,
                       child: Container(
                         width: 30, height: 30,
-                        decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                        decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
                         child: const Icon(Icons.close, color: Colors.white, size: 16),
                       ),
                     ),
@@ -435,117 +552,111 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
             ),
           ),
 
-          // Gift animations
+          // ── Gift animations ───────────────────────────────────────────────
           ...(_giftEvents.map((e) => GiftAnimationOverlay(event: e))),
 
-          // Like button — right side, TikTok-style
+          // ── Like button ───────────────────────────────────────────────────
           Positioned(
-            right: 12,
-            bottom: 150,
-            child: Column(
-              children: [
-                GestureDetector(
-                  onTap: _like,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: 48, height: 48,
-                    decoration: BoxDecoration(
-                      color: _hasLiked
-                          ? Colors.red.withValues(alpha: 0.3)
-                          : Colors.black54,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: _hasLiked ? Colors.red : Colors.white24),
-                    ),
-                    child: Icon(
-                      _hasLiked ? Icons.favorite : Icons.favorite_border,
-                      color: _hasLiked ? Colors.red : Colors.white,
-                      size: 22,
-                    ),
+            right: 12, bottom: 150,
+            child: Column(children: [
+              GestureDetector(
+                onTap: _like,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    color: _hasLiked ? Colors.red.withValues(alpha: 0.3) : Colors.black54,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _hasLiked ? Colors.red : Colors.white24),
+                  ),
+                  child: Icon(
+                    _hasLiked ? Icons.favorite : Icons.favorite_border,
+                    color: _hasLiked ? Colors.red : Colors.white,
+                    size: 22,
                   ),
                 ),
-                if (_totalLikes > 0) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    _totalLikes >= 1000
-                        ? '${(_totalLikes / 1000).toStringAsFixed(1)}K'
-                        : '$_totalLikes',
-                    style: const TextStyle(color: Colors.white, fontSize: 11),
-                  ),
-                ],
+              ),
+              if (_totalLikes > 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  _totalLikes >= 1000
+                      ? '${(_totalLikes / 1000).toStringAsFixed(1)}K'
+                      : '$_totalLikes',
+                  style: const TextStyle(color: Colors.white, fontSize: 11),
+                ),
               ],
-            ),
+            ]),
           ),
 
-          // Chat overlay (left side, above bottom bar)
+          // ── Chat overlay ──────────────────────────────────────────────────
           if (!_loading)
             Positioned(
-              bottom: 80,
-              left: 0,
-              right: 60,
+              bottom: 80, left: 0, right: 60,
               child: LiveChatOverlay(
                 roomId: widget.room.id,
                 reverbChannel: _reverbChannel,
               ),
             ),
 
-          // Bottom bar
+          // ── Bottom bar ────────────────────────────────────────────────────
           Positioned(
             bottom: 24, left: 12, right: 12,
-            child: Row(
-              children: [
-                // Coin balance — tap to buy
-                GestureDetector(
-                  onTap: _showCoinPurchase,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.orange.withValues(alpha: 0.4), width: 1),
+            child: Row(children: [
+              GestureDetector(
+                onTap: () async {
+                  await showModalBottomSheet(
+                    context: context,
+                    backgroundColor: Colors.transparent,
+                    isScrollControlled: true,
+                    builder: (_) => CoinPurchaseSheet(
+                      currentBalance: _coinBalance,
+                      onPurchased: (nb) { if (mounted) setState(() => _coinBalance = nb); },
                     ),
-                    child: Row(
-                      children: [
-                        const Text('🪙', style: TextStyle(fontSize: 14)),
-                        const SizedBox(width: 4),
-                        Text('$_coinBalance',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.add_circle_outline, color: Colors.orange, size: 14),
-                      ],
-                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
                   ),
+                  child: Row(children: [
+                    const Text('🪙', style: TextStyle(fontSize: 14)),
+                    const SizedBox(width: 4),
+                    Text('$_coinBalance',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.add_circle_outline, color: Colors.orange, size: 14),
+                  ]),
                 ),
-                const SizedBox(width: 8),
-                // Join stage
-                if (!_loading)
-                  JoinRequestButton(roomId: widget.room.id),
-                const Spacer(),
-                // Gift button
-                GestureDetector(
-                  onTap: _showGifts,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                          colors: [Colors.orange, Colors.deepOrange]),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: const Row(
-                      children: [
-                        Text('🎁', style: TextStyle(fontSize: 16)),
-                        SizedBox(width: 6),
-                        Text('Gift',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14)),
-                      ],
-                    ),
+              ),
+              const SizedBox(width: 8),
+              if (!_loading)
+                JoinRequestButton(
+                  status: _guestStatus,
+                  loading: _guestLoading,
+                  onJoin: _requestJoinStage,
+                  onCancel: _cancelJoinRequest,
+                ),
+              const Spacer(),
+              GestureDetector(
+                onTap: _showGifts,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Colors.orange, Colors.deepOrange]),
+                    borderRadius: BorderRadius.circular(24),
                   ),
+                  child: const Row(children: [
+                    Text('🎁', style: TextStyle(fontSize: 16)),
+                    SizedBox(width: 6),
+                    Text('Gift',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                  ]),
                 ),
-              ],
-            ),
+              ),
+            ]),
           ),
         ],
       ),
