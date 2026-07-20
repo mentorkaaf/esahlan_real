@@ -74,6 +74,9 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
     with WidgetsBindingObserver {
 
   StreamSubscription? _callkitSub;
+  AppLifecycleState _lifecycle = AppLifecycleState.resumed;
+  // Holds a callkit accept that arrived while app was not yet resumed
+  String? _pendingAcceptId;
 
   @override
   void initState() {
@@ -111,11 +114,18 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
   // ── CallKit event handler (background + foreground) ──────────────────────
   void _onCallkitEvent(CallEvent? event) async {
     if (event == null || !mounted) return;
-    debugPrint('[CallKit] Event: ${event.event}');
+    debugPrint('[CallKit] Event: ${event.event} lifecycle: $_lifecycle');
     switch (event.event) {
       case Event.actionCallAccept:
         final callId = event.body?['extra']?['call_id']?.toString() ?? '';
-        if (callId.isNotEmpty) await _acceptCall(callId);
+        if (callId.isEmpty) break;
+        if (_lifecycle == AppLifecycleState.resumed) {
+          // App already in foreground — navigate immediately
+          await _acceptCall(callId);
+        } else {
+          // App is backgrounded — defer until resumed lifecycle fires
+          _pendingAcceptId = callId;
+        }
         break;
       case Event.actionCallDecline:
       case Event.actionCallTimeout:
@@ -144,8 +154,17 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    _lifecycle = state;
     if (state == AppLifecycleState.resumed) {
       FirebaseService().refreshTokenIfNeeded();
+      // If a callkit accept arrived while we were backgrounded, handle it now
+      if (_pendingAcceptId != null) {
+        final id = _pendingAcceptId!;
+        _pendingAcceptId = null;
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) _acceptCall(id);
+        });
+      }
     }
   }
 
