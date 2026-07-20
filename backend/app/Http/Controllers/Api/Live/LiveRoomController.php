@@ -130,6 +130,7 @@ class LiveRoomController extends Controller
         return response()->json([
             'status' => 'success',
             'data'   => [
+                'user_id'     => $userId,
                 'room'        => $this->transformRoom($room),
                 'token'       => $token,
                 'livekit_url' => $this->liveKit->serverUrl(),
