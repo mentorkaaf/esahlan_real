@@ -564,6 +564,33 @@
                 <div class="nav-icon"><i class="fas fa-podcast"></i></div> Podcasts
             </a>
         </div>
+
+        {{-- Live Management --}}
+        <div class="nav-link nav-toggle-btn {{ request()->is('admin/live*') ? 'open active' : '' }}"
+             onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+            <div class="nav-icon"><i class="fas fa-video"></i></div>
+            Live
+            <i class="fas fa-chevron-right toggle-arrow"></i>
+            @php $activeLiveCount = \Illuminate\Support\Facades\DB::table('live_rooms')->where('status','live')->count(); @endphp
+            @if($activeLiveCount > 0)<span class="nav-badge" style="background:#D92D20;">{{ $activeLiveCount }}</span>@endif
+        </div>
+        <div class="nav-submenu {{ request()->is('admin/live*') ? 'open' : '' }}">
+            <a href="{{ route('admin.live.index') }}" class="nav-link {{ request()->routeIs('admin.live.index') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-tachometer-alt"></i></div> Dashboard
+            </a>
+            <a href="{{ route('admin.live.history') }}" class="nav-link {{ request()->routeIs('admin.live.history') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-history"></i></div> History
+            </a>
+            <a href="{{ route('admin.live.gifts') }}" class="nav-link {{ request()->routeIs('admin.live.gifts*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-gift"></i></div> Gifts
+            </a>
+            <a href="{{ route('admin.live.transactions') }}" class="nav-link {{ request()->routeIs('admin.live.transactions') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-coins"></i></div> Transactions
+            </a>
+            <a href="{{ route('admin.live.banned') }}" class="nav-link {{ request()->routeIs('admin.live.banned') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-ban"></i></div> Banned Users
+            </a>
+        </div>
         @endif
 
         @if($u->canManageModule('community') || $u->role === 'super_admin' || $u->role === 'admin')

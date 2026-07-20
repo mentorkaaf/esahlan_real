@@ -19,6 +19,7 @@ class User extends Authenticatable
         'preferred_language','dark_mode','role_id','district_id',
         'phone_verified_at','email_verified_at',
         'latitude','longitude','location_updated_at',
+        'banned_from_live',
     ];
 
     protected $hidden = ['password','wallet_pin','remember_token'];

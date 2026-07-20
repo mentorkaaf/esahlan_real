@@ -283,6 +283,22 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
         // Notifications
         
         // Community Management
+        // ── Live Management ────────────────────────────────────────────────────
+        Route::prefix('live')->name('live.')->group(function () {
+            Route::get('/',                             [\App\Http\Controllers\Admin\AdminLiveController::class, 'index'])->name('index');
+            Route::get('/history',                      [\App\Http\Controllers\Admin\AdminLiveController::class, 'history'])->name('history');
+            Route::get('/{id}/detail',                  [\App\Http\Controllers\Admin\AdminLiveController::class, 'detail'])->name('detail');
+            Route::post('/{id}/force-end',              [\App\Http\Controllers\Admin\AdminLiveController::class, 'forceEnd'])->name('force-end');
+            Route::post('/users/{userId}/toggle-ban',   [\App\Http\Controllers\Admin\AdminLiveController::class, 'toggleLiveBan'])->name('users.toggle-ban');
+            Route::get('/banned',                       [\App\Http\Controllers\Admin\AdminLiveController::class, 'banned'])->name('banned');
+            Route::get('/gifts',                        [\App\Http\Controllers\Admin\AdminLiveController::class, 'gifts'])->name('gifts');
+            Route::post('/gifts',                       [\App\Http\Controllers\Admin\AdminLiveController::class, 'storeGift'])->name('gifts.store');
+            Route::put('/gifts/{id}',                   [\App\Http\Controllers\Admin\AdminLiveController::class, 'updateGift'])->name('gifts.update');
+            Route::post('/gifts/{id}/toggle-status',    [\App\Http\Controllers\Admin\AdminLiveController::class, 'toggleGiftStatus'])->name('gifts.toggle');
+            Route::delete('/gifts/{id}',                [\App\Http\Controllers\Admin\AdminLiveController::class, 'destroyGift'])->name('gifts.destroy');
+            Route::get('/transactions',                 [\App\Http\Controllers\Admin\AdminLiveController::class, 'transactions'])->name('transactions');
+        });
+
         Route::prefix('community')->name('community.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'index'])->name('index');
             Route::get('/posts', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'posts'])->name('posts');

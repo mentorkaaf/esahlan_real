@@ -39,6 +39,11 @@ class LiveRoomController extends Controller
         ]);
 
         $hostId = auth()->id();
+        $user   = auth()->user();
+
+        if ($user?->banned_from_live) {
+            return response()->json(['status' => 'error', 'message' => 'Your live streaming access has been restricted.'], 403);
+        }
 
         // End any previous live room by this host
         LiveRoom::where('host_id', $hostId)
