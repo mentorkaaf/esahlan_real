@@ -27,6 +27,9 @@ use App\Http\Controllers\Api\Podcast\PodcastCommentController;
 use App\Http\Controllers\Api\Podcast\PodcastLibraryController;
 
 
+use App\Http\Controllers\Api\Call\CallController;
+use App\Http\Controllers\Api\Live\LiveRoomController;
+use App\Http\Controllers\Api\Live\GiftController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
@@ -717,6 +720,29 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::delete('episodes/{id}',               [PodcastPublishController::class, 'deleteEpisode']);
         Route::post('rss-import',                    [PodcastPublishController::class, 'rssImport']);
     });
+});
+
+// ─── Calls ────────────────────────────────────────────────────────────────────
+Route::prefix('v1/calls')->middleware('auth:sanctum')->group(function () {
+    Route::post('/',            [CallController::class, 'initiate']);
+    Route::post('{id}/accept',  [CallController::class, 'accept']);
+    Route::post('{id}/reject',  [CallController::class, 'reject']);
+    Route::post('{id}/end',     [CallController::class, 'end']);
+    Route::get('history',       [CallController::class, 'history']);
+});
+
+// ─── Live Rooms + Gifts ────────────────────────────────────────────────────────
+Route::prefix('v1/live')->middleware('auth:sanctum')->group(function () {
+    Route::get('rooms',                    [LiveRoomController::class, 'index']);
+    Route::post('rooms',                   [LiveRoomController::class, 'create']);
+    Route::post('rooms/{id}/join',         [LiveRoomController::class, 'join']);
+    Route::post('rooms/{id}/leave',        [LiveRoomController::class, 'leave']);
+    Route::post('rooms/{id}/end',          [LiveRoomController::class, 'end']);
+
+    Route::get('gifts',                    [GiftController::class, 'index']);
+    Route::get('coins/balance',            [GiftController::class, 'balance']);
+    Route::post('rooms/{id}/gifts',        [GiftController::class, 'send']);
+    Route::get('rooms/{id}/top-gifters',   [GiftController::class, 'topGifters']);
 });
 
     // Admin engagement generator

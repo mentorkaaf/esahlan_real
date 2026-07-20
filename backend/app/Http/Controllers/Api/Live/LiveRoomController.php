@@ -1,0 +1,169 @@
+<?php
+namespace App\Http\Controllers\Api\Live;
+
+use App\Http\Controllers\Controller;
+use App\Models\LiveRoom;
+use App\Models\LiveRoomViewer;
+use App\Services\LiveKitService;
+use App\Services\RealtimeService;
+use Illuminate\Http\Request;
+
+class LiveRoomController extends Controller
+{
+    public function __construct(
+        private LiveKitService  $liveKit,
+        private RealtimeService $realtime,
+    ) {}
+
+    /** List active live rooms */
+    public function index()
+    {
+        $rooms = LiveRoom::with('host.communityProfile')
+            ->where('status', 'live')
+            ->orderByDesc('viewer_count')
+            ->paginate(20);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $rooms->map(fn($r) => $this->transformRoom($r)),
+        ]);
+    }
+
+    /** Start a new live room */
+    public function create(Request $request)
+    {
+        $request->validate([
+            'title'     => 'required|string|max:120',
+            'thumbnail' => 'nullable|string',
+        ]);
+
+        $hostId = auth()->id();
+
+        // End any previous live room by this host
+        LiveRoom::where('host_id', $hostId)
+            ->where('status', 'live')
+            ->update(['status' => 'ended', 'ended_at' => now()]);
+
+        $roomName = $this->liveKit->newRoomName('live');
+
+        $room = LiveRoom::create([
+            'host_id'   => $hostId,
+            'title'     => $request->title,
+            'room_name' => $roomName,
+            'thumbnail' => $request->thumbnail,
+        ]);
+
+        $token = $this->liveKit->generateToken($roomName, "host_{$hostId}", [
+            'roomCreate' => true,
+            'canPublish' => true,
+            'canSubscribe' => true,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => [
+                'room'       => $this->transformRoom($room->load('host.communityProfile')),
+                'token'      => $token,
+                'livekit_url' => $this->liveKit->serverUrl(),
+            ],
+        ]);
+    }
+
+    /** Viewer joins a room */
+    public function join(int $id)
+    {
+        $room = LiveRoom::where('id', $id)->where('status', 'live')->firstOrFail();
+        $userId = auth()->id();
+
+        LiveRoomViewer::updateOrCreate(
+            ['live_room_id' => $id, 'user_id' => $userId],
+            ['joined_at' => now(), 'left_at' => null]
+        );
+
+        $count = LiveRoomViewer::where('live_room_id', $id)->whereNull('left_at')->count();
+        $room->update([
+            'viewer_count' => $count,
+            'peak_viewers' => max($room->peak_viewers, $count),
+        ]);
+
+        // Broadcast viewer joined
+        $this->realtime->broadcast("presence-live.{$id}", 'viewer.joined', [
+            'user_id' => $userId,
+            'viewer_count' => $count,
+        ]);
+
+        $token = $this->liveKit->generateToken($room->room_name, "viewer_{$userId}", [
+            'canPublish'   => false,
+            'canSubscribe' => true,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => [
+                'room'        => $this->transformRoom($room),
+                'token'       => $token,
+                'livekit_url' => $this->liveKit->serverUrl(),
+            ],
+        ]);
+    }
+
+    /** Viewer leaves or host ends */
+    public function leave(int $id)
+    {
+        $userId = auth()->id();
+        $room   = LiveRoom::findOrFail($id);
+
+        LiveRoomViewer::where('live_room_id', $id)
+            ->where('user_id', $userId)
+            ->update(['left_at' => now()]);
+
+        $count = LiveRoomViewer::where('live_room_id', $id)->whereNull('left_at')->count();
+        $room->update(['viewer_count' => $count]);
+
+        $this->realtime->broadcast("presence-live.{$id}", 'viewer.left', [
+            'user_id'      => $userId,
+            'viewer_count' => $count,
+        ]);
+
+        return response()->json(['status' => 'success']);
+    }
+
+    /** Host ends the live room */
+    public function end(int $id)
+    {
+        $room = LiveRoom::where('id', $id)
+            ->where('host_id', auth()->id())
+            ->where('status', 'live')
+            ->firstOrFail();
+
+        $room->update(['status' => 'ended', 'ended_at' => now()]);
+
+        $this->realtime->broadcast("presence-live.{$id}", 'live.ended', [
+            'room_id' => $id,
+        ]);
+
+        return response()->json(['status' => 'success']);
+    }
+
+    private function transformRoom(LiveRoom $room): array
+    {
+        $host = $room->host;
+        $p    = $host?->communityProfile;
+        return [
+            'id'           => $room->id,
+            'title'        => $room->title,
+            'room_name'    => $room->room_name,
+            'thumbnail'    => $room->thumbnail,
+            'status'       => $room->status,
+            'viewer_count' => $room->viewer_count,
+            'peak_viewers' => $room->peak_viewers,
+            'host' => [
+                'id'       => $host?->id,
+                'name'     => $host?->name,
+                'username' => $p?->username ?? '',
+                'avatar'   => $p?->avatar ?? '',
+            ],
+            'created_at' => $room->created_at,
+        ];
+    }
+}

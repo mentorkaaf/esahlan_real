@@ -81,6 +81,13 @@ dependencies:
   # Realtime (Laravel Reverb — speaks the Pusher protocol over plain WebSocket)
   web_socket_channel: ^3.0.1
 
+  # LiveKit — Video/Audio Calls + Live Streaming
+  livekit_client: ^2.3.3
+
+  # Animations — gifts
+  confetti: ^0.7.0
+  lottie: ^3.1.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
