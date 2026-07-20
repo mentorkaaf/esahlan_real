@@ -1,5 +1,6 @@
 ﻿import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../../../../core/services/realtime_client.dart';
@@ -11,6 +12,8 @@ import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
 import 'community_shell.dart';
 import '../../../../core/widgets/restriction_dialog.dart';
+import '../../../calls/data/repositories/call_repository.dart';
+import '../../../calls/presentation/screens/active_call_screen.dart';
 
 // Minute-bucketed timeago cache — same pattern as feed screen.
 // Eliminates repeated string formatting for unchanged timestamps on every rebuild.
@@ -39,6 +42,9 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
   Timer? _typingClearTimer;
   Timer? _onlineTimer;
   bool _amTyping = false;
+  bool _callingAudio = false;
+  bool _callingVideo = false;
+  final _callRepo = CallRepository();
 
   CommunityChat get chat => widget.chat;
   CommunityUser? get other => chat.otherUser;
@@ -171,6 +177,35 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     }
   }
 
+  Future<void> _startCall(String type) async {
+    final otherId = other?.id;
+    if (otherId == null) return;
+    final isVideo = type == 'video';
+    if (isVideo) {
+      if (_callingVideo) return;
+      setState(() => _callingVideo = true);
+    } else {
+      if (_callingAudio) return;
+      setState(() => _callingAudio = true);
+    }
+    try {
+      final session = await _callRepo.initiateCall(receiverId: otherId, type: type);
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => ActiveCallScreen(session: session)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Call failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() { _callingAudio = false; _callingVideo = false; });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final myProfile = ref.watch(communityMyProfileProvider);
@@ -209,8 +244,22 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
           ]),
         ]),
         actions: [
-          IconButton(icon: Icon(Icons.call_rounded, color: context.colors.bodyText), onPressed: () {}),
-          IconButton(icon: Icon(Icons.videocam_rounded, color: context.colors.bodyText), onPressed: () {}),
+          _callingAudio
+              ? const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: SizedBox(width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2)))
+              : IconButton(
+                  icon: Icon(Icons.call_rounded, color: context.colors.bodyText),
+                  onPressed: () => _startCall('audio')),
+          _callingVideo
+              ? const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: SizedBox(width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2)))
+              : IconButton(
+                  icon: Icon(Icons.videocam_rounded, color: context.colors.bodyText),
+                  onPressed: () => _startCall('video')),
           IconButton(icon: Icon(Icons.more_vert_rounded, color: context.colors.bodyText), onPressed: () {}),
         ],
       ),
