@@ -112,6 +112,9 @@ class FirebaseService {
   // ── Notification tap callback (foreground local notifications) ─────────────
   void Function(String deepLink)? onDeepLink;
 
+  // ── Incoming call callback — fired when FCM data has type=incoming_call ────
+  void Function(Map<String, dynamic> payload)? onIncomingCall;
+
   void _onNotificationTap(NotificationResponse response) {
     if (response.payload == null || response.payload!.isEmpty) return;
     try {
@@ -131,6 +134,12 @@ class FirebaseService {
     debugPrint('[FCM:FG] Received: ${message.messageId}');
     debugPrint('[FCM:FG] Title: ${message.notification?.title} | Body: ${message.notification?.body}');
     debugPrint('[FCM:FG] Data: ${message.data}');
+
+    // Handle incoming call — show full-screen UI instead of a notification
+    if (message.data['type'] == 'incoming_call') {
+      onIncomingCall?.call(Map<String, dynamic>.from(message.data));
+      return;
+    }
 
     final title = message.notification?.title
         ?? message.data['title'] as String?

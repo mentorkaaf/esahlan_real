@@ -34,6 +34,18 @@ import '../../features/community/data/models/community_models.dart';
 import '../../features/community/presentation/screens/follow_list_screen.dart';
 import '../../features/community/presentation/screens/highlight_viewer_screen.dart';
 
+// Calls screens
+import '../../features/calls/presentation/screens/incoming_call_screen.dart';
+import '../../features/calls/presentation/screens/active_call_screen.dart';
+import '../../features/calls/data/models/call_models.dart';
+
+// Live screens
+import '../../features/live/presentation/screens/live_rooms_screen.dart';
+import '../../features/live/presentation/screens/go_live_screen.dart';
+import '../../features/live/presentation/screens/live_host_screen.dart';
+import '../../features/live/presentation/screens/live_viewer_screen.dart';
+import '../../features/live/data/models/live_models.dart';
+
 // eLearning screens
 import '../../features/elearning/presentation/screens/elearning_screen.dart';
 import '../../features/elearning/presentation/screens/course_detail_screen.dart';
@@ -234,6 +246,36 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // eFood — full-screen, no bottom nav
       GoRoute(path: '/efood', builder: (_, __) => const EFoodScreen()),
+
+      // Calls — full-screen overlays, no bottom nav
+      GoRoute(
+        path: '/calls/incoming',
+        builder: (_, state) => IncomingCallScreen(
+          payload: state.extra as Map<String, dynamic>,
+        ),
+      ),
+      GoRoute(
+        path: '/calls/active',
+        builder: (_, state) => ActiveCallScreen(
+          session: state.extra as CallSession,
+        ),
+      ),
+
+      // Live — full-screen, no bottom nav
+      GoRoute(path: '/live', builder: (_, __) => const LiveRoomsScreen()),
+      GoRoute(path: '/live/go', builder: (_, __) => const GoLiveScreen()),
+      GoRoute(
+        path: '/live/host',
+        builder: (_, state) => LiveHostScreen(
+          session: state.extra as LiveSession,
+        ),
+      ),
+      GoRoute(
+        path: '/live/view',
+        builder: (_, state) => LiveViewerScreen(
+          room: state.extra as LiveRoom,
+        ),
+      ),
 
       // Detail routes
       GoRoute(

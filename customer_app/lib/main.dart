@@ -112,8 +112,28 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
     // Foreground local-notification tap
     FirebaseService().onDeepLink = navigate;
 
+    // Incoming call (foreground) — navigate to full-screen call UI
+    FirebaseService().onIncomingCall = (payload) {
+      try {
+        ref.read(routerProvider).push('/calls/incoming', extra: payload);
+      } catch (e) {
+        debugPrint('[Nav] Incoming call nav error: $e');
+      }
+    };
+
     // Background tap (app was minimised, user tapped the FCM banner)
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      if (message.data['type'] == 'incoming_call') {
+        try {
+          ref.read(routerProvider).push(
+            '/calls/incoming',
+            extra: Map<String, dynamic>.from(message.data),
+          );
+        } catch (e) {
+          debugPrint('[Nav] BG incoming call nav error: $e');
+        }
+        return;
+      }
       final dl = message.data['deep_link'] as String?;
       debugPrint('[FCM] onMessageOpenedApp deep_link: $dl');
       if (dl != null && dl.isNotEmpty) navigate(dl);
