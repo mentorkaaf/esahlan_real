@@ -5,6 +5,7 @@ import '../../data/models/live_models.dart';
 import '../../data/repositories/live_repository.dart';
 import '../widgets/gift_animation_overlay.dart';
 import '../widgets/gift_sheet.dart';
+import '../../../../core/services/realtime_client.dart';
 
 class LiveViewerScreen extends StatefulWidget {
   final LiveRoom room;
@@ -25,6 +26,8 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
   final _repo = LiveRepository();
   bool _loading = true;
   bool _ended = false;
+
+  String get _reverbChannel => 'presence-live.${widget.room.id}';
 
   @override
   void initState() {
@@ -56,10 +59,55 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
         roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true),
       );
 
+      // Subscribe to gift events from all viewers
+      await RealtimeClient.instance.listen(
+        _reverbChannel,
+        'gift.received',
+        _handleGiftEvent,
+      );
+
+      // Viewer count updates
+      await RealtimeClient.instance.listen(
+        _reverbChannel,
+        'viewer.joined',
+        (_) { if (mounted) setState(() => _viewerCount++); },
+      );
+      await RealtimeClient.instance.listen(
+        _reverbChannel,
+        'viewer.left',
+        (_) { if (mounted) setState(() { if (_viewerCount > 0) _viewerCount--; }); },
+      );
+
+      // Host ended the stream
+      await RealtimeClient.instance.listen(
+        _reverbChannel,
+        'live.ended',
+        (_) { if (mounted) setState(() => _ended = true); },
+      );
+
       setState(() {});
     } catch (e) {
       if (mounted) Navigator.of(context).pop();
     }
+  }
+
+  void _handleGiftEvent(dynamic data) {
+    if (!mounted) return;
+    try {
+      final map = Map<String, dynamic>.from(data as Map);
+      final giftData = Map<String, dynamic>.from(map['gift'] as Map);
+      final gift = GiftModel.fromJson(giftData);
+      final event = GiftEvent(
+        gift: gift,
+        quantity: map['quantity'] as int? ?? 1,
+        senderName: map['sender']?['name'] as String? ?? '',
+        senderAvatar: map['sender']?['avatar'] as String? ?? '',
+      );
+      setState(() => _giftEvents.add(event));
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _giftEvents.remove(event));
+      });
+    } catch (_) {}
   }
 
   Future<void> _leave() async {
@@ -106,6 +154,7 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
   void dispose() {
     _listener?.dispose();
     if (_session != null) _room.dispose();
+    RealtimeClient.instance.unsubscribe(_reverbChannel);
     super.dispose();
   }
 

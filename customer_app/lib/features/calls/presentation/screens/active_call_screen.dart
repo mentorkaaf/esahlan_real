@@ -241,7 +241,11 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
                   icon: _speakerOn ? Icons.volume_up : Icons.volume_off,
                   label: _speakerOn ? 'Speaker' : 'Earpiece',
                   color: Colors.white24,
-                  onTap: () => setState(() => _speakerOn = !_speakerOn),
+                  onTap: () async {
+                    _speakerOn = !_speakerOn;
+                    await Hardware.instance.setSpeakerphoneOn(_speakerOn);
+                    setState(() {});
+                  },
                 ),
               ],
             ),

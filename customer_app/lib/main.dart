@@ -16,8 +16,9 @@ import 'core/widgets/connectivity_wrapper.dart';
 import 'firebase_options.dart';
 import 'features/podcast/presentation/services/podcast_audio_service.dart';
 
-// Cold-start deep link captured before runApp()
+// Cold-start notification data captured before runApp()
 String? _coldStartDeepLink;
+Map<String, dynamic>? _coldStartCallPayload;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // main() — keep lean: only native-level setup + runApp()
@@ -34,11 +35,16 @@ void main() async {
     // Native-level FCM setup: background handler + iOS foreground options
     await FirebaseService.setupBeforeRunApp();
 
-    // Capture deep link from a cold-start notification tap (app was killed)
+    // Capture cold-start notification tap (app was killed)
     final initial = await FirebaseMessaging.instance.getInitialMessage();
     if (initial != null) {
-      _coldStartDeepLink = initial.data['deep_link'] as String?;
-      debugPrint('[FCM] Cold-start deep link: $_coldStartDeepLink');
+      if (initial.data['type'] == 'incoming_call') {
+        _coldStartCallPayload = Map<String, dynamic>.from(initial.data);
+        debugPrint('[FCM] Cold-start incoming call: ${initial.data['caller_name']}');
+      } else {
+        _coldStartDeepLink = initial.data['deep_link'] as String?;
+        debugPrint('[FCM] Cold-start deep link: $_coldStartDeepLink');
+      }
     }
   } catch (e) {
     debugPrint('[Firebase] Pre-runApp error: $e');
@@ -139,11 +145,25 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
       if (dl != null && dl.isNotEmpty) navigate(dl);
     });
 
-    // Cold-start tap (app was fully killed)
+    // Cold-start tap (app was fully killed) — incoming call
+    if (_coldStartCallPayload != null) {
+      final payload = _coldStartCallPayload!;
+      _coldStartCallPayload = null;
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) {
+          try {
+            ref.read(routerProvider).push('/calls/incoming', extra: payload);
+          } catch (e) {
+            debugPrint('[Nav] Cold-start call nav error: $e');
+          }
+        }
+      });
+    }
+
+    // Cold-start tap — deep link
     if (_coldStartDeepLink != null) {
       final dl = _coldStartDeepLink!;
       _coldStartDeepLink = null;
-      // Small delay so the router redirect has settled
       Future.delayed(const Duration(milliseconds: 1500), () {
         if (mounted) navigate(dl);
       });

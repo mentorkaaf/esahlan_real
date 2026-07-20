@@ -4,6 +4,7 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../data/models/live_models.dart';
 import '../../data/repositories/live_repository.dart';
 import '../widgets/gift_animation_overlay.dart';
+import '../../../../core/services/realtime_client.dart';
 
 class LiveHostScreen extends StatefulWidget {
   final LiveSession session;
@@ -35,6 +36,8 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
     });
   }
 
+  String get _reverbChannel => 'presence-live.${widget.session.room.id}';
+
   Future<void> _connect() async {
     _room = Room();
     _listener = _room.createListener()
@@ -51,7 +54,43 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
 
     await _room.localParticipant?.setCameraEnabled(true);
     await _room.localParticipant?.setMicrophoneEnabled(true);
+
+    // Subscribe to gift events via Reverb
+    await RealtimeClient.instance.listen(
+      _reverbChannel,
+      'gift.received',
+      _handleGiftEvent,
+    );
+
+    // Viewer join/leave counts from Reverb (supplements LiveKit events)
+    await RealtimeClient.instance.listen(
+      _reverbChannel,
+      'viewer.joined',
+      (_) { if (mounted) setState(() => _viewerCount++); },
+    );
+    await RealtimeClient.instance.listen(
+      _reverbChannel,
+      'viewer.left',
+      (_) { if (mounted) setState(() { if (_viewerCount > 0) _viewerCount--; }); },
+    );
+
     setState(() {});
+  }
+
+  void _handleGiftEvent(dynamic data) {
+    if (!mounted) return;
+    try {
+      final map = Map<String, dynamic>.from(data as Map);
+      final giftData = Map<String, dynamic>.from(map['gift'] as Map);
+      final gift = GiftModel.fromJson(giftData);
+      final event = GiftEvent(
+        gift: gift,
+        quantity: map['quantity'] as int? ?? 1,
+        senderName: map['sender']?['name'] as String? ?? '',
+        senderAvatar: map['sender']?['avatar'] as String? ?? '',
+      );
+      _onGiftReceived(event);
+    } catch (_) {}
   }
 
   Future<void> _endLive() async {
@@ -96,6 +135,7 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
     _timer?.cancel();
     _listener?.dispose();
     _room.dispose();
+    RealtimeClient.instance.unsubscribe(_reverbChannel);
     super.dispose();
   }
 
