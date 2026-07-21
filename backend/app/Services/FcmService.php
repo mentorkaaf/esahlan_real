@@ -156,6 +156,26 @@ class FcmService
         return self::sendToToken($t, 'ePay Topped Up', '$' . number_format($a, 2) . ' added. Balance: $' . number_format($b, 2), ['type' => 'wallet_credit', 'amount' => (string) $a, 'balance' => (string) $b, 'deep_link' => '/wallet']);
     }
 
+    public static function sendWalletEvent(string $t, string $type, float $a, float $b, string $note = ''): bool
+    {
+        if ($type === 'credit') {
+            $title = '💰 ePay Credit';
+            $body  = '+$' . number_format($a, 2) . ' received. Balance: $' . number_format($b, 2);
+            if ($note) $body .= ' · ' . $note;
+        } else {
+            $title = '📤 ePay Debit';
+            $body  = '-$' . number_format($a, 2) . ' sent. Balance: $' . number_format($b, 2);
+            if ($note) $body .= ' · ' . $note;
+        }
+        return self::sendToToken($t, $title, $body, [
+            'type'      => 'wallet_' . $type,
+            'amount'    => (string) $a,
+            'balance'   => (string) $b,
+            'note'      => $note,
+            'deep_link' => '/wallet',
+        ]);
+    }
+
     public static function sendWithdrawalApproved(string $t, float $a): bool
     {
         return self::sendToToken($t, 'Withdrawal Approved', 'Your withdrawal of $' . number_format($a, 2) . ' is approved.', ['type' => 'withdrawal_approved', 'amount' => (string) $a, 'deep_link' => '/wallet']);
