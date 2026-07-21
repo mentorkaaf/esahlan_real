@@ -634,17 +634,24 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
         // Wallet Management & Payment Settings
         Route::prefix('wallet')->name('wallet.')->group(function () {
             $wc = AdminWalletController::class;
-            Route::get('/',                      [$wc, 'index'])->name('index');
-            Route::get('/transactions',          [$wc, 'transactions'])->name('transactions');
-            Route::post('/credit',               [$wc, 'creditUser'])->name('credit');
-            Route::get('/withdrawals',           [$wc, 'withdrawals'])->name('withdrawals');
-            Route::post('/withdrawals/{id}/approve', [$wc, 'approveWithdrawal'])->name('withdrawal.approve');
-            Route::post('/withdrawals/{id}/reject',  [$wc, 'rejectWithdrawal'])->name('withdrawal.reject');
-            Route::post('/reset/{userId}',        [$wc, 'resetWallet'])->name('reset');
-            Route::post('/bulk-reset',           [$wc, 'bulkResetWallets'])->name('bulk-reset');
-            Route::post('/reset-pin/{userId}',   [$wc, 'resetUserPin'])->name('reset-pin');
-            Route::get('/settings',              [$wc, 'settings'])->name('settings');
-            Route::post('/settings',             [$wc, 'saveSettings'])->name('settings.save');
+            Route::get('/',                               [$wc, 'index'])->name('index');
+            Route::get('/transactions',                   [$wc, 'transactions'])->name('transactions');
+            Route::post('/credit',                        [$wc, 'creditUser'])->name('credit');
+            Route::post('/debit',                         [$wc, 'debitUser'])->name('debit');
+            Route::post('/transfer',                      [$wc, 'transferBetweenUsers'])->name('transfer');
+            Route::post('/freeze/{userId}',               [$wc, 'freezeWallet'])->name('freeze');
+            Route::post('/unfreeze/{userId}',             [$wc, 'unfreezeWallet'])->name('unfreeze');
+            Route::get('/withdrawals',                    [$wc, 'withdrawals'])->name('withdrawals');
+            Route::post('/withdrawals/{id}/approve',      [$wc, 'approveWithdrawal'])->name('withdrawal.approve');
+            Route::post('/withdrawals/{id}/reject',       [$wc, 'rejectWithdrawal'])->name('withdrawal.reject');
+            Route::post('/withdrawals/{id}/process',      [$wc, 'processWithdrawal'])->name('withdrawal.process');
+            Route::post('/withdrawals/bulk-approve',      [$wc, 'bulkApproveWithdrawals'])->name('withdrawal.bulk-approve');
+            Route::get('/user/{userId}',                  [$wc, 'userDetail'])->name('user-detail');
+            Route::post('/reset/{userId}',                [$wc, 'resetWallet'])->name('reset');
+            Route::post('/bulk-reset',                    [$wc, 'bulkResetWallets'])->name('bulk-reset');
+            Route::post('/reset-pin/{userId}',            [$wc, 'resetUserPin'])->name('reset-pin');
+            Route::get('/settings',                       [$wc, 'settings'])->name('settings');
+            Route::post('/settings',                      [$wc, 'saveSettings'])->name('settings.save');
         });
 
         // eExchange Orders
