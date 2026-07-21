@@ -500,181 +500,181 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
               child: Center(child: CircularProgressIndicator(color: Colors.orange)),
             ),
 
-          // Top bar
+          // ── Gradient overlays ─────────────────────────────────────────────
           Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
+            top: 0, left: 0, right: 0,
+            child: Container(
+              height: 180,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black.withValues(alpha: 0.7), Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: Container(
+              height: 260,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [Colors.black.withValues(alpha: 0.82), Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+
+          // ── Top bar (minimal, TikTok-style) ───────────────────────────────
+          Positioned(
+            top: 0, left: 0, right: 0,
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 child: Row(
                   children: [
                     // LIVE badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.red,
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 6, height: 6,
-                            decoration: const BoxDecoration(
-                                color: Colors.white, shape: BoxShape.circle),
-                          ),
-                          const SizedBox(width: 4),
-                          const Text('LIVE',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold)),
-                        ],
-                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Container(
+                          width: 6, height: 6,
+                          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 4),
+                        const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                      ]),
                     ),
                     const SizedBox(width: 8),
-                    Text(_durationStr,
-                        style: const TextStyle(color: Colors.white, fontSize: 13)),
+                    Text(_durationStr, style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w500)),
                     const Spacer(),
-                    // Viewer count
+                    // Viewer count pill
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: Colors.black45,
-                        borderRadius: BorderRadius.circular(20),
+                        color: Colors.black.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.remove_red_eye, color: Colors.white70, size: 14),
-                          const SizedBox(width: 4),
-                          Text('$_viewerCount',
-                              style: const TextStyle(color: Colors.white, fontSize: 13)),
-                        ],
-                      ),
+                      child: Row(children: [
+                        const Icon(Icons.remove_red_eye, color: Colors.white70, size: 13),
+                        const SizedBox(width: 4),
+                        Text('$_viewerCount', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                      ]),
                     ),
                     const SizedBox(width: 8),
-                    // Filter button
-                    _TopBtn(emoji: '✨', active: _filter != BeautyFilter.none,
-                        onTap: () => setState(() => _showFilterStrip = !_showFilterStrip)),
-                    // Goal button
-                    _TopBtn(emoji: '🎯', active: _activeGoal != null,
-                        onTap: () => showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          isScrollControlled: true,
-                          builder: (_) => SetGoalSheet(
-                            roomId: widget.session.room.id,
-                            onGoalSet: (g) => setState(() => _activeGoal = g),
-                          ),
-                        )),
-                    // Q&A button
-                    _TopBtn(emoji: '❓', active: false,
-                        onTap: () => showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          isScrollControlled: true,
-                          builder: (_) => LiveQAPanel(roomId: widget.session.room.id),
-                        )),
-                    // Raid button
-                    _TopBtn(emoji: '🚀', active: false,
-                        onTap: () => showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          isScrollControlled: true,
-                          builder: (_) => LiveRaidSheet(
-                            roomId: widget.session.room.id,
-                            onRaided: () => ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('🚀 Raid sent!'),
-                                  backgroundColor: Colors.blue),
-                            ),
-                          ),
-                        )),
-                    // PK Battle button (only when no active battle)
-                    if (_activeBattle == null)
-                      _TopBtn(emoji: '⚔️', active: false, onTap: _showBattleHostSheet),
-                    // Dashboard toggle
-                    GestureDetector(
-                      onTap: () => setState(() => _showDashboard = !_showDashboard),
-                      child: Container(
-                        padding: const EdgeInsets.all(7),
-                        margin: const EdgeInsets.only(right: 6),
-                        decoration: BoxDecoration(
-                          color: _showDashboard
-                              ? Colors.orange.withValues(alpha: 0.3)
-                              : Colors.black45,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white24),
+                    // Likes
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.favorite, color: Colors.red, size: 13),
+                        const SizedBox(width: 4),
+                        Text(
+                          _totalLikes >= 1000
+                              ? '${(_totalLikes / 1000).toStringAsFixed(1)}K'
+                              : '$_totalLikes',
+                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                         ),
-                        child: const Text('📊', style: TextStyle(fontSize: 14)),
-                      ),
+                      ]),
                     ),
-                    // Leaderboard
-                    GestureDetector(
-                      onTap: () => showModalBottomSheet(
-                        context: context,
-                        backgroundColor: Colors.transparent,
-                        isScrollControlled: true,
-                        builder: (_) => LiveLeaderboardSheet(roomId: widget.session.room.id),
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.all(7),
-                        margin: const EdgeInsets.only(right: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.black45,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white24),
-                        ),
-                        child: const Text('🏆', style: TextStyle(fontSize: 14)),
-                      ),
-                    ),
-                    // Moderation
-                    GestureDetector(
-                      onTap: () {
-                        final s = _settings ?? LiveRoomSettings(
-                          slowMode: false, slowModeSeconds: 30,
-                          followersOnly: false, commentsDisabled: false, blockedWords: []);
-                        showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          isScrollControlled: true,
-                          builder: (_) => LiveModerationPanel(
-                            roomId: widget.session.room.id,
-                            initial: s,
-                            onUpdated: (updated) => setState(() => _settings = updated),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(7),
-                        margin: const EdgeInsets.only(right: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.black45,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white24),
-                        ),
-                        child: const Text('🛡️', style: TextStyle(fontSize: 14)),
-                      ),
-                    ),
+                    const SizedBox(width: 8),
                     // End button
                     GestureDetector(
                       onTap: _endLive,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                         decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(20),
+                          color: const Color(0xFFE53935),
+                          borderRadius: BorderRadius.circular(18),
                         ),
-                        child: const Text('End',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13)),
+                        child: const Text('End', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.2)),
                       ),
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+
+          // ── Right-side tools strip ────────────────────────────────────────
+          Positioned(
+            right: 10,
+            top: 0,
+            bottom: 0,
+            child: SafeArea(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _HostToolBtn(
+                    emoji: '✨',
+                    label: 'Filter',
+                    active: _filter != BeautyFilter.none,
+                    onTap: () => setState(() => _showFilterStrip = !_showFilterStrip),
+                  ),
+                  const SizedBox(height: 20),
+                  _HostToolBtn(
+                    emoji: '🎯',
+                    label: 'Goal',
+                    active: _activeGoal != null,
+                    onTap: () => showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      builder: (_) => SetGoalSheet(
+                        roomId: widget.session.room.id,
+                        onGoalSet: (g) => setState(() => _activeGoal = g),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _HostToolBtn(
+                    emoji: '❓',
+                    label: 'Q&A',
+                    active: false,
+                    onTap: () => showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      builder: (_) => LiveQAPanel(roomId: widget.session.room.id),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _HostToolBtn(
+                    emoji: '🚀',
+                    label: 'Raid',
+                    active: false,
+                    onTap: () => showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      builder: (_) => LiveRaidSheet(
+                        roomId: widget.session.room.id,
+                        onRaided: () => ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('🚀 Raid sent!'), backgroundColor: Colors.blue),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_activeBattle == null) ...[
+                    const SizedBox(height: 20),
+                    _HostToolBtn(
+                      emoji: '⚔️',
+                      label: 'PK',
+                      active: false,
+                      onTap: _showBattleHostSheet,
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
@@ -764,9 +764,9 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
 
           // Chat overlay (left side, above bottom controls)
           Positioned(
-            bottom: 110,
+            bottom: 115,
             left: 0,
-            right: 60,
+            right: 64,
             child: LiveChatOverlay(
               roomId: widget.session.room.id,
               reverbChannel: _reverbChannel,
@@ -774,62 +774,91 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
             ),
           ),
 
-          // Bottom controls
+          // ── Bottom controls (TikTok-style) ───────────────────────────────
           Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _LiveControl(
-                  icon: _micOn ? Icons.mic : Icons.mic_off,
-                  active: _micOn,
-                  onTap: () async {
-                    _micOn = !_micOn;
-                    await _room.localParticipant?.setMicrophoneEnabled(_micOn);
-                    setState(() {});
-                  },
+            bottom: 0, left: 0, right: 0,
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Mic
+                    _HostControl(
+                      icon: _micOn ? Icons.mic_rounded : Icons.mic_off_rounded,
+                      label: _micOn ? 'Mic' : 'Muted',
+                      active: _micOn,
+                      onTap: () async {
+                        _micOn = !_micOn;
+                        await _room.localParticipant?.setMicrophoneEnabled(_micOn);
+                        setState(() {});
+                      },
+                    ),
+                    // Camera
+                    _HostControl(
+                      icon: _cameraOn ? Icons.videocam_rounded : Icons.videocam_off_rounded,
+                      label: _cameraOn ? 'Camera' : 'Off',
+                      active: _cameraOn,
+                      onTap: () async {
+                        _cameraOn = !_cameraOn;
+                        await _room.localParticipant?.setCameraEnabled(_cameraOn);
+                        setState(() {});
+                      },
+                    ),
+                    // Flip
+                    _HostControl(
+                      icon: Icons.flip_camera_ios_rounded,
+                      label: 'Flip',
+                      active: true,
+                      onTap: () async {
+                        if (!_cameraOn) return;
+                        _frontCamera = !_frontCamera;
+                        if (mounted) setState(() {});
+                        try {
+                          final pos = _frontCamera ? CameraPosition.front : CameraPosition.back;
+                          final track = _room.localParticipant
+                              ?.videoTrackPublications.firstOrNull?.track;
+                          if (track is LocalVideoTrack) {
+                            await track.setCameraPosition(pos);
+                          } else {
+                            await _room.localParticipant?.setCameraEnabled(false);
+                            await Future.delayed(const Duration(milliseconds: 500));
+                            await _room.localParticipant?.setCameraEnabled(true,
+                                cameraCaptureOptions: CameraCaptureOptions(cameraPosition: pos));
+                          }
+                        } catch (e) {
+                          debugPrint('[Live] flip error: $e');
+                        }
+                        if (mounted) setState(() {});
+                      },
+                    ),
+                    // Dashboard / Stats
+                    _HostControl(
+                      icon: Icons.bar_chart_rounded,
+                      label: 'Stats',
+                      active: _showDashboard,
+                      onTap: () => setState(() => _showDashboard = !_showDashboard),
+                    ),
+                    // More
+                    _HostControl(
+                      icon: Icons.more_horiz_rounded,
+                      label: 'More',
+                      active: false,
+                      onTap: () => showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        isScrollControlled: true,
+                        builder: (_) => _HostMoreSheet(
+                          roomId: widget.session.room.id,
+                          settings: _settings,
+                          onSettingsUpdated: (s) => setState(() => _settings = s),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 24),
-                _LiveControl(
-                  icon: _cameraOn ? Icons.videocam : Icons.videocam_off,
-                  active: _cameraOn,
-                  onTap: () async {
-                    _cameraOn = !_cameraOn;
-                    await _room.localParticipant?.setCameraEnabled(_cameraOn);
-                    setState(() {});
-                  },
-                ),
-                const SizedBox(width: 24),
-                _LiveControl(
-                  icon: Icons.flip_camera_ios,
-                  active: true,
-                  onTap: () async {
-                    if (!_cameraOn) return;
-                    _frontCamera = !_frontCamera;
-                    if (mounted) setState(() {});
-                    try {
-                      final pos = _frontCamera ? CameraPosition.front : CameraPosition.back;
-                      // Use setCameraPosition on the existing track — no unpublish needed
-                      final track = _room.localParticipant
-                          ?.videoTrackPublications.firstOrNull?.track;
-                      if (track is LocalVideoTrack) {
-                        await track.setCameraPosition(pos);
-                      } else {
-                        // Fallback: disable then re-enable with new position
-                        await _room.localParticipant?.setCameraEnabled(false);
-                        await Future.delayed(const Duration(milliseconds: 500));
-                        await _room.localParticipant?.setCameraEnabled(true,
-                            cameraCaptureOptions: CameraCaptureOptions(cameraPosition: pos));
-                      }
-                    } catch (e) {
-                      debugPrint('[Live] flip error: $e');
-                    }
-                    if (mounted) setState(() {});
-                  },
-                ),
-              ],
+              ),
             ),
           ),
         ],
@@ -938,53 +967,156 @@ class _BattleHostSheet extends StatelessWidget {
   }
 }
 
-class _TopBtn extends StatelessWidget {
+// ── Host tool button (right-side strip) ──────────────────────────────────────
+
+class _HostToolBtn extends StatelessWidget {
   final String emoji;
+  final String label;
   final bool active;
   final VoidCallback onTap;
 
-  const _TopBtn({required this.emoji, required this.active, required this.onTap});
+  const _HostToolBtn({required this.emoji, required this.label, required this.active, required this.onTap});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(7),
-          margin: const EdgeInsets.only(right: 6),
-          decoration: BoxDecoration(
-            color: active
-                ? Colors.orange.withValues(alpha: 0.3)
-                : Colors.black45,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: active ? Colors.orange : Colors.white24,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              color: active
+                  ? Colors.orange.withValues(alpha: 0.30)
+                  : Colors.black.withValues(alpha: 0.40),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: active ? Colors.orange : Colors.white.withValues(alpha: 0.25),
+                width: 1.2,
+              ),
             ),
+            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 18))),
           ),
-          child: Text(emoji, style: const TextStyle(fontSize: 14)),
-        ),
+          const SizedBox(height: 3),
+          Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 9, fontWeight: FontWeight.w500)),
+        ]),
       );
 }
 
-class _LiveControl extends StatelessWidget {
+// ── Bottom control button ─────────────────────────────────────────────────────
+
+class _HostControl extends StatelessWidget {
   final IconData icon;
+  final String label;
   final bool active;
   final VoidCallback onTap;
 
-  const _LiveControl({required this.icon, required this.active, required this.onTap});
+  const _HostControl({required this.icon, required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 52, height: 52,
+            decoration: BoxDecoration(
+              color: active
+                  ? Colors.white.withValues(alpha: 0.18)
+                  : Colors.red.withValues(alpha: 0.75),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.white, size: 24),
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+        ]),
+      );
+}
+
+// ── "More" sheet (leaderboard / moderation) ───────────────────────────────────
+
+class _HostMoreSheet extends StatelessWidget {
+  final int roomId;
+  final LiveRoomSettings? settings;
+  final void Function(LiveRoomSettings) onSettingsUpdated;
+
+  const _HostMoreSheet({required this.roomId, required this.settings, required this.onSettingsUpdated});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 52,
-        height: 52,
-        decoration: BoxDecoration(
-          color: active ? Colors.white24 : Colors.red.withOpacity(0.8),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: Colors.white, size: 24),
+    final items = [
+      _MoreItem('🏆', 'Leaderboard', () {
+        Navigator.pop(context);
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
+          builder: (_) => LiveLeaderboardSheet(roomId: roomId),
+        );
+      }),
+      _MoreItem('🛡️', 'Moderation', () {
+        Navigator.pop(context);
+        final s = settings ?? LiveRoomSettings(
+          slowMode: false, slowModeSeconds: 30,
+          followersOnly: false, commentsDisabled: false, blockedWords: []);
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
+          builder: (_) => LiveModerationPanel(
+            roomId: roomId,
+            initial: s,
+            onUpdated: onSettingsUpdated,
+          ),
+        );
+      }),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        color: Color(0xFF0D0D1A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 40, height: 4,
+              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          const Text('Tools', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 20),
+          GridView.count(
+            shrinkWrap: true,
+            crossAxisCount: 4,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            physics: const NeverScrollableScrollPhysics(),
+            children: items.map((item) => GestureDetector(
+              onTap: item.onTap,
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Container(
+                  width: 52, height: 52,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                  ),
+                  child: Center(child: Text(item.emoji, style: const TextStyle(fontSize: 22))),
+                ),
+                const SizedBox(height: 6),
+                Text(item.label, style: const TextStyle(color: Colors.white70, fontSize: 10), textAlign: TextAlign.center),
+              ]),
+            )).toList(),
+          ),
+          const SizedBox(height: 16),
+        ],
       ),
     );
   }
+}
+
+class _MoreItem {
+  final String emoji;
+  final String label;
+  final VoidCallback onTap;
+  _MoreItem(this.emoji, this.label, this.onTap);
 }

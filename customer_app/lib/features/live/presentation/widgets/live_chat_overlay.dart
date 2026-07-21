@@ -248,7 +248,7 @@ class _LiveChatOverlayState extends State<LiveChatOverlay> {
           ),
         // Input row
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
           child: Row(
             children: [
               // Emoji toggle
@@ -258,24 +258,25 @@ class _LiveChatOverlayState extends State<LiveChatOverlay> {
                   width: 36, height: 36,
                   decoration: BoxDecoration(
                     color: _showEmoji
-                        ? Colors.orange.withValues(alpha: 0.3)
-                        : Colors.black45,
+                        ? Colors.orange.withValues(alpha: 0.25)
+                        : Colors.black.withValues(alpha: 0.35),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white24),
                   ),
-                  child: const Center(child: Text('😊', style: TextStyle(fontSize: 16))),
+                  child: const Center(child: Text('😊', style: TextStyle(fontSize: 17))),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               // Text field
               Expanded(
                 child: Container(
-                  height: 40,
+                  height: 38,
                   decoration: BoxDecoration(
-                    color: Colors.black45,
-                    borderRadius: BorderRadius.circular(20),
+                    color: Colors.white.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(22),
                     border: Border.all(
-                      color: _inputFocused ? Colors.orange : Colors.white24,
+                      color: _inputFocused
+                          ? Colors.orange.withValues(alpha: 0.7)
+                          : Colors.white.withValues(alpha: 0.15),
                       width: 1,
                     ),
                   ),
@@ -288,12 +289,12 @@ class _LiveChatOverlayState extends State<LiveChatOverlay> {
                     onSubmitted: (_) => _send(),
                     onTap: () => setState(() { _inputFocused = true; _showEmoji = false; }),
                     onEditingComplete: () => setState(() => _inputFocused = false),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: 'Say something...',
-                      hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
+                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 13),
                       border: InputBorder.none,
                       counterText: '',
-                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     ),
                   ),
                 ),
@@ -302,9 +303,16 @@ class _LiveChatOverlayState extends State<LiveChatOverlay> {
               GestureDetector(
                 onTap: _send,
                 child: Container(
-                  width: 40, height: 40,
-                  decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
-                  child: const Icon(Icons.send, color: Colors.white, size: 18),
+                  width: 38, height: 38,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF6B00), Color(0xFFFF3D00)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 18),
                 ),
               ),
             ],
@@ -325,31 +333,43 @@ class _ChatBubble extends StatelessWidget {
     return GestureDetector(
       onLongPress: onLongPress,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
+        padding: const EdgeInsets.symmetric(vertical: 2.5, horizontal: 12),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Flexible(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(14),
+                  color: Colors.black.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(18),
                 ),
                 child: RichText(
                   text: TextSpan(
                     children: [
+                      if (msg.isHost)
+                        const WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: Padding(
+                            padding: EdgeInsets.only(right: 4),
+                            child: Text('👑', style: TextStyle(fontSize: 11)),
+                          ),
+                        ),
                       TextSpan(
-                        text: msg.isHost ? '👑 ${msg.username}  ' : '${msg.username}  ',
+                        text: '${msg.username}  ',
                         style: TextStyle(
-                          color: msg.isHost ? Colors.orange : Colors.white70,
+                          color: msg.isHost ? const Color(0xFFFF9500) : const Color(0xFFB0B8FF),
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
                       ),
                       TextSpan(
                         text: msg.message,
-                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12.5,
+                          height: 1.3,
+                        ),
                       ),
                     ],
                   ),

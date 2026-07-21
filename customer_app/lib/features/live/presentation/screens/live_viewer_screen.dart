@@ -636,85 +636,120 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
               ),
             ),
 
-          // ── Top bar ───────────────────────────────────────────────────────
+          // ── Gradient overlays (readability) ───────────────────────────────
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: Container(
+              height: 200,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black.withValues(alpha: 0.72), Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: Container(
+              height: 280,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [Colors.black.withValues(alpha: 0.85), Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+
+          // ── Top bar (TikTok-style) ────────────────────────────────────────
           Positioned(
             top: 0, left: 0, right: 0,
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Colors.orange,
-                      child: Text(
-                        widget.room.host.name.isNotEmpty
-                            ? widget.room.host.name[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    // Host info pill
+                    GestureDetector(
+                      onTap: () {},
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(26),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundColor: Colors.orange,
+                            backgroundImage: (widget.room.host.avatar.isNotEmpty)
+                                ? NetworkImage(widget.room.host.avatar) as ImageProvider
+                                : null,
+                            child: widget.room.host.avatar.isEmpty
+                                ? Text(
+                                    widget.room.host.name.isNotEmpty
+                                        ? widget.room.host.name[0].toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))
+                                : null,
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(widget.room.host.name,
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                              Row(children: [
+                                Container(
+                                  width: 5, height: 5,
+                                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                ),
+                                const SizedBox(width: 3),
+                                const Text('LIVE', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                                const SizedBox(width: 6),
+                                Icon(Icons.remove_red_eye, color: Colors.white.withValues(alpha: 0.55), size: 10),
+                                const SizedBox(width: 2),
+                                Text('$_viewerCount', style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 10)),
+                              ]),
+                            ],
+                          ),
+                          const SizedBox(width: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.orange,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text('Follow', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
+                        ]),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(widget.room.host.name,
-                            style: const TextStyle(
-                                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                        const Row(children: [
-                          Icon(Icons.circle, color: Colors.red, size: 8),
-                          SizedBox(width: 4),
-                          Text('LIVE', style: TextStyle(color: Colors.red, fontSize: 11)),
-                        ]),
-                      ],
-                    ),
                     const Spacer(),
-                    if (!_loading) StreamQualityIndicator(room: _room),
-                    const SizedBox(width: 8),
-                    // Viewer count
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: Colors.black45, borderRadius: BorderRadius.circular(20)),
-                      child: Row(children: [
-                        const Icon(Icons.remove_red_eye, color: Colors.white70, size: 13),
-                        const SizedBox(width: 3),
-                        Text('$_viewerCount',
-                            style: const TextStyle(color: Colors.white, fontSize: 12)),
-                      ]),
-                    ),
-                    const SizedBox(width: 6),
-                    GestureDetector(
+                    if (!_loading) ...[
+                      StreamQualityIndicator(room: _room),
+                      const SizedBox(width: 6),
+                    ],
+                    // Leaderboard
+                    _ViewerTopBtn(
+                      icon: Icons.emoji_events_outlined,
                       onTap: () => showModalBottomSheet(
                         context: context,
                         backgroundColor: Colors.transparent,
                         isScrollControlled: true,
                         builder: (_) => LiveLeaderboardSheet(roomId: widget.room.id),
                       ),
-                      child: Container(
-                        width: 30, height: 30,
-                        decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-                        child: const Center(child: Text('🏆', style: TextStyle(fontSize: 14))),
-                      ),
                     ),
-                    const SizedBox(width: 6),
-                    GestureDetector(
-                      onTap: _showReport,
-                      child: Container(
-                        width: 30, height: 30,
-                        decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-                        child: const Icon(Icons.flag_outlined, color: Colors.white60, size: 15),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    GestureDetector(
-                      onTap: _leave,
-                      child: Container(
-                        width: 30, height: 30,
-                        decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-                        child: const Icon(Icons.close, color: Colors.white, size: 16),
-                      ),
-                    ),
+                    const SizedBox(width: 8),
+                    // Report
+                    _ViewerTopBtn(icon: Icons.flag_outlined, onTap: _showReport),
+                    const SizedBox(width: 8),
+                    // Close
+                    _ViewerTopBtn(icon: Icons.close, onTap: _leave),
                   ],
                 ),
               ),
@@ -787,168 +822,295 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
           // ── Gift animations ───────────────────────────────────────────────
           ...(_giftEvents.map((e) => GiftAnimationOverlay(event: e))),
 
-          // ── Like button ───────────────────────────────────────────────────
+          // ── Right action column (like + more) ────────────────────────────
           Positioned(
-            right: 12, bottom: 150,
-            child: Column(children: [
-              GestureDetector(
-                onTap: _like,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 48, height: 48,
-                  decoration: BoxDecoration(
-                    color: _hasLiked ? Colors.red.withValues(alpha: 0.3) : Colors.black54,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: _hasLiked ? Colors.red : Colors.white24),
-                  ),
-                  child: Icon(
-                    _hasLiked ? Icons.favorite : Icons.favorite_border,
-                    color: _hasLiked ? Colors.red : Colors.white,
-                    size: 22,
-                  ),
+            right: 10, bottom: 160,
+            child: Column(
+              children: [
+                // Like button
+                GestureDetector(
+                  onTap: _like,
+                  child: Column(children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 46, height: 46,
+                      decoration: BoxDecoration(
+                        color: _hasLiked
+                            ? Colors.red.withValues(alpha: 0.25)
+                            : Colors.white.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _hasLiked ? Colors.red : Colors.white.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Icon(
+                        _hasLiked ? Icons.favorite : Icons.favorite_border,
+                        color: _hasLiked ? Colors.red : Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                    if (_totalLikes > 0) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        _totalLikes >= 1000
+                            ? '${(_totalLikes / 1000).toStringAsFixed(1)}K'
+                            : '$_totalLikes',
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ]),
                 ),
-              ),
-              if (_totalLikes > 0) ...[
-                const SizedBox(height: 4),
-                Text(
-                  _totalLikes >= 1000
-                      ? '${(_totalLikes / 1000).toStringAsFixed(1)}K'
-                      : '$_totalLikes',
-                  style: const TextStyle(color: Colors.white, fontSize: 11),
+                const SizedBox(height: 16),
+                // Leaderboard
+                _ViewerSideBtn(
+                  emoji: '🏆',
+                  label: 'Top',
+                  onTap: () => showModalBottomSheet(
+                    context: context,
+                    backgroundColor: Colors.transparent,
+                    isScrollControlled: true,
+                    builder: (_) => LiveLeaderboardSheet(roomId: widget.room.id),
+                  ),
                 ),
               ],
-            ]),
+            ),
           ),
 
           // ── Chat overlay ──────────────────────────────────────────────────
           if (!_loading)
             Positioned(
-              bottom: 80, left: 0, right: 60,
+              bottom: 96, left: 0, right: 64,
               child: LiveChatOverlay(
                 roomId: widget.room.id,
                 reverbChannel: _reverbChannel,
               ),
             ),
 
-          // ── Bottom bar ────────────────────────────────────────────────────
+          // ── Bottom action bar (TikTok-style) ──────────────────────────────
           Positioned(
-            bottom: 24, left: 12, right: 12,
-            child: Row(children: [
-              GestureDetector(
-                onTap: () async {
-                  await showModalBottomSheet(
-                    context: context,
-                    backgroundColor: Colors.transparent,
-                    isScrollControlled: true,
-                    builder: (_) => CoinPurchaseSheet(
-                      currentBalance: _coinBalance,
-                      onPurchased: (nb) { if (mounted) setState(() => _coinBalance = nb); },
+            bottom: 0, left: 0, right: 0,
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Secondary row: coins + join + sub + Q&A
+                    Row(children: [
+                      // Coins
+                      GestureDetector(
+                        onTap: () async {
+                          await showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.transparent,
+                            isScrollControlled: true,
+                            builder: (_) => CoinPurchaseSheet(
+                              currentBalance: _coinBalance,
+                              onPurchased: (nb) { if (mounted) setState(() => _coinBalance = nb); },
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.orange.withValues(alpha: 0.35)),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Text('🪙', style: TextStyle(fontSize: 13)),
+                            const SizedBox(width: 4),
+                            Text(
+                              _coinBalance >= 1000
+                                  ? '${(_coinBalance / 1000).toStringAsFixed(1)}K'
+                                  : '$_coinBalance',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                            const SizedBox(width: 3),
+                            const Icon(Icons.add, color: Colors.orange, size: 12),
+                          ]),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Join Stage
+                      if (!_loading)
+                        JoinRequestButton(
+                          status: _guestStatus,
+                          loading: _guestLoading,
+                          onJoin: _requestJoinStage,
+                          onCancel: _cancelJoinRequest,
+                        ),
+                      const Spacer(),
+                      // Q&A
+                      _BottomActionBtn(
+                        emoji: '❓',
+                        label: 'Q&A',
+                        onTap: () => showModalBottomSheet(
+                          context: context,
+                          backgroundColor: const Color(0xFF0D0D1A),
+                          isScrollControlled: true,
+                          builder: (_) => SubmitQuestionSheet(roomId: widget.room.id),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Subscribe
+                      GestureDetector(
+                        onTap: _mySubscription != null ? null : () => showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => LiveSubscriptionSheet(
+                            hostId:   widget.room.host.id,
+                            hostName: widget.room.host.name,
+                            onSubscribed: (s) => setState(() => _mySubscription = s),
+                          ),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            gradient: _mySubscription != null
+                                ? const LinearGradient(colors: [Color(0xFFB8860B), Color(0xFFFFD700)])
+                                : null,
+                            color: _mySubscription != null ? null : Colors.white.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: _mySubscription != null ? Colors.amber : Colors.white.withValues(alpha: 0.25),
+                            ),
+                          ),
+                          child: Text(
+                            _mySubscription != null ? '${_mySubscription!.emoji} Sub' : '⭐ Sub',
+                            style: TextStyle(
+                              color: _mySubscription != null ? Colors.white : Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ]),
+                    const SizedBox(height: 8),
+                    // Primary row: Gift button (full width)
+                    SizedBox(
+                      width: double.infinity,
+                      child: GestureDetector(
+                        onTap: _showGifts,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFF6B00), Color(0xFFFF3D00)],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ),
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.orange.withValues(alpha: 0.45),
+                                blurRadius: 18,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text('🎁', style: TextStyle(fontSize: 18)),
+                              SizedBox(width: 8),
+                              Text(
+                                'Send a Gift',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(children: [
-                    const Text('🪙', style: TextStyle(fontSize: 14)),
-                    const SizedBox(width: 4),
-                    Text('$_coinBalance',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.add_circle_outline, color: Colors.orange, size: 14),
-                  ]),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              if (!_loading)
-                JoinRequestButton(
-                  status: _guestStatus,
-                  loading: _guestLoading,
-                  onJoin: _requestJoinStage,
-                  onCancel: _cancelJoinRequest,
-                ),
-              const SizedBox(width: 8),
-              // Q&A button
-              GestureDetector(
-                onTap: () => showModalBottomSheet(
-                  context: context,
-                  backgroundColor: const Color(0xFF1A1A2E),
-                  isScrollControlled: true,
-                  builder: (_) => SubmitQuestionSheet(roomId: widget.room.id),
-                ),
-                child: Container(
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.purple.withValues(alpha: 0.3),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.purple.withValues(alpha: 0.6)),
-                  ),
-                  child: const Center(child: Text('❓', style: TextStyle(fontSize: 14))),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Subscribe button
-              GestureDetector(
-                onTap: _mySubscription != null ? null : () => showModalBottomSheet(
-                  context: context,
-                  backgroundColor: Colors.transparent,
-                  isScrollControlled: true,
-                  builder: (_) => LiveSubscriptionSheet(
-                    hostId:   widget.room.host.id,
-                    hostName: widget.room.host.name,
-                    onSubscribed: (s) => setState(() => _mySubscription = s),
-                  ),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: _mySubscription != null
-                        ? Colors.amber.withValues(alpha: 0.2)
-                        : Colors.black54,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: _mySubscription != null
-                          ? Colors.amber
-                          : Colors.white24,
-                    ),
-                  ),
-                  child: Text(
-                    _mySubscription != null
-                        ? '${_mySubscription!.emoji} Sub'
-                        : '⭐ Sub',
-                    style: TextStyle(
-                      color: _mySubscription != null ? Colors.amber : Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const Spacer(),
-              GestureDetector(
-                onTap: _showGifts,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Colors.orange, Colors.deepOrange]),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: const Row(children: [
-                    Text('🎁', style: TextStyle(fontSize: 16)),
-                    SizedBox(width: 6),
-                    Text('Gift',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                  ]),
-                ),
-              ),
-            ]),
+            ),
           ),
         ],
       ),
     );
   }
+}
+
+// ── Helper widgets ────────────────────────────────────────────────────────────
+
+class _ViewerTopBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _ViewerTopBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 34, height: 34,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.38),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: Colors.white, size: 16),
+        ),
+      );
+}
+
+class _ViewerSideBtn extends StatelessWidget {
+  final String emoji;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ViewerSideBtn({required this.emoji, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Column(children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 18))),
+          ),
+          const SizedBox(height: 3),
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 9)),
+        ]),
+      );
+}
+
+class _BottomActionBtn extends StatelessWidget {
+  final String emoji;
+  final String label;
+  final VoidCallback onTap;
+
+  const _BottomActionBtn({required this.emoji, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Text(emoji, style: const TextStyle(fontSize: 13)),
+            const SizedBox(width: 4),
+            Text(label, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+      );
 }
