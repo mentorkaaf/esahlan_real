@@ -720,10 +720,10 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
             ),
           ),
 
-          // Filter strip — sits above chat area, stays open
+          // Filter strip — sits just above bottom controls (not blocking chat)
           if (_showFilterStrip)
             Positioned(
-              bottom: 320, left: 0, right: 0,
+              bottom: 95, left: 0, right: 0,
               child: FilterSelectorStrip(
                 selected: _filter,
                 onSelect: (f) => setState(() => _filter = f),
@@ -804,16 +804,17 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
               onClose: () => setState(() => _showDashboard = false),
             ),
 
-          // Chat overlay (left side, above bottom controls — no input for host)
+          // Chat overlay (left side, above bottom controls)
+          // showInput:false when filter strip open (filter strip sits in same area)
           Positioned(
-            bottom: 115,
+            bottom: 110,
             left: 0,
-            right: 64,
+            right: 68,
             child: LiveChatOverlay(
               roomId: widget.session.room.id,
               reverbChannel: _reverbChannel,
               isHost: true,
-              showInput: false,
+              showInput: !_showFilterStrip,
             ),
           ),
 

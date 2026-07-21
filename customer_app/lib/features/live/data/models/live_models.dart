@@ -1,3 +1,17 @@
+String _fixLiveUrl(String? url) {
+  if (url == null || url.isEmpty) return '';
+  const canonical  = 'https://esahlan.com';
+  const api        = 'https://api.esahlan.com';
+  const mediaProxy = '$canonical/api/v1/media?f=';
+  var u = url
+      .replaceAll('$api/', '$canonical/')
+      .replaceAll('api.esahlan.com', 'esahlan.com');
+  if (u.contains('/storage/') && !u.contains(mediaProxy)) {
+    u = '$mediaProxy${Uri.encodeComponent(u)}';
+  }
+  return u;
+}
+
 class LiveHost {
   final int id;
   final String name;
@@ -15,7 +29,7 @@ class LiveHost {
         id: j['id'] ?? 0,
         name: j['name'] ?? '',
         username: j['username'] ?? '',
-        avatar: j['avatar'] ?? '',
+        avatar: _fixLiveUrl(j['avatar'] as String?),
       );
 }
 

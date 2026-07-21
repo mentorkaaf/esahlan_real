@@ -115,6 +115,10 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
       setState(() {
         _session = session;
         _loading = false;
+        // Update viewer count from fresh join response
+        if (session.room.viewerCount > 0) {
+          _viewerCount = session.room.viewerCount;
+        }
       });
 
       _room = Room();
@@ -411,10 +415,13 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
     if (_followLoading) return;
     setState(() => _followLoading = true);
     try {
-      final action = _isFollowing ? 'unfollow' : 'follow';
-      await ApiClient.instance.post('/community/users/${widget.room.host.id}/$action');
+      final res = await ApiClient.instance.post('/community/follow/${widget.room.host.id}');
+      final following = res.data['following'] as bool? ?? !_isFollowing;
+      if (mounted) setState(() => _isFollowing = following);
+    } catch (_) {
+      // Toggle optimistically on error
       if (mounted) setState(() => _isFollowing = !_isFollowing);
-    } catch (_) {}
+    }
     if (mounted) setState(() => _followLoading = false);
   }
 
