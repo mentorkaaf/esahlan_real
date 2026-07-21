@@ -14,6 +14,10 @@ import '../widgets/live_moderation_panel.dart';
 import '../widgets/live_battle_bar.dart';
 import '../widgets/battle_invite_popup.dart';
 import '../widgets/battle_result_overlay.dart';
+import '../widgets/live_goal_bar.dart';
+import '../widgets/live_qa_panel.dart';
+import '../widgets/live_raid_sheet.dart';
+import '../widgets/live_beauty_filter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/services/realtime_client.dart';
 
@@ -48,6 +52,13 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
   LiveBattle? _activeBattle;
   BattleInvite? _pendingInvite;
   bool _battleEnded = false;
+
+  // ── Phase 5 features ───────────────────────────────────────────────────────
+  LiveGoal? _activeGoal;
+  LiveQuestion? _activeQuestion;
+  BeautyFilter _filter = BeautyFilter.none;
+  bool _showFilterStrip = false;
+  bool _showRaidConfirm = false;
 
   @override
   void initState() {
@@ -169,6 +180,46 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
         }
       },
     );
+
+    // Goal events
+    await RealtimeClient.instance.listen(_reverbChannel, 'goal.updated', (data) {
+      if (!mounted) return;
+      try { setState(() => _activeGoal = LiveGoal.fromJson(Map<String, dynamic>.from(data as Map))); }
+      catch (_) {}
+    });
+    await RealtimeClient.instance.listen(_reverbChannel, 'goal.completed', (data) {
+      if (!mounted) return;
+      try { setState(() => _activeGoal = LiveGoal.fromJson(Map<String, dynamic>.from(data as Map))); }
+      catch (_) {}
+    });
+    await RealtimeClient.instance.listen(_reverbChannel, 'goal.cancelled', (_) {
+      if (mounted) setState(() => _activeGoal = null);
+    });
+
+    // Q&A: new question from viewer (private channel)
+    await RealtimeClient.instance.listen(
+      'private-user.${widget.session.room.host.id}',
+      'live.new_question',
+      (data) {
+        if (!mounted) return;
+        try {
+          final q = LiveQuestion.fromJson(Map<String, dynamic>.from(data as Map));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❓ @${q.username}: ${q.question}'),
+              backgroundColor: Colors.purple,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } catch (_) {}
+      },
+    );
+
+    // Load existing goal
+    try {
+      final g = await _repo.getGoal(widget.session.room.id);
+      if (mounted && g != null) setState(() => _activeGoal = g);
+    } catch (_) {}
 
     setState(() {});
   }
@@ -436,9 +487,14 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // ── TikTok-style tiled layout ──────────────────────────────────────
+          // ── TikTok-style tiled layout (with beauty filter) ────────────────
           if (tiles.isNotEmpty)
-            Positioned.fill(child: LiveTiledLayout(tiles: tiles))
+            Positioned.fill(
+              child: BeautyFilterWidget(
+                filter: _filter,
+                child: LiveTiledLayout(tiles: tiles),
+              ),
+            )
           else
             const Positioned.fill(
               child: Center(child: CircularProgressIndicator(color: Colors.orange)),
@@ -499,21 +555,45 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    // Filter button
+                    _TopBtn(emoji: '✨', active: _filter != BeautyFilter.none,
+                        onTap: () => setState(() => _showFilterStrip = !_showFilterStrip)),
+                    // Goal button
+                    _TopBtn(emoji: '🎯', active: _activeGoal != null,
+                        onTap: () => showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => SetGoalSheet(
+                            roomId: widget.session.room.id,
+                            onGoalSet: (g) => setState(() => _activeGoal = g),
+                          ),
+                        )),
+                    // Q&A button
+                    _TopBtn(emoji: '❓', active: false,
+                        onTap: () => showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => LiveQAPanel(roomId: widget.session.room.id),
+                        )),
+                    // Raid button
+                    _TopBtn(emoji: '🚀', active: false,
+                        onTap: () => showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (_) => LiveRaidSheet(
+                            roomId: widget.session.room.id,
+                            onRaided: () => ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('🚀 Raid sent!'),
+                                  backgroundColor: Colors.blue),
+                            ),
+                          ),
+                        )),
                     // PK Battle button (only when no active battle)
                     if (_activeBattle == null)
-                      GestureDetector(
-                        onTap: _showBattleHostSheet,
-                        child: Container(
-                          padding: const EdgeInsets.all(7),
-                          margin: const EdgeInsets.only(right: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.orange.withOpacity(0.6)),
-                          ),
-                          child: const Text('⚔️', style: TextStyle(fontSize: 14)),
-                        ),
-                      ),
+                      _TopBtn(emoji: '⚔️', active: false, onTap: _showBattleHostSheet),
                     // Dashboard toggle
                     GestureDetector(
                       onTap: () => setState(() => _showDashboard = !_showDashboard),
@@ -599,10 +679,33 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
             ),
           ),
 
+          // Filter strip (above bottom controls)
+          if (_showFilterStrip)
+            Positioned(
+              bottom: 100, left: 0, right: 0,
+              child: FilterSelectorStrip(
+                selected: _filter,
+                onSelect: (f) => setState(() { _filter = f; _showFilterStrip = false; }),
+              ),
+            ),
+
+          // Goal bar
+          if (_activeGoal != null)
+            Positioned(
+              top: 95, left: 0, right: 0,
+              child: LiveGoalBar(
+                goal: _activeGoal!,
+                onTap: () async {
+                  await _repo.cancelGoal(widget.session.room.id);
+                  setState(() => _activeGoal = null);
+                },
+              ),
+            ),
+
           // PK Battle bar (below top bar)
           if (_activeBattle != null && !_battleEnded)
             Positioned(
-              top: 100,
+              top: _activeGoal != null ? 155 : 100,
               left: 0,
               right: 0,
               child: LiveBattleBar(battle: _activeBattle!),
@@ -833,6 +936,33 @@ class _BattleHostSheet extends StatelessWidget {
       ],
     );
   }
+}
+
+class _TopBtn extends StatelessWidget {
+  final String emoji;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _TopBtn({required this.emoji, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(7),
+          margin: const EdgeInsets.only(right: 6),
+          decoration: BoxDecoration(
+            color: active
+                ? Colors.orange.withValues(alpha: 0.3)
+                : Colors.black45,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: active ? Colors.orange : Colors.white24,
+            ),
+          ),
+          child: Text(emoji, style: const TextStyle(fontSize: 14)),
+        ),
+      );
 }
 
 class _LiveControl extends StatelessWidget {

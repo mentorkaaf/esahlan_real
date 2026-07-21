@@ -15,6 +15,10 @@ import '../widgets/stream_quality_indicator.dart';
 import '../widgets/live_leaderboard_sheet.dart';
 import '../widgets/live_battle_bar.dart';
 import '../widgets/battle_result_overlay.dart';
+import '../widgets/live_goal_bar.dart';
+import '../widgets/live_qa_panel.dart';
+import '../widgets/live_raid_sheet.dart';
+import '../widgets/live_subscription_sheet.dart';
 
 class LiveViewerScreen extends StatefulWidget {
   final LiveRoom room;
@@ -56,6 +60,16 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
   EventsListener<RoomEvent>? _battleListener;
   LiveBattle? _activeBattle;
   bool _battleEnded = false;
+
+  // ── Phase 5 ────────────────────────────────────────────────────────────────
+  LiveGoal? _activeGoal;
+  LiveQuestion? _activeQuestion;
+  LiveSubscription? _mySubscription;
+  // Raid
+  String? _raidFromHost;
+  int? _raidTargetRoomId;
+  String? _raidTargetTitle;
+  int _raidCount = 0;
 
   String get _reverbChannel => 'live.${widget.room.id}';
 
@@ -152,6 +166,55 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
       await RealtimeClient.instance.listen(_reverbChannel, 'live.battle_started', _onBattleStarted);
       await RealtimeClient.instance.listen(_reverbChannel, 'battle.score_updated', _onBattleScoreUpdated);
       await RealtimeClient.instance.listen(_reverbChannel, 'battle.ended', _onBattleEnded);
+
+      // Goal events
+      await RealtimeClient.instance.listen(_reverbChannel, 'goal.updated', (data) {
+        if (!mounted) return;
+        try { setState(() => _activeGoal = LiveGoal.fromJson(Map<String, dynamic>.from(data as Map))); }
+        catch (_) {}
+      });
+      await RealtimeClient.instance.listen(_reverbChannel, 'goal.completed', (data) {
+        if (!mounted) return;
+        try { setState(() => _activeGoal = LiveGoal.fromJson(Map<String, dynamic>.from(data as Map))); }
+        catch (_) {}
+      });
+      await RealtimeClient.instance.listen(_reverbChannel, 'goal.cancelled', (_) {
+        if (mounted) setState(() => _activeGoal = null);
+      });
+
+      // Q&A events
+      await RealtimeClient.instance.listen(_reverbChannel, 'qa.question_active', (data) {
+        if (!mounted) return;
+        try { setState(() => _activeQuestion = LiveQuestion.fromJson(Map<String, dynamic>.from(data as Map))); }
+        catch (_) {}
+      });
+      await RealtimeClient.instance.listen(_reverbChannel, 'qa.question_dismissed', (_) {
+        if (mounted) setState(() => _activeQuestion = null);
+      });
+
+      // Raid event
+      await RealtimeClient.instance.listen(_reverbChannel, 'live.raid_started', (data) {
+        if (!mounted) return;
+        try {
+          final map = Map<String, dynamic>.from(data as Map);
+          setState(() {
+            _raidFromHost    = map['from_host_name'] as String? ?? '';
+            _raidTargetRoomId = map['target_room_id'] as int?;
+            _raidTargetTitle  = map['target_title']  as String? ?? '';
+            _raidCount        = map['raider_count']  as int? ?? 0;
+          });
+        } catch (_) {}
+      });
+
+      // Load initial goal + subscription
+      try {
+        final g = await _repo.getGoal(widget.room.id);
+        if (mounted && g != null) setState(() => _activeGoal = g);
+      } catch (_) {}
+      try {
+        final s = await _repo.getMySubscription(widget.room.host.id);
+        if (mounted) setState(() => _mySubscription = s);
+      } catch (_) {}
 
       setState(() {});
     } catch (e) {
@@ -658,6 +721,48 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
             ),
           ),
 
+          // ── Goal bar ──────────────────────────────────────────────────────
+          if (_activeGoal != null)
+            Positioned(
+              top: 95, left: 0, right: 0,
+              child: LiveGoalBar(goal: _activeGoal!),
+            ),
+
+          // ── Active Q&A question banner ─────────────────────────────────────
+          if (_activeQuestion != null)
+            Positioned(
+              top: _activeGoal != null ? 155 : 100,
+              left: 0, right: 0,
+              child: ActiveQuestionBanner(
+                question: _activeQuestion!,
+                onDismiss: () => setState(() => _activeQuestion = null),
+              ),
+            ),
+
+          // ── Raid overlay ───────────────────────────────────────────────────
+          if (_raidTargetRoomId != null)
+            Positioned(
+              bottom: 90, left: 0, right: 0,
+              child: LiveRaidOverlay(
+                fromHostName: _raidFromHost ?? '',
+                targetRoomId: _raidTargetRoomId!,
+                targetTitle:  _raidTargetTitle ?? '',
+                raiderCount:  _raidCount,
+                onNavigate: (roomId) {
+                  setState(() {
+                    _raidTargetRoomId = null;
+                    _raidFromHost     = null;
+                  });
+                  // Navigate to the raided room — pop and push new viewer
+                  Navigator.pop(context);
+                },
+                onDismiss: () => setState(() {
+                  _raidTargetRoomId = null;
+                  _raidFromHost     = null;
+                }),
+              ),
+            ),
+
           // ── PK Battle bar ─────────────────────────────────────────────────
           if (_activeBattle != null && !_battleEnded)
             Positioned(
@@ -766,6 +871,63 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
                   onJoin: _requestJoinStage,
                   onCancel: _cancelJoinRequest,
                 ),
+              const SizedBox(width: 8),
+              // Q&A button
+              GestureDetector(
+                onTap: () => showModalBottomSheet(
+                  context: context,
+                  backgroundColor: const Color(0xFF1A1A2E),
+                  isScrollControlled: true,
+                  builder: (_) => SubmitQuestionSheet(roomId: widget.room.id),
+                ),
+                child: Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withValues(alpha: 0.3),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.purple.withValues(alpha: 0.6)),
+                  ),
+                  child: const Center(child: Text('❓', style: TextStyle(fontSize: 14))),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Subscribe button
+              GestureDetector(
+                onTap: _mySubscription != null ? null : () => showModalBottomSheet(
+                  context: context,
+                  backgroundColor: Colors.transparent,
+                  isScrollControlled: true,
+                  builder: (_) => LiveSubscriptionSheet(
+                    hostId:   widget.room.host.id,
+                    hostName: widget.room.host.name,
+                    onSubscribed: (s) => setState(() => _mySubscription = s),
+                  ),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: _mySubscription != null
+                        ? Colors.amber.withValues(alpha: 0.2)
+                        : Colors.black54,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _mySubscription != null
+                          ? Colors.amber
+                          : Colors.white24,
+                    ),
+                  ),
+                  child: Text(
+                    _mySubscription != null
+                        ? '${_mySubscription!.emoji} Sub'
+                        : '⭐ Sub',
+                    style: TextStyle(
+                      color: _mySubscription != null ? Colors.amber : Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
               const Spacer(),
               GestureDetector(
                 onTap: _showGifts,

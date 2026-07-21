@@ -4,10 +4,16 @@ namespace App\Http\Controllers\Api\Live;
 use App\Http\Controllers\Controller;
 use App\Models\Gift;
 use App\Models\GiftTransaction;
+use App\Models\LiveBattle;
+use App\Models\LiveBattleParticipant;
 use App\Models\LiveRoom;
 use App\Models\UserCoin;
 use App\Services\RealtimeService;
 use Illuminate\Http\Request;
+
+
+
+
 
 class GiftController extends Controller
 {
@@ -65,6 +71,13 @@ class GiftController extends Controller
 
         $room->increment('total_coins_earned', $totalCoins);
 
+        // Update battle score if an active battle exists for this room
+        $this->updateBattleScore($roomId, $totalCoins);
+
+        // Update live goal (coins + gifts)
+        LiveGoalController::increment($roomId, 'coins', $totalCoins);
+        LiveGoalController::increment($roomId, 'gifts', $request->quantity);
+
         $sender = auth()->user();
         $p      = $sender?->communityProfile;
 
@@ -87,6 +100,44 @@ class GiftController extends Controller
                 'new_balance'    => UserCoin::where('user_id', $senderId)->value('balance'),
             ],
         ]);
+    }
+
+    /** Update battle score when a gift is sent */
+    private function updateBattleScore(int $roomId, int $coins): void
+    {
+        $participant = LiveBattleParticipant::where('live_room_id', $roomId)
+            ->whereHas('battle', fn($q) => $q->where('status', 'active'))
+            ->with('battle')
+            ->first();
+
+        if (!$participant) return;
+
+        $participant->increment('score', $coins);
+
+        $battle = $participant->battle->fresh(['participants.host.communityProfile']);
+
+        // Recalculate ranks
+        $ranked = $battle->participants->sortByDesc('score')->values();
+        foreach ($ranked as $i => $p) {
+            $p->update(['rank' => $i + 1]);
+        }
+
+        $scores = $ranked->map(fn($p, $i) => [
+            'host_id'      => $p->host_id,
+            'live_room_id' => $p->live_room_id,
+            'name'         => $p->host?->name ?? '',
+            'score'        => $p->fresh()->score,
+            'rank'         => $i + 1,
+        ])->values()->all();
+
+        // Broadcast to ALL participant rooms in real-time
+        foreach ($battle->participants as $p) {
+            RealtimeService::toPublic("live.{$p->live_room_id}", 'battle.score_updated', [
+                'battle_id' => $battle->id,
+                'scores'    => $scores,
+                'ends_at'   => $battle->ends_at?->toIso8601String(),
+            ]);
+        }
     }
 
     /** Top gifts in a live room */

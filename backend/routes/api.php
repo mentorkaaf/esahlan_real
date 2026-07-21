@@ -32,11 +32,17 @@ use App\Http\Controllers\Api\Live\LiveRoomController;
 use App\Http\Controllers\Api\Live\GiftController;
 use App\Http\Controllers\Api\Live\CoinController;
 use App\Http\Controllers\Api\Live\LiveGuestController;
+use App\Http\Controllers\Api\Live\LiveBattleController;
 use App\Http\Controllers\Api\Live\LiveStatsController;
 use App\Http\Controllers\Api\Live\LiveLeaderboardController;
 use App\Http\Controllers\Api\Live\LiveModerationController;
 use App\Http\Controllers\Api\Live\LiveDiscoveryController;
 use App\Http\Controllers\Api\Live\LiveReportController;
+use App\Http\Controllers\Api\Live\LiveSubscriptionController;
+use App\Http\Controllers\Api\Live\LiveGoalController;
+use App\Http\Controllers\Api\Live\LiveQAController;
+use App\Http\Controllers\Api\Live\LiveRaidController;
+use App\Http\Controllers\Api\Live\LiveVODController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
@@ -767,6 +773,37 @@ Route::prefix('v1/live')->middleware('auth:sanctum')->group(function () {
     Route::post('rooms/{id}/guest/{userId}/remove', [LiveGuestController::class, 'remove']);
     Route::post('rooms/{id}/guest/{userId}/mute',   [LiveGuestController::class, 'mute']);
 
+    // PK Battle
+    Route::get('rooms/{id}/battle/hosts',         [LiveBattleController::class, 'availableHosts']);
+    Route::post('rooms/{id}/battle/invite',       [LiveBattleController::class, 'invite']);
+    Route::get('rooms/{id}/battle/status',        [LiveBattleController::class, 'status']);
+    Route::post('battle/accept/{inviteId}',       [LiveBattleController::class, 'accept']);
+    Route::post('battle/reject/{inviteId}',       [LiveBattleController::class, 'reject']);
+    Route::get('battle/{battleId}/viewer-token',  [LiveBattleController::class, 'viewerToken']);
+    Route::post('battle/{battleId}/end',          [LiveBattleController::class, 'end']);
+
+    // Subscriptions
+    Route::get('hosts/{hostId}/subscription-tiers',  [LiveSubscriptionController::class, 'tiers']);
+    Route::post('hosts/{hostId}/subscribe',           [LiveSubscriptionController::class, 'subscribe']);
+    Route::get('hosts/{hostId}/my-subscription',      [LiveSubscriptionController::class, 'mySubscription']);
+    Route::post('hosts/my/subscription-tiers',        [LiveSubscriptionController::class, 'setTiers']);
+    Route::get('rooms/{id}/subscriber-check',         [LiveSubscriptionController::class, 'roomCheck']);
+
+    // Live Goals
+    Route::get('rooms/{id}/goal',    [LiveGoalController::class, 'get']);
+    Route::post('rooms/{id}/goal',   [LiveGoalController::class, 'set']);
+    Route::delete('rooms/{id}/goal', [LiveGoalController::class, 'cancel']);
+
+    // Q&A
+    Route::post('rooms/{id}/questions',                    [LiveQAController::class, 'submit']);
+    Route::get('rooms/{id}/questions',                     [LiveQAController::class, 'list']);
+    Route::post('rooms/{id}/questions/{qId}/activate',     [LiveQAController::class, 'activate']);
+    Route::post('rooms/{id}/questions/{qId}/dismiss',      [LiveQAController::class, 'dismiss']);
+
+    // Raid
+    Route::get('rooms/{id}/raid/targets',  [LiveRaidController::class, 'targets']);
+    Route::post('rooms/{id}/raid',         [LiveRaidController::class, 'raid']);
+
     // Stats + likes
     Route::get('rooms/{id}/stats',   [LiveStatsController::class, 'stats']);
     Route::post('rooms/{id}/like',   [LiveStatsController::class, 'like']);
@@ -791,6 +828,11 @@ Route::prefix('v1/live')->middleware('auth:sanctum')->group(function () {
     Route::delete('rooms/{id}/chat/{userId}/mute',         [LiveModerationController::class, 'unmuteUser']);
     Route::post('rooms/{id}/chat/pin/{messageId}',         [LiveModerationController::class, 'pinMessage']);
     Route::delete('rooms/{id}/chat/pin',                   [LiveModerationController::class, 'unpinMessage']);
+
+    // VOD
+    Route::get('vod',                  [LiveVODController::class, 'index']);
+    Route::get('vod/host/{hostId}',    [LiveVODController::class, 'byHost']);
+    Route::post('vod/{id}/view',       [LiveVODController::class, 'view']);
 });
 
     // Admin engagement generator

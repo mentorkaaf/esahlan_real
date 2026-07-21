@@ -16,7 +16,8 @@ class LiveRoom extends Model
         'tags'     => 'array',
     ];
 
-    public function host()    { return $this->belongsTo(User::class, 'host_id'); }
-    public function viewers() { return $this->hasMany(LiveRoomViewer::class); }
-    public function gifts()   { return $this->hasMany(GiftTransaction::class); }
+    public function host()               { return $this->belongsTo(User::class, 'host_id'); }
+    public function viewers()            { return $this->hasMany(LiveRoomViewer::class); }
+    public function gifts()              { return $this->hasMany(GiftTransaction::class); }
+    public function battleParticipants() { return $this->hasMany(LiveBattleParticipant::class); }
 }

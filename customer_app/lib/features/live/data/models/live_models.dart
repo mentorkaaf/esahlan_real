@@ -528,6 +528,200 @@ class BattleInvite {
       );
 }
 
+// ── Subscription ─────────────────────────────────────────────────────────────
+
+class LiveSubscriptionTier {
+  final String tier;
+  final double priceUsd;
+  final String badgeEmoji;
+  final String badgeLabel;
+  final List<String> perks;
+
+  const LiveSubscriptionTier({
+    required this.tier,
+    required this.priceUsd,
+    required this.badgeEmoji,
+    required this.badgeLabel,
+    required this.perks,
+  });
+
+  factory LiveSubscriptionTier.fromJson(Map<String, dynamic> j) =>
+      LiveSubscriptionTier(
+        tier:       j['tier']        ?? 'basic',
+        priceUsd:   (j['price_usd'] as num?)?.toDouble() ?? 4.99,
+        badgeEmoji: j['badge_emoji'] ?? '⭐',
+        badgeLabel: j['badge_label'] ?? 'Subscriber',
+        perks: (j['perks'] is List)
+            ? (j['perks'] as List).cast<String>()
+            : [],
+      );
+}
+
+class LiveSubscription {
+  final String tier;
+  final DateTime expiresAt;
+
+  const LiveSubscription({required this.tier, required this.expiresAt});
+
+  factory LiveSubscription.fromJson(Map<String, dynamic> j) => LiveSubscription(
+        tier:      j['tier']       ?? 'basic',
+        expiresAt: DateTime.tryParse(j['expires_at'] ?? '') ?? DateTime.now(),
+      );
+
+  bool get isActive => expiresAt.isAfter(DateTime.now());
+
+  String get emoji {
+    switch (tier) {
+      case 'supporter': return '💎';
+      case 'superfan':  return '👑';
+      default:          return '⭐';
+    }
+  }
+}
+
+// ── Live Goal ─────────────────────────────────────────────────────────────────
+
+class LiveGoal {
+  final int id;
+  final String type;  // coins / gifts / likes / followers
+  final String title;
+  final int target;
+  final int current;
+  final int percent;
+  final String status; // active / completed / cancelled
+
+  const LiveGoal({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.target,
+    required this.current,
+    required this.percent,
+    required this.status,
+  });
+
+  factory LiveGoal.fromJson(Map<String, dynamic> j) => LiveGoal(
+        id:      j['id']      ?? 0,
+        type:    j['type']    ?? 'coins',
+        title:   j['title']   ?? '',
+        target:  j['target']  ?? 0,
+        current: j['current'] ?? 0,
+        percent: j['percent'] ?? 0,
+        status:  j['status']  ?? 'active',
+      );
+
+  String get typeEmoji {
+    switch (type) {
+      case 'coins':     return '🪙';
+      case 'gifts':     return '🎁';
+      case 'likes':     return '❤️';
+      case 'followers': return '👥';
+      default:          return '🎯';
+    }
+  }
+}
+
+// ── Q&A Question ──────────────────────────────────────────────────────────────
+
+class LiveQuestion {
+  final int id;
+  final String username;
+  final String avatar;
+  final String question;
+  final String status;
+
+  const LiveQuestion({
+    required this.id,
+    required this.username,
+    required this.avatar,
+    required this.question,
+    required this.status,
+  });
+
+  factory LiveQuestion.fromJson(Map<String, dynamic> j) => LiveQuestion(
+        id:       j['id']       ?? 0,
+        username: j['username'] ?? '',
+        avatar:   j['avatar']   ?? '',
+        question: j['question'] ?? '',
+        status:   j['status']   ?? 'pending',
+      );
+}
+
+// ── VOD Recording ─────────────────────────────────────────────────────────────
+
+class LiveRecording {
+  final int id;
+  final int roomId;
+  final String title;
+  final String? recordingUrl;
+  final String? thumbnailUrl;
+  final int durationSeconds;
+  final int viewCount;
+  final String hostName;
+  final String hostAvatar;
+  final DateTime? createdAt;
+
+  const LiveRecording({
+    required this.id,
+    required this.roomId,
+    required this.title,
+    this.recordingUrl,
+    this.thumbnailUrl,
+    required this.durationSeconds,
+    required this.viewCount,
+    required this.hostName,
+    required this.hostAvatar,
+    this.createdAt,
+  });
+
+  factory LiveRecording.fromJson(Map<String, dynamic> j) => LiveRecording(
+        id:              j['id']               ?? 0,
+        roomId:          j['room_id']          ?? 0,
+        title:           j['title']            ?? '',
+        recordingUrl:    j['recording_url']    as String?,
+        thumbnailUrl:    j['thumbnail_url']    as String?,
+        durationSeconds: j['duration_seconds'] ?? 0,
+        viewCount:       j['view_count']       ?? 0,
+        hostName:        j['host_name']        ?? '',
+        hostAvatar:      j['host_avatar']      ?? '',
+        createdAt: j['created_at'] != null
+            ? DateTime.tryParse(j['created_at'])
+            : null,
+      );
+
+  String get durationStr {
+    final m = (durationSeconds ~/ 60).toString().padLeft(2, '0');
+    final s = (durationSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+}
+
+// ── Raid ──────────────────────────────────────────────────────────────────────
+
+class RaidTarget {
+  final int roomId;
+  final String title;
+  final String hostName;
+  final String hostAvatar;
+  final int viewerCount;
+
+  const RaidTarget({
+    required this.roomId,
+    required this.title,
+    required this.hostName,
+    required this.hostAvatar,
+    required this.viewerCount,
+  });
+
+  factory RaidTarget.fromJson(Map<String, dynamic> j) => RaidTarget(
+        roomId:      j['room_id']      ?? 0,
+        title:       j['title']        ?? '',
+        hostName:    j['host_name']    ?? '',
+        hostAvatar:  j['host_avatar']  ?? '',
+        viewerCount: j['viewer_count'] ?? 0,
+      );
+}
+
 class PinnedMessage {
   final int? messageId;
   final String message;

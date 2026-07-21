@@ -210,6 +210,100 @@ class LiveRepository {
     });
   }
 
+  // ── Subscriptions ──────────────────────────────────────────────────────────
+
+  Future<List<LiveSubscriptionTier>> getSubscriptionTiers(int hostId) async {
+    final res  = await _dio.get('/live/hosts/$hostId/subscription-tiers');
+    final list = res.data['data'] as List? ?? [];
+    return list.map((e) => LiveSubscriptionTier.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+  }
+
+  Future<Map<String, dynamic>> subscribe(int hostId, String tier) async {
+    final res = await _dio.post('/live/hosts/$hostId/subscribe', data: {'tier': tier});
+    return Map<String, dynamic>.from(res.data['data'] as Map);
+  }
+
+  Future<LiveSubscription?> getMySubscription(int hostId) async {
+    final res  = await _dio.get('/live/hosts/$hostId/my-subscription');
+    final data = res.data['data'];
+    if (data == null) return null;
+    return LiveSubscription.fromJson(Map<String, dynamic>.from(data as Map));
+  }
+
+  Future<bool> isSubscriber(int roomId) async {
+    final res = await _dio.get('/live/rooms/$roomId/subscriber-check');
+    return res.data['data']?['is_subscriber'] == true;
+  }
+
+  // ── Goals ───────────────────────────────────────────────────────────────────
+
+  Future<LiveGoal?> getGoal(int roomId) async {
+    final res  = await _dio.get('/live/rooms/$roomId/goal');
+    final data = res.data['data'];
+    if (data == null) return null;
+    return LiveGoal.fromJson(Map<String, dynamic>.from(data as Map));
+  }
+
+  Future<LiveGoal> setGoal(int roomId, String type, String title, int target) async {
+    final res = await _dio.post('/live/rooms/$roomId/goal',
+        data: {'type': type, 'title': title, 'target': target});
+    return LiveGoal.fromJson(Map<String, dynamic>.from(res.data['data'] as Map));
+  }
+
+  Future<void> cancelGoal(int roomId) async {
+    await _dio.delete('/live/rooms/$roomId/goal');
+  }
+
+  // ── Q&A ─────────────────────────────────────────────────────────────────────
+
+  Future<void> submitQuestion(int roomId, String question) async {
+    await _dio.post('/live/rooms/$roomId/questions', data: {'question': question});
+  }
+
+  Future<List<LiveQuestion>> getQuestions(int roomId) async {
+    final res  = await _dio.get('/live/rooms/$roomId/questions');
+    final list = res.data['data'] as List? ?? [];
+    return list.map((e) => LiveQuestion.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+  }
+
+  Future<void> activateQuestion(int roomId, int qId) async {
+    await _dio.post('/live/rooms/$roomId/questions/$qId/activate');
+  }
+
+  Future<void> dismissQuestion(int roomId, int qId) async {
+    await _dio.post('/live/rooms/$roomId/questions/$qId/dismiss');
+  }
+
+  // ── Raid ─────────────────────────────────────────────────────────────────────
+
+  Future<List<RaidTarget>> getRaidTargets(int roomId) async {
+    final res  = await _dio.get('/live/rooms/$roomId/raid/targets');
+    final list = res.data['data'] as List? ?? [];
+    return list.map((e) => RaidTarget.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+  }
+
+  Future<void> raid(int roomId, int targetRoomId) async {
+    await _dio.post('/live/rooms/$roomId/raid', data: {'target_room_id': targetRoomId});
+  }
+
+  // ── VOD ──────────────────────────────────────────────────────────────────────
+
+  Future<List<LiveRecording>> getVODs() async {
+    final res  = await _dio.get('/live/vod');
+    final list = res.data['data'] as List? ?? [];
+    return list.map((e) => LiveRecording.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+  }
+
+  Future<List<LiveRecording>> getHostVODs(int hostId) async {
+    final res  = await _dio.get('/live/vod/host/$hostId');
+    final list = res.data['data'] as List? ?? [];
+    return list.map((e) => LiveRecording.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+  }
+
+  Future<void> recordView(int vodId) async {
+    await _dio.post('/live/vod/$vodId/view');
+  }
+
   // ── PK Battle ──────────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getAvailableBattleHosts(int roomId) async {
