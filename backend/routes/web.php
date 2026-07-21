@@ -313,6 +313,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
 
         Route::prefix('community')->name('community.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'index'])->name('index');
+            Route::post('/toggle-enabled', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'toggleEnabled'])->name('toggle-enabled');
             Route::get('/posts', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'posts'])->name('posts');
             Route::delete('/posts/{id}', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'deletePost'])->name('posts.delete');
             Route::post('/posts-bulk-delete', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'bulkDeletePosts'])->name('posts.bulk-delete');

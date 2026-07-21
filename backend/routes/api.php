@@ -137,10 +137,11 @@ Route::prefix('v1')->group(function () {
     // App config (public — non-sensitive keys only)
     Route::get('app-config', function () {
         return response()->json(['success' => true, 'data' => [
-            'fcm_enabled'     => (bool)\App\Helpers\AppSettings::get('fcm_enabled', true),
+            'fcm_enabled'         => (bool)\App\Helpers\AppSettings::get('fcm_enabled', true),
             'firebase_project_id' => \App\Helpers\AppSettings::get('firebase_project_id', ''),
-            'currency_symbol' => \App\Helpers\AppSettings::get('app_currency_symbol', '$'),
-            'app_name'        => \App\Helpers\AppSettings::get('app_name', 'eSahlan'),
+            'currency_symbol'     => \App\Helpers\AppSettings::get('app_currency_symbol', '$'),
+            'app_name'            => \App\Helpers\AppSettings::get('app_name', 'eSahlan'),
+            'community_enabled'   => (bool)\App\Helpers\AppSettings::get('community_enabled', true),
         ]]);
     });
 

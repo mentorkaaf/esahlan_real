@@ -10,6 +10,7 @@ import 'package:media_kit/media_kit.dart';
 
 import 'core/constants/app_constants.dart';
 import 'core/providers/app_settings_provider.dart';
+import 'core/providers/community_feature_provider.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/services/firebase_service.dart';
@@ -85,6 +86,9 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
 
     // Callkit listener lives at State level — always active, even during background→foreground
     _callkitSub = FlutterCallkitIncoming.onEvent.listen(_onCallkitEvent);
+
+    // Initialize early so the community tab hide/show is ready before first render
+    ref.read(communityFeatureProvider);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await FirebaseService().initialize();

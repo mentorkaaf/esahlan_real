@@ -114,6 +114,17 @@
          style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:#fff;color:#344054;border:1.5px solid #D0D5DD;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none">
         <i class="fas fa-shield-alt" style="font-size:11px"></i> Moderation
       </a>
+      <form method="POST" action="{{ route('admin.community.toggle-enabled') }}" style="margin:0">
+        @csrf
+        @php $communityEnabled = \App\Helpers\AppSettings::get('community_enabled', true); @endphp
+        <button type="submit"
+          style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:1.5px solid;
+                 {{ $communityEnabled ? 'background:#FEF3F2;color:#B42318;border-color:#FECDCA' : 'background:#ECFDF3;color:#027A48;border-color:#A9EFC5' }}"
+          onclick="return confirm('{{ $communityEnabled ? 'eSpace-ga disable gareyn?' : 'eSpace-ga enable gareyn?' }}')">
+          <i class="fas {{ $communityEnabled ? 'fa-eye-slash' : 'fa-eye' }}" style="font-size:11px"></i>
+          {{ $communityEnabled ? 'Disable eSpace' : 'Enable eSpace' }}
+        </button>
+      </form>
     </div>
   </div>
 

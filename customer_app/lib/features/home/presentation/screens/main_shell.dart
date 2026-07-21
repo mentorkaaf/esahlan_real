@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/providers/community_feature_provider.dart';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const _kNavy   = Color(0xFF07003B);
@@ -17,7 +18,7 @@ class _Dest {
   const _Dest({required this.path, required this.icon, required this.activeIcon, required this.label});
 }
 
-const _destinations = [
+const _kAllDestinations = [
   _Dest(path: '/home',      icon: Icons.home_outlined,                    activeIcon: Icons.home_rounded,                    label: 'Home'),
   _Dest(path: '/orders',    icon: Icons.receipt_long_outlined,            activeIcon: Icons.receipt_long_rounded,            label: 'Orders'),
   _Dest(path: '/wallet',    icon: Icons.account_balance_wallet_outlined,  activeIcon: Icons.account_balance_wallet_rounded,  label: 'ePay'),
@@ -27,18 +28,16 @@ const _destinations = [
 
 // ─── Main shell ───────────────────────────────────────────────────────────────
 
-class MainShell extends StatelessWidget {
+class MainShell extends ConsumerWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
 
   // Returns -1 when on a module screen (no tab is active)
-  int _selectedIndex(String path) {
-    if (path.startsWith('/home'))      return 0;
-    if (path.startsWith('/orders'))    return 1;
-    if (path.startsWith('/wallet'))    return 2;
-    if (path.startsWith('/community')) return 3;
-    if (path.startsWith('/profile'))   return 4;
-    return -1; // module screen — nothing highlighted
+  int _selectedIndex(String path, List<_Dest> dests) {
+    for (var i = 0; i < dests.length; i++) {
+      if (path.startsWith(dests[i].path)) return i;
+    }
+    return -1;
   }
 
   // Show nav bar on main tabs — community has its own nav bar
@@ -50,9 +49,22 @@ class MainShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final communityEnabled = ref.watch(communityFeatureProvider);
     final location = GoRouterState.of(context).uri.path;
-    final idx = _selectedIndex(location);
+
+    final dests = communityEnabled
+        ? _kAllDestinations
+        : _kAllDestinations.where((d) => d.path != '/community').toList();
+
+    // If community is disabled and the user is on /community, redirect to /home
+    if (!communityEnabled && location.startsWith('/community')) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.go('/home');
+      });
+    }
+
+    final idx = _selectedIndex(location, dests);
     final showBar = _showNav(location);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -67,7 +79,7 @@ class MainShell extends StatelessWidget {
         extendBody: true,
         body: child,
         bottomNavigationBar: showBar
-            ? _FloatingNavBar(selectedIndex: idx, location: location)
+            ? _FloatingNavBar(selectedIndex: idx, location: location, destinations: dests)
             : null,
       ),
     );
@@ -79,7 +91,8 @@ class MainShell extends StatelessWidget {
 class _FloatingNavBar extends StatelessWidget {
   final int selectedIndex;
   final String location;
-  const _FloatingNavBar({required this.selectedIndex, required this.location});
+  final List<_Dest> destinations;
+  const _FloatingNavBar({required this.selectedIndex, required this.location, required this.destinations});
 
   @override
   Widget build(BuildContext context) {
@@ -107,8 +120,8 @@ class _FloatingNavBar extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
         child: Row(
-          children: List.generate(_destinations.length, (i) {
-            final dest   = _destinations[i];
+          children: List.generate(destinations.length, (i) {
+            final dest   = destinations[i];
             final active = selectedIndex == i;
             return Expanded(
               child: _NavPill(

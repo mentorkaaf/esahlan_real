@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\CommunityStatusChanged;
+use App\Helpers\AppSettings;
 use App\Http\Controllers\Controller;
 use App\Models\CommunityPost;
 use App\Models\CommunityGroup;
@@ -729,5 +731,14 @@ class AdminCommunityController extends Controller
             'top_users'          => $topUsers,
             'posts_by_type'      => $postsByType,
         ]);
+    }
+
+    public function toggleEnabled()
+    {
+        $current = AppSettings::get('community_enabled', true);
+        $enabled = !$current;
+        AppSettings::set('community_enabled', $enabled ? '1' : '0', 'boolean');
+        broadcast(new CommunityStatusChanged($enabled));
+        return back()->with('success', 'eSpace ' . ($enabled ? 'enabled' : 'disabled'));
     }
 }
