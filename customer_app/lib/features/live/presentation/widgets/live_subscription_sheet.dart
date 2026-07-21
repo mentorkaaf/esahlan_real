@@ -77,11 +77,15 @@ class _LiveSubscriptionSheetState extends State<LiveSubscriptionSheet> {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.75,
+      ),
       decoration: const BoxDecoration(
         color: Color(0xFF1A1A2E),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Column(
+      child: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(width: 40, height: 4,
@@ -114,6 +118,7 @@ class _LiveSubscriptionSheetState extends State<LiveSubscriptionSheet> {
           ),
           const SizedBox(height: 8),
         ],
+      ),
       ),
     );
   }
@@ -163,8 +168,13 @@ class _TierCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 4),
-                ...tier.perks.take(2).map((p) => Text('• $p',
-                    style: const TextStyle(color: Colors.white54, fontSize: 11))),
+                ...tier.perks.take(2).map((p) => Text(
+                    '• $p',
+                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                    softWrap: true,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  )),
               ],
             ),
           ),
