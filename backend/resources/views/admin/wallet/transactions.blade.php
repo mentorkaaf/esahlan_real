@@ -44,7 +44,31 @@
   </div>
   <div style="display:flex;gap:8px">
     <a href="{{ request()->fullUrlWithQuery(['export'=>'csv']) }}" class="ep-btn ep-btn-success"><i class="fas fa-download"></i> Export CSV</a>
+    <button onclick="document.getElementById('nukeModal').style.display='flex'" class="ep-btn" style="background:#FEE2E2;color:#B91C1C;border-color:#FECACA"><i class="fas fa-trash-alt"></i> Reset All ePay</button>
     <a href="{{ route('admin.wallet.index') }}" class="ep-btn"><i class="fas fa-arrow-left"></i> Back</a>
+  </div>
+</div>
+
+{{-- Nuke Confirm Modal --}}
+<div id="nukeModal" class="ep-modal">
+  <div class="ep-modal-box" style="max-width:420px;text-align:center">
+    <div style="width:64px;height:64px;background:#FEE2E2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+      <i class="fas fa-exclamation-triangle" style="font-size:28px;color:#B91C1C"></i>
+    </div>
+    <div style="font-size:18px;font-weight:900;color:#0F172A;margin-bottom:8px">Reset All ePay?</div>
+    <div style="font-size:13px;color:#64748B;margin-bottom:20px;line-height:1.6">
+      This will <strong>permanently delete all transaction records</strong> and set every wallet balance, total earned, and total withdrawn to <strong>$0.00</strong>.<br><br>
+      <span style="color:#B91C1C;font-weight:700">This cannot be undone.</span>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button onclick="document.getElementById('nukeModal').style.display='none'" class="ep-btn" style="flex:1">Cancel</button>
+      <form method="POST" action="{{ route('admin.wallet.nuke-all') }}" style="flex:1;margin:0">
+        @csrf
+        <button type="submit" class="ep-btn" style="width:100%;background:#B91C1C;color:#fff;border-color:#B91C1C">
+          <i class="fas fa-trash-alt"></i> Yes, Reset Everything
+        </button>
+      </form>
+    </div>
   </div>
 </div>
 

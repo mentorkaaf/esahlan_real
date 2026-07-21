@@ -530,6 +530,27 @@ class AdminWalletController extends Controller
         return back()->with('success', "$count wallet(s) fully reset — balance, total earned, and total withdrawn set to \$0.00.");
     }
 
+    public function nukeAll(Request $request)
+    {
+        DB::transaction(function () {
+            // Delete all transaction history
+            DB::table('transactions')->delete();
+
+            // Reset all wallet stats and balances to zero
+            DB::table('wallets')
+                ->where('owner_type', 'App\\Models\\User')
+                ->update([
+                    'balance'         => 0,
+                    'total_earned'    => 0,
+                    'total_withdrawn' => 0,
+                    'updated_at'      => now(),
+                ]);
+        });
+
+        return redirect()->route('admin.wallet.transactions')
+            ->with('success', 'ePay fully reset — all transactions deleted and all wallet balances zeroed.');
+    }
+
     public function resetUserPin(Request $request, $userId)
     {
         $request->validate(['pin' => 'required|digits:4']);

@@ -649,6 +649,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('/user/{userId}',                  [$wc, 'userDetail'])->name('user-detail');
             Route::post('/reset/{userId}',                [$wc, 'resetWallet'])->name('reset');
             Route::post('/bulk-reset',                    [$wc, 'bulkResetWallets'])->name('bulk-reset');
+            Route::post('/nuke-all',                      [$wc, 'nukeAll'])->name('nuke-all');
             Route::post('/reset-pin/{userId}',            [$wc, 'resetUserPin'])->name('reset-pin');
             Route::get('/settings',                       [$wc, 'settings'])->name('settings');
             Route::post('/settings',                      [$wc, 'saveSettings'])->name('settings.save');
