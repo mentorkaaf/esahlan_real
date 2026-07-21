@@ -24,6 +24,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
   int _tab = 0;
   bool _pinVerified = false;
   final _scrollCtrl = ScrollController();
+  OverlayEntry? _bannerEntry;
 
   @override
   void initState() {
@@ -31,12 +32,82 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkPin());
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Wire up real-time event callback once PIN is verified
+    WidgetsBinding.instance.addPostFrameCallback((_) => _wireRealtime());
+  }
+
+  void _wireRealtime() {
+    ref.read(walletProvider.notifier).onEvent = (type, amount, note) {
+      if (!mounted) return;
+      _showRealtimeBanner(type, amount, note);
+    };
+  }
+
+  void _showRealtimeBanner(String type, double amount, String note) {
+    _bannerEntry?.remove();
+    final isCredit = type == 'credit';
+    final color = isCredit ? const Color(0xFF15803D) : const Color(0xFFB91C1C);
+    final icon = isCredit ? Icons.arrow_circle_down_rounded : Icons.arrow_circle_up_rounded;
+    final sign = isCredit ? '+' : '-';
+    final label = note.isNotEmpty ? note : (isCredit ? 'ePay Credit' : 'ePay Debit');
+
+    _bannerEntry = OverlayEntry(
+      builder: (_) => Positioned(
+        top: MediaQuery.of(context).padding.top + 12,
+        left: 16,
+        right: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutBack,
+            builder: (_, v, child) => Transform.translate(
+              offset: Offset(0, -20 * (1 - v)),
+              child: Opacity(opacity: v, child: child),
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 4))],
+              ),
+              child: Row(children: [
+                Icon(icon, color: Colors.white, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                    Text('$sign\$${amount.toStringAsFixed(2)}',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
+                    Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ]),
+                ),
+                const Icon(Icons.account_balance_wallet_rounded, color: Colors.white54, size: 18),
+              ]),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_bannerEntry!);
+    Future.delayed(const Duration(seconds: 4), () {
+      _bannerEntry?.remove();
+      _bannerEntry = null;
+    });
+  }
+
   Future<void> _checkPin() async {
     final ok = await showWalletPinDialog(context);
     if (!mounted) return;
     if (ok) {
       setState(() => _pinVerified = true);
-      ref.invalidate(walletProvider);
+      ref.read(walletProvider.notifier).refresh();
+      _wireRealtime();
     } else {
       // User cancelled PIN — go back
       Navigator.of(context).maybePop();
@@ -45,6 +116,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
 
   @override
   void dispose() {
+    _bannerEntry?.remove();
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -72,12 +144,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
             const SizedBox(height: 12),
             Text(AppErrorHandler.message(e), textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textGrey)),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: () => ref.refresh(walletProvider), child: const Text('Retry')),
+            ElevatedButton(onPressed: () => ref.read(walletProvider.notifier).refresh(), child: const Text('Retry')),
           ]),
         ),
         data: (wallet) => RefreshIndicator(
           color: AppColors.primary,
-          onRefresh: () async => ref.refresh(walletProvider),
+          onRefresh: () => ref.read(walletProvider.notifier).refresh(),
           child: CustomScrollView(
             controller: _scrollCtrl,
             physics: const AlwaysScrollableScrollPhysics(),
@@ -322,7 +394,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                     description: 'eSahlan ePay Top Up',
                   );
                   if (result?.success == true) {
-                    ref.refresh(walletProvider);
+                    ref.read(walletProvider.notifier).refresh();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('ePay topped up with \$${amount.toStringAsFixed(2)}!'), backgroundColor: Colors.green),
@@ -420,7 +492,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                     final res = await svc.walletSend({'phone': fullPhone, 'amount': amount});
                     if (res['success'] == true) {
                       Navigator.pop(ctx);
-                      ref.refresh(walletProvider);
+                      ref.read(walletProvider.notifier).refresh();
                       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Sent \$${amount.toStringAsFixed(2)} successfully!'), backgroundColor: Colors.green),
                       );
@@ -593,7 +665,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                       });
                       if (res['success'] == true) {
                         Navigator.pop(ctx);
-                        ref.refresh(walletProvider);
+                        ref.read(walletProvider.notifier).refresh();
                         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Withdrawal request submitted. Admin will process it shortly.'), backgroundColor: Colors.orange),
                         );
