@@ -42,10 +42,10 @@ class AdminWalletController extends Controller
         $week      = now()->subDays(7)->startOfDay();
         $month     = now()->startOfMonth();
 
-        $todayVol   = DB::table('transactions')->whereDate('created_at', today())->sum('amount');
         $todayCred  = DB::table('transactions')->whereDate('created_at', today())->where('type','credit')->sum('amount');
         $todayDeb   = DB::table('transactions')->whereDate('created_at', today())->where('type','debit')->sum('amount');
-        $monthVol   = DB::table('transactions')->where('created_at', '>=', $month)->sum('amount');
+        $todayVol   = $todayCred;  // volume = money IN only, debit would double-count transfers
+        $monthVol   = DB::table('transactions')->where('created_at', '>=', $month)->where('type','credit')->sum('amount');
 
         // 7-day daily volumes for chart
         $dailyData = DB::table('transactions')
@@ -143,9 +143,30 @@ class AdminWalletController extends Controller
             });
         }
 
-        // Summary stats for current filter
-        $statsQ = clone $q;
-        $summary = $statsQ->selectRaw("
+        // Summary stats — rebuild as a fresh aggregate query to avoid MySQL only_full_group_by
+        $statsBase = DB::table('transactions')
+            ->join('wallets', 'wallets.id', '=', 'transactions.wallet_id')
+            ->join('users', function ($j) {
+                $j->on('users.id', '=', 'wallets.owner_id')
+                  ->where('wallets.owner_type', 'App\\Models\\User');
+            });
+
+        if ($request->user_id)   $statsBase->where('users.id', $request->user_id);
+        if ($request->type)      $statsBase->where('transactions.type', $request->type);
+        if ($request->method)    $statsBase->where('transactions.payment_method', $request->method);
+        if ($request->date_from) $statsBase->whereDate('transactions.created_at', '>=', $request->date_from);
+        if ($request->date_to)   $statsBase->whereDate('transactions.created_at', '<=', $request->date_to);
+        if ($request->search) {
+            $s = $request->search;
+            $statsBase->where(function ($qq) use ($s) {
+                $qq->where('users.name', 'like', "%$s%")
+                   ->orWhere('users.phone', 'like', "%$s%")
+                   ->orWhere('transactions.note', 'like', "%$s%")
+                   ->orWhere('transactions.payment_reference', 'like', "%$s%");
+            });
+        }
+
+        $summary = $statsBase->selectRaw("
             count(*) as total_count,
             sum(CASE WHEN transactions.type='credit' THEN transactions.amount ELSE 0 END) as total_credit,
             sum(CASE WHEN transactions.type='debit' THEN transactions.amount ELSE 0 END) as total_debit
@@ -488,13 +509,25 @@ class AdminWalletController extends Controller
 
     public function bulkResetWallets(Request $request)
     {
-        $wallets = Wallet::where('owner_type', 'App\\Models\\User')->where('balance', '>', 0)->get();
-        $count = 0;
-        foreach ($wallets as $wallet) {
-            $wallet->debit((float) $wallet->balance, 'Admin bulk wallet reset', null, null);
-            $count++;
-        }
-        return back()->with('success', "$count wallet(s) reset to \$0.00.");
+        DB::transaction(function () {
+            // Record audit debit transactions for non-zero balances before zeroing
+            $wallets = Wallet::where('owner_type', 'App\\Models\\User')->where('balance', '>', 0)->get();
+            foreach ($wallets as $wallet) {
+                $wallet->debit((float) $wallet->balance, 'Admin full ePay reset', null, null);
+            }
+
+            // Zero out lifetime stats so dashboard starts completely fresh
+            DB::table('wallets')
+                ->where('owner_type', 'App\\Models\\User')
+                ->update([
+                    'total_earned'    => 0,
+                    'total_withdrawn' => 0,
+                    'updated_at'      => now(),
+                ]);
+        });
+
+        $count = DB::table('wallets')->where('owner_type', 'App\\Models\\User')->count();
+        return back()->with('success', "$count wallet(s) fully reset — balance, total earned, and total withdrawn set to \$0.00.");
     }
 
     public function resetUserPin(Request $request, $userId)
