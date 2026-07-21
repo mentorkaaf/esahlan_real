@@ -14,12 +14,14 @@ class LiveChatOverlay extends StatefulWidget {
   final int roomId;
   final String reverbChannel;
   final bool isHost;
+  final bool showInput;
 
   const LiveChatOverlay({
     super.key,
     required this.roomId,
     required this.reverbChannel,
     this.isHost = false,
+    this.showInput = true,
   });
 
   @override
@@ -221,9 +223,9 @@ class _LiveChatOverlayState extends State<LiveChatOverlay> {
             ),
           ),
         ),
-        const SizedBox(height: 6),
+        if (!widget.showInput) const SizedBox(height: 8),
         // Emoji picker row
-        if (_showEmoji)
+        if (widget.showInput && _showEmoji)
           SizedBox(
             height: 44,
             child: ListView.builder(
@@ -247,7 +249,7 @@ class _LiveChatOverlayState extends State<LiveChatOverlay> {
             ),
           ),
         // Input row
-        Padding(
+        if (widget.showInput) Padding(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
           child: Row(
             children: [

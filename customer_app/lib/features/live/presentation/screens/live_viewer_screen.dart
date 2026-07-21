@@ -55,6 +55,31 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
   final _giftEvents = <GiftEvent>[];
   final _repo = LiveRepository();
 
+  // ── Chat input (TikTok-style, inline in viewer) ────────────────────────────
+  final _chatCtrl = TextEditingController();
+  final _chatFocus = FocusNode();
+  bool _showEmojiPicker = false;
+
+  static const _kEmojis = ['😂','❤️','🔥','👏','😍','🥰','😮','😢','👍','🎉','💯','🙌','✨','🥳','😎','💕'];
+
+  Future<void> _sendChat() async {
+    final text = _chatCtrl.text.trim();
+    if (text.isEmpty) return;
+    _chatCtrl.clear();
+    setState(() => _showEmojiPicker = false);
+    try { await _repo.sendMessage(widget.room.id, text); } catch (_) {}
+  }
+
+  void _addEmoji(String e) {
+    final t = _chatCtrl.text;
+    final sel = _chatCtrl.selection;
+    final s = sel.start < 0 ? t.length : sel.start;
+    _chatCtrl.value = TextEditingValue(
+      text: t.substring(0, s) + e + t.substring(sel.end < 0 ? s : sel.end),
+      selection: TextSelection.collapsed(offset: s + e.length),
+    );
+  }
+
   // ── PK Battle ──────────────────────────────────────────────────────────────
   Room? _battleRoom;
   EventsListener<RoomEvent>? _battleListener;
@@ -585,6 +610,8 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
     if (_session != null) {
       RealtimeClient.instance.unsubscribe('private-user.${_session!.userId}');
     }
+    _chatCtrl.dispose();
+    _chatFocus.dispose();
     super.dispose();
   }
 
@@ -822,82 +849,146 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
           // ── Gift animations ───────────────────────────────────────────────
           ...(_giftEvents.map((e) => GiftAnimationOverlay(event: e))),
 
-          // ── Right action column (like + more) ────────────────────────────
+          // ── Right floating column (TikTok exact style) ───────────────────
           Positioned(
-            right: 10, bottom: 160,
+            right: 10, bottom: 130,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Like button
+                // Like
                 GestureDetector(
                   onTap: _like,
                   child: Column(children: [
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      width: 46, height: 46,
+                      width: 48, height: 48,
                       decoration: BoxDecoration(
                         color: _hasLiked
-                            ? Colors.red.withValues(alpha: 0.25)
-                            : Colors.white.withValues(alpha: 0.12),
+                            ? Colors.red.withValues(alpha: 0.20)
+                            : Colors.black.withValues(alpha: 0.30),
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _hasLiked ? Colors.red : Colors.white.withValues(alpha: 0.3),
-                        ),
                       ),
                       child: Icon(
                         _hasLiked ? Icons.favorite : Icons.favorite_border,
                         color: _hasLiked ? Colors.red : Colors.white,
-                        size: 22,
+                        size: 26,
                       ),
                     ),
-                    if (_totalLikes > 0) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        _totalLikes >= 1000
-                            ? '${(_totalLikes / 1000).toStringAsFixed(1)}K'
-                            : '$_totalLikes',
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
-                      ),
-                    ],
+                    const SizedBox(height: 2),
+                    Text(
+                      _totalLikes >= 1000
+                          ? '${(_totalLikes / 1000).toStringAsFixed(1)}K'
+                          : '$_totalLikes',
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
+                    ),
                   ]),
                 ),
-                const SizedBox(height: 16),
-                // Leaderboard
-                _ViewerSideBtn(
-                  emoji: '🏆',
-                  label: 'Top',
-                  onTap: () => showModalBottomSheet(
+                const SizedBox(height: 18),
+                // Gift shortcut
+                GestureDetector(
+                  onTap: _showGifts,
+                  child: Column(children: [
+                    Container(
+                      width: 48, height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.30),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(child: Text('🎁', style: TextStyle(fontSize: 22))),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text('Gift', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500)),
+                  ]),
+                ),
+                const SizedBox(height: 18),
+                // Subscribe
+                GestureDetector(
+                  onTap: _mySubscription != null ? null : () => showModalBottomSheet(
                     context: context,
                     backgroundColor: Colors.transparent,
                     isScrollControlled: true,
-                    builder: (_) => LiveLeaderboardSheet(roomId: widget.room.id),
+                    builder: (_) => LiveSubscriptionSheet(
+                      hostId: widget.room.host.id,
+                      hostName: widget.room.host.name,
+                      onSubscribed: (s) => setState(() => _mySubscription = s),
+                    ),
                   ),
+                  child: Column(children: [
+                    Container(
+                      width: 48, height: 48,
+                      decoration: BoxDecoration(
+                        color: _mySubscription != null
+                            ? Colors.amber.withValues(alpha: 0.25)
+                            : Colors.black.withValues(alpha: 0.30),
+                        shape: BoxShape.circle,
+                        border: _mySubscription != null
+                            ? Border.all(color: Colors.amber, width: 1.5)
+                            : null,
+                      ),
+                      child: Center(child: Text(
+                        _mySubscription != null ? _mySubscription!.emoji : '⭐',
+                        style: const TextStyle(fontSize: 20),
+                      )),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _mySubscription != null ? 'Subbed' : 'Sub',
+                      style: TextStyle(
+                        color: _mySubscription != null ? Colors.amber : Colors.white,
+                        fontSize: 11, fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ]),
                 ),
               ],
             ),
           ),
 
-          // ── Chat overlay ──────────────────────────────────────────────────
+          // ── Chat messages only (no input — handled below) ─────────────────
           if (!_loading)
             Positioned(
-              bottom: 96, left: 0, right: 64,
+              bottom: 112, left: 0, right: 66,
               child: LiveChatOverlay(
                 roomId: widget.room.id,
                 reverbChannel: _reverbChannel,
+                showInput: false,
               ),
             ),
 
-          // ── Bottom action bar (TikTok-style) ──────────────────────────────
+          // ── Emoji picker (floats above input when shown) ───────────────────
+          if (_showEmojiPicker)
+            Positioned(
+              bottom: 68, left: 0, right: 0,
+              child: Container(
+                height: 52,
+                color: Colors.black.withValues(alpha: 0.6),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  itemCount: _kEmojis.length,
+                  itemBuilder: (_, i) => GestureDetector(
+                    onTap: () => _addEmoji(_kEmojis[i]),
+                    child: Container(
+                      width: 36, margin: const EdgeInsets.only(right: 4),
+                      child: Center(child: Text(_kEmojis[i], style: const TextStyle(fontSize: 22))),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // ── Bottom bar — TikTok exact style ───────────────────────────────
           Positioned(
             bottom: 0, left: 0, right: 0,
             child: SafeArea(
               top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Secondary row: coins + join + sub + Q&A
-                    Row(children: [
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Accessory row: coins + join + Q&A
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                    child: Row(children: [
                       // Coins
                       GestureDetector(
                         onTap: () async {
@@ -911,28 +1002,20 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
                             ),
                           );
                         },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.orange.withValues(alpha: 0.35)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Text('🪙', style: TextStyle(fontSize: 14)),
+                          const SizedBox(width: 3),
+                          Text(
+                            _coinBalance >= 1000
+                                ? '${(_coinBalance / 1000).toStringAsFixed(1)}K'
+                                : '$_coinBalance',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                           ),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            const Text('🪙', style: TextStyle(fontSize: 13)),
-                            const SizedBox(width: 4),
-                            Text(
-                              _coinBalance >= 1000
-                                  ? '${(_coinBalance / 1000).toStringAsFixed(1)}K'
-                                  : '$_coinBalance',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                            ),
-                            const SizedBox(width: 3),
-                            const Icon(Icons.add, color: Colors.orange, size: 12),
-                          ]),
-                        ),
+                          const SizedBox(width: 2),
+                          const Icon(Icons.add_circle_outline, color: Colors.orange, size: 13),
+                        ]),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       // Join Stage
                       if (!_loading)
                         JoinRequestButton(
@@ -943,96 +1026,86 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
                         ),
                       const Spacer(),
                       // Q&A
-                      _BottomActionBtn(
-                        emoji: '❓',
-                        label: 'Q&A',
+                      GestureDetector(
                         onTap: () => showModalBottomSheet(
                           context: context,
                           backgroundColor: const Color(0xFF0D0D1A),
                           isScrollControlled: true,
                           builder: (_) => SubmitQuestionSheet(roomId: widget.room.id),
                         ),
+                        child: const Text('❓ Q&A', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      ),
+                    ]),
+                  ),
+                  // Input row (TikTok exact)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                    child: Row(children: [
+                      // Emoji toggle
+                      GestureDetector(
+                        onTap: () => setState(() { _showEmojiPicker = !_showEmojiPicker; _chatFocus.unfocus(); }),
+                        child: Container(
+                          width: 40, height: 40,
+                          decoration: BoxDecoration(
+                            color: _showEmojiPicker
+                                ? Colors.orange.withValues(alpha: 0.25)
+                                : Colors.white.withValues(alpha: 0.10),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(child: Text('😊', style: TextStyle(fontSize: 19))),
+                        ),
                       ),
                       const SizedBox(width: 8),
-                      // Subscribe
-                      GestureDetector(
-                        onTap: _mySubscription != null ? null : () => showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          isScrollControlled: true,
-                          builder: (_) => LiveSubscriptionSheet(
-                            hostId:   widget.room.host.id,
-                            hostName: widget.room.host.name,
-                            onSubscribed: (s) => setState(() => _mySubscription = s),
+                      // Text input
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _showEmojiPicker = false),
+                          child: Container(
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(22),
+                            ),
+                            child: TextField(
+                              controller: _chatCtrl,
+                              focusNode: _chatFocus,
+                              style: const TextStyle(color: Colors.white, fontSize: 13),
+                              maxLength: 200,
+                              maxLines: 1,
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: (_) => _sendChat(),
+                              onTap: () => setState(() => _showEmojiPicker = false),
+                              decoration: InputDecoration(
+                                hintText: 'Add a comment...',
+                                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.40), fontSize: 13),
+                                border: InputBorder.none,
+                                counterText: '',
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              ),
+                            ),
                           ),
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Send
+                      GestureDetector(
+                        onTap: _sendChat,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            gradient: _mySubscription != null
-                                ? const LinearGradient(colors: [Color(0xFFB8860B), Color(0xFFFFD700)])
-                                : null,
-                            color: _mySubscription != null ? null : Colors.white.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: _mySubscription != null ? Colors.amber : Colors.white.withValues(alpha: 0.25),
+                          width: 40, height: 40,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xFFFF6B00), Color(0xFFE53935)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
+                            shape: BoxShape.circle,
                           ),
-                          child: Text(
-                            _mySubscription != null ? '${_mySubscription!.emoji} Sub' : '⭐ Sub',
-                            style: TextStyle(
-                              color: _mySubscription != null ? Colors.white : Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          child: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 20),
                         ),
                       ),
                     ]),
-                    const SizedBox(height: 8),
-                    // Primary row: Gift button (full width)
-                    SizedBox(
-                      width: double.infinity,
-                      child: GestureDetector(
-                        onTap: _showGifts,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFF6B00), Color(0xFFFF3D00)],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ),
-                            borderRadius: BorderRadius.circular(28),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.orange.withValues(alpha: 0.45),
-                                blurRadius: 18,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text('🎁', style: TextStyle(fontSize: 18)),
-                              SizedBox(width: 8),
-                              Text(
-                                'Send a Gift',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

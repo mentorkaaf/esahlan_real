@@ -789,6 +789,7 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
                       icon: _micOn ? Icons.mic_rounded : Icons.mic_off_rounded,
                       label: _micOn ? 'Mic' : 'Muted',
                       active: _micOn,
+                      isDestructive: true,
                       onTap: () async {
                         _micOn = !_micOn;
                         await _room.localParticipant?.setMicrophoneEnabled(_micOn);
@@ -800,6 +801,7 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
                       icon: _cameraOn ? Icons.videocam_rounded : Icons.videocam_off_rounded,
                       label: _cameraOn ? 'Camera' : 'Off',
                       active: _cameraOn,
+                      isDestructive: true,
                       onTap: () async {
                         _cameraOn = !_cameraOn;
                         await _room.localParticipant?.setCameraEnabled(_cameraOn);
@@ -1007,28 +1009,40 @@ class _HostControl extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool active;
+  final bool isDestructive;
   final VoidCallback onTap;
 
-  const _HostControl({required this.icon, required this.label, required this.active, required this.onTap});
+  const _HostControl({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+    this.isDestructive = false,
+  });
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 52, height: 52,
-            decoration: BoxDecoration(
-              color: active
-                  ? Colors.white.withValues(alpha: 0.18)
-                  : Colors.red.withValues(alpha: 0.75),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: Colors.white, size: 24),
-          ),
-          const SizedBox(height: 4),
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-        ]),
-      );
+  Widget build(BuildContext context) {
+    final Color bg;
+    if (!active && isDestructive) {
+      bg = Colors.red.withValues(alpha: 0.80);
+    } else if (active) {
+      bg = Colors.white.withValues(alpha: 0.18);
+    } else {
+      bg = Colors.white.withValues(alpha: 0.10);
+    }
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 52, height: 52,
+          decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+          child: Icon(icon, color: Colors.white, size: 24),
+        ),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+      ]),
+    );
+  }
 }
 
 // ── "More" sheet (leaderboard / moderation) ───────────────────────────────────
