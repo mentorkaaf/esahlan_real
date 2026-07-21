@@ -11,6 +11,7 @@ import '../widgets/live_guest_widget.dart';
 import '../widgets/live_tiled_layout.dart';
 import '../widgets/coin_purchase_sheet.dart';
 import '../../../../core/services/realtime_client.dart';
+import '../../../../core/api/api_client.dart';
 import '../widgets/stream_quality_indicator.dart';
 import '../widgets/live_leaderboard_sheet.dart';
 import '../widgets/live_battle_bar.dart';
@@ -46,6 +47,8 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
   bool _isLiking = false;
   bool _loading = true;
   bool _ended = false;
+  bool _isFollowing = false;
+  bool _followLoading = false;
 
   // Guest join state
   GuestJoinStatus _guestStatus = GuestJoinStatus.none;
@@ -404,6 +407,17 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
     if (mounted) setState(() => _isLiking = false);
   }
 
+  Future<void> _toggleFollow() async {
+    if (_followLoading) return;
+    setState(() => _followLoading = true);
+    try {
+      final action = _isFollowing ? 'unfollow' : 'follow';
+      await ApiClient.instance.post('/community/users/${widget.room.host.id}/$action');
+      if (mounted) setState(() => _isFollowing = !_isFollowing);
+    } catch (_) {}
+    if (mounted) setState(() => _followLoading = false);
+  }
+
   void _showReport() {
     String? reason;
     showModalBottomSheet(
@@ -715,6 +729,7 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
                             backgroundImage: (widget.room.host.avatar.isNotEmpty)
                                 ? NetworkImage(widget.room.host.avatar) as ImageProvider
                                 : null,
+                            onBackgroundImageError: (_, __) {},
                             child: widget.room.host.avatar.isEmpty
                                 ? Text(
                                     widget.room.host.name.isNotEmpty
@@ -745,13 +760,23 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
                             ],
                           ),
                           const SizedBox(width: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.orange,
-                              borderRadius: BorderRadius.circular(12),
+                          GestureDetector(
+                            onTap: _toggleFollow,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _isFollowing ? Colors.white.withValues(alpha: 0.15) : Colors.orange,
+                                borderRadius: BorderRadius.circular(12),
+                                border: _isFollowing ? Border.all(color: Colors.white38) : null,
+                              ),
+                              child: _followLoading
+                                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white))
+                                  : Text(
+                                      _isFollowing ? 'Following' : 'Follow',
+                                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                    ),
                             ),
-                            child: const Text('Follow', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                           ),
                         ]),
                       ),

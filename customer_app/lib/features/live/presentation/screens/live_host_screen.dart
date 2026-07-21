@@ -528,6 +528,47 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
             ),
           ),
 
+          // ── Camera-off overlay: show avatar when camera disabled ──────────
+          if (!_cameraOn)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.75),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircleAvatar(
+                      radius: 52,
+                      backgroundColor: Colors.orange.withValues(alpha: 0.3),
+                      backgroundImage: (widget.session.room.host.avatar.isNotEmpty)
+                          ? NetworkImage(widget.session.room.host.avatar) as ImageProvider
+                          : null,
+                      child: widget.session.room.host.avatar.isEmpty
+                          ? Text(
+                              widget.session.room.host.name.isNotEmpty
+                                  ? widget.session.room.host.name[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold))
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      widget.session.room.host.name,
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text('📷 Camera is off', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // ── Top bar (minimal, TikTok-style) ───────────────────────────────
           Positioned(
             top: 0, left: 0, right: 0,
@@ -679,13 +720,14 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
             ),
           ),
 
-          // Filter strip (above bottom controls)
+          // Filter strip — sits above chat area, stays open
           if (_showFilterStrip)
             Positioned(
-              bottom: 100, left: 0, right: 0,
+              bottom: 320, left: 0, right: 0,
               child: FilterSelectorStrip(
                 selected: _filter,
-                onSelect: (f) => setState(() { _filter = f; _showFilterStrip = false; }),
+                onSelect: (f) => setState(() => _filter = f),
+                onClose: () => setState(() => _showFilterStrip = false),
               ),
             ),
 
@@ -762,7 +804,7 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
               onClose: () => setState(() => _showDashboard = false),
             ),
 
-          // Chat overlay (left side, above bottom controls)
+          // Chat overlay (left side, above bottom controls — no input for host)
           Positioned(
             bottom: 115,
             left: 0,
@@ -771,6 +813,7 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
               roomId: widget.session.room.id,
               reverbChannel: _reverbChannel,
               isHost: true,
+              showInput: false,
             ),
           ),
 
