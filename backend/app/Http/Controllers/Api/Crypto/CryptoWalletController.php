@@ -15,6 +15,36 @@ use Illuminate\Support\Str;
 
 class CryptoWalletController extends Controller
 {
+    // GET /api/v1/crypto/wallet/check
+    public function check(Request $request)
+    {
+        $count = CryptoWallet::where('user_id', $request->user()->id)->count();
+        return response()->json(['success' => true, 'data' => ['has_wallet' => $count > 0]]);
+    }
+
+    // POST /api/v1/crypto/wallet/setup — initialize wallets for all active coins
+    public function setup(Request $request)
+    {
+        $user  = $request->user();
+        $coins = ExchangeCoin::with(['networks' => fn($q) => $q->where('is_active', true)])
+            ->where('is_active', true)->orderBy('display_order')->get();
+
+        $wallets = [];
+        foreach ($coins as $coin) {
+            $network = $coin->networks->first();
+            if (!$network) continue;
+            $wallet = CryptoWallet::getOrCreate($user->id, $coin->id, $network->id);
+            $wallets[] = [
+                'symbol'  => $coin->symbol,
+                'name'    => $coin->name,
+                'address' => $wallet->address,
+                'network' => $network->name,
+            ];
+        }
+
+        return response()->json(['success' => true, 'message' => 'Wallet created successfully', 'data' => ['wallets' => $wallets]]);
+    }
+
     // GET /api/v1/crypto/wallet — portfolio overview
     public function portfolio(Request $request)
     {

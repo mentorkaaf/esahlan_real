@@ -553,6 +553,8 @@ Route::prefix('v1')->group(function () {
                 Route::get('markets/{symbol}',              [$mc,'show']);
                 Route::get('markets/{symbol}/chart',        [$mc,'chart']);
                 // Wallet
+                Route::get('wallet/check',                  [$wc,'check']);
+                Route::post('wallet/setup',                 [$wc,'setup']);
                 Route::get('wallet/portfolio',              [$wc,'portfolio']);
                 Route::get('wallet/{symbol}/deposit',       [$wc,'depositAddress']);
                 Route::post('wallet/withdraw',              [$wc,'withdraw']);

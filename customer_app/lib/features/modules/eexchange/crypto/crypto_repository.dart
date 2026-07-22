@@ -32,6 +32,17 @@ class CryptoRepository {
 
   // ── Portfolio / Wallet ────────────────────────────────────────────────────────
 
+  Future<bool> checkHasWallet() async {
+    final r = await _dio.get('/crypto/wallet/check');
+    return r.data['data']?['has_wallet'] == true;
+  }
+
+  Future<void> setupWallet({String? phraseHash}) async {
+    await _dio.post('/crypto/wallet/setup', data: {
+      if (phraseHash != null) 'phrase_hash': phraseHash,
+    });
+  }
+
   Future<Map<String, dynamic>> getWallet() => getPortfolio();
 
   Future<Map<String, dynamic>> getPortfolio() async {

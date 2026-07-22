@@ -20,6 +20,12 @@ final cryptoRepoProvider = Provider<CryptoRepository>((_) => CryptoRepository.cr
 // alias used by screens
 final cryptoRepositoryProvider = cryptoRepoProvider;
 
+// ── Wallet gate ───────────────────────────────────────────────────────────────
+
+final cryptoHasWalletProvider = FutureProvider<bool>((ref) {
+  return ref.read(cryptoRepoProvider).checkHasWallet();
+});
+
 // ── Markets ───────────────────────────────────────────────────────────────────
 
 final cryptoMarketsProvider = FutureProvider.autoDispose<List<CryptoCoin>>((ref) {

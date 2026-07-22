@@ -1,20 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'crypto_theme.dart';
 import 'crypto_home_screen.dart';
 import 'crypto_markets_screen.dart';
 import 'crypto_buy_sell_screen.dart';
 import 'crypto_p2p_screen.dart';
 import 'crypto_wallet_screen.dart';
+import 'crypto_onboarding_screen.dart';
 
-/// Main shell — bottom nav with 5 tabs.
-class CryptoExchangeScreen extends StatefulWidget {
+/// Entry point — checks wallet first, then shows main shell.
+class CryptoExchangeScreen extends ConsumerWidget {
   const CryptoExchangeScreen({super.key});
 
   @override
-  State<CryptoExchangeScreen> createState() => _CryptoExchangeScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    return CryptoWalletGate(child: const _CryptoShell());
+  }
 }
 
-class _CryptoExchangeScreenState extends State<CryptoExchangeScreen> {
+/// Main shell — bottom nav with 5 tabs.
+class _CryptoShell extends StatefulWidget {
+  const _CryptoShell();
+
+  @override
+  State<_CryptoShell> createState() => _CryptoShellState();
+}
+
+class _CryptoShellState extends State<_CryptoShell> {
   int _index = 0;
 
   static const _screens = [
