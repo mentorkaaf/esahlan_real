@@ -42,6 +42,14 @@ class _CryptoWithdrawScreenState extends ConsumerState<CryptoWithdrawScreen> {
   double get _fee    => _coin?.withdrawalFee ?? 0;
   double get _youReceive => (_amount - _fee).clamp(0, double.infinity);
 
+  String _serverError(Object e) {
+    try {
+      final msg = (e as dynamic).response?.data['message'] as String?;
+      if (msg != null && msg.isNotEmpty) return msg;
+    } catch (_) {}
+    return 'Something went wrong. Please try again.';
+  }
+
   Future<void> _submit() async {
     if (_coin == null)                { Fluttertoast.showToast(msg: 'Select a coin'); return; }
     if (_network == null)             { Fluttertoast.showToast(msg: 'Select a network'); return; }
@@ -54,7 +62,7 @@ class _CryptoWithdrawScreenState extends ConsumerState<CryptoWithdrawScreen> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dlgCtx) => AlertDialog(
         backgroundColor: Theme.of(context).cardColor,
         title: const Text('Confirm Withdrawal'),
         content: Text(
@@ -65,9 +73,9 @@ class _CryptoWithdrawScreenState extends ConsumerState<CryptoWithdrawScreen> {
           style: TextStyle(color: cMt(context), fontSize: 13),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dlgCtx, false), child: const Text('Cancel')),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dlgCtx, true),
             child: const Text('Confirm', style: TextStyle(color: kCryptoRed)),
           ),
         ],
@@ -84,10 +92,11 @@ class _CryptoWithdrawScreenState extends ConsumerState<CryptoWithdrawScreen> {
         amount: _amount,
         toAddress: _addrCtrl.text.trim(),
       );
-      Fluttertoast.showToast(msg: '✅ Withdrawal submitted! Pending review.');
+      Fluttertoast.showToast(msg: '✅ Withdrawal submitted! Pending admin review.');
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      Fluttertoast.showToast(msg: e.toString().replaceAll('Exception: ', ''), toastLength: Toast.LENGTH_LONG);
+      final msg = _serverError(e);
+      Fluttertoast.showToast(msg: msg, toastLength: Toast.LENGTH_LONG);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

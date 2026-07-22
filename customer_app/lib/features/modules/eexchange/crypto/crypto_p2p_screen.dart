@@ -299,69 +299,138 @@ class _P2PActionButtonState extends ConsumerState<_P2PActionButton> {
   }
 
   void _showTradeDialog(BuildContext context) {
-    final amtCtrl = TextEditingController();
+    final amtCtrl    = TextEditingController();
+    final ad         = widget.ad;
+    final maxCrypto  = ad.available;
+    final maxUsd     = maxCrypto * ad.price;
+    final payMethods = ad.paymentMethods.isNotEmpty ? ad.paymentMethods : ['epay'];
+    String selectedPay = payMethods.first;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        title: Text(
-          widget.isBuyTab ? 'Buy ${widget.ad.coinSymbol}' : 'Sell ${widget.ad.coinSymbol}',
-          style: TextStyle(color: cTx(context), fontSize: 15),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Price: \$${widget.ad.price.toStringAsFixed(2)}/unit',
-                style: TextStyle(color: cMt(context), fontSize: 12)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: amtCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: TextStyle(color: cTx(context)),
-              decoration: InputDecoration(
-                labelText: 'Amount (USD)',
-                labelStyle: TextStyle(color: cMt(context)),
-                enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: cBd(context))),
-                focusedBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: kCryptoPrimary)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setS) => AlertDialog(
+          backgroundColor: Theme.of(context).cardColor,
+          title: Text(
+            widget.isBuyTab ? 'Buy ${ad.coinSymbol}' : 'Sell ${ad.coinSymbol}',
+            style: TextStyle(color: cTx(context), fontSize: 15),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Price:', style: TextStyle(color: cMt(context), fontSize: 12)),
+                  Text('\$${ad.price.toStringAsFixed(2)}/unit',
+                      style: TextStyle(color: cTx(context), fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
               ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Available:', style: TextStyle(color: cMt(context), fontSize: 12)),
+                  Text('${maxCrypto.toStringAsFixed(4)} ${ad.coinSymbol}  (\$${maxUsd.toStringAsFixed(2)})',
+                      style: TextStyle(color: kCryptoGreen, fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Limit:', style: TextStyle(color: cMt(context), fontSize: 12)),
+                  Text('\$${ad.minAmount.toStringAsFixed(0)} – \$${ad.maxAmount.toStringAsFixed(0)}',
+                      style: TextStyle(color: cMt(context), fontSize: 12)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: amtCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: TextStyle(color: cTx(context)),
+                decoration: InputDecoration(
+                  labelText: 'Amount (USD)',
+                  labelStyle: TextStyle(color: cMt(context)),
+                  hintText: '\$${ad.minAmount.toStringAsFixed(0)} – \$${ad.maxAmount.toStringAsFixed(0)}',
+                  hintStyle: TextStyle(color: cMt(context).withAlpha(100), fontSize: 11),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: cBd(context))),
+                  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: kCryptoPrimary)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text('Payment method', style: TextStyle(color: cMt(context), fontSize: 11)),
+              const SizedBox(height: 4),
+              DropdownButton<String>(
+                value: selectedPay,
+                isExpanded: true,
+                dropdownColor: Theme.of(context).cardColor,
+                style: TextStyle(color: cTx(context), fontSize: 13),
+                underline: Container(height: 1, color: cBd(context)),
+                items: payMethods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                onChanged: (v) { if (v != null) setS(() => selectedPay = v); },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancel', style: TextStyle(color: cMt(context))),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: kCryptoPrimary),
+              onPressed: () async {
+                final usdAmt = double.tryParse(amtCtrl.text) ?? 0;
+                if (usdAmt <= 0) {
+                  Fluttertoast.showToast(msg: 'Enter amount');
+                  return;
+                }
+                final cryptoAmt = usdAmt / (ad.price > 0 ? ad.price : 1);
+                if (cryptoAmt > maxCrypto) {
+                  Fluttertoast.showToast(msg: 'Max available: ${maxCrypto.toStringAsFixed(4)} ${ad.coinSymbol}');
+                  return;
+                }
+                if (usdAmt < ad.minAmount) {
+                  Fluttertoast.showToast(msg: 'Minimum order: \$${ad.minAmount.toStringAsFixed(0)}');
+                  return;
+                }
+                if (ad.maxAmount > 0 && usdAmt > ad.maxAmount) {
+                  Fluttertoast.showToast(msg: 'Maximum order: \$${ad.maxAmount.toStringAsFixed(0)}');
+                  return;
+                }
+                Navigator.pop(ctx);
+                setState(() => _loading = true);
+                try {
+                  final repo = ref.read(cryptoRepositoryProvider);
+                  await repo.placeP2pOrder(
+                    adUuid: ad.uuid,
+                    cryptoAmount: cryptoAmt,
+                    paymentMethod: selectedPay,
+                  );
+                  Fluttertoast.showToast(msg: '✅ P2P order placed successfully!');
+                  ref.invalidate(myP2pOrdersProvider);
+                } catch (e) {
+                  Fluttertoast.showToast(msg: _serverError(e), toastLength: Toast.LENGTH_LONG);
+                } finally {
+                  if (mounted) setState(() => _loading = false);
+                }
+              },
+              child: const Text('Confirm', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: cMt(context))),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: kCryptoPrimary),
-            onPressed: () async {
-              final amt = double.tryParse(amtCtrl.text) ?? 0;
-              if (amt <= 0) return;
-              Navigator.pop(ctx);
-              setState(() => _loading = true);
-              try {
-                final repo = ref.read(cryptoRepositoryProvider);
-                final cryptoAmt = amt / (widget.ad.price > 0 ? widget.ad.price : 1);
-                await repo.placeP2pOrder(
-                  adUuid: widget.ad.uuid,
-                  cryptoAmount: cryptoAmt,
-                  paymentMethod: 'epay',
-                );
-                Fluttertoast.showToast(msg: 'P2P order created!');
-                ref.invalidate(myP2pOrdersProvider);
-              } catch (e) {
-                Fluttertoast.showToast(msg: e.toString());
-              } finally {
-                if (mounted) setState(() => _loading = false);
-              }
-            },
-            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
+  }
+
+  String _serverError(Object e) {
+    try {
+      final dio = e as dynamic;
+      final msg = dio.response?.data['message'] as String?;
+      if (msg != null && msg.isNotEmpty) return msg;
+    } catch (_) {}
+    return 'Something went wrong. Please try again.';
   }
 }
 
