@@ -104,8 +104,8 @@ class CryptoWalletController extends Controller
         $wallet = CryptoWallet::getOrCreate($user->id, $coin->id, $network->id);
         if ($wallet->balance < $amount) return response()->json(['success'=>false,'message'=>'Insufficient balance'],422);
 
-        // Lock funds immediately
-        $wallet->debit($amount, 'withdrawal', "Withdraw to {$request->address}", $fee, 'crypto_withdrawal', null);
+        // Debit full amount (fee is included within amount, not additional)
+        $wallet->debit($amount, 'withdrawal', "Withdraw to {$request->address}", 0, 'crypto_withdrawal', null);
 
         $wd = \App\Models\CryptoWithdrawal::create([
             'uuid'       => (string) Str::uuid(),
@@ -141,8 +141,9 @@ class CryptoWalletController extends Controller
         $coin      = ExchangeCoin::where('symbol',strtoupper($request->symbol))->firstOrFail();
         $network   = ExchangeNetwork::findOrFail($request->network_id);
         $amount    = (float) $request->amount;
-        $recipient = \App\Models\User::where('phone','like','%'.ltrim($request->to_phone,'0%252'))->first()
-            ?? \App\Models\User::where('phone',$request->to_phone)->first();
+        $cleanPhone = preg_replace('/^0+/', '', preg_replace('/\D/', '', $request->to_phone));
+        $recipient  = \App\Models\User::where('phone', 'like', '%' . $cleanPhone)
+            ->orWhere('phone', $request->to_phone)->first();
 
         if (!$recipient) return response()->json(['success'=>false,'message'=>'User not found'],404);
         if ($recipient->id === $user->id) return response()->json(['success'=>false,'message'=>'Cannot transfer to yourself'],422);

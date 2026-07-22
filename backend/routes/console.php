@@ -42,6 +42,25 @@ Schedule::call(fn () => CryptoMarketService::refreshPrices())
     ->name('crypto:refresh-prices')
     ->withoutOverlapping();
 
+// Auto-cancel expired P2P orders every 5 minutes
+Schedule::call(function () {
+    \App\Models\P2pOrder::whereIn('status', ['payment_waiting'])
+        ->where('expires_at', '<', now())
+        ->each(function ($order) {
+            $order->update(['status' => 'cancelled']);
+            // Unlock escrow
+            if ($escrow = $order->escrow) {
+                $escrow->update(['status' => 'released']);
+                $sellerWallet = \App\Models\CryptoWallet::where('user_id', $order->seller_id)
+                    ->where('coin_id', $order->ad->coin_id)->first();
+                if ($sellerWallet) {
+                    $sellerWallet->increment('balance', $order->crypto_amount);
+                    $sellerWallet->decrement('locked_balance', $order->crypto_amount);
+                }
+            }
+        });
+})->everyFiveMinutes()->name('p2p:auto-cancel-expired')->withoutOverlapping();
+
 // Clean up old interaction data weekly
 Schedule::call(fn () => FeedRankingService::cleanupOldInteractions())
     ->weekly()

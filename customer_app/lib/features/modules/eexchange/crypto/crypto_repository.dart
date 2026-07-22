@@ -4,14 +4,11 @@ import 'crypto_models.dart';
 
 class CryptoRepository {
   CryptoRepository(this._dio);
-
   final Dio _dio;
-
   static CryptoRepository create() => CryptoRepository(ApiClient.instance);
 
-  // ── Markets ─────────────────────────────────────────────────────────────────
+  // ── Markets ──────────────────────────────────────────────────────────────────
 
-  // GET /api/v1/crypto/markets → {success, data: [...]}
   Future<List<CryptoCoin>> getMarkets({String? search, String? sort}) async {
     final r = await _dio.get('/crypto/markets', queryParameters: {
       if (search != null && search.isNotEmpty) 'search': search,
@@ -21,24 +18,31 @@ class CryptoRepository {
     return list.map((j) => CryptoCoin.fromJson(j)).toList();
   }
 
-  // ── Portfolio / Wallet ───────────────────────────────────────────────────────
+  Future<CryptoCoin> getCoinDetail(String symbol) async {
+    final r = await _dio.get('/crypto/markets/$symbol');
+    return CryptoCoin.fromJson(r.data['data'] as Map<String, dynamic>);
+  }
 
-  // GET /api/v1/crypto/wallet/portfolio → {success, data: {total_usd, assets: [...]}}
+  Future<List<ChartPoint>> getCoinChart(String symbol, {String interval = '1d'}) async {
+    final r = await _dio.get('/crypto/markets/$symbol/chart',
+        queryParameters: {'interval': interval});
+    final list = r.data['data'] as List? ?? [];
+    return list.map((j) => ChartPoint.fromJson(j)).toList();
+  }
+
+  // ── Portfolio / Wallet ────────────────────────────────────────────────────────
+
   Future<Map<String, dynamic>> getPortfolio() async {
     final r = await _dio.get('/crypto/wallet/portfolio');
     return r.data['data'] as Map<String, dynamic>;
   }
 
-  // GET /api/v1/crypto/wallet/{symbol}/deposit?network_id=
   Future<Map<String, dynamic>> getDepositAddress(String symbol, {int? networkId}) async {
-    final r = await _dio.get(
-      '/crypto/wallet/$symbol/deposit',
-      queryParameters: {if (networkId != null) 'network_id': networkId},
-    );
+    final r = await _dio.get('/crypto/wallet/$symbol/deposit',
+        queryParameters: {if (networkId != null) 'network_id': networkId});
     return r.data['data'] as Map<String, dynamic>;
   }
 
-  // POST /api/v1/crypto/wallet/withdraw
   Future<Map<String, dynamic>> withdraw({
     required String symbol,
     required int networkId,
@@ -54,18 +58,37 @@ class CryptoRepository {
     return r.data as Map<String, dynamic>;
   }
 
-  Future<List<Map<String, dynamic>>> getTransactions({int page = 1, String? coinSymbol}) async {
+  Future<Map<String, dynamic>> transfer({
+    required String symbol,
+    required int networkId,
+    required String toPhone,
+    required double amount,
+  }) async {
+    final r = await _dio.post('/crypto/wallet/transfer', data: {
+      'symbol': symbol,
+      'network_id': networkId,
+      'to_phone': toPhone,
+      'amount': amount,
+    });
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<List<CryptoTransaction>> getTransactions({
+    int page = 1,
+    String? coinSymbol,
+    String? type,
+  }) async {
     final r = await _dio.get('/crypto/wallet/transactions', queryParameters: {
       'page': page,
       if (coinSymbol != null) 'coin': coinSymbol,
+      if (type != null) 'type': type,
     });
     final list = r.data['data']?['data'] as List? ?? [];
-    return list.cast<Map<String, dynamic>>();
+    return list.map((j) => CryptoTransaction.fromJson(j)).toList();
   }
 
-  // ── Buy / Sell ───────────────────────────────────────────────────────────────
+  // ── Buy / Sell ────────────────────────────────────────────────────────────────
 
-  // POST /api/v1/crypto/quote → {success, data: {symbol, side, price_usd, amount_usd, fee_usd, crypto_amount, you_receive}}
   Future<Map<String, dynamic>> getQuote({
     required String symbol,
     required String side,
@@ -79,7 +102,6 @@ class CryptoRepository {
     return r.data['data'] as Map<String, dynamic>;
   }
 
-  // POST /api/v1/crypto/buy
   Future<Map<String, dynamic>> buy({
     required String symbol,
     required int networkId,
@@ -97,7 +119,6 @@ class CryptoRepository {
     return r.data as Map<String, dynamic>;
   }
 
-  // POST /api/v1/crypto/sell
   Future<Map<String, dynamic>> sell({
     required String symbol,
     required int networkId,
@@ -113,16 +134,15 @@ class CryptoRepository {
     return r.data as Map<String, dynamic>;
   }
 
-  // GET /api/v1/crypto/orders
-  Future<List<CryptoOrder>> getMyOrders({int page = 1}) async {
-    final r = await _dio.get('/crypto/orders', queryParameters: {'page': page});
+  Future<List<CryptoOrder>> getMyOrders({int page = 1, String? side}) async {
+    final r = await _dio.get('/crypto/orders',
+        queryParameters: {'page': page, if (side != null) 'side': side});
     final list = r.data['data']?['data'] as List? ?? [];
     return list.map((j) => CryptoOrder.fromJson(j)).toList();
   }
 
   // ── P2P ──────────────────────────────────────────────────────────────────────
 
-  // GET /api/v1/crypto/p2p/ads
   Future<List<P2pAd>> getP2pAds({String? coinSymbol, String? type, int page = 1}) async {
     final r = await _dio.get('/crypto/p2p/ads', queryParameters: {
       'page': page,
@@ -133,7 +153,6 @@ class CryptoRepository {
     return list.map((j) => P2pAd.fromJson(j)).toList();
   }
 
-  // POST /api/v1/crypto/p2p/ads
   Future<Map<String, dynamic>> createP2pAd({
     required String coinSymbol,
     required String type,
@@ -157,7 +176,6 @@ class CryptoRepository {
     return r.data as Map<String, dynamic>;
   }
 
-  // POST /api/v1/crypto/p2p/orders — requires ad_uuid
   Future<Map<String, dynamic>> placeP2pOrder({
     required String adUuid,
     required double cryptoAmount,
@@ -171,25 +189,43 @@ class CryptoRepository {
     return r.data as Map<String, dynamic>;
   }
 
-  Future<void> markP2pPaid(String uuid) async {
-    await _dio.post('/crypto/p2p/orders/$uuid/paid');
-  }
-
-  Future<void> releaseCrypto(String uuid) async {
-    await _dio.post('/crypto/p2p/orders/$uuid/release');
-  }
-
-  Future<void> cancelP2pOrder(String uuid) async {
-    await _dio.post('/crypto/p2p/orders/$uuid/cancel');
-  }
-
-  Future<void> openDispute(String uuid, String reason) async {
-    await _dio.post('/crypto/p2p/orders/$uuid/dispute', data: {'reason': reason});
-  }
-
   Future<List<P2pOrder>> getMyP2pOrders(int myId, {int page = 1}) async {
     final r = await _dio.get('/crypto/p2p/orders', queryParameters: {'page': page});
     final list = r.data['data']?['data'] as List? ?? [];
     return list.map((j) => P2pOrder.fromJson(j, myId)).toList();
   }
+
+  Future<Map<String, dynamic>> getP2pOrderDetail(String uuid, int myId) async {
+    final r = await _dio.get('/crypto/p2p/orders/$uuid');
+    return r.data['data'] as Map<String, dynamic>;
+  }
+
+  Future<void> markP2pPaid(String uuid) async =>
+      await _dio.post('/crypto/p2p/orders/$uuid/paid');
+
+  Future<void> releaseCrypto(String uuid) async =>
+      await _dio.post('/crypto/p2p/orders/$uuid/release');
+
+  Future<void> cancelP2pOrder(String uuid) async =>
+      await _dio.post('/crypto/p2p/orders/$uuid/cancel');
+
+  Future<void> openDispute(String uuid, String reason) async =>
+      await _dio.post('/crypto/p2p/orders/$uuid/dispute', data: {'reason': reason});
+
+  Future<List<Map<String, dynamic>>> getP2pMessages(String uuid) async {
+    final r = await _dio.get('/crypto/p2p/orders/$uuid/messages');
+    return (r.data['data'] as List? ?? []).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> sendP2pMessage(String uuid, String message) async =>
+      await _dio.post('/crypto/p2p/orders/$uuid/messages', data: {'message': message});
+
+  Future<List<P2pAd>> getMyAds({int page = 1}) async {
+    final r = await _dio.get('/crypto/p2p/my-ads', queryParameters: {'page': page});
+    final list = r.data['data']?['data'] as List? ?? [];
+    return list.map((j) => P2pAd.fromJson(j)).toList();
+  }
+
+  Future<void> cancelAd(String uuid) async =>
+      await _dio.post('/crypto/p2p/ads/$uuid/cancel');
 }

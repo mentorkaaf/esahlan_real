@@ -1,5 +1,4 @@
 // Crypto Exchange — Data Models
-// All relative imports; no package: prefix
 
 class CryptoCoin {
   final int id;
@@ -7,6 +6,7 @@ class CryptoCoin {
   final String name;
   final double priceUsd;
   final double change24h;
+  final double change7d;
   final double volume24h;
   final double marketCap;
   final double high24h;
@@ -14,8 +14,15 @@ class CryptoCoin {
   final bool buyEnabled;
   final bool sellEnabled;
   final bool p2pEnabled;
+  final bool depositEnabled;
+  final bool withdrawalEnabled;
   final double buyFee;
   final double sellFee;
+  final double minWithdrawal;
+  final double withdrawalFee;
+  final int decimals;
+  final String? logoUrl;
+  final String? coingeckoId;
   final List<CoinNetwork> networks;
 
   const CryptoCoin({
@@ -24,6 +31,7 @@ class CryptoCoin {
     required this.name,
     required this.priceUsd,
     required this.change24h,
+    required this.change7d,
     required this.volume24h,
     required this.marketCap,
     required this.high24h,
@@ -31,9 +39,16 @@ class CryptoCoin {
     required this.buyEnabled,
     required this.sellEnabled,
     required this.p2pEnabled,
+    required this.depositEnabled,
+    required this.withdrawalEnabled,
     required this.buyFee,
     required this.sellFee,
+    required this.minWithdrawal,
+    required this.withdrawalFee,
+    required this.decimals,
     required this.networks,
+    this.logoUrl,
+    this.coingeckoId,
   });
 
   factory CryptoCoin.fromJson(Map<String, dynamic> j) => CryptoCoin(
@@ -42,6 +57,7 @@ class CryptoCoin {
     name: j['name'] ?? '',
     priceUsd: (j['price_usd'] ?? 0).toDouble(),
     change24h: (j['change_24h'] ?? 0).toDouble(),
+    change7d: (j['change_7d'] ?? 0).toDouble(),
     volume24h: (j['volume_24h'] ?? 0).toDouble(),
     marketCap: (j['market_cap'] ?? 0).toDouble(),
     high24h: (j['high_24h'] ?? 0).toDouble(),
@@ -49,8 +65,15 @@ class CryptoCoin {
     buyEnabled: j['buy_enabled'] == true,
     sellEnabled: j['sell_enabled'] == true,
     p2pEnabled: j['p2p_enabled'] == true,
-    buyFee: (j['buy_fee_pct'] ?? 1.5).toDouble(),
-    sellFee: (j['sell_fee_pct'] ?? 1.5).toDouble(),
+    depositEnabled: j['deposit_enabled'] == true,
+    withdrawalEnabled: j['withdrawal_enabled'] == true,
+    buyFee: (j['buy_fee_pct'] ?? 0.5).toDouble(),
+    sellFee: (j['sell_fee_pct'] ?? 0.5).toDouble(),
+    minWithdrawal: (j['min_withdrawal'] ?? 0).toDouble(),
+    withdrawalFee: (j['withdrawal_fee'] ?? 0).toDouble(),
+    decimals: j['decimals'] ?? 6,
+    logoUrl: j['logo_url']?.toString(),
+    coingeckoId: j['coingecko_id']?.toString(),
     networks: (j['networks'] as List? ?? []).map((n) => CoinNetwork.fromJson(n)).toList(),
   );
 
@@ -61,16 +84,31 @@ class CryptoCoin {
   }
 
   bool get isUp => change24h >= 0;
-
   CoinNetwork? get firstNetwork => networks.isNotEmpty ? networks.first : null;
+
+  String volumeFormatted() {
+    if (volume24h >= 1e9) return '\$${(volume24h / 1e9).toStringAsFixed(2)}B';
+    if (volume24h >= 1e6) return '\$${(volume24h / 1e6).toStringAsFixed(2)}M';
+    if (volume24h >= 1e3) return '\$${(volume24h / 1e3).toStringAsFixed(2)}K';
+    return '\$${volume24h.toStringAsFixed(2)}';
+  }
+
+  String marketCapFormatted() {
+    if (marketCap >= 1e12) return '\$${(marketCap / 1e12).toStringAsFixed(2)}T';
+    if (marketCap >= 1e9) return '\$${(marketCap / 1e9).toStringAsFixed(2)}B';
+    if (marketCap >= 1e6) return '\$${(marketCap / 1e6).toStringAsFixed(2)}M';
+    return '\$${marketCap.toStringAsFixed(0)}';
+  }
 }
 
 class CoinNetwork {
   final int id;
-  final String name;  // e.g. "TRC20"
-  final String chain; // e.g. "TRON"
+  final String name;
+  final String chain;
   final double withdrawalFee;
   final bool isActive;
+  final int confirmationsRequired;
+  final String? contractAddress;
 
   const CoinNetwork({
     required this.id,
@@ -78,6 +116,8 @@ class CoinNetwork {
     required this.chain,
     required this.withdrawalFee,
     required this.isActive,
+    required this.confirmationsRequired,
+    this.contractAddress,
   });
 
   factory CoinNetwork.fromJson(Map<String, dynamic> j) => CoinNetwork(
@@ -85,12 +125,14 @@ class CoinNetwork {
     name: j['name'] ?? '',
     chain: j['chain'] ?? '',
     withdrawalFee: (j['withdrawal_fee'] ?? 0).toDouble(),
-    isActive: j['is_active'] == true,
+    isActive: j['is_active'] != false,
+    confirmationsRequired: j['confirmations_required'] ?? 1,
+    contractAddress: j['contract_address']?.toString(),
   );
+
+  String get label => '$name ($chain)';
 }
 
-// Portfolio asset — maps from backend portfolio response
-// Backend: {coin: {id, symbol, name, ...}, balance, usd_value, wallets: [{address, balance, ...}]}
 class CryptoWalletBalance {
   final int coinId;
   final String symbol;
@@ -101,6 +143,7 @@ class CryptoWalletBalance {
   final double priceUsd;
   final String depositAddress;
   final int? networkId;
+  final List<Map<String, dynamic>> wallets;
 
   const CryptoWalletBalance({
     required this.coinId,
@@ -111,13 +154,15 @@ class CryptoWalletBalance {
     required this.balanceUsd,
     required this.priceUsd,
     required this.depositAddress,
+    required this.wallets,
     this.networkId,
   });
 
   factory CryptoWalletBalance.fromJson(Map<String, dynamic> j) {
     final coin = j['coin'] as Map<String, dynamic>? ?? {};
-    final wallets = j['wallets'] as List? ?? [];
-    final firstWallet = wallets.isNotEmpty ? wallets.first as Map<String, dynamic> : <String, dynamic>{};
+    final wallets = (j['wallets'] as List? ?? [])
+        .cast<Map<String, dynamic>>();
+    final firstWallet = wallets.isNotEmpty ? wallets.first : <String, dynamic>{};
     return CryptoWalletBalance(
       coinId: coin['id'] ?? 0,
       symbol: coin['symbol'] ?? '',
@@ -128,6 +173,7 @@ class CryptoWalletBalance {
       priceUsd: (coin['price_usd'] ?? 0).toDouble(),
       depositAddress: firstWallet['address'] ?? '',
       networkId: firstWallet['network_id'] as int?,
+      wallets: wallets,
     );
   }
 }
@@ -136,9 +182,10 @@ class CryptoOrder {
   final String uuid;
   final String side;
   final String coinSymbol;
-  final double quantity;
+  final double cryptoAmount;
   final double priceUsd;
   final double totalUsd;
+  final double feeUsd;
   final String status;
   final String paymentMethod;
   final String createdAt;
@@ -147,9 +194,10 @@ class CryptoOrder {
     required this.uuid,
     required this.side,
     required this.coinSymbol,
-    required this.quantity,
+    required this.cryptoAmount,
     required this.priceUsd,
     required this.totalUsd,
+    required this.feeUsd,
     required this.status,
     required this.paymentMethod,
     required this.createdAt,
@@ -159,19 +207,62 @@ class CryptoOrder {
     uuid: j['uuid'] ?? '',
     side: j['side'] ?? '',
     coinSymbol: j['coin']?['symbol'] ?? '',
-    quantity: (j['crypto_amount'] ?? 0).toDouble(),
+    cryptoAmount: (j['crypto_amount'] ?? 0).toDouble(),
     priceUsd: (j['price_usd'] ?? 0).toDouble(),
     totalUsd: (j['total_usd'] ?? 0).toDouble(),
+    feeUsd: (j['fee_usd'] ?? 0).toDouble(),
     status: j['status'] ?? '',
     paymentMethod: j['payment_method'] ?? '',
     createdAt: j['created_at'] ?? '',
   );
+
+  bool get isCompleted => status == 'completed';
+  bool get isPending => status == 'pending';
+  bool get isBuy => side == 'buy';
+}
+
+class CryptoTransaction {
+  final int id;
+  final String type;
+  final double amount;
+  final double fee;
+  final double balanceBefore;
+  final double balanceAfter;
+  final String note;
+  final String coinSymbol;
+  final String createdAt;
+
+  const CryptoTransaction({
+    required this.id,
+    required this.type,
+    required this.amount,
+    required this.fee,
+    required this.balanceBefore,
+    required this.balanceAfter,
+    required this.note,
+    required this.coinSymbol,
+    required this.createdAt,
+  });
+
+  factory CryptoTransaction.fromJson(Map<String, dynamic> j) => CryptoTransaction(
+    id: j['id'] ?? 0,
+    type: j['type'] ?? '',
+    amount: (j['amount'] ?? 0).toDouble(),
+    fee: (j['fee'] ?? 0).toDouble(),
+    balanceBefore: (j['balance_before'] ?? 0).toDouble(),
+    balanceAfter: (j['balance_after'] ?? 0).toDouble(),
+    note: j['note'] ?? '',
+    coinSymbol: j['coin']?['symbol'] ?? '',
+    createdAt: j['created_at'] ?? '',
+  );
+
+  bool get isCredit => ['buy','deposit','transfer_in','sell_refund'].contains(type);
 }
 
 class P2pAd {
   final int id;
   final String uuid;
-  final String type; // buy | sell
+  final String type;
   final String coinSymbol;
   final String coinName;
   final double priceUsd;
@@ -234,6 +325,8 @@ class P2pOrder {
   final String counterpartyName;
   final String? paymentProof;
   final String createdAt;
+  final String? expiresAt;
+  final String? terms;
 
   const P2pOrder({
     required this.uuid,
@@ -247,12 +340,14 @@ class P2pOrder {
     required this.counterpartyName,
     this.paymentProof,
     required this.createdAt,
+    this.expiresAt,
+    this.terms,
   });
 
   factory P2pOrder.fromJson(Map<String, dynamic> j, int myId) => P2pOrder(
     uuid: j['uuid'] ?? '',
     status: j['status'] ?? '',
-    coinSymbol: j['coin']?['symbol'] ?? '',
+    coinSymbol: j['coin']?['symbol'] ?? j['ad']?['coin']?['symbol'] ?? '',
     cryptoAmount: (j['crypto_amount'] ?? 0).toDouble(),
     priceUsd: (j['price_usd'] ?? 0).toDouble(),
     totalUsd: (j['total_usd'] ?? 0).toDouble(),
@@ -263,5 +358,27 @@ class P2pOrder {
         : (j['buyer']?['name'] ?? 'Buyer'),
     paymentProof: j['payment_proof'],
     createdAt: j['created_at'] ?? '',
+    expiresAt: j['expires_at'],
+    terms: j['ad']?['terms'],
   );
+
+  bool get isActive => ['payment_waiting', 'paid'].contains(status);
+  bool get canMarkPaid => status == 'payment_waiting' && isBuyer;
+  bool get canRelease => status == 'paid' && !isBuyer;
+}
+
+class ChartPoint {
+  final DateTime time;
+  final double price;
+  const ChartPoint({required this.time, required this.price});
+
+  factory ChartPoint.fromJson(dynamic j) {
+    if (j is List && j.length >= 2) {
+      return ChartPoint(
+        time: DateTime.fromMillisecondsSinceEpoch((j[0] as num).toInt()),
+        price: (j[1] as num).toDouble(),
+      );
+    }
+    return ChartPoint(time: DateTime.now(), price: 0);
+  }
 }

@@ -438,7 +438,36 @@ class AdminCryptoController extends Controller
     // ── Settings ─────────────────────────────────────────────────────────────
     public function settings()
     {
-        $coins = ExchangeCoin::with(['price','networks'])->orderBy('display_order')->get();
-        return view('admin.crypto.settings', compact('coins'));
+        $settings = \Illuminate\Support\Facades\Cache::get('crypto_global_settings', [
+            'min_buy_usd'          => 1,
+            'max_buy_usd'          => 10000,
+            'daily_buy_limit'      => 50000,
+            'daily_withdraw_limit' => 10000,
+            'p2p_fee_pct'          => 0.5,
+            'p2p_order_expiry_mins'=> 30,
+            'p2p_min_order_usd'    => 5,
+            'p2p_max_order_usd'    => 5000,
+            'trading_enabled'      => true,
+            'p2p_enabled'          => true,
+            'withdrawals_enabled'  => true,
+            'default_buy_fee'      => 0.5,
+            'default_sell_fee'     => 0.5,
+        ]);
+        return view('admin.crypto.settings', compact('settings'));
+    }
+
+    public function updateSettings(\Illuminate\Http\Request $request)
+    {
+        $data = $request->only([
+            'min_buy_usd','max_buy_usd','daily_buy_limit','daily_withdraw_limit',
+            'p2p_fee_pct','p2p_order_expiry_mins','p2p_min_order_usd','p2p_max_order_usd',
+            'default_buy_fee','default_sell_fee',
+        ]);
+        $data['trading_enabled']     = $request->boolean('trading_enabled');
+        $data['p2p_enabled']         = $request->boolean('p2p_enabled');
+        $data['withdrawals_enabled'] = $request->boolean('withdrawals_enabled');
+
+        \Illuminate\Support\Facades\Cache::put('crypto_global_settings', $data, now()->addYears(10));
+        return back()->with('success', 'Settings saved successfully.');
     }
 }

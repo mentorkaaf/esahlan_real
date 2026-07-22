@@ -1,24 +1,41 @@
-import 'package:dio/dio.dart';
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/theme_x.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'crypto_models.dart';
 import 'crypto_providers.dart';
 import 'crypto_repository.dart';
 
-String _dioMsg(Object e) {
-  if (e is DioException) {
-    final data = e.response?.data;
-    if (data is Map) return data['message']?.toString() ?? e.message ?? '$e';
-    return e.message ?? '$e';
-  }
-  return '$e';
+// ── Theme helpers ─────────────────────────────────────────────────────────────
+
+const _kGreen = Color(0xFF00C853);
+const _kRed = Color(0xFFFF1744);
+const _kGold = Color(0xFFFFB300);
+const _kBg = Color(0xFF0A0E1A);
+const _kCard = Color(0xFF111827);
+const _kBorder = Color(0xFF1F2937);
+const _kText = Color(0xFFE5E7EB);
+const _kMuted = Color(0xFF6B7280);
+
+Color _changeColor(double v) => v >= 0 ? _kGreen : _kRed;
+String _pct(double v) => '${v >= 0 ? '+' : ''}${v.toStringAsFixed(2)}%';
+
+String _fmtUsd(double v) {
+  if (v >= 1e9) return '\$${(v / 1e9).toStringAsFixed(2)}B';
+  if (v >= 1e6) return '\$${(v / 1e6).toStringAsFixed(2)}M';
+  if (v >= 1e3) return '\$${(v / 1e3).toStringAsFixed(2)}K';
+  return '\$${v.toStringAsFixed(2)}';
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// ENTRY POINT
-// ═════════════════════════════════════════════════════════════════════════════
+String _coinPrice(double p) {
+  if (p >= 1000) return '\$${p.toStringAsFixed(2)}';
+  if (p >= 1) return '\$${p.toStringAsFixed(4)}';
+  return '\$${p.toStringAsFixed(6)}';
+}
+
+// ── Entry point ───────────────────────────────────────────────────────────────
 
 class CryptoExchangeScreen extends ConsumerStatefulWidget {
   const CryptoExchangeScreen({super.key});
@@ -27,15 +44,13 @@ class CryptoExchangeScreen extends ConsumerStatefulWidget {
 }
 
 class _CryptoExchangeScreenState extends ConsumerState<CryptoExchangeScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final TabController _tab;
-
-  static const _tabs = ['Markets', 'Portfolio', 'Buy/Sell', 'P2P', 'Wallet'];
 
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: _tabs.length, vsync: this);
+    _tab = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -46,154 +61,197 @@ class _CryptoExchangeScreenState extends ConsumerState<CryptoExchangeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final cs = context.cs;
-    return Scaffold(
-      backgroundColor: cs.surface,
-      body: NestedScrollView(
-        headerSliverBuilder: (_, __) => [
-          SliverAppBar(
-            pinned: true,
-            backgroundColor: cs.surface,
-            foregroundColor: cs.onSurface,
-            elevation: 0,
-            title: const Text('Crypto Exchange',
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
-            bottom: TabBar(
-              controller: _tab,
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              tabs: _tabs.map((t) => Tab(text: t)).toList(),
-              labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-              unselectedLabelStyle:
-                  const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
-              indicatorWeight: 3,
+    return Theme(
+      data: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: _kBg,
+        colorScheme: const ColorScheme.dark(primary: _kGold, surface: _kCard),
+      ),
+      child: Scaffold(
+        backgroundColor: _kBg,
+        body: NestedScrollView(
+          headerSliverBuilder: (_, __) => [
+            SliverAppBar(
+              backgroundColor: _kBg,
+              title: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _kGold.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: _kGold.withOpacity(0.3)),
+                ),
+                child: const Text('eSahlan Exchange',
+                    style: TextStyle(color: _kGold, fontSize: 14, fontWeight: FontWeight.w700)),
+              ),
+              actions: [
+                IconButton(icon: const Icon(Icons.notifications_outlined, color: _kText), onPressed: () {}),
+              ],
+              pinned: true,
+              bottom: TabBar(
+                controller: _tab,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                indicatorColor: _kGold,
+                indicatorWeight: 2,
+                labelColor: _kGold,
+                unselectedLabelColor: _kMuted,
+                labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                tabs: const [
+                  Tab(text: 'Markets'),
+                  Tab(text: 'Portfolio'),
+                  Tab(text: 'Buy / Sell'),
+                  Tab(text: 'P2P'),
+                  Tab(text: 'Wallet'),
+                ],
+              ),
             ),
-          ),
-        ],
-        body: TabBarView(
-          controller: _tab,
-          children: [
-            _MarketsTab(onCoinTap: (c) => _tab.animateTo(2)),
-            const _PortfolioTab(),
-            const _BuySellTab(),
-            const _P2PTab(),
-            const _WalletTab(),
           ],
+          body: TabBarView(
+            controller: _tab,
+            children: const [
+              _MarketsTab(),
+              _PortfolioTab(),
+              _BuySellTab(),
+              _P2PTab(),
+              _WalletTab(),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // MARKETS TAB
-// ═════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 
 class _MarketsTab extends ConsumerStatefulWidget {
-  final void Function(CryptoCoin) onCoinTap;
-  const _MarketsTab({required this.onCoinTap});
+  const _MarketsTab();
   @override
   ConsumerState<_MarketsTab> createState() => _MarketsTabState();
 }
 
 class _MarketsTabState extends ConsumerState<_MarketsTab> {
-  String _search = '';
+  final _search = TextEditingController();
+  String _sort = 'rank';
+  String _query = '';
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearch(String v) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) setState(() => _query = v);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final cs = context.cs;
     final marketsAsync = ref.watch(cryptoMarketsProvider);
 
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: TextField(
-            onChanged: (v) => setState(() => _search = v.toLowerCase()),
-            decoration: InputDecoration(
-              hintText: 'Search coins…',
-              prefixIcon: const Icon(Icons.search, size: 18),
-              filled: true,
-              fillColor: cs.surfaceVariant,
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.symmetric(vertical: 10),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: Row(
             children: [
               Expanded(
-                child: Text('Coin',
-                    style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: cs.outline,
-                        letterSpacing: .6)),
+                child: TextField(
+                  controller: _search,
+                  onChanged: _onSearch,
+                  style: const TextStyle(color: _kText, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'Search coins...',
+                    hintStyle: const TextStyle(color: _kMuted),
+                    prefixIcon: const Icon(Icons.search, color: _kMuted, size: 18),
+                    filled: true,
+                    fillColor: _kCard,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: _kBorder)),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: _kBorder)),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
               ),
-              SizedBox(
-                width: 90,
-                child: Text('Price',
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: cs.outline,
-                        letterSpacing: .6)),
+              const SizedBox(width: 10),
+              PopupMenuButton<String>(
+                color: _kCard,
+                onSelected: (v) => setState(() => _sort = v),
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'rank', child: Text('Market Cap', style: TextStyle(color: _kText))),
+                  const PopupMenuItem(value: 'price', child: Text('Price', style: TextStyle(color: _kText))),
+                  const PopupMenuItem(value: 'change', child: Text('24h Change', style: TextStyle(color: _kText))),
+                  const PopupMenuItem(value: 'volume', child: Text('Volume', style: TextStyle(color: _kText))),
+                ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _kCard,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _kBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.sort, color: _kMuted, size: 18),
+                      const SizedBox(width: 4),
+                      Text(_sort == 'rank' ? 'Cap' : '${_sort[0].toUpperCase()}${_sort.substring(1)}',
+                          style: const TextStyle(color: _kMuted, fontSize: 13)),
+                    ],
+                  ),
+                ),
               ),
-              SizedBox(
-                width: 70,
-                child: Text('24h %',
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: cs.outline,
-                        letterSpacing: .6)),
-              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: const [
+              SizedBox(width: 40),
+              Expanded(child: Text('Name', style: TextStyle(color: _kMuted, fontSize: 11))),
+              SizedBox(width: 90, child: Text('Price', style: TextStyle(color: _kMuted, fontSize: 11), textAlign: TextAlign.right)),
+              SizedBox(width: 68, child: Text('24h', style: TextStyle(color: _kMuted, fontSize: 11), textAlign: TextAlign.right)),
             ],
           ),
         ),
         Expanded(
           child: marketsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.error_outline, size: 40),
-                const SizedBox(height: 8),
-                Text('$e',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12)),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: () => ref.invalidate(cryptoMarketsProvider),
-                  child: const Text('Retry'),
-                ),
-              ]),
-            ),
+            loading: () => const Center(child: CircularProgressIndicator(color: _kGold)),
+            error: (e, _) => _ErrView(e.toString(), onRetry: () => ref.invalidate(cryptoMarketsProvider)),
             data: (coins) {
-              final filtered = _search.isEmpty
-                  ? coins
-                  : coins
-                      .where((c) =>
-                          c.symbol.toLowerCase().contains(_search) ||
-                          c.name.toLowerCase().contains(_search))
-                      .toList();
-              if (filtered.isEmpty) {
-                return Center(
-                  child: Text('No coins found',
-                      style: TextStyle(color: cs.outline)),
-                );
+              var list = coins.where((c) =>
+                _query.isEmpty ||
+                c.name.toLowerCase().contains(_query.toLowerCase()) ||
+                c.symbol.toLowerCase().contains(_query.toLowerCase())
+              ).toList();
+              list.sort((a, b) {
+                switch (_sort) {
+                  case 'price': return b.priceUsd.compareTo(a.priceUsd);
+                  case 'change': return b.change24h.compareTo(a.change24h);
+                  case 'volume': return b.volume24h.compareTo(a.volume24h);
+                  default: return b.marketCap.compareTo(a.marketCap);
+                }
+              });
+              if (list.isEmpty) {
+                return const Center(child: Text('No coins found', style: TextStyle(color: _kMuted)));
               }
               return RefreshIndicator(
-                onRefresh: () => ref.refresh(cryptoMarketsProvider.future),
-                child: ListView.builder(
-                  itemCount: filtered.length,
-                  itemBuilder: (_, i) =>
-                      _CoinRow(coin: filtered[i], onTap: widget.onCoinTap),
+                color: _kGold,
+                onRefresh: () async => ref.invalidate(cryptoMarketsProvider),
+                child: ListView.separated(
+                  padding: const EdgeInsets.only(bottom: 100),
+                  itemCount: list.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1, color: _kBorder, indent: 56),
+                  itemBuilder: (_, i) => _CoinRow(coin: list[i]),
                 ),
               );
             },
@@ -205,77 +263,56 @@ class _MarketsTabState extends ConsumerState<_MarketsTab> {
 }
 
 class _CoinRow extends StatelessWidget {
+  const _CoinRow({required this.coin});
   final CryptoCoin coin;
-  final void Function(CryptoCoin) onTap;
-  const _CoinRow({required this.coin, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final cs = context.cs;
-    final isUp = coin.isUp;
-    final changeColor =
-        isUp ? const Color(0xFF15803D) : const Color(0xFFB91C1C);
     return InkWell(
-      onTap: () => onTap(coin),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => _CoinDetailScreen(coin: coin)),
+      ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _coinColor(coin.symbol).withValues(alpha: .15)),
-              child: Center(
-                child: Text(coin.symbol[0],
-                    style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14,
-                        color: _coinColor(coin.symbol))),
-              ),
-            ),
-            const SizedBox(width: 12),
+            _CoinAvatar(coin: coin, size: 36),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(coin.symbol,
-                      style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 14,
-                          color: cs.onSurface)),
-                  Text(coin.name,
-                      style: TextStyle(fontSize: 11, color: cs.outline)),
+                      style: const TextStyle(color: _kText, fontWeight: FontWeight.w600, fontSize: 14)),
+                  Text(coin.name, style: const TextStyle(color: _kMuted, fontSize: 11)),
                 ],
               ),
             ),
             SizedBox(
               width: 90,
-              child: Text(coin.priceFormatted,
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
-                      color: cs.onSurface)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(coin.priceFormatted,
+                      style: const TextStyle(color: _kText, fontWeight: FontWeight.w600, fontSize: 13)),
+                  Text(_fmtUsd(coin.volume24h),
+                      style: const TextStyle(color: _kMuted, fontSize: 10)),
+                ],
+              ),
             ),
-            SizedBox(
-              width: 70,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: changeColor.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '${isUp ? '+' : ''}${coin.change24h.toStringAsFixed(2)}%',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: changeColor),
-                ),
+            const SizedBox(width: 8),
+            Container(
+              width: 64,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              decoration: BoxDecoration(
+                color: _changeColor(coin.change24h).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                _pct(coin.change24h),
+                style: TextStyle(
+                    color: _changeColor(coin.change24h), fontSize: 11, fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center,
               ),
             ),
           ],
@@ -283,613 +320,951 @@ class _CoinRow extends StatelessWidget {
       ),
     );
   }
+}
 
-  Color _coinColor(String symbol) {
-    const map = {
-      'BTC': Color(0xFFF7931A),
-      'ETH': Color(0xFF627EEA),
-      'USDT': Color(0xFF26A17B),
-      'BNB': Color(0xFFF3BA2F),
-      'SOL': Color(0xFF9945FF),
-      'XRP': Color(0xFF0085C0),
-      'DOGE': Color(0xFFC2A633),
-      'ADA': Color(0xFF0033AD),
-    };
-    return map[symbol] ?? const Color(0xFF6366F1);
+// ── Coin Detail Screen ────────────────────────────────────────────────────────
+
+class _CoinDetailScreen extends ConsumerStatefulWidget {
+  const _CoinDetailScreen({required this.coin});
+  final CryptoCoin coin;
+
+  @override
+  ConsumerState<_CoinDetailScreen> createState() => _CoinDetailScreenState();
+}
+
+class _CoinDetailScreenState extends ConsumerState<_CoinDetailScreen> {
+  String _interval = '1d';
+  final _intervals = ['1h', '4h', '1d', '1w', '1M'];
+
+  @override
+  Widget build(BuildContext context) {
+    final chartKey = '${widget.coin.symbol}:$_interval';
+    final chartAsync = ref.watch(coinChartProvider(chartKey));
+
+    return Theme(
+      data: ThemeData.dark().copyWith(scaffoldBackgroundColor: _kBg),
+      child: Scaffold(
+        backgroundColor: _kBg,
+        appBar: AppBar(
+          backgroundColor: _kBg,
+          title: Row(
+            children: [
+              _CoinAvatar(coin: widget.coin, size: 26),
+              const SizedBox(width: 8),
+              Text(widget.coin.symbol,
+                  style: const TextStyle(color: _kText, fontWeight: FontWeight.w700)),
+              const SizedBox(width: 6),
+              Text(widget.coin.name,
+                  style: const TextStyle(color: _kMuted, fontSize: 13)),
+            ],
+          ),
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(widget.coin.priceFormatted,
+                      style: const TextStyle(
+                          color: _kText, fontSize: 28, fontWeight: FontWeight.w700)),
+                  const SizedBox(width: 12),
+                  _Badge(widget.coin.change24h),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                  'H: ${_coinPrice(widget.coin.high24h)}  L: ${_coinPrice(widget.coin.low24h)}',
+                  style: const TextStyle(color: _kMuted, fontSize: 12)),
+              const SizedBox(height: 16),
+              // Interval selector
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _intervals.map((iv) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _interval = iv),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: _interval == iv ? _kGold.withOpacity(0.15) : _kCard,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: _interval == iv ? _kGold : _kBorder),
+                        ),
+                        child: Text(iv,
+                            style: TextStyle(
+                                color: _interval == iv ? _kGold : _kMuted,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  )).toList(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Chart
+              Container(
+                height: 180,
+                decoration: BoxDecoration(
+                  color: _kCard,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _kBorder),
+                ),
+                child: chartAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator(color: _kGold)),
+                  error: (_, __) => const Center(
+                      child: Text('Chart unavailable', style: TextStyle(color: _kMuted))),
+                  data: (pts) => pts.isEmpty
+                      ? const Center(
+                          child: Text('No data', style: TextStyle(color: _kMuted)))
+                      : Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: CustomPaint(
+                            size: Size.infinite,
+                            painter: _ChartPainter(pts, widget.coin.change24h >= 0),
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              _StatsGrid(coin: widget.coin),
+              const SizedBox(height: 20),
+              if (widget.coin.networks.isNotEmpty) ...[
+                const Text('Networks',
+                    style: TextStyle(
+                        color: _kText, fontWeight: FontWeight.w600, fontSize: 15)),
+                const SizedBox(height: 8),
+                ...widget.coin.networks.map((n) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _kCard,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _kBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _kGold.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(n.chain,
+                            style: const TextStyle(
+                                color: _kGold, fontSize: 12, fontWeight: FontWeight.w600)),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: Text(n.name,
+                              style: const TextStyle(color: _kText, fontSize: 13))),
+                      Text('Fee: ${n.withdrawalFee} ${widget.coin.symbol}',
+                          style: const TextStyle(color: _kMuted, fontSize: 11)),
+                    ],
+                  ),
+                )),
+              ],
+              const SizedBox(height: 80),
+            ],
+          ),
+        ),
+        bottomNavigationBar: Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+          decoration: const BoxDecoration(
+            color: _kCard,
+            border: Border(top: BorderSide(color: _kBorder)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _GoldBtn(
+                  label: 'Buy ${widget.coin.symbol}',
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) =>
+                        _BuySellScreen(preselect: widget.coin, side: 'buy'),
+                  )),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) =>
+                        _BuySellScreen(preselect: widget.coin, side: 'sell'),
+                  )),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _kText,
+                    side: const BorderSide(color: _kBorder),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: Text('Sell ${widget.coin.symbol}'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+class _StatsGrid extends StatelessWidget {
+  const _StatsGrid({required this.coin});
+  final CryptoCoin coin;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: 2.4,
+      children: [
+        _StatCard('Market Cap', coin.marketCapFormatted()),
+        _StatCard('24h Volume', coin.volumeFormatted()),
+        _StatCard('7d Change', _pct(coin.change7d),
+            valueColor: _changeColor(coin.change7d)),
+        _StatCard('Buy Fee', '${coin.buyFee}%'),
+        _StatCard('Min Withdraw', '${coin.minWithdrawal} ${coin.symbol}'),
+        _StatCard('Withdraw Fee', '${coin.withdrawalFee} ${coin.symbol}'),
+      ],
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard(this.label, this.value, {this.valueColor});
+  final String label, value;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: _kCard,
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: _kBorder),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(label, style: const TextStyle(color: _kMuted, fontSize: 11)),
+        const SizedBox(height: 4),
+        Text(value,
+            style: TextStyle(
+                color: valueColor ?? _kText,
+                fontWeight: FontWeight.w600,
+                fontSize: 13)),
+      ],
+    ),
+  );
+}
+
+class _ChartPainter extends CustomPainter {
+  _ChartPainter(this.points, this.isUp);
+  final List<ChartPoint> points;
+  final bool isUp;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (points.length < 2) return;
+    final color = isUp ? _kGreen : _kRed;
+    final minP = points.map((p) => p.price).reduce(math.min);
+    final maxP = points.map((p) => p.price).reduce(math.max);
+    final range = maxP - minP == 0 ? 1.0 : maxP - minP;
+    final path = Path();
+    final fill = Path();
+
+    for (var i = 0; i < points.length; i++) {
+      final x = size.width * i / (points.length - 1);
+      final y = size.height * (1 - (points[i].price - minP) / range);
+      if (i == 0) {
+        path.moveTo(x, y);
+        fill
+          ..moveTo(x, size.height)
+          ..lineTo(x, y);
+      } else {
+        path.lineTo(x, y);
+        fill.lineTo(x, y);
+      }
+    }
+    fill
+      ..lineTo(size.width, size.height)
+      ..close();
+
+    canvas.drawPath(
+        fill,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [color.withOpacity(0.25), color.withOpacity(0)],
+          ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)));
+
+    canvas.drawPath(
+        path,
+        Paint()
+          ..color = color
+          ..strokeWidth = 2
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round);
+
+    final lx = size.width;
+    final ly = size.height * (1 - (points.last.price - minP) / range);
+    canvas.drawCircle(Offset(lx, ly), 4, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_ChartPainter o) => o.points != points;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // PORTFOLIO TAB
-// ═════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 
 class _PortfolioTab extends ConsumerWidget {
   const _PortfolioTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cs = context.cs;
     final portfolioAsync = ref.watch(cryptoPortfolioProvider);
 
     return portfolioAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.error_outline),
-          const SizedBox(height: 8),
-          Text('$e', textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: () => ref.invalidate(cryptoPortfolioProvider),
-            child: const Text('Retry'),
-          ),
-        ]),
-      ),
+      loading: () => const Center(child: CircularProgressIndicator(color: _kGold)),
+      error: (e, _) =>
+          _ErrView(e.toString(), onRetry: () => ref.invalidate(cryptoPortfolioProvider)),
       data: (data) {
+        final assets = (data['assets'] as List? ?? []);
         final totalUsd = (data['total_usd'] ?? 0).toDouble();
-        // Backend returns 'assets' key, not 'wallets'
-        final assets = (data['assets'] as List? ?? [])
-            .map((j) => CryptoWalletBalance.fromJson(j))
-            .toList();
+        final change24h = (data['change_24h_pct'] ?? 0).toDouble();
 
         return RefreshIndicator(
-          onRefresh: () => ref.refresh(cryptoPortfolioProvider.future),
-          child: ListView(
+          color: _kGold,
+          onRefresh: () async => ref.invalidate(cryptoPortfolioProvider),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
-            children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Total Portfolio',
-                        style: TextStyle(
-                            color: Colors.white.withValues(alpha: .8),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: .6)),
-                    const SizedBox(height: 6),
-                    Text('\$${totalUsd.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -1)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text('Your Holdings',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
-                      color: cs.onSurface)),
-              const SizedBox(height: 8),
-              ...assets.where((w) => w.balance > 0).map((w) => _HoldingRow(wallet: w)),
-              if (assets.every((w) => w.balance == 0))
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 40),
-                  child: Column(children: [
-                    Icon(Icons.account_balance_wallet_outlined,
-                        size: 48, color: cs.outline),
-                    const SizedBox(height: 8),
-                    Text('No holdings yet',
-                        style: TextStyle(color: cs.outline)),
-                  ]),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _HoldingRow extends StatelessWidget {
-  final CryptoWalletBalance wallet;
-  const _HoldingRow({required this.wallet});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.cs;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-          color: cs.surfaceVariant, borderRadius: BorderRadius.circular(14)),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF6366F1).withValues(alpha: .12)),
-            child: Center(
-              child: Text(wallet.symbol.isNotEmpty ? wallet.symbol[0] : '?',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13,
-                      color: Color(0xFF6366F1))),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(wallet.symbol,
-                    style: TextStyle(
-                        fontWeight: FontWeight.w800, color: cs.onSurface)),
-                Text(
-                    '${wallet.balance.toStringAsFixed(6)} ${wallet.symbol}',
-                    style: TextStyle(fontSize: 11, color: cs.outline)),
-              ],
-            ),
-          ),
-          Text('\$${wallet.balanceUsd.toStringAsFixed(2)}',
-              style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: cs.onSurface,
-                  fontSize: 15)),
-        ],
-      ),
-    );
-  }
-}
+                // Total value card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [_kGold.withOpacity(0.15), _kCard],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _kGold.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Total Portfolio Value',
+                          style: TextStyle(color: _kMuted, fontSize: 13)),
+                      const SizedBox(height: 8),
+                      Text('\$${totalUsd.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                              color: _kText, fontSize: 30, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(
+                              change24h >= 0
+                                  ? Icons.arrow_upward
+                                  : Icons.arrow_downward,
+                              color: _changeColor(change24h),
+                              size: 14),
+                          const SizedBox(width: 4),
+                          Text(_pct(change24h),
+                              style: TextStyle(
+                                  color: _changeColor(change24h),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600)),
+                          const Text(' today',
+                              style: TextStyle(color: _kMuted, fontSize: 13)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                if (assets.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Text(
+                          'No holdings yet.\nBuy your first crypto!',
+                          style: TextStyle(color: _kMuted),
+                          textAlign: TextAlign.center),
+                    ),
+                  )
+                else ...[
+                  const Text('Holdings',
+                      style: TextStyle(
+                          color: _kText,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16)),
+                  const SizedBox(height: 12),
+                  ...assets.map((a) {
+                    final symbol = a['symbol']?.toString() ?? '';
+                    final name = a['name']?.toString() ?? '';
+                    final balance = (a['balance'] ?? 0).toDouble();
+                    final usdValue = (a['usd_value'] ?? 0).toDouble();
+                    final price = (a['price_usd'] ?? 0).toDouble();
+                    final change = (a['change_24h'] ?? 0).toDouble();
+                    final logoUrl = a['logo_url']?.toString();
+                    final pct = totalUsd > 0 ? (usdValue / totalUsd * 100) : 0.0;
 
-// ═════════════════════════════════════════════════════════════════════════════
-// BUY / SELL TAB
-// ═════════════════════════════════════════════════════════════════════════════
-
-class _BuySellTab extends ConsumerStatefulWidget {
-  const _BuySellTab();
-  @override
-  ConsumerState<_BuySellTab> createState() => _BuySellTabState();
-}
-
-class _BuySellTabState extends ConsumerState<_BuySellTab> {
-  String _side = 'buy';
-  CryptoCoin? _coin;
-  String _payMethod = 'epay';
-  final _amountCtrl = TextEditingController();
-  bool _loading = false;
-  String? _error;
-  Map<String, dynamic>? _result;
-
-  static const _payMethods = [
-    {'id': 'epay', 'label': 'ePay Wallet'},
-    {'id': 'evc', 'label': 'EVC Plus'},
-    {'id': 'edahab', 'label': 'eDahab'},
-    {'id': 'waafi_pay', 'label': 'Waafi Pay'},
-  ];
-
-  @override
-  void dispose() {
-    _amountCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.cs;
-    final marketsAsync = ref.watch(cryptoMarketsProvider);
-    final quoteAsync = ref.watch(quoteProvider);
-
-    return marketsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('$e')),
-      data: (coins) {
-        if (_coin == null && coins.isNotEmpty) {
-          WidgetsBinding.instance
-              .addPostFrameCallback((_) => setState(() => _coin = coins.first));
-        }
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Buy/Sell toggle
-              Container(
-                decoration: BoxDecoration(
-                    color: cs.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.all(4),
-                child: Row(
-                  children: ['buy', 'sell']
-                      .map((s) => Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _side = s;
-                                  _result = null;
-                                });
-                                ref.read(quoteProvider.notifier).reset();
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: _side == s
-                                      ? (s == 'buy'
-                                          ? const Color(0xFF15803D)
-                                          : const Color(0xFFB91C1C))
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  s == 'buy' ? 'BUY' : 'SELL',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                      color: _side == s
-                                          ? Colors.white
-                                          : cs.outline,
-                                      fontSize: 13),
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: _kCard,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _kBorder),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              _CoinAvatarRaw(
+                                  symbol: symbol, logoUrl: logoUrl, size: 36),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(symbol,
+                                        style: const TextStyle(
+                                            color: _kText,
+                                            fontWeight: FontWeight.w600)),
+                                    Text(name,
+                                        style: const TextStyle(
+                                            color: _kMuted, fontSize: 12)),
+                                  ],
                                 ),
                               ),
-                            ),
-                          ))
-                      .toList(),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Coin selector
-              Text('Coin',
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: cs.outline,
-                      letterSpacing: .6)),
-              const SizedBox(height: 6),
-              DropdownButtonFormField<CryptoCoin>(
-                value: _coin,
-                onChanged: (c) =>
-                    setState(() {
-                      _coin = c;
-                      _result = null;
-                    }),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: cs.surfaceVariant,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
-                ),
-                items: coins
-                    .map((c) => DropdownMenuItem(
-                        value: c,
-                        child: Text('${c.symbol}  •  ${c.priceFormatted}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700))))
-                    .toList(),
-              ),
-              const SizedBox(height: 12),
-
-              // Amount
-              Text('Amount (USD)',
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: cs.outline,
-                      letterSpacing: .6)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _amountCtrl,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))
-                ],
-                decoration: InputDecoration(
-                  hintText: '0.00',
-                  prefixText: '\$  ',
-                  filled: true,
-                  fillColor: cs.surfaceVariant,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 14),
-                ),
-                style: const TextStyle(
-                    fontWeight: FontWeight.w800, fontSize: 18),
-              ),
-              const SizedBox(height: 12),
-
-              // Payment method
-              Text('Payment Method',
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: cs.outline,
-                      letterSpacing: .6)),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _payMethods.map((m) {
-                  final sel = _payMethod == m['id'];
-                  return GestureDetector(
-                    onTap: () => setState(() => _payMethod = m['id']!),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: sel
-                            ? const Color(0xFF6366F1)
-                            : cs.surfaceVariant,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: sel
-                                ? const Color(0xFF6366F1)
-                                : Colors.transparent,
-                            width: 2),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                      '\$${usdValue.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                          color: _kText,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15)),
+                                  Text(
+                                      '${balance.toStringAsFixed(6)} $symbol',
+                                      style: const TextStyle(
+                                          color: _kMuted, fontSize: 11)),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: LinearProgressIndicator(
+                                  value: pct / 100,
+                                  backgroundColor: _kBorder,
+                                  valueColor:
+                                      const AlwaysStoppedAnimation(_kGold),
+                                  minHeight: 3,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text('${pct.toStringAsFixed(1)}%',
+                                  style: const TextStyle(
+                                      color: _kMuted, fontSize: 11)),
+                              const SizedBox(width: 12),
+                              Text(_coinPrice(price),
+                                  style: const TextStyle(
+                                      color: _kMuted, fontSize: 11)),
+                              const SizedBox(width: 8),
+                              _Badge(change),
+                            ],
+                          ),
+                        ],
                       ),
-                      child: Text(m['label']!,
-                          style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                              color: sel ? Colors.white : cs.onSurface)),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-
-              // Quote result
-              if (quoteAsync.hasValue && quoteAsync.value != null) ...[
-                _QuoteCard(
-                    quote: quoteAsync.value!, side: _side, coin: _coin!),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _loading ? null : _executeTrade,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _side == 'buy'
-                          ? const Color(0xFF15803D)
-                          : const Color(0xFFB91C1C),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                    ),
-                    child: _loading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : Text(
-                            'Confirm ${_side == 'buy' ? 'Buy' : 'Sell'}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w900)),
-                  ),
-                ),
-              ] else ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _getQuote,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                    ),
-                    child: quoteAsync.isLoading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Text('Get Quote',
-                            style:
-                                TextStyle(fontWeight: FontWeight.w900)),
-                  ),
-                ),
+                    );
+                  }),
+                ],
+                const SizedBox(height: 80),
               ],
-
-              if (quoteAsync.hasError) ...[
-                const SizedBox(height: 8),
-                Text('${quoteAsync.error}',
-                    style: const TextStyle(
-                        color: Color(0xFFB91C1C), fontSize: 12)),
-              ],
-
-              if (_error != null) ...[
-                const SizedBox(height: 8),
-                Text(_error!,
-                    style: const TextStyle(
-                        color: Color(0xFFB91C1C), fontSize: 12)),
-              ],
-
-              if (_result != null) ...[
-                const SizedBox(height: 16),
-                _SuccessCard(result: _result!, side: _side),
-              ],
-            ],
+            ),
           ),
         );
       },
     );
   }
+}
 
-  void _getQuote() {
-    if (_coin == null) return;
-    final amount = double.tryParse(_amountCtrl.text.trim());
-    if (amount == null || amount <= 0) {
-      setState(() => _error = 'Enter a valid amount');
-      return;
+// ═══════════════════════════════════════════════════════════════════════════════
+// BUY / SELL TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _BuySellTab extends ConsumerWidget {
+  const _BuySellTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final marketsAsync = ref.watch(cryptoMarketsProvider);
+    return marketsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: _kGold)),
+      error: (e, _) =>
+          _ErrView(e.toString(), onRetry: () => ref.invalidate(cryptoMarketsProvider)),
+      data: (coins) => _BuySellScreen(coins: coins),
+    );
+  }
+}
+
+class _BuySellScreen extends ConsumerStatefulWidget {
+  const _BuySellScreen({this.preselect, this.side = 'buy', this.coins, super.key});
+  final CryptoCoin? preselect;
+  final String side;
+  final List<CryptoCoin>? coins;
+
+  @override
+  ConsumerState<_BuySellScreen> createState() => _BuySellScreenState();
+}
+
+class _BuySellScreenState extends ConsumerState<_BuySellScreen> {
+  late String _side;
+  CryptoCoin? _coin;
+  CoinNetwork? _network;
+  String _paymentMethod = 'epay';
+  final _amtCtrl = TextEditingController();
+  bool _loading = false;
+  String? _err;
+  Map<String, dynamic>? _result;
+  Timer? _quoteTimer;
+  int _countdown = 30;
+
+  final _methods = [
+    {'key': 'epay', 'label': 'ePay Wallet', 'icon': Icons.account_balance_wallet_outlined},
+    {'key': 'evc', 'label': 'EVC Plus', 'icon': Icons.phone_android},
+    {'key': 'edahab', 'label': 'eDahab', 'icon': Icons.phone_outlined},
+    {'key': 'waafi_pay', 'label': 'Waafi Pay', 'icon': Icons.payments_outlined},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _side = widget.side;
+    _coin = widget.preselect;
+    if (_coin != null) _network = _coin!.firstNetwork;
+  }
+
+  @override
+  void dispose() {
+    _amtCtrl.dispose();
+    _quoteTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startCountdown() {
+    _quoteTimer?.cancel();
+    _countdown = 30;
+    _quoteTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) { t.cancel(); return; }
+      setState(() => _countdown--);
+      if (_countdown <= 0) {
+        t.cancel();
+        ref.read(quoteProvider.notifier).reset();
+      }
+    });
+  }
+
+  Future<void> _getQuote() async {
+    final amt = double.tryParse(_amtCtrl.text);
+    if (_coin == null || amt == null || amt <= 0) return;
+    setState(() => _err = null);
+    try {
+      await ref.read(quoteProvider.notifier).getQuote(
+        symbol: _coin!.symbol,
+        side: _side,
+        amountUsd: amt,
+      );
+      _startCountdown();
+    } catch (e) {
+      setState(() => _err = e.toString());
     }
-    setState(() => _error = null);
-    ref.read(quoteProvider.notifier).getQuote(
-          symbol: _coin!.symbol,
-          side: _side,
-          amountUsd: amount,
-        );
   }
 
   Future<void> _executeTrade() async {
-    if (_coin == null) return;
-    final amount = double.tryParse(_amountCtrl.text.trim()) ?? 0;
-    final networkId = _coin!.firstNetwork?.id ?? 1;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    final amt = double.tryParse(_amtCtrl.text);
+    if (_coin == null || amt == null || _network == null) return;
+    setState(() { _loading = true; _err = null; });
     try {
       final res = await ref.read(quoteProvider.notifier).executeTrade(
-            symbol: _coin!.symbol,
-            networkId: networkId,
-            side: _side,
-            amountUsd: amount,
-            paymentMethod: _payMethod,
-          );
-      setState(() => _result = res);
+        symbol: _coin!.symbol,
+        networkId: _network!.id,
+        side: _side,
+        amountUsd: amt,
+        paymentMethod: _paymentMethod,
+      );
+      _quoteTimer?.cancel();
       ref.read(quoteProvider.notifier).reset();
-      ref.invalidate(cryptoPortfolioProvider);
-      ref.invalidate(cryptoOrdersProvider);
+      setState(() { _result = res; _loading = false; });
     } catch (e) {
-      setState(() => _error = _dioMsg(e));
-    } finally {
-      setState(() => _loading = false);
+      setState(() { _err = e.toString(); _loading = false; });
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final quoteAsync = ref.watch(quoteProvider);
+    final quote = quoteAsync.value;
+    final isLoadingQuote = quoteAsync is AsyncLoading;
+
+    if (_result != null) {
+      return _SuccessView(
+          result: _result!,
+          onDone: () => setState(() {
+                _result = null;
+                ref.read(quoteProvider.notifier).reset();
+              }));
+    }
+
+    final isEmbedded = widget.coins != null;
+
+    Widget body = SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Buy / Sell toggle
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: _kCard,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _kBorder),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                    child: _ToggleBtn('Buy', _side == 'buy',
+                        onTap: () => setState(() => _side = 'buy'),
+                        color: _kGreen)),
+                Expanded(
+                    child: _ToggleBtn('Sell', _side == 'sell',
+                        onTap: () => setState(() => _side = 'sell'),
+                        color: _kRed)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Coin selector
+          _SectionLabel('Coin'),
+          const SizedBox(height: 6),
+          _CoinSelector(
+            selected: _coin,
+            coins: widget.coins,
+            onSelect: (c) => setState(() {
+              _coin = c;
+              _network = c.firstNetwork;
+              ref.read(quoteProvider.notifier).reset();
+            }),
+          ),
+          const SizedBox(height: 16),
+
+          // Network selector (if multiple)
+          if (_coin != null && _coin!.networks.length > 1) ...[
+            _SectionLabel('Network'),
+            const SizedBox(height: 6),
+            _NetworkDropdown(
+              networks: _coin!.networks,
+              selected: _network,
+              onSelect: (n) => setState(() => _network = n),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Amount
+          _SectionLabel(_side == 'buy' ? 'Amount (USD)' : 'Amount (USD to receive)'),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _amtCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: const TextStyle(
+                color: _kText, fontSize: 18, fontWeight: FontWeight.w600),
+            onChanged: (_) {
+              ref.read(quoteProvider.notifier).reset();
+              _quoteTimer?.cancel();
+            },
+            decoration: InputDecoration(
+              hintText: '0.00',
+              hintStyle: const TextStyle(color: _kMuted),
+              prefixIcon: const Padding(
+                padding: EdgeInsets.only(left: 14, top: 12),
+                child: Text('\$', style: TextStyle(color: _kMuted, fontSize: 18)),
+              ),
+              prefixIconConstraints: const BoxConstraints(),
+              filled: true,
+              fillColor: _kCard,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: _kBorder)),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: _kBorder)),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: _kGold)),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Payment method
+          _SectionLabel(_side == 'buy' ? 'Payment Method' : 'Receive Method'),
+          const SizedBox(height: 8),
+          ..._methods.map((m) => _PayMethodTile(
+            label: m['label'] as String,
+            icon: m['icon'] as IconData,
+            selected: _paymentMethod == m['key'],
+            onTap: () => setState(() => _paymentMethod = m['key'] as String),
+          )),
+          const SizedBox(height: 8),
+
+          if (_err != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: _kRed.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _kRed.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: _kRed, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                      child: Text(_err!,
+                          style: const TextStyle(color: _kRed, fontSize: 13))),
+                ],
+              ),
+            ),
+
+          // Quote card
+          if (quote != null) ...[
+            _QuoteCard(
+                quote: quote,
+                symbol: _coin?.symbol ?? '',
+                side: _side,
+                countdown: _countdown),
+            const SizedBox(height: 12),
+            _GoldBtn(
+              label: _loading
+                  ? 'Processing...'
+                  : (_side == 'buy' ? 'Confirm Buy' : 'Confirm Sell'),
+              onTap: _loading ? null : _executeTrade,
+            ),
+          ] else ...[
+            ElevatedButton(
+              onPressed: isLoadingQuote ? null : _getQuote,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kGold,
+                foregroundColor: Colors.black,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: isLoadingQuote
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.black))
+                  : const Text('Get Quote',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            ),
+          ],
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
+
+    if (!isEmbedded) {
+      return Theme(
+        data: ThemeData.dark().copyWith(scaffoldBackgroundColor: _kBg),
+        child: Scaffold(
+          backgroundColor: _kBg,
+          appBar: AppBar(
+            backgroundColor: _kBg,
+            title: Text(
+                '${_side == 'buy' ? 'Buy' : 'Sell'} ${_coin?.symbol ?? 'Crypto'}',
+                style: const TextStyle(color: _kText)),
+          ),
+          body: body,
+        ),
+      );
+    }
+    return body;
   }
 }
 
 class _QuoteCard extends StatelessWidget {
-  final Map<String, dynamic> quote;
-  final String side;
-  final CryptoCoin coin;
   const _QuoteCard(
-      {required this.quote, required this.side, required this.coin});
+      {required this.quote,
+      required this.symbol,
+      required this.side,
+      required this.countdown});
+  final Map<String, dynamic> quote;
+  final String symbol, side;
+  final int countdown;
 
   @override
   Widget build(BuildContext context) {
-    final cs = context.cs;
-    // Backend quote response: {symbol, side, price_usd, amount_usd, fee_usd, crypto_amount, you_receive}
     final cryptoAmt = (quote['crypto_amount'] ?? 0).toDouble();
+    final feeUsd = (quote['fee_usd'] ?? 0).toDouble();
     final price = (quote['price_usd'] ?? 0).toDouble();
-    final fee = (quote['fee_usd'] ?? 0).toDouble();
-    final amountUsd = (quote['amount_usd'] ?? 0).toDouble();
-    final youReceive = quote['you_receive']?.toString() ?? '';
+    final totalUsd = (quote['total_usd'] ?? 0).toDouble();
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-          color: cs.surfaceVariant,
-          borderRadius: BorderRadius.circular(14)),
+        color: _kGold.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kGold.withOpacity(0.3)),
+      ),
       child: Column(
         children: [
-          _QuoteRow(
-              side == 'buy' ? 'You receive' : 'You sell',
-              '${cryptoAmt.toStringAsFixed(6)} ${coin.symbol}'),
-          _QuoteRow('Price', '\$${price.toStringAsFixed(price >= 1 ? 2 : 6)}'),
-          _QuoteRow('Fee', '\$${fee.toStringAsFixed(4)}'),
-          if (youReceive.isNotEmpty && side == 'sell')
-            _QuoteRow('You receive', youReceive),
-          const Divider(),
-          _QuoteRow('Total', '\$${amountUsd.toStringAsFixed(2)}',
-              bold: true),
-          const SizedBox(height: 4),
-          Text('Quote valid for 30 seconds',
-              style: TextStyle(fontSize: 10, color: cs.outline)),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuoteRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool bold;
-  const _QuoteRow(this.label, this.value, {this.bold = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.cs;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label,
-              style: TextStyle(
-                  fontSize: 13,
-                  color: bold ? cs.onSurface : cs.outline,
-                  fontWeight:
-                      bold ? FontWeight.w800 : FontWeight.w500)),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight:
-                      bold ? FontWeight.w900 : FontWeight.w700,
-                  color: cs.onSurface)),
-        ],
-      ),
-    );
-  }
-}
-
-class _SuccessCard extends StatelessWidget {
-  final Map<String, dynamic> result;
-  final String side;
-  const _SuccessCard({required this.result, required this.side});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFDCFCE7),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF86EFAC)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle_rounded,
-              color: Color(0xFF15803D), size: 28),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Order Completed!',
+          Row(
+            children: [
+              const Icon(Icons.receipt_long_outlined, color: _kGold, size: 18),
+              const SizedBox(width: 6),
+              const Text('Quote',
+                  style:
+                      TextStyle(color: _kGold, fontWeight: FontWeight.w700)),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: (countdown > 10 ? _kGreen : _kRed).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text('${countdown}s',
                     style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF15803D),
-                        fontSize: 15)),
-                Text(result['message'] ?? 'Transaction successful',
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF15803D))),
-              ],
-            ),
+                        color: countdown > 10 ? _kGreen : _kRed,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13)),
+              ),
+            ],
           ),
+          const Divider(color: _kBorder, height: 20),
+          _QRow('Price', _coinPrice(price)),
+          _QRow('You ${side == 'buy' ? 'get' : 'sell'}',
+              '${cryptoAmt.toStringAsFixed(6)} $symbol'),
+          _QRow('Platform fee', '\$${feeUsd.toStringAsFixed(2)}'),
+          const Divider(color: _kBorder, height: 12),
+          _QRow('Total', '\$${totalUsd.toStringAsFixed(2)}', bold: true),
         ],
       ),
     );
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+class _QRow extends StatelessWidget {
+  const _QRow(this.label, this.value, {this.bold = false});
+  final String label, value;
+  final bool bold;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: TextStyle(
+                color: _kMuted,
+                fontSize: 13,
+                fontWeight: bold ? FontWeight.w700 : FontWeight.normal)),
+        Text(value,
+            style: TextStyle(
+                color: bold ? _kGold : _kText,
+                fontSize: 13,
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w500)),
+      ],
+    ),
+  );
+}
+
+class _SuccessView extends StatelessWidget {
+  const _SuccessView({required this.result, required this.onDone});
+  final Map<String, dynamic> result;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = result['data'] as Map<String, dynamic>? ?? result;
+    final status = data['status']?.toString() ?? 'pending';
+    final isPending = status == 'pending';
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color:
+                    (isPending ? _kGold : _kGreen).withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                  isPending
+                      ? Icons.hourglass_empty
+                      : Icons.check_circle_outline,
+                  color: isPending ? _kGold : _kGreen,
+                  size: 40),
+            ),
+            const SizedBox(height: 20),
+            Text(isPending ? 'Order Placed!' : 'Trade Complete!',
+                style: const TextStyle(
+                    color: _kText,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Text(
+                isPending
+                    ? 'Your order is pending admin approval.\nYou will be notified when processed.'
+                    : 'Your crypto has been credited to your wallet.',
+                style: const TextStyle(color: _kMuted, fontSize: 14),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 30),
+            _GoldBtn(label: 'Done', onTap: onDone),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // P2P TAB
-// ═════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 
 class _P2PTab extends ConsumerStatefulWidget {
   const _P2PTab();
@@ -897,1157 +1272,1819 @@ class _P2PTab extends ConsumerStatefulWidget {
   ConsumerState<_P2PTab> createState() => _P2PTabState();
 }
 
-class _P2PTabState extends ConsumerState<_P2PTab> {
-  // 'sell' = show sell ads (users who want to sell = I want to buy)
-  // 'buy'  = show buy ads  (users who want to buy  = I want to sell)
-  String _adType = 'sell';
+class _P2PTabState extends ConsumerState<_P2PTab>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tab;
 
-  // Build a stable string key so family provider identity is stable
-  String get _providerKey => '$_adType:';
+  @override
+  void initState() {
+    super.initState();
+    _tab = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final cs = context.cs;
-    final adsAsync = ref.watch(p2pAdsProvider(_providerKey));
-
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: Row(
-            children: [
-              // I want to: Buy / Sell toggle
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                      color: cs.surfaceVariant,
-                      borderRadius: BorderRadius.circular(10)),
-                  padding: const EdgeInsets.all(3),
-                  child: Row(
-                    children: [
-                      // "Buy" chip → shows sell ads
-                      Expanded(
-                        child: _TabChip(
-                          label: 'Buy',
-                          selected: _adType == 'sell',
-                          onTap: () =>
-                              setState(() => _adType = 'sell'),
-                        ),
-                      ),
-                      // "Sell" chip → shows buy ads
-                      Expanded(
-                        child: _TabChip(
-                          label: 'Sell',
-                          selected: _adType == 'buy',
-                          onTap: () =>
-                              setState(() => _adType = 'buy'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              OutlinedButton(
-                onPressed: _showCreateAdSheet,
-                style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10))),
-                child: const Text('+ Post Ad',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 12)),
-              ),
+        Container(
+          color: _kBg,
+          child: TabBar(
+            controller: _tab,
+            labelColor: _kGold,
+            unselectedLabelColor: _kMuted,
+            indicatorColor: _kGold,
+            tabs: const [
+              Tab(text: 'Buy'),
+              Tab(text: 'Sell'),
+              Tab(text: 'My Orders'),
             ],
           ),
         ),
-        const SizedBox(height: 8),
         Expanded(
-          child: adsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text('$e',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12)),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: () => ref.invalidate(p2pAdsProvider(_providerKey)),
-                  child: const Text('Retry'),
-                ),
-              ]),
-            ),
-            data: (ads) {
-              if (ads.isEmpty) {
-                return Center(
-                  child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.store_outlined,
-                            size: 48, color: cs.outline),
-                        const SizedBox(height: 8),
-                        Text('No ads available',
-                            style: TextStyle(color: cs.outline)),
-                      ]),
-                );
-              }
-              return RefreshIndicator(
-                onRefresh: () =>
-                    ref.refresh(p2pAdsProvider(_providerKey).future),
-                child: ListView.builder(
-                  itemCount: ads.length,
-                  itemBuilder: (_, i) => _AdRow(
-                    ad: ads[i],
-                    isBuying: _adType == 'sell',
-                  ),
-                ),
-              );
-            },
+          child: TabBarView(
+            controller: _tab,
+            children: const [
+              _P2PAdsView(type: 'sell'), // user wants to buy → show sell ads
+              _P2PAdsView(type: 'buy'),  // user wants to sell → show buy ads
+              _MyP2POrders(),
+            ],
           ),
         ),
       ],
     );
   }
-
-  void _showCreateAdSheet() {
-    final coins = ref.read(cryptoMarketsProvider).valueOrNull ?? [];
-    if (coins.isEmpty) return;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _CreateAdSheet(
-        coins: coins,
-        repo: CryptoRepository.create(),
-        onDone: () => ref.invalidate(p2pAdsProvider(_providerKey)),
-      ),
-    );
-  }
 }
 
-// _TabChip — does NOT return Expanded from build(); caller wraps with Expanded
-class _TabChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const _TabChip(
-      {required this.label, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFF6366F1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 12,
-              color: selected ? Colors.white : context.cs.outline),
-        ),
-      ),
-    );
-  }
-}
-
-class _AdRow extends ConsumerWidget {
-  final P2pAd ad;
-  final bool isBuying;
-  const _AdRow({required this.ad, required this.isBuying});
+class _P2PAdsView extends ConsumerWidget {
+  const _P2PAdsView({required this.type});
+  final String type;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cs = context.cs;
-    return InkWell(
-      onTap: () => _showPlaceOrderSheet(context, ref),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(ad.coinSymbol,
-                    style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 15,
-                        color: cs.onSurface)),
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                      color: const Color(0xFFEEF2FF),
-                      borderRadius: BorderRadius.circular(6)),
-                  child: Text(
-                    ad.completedCount > 0
-                        ? '${ad.completedCount} trades'
-                        : 'New',
-                    style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF4338CA)),
-                  ),
-                ),
-                const Spacer(),
-                Text('\$${ad.priceUsd.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 16,
-                        color: Color(0xFF6366F1))),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Text(ad.sellerName,
-                    style: TextStyle(fontSize: 12, color: cs.outline)),
-                const SizedBox(width: 8),
-                Text(
-                    'Limit: \$${ad.minOrder.toStringAsFixed(0)}–\$${ad.maxOrder.toStringAsFixed(0)}',
-                    style: TextStyle(fontSize: 12, color: cs.outline)),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 6,
-              children: ad.paymentMethods
-                  .map((m) => Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                            color: cs.surfaceVariant,
-                            borderRadius: BorderRadius.circular(6)),
-                        child: Text(m,
-                            style: TextStyle(
-                                fontSize: 10,
-                                color: cs.onSurface,
-                                fontWeight: FontWeight.w600)),
-                      ))
-                  .toList(),
-            ),
-            const Divider(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
+    final key = '$type:';
+    final adsAsync = ref.watch(p2pAdsProvider(key));
 
-  void _showPlaceOrderSheet(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _PlaceOrderSheet(
-        ad: ad,
-        isBuying: isBuying,
-        repo: CryptoRepository.create(),
-        onDone: () => ref.invalidate(cryptoPortfolioProvider),
-      ),
-    );
-  }
-}
-
-class _CreateAdSheet extends StatefulWidget {
-  final List<CryptoCoin> coins;
-  final CryptoRepository repo;
-  final VoidCallback onDone;
-  const _CreateAdSheet(
-      {required this.coins, required this.repo, required this.onDone});
-
-  @override
-  State<_CreateAdSheet> createState() => _CreateAdSheetState();
-}
-
-class _CreateAdSheetState extends State<_CreateAdSheet> {
-  CryptoCoin? _coin;
-  String _type = 'sell';
-  final _priceCtrl = TextEditingController();
-  final _amtCtrl = TextEditingController();
-  final _minCtrl = TextEditingController();
-  final _maxCtrl = TextEditingController();
-  final _payMethods = <String>{'EVC Plus'};
-  bool _loading = false;
-  String? _error;
-
-  static const _methods = [
-    'EVC Plus',
-    'eDahab',
-    'Waafi Pay',
-    'Jeep Money',
-    'ePay Wallet'
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.cs;
-    _coin ??= widget.coins.isNotEmpty ? widget.coins.first : null;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-          20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Create P2P Ad',
-                style: TextStyle(
-                    fontWeight: FontWeight.w900, fontSize: 18)),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<CryptoCoin>(
-              value: _coin,
-              onChanged: (c) => setState(() => _coin = c),
-              decoration: InputDecoration(
-                  labelText: 'Coin',
-                  filled: true,
-                  fillColor: cs.surfaceVariant,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none)),
-              items: widget.coins
-                  .map((c) => DropdownMenuItem(
-                      value: c, child: Text(c.symbol)))
-                  .toList(),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: RadioListTile<String>(
-                    title: const Text('Sell'),
-                    value: 'sell',
-                    groupValue: _type,
-                    onChanged: (v) => setState(() => _type = v!),
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-                Expanded(
-                  child: RadioListTile<String>(
-                    title: const Text('Buy'),
-                    value: 'buy',
-                    groupValue: _type,
-                    onChanged: (v) => setState(() => _type = v!),
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ],
-            ),
-            Row(children: [
-              Expanded(
-                  child: TextField(
-                      controller: _priceCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true),
-                      decoration: InputDecoration(
-                          labelText: 'Price USD',
-                          filled: true,
-                          fillColor: cs.surfaceVariant,
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none)))),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: TextField(
-                      controller: _amtCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true),
-                      decoration: InputDecoration(
-                          labelText: 'Amount (crypto)',
-                          filled: true,
-                          fillColor: cs.surfaceVariant,
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none)))),
-            ]),
-            const SizedBox(height: 10),
-            Row(children: [
-              Expanded(
-                  child: TextField(
-                      controller: _minCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true),
-                      decoration: InputDecoration(
-                          labelText: 'Min USD',
-                          filled: true,
-                          fillColor: cs.surfaceVariant,
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none)))),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: TextField(
-                      controller: _maxCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true),
-                      decoration: InputDecoration(
-                          labelText: 'Max USD',
-                          filled: true,
-                          fillColor: cs.surfaceVariant,
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none)))),
-            ]),
-            const SizedBox(height: 10),
-            Text('Payment Methods',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: cs.outline)),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: _methods.map((m) {
-                final sel = _payMethods.contains(m);
-                return FilterChip(
-                    label: Text(m,
-                        style: const TextStyle(fontSize: 11)),
-                    selected: sel,
-                    onSelected: (v) => setState(
-                        () => v ? _payMethods.add(m) : _payMethods.remove(m)));
-              }).toList(),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 6),
-              Text(_error!,
-                  style: const TextStyle(
-                      color: Color(0xFFB91C1C), fontSize: 12))
-            ],
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _loading ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6366F1),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14))),
-                child: _loading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Text('Post Ad',
-                        style:
-                            TextStyle(fontWeight: FontWeight.w900)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _submit() async {
-    if (_coin == null) return;
-    final price = double.tryParse(_priceCtrl.text) ?? 0;
-    final amount = double.tryParse(_amtCtrl.text) ?? 0;
-    final min = double.tryParse(_minCtrl.text) ?? 0;
-    final max = double.tryParse(_maxCtrl.text) ?? 0;
-    if (price <= 0 || amount <= 0 || min <= 0 || max <= 0) {
-      setState(() => _error = 'Fill all fields');
-      return;
-    }
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      await widget.repo.createP2pAd(
-        coinSymbol: _coin!.symbol,
-        type: _type,
-        priceUsd: price,
-        amount: amount,
-        minOrder: min,
-        maxOrder: max,
-        paymentMethods: _payMethods.toList(),
-      );
-      widget.onDone();
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      setState(() => _error = _dioMsg(e));
-    } finally {
-      setState(() => _loading = false);
-    }
-  }
-}
-
-class _PlaceOrderSheet extends StatefulWidget {
-  final P2pAd ad;
-  final bool isBuying;
-  final CryptoRepository repo;
-  final VoidCallback onDone;
-  const _PlaceOrderSheet(
-      {required this.ad,
-      required this.isBuying,
-      required this.repo,
-      required this.onDone});
-
-  @override
-  State<_PlaceOrderSheet> createState() => _PlaceOrderSheetState();
-}
-
-class _PlaceOrderSheetState extends State<_PlaceOrderSheet> {
-  final _amtCtrl = TextEditingController();
-  String _payMethod = '';
-  bool _loading = false;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _payMethod = widget.ad.paymentMethods.isNotEmpty
-        ? widget.ad.paymentMethods.first
-        : 'EVC Plus';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.cs;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-          20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-      child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Expanded(
-                  child: Text(
-                      '${widget.isBuying ? 'Buy' : 'Sell'} ${widget.ad.coinSymbol}',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w900, fontSize: 18))),
-              Text('\$${widget.ad.priceUsd.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18,
-                      color: Color(0xFF6366F1))),
-            ]),
-            const SizedBox(height: 4),
-            Text(
-                'Limit: \$${widget.ad.minOrder.toStringAsFixed(0)} – \$${widget.ad.maxOrder.toStringAsFixed(0)}',
-                style: TextStyle(fontSize: 12, color: cs.outline)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _amtCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: 'Amount (${widget.ad.coinSymbol})',
-                filled: true,
-                fillColor: cs.surfaceVariant,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              value: _payMethod,
-              onChanged: (v) => setState(() => _payMethod = v!),
-              decoration: InputDecoration(
-                  labelText: 'Payment Method',
-                  filled: true,
-                  fillColor: cs.surfaceVariant,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none)),
-              items: widget.ad.paymentMethods
-                  .map((m) =>
-                      DropdownMenuItem(value: m, child: Text(m)))
-                  .toList(),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 6),
-              Text(_error!,
-                  style: const TextStyle(
-                      color: Color(0xFFB91C1C), fontSize: 12))
-            ],
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _loading ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: widget.isBuying
-                        ? const Color(0xFF15803D)
-                        : const Color(0xFFB91C1C),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14))),
-                child: _loading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : Text(
-                        'Place ${widget.isBuying ? 'Buy' : 'Sell'} Order',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w900)),
-              ),
-            ),
-          ]),
-    );
-  }
-
-  Future<void> _submit() async {
-    final amt = double.tryParse(_amtCtrl.text) ?? 0;
-    if (amt <= 0) {
-      setState(() => _error = 'Enter amount');
-      return;
-    }
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      await widget.repo.placeP2pOrder(
-          adUuid: widget.ad.uuid,
-          cryptoAmount: amt,
-          paymentMethod: _payMethod);
-      widget.onDone();
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      setState(() => _error = _dioMsg(e));
-    } finally {
-      setState(() => _loading = false);
-    }
-  }
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// WALLET TAB
-// ═════════════════════════════════════════════════════════════════════════════
-
-class _WalletTab extends ConsumerStatefulWidget {
-  const _WalletTab();
-  @override
-  ConsumerState<_WalletTab> createState() => _WalletTabState();
-}
-
-class _WalletTabState extends ConsumerState<_WalletTab> {
-  CryptoWalletBalance? _selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.cs;
-    final portfolioAsync = ref.watch(cryptoPortfolioProvider);
-
-    return portfolioAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.error_outline),
-          const SizedBox(height: 8),
-          Text('$e', textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: () => ref.invalidate(cryptoPortfolioProvider),
-            child: const Text('Retry'),
-          ),
-        ]),
-      ),
-      data: (data) {
-        // Backend returns 'assets' key
-        final wallets = (data['assets'] as List? ?? [])
-            .map((j) => CryptoWalletBalance.fromJson(j))
-            .toList();
-        if (_selected == null && wallets.isNotEmpty) {
-          _selected = wallets.first;
-        }
-
-        if (wallets.isEmpty) {
+    return adsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: _kGold)),
+      error: (e, _) =>
+          _ErrView(e.toString(), onRetry: () => ref.invalidate(p2pAdsProvider(key))),
+      data: (ads) {
+        if (ads.isEmpty) {
           return Center(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.account_balance_wallet_outlined,
-                  size: 48, color: cs.outline),
-              const SizedBox(height: 8),
-              Text('No wallets found',
-                  style: TextStyle(color: cs.outline)),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(cryptoPortfolioProvider),
-                child: const Text('Refresh'),
-              ),
-            ]),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.inbox_outlined, color: _kMuted, size: 48),
+                const SizedBox(height: 12),
+                const Text('No ads available',
+                    style: TextStyle(color: _kMuted)),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => ref.invalidate(p2pAdsProvider(key)),
+                  child: const Text('Refresh',
+                      style: TextStyle(color: _kGold)),
+                ),
+              ],
+            ),
           );
         }
-
-        return Column(
-          children: [
-            // Coin selector horizontal scroll
-            SizedBox(
-              height: 60,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
-                itemCount: wallets.length,
-                itemBuilder: (_, i) {
-                  final w = wallets[i];
-                  final sel = _selected?.coinId == w.coinId;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selected = w),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: sel
-                            ? const Color(0xFF6366F1)
-                            : cs.surfaceVariant,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(w.symbol,
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 12,
-                                  color: sel
-                                      ? Colors.white
-                                      : cs.onSurface)),
-                          Text(
-                              '\$${w.balanceUsd.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                  fontSize: 9,
-                                  color: sel
-                                      ? Colors.white.withValues(alpha: .8)
-                                      : cs.outline)),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            if (_selected != null)
-              Expanded(
-                  child: _WalletDetail(
-                      wallet: _selected!,
-                      repo: CryptoRepository.create())),
-          ],
+        return RefreshIndicator(
+          color: _kGold,
+          onRefresh: () async => ref.invalidate(p2pAdsProvider(key)),
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: ads.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (_, i) => _P2PAdCard(ad: ads[i]),
+          ),
         );
       },
     );
   }
 }
 
-class _DepositSheet extends StatefulWidget {
-  final CryptoWalletBalance wallet;
-  final CryptoRepository repo;
-  const _DepositSheet({required this.wallet, required this.repo});
+class _P2PAdCard extends StatelessWidget {
+  const _P2PAdCard({required this.ad});
+  final P2pAd ad;
+
   @override
-  State<_DepositSheet> createState() => _DepositSheetState();
+  Widget build(BuildContext context) {
+    final isSell = ad.type == 'sell';
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _kCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: _kGold.withOpacity(0.2),
+                child: Text(
+                    ad.sellerName.isNotEmpty
+                        ? ad.sellerName[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                        color: _kGold, fontWeight: FontWeight.w700)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(ad.sellerName,
+                        style: const TextStyle(
+                            color: _kText,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14)),
+                    Text('${ad.completedCount} orders',
+                        style: const TextStyle(color: _kMuted, fontSize: 11)),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (isSell ? _kGreen : _kRed).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(isSell ? 'SELL' : 'BUY',
+                    style: TextStyle(
+                        color: isSell ? _kGreen : _kRed,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('\$${ad.priceUsd.toStringAsFixed(4)}',
+                        style: const TextStyle(
+                            color: _kGold,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18)),
+                    Text('per ${ad.coinSymbol}',
+                        style: const TextStyle(color: _kMuted, fontSize: 11)),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                      'Available: ${ad.remaining.toStringAsFixed(4)} ${ad.coinSymbol}',
+                      style: const TextStyle(color: _kMuted, fontSize: 11)),
+                  Text(
+                      'Limit: \$${ad.minOrder.toStringAsFixed(0)} – \$${ad.maxOrder.toStringAsFixed(0)}',
+                      style: const TextStyle(color: _kMuted, fontSize: 11)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            children: ad.paymentMethods
+                .map((m) => Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _kBorder,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(m,
+                          style: const TextStyle(
+                              color: _kMuted, fontSize: 11)),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => showModalBottomSheet(
+                context: context,
+                backgroundColor: _kCard,
+                isScrollControlled: true,
+                builder: (_) => _P2POrderSheet(ad: ad),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    (isSell ? _kGreen : _kRed).withOpacity(0.15),
+                foregroundColor: isSell ? _kGreen : _kRed,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(
+                      color: (isSell ? _kGreen : _kRed).withOpacity(0.3)),
+                ),
+              ),
+              child: Text(
+                  isSell
+                      ? 'Buy ${ad.coinSymbol}'
+                      : 'Sell ${ad.coinSymbol}',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _DepositSheetState extends State<_DepositSheet> {
-  String? _address;
-  String? _network;
-  String? _error;
-  bool _loading = true;
+class _P2POrderSheet extends ConsumerStatefulWidget {
+  const _P2POrderSheet({required this.ad});
+  final P2pAd ad;
+
+  @override
+  ConsumerState<_P2POrderSheet> createState() => _P2POrderSheetState();
+}
+
+class _P2POrderSheetState extends ConsumerState<_P2POrderSheet> {
+  final _amtCtrl = TextEditingController();
+  String _paymentMethod = '';
+  bool _loading = false;
+  String? _err;
 
   @override
   void initState() {
     super.initState();
-    _fetch();
+    if (widget.ad.paymentMethods.isNotEmpty) {
+      _paymentMethod = widget.ad.paymentMethods.first;
+    }
   }
 
-  Future<void> _fetch() async {
+  @override
+  void dispose() {
+    _amtCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _place() async {
+    final amt = double.tryParse(_amtCtrl.text);
+    if (amt == null || amt <= 0) return;
+    setState(() { _loading = true; _err = null; });
     try {
-      final data = await widget.repo.getDepositAddress(
-        widget.wallet.symbol,
-        networkId: widget.wallet.networkId,
+      await CryptoRepository.create().placeP2pOrder(
+        adUuid: widget.ad.uuid,
+        cryptoAmount: amt,
+        paymentMethod: _paymentMethod,
       );
       if (mounted) {
-        setState(() {
-          _address = data['address']?.toString() ?? '';
-          _network = data['network']?.toString() ?? '';
-          _loading = false;
-        });
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Order placed! Check My Orders.'),
+            backgroundColor: _kGreen));
       }
     } catch (e) {
-      if (mounted) setState(() { _error = _dioMsg(e); _loading = false; });
+      setState(() { _err = e.toString(); _loading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final sym = widget.wallet.symbol;
+    final ad = widget.ad;
     return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text('Deposit $sym',
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
-        const SizedBox(height: 16),
-        if (_loading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: CircularProgressIndicator(),
-          )
-        else if (_error != null)
-          Text(_error!, style: const TextStyle(color: Color(0xFFB91C1C)))
-        else ...[
-          if (_network != null && _network!.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                  color: const Color(0xFFEEF2FF),
-                  borderRadius: BorderRadius.circular(8)),
-              child: Text('Network: $_network',
-                  style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF4338CA))),
-            ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12)),
-            child: Column(children: [
-              Text('Your $sym address:',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              Text(
-                _address!.isNotEmpty ? _address! : 'Address not yet assigned',
-                style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700),
-                textAlign: TextAlign.center,
-              ),
-            ]),
-          ),
-          const SizedBox(height: 12),
-          if (_address!.isNotEmpty)
-            ElevatedButton.icon(
-              icon: const Icon(Icons.copy),
-              label: const Text('Copy Address'),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: _address!));
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Address copied')));
-              },
-              style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14))),
-            ),
-        ],
-        const SizedBox(height: 8),
-        Text('Only send $sym to this address',
-            style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-      ]),
-    );
-  }
-}
-
-class _WalletDetail extends StatelessWidget {
-  final CryptoWalletBalance wallet;
-  final CryptoRepository repo;
-  const _WalletDetail({required this.wallet, required this.repo});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = context.cs;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Balance card
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [Color(0xFF1E1B4B), Color(0xFF312E81)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(wallet.symbol,
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: .7),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: .8)),
-                const SizedBox(height: 6),
-                Text(
-                    '${wallet.balance.toStringAsFixed(6)} ${wallet.symbol}',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900)),
-                const SizedBox(height: 4),
-                Text('≈ \$${wallet.balanceUsd.toStringAsFixed(2)} USD',
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: .7),
-                        fontSize: 13)),
-                if (wallet.lockedBalance > 0) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                      'Locked: ${wallet.lockedBalance.toStringAsFixed(6)} ${wallet.symbol}',
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: .6),
-                          fontSize: 11)),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                  child: _WalletAction(
-                      icon: Icons.arrow_downward_rounded,
-                      label: 'Deposit',
-                      color: const Color(0xFF15803D),
-                      onTap: () => _showDeposit(context))),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: _WalletAction(
-                      icon: Icons.arrow_upward_rounded,
-                      label: 'Withdraw',
-                      color: const Color(0xFFB91C1C),
-                      onTap: () => _showWithdraw(context))),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text('Deposit Address',
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: cs.outline,
-                  letterSpacing: .6)),
-          const SizedBox(height: 8),
-          if (wallet.depositAddress.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                  color: cs.surfaceVariant,
-                  borderRadius: BorderRadius.circular(12)),
-              child: Row(
-                children: [
-                  Expanded(
-                      child: Text(wallet.depositAddress,
-                          style: const TextStyle(
-                              fontFamily: 'monospace', fontSize: 11))),
-                  IconButton(
-                    icon: const Icon(Icons.copy, size: 18),
-                    onPressed: () {
-                      Clipboard.setData(
-                          ClipboardData(text: wallet.depositAddress));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Address copied'),
-                              duration: Duration(seconds: 2)));
-                    },
-                  ),
-                ],
-              ),
-            )
-          else
-            Text('Tap Deposit to generate your address',
-                style: TextStyle(color: cs.outline, fontSize: 12)),
-        ],
-      ),
-    );
-  }
-
-  void _showDeposit(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _DepositSheet(wallet: wallet, repo: repo),
-    );
-  }
-
-  void _showWithdraw(BuildContext context) {
-    final addrCtrl = TextEditingController();
-    final amtCtrl = TextEditingController();
-    bool loading = false;
-    String? error;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setS) => Padding(
-          padding: EdgeInsets.fromLTRB(
-              20,
-              20,
-              20,
-              MediaQuery.of(ctx).viewInsets.bottom + 20),
-          child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Withdraw ${wallet.symbol}',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 18)),
-                Text(
-                    'Available: ${wallet.balance.toStringAsFixed(6)} ${wallet.symbol}',
-                    style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B))),
-                const SizedBox(height: 16),
-                TextField(
-                    controller: addrCtrl,
-                    decoration: InputDecoration(
-                        labelText: 'To Address',
-                        filled: true,
-                        fillColor: const Color(0xFFF1F5F9),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none))),
-                const SizedBox(height: 10),
-                TextField(
-                    controller: amtCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
-                    decoration: InputDecoration(
-                        labelText: 'Amount',
-                        filled: true,
-                        fillColor: const Color(0xFFF1F5F9),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none))),
-                if (error != null) ...[
-                  const SizedBox(height: 6),
-                  Text(error!,
-                      style: const TextStyle(
-                          color: Color(0xFFB91C1C), fontSize: 12))
-                ],
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: loading
-                        ? null
-                        : () async {
-                            final addr = addrCtrl.text.trim();
-                            final amt =
-                                double.tryParse(amtCtrl.text) ?? 0;
-                            if (addr.isEmpty || amt <= 0) {
-                              setS(() => error = 'Fill all fields');
-                              return;
-                            }
-                            setS(() {
-                              loading = true;
-                              error = null;
-                            });
-                            try {
-                              await repo.withdraw(
-                                symbol: wallet.symbol,
-                                networkId: wallet.networkId ?? 1,
-                                amount: amt,
-                                toAddress: addr,
-                              );
-                              if (ctx.mounted) {
-                                Navigator.pop(ctx);
-                                ScaffoldMessenger.of(ctx)
-                                    .showSnackBar(const SnackBar(
-                                        content: Text(
-                                            'Withdrawal submitted successfully')));
-                              }
-                            } catch (e) {
-                              setS(() {
-                                loading = false;
-                                error = _dioMsg(e);
-                              });
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFB91C1C),
-                        foregroundColor: Colors.white,
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14))),
-                    child: loading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white))
-                        : const Text('Submit Withdrawal',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w900)),
-                  ),
-                ),
-              ]),
-        ),
-      ),
-    );
-  }
-}
-
-class _WalletAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-  const _WalletAction(
-      {required this.icon,
-      required this.label,
-      required this.color,
-      required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-            color: color.withValues(alpha: .1),
-            borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.all(20),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: color, size: 22),
+            Text('Place Order — ${ad.coinSymbol}',
+                style: const TextStyle(
+                    color: _kText, fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            Text(label,
-                style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12)),
+            Text(
+                'Price: \$${ad.priceUsd.toStringAsFixed(4)} per ${ad.coinSymbol}',
+                style: const TextStyle(color: _kMuted, fontSize: 12)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _amtCtrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(color: _kText),
+              decoration: InputDecoration(
+                labelText: 'Amount (${ad.coinSymbol})',
+                labelStyle: const TextStyle(color: _kMuted),
+                hintStyle: const TextStyle(color: _kMuted),
+                filled: true,
+                fillColor: _kBg,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _kBorder)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _kBorder)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (ad.paymentMethods.length > 1) ...[
+              const Text('Payment Method',
+                  style: TextStyle(color: _kMuted, fontSize: 13)),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                children: ad.paymentMethods
+                    .map((m) => ChoiceChip(
+                          label: Text(m),
+                          selected: _paymentMethod == m,
+                          onSelected: (_) =>
+                              setState(() => _paymentMethod = m),
+                          selectedColor: _kGold.withOpacity(0.2),
+                          labelStyle: TextStyle(
+                              color:
+                                  _paymentMethod == m ? _kGold : _kMuted),
+                          backgroundColor: _kBg,
+                          side: BorderSide(
+                              color: _paymentMethod == m
+                                  ? _kGold
+                                  : _kBorder),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (ad.terms.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                    color: _kBg, borderRadius: BorderRadius.circular(8)),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.info_outline,
+                        color: _kMuted, size: 14),
+                    const SizedBox(width: 6),
+                    Expanded(
+                        child: Text(ad.terms,
+                            style: const TextStyle(
+                                color: _kMuted, fontSize: 12))),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (_err != null) ...[
+              Text(_err!,
+                  style: const TextStyle(color: _kRed, fontSize: 13)),
+              const SizedBox(height: 8),
+            ],
+            _GoldBtn(
+                label: _loading ? 'Placing...' : 'Place Order',
+                onTap: _loading ? null : _place),
+            const SizedBox(height: 8),
           ],
         ),
       ),
     );
   }
+}
+
+class _MyP2POrders extends ConsumerWidget {
+  const _MyP2POrders();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ordersAsync = ref.watch(myP2pOrdersProvider(0));
+    return ordersAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: _kGold)),
+      error: (e, _) => _ErrView(e.toString(),
+          onRetry: () => ref.invalidate(myP2pOrdersProvider(0))),
+      data: (orders) {
+        if (orders.isEmpty) {
+          return const Center(
+              child: Text('No P2P orders yet',
+                  style: TextStyle(color: _kMuted)));
+        }
+        return RefreshIndicator(
+          color: _kGold,
+          onRefresh: () async => ref.invalidate(myP2pOrdersProvider(0)),
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: orders.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (_, i) => _P2POrderCard(order: orders[i]),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _P2POrderCard extends StatelessWidget {
+  const _P2POrderCard({required this.order});
+  final P2pOrder order;
+
+  static const _statusColors = {
+    'payment_waiting': _kGold,
+    'paid': Colors.blue,
+    'completed': _kGreen,
+    'cancelled': _kMuted,
+    'disputed': _kRed,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _statusColors[order.status] ?? _kMuted;
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => _P2POrderDetailScreen(order: order))),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: _kCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _kBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(order.isBuyer ? 'Buying' : 'Selling',
+                    style: TextStyle(
+                        color: order.isBuyer ? _kGreen : _kRed,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14)),
+                const SizedBox(width: 6),
+                Text(
+                    '${order.cryptoAmount.toStringAsFixed(6)} ${order.coinSymbol}',
+                    style: const TextStyle(color: _kText, fontSize: 14)),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                      order.status.replaceAll('_', ' ').toUpperCase(),
+                      style: TextStyle(
+                          color: statusColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+                'With: ${order.counterpartyName} · \$${order.totalUsd.toStringAsFixed(2)}',
+                style: const TextStyle(color: _kMuted, fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _P2POrderDetailScreen extends ConsumerStatefulWidget {
+  const _P2POrderDetailScreen({required this.order});
+  final P2pOrder order;
+
+  @override
+  ConsumerState<_P2POrderDetailScreen> createState() =>
+      _P2POrderDetailScreenState();
+}
+
+class _P2POrderDetailScreenState
+    extends ConsumerState<_P2POrderDetailScreen> {
+  final _msgCtrl = TextEditingController();
+  List<Map<String, dynamic>> _messages = [];
+  bool _loadingAction = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMessages();
+  }
+
+  @override
+  void dispose() {
+    _msgCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadMessages() async {
+    try {
+      final msgs =
+          await CryptoRepository.create().getP2pMessages(widget.order.uuid);
+      if (mounted) setState(() => _messages = msgs);
+    } catch (_) {}
+  }
+
+  Future<void> _sendMsg() async {
+    final txt = _msgCtrl.text.trim();
+    if (txt.isEmpty) return;
+    _msgCtrl.clear();
+    try {
+      await CryptoRepository.create()
+          .sendP2pMessage(widget.order.uuid, txt);
+      _loadMessages();
+    } catch (_) {}
+  }
+
+  Future<void> _action(Future<void> Function() fn, String successMsg) async {
+    setState(() => _loadingAction = true);
+    try {
+      await fn();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(successMsg), backgroundColor: _kGreen));
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.toString()), backgroundColor: _kRed));
+        setState(() => _loadingAction = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final repo = CryptoRepository.create();
+    final o = widget.order;
+    return Theme(
+      data: ThemeData.dark().copyWith(scaffoldBackgroundColor: _kBg),
+      child: Scaffold(
+        backgroundColor: _kBg,
+        appBar: AppBar(
+          backgroundColor: _kBg,
+          title: Text('P2P Order · ${o.coinSymbol}',
+              style: const TextStyle(color: _kText)),
+        ),
+        body: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: _kCard,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _kBorder),
+              ),
+              child: Column(
+                children: [
+                  _QRow('Amount',
+                      '${o.cryptoAmount.toStringAsFixed(6)} ${o.coinSymbol}'),
+                  _QRow('Total', '\$${o.totalUsd.toStringAsFixed(2)}'),
+                  _QRow('Payment', o.paymentMethod),
+                  _QRow('Counterparty', o.counterpartyName),
+                  _QRow('Status', o.status.replaceAll('_', ' ')),
+                  if (o.expiresAt != null) _QRow('Expires', o.expiresAt!),
+                ],
+              ),
+            ),
+            if (o.canMarkPaid || o.canRelease)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    if (o.canMarkPaid)
+                      Expanded(
+                        child: _GoldBtn(
+                          label: _loadingAction ? '...' : 'I Have Paid',
+                          onTap: _loadingAction
+                              ? null
+                              : () => _action(
+                                  () => repo.markP2pPaid(o.uuid),
+                                  'Payment marked!'),
+                        ),
+                      ),
+                    if (o.canRelease)
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _loadingAction
+                              ? null
+                              : () => _action(
+                                  () => repo.releaseCrypto(o.uuid),
+                                  'Crypto released!'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _kGreen,
+                            foregroundColor: Colors.white,
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Release Crypto',
+                              style:
+                                  TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    if (o.isActive) ...[
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: _loadingAction
+                            ? null
+                            : () => _action(
+                                () => repo.cancelP2pOrder(o.uuid),
+                                'Order cancelled'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _kRed,
+                          side: const BorderSide(color: _kRed),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 14, horizontal: 16),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Cancel'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            const SizedBox(height: 12),
+            const Divider(color: _kBorder, height: 1),
+            Expanded(
+              child: _messages.isEmpty
+                  ? const Center(
+                      child: Text('No messages',
+                          style: TextStyle(color: _kMuted)))
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: _messages.length,
+                      itemBuilder: (_, i) {
+                        final m = _messages[i];
+                        final isMe = m['is_mine'] == true;
+                        return Align(
+                          alignment: isMe
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            constraints: BoxConstraints(
+                                maxWidth:
+                                    MediaQuery.of(context).size.width *
+                                        0.7),
+                            decoration: BoxDecoration(
+                              color: isMe
+                                  ? _kGold.withOpacity(0.15)
+                                  : _kCard,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: isMe
+                                      ? _kGold.withOpacity(0.3)
+                                      : _kBorder),
+                            ),
+                            child: Text(m['message'] ?? '',
+                                style: const TextStyle(
+                                    color: _kText, fontSize: 13)),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
+              decoration: const BoxDecoration(
+                  border:
+                      Border(top: BorderSide(color: _kBorder))),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _msgCtrl,
+                      style:
+                          const TextStyle(color: _kText, fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Message...',
+                        hintStyle: const TextStyle(color: _kMuted),
+                        filled: true,
+                        fillColor: _kCard,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide:
+                                const BorderSide(color: _kBorder)),
+                        enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide:
+                                const BorderSide(color: _kBorder)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _sendMsg,
+                    icon: const Icon(Icons.send, color: _kGold),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WALLET TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _WalletTab extends ConsumerWidget {
+  const _WalletTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final portfolioAsync = ref.watch(cryptoPortfolioProvider);
+    final txAsync = ref.watch(cryptoTransactionsProvider);
+
+    return portfolioAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: _kGold)),
+      error: (e, _) =>
+          _ErrView(e.toString(), onRetry: () => ref.invalidate(cryptoPortfolioProvider)),
+      data: (data) {
+        final assets = (data['assets'] as List? ?? []);
+
+        return RefreshIndicator(
+          color: _kGold,
+          onRefresh: () async {
+            ref.invalidate(cryptoPortfolioProvider);
+            ref.invalidate(cryptoTransactionsProvider);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('My Wallets',
+                    style: TextStyle(
+                        color: _kText,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18)),
+                const SizedBox(height: 12),
+                if (assets.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Text(
+                          'No wallets yet.\nBuy your first crypto to get started!',
+                          style: TextStyle(color: _kMuted),
+                          textAlign: TextAlign.center),
+                    ),
+                  )
+                else
+                  ...assets.map((a) {
+                    final symbol = a['symbol']?.toString() ?? '';
+                    final name = a['name']?.toString() ?? '';
+                    final balance = (a['balance'] ?? 0).toDouble();
+                    final usdValue = (a['usd_value'] ?? 0).toDouble();
+                    final logoUrl = a['logo_url']?.toString();
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _kCard,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: _kBorder),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              _CoinAvatarRaw(
+                                  symbol: symbol,
+                                  logoUrl: logoUrl,
+                                  size: 40),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(symbol,
+                                        style: const TextStyle(
+                                            color: _kText,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 16)),
+                                    Text(name,
+                                        style: const TextStyle(
+                                            color: _kMuted, fontSize: 12)),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                      '${balance.toStringAsFixed(6)} $symbol',
+                                      style: const TextStyle(
+                                          color: _kText,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14)),
+                                  Text('\$${usdValue.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                          color: _kMuted, fontSize: 12)),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _WalletActionBtn(
+                                  icon: Icons.arrow_downward,
+                                  label: 'Deposit',
+                                  color: _kGreen,
+                                  onTap: () => showModalBottomSheet(
+                                    context: context,
+                                    backgroundColor: _kCard,
+                                    isScrollControlled: true,
+                                    builder: (_) =>
+                                        _DepositSheet(symbol: symbol),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _WalletActionBtn(
+                                  icon: Icons.arrow_upward,
+                                  label: 'Withdraw',
+                                  color: _kRed,
+                                  onTap: () => showModalBottomSheet(
+                                    context: context,
+                                    backgroundColor: _kCard,
+                                    isScrollControlled: true,
+                                    builder: (_) =>
+                                        _WithdrawSheet(symbol: symbol),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _WalletActionBtn(
+                                  icon: Icons.swap_horiz,
+                                  label: 'Transfer',
+                                  color: Colors.blue,
+                                  onTap: () => showModalBottomSheet(
+                                    context: context,
+                                    backgroundColor: _kCard,
+                                    isScrollControlled: true,
+                                    builder: (_) =>
+                                        _TransferSheet(symbol: symbol),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                const SizedBox(height: 20),
+                const Text('Transactions',
+                    style: TextStyle(
+                        color: _kText,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16)),
+                const SizedBox(height: 12),
+                txAsync.when(
+                  loading: () => const Center(
+                      child: CircularProgressIndicator(color: _kGold)),
+                  error: (_, __) => const Text(
+                      'Could not load transactions',
+                      style: TextStyle(color: _kMuted)),
+                  data: (txs) {
+                    if (txs.isEmpty) {
+                      return const Center(
+                          child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Text('No transactions yet',
+                            style: TextStyle(color: _kMuted)),
+                      ));
+                    }
+                    return Column(
+                      children: txs.map((tx) => _TxRow(tx: tx)).toList(),
+                    );
+                  },
+                ),
+                const SizedBox(height: 80),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _WalletActionBtn extends StatelessWidget {
+  const _WalletActionBtn(
+      {required this.icon,
+      required this.label,
+      required this.color,
+      required this.onTap});
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 4),
+          Text(label,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
+    ),
+  );
+}
+
+class _DepositSheet extends StatefulWidget {
+  const _DepositSheet({required this.symbol});
+  final String symbol;
+
+  @override
+  State<_DepositSheet> createState() => _DepositSheetState();
+}
+
+class _DepositSheetState extends State<_DepositSheet> {
+  Map<String, dynamic>? _data;
+  bool _loading = true;
+  String? _err;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final d =
+          await CryptoRepository.create().getDepositAddress(widget.symbol);
+      if (mounted) setState(() { _data = d; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _err = e.toString(); _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Deposit ${widget.symbol}',
+              style: const TextStyle(
+                  color: _kText, fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 16),
+          if (_loading)
+            const Center(child: CircularProgressIndicator(color: _kGold))
+          else if (_err != null)
+            Text(_err!, style: const TextStyle(color: _kRed))
+          else if (_data != null) ...[
+            const Text('Network',
+                style: TextStyle(color: _kMuted, fontSize: 12)),
+            const SizedBox(height: 4),
+            Text(_data!['network']?.toString() ?? '—',
+                style: const TextStyle(
+                    color: _kText, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 16),
+            const Text('Deposit Address',
+                style: TextStyle(color: _kMuted, fontSize: 12)),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                  color: _kBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _kBorder)),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                        _data!['address']?.toString() ?? 'No address yet',
+                        style: const TextStyle(
+                            color: _kText,
+                            fontSize: 12,
+                            fontFamily: 'monospace')),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy, color: _kGold, size: 18),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(
+                          text: _data!['address']?.toString() ?? ''));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Address copied'),
+                              backgroundColor: _kGreen));
+                    },
+                  ),
+                ],
+              ),
+            ),
+            if (_data!['memo'] != null) ...[
+              const SizedBox(height: 12),
+              const Text('Memo / Tag',
+                  style: TextStyle(color: _kMuted, fontSize: 12)),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _kBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border:
+                      Border.all(color: _kGold.withOpacity(0.3)),
+                ),
+                child: Text(_data!['memo']?.toString() ?? '',
+                    style: const TextStyle(color: _kGold, fontSize: 13)),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _kGold.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+                border:
+                    Border.all(color: _kGold.withOpacity(0.2)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.warning_amber_outlined,
+                      color: _kGold, size: 16),
+                  SizedBox(width: 8),
+                  Expanded(
+                      child: Text(
+                          'Only send this coin to this address. Wrong coin or network will result in permanent loss.',
+                          style: TextStyle(
+                              color: _kGold, fontSize: 11))),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class _WithdrawSheet extends ConsumerStatefulWidget {
+  const _WithdrawSheet({required this.symbol});
+  final String symbol;
+
+  @override
+  ConsumerState<_WithdrawSheet> createState() => _WithdrawSheetState();
+}
+
+class _WithdrawSheetState extends ConsumerState<_WithdrawSheet> {
+  final _addrCtrl = TextEditingController();
+  final _amtCtrl = TextEditingController();
+  CoinNetwork? _network;
+  bool _loading = false;
+  String? _err;
+
+  @override
+  void dispose() {
+    _addrCtrl.dispose();
+    _amtCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final addr = _addrCtrl.text.trim();
+    final amt = double.tryParse(_amtCtrl.text);
+    if (addr.isEmpty || amt == null || _network == null) return;
+    setState(() { _loading = true; _err = null; });
+    try {
+      await CryptoRepository.create().withdraw(
+        symbol: widget.symbol,
+        networkId: _network!.id,
+        amount: amt,
+        toAddress: addr,
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Withdrawal submitted'),
+            backgroundColor: _kGreen));
+      }
+    } catch (e) {
+      setState(() { _err = e.toString(); _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final marketsAsync = ref.watch(cryptoMarketsProvider);
+    final coins = marketsAsync.value ?? [];
+    final coin = coins.where((c) => c.symbol == widget.symbol).firstOrNull;
+
+    if (_network == null && coin != null && coin.networks.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _network = coin.firstNetwork);
+      });
+    }
+
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Withdraw ${widget.symbol}',
+                style: const TextStyle(
+                    color: _kText,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 16),
+            if (coin != null && coin.networks.length > 1) ...[
+              _NetworkDropdown(
+                networks: coin.networks,
+                selected: _network,
+                onSelect: (n) => setState(() => _network = n),
+              ),
+              const SizedBox(height: 12),
+            ],
+            TextField(
+              controller: _addrCtrl,
+              style: const TextStyle(color: _kText, fontSize: 13),
+              decoration: const InputDecoration(
+                labelText: 'To Address',
+                labelStyle: TextStyle(color: _kMuted),
+                filled: true,
+                fillColor: _kBg,
+                border: OutlineInputBorder(
+                    borderSide: BorderSide(color: _kBorder)),
+                enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: _kBorder)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _amtCtrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(color: _kText),
+              decoration: InputDecoration(
+                labelText: 'Amount (${widget.symbol})',
+                labelStyle: const TextStyle(color: _kMuted),
+                helperText: _network != null
+                    ? 'Fee: ${_network!.withdrawalFee} ${widget.symbol}'
+                    : null,
+                helperStyle: const TextStyle(color: _kMuted, fontSize: 11),
+                filled: true,
+                fillColor: _kBg,
+                border: const OutlineInputBorder(
+                    borderSide: BorderSide(color: _kBorder)),
+                enabledBorder: const OutlineInputBorder(
+                    borderSide: BorderSide(color: _kBorder)),
+              ),
+            ),
+            if (_err != null) ...[
+              const SizedBox(height: 10),
+              Text(_err!, style: const TextStyle(color: _kRed, fontSize: 13)),
+            ],
+            const SizedBox(height: 16),
+            _GoldBtn(
+                label: _loading ? 'Submitting...' : 'Withdraw',
+                onTap: _loading ? null : _submit),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TransferSheet extends ConsumerStatefulWidget {
+  const _TransferSheet({required this.symbol});
+  final String symbol;
+
+  @override
+  ConsumerState<_TransferSheet> createState() => _TransferSheetState();
+}
+
+class _TransferSheetState extends ConsumerState<_TransferSheet> {
+  final _phoneCtrl = TextEditingController();
+  final _amtCtrl = TextEditingController();
+  CoinNetwork? _network;
+  bool _loading = false;
+  String? _err;
+
+  @override
+  void dispose() {
+    _phoneCtrl.dispose();
+    _amtCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final phone = _phoneCtrl.text.trim();
+    final amt = double.tryParse(_amtCtrl.text);
+    if (phone.isEmpty || amt == null || _network == null) return;
+    setState(() { _loading = true; _err = null; });
+    try {
+      await CryptoRepository.create().transfer(
+        symbol: widget.symbol,
+        networkId: _network!.id,
+        toPhone: phone,
+        amount: amt,
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Transfer sent'), backgroundColor: _kGreen));
+      }
+    } catch (e) {
+      setState(() { _err = e.toString(); _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final marketsAsync = ref.watch(cryptoMarketsProvider);
+    final coins = marketsAsync.value ?? [];
+    final coin = coins.where((c) => c.symbol == widget.symbol).firstOrNull;
+
+    if (_network == null && coin != null && coin.networks.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _network = coin.firstNetwork);
+      });
+    }
+
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Transfer ${widget.symbol}',
+                style: const TextStyle(
+                    color: _kText,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            const Text('Send to another eSahlan user',
+                style: TextStyle(color: _kMuted, fontSize: 12)),
+            const SizedBox(height: 16),
+            if (coin != null && coin.networks.length > 1) ...[
+              _NetworkDropdown(
+                  networks: coin.networks,
+                  selected: _network,
+                  onSelect: (n) => setState(() => _network = n)),
+              const SizedBox(height: 12),
+            ],
+            TextField(
+              controller: _phoneCtrl,
+              keyboardType: TextInputType.phone,
+              style: const TextStyle(color: _kText),
+              decoration: const InputDecoration(
+                labelText: 'Recipient Phone',
+                labelStyle: TextStyle(color: _kMuted),
+                prefixIcon: Icon(Icons.phone, color: _kMuted, size: 18),
+                filled: true,
+                fillColor: _kBg,
+                border: OutlineInputBorder(
+                    borderSide: BorderSide(color: _kBorder)),
+                enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: _kBorder)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _amtCtrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(color: _kText),
+              decoration: InputDecoration(
+                labelText: 'Amount (${widget.symbol})',
+                labelStyle: const TextStyle(color: _kMuted),
+                filled: true,
+                fillColor: _kBg,
+                border: const OutlineInputBorder(
+                    borderSide: BorderSide(color: _kBorder)),
+                enabledBorder: const OutlineInputBorder(
+                    borderSide: BorderSide(color: _kBorder)),
+              ),
+            ),
+            if (_err != null) ...[
+              const SizedBox(height: 10),
+              Text(_err!, style: const TextStyle(color: _kRed, fontSize: 13)),
+            ],
+            const SizedBox(height: 16),
+            _GoldBtn(
+                label: _loading ? 'Sending...' : 'Send',
+                onTap: _loading ? null : _submit),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TxRow extends StatelessWidget {
+  const _TxRow({required this.tx});
+  final CryptoTransaction tx;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCredit = tx.isCredit;
+    final icon = switch (tx.type) {
+      'buy' => Icons.shopping_cart_outlined,
+      'sell' => Icons.sell_outlined,
+      'deposit' => Icons.arrow_downward,
+      'withdrawal' => Icons.arrow_upward,
+      'transfer_in' => Icons.call_received,
+      'transfer_out' => Icons.call_made,
+      _ => Icons.swap_horiz,
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kCard,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: (isCredit ? _kGreen : _kRed).withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon,
+                color: isCredit ? _kGreen : _kRed, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tx.type.replaceAll('_', ' ').toUpperCase(),
+                    style: const TextStyle(
+                        color: _kText,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12)),
+                Text(tx.note,
+                    style: const TextStyle(color: _kMuted, fontSize: 11),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                  '${isCredit ? '+' : '-'}${tx.amount.toStringAsFixed(6)} ${tx.coinSymbol}',
+                  style: TextStyle(
+                      color: isCredit ? _kGreen : _kRed,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13)),
+              Text(
+                  tx.createdAt.length > 10
+                      ? tx.createdAt.substring(0, 10)
+                      : tx.createdAt,
+                  style: const TextStyle(color: _kMuted, fontSize: 10)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SHARED WIDGETS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _CoinAvatar extends StatelessWidget {
+  const _CoinAvatar({required this.coin, required this.size});
+  final CryptoCoin coin;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) =>
+      _CoinAvatarRaw(symbol: coin.symbol, logoUrl: coin.logoUrl, size: size);
+}
+
+class _CoinAvatarRaw extends StatelessWidget {
+  const _CoinAvatarRaw(
+      {required this.symbol, this.logoUrl, required this.size});
+  final String symbol;
+  final String? logoUrl;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    if (logoUrl != null && logoUrl!.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: logoUrl!,
+        width: size,
+        height: size,
+        imageBuilder: (_, img) =>
+            CircleAvatar(radius: size / 2, backgroundImage: img),
+        errorWidget: (_, __, ___) =>
+            _Fallback(symbol: symbol, size: size),
+        placeholder: (_, __) => _Fallback(symbol: symbol, size: size),
+      );
+    }
+    return _Fallback(symbol: symbol, size: size);
+  }
+}
+
+class _Fallback extends StatelessWidget {
+  const _Fallback({required this.symbol, required this.size});
+  final String symbol;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => CircleAvatar(
+    radius: size / 2,
+    backgroundColor: _kGold.withOpacity(0.2),
+    child: Text(
+        symbol.length >= 2 ? symbol.substring(0, 2) : symbol,
+        style: TextStyle(
+            color: _kGold,
+            fontWeight: FontWeight.w700,
+            fontSize: size * 0.32)),
+  );
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge(this.value);
+  final double value;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(
+      color: _changeColor(value).withOpacity(0.12),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Text(_pct(value),
+        style: TextStyle(
+            color: _changeColor(value),
+            fontSize: 11,
+            fontWeight: FontWeight.w600)),
+  );
+}
+
+class _GoldBtn extends StatelessWidget {
+  const _GoldBtn({required this.label, this.onTap});
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => ElevatedButton(
+    onPressed: onTap,
+    style: ElevatedButton.styleFrom(
+      backgroundColor: _kGold,
+      foregroundColor: Colors.black,
+      disabledBackgroundColor: _kGold.withOpacity(0.4),
+      minimumSize: const Size(double.infinity, 50),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    child: Text(label,
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+  );
+}
+
+class _ToggleBtn extends StatelessWidget {
+  const _ToggleBtn(this.label, this.selected,
+      {required this.onTap, required this.color});
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: selected ? color.withOpacity(0.15) : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        border: selected ? Border.all(color: color.withOpacity(0.4)) : null,
+      ),
+      child: Text(label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+              color: selected ? color : _kMuted,
+              fontWeight:
+                  selected ? FontWeight.w700 : FontWeight.normal,
+              fontSize: 14)),
+    ),
+  );
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(text,
+      style: const TextStyle(
+          color: _kMuted, fontSize: 12, fontWeight: FontWeight.w500));
+}
+
+class _CoinSelector extends StatelessWidget {
+  const _CoinSelector(
+      {this.selected, this.coins, required this.onSelect});
+  final CryptoCoin? selected;
+  final List<CryptoCoin>? coins;
+  final void Function(CryptoCoin) onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        if (coins == null || coins!.isEmpty) return;
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: _kCard,
+          isScrollControlled: true,
+          builder: (_) =>
+              _CoinPickerSheet(coins: coins!, onSelect: onSelect),
+        );
+      },
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: _kCard,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _kBorder),
+        ),
+        child: Row(
+          children: [
+            if (selected != null) ...[
+              _CoinAvatar(coin: selected!, size: 28),
+              const SizedBox(width: 10),
+              Text(selected!.symbol,
+                  style: const TextStyle(
+                      color: _kText,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15)),
+              const SizedBox(width: 6),
+              Text(selected!.name,
+                  style:
+                      const TextStyle(color: _kMuted, fontSize: 13)),
+            ] else
+              const Text('Select a coin',
+                  style: TextStyle(color: _kMuted)),
+            const Spacer(),
+            const Icon(Icons.keyboard_arrow_down, color: _kMuted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CoinPickerSheet extends StatefulWidget {
+  const _CoinPickerSheet(
+      {required this.coins, required this.onSelect});
+  final List<CryptoCoin> coins;
+  final void Function(CryptoCoin) onSelect;
+
+  @override
+  State<_CoinPickerSheet> createState() => _CoinPickerSheetState();
+}
+
+class _CoinPickerSheetState extends State<_CoinPickerSheet> {
+  final _ctrl = TextEditingController();
+  String _q = '';
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = widget.coins
+        .where((c) =>
+            _q.isEmpty ||
+            c.symbol.toLowerCase().contains(_q.toLowerCase()) ||
+            c.name.toLowerCase().contains(_q.toLowerCase()))
+        .toList();
+
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.7,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _ctrl,
+              onChanged: (v) => setState(() => _q = v),
+              style: const TextStyle(color: _kText),
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Search...',
+                hintStyle: const TextStyle(color: _kMuted),
+                prefixIcon: const Icon(Icons.search, color: _kMuted),
+                filled: true,
+                fillColor: _kBg,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _kBorder)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _kBorder)),
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: filtered.length,
+              itemBuilder: (_, i) {
+                final c = filtered[i];
+                return ListTile(
+                  leading: _CoinAvatar(coin: c, size: 36),
+                  title: Text(c.symbol,
+                      style: const TextStyle(
+                          color: _kText, fontWeight: FontWeight.w600)),
+                  subtitle: Text(c.name,
+                      style: const TextStyle(color: _kMuted)),
+                  trailing: Text(c.priceFormatted,
+                      style: const TextStyle(color: _kText)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    widget.onSelect(c);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NetworkDropdown extends StatelessWidget {
+  const _NetworkDropdown(
+      {required this.networks,
+      required this.selected,
+      required this.onSelect});
+  final List<CoinNetwork> networks;
+  final CoinNetwork? selected;
+  final void Function(CoinNetwork) onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: _kCard,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _kBorder),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<CoinNetwork>(
+          value: selected,
+          hint: const Text('Select Network',
+              style: TextStyle(color: _kMuted)),
+          dropdownColor: _kCard,
+          isExpanded: true,
+          iconEnabledColor: _kMuted,
+          items: networks
+              .map((n) => DropdownMenuItem(
+                    value: n,
+                    child: Text(n.label,
+                        style: const TextStyle(
+                            color: _kText, fontSize: 13)),
+                  ))
+              .toList(),
+          onChanged: (n) { if (n != null) onSelect(n); },
+        ),
+      ),
+    );
+  }
+}
+
+class _PayMethodTile extends StatelessWidget {
+  const _PayMethodTile(
+      {required this.label,
+      required this.icon,
+      required this.selected,
+      required this.onTap});
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: selected ? _kGold.withOpacity(0.08) : _kCard,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+            color: selected ? _kGold.withOpacity(0.4) : _kBorder),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: selected ? _kGold : _kMuted, size: 20),
+          const SizedBox(width: 10),
+          Text(label,
+              style: TextStyle(
+                  color: selected ? _kGold : _kText,
+                  fontWeight: selected
+                      ? FontWeight.w600
+                      : FontWeight.normal)),
+          const Spacer(),
+          if (selected)
+            const Icon(Icons.check_circle, color: _kGold, size: 18),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ErrView extends StatelessWidget {
+  const _ErrView(this.message, {required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error_outline, color: _kRed, size: 48),
+          const SizedBox(height: 12),
+          Text(message,
+              style: const TextStyle(color: _kMuted, fontSize: 13),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          TextButton(
+              onPressed: onRetry,
+              child:
+                  const Text('Retry', style: TextStyle(color: _kGold))),
+        ],
+      ),
+    ),
+  );
 }

@@ -660,16 +660,16 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
         Route::prefix('crypto')->name('crypto.')->group(function () {
             $cc = AdminCryptoController::class;
             Route::get('/',                              [$cc,'dashboard'])->name('dashboard');
-            // Coins
+            // Coins — static routes BEFORE parametric {id} routes
             Route::get('/coins',                         [$cc,'coins'])->name('coins');
             Route::post('/coins',                        [$cc,'storeCoin'])->name('coins.store');
+            Route::post('/coins/spread',                 [$cc,'updateSpreads'])->name('coins.spread');
+            Route::post('/prices/override',              [$cc,'overridePrice'])->name('prices.override');
             Route::patch('/coins/{id}/toggle',           [$cc,'toggleCoin'])->name('coins.toggle');
             Route::get('/coins/{id}/settings',           [$cc,'coinSettings'])->name('coins.settings');
             Route::post('/coins/{id}',                   [$cc,'updateCoin'])->name('coins.update');
-            Route::post('/coins/spread',                 [$cc,'updateSpreads'])->name('coins.spread');
             Route::post('/coins/{id}/price',             [$cc,'updatePrice'])->name('coins.price');
             Route::post('/prices/refresh',               [$cc,'refreshPrices'])->name('prices.refresh');
-            Route::post('/prices/override',              [$cc,'overridePrice'])->name('prices.override');
             // Orders
             Route::get('/orders',                        [$cc,'orders'])->name('orders');
             Route::patch('/orders/{id}/complete',        [$cc,'completeOrder'])->name('orders.complete');
@@ -690,6 +690,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::patch('/p2p/{orderId}/refund',        [$cc,'escrowRefund'])->name('p2p.refund');
             Route::patch('/p2p/ads/{id}/disable',        [$cc,'disableAd'])->name('p2p.disableAd');
             Route::get('/settings',                      [$cc,'settings'])->name('settings');
+            Route::patch('/settings',                    [$cc,'updateSettings'])->name('settings.update');
         });
 
         // eExchange Orders (local currency swap — existing)

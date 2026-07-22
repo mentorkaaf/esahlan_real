@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'crypto_models.dart';
 import 'crypto_repository.dart';
 
+// ── Helper ────────────────────────────────────────────────────────────────────
+
 String _msg(Object e) {
   if (e is DioException) {
     final data = e.response?.data;
@@ -12,36 +14,64 @@ String _msg(Object e) {
   return '$e';
 }
 
+// ── Repository ────────────────────────────────────────────────────────────────
+
 final cryptoRepoProvider = Provider<CryptoRepository>((_) => CryptoRepository.create());
 
-// Markets
+// ── Markets ───────────────────────────────────────────────────────────────────
+
 final cryptoMarketsProvider = FutureProvider.autoDispose<List<CryptoCoin>>((ref) {
   return ref.read(cryptoRepoProvider).getMarkets();
 });
 
-// Portfolio — returns {total_usd, today_pl, assets: [...]}
+// ── Portfolio ─────────────────────────────────────────────────────────────────
+
 final cryptoPortfolioProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
   return ref.read(cryptoRepoProvider).getPortfolio();
 });
 
-// My Orders
+// ── Orders ────────────────────────────────────────────────────────────────────
+
 final cryptoOrdersProvider = FutureProvider.autoDispose<List<CryptoOrder>>((ref) {
   return ref.read(cryptoRepoProvider).getMyOrders();
 });
 
-// P2P Ads (parameterized by {coin?, type?})
+// ── Transactions ──────────────────────────────────────────────────────────────
+
+final cryptoTransactionsProvider = FutureProvider.autoDispose<List<CryptoTransaction>>((ref) {
+  return ref.read(cryptoRepoProvider).getTransactions();
+});
+
+// ── Chart ─────────────────────────────────────────────────────────────────────
+
+final coinChartProvider = FutureProvider.autoDispose.family<List<ChartPoint>, String>((ref, key) {
+  // key: "SYMBOL:interval" e.g. "BTC:1d"
+  final parts = key.split(':');
+  final symbol = parts[0];
+  final interval = parts.length > 1 ? parts[1] : '1d';
+  return ref.read(cryptoRepoProvider).getCoinChart(symbol, interval: interval);
+});
+
+// ── P2P Ads ───────────────────────────────────────────────────────────────────
+
 final p2pAdsProvider = FutureProvider.autoDispose.family<List<P2pAd>, String>((ref, key) {
-  // key format: "type:coin" e.g. "sell:" or "sell:BTC"
+  // key: "type:coin" e.g. "sell:" or "sell:BTC"
   final parts = key.split(':');
   final type = parts[0].isNotEmpty ? parts[0] : null;
   final coin = parts.length > 1 && parts[1].isNotEmpty ? parts[1] : null;
   return ref.read(cryptoRepoProvider).getP2pAds(coinSymbol: coin, type: type);
 });
 
-// Quote state — stores quote data + crypto_amount for sell execution
+// ── My P2P Orders ─────────────────────────────────────────────────────────────
+
+final myP2pOrdersProvider = FutureProvider.autoDispose.family<List<P2pOrder>, int>((ref, myId) {
+  return ref.read(cryptoRepoProvider).getMyP2pOrders(myId);
+});
+
+// ── Quote / Trade ─────────────────────────────────────────────────────────────
+
 class QuoteNotifier extends StateNotifier<AsyncValue<Map<String, dynamic>?>> {
   QuoteNotifier(this._repo) : super(const AsyncData(null));
-
   final CryptoRepository _repo;
   Map<String, dynamic>? _lastQuote;
 
@@ -69,7 +99,6 @@ class QuoteNotifier extends StateNotifier<AsyncValue<Map<String, dynamic>?>> {
   }) async {
     final q = _lastQuote;
     if (q == null) throw Exception('No quote available');
-
     if (side == 'buy') {
       return _repo.buy(
         symbol: symbol,

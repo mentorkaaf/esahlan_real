@@ -142,21 +142,28 @@ class CryptoBuySellController extends Controller
             'fee_usd'       => $feeUsd,
             'fee_pct'       => $feePct,
             'payment_method'=> $request->receive_method,
-            'status'        => 'completed',
+            // ePay: complete immediately. Mobile money: pending admin approval
+            'status'        => $request->receive_method === 'epay' ? 'completed' : 'pending',
         ]);
 
-        // Credit ePay wallet
+        // Credit ePay wallet immediately
         if ($request->receive_method === 'epay') {
             $ePayWallet = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
             $ePayWallet->credit($netUsd,"Sold {$cryptoAmt} {$coin->symbol}",'crypto_order',$order->id,'wallet');
         }
 
+        $statusMsg = $order->status === 'completed'
+            ? "Successfully sold {$cryptoAmt} {$coin->symbol} for \${$netUsd}"
+            : "Sell order placed. You will receive \${$netUsd} once admin confirms payment.";
+
         try {
-            if ($user->fcm_token) FcmService::sendToToken($user->fcm_token,'Sell Order Completed',"Sold {$cryptoAmt} {$coin->symbol} for \${$netUsd}",[],null);
+            if ($user->fcm_token) FcmService::sendToToken($user->fcm_token,
+                $order->status === 'completed' ? 'Sell Order Completed' : 'Sell Order Placed',
+                $statusMsg,[],null);
         } catch (\Throwable) {}
 
-        return response()->json(['success'=>true,'message'=>"Successfully sold {$cryptoAmt} {$coin->symbol} for \${$netUsd}",'data'=>[
-            'uuid'=>$order->uuid,'net_usd'=>$netUsd,'fee_usd'=>$feeUsd,'status'=>'completed',
+        return response()->json(['success'=>true,'message'=>$statusMsg,'data'=>[
+            'uuid'=>$order->uuid,'net_usd'=>$netUsd,'fee_usd'=>$feeUsd,'status'=>$order->status,
         ]]);
     }
 
