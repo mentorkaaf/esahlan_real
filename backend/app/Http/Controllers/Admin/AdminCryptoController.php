@@ -265,6 +265,56 @@ class AdminCryptoController extends Controller
         return view('admin.crypto.orders', compact('orders','coins','summary'));
     }
 
+    // ── Order Actions ─────────────────────────────────────────────────────────
+    public function completeOrder(Request $request, int $id)
+    {
+        $order = CryptoOrder::with(['coin', 'user'])->findOrFail($id);
+        if ($order->status !== 'pending') {
+            return back()->with('error', 'Only pending orders can be completed.');
+        }
+
+        if ($order->side === 'buy') {
+            $network = ExchangeNetwork::where('coin_id', $order->coin_id)->where('is_active', true)->first();
+            if (!$network) return back()->with('error', 'No active network found for this coin.');
+            $wallet = CryptoWallet::getOrCreate($order->user_id, $order->coin_id, $network->id);
+            $wallet->credit($order->crypto_amount, 'buy', 'Admin approved buy order', 'crypto_order', $order->id);
+        } elseif ($order->side === 'sell') {
+            $netUsd = $order->total_usd - ($order->fee_usd ?? 0);
+            if ($order->payment_method === 'epay') {
+                $ePayWallet = \App\Models\Wallet::getOrCreateFor('App\Models\User', $order->user_id);
+                $ePayWallet->credit($netUsd, "Sell {$order->crypto_amount} {$order->coin->symbol} - Admin approved", 'crypto_order', $order->id, 'wallet');
+            }
+        }
+
+        $order->update(['status' => 'completed', 'admin_note' => $request->note]);
+        return back()->with('success', 'Order completed successfully.');
+    }
+
+    public function rejectOrder(Request $request, int $id)
+    {
+        $order = CryptoOrder::with(['coin', 'user'])->findOrFail($id);
+        if ($order->status !== 'pending') {
+            return back()->with('error', 'Only pending orders can be rejected.');
+        }
+
+        // Refund crypto for a pending SELL (was debited on order creation)
+        if ($order->side === 'sell') {
+            $network = ExchangeNetwork::where('coin_id', $order->coin_id)->where('is_active', true)->first();
+            if ($network) {
+                $wallet = CryptoWallet::getOrCreate($order->user_id, $order->coin_id, $network->id);
+                $wallet->credit($order->crypto_amount, 'sell_refund', 'Sell order rejected — refund', 'crypto_order', $order->id);
+            }
+        }
+        // Refund USD for a pending ePay BUY (was debited on order creation)
+        elseif ($order->side === 'buy' && $order->payment_method === 'epay') {
+            $ePayWallet = \App\Models\Wallet::getOrCreateFor('App\Models\User', $order->user_id);
+            $ePayWallet->credit($order->total_usd, 'Buy order rejected — refund', 'crypto_order', $order->id, 'wallet');
+        }
+
+        $order->update(['status' => 'failed', 'admin_note' => $request->note]);
+        return back()->with('success', 'Order rejected.');
+    }
+
     // ── P2P & Escrow ────────────────────────────────────────────────────────
     public function p2p(Request $request)
     {

@@ -672,6 +672,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/prices/override',              [$cc,'overridePrice'])->name('prices.override');
             // Orders
             Route::get('/orders',                        [$cc,'orders'])->name('orders');
+            Route::patch('/orders/{id}/complete',        [$cc,'completeOrder'])->name('orders.complete');
+            Route::patch('/orders/{id}/reject',          [$cc,'rejectOrder'])->name('orders.reject');
             // Deposits
             Route::get('/deposits',                      [$cc,'deposits'])->name('deposits');
             Route::patch('/deposits/{id}/approve',       [$cc,'approveDeposit'])->name('deposits.approve');
