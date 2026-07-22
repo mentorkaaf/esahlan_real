@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,15 @@ import '../../../../core/theme/theme_x.dart';
 import 'crypto_models.dart';
 import 'crypto_providers.dart';
 import 'crypto_repository.dart';
+
+String _dioMsg(Object e) {
+  if (e is DioException) {
+    final data = e.response?.data;
+    if (data is Map) return data['message']?.toString() ?? e.message ?? '$e';
+    return e.message ?? '$e';
+  }
+  return '$e';
+}
 
 // ═════════════════════════════════════════════════════════════════════════════
 // ENTRY POINT
@@ -755,7 +765,7 @@ class _BuySellTabState extends ConsumerState<_BuySellTab> {
       ref.invalidate(cryptoPortfolioProvider);
       ref.invalidate(cryptoOrdersProvider);
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = _dioMsg(e));
     } finally {
       setState(() => _loading = false);
     }
@@ -1359,7 +1369,6 @@ class _CreateAdSheetState extends State<_CreateAdSheet> {
       _error = null;
     });
     try {
-      // Backend requires coin_symbol not coin_id
       await widget.repo.createP2pAd(
         coinSymbol: _coin!.symbol,
         type: _type,
@@ -1372,7 +1381,7 @@ class _CreateAdSheetState extends State<_CreateAdSheet> {
       widget.onDone();
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = _dioMsg(e));
     } finally {
       setState(() => _loading = false);
     }
@@ -1510,7 +1519,6 @@ class _PlaceOrderSheetState extends State<_PlaceOrderSheet> {
       _error = null;
     });
     try {
-      // Use ad.uuid not ad.id — backend validates by uuid
       await widget.repo.placeP2pOrder(
           adUuid: widget.ad.uuid,
           cryptoAmount: amt,
@@ -1518,7 +1526,7 @@ class _PlaceOrderSheetState extends State<_PlaceOrderSheet> {
       widget.onDone();
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = _dioMsg(e));
     } finally {
       setState(() => _loading = false);
     }
@@ -1645,6 +1653,118 @@ class _WalletTabState extends ConsumerState<_WalletTab> {
   }
 }
 
+class _DepositSheet extends StatefulWidget {
+  final CryptoWalletBalance wallet;
+  final CryptoRepository repo;
+  const _DepositSheet({required this.wallet, required this.repo});
+  @override
+  State<_DepositSheet> createState() => _DepositSheetState();
+}
+
+class _DepositSheetState extends State<_DepositSheet> {
+  String? _address;
+  String? _network;
+  String? _error;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  Future<void> _fetch() async {
+    try {
+      final data = await widget.repo.getDepositAddress(
+        widget.wallet.symbol,
+        networkId: widget.wallet.networkId,
+      );
+      if (mounted) {
+        setState(() {
+          _address = data['address']?.toString() ?? '';
+          _network = data['network']?.toString() ?? '';
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = _dioMsg(e); _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sym = widget.wallet.symbol;
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text('Deposit $sym',
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+        const SizedBox(height: 16),
+        if (_loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: CircularProgressIndicator(),
+          )
+        else if (_error != null)
+          Text(_error!, style: const TextStyle(color: Color(0xFFB91C1C)))
+        else ...[
+          if (_network != null && _network!.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFEEF2FF),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text('Network: $_network',
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF4338CA))),
+            ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12)),
+            child: Column(children: [
+              Text('Your $sym address:',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Text(
+                _address!.isNotEmpty ? _address! : 'Address not yet assigned',
+                style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700),
+                textAlign: TextAlign.center,
+              ),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          if (_address!.isNotEmpty)
+            ElevatedButton.icon(
+              icon: const Icon(Icons.copy),
+              label: const Text('Copy Address'),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: _address!));
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Address copied')));
+              },
+              style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 48),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14))),
+            ),
+        ],
+        const SizedBox(height: 8),
+        Text('Only send $sym to this address',
+            style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+      ]),
+    );
+  }
+}
+
 class _WalletDetail extends StatelessWidget {
   final CryptoWalletBalance wallet;
   final CryptoRepository repo;
@@ -1766,57 +1886,8 @@ class _WalletDetail extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('Deposit ${wallet.symbol}',
-              style: const TextStyle(
-                  fontWeight: FontWeight.w900, fontSize: 18)),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12)),
-            child: Column(children: [
-              Text('Your ${wallet.symbol} address:',
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              Text(
-                wallet.depositAddress.isNotEmpty
-                    ? wallet.depositAddress
-                    : 'No address yet — contact support',
-                style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700),
-                textAlign: TextAlign.center,
-              ),
-            ]),
-          ),
-          const SizedBox(height: 12),
-          if (wallet.depositAddress.isNotEmpty)
-            ElevatedButton.icon(
-              icon: const Icon(Icons.copy),
-              label: const Text('Copy Address'),
-              onPressed: () {
-                Clipboard.setData(
-                    ClipboardData(text: wallet.depositAddress));
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14))),
-            ),
-          const SizedBox(height: 8),
-          Text('Only send ${wallet.symbol} to this address',
-              style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-        ]),
-      ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _DepositSheet(wallet: wallet, repo: repo),
     );
   }
 
@@ -1915,7 +1986,7 @@ class _WalletDetail extends StatelessWidget {
                             } catch (e) {
                               setS(() {
                                 loading = false;
-                                error = '$e';
+                                error = _dioMsg(e);
                               });
                             }
                           },

@@ -1,6 +1,16 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'crypto_models.dart';
 import 'crypto_repository.dart';
+
+String _msg(Object e) {
+  if (e is DioException) {
+    final data = e.response?.data;
+    if (data is Map) return data['message']?.toString() ?? e.message ?? '$e';
+    return e.message ?? '$e';
+  }
+  return '$e';
+}
 
 final cryptoRepoProvider = Provider<CryptoRepository>((_) => CryptoRepository.create());
 
@@ -46,7 +56,7 @@ class QuoteNotifier extends StateNotifier<AsyncValue<Map<String, dynamic>?>> {
       _lastQuote = q;
       state = AsyncData(q);
     } catch (e, st) {
-      state = AsyncError(e, st);
+      state = AsyncError(_msg(e), st);
     }
   }
 
