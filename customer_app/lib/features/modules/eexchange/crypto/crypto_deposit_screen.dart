@@ -32,7 +32,6 @@ class _CryptoDepositScreenState extends ConsumerState<CryptoDepositScreen> {
     final addressAsync = ref.watch(depositAddressProvider(coin.symbol));
 
     return Scaffold(
-      backgroundColor: kCryptoBg,
       appBar: AppBar(
         title: Text('Deposit ${coin.symbol}'),
         leading: IconButton(
@@ -45,9 +44,9 @@ class _CryptoDepositScreenState extends ConsumerState<CryptoDepositScreen> {
         child: Column(
           children: [
             // Coin selector
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
-              child: Text('Select Coin', style: TextStyle(color: kCryptoMuted, fontSize: 12)),
+              child: Text('Select Coin', style: TextStyle(color: cMt(context), fontSize: 12)),
             ),
             const SizedBox(height: 6),
             marketsAsync.when(
@@ -56,14 +55,14 @@ class _CryptoDepositScreenState extends ConsumerState<CryptoDepositScreen> {
               data: (coins) => Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                 decoration: BoxDecoration(
-                  color: kCryptoCard,
+                  color: cCard(context),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: kCryptoBorder),
+                  border: Border.all(color: cBd(context)),
                 ),
                 child: DropdownButton<CryptoCoin>(
                   value: coins.any((c) => c.symbol == coin.symbol) ? coin : null,
                   isExpanded: true,
-                  dropdownColor: kCryptoCard,
+                  dropdownColor: cCard(context),
                   underline: const SizedBox.shrink(),
                   items: coins.map((c) => DropdownMenuItem(
                     value: c,
@@ -72,7 +71,7 @@ class _CryptoDepositScreenState extends ConsumerState<CryptoDepositScreen> {
                         CoinAvatarWidget(symbol: c.symbol, logoUrl: c.logoUrl, size: 24),
                         const SizedBox(width: 8),
                         Text('${c.name} (${c.symbol})',
-                            style: const TextStyle(color: kCryptoText, fontSize: 13)),
+                            style: TextStyle(color: cTx(context), fontSize: 13)),
                       ],
                     ),
                   )).toList(),
@@ -86,8 +85,8 @@ class _CryptoDepositScreenState extends ConsumerState<CryptoDepositScreen> {
             CoinAvatarWidget(symbol: coin.symbol, logoUrl: coin.logoUrl, size: 64),
             const SizedBox(height: 8),
             Text(coin.name,
-                style: const TextStyle(color: kCryptoText, fontSize: 18, fontWeight: FontWeight.w700)),
-            Text(coin.symbol, style: const TextStyle(color: kCryptoMuted, fontSize: 13)),
+                style: TextStyle(color: cTx(context), fontSize: 18, fontWeight: FontWeight.w700)),
+            Text(coin.symbol, style: TextStyle(color: cMt(context), fontSize: 13)),
             const SizedBox(height: 28),
 
             // QR Code + address
@@ -98,7 +97,7 @@ class _CryptoDepositScreenState extends ConsumerState<CryptoDepositScreen> {
                   const Icon(Icons.error_outline, color: kCryptoRed, size: 40),
                   const SizedBox(height: 8),
                   Text(e.toString(),
-                      style: const TextStyle(color: kCryptoMuted, fontSize: 12),
+                      style: TextStyle(color: cMt(context), fontSize: 12),
                       textAlign: TextAlign.center),
                 ],
               ),
@@ -125,9 +124,9 @@ class _CryptoDepositScreenState extends ConsumerState<CryptoDepositScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  _warning('Only send ${coin.symbol} to this address. Sending other coins will result in permanent loss.'),
-                  _warning('Minimum deposit: 0.0001 ${coin.symbol}'),
-                  _warning('Deposits require network confirmation before being credited.'),
+                  _warning(context, 'Only send ${coin.symbol} to this address. Sending other coins will result in permanent loss.'),
+                  _warning(context, 'Minimum deposit: 0.0001 ${coin.symbol}'),
+                  _warning(context, 'Deposits require network confirmation before being credited.'),
                 ],
               ),
             ),
@@ -137,13 +136,13 @@ class _CryptoDepositScreenState extends ConsumerState<CryptoDepositScreen> {
     );
   }
 
-  Widget _warning(String text) => Padding(
+  Widget _warning(BuildContext context, String text) => Padding(
     padding: const EdgeInsets.only(top: 4),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('• ', style: TextStyle(color: kCryptoGold, fontSize: 11)),
-        Expanded(child: Text(text, style: const TextStyle(color: Colors.white70, fontSize: 11))),
+        Expanded(child: Text(text, style: TextStyle(color: cMt(context), fontSize: 11))),
       ],
     ),
   );
@@ -157,7 +156,7 @@ class _AddressDisplay extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // QR Code
+        // QR Code — always white background for scanner compatibility
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -174,21 +173,21 @@ class _AddressDisplay extends StatelessWidget {
         const SizedBox(height: 20),
 
         // Address box
-        const Text('Deposit Address', style: TextStyle(color: kCryptoMuted, fontSize: 12)),
+        Text('Deposit Address', style: TextStyle(color: cMt(context), fontSize: 12)),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: kCryptoCard,
+            color: cCard(context),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: kCryptoBorder),
+            border: Border.all(color: cBd(context)),
           ),
           child: Row(
             children: [
               Expanded(
                 child: Text(
                   address,
-                  style: const TextStyle(color: kCryptoText, fontSize: 12, letterSpacing: 0.3),
+                  style: TextStyle(color: cTx(context), fontSize: 12, letterSpacing: 0.3),
                 ),
               ),
               const SizedBox(width: 8),

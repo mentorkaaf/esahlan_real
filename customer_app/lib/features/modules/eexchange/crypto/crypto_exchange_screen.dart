@@ -27,15 +27,11 @@ class _CryptoExchangeScreenState extends State<CryptoExchangeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: cryptoTheme(),
-      child: Scaffold(
-        backgroundColor: kCryptoBg,
-        body: IndexedStack(index: _index, children: _screens),
-        bottomNavigationBar: _BottomNav(
-          current: _index,
-          onTap: (i) => setState(() => _index = i),
-        ),
+    return Scaffold(
+      body: IndexedStack(index: _index, children: _screens),
+      bottomNavigationBar: _BottomNav(
+        current: _index,
+        onTap: (i) => setState(() => _index = i),
       ),
     );
   }
@@ -49,9 +45,9 @@ class _BottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: kCryptoCard,
-        border: Border(top: BorderSide(color: kCryptoBorder)),
+      decoration: BoxDecoration(
+        color: cCard(context),
+        border: Border(top: BorderSide(color: cBd(context))),
       ),
       child: SafeArea(
         child: SizedBox(
@@ -92,13 +88,13 @@ class _NavItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(active ? activeIcon : icon,
-                size: 22, color: active ? kCryptoPrimary : kCryptoMuted),
+                size: 22, color: active ? kCryptoPrimary : cMt(context)),
             const SizedBox(height: 3),
             Text(label,
                 style: TextStyle(
                     fontSize: 10,
                     fontWeight: active ? FontWeight.w700 : FontWeight.normal,
-                    color: active ? kCryptoPrimary : kCryptoMuted)),
+                    color: active ? kCryptoPrimary : cMt(context))),
           ],
         ),
       ),

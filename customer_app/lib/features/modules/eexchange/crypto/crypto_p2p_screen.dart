@@ -34,7 +34,6 @@ class _CryptoP2PScreenState extends ConsumerState<CryptoP2PScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kCryptoBg,
       appBar: AppBar(
         title: const Text('P2P Trading'),
         actions: [
@@ -54,7 +53,7 @@ class _CryptoP2PScreenState extends ConsumerState<CryptoP2PScreen>
           ],
           indicatorColor: kCryptoPrimary,
           labelColor: kCryptoPrimary,
-          unselectedLabelColor: kCryptoMuted,
+          unselectedLabelColor: null,
           labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
         ),
       ),
@@ -87,8 +86,8 @@ class _CryptoP2PScreenState extends ConsumerState<CryptoP2PScreen>
               children: [
                 _P2PAdList(type: 'sell', coinFilter: _coinFilter, payFilter: _payFilter),
                 _P2PAdList(type: 'buy',  coinFilter: _coinFilter, payFilter: _payFilter),
-                _MyAdsList(),
-                _MyOrdersList(),
+                const _MyAdsList(),
+                const _MyOrdersList(),
               ],
             ),
           ),
@@ -100,7 +99,7 @@ class _CryptoP2PScreenState extends ConsumerState<CryptoP2PScreen>
   void _showPostAdSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: kCryptoCard,
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       isScrollControlled: true,
@@ -121,9 +120,9 @@ class _P2PAdList extends ConsumerWidget {
 
     return adsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator(color: kCryptoPrimary)),
-      error: (e, _) => Center(child: Text(e.toString(), style: const TextStyle(color: kCryptoMuted))),
+      error: (e, _) => Center(child: Text(e.toString(), style: TextStyle(color: cMt(context)))),
       data: (ads) {
-        var filtered = ads.where((a) {
+        final filtered = ads.where((a) {
           final coinMatch = coinFilter == 'All' || a.coinSymbol == coinFilter;
           final payMatch  = payFilter  == 'All' ||
               a.paymentMethods.any((p) => p.toLowerCase().contains(payFilter.toLowerCase()));
@@ -135,10 +134,10 @@ class _P2PAdList extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.storefront_outlined, color: kCryptoMuted, size: 48),
+                Icon(Icons.storefront_outlined, color: cMt(context), size: 48),
                 const SizedBox(height: 12),
                 Text('No ${type == 'sell' ? 'sell' : 'buy'} orders available',
-                    style: const TextStyle(color: kCryptoMuted)),
+                    style: TextStyle(color: cMt(context))),
               ],
             ),
           );
@@ -169,14 +168,13 @@ class _TraderCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: kCryptoCard,
+        color: cCard(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kCryptoBorder),
+        border: Border.all(color: cBd(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Trader info row
           Row(
             children: [
               CircleAvatar(
@@ -195,7 +193,7 @@ class _TraderCard extends StatelessWidget {
                     Row(
                       children: [
                         Text(ad.traderName,
-                            style: const TextStyle(color: kCryptoText, fontWeight: FontWeight.w600, fontSize: 13)),
+                            style: TextStyle(color: cTx(context), fontWeight: FontWeight.w600, fontSize: 13)),
                         if (ad.isVerified) ...[
                           const SizedBox(width: 4),
                           const Icon(Icons.verified, color: kCryptoPrimary, size: 14),
@@ -203,15 +201,15 @@ class _TraderCard extends StatelessWidget {
                       ],
                     ),
                     Text('${ad.completedOrders} orders  •  ${ad.successRate.toStringAsFixed(0)}% completion',
-                        style: const TextStyle(color: kCryptoMuted, fontSize: 10)),
+                        style: TextStyle(color: cMt(context), fontSize: 10)),
                   ],
                 ),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('${ad.coinSymbol}',
-                      style: const TextStyle(color: kCryptoMuted, fontSize: 10)),
+                  Text(ad.coinSymbol,
+                      style: TextStyle(color: cMt(context), fontSize: 10)),
                   Text('\$${ad.price.toStringAsFixed(2)}',
                       style: const TextStyle(color: kCryptoGold, fontWeight: FontWeight.w700, fontSize: 14)),
                 ],
@@ -219,16 +217,15 @@ class _TraderCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          // Limits + payment row
           Row(
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Limit', style: TextStyle(color: kCryptoMuted, fontSize: 10)),
+                    Text('Limit', style: TextStyle(color: cMt(context), fontSize: 10)),
                     Text('\$${ad.minAmount.toStringAsFixed(0)} – \$${ad.maxAmount.toStringAsFixed(0)}',
-                        style: const TextStyle(color: kCryptoText, fontSize: 12)),
+                        style: TextStyle(color: cTx(context), fontSize: 12)),
                   ],
                 ),
               ),
@@ -236,16 +233,15 @@ class _TraderCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Available', style: TextStyle(color: kCryptoMuted, fontSize: 10)),
+                    Text('Available', style: TextStyle(color: cMt(context), fontSize: 10)),
                     Text('${ad.available.toStringAsFixed(4)} ${ad.coinSymbol}',
-                        style: const TextStyle(color: kCryptoText, fontSize: 12)),
+                        style: TextStyle(color: cTx(context), fontSize: 12)),
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          // Payment methods
           Wrap(
             spacing: 6,
             children: ad.paymentMethods.map((m) => Container(
@@ -259,7 +255,6 @@ class _TraderCard extends StatelessWidget {
             )).toList(),
           ),
           const SizedBox(height: 12),
-          // Action button
           _P2PActionButton(ad: ad, isBuyTab: isBuyTab),
         ],
       ),
@@ -308,27 +303,27 @@ class _P2PActionButtonState extends ConsumerState<_P2PActionButton> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: kCryptoCard,
+        backgroundColor: Theme.of(context).cardColor,
         title: Text(
           widget.isBuyTab ? 'Buy ${widget.ad.coinSymbol}' : 'Sell ${widget.ad.coinSymbol}',
-          style: const TextStyle(color: kCryptoText, fontSize: 15),
+          style: TextStyle(color: cTx(context), fontSize: 15),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text('Price: \$${widget.ad.price.toStringAsFixed(2)}/unit',
-                style: const TextStyle(color: kCryptoMuted, fontSize: 12)),
+                style: TextStyle(color: cMt(context), fontSize: 12)),
             const SizedBox(height: 12),
             TextField(
               controller: amtCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(color: kCryptoText),
-              decoration: const InputDecoration(
+              style: TextStyle(color: cTx(context)),
+              decoration: InputDecoration(
                 labelText: 'Amount (USD)',
-                labelStyle: TextStyle(color: kCryptoMuted),
+                labelStyle: TextStyle(color: cMt(context)),
                 enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: kCryptoBorder)),
-                focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: cBd(context))),
+                focusedBorder: const UnderlineInputBorder(
                     borderSide: BorderSide(color: kCryptoPrimary)),
               ),
             ),
@@ -337,7 +332,7 @@ class _P2PActionButtonState extends ConsumerState<_P2PActionButton> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: kCryptoMuted)),
+            child: Text('Cancel', style: TextStyle(color: cMt(context))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: kCryptoPrimary),
@@ -381,10 +376,11 @@ class _MyAdsList extends ConsumerWidget {
 
     return adsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator(color: kCryptoPrimary)),
-      error: (_, __) => const Center(child: Text('Error loading ads', style: TextStyle(color: kCryptoMuted))),
+      error: (_, __) => Center(child: Text('Error loading ads', style: TextStyle(color: cMt(context)))),
       data: (ads) {
-        if (ads.isEmpty) return const Center(
-          child: Text('No active ads', style: TextStyle(color: kCryptoMuted)));
+        if (ads.isEmpty) {
+          return Center(child: Text('No active ads', style: TextStyle(color: cMt(context))));
+        }
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
           itemCount: ads.length,
@@ -406,9 +402,9 @@ class _MyAdRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: kCryptoCard,
+        color: cCard(context),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: kCryptoBorder),
+        border: Border.all(color: cBd(context)),
       ),
       child: Row(
         children: [
@@ -419,9 +415,9 @@ class _MyAdRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('${ad.type.toUpperCase()} ${ad.coinSymbol}',
-                    style: const TextStyle(color: kCryptoText, fontWeight: FontWeight.w600, fontSize: 13)),
+                    style: TextStyle(color: cTx(context), fontWeight: FontWeight.w600, fontSize: 13)),
                 Text('\$${ad.price}/unit  •  ${ad.available} available',
-                    style: const TextStyle(color: kCryptoMuted, fontSize: 11)),
+                    style: TextStyle(color: cMt(context), fontSize: 11)),
               ],
             ),
           ),
@@ -453,13 +449,13 @@ class _MyOrdersList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ordersAsync = ref.watch(myP2pOrdersProvider);
 
-
     return ordersAsync.when(
       loading: () => const Center(child: CircularProgressIndicator(color: kCryptoPrimary)),
-      error: (_, __) => const Center(child: Text('Error', style: TextStyle(color: kCryptoMuted))),
+      error: (_, __) => Center(child: Text('Error', style: TextStyle(color: cMt(context)))),
       data: (orders) {
-        if (orders.isEmpty) return const Center(
-          child: Text('No orders yet', style: TextStyle(color: kCryptoMuted)));
+        if (orders.isEmpty) {
+          return Center(child: Text('No orders yet', style: TextStyle(color: cMt(context))));
+        }
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
           itemCount: orders.length,
@@ -496,9 +492,9 @@ class _OrderRowState extends ConsumerState<_OrderRow> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: kCryptoCard,
+        color: cCard(context),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: kCryptoBorder),
+        border: Border.all(color: cBd(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -512,9 +508,9 @@ class _OrderRowState extends ConsumerState<_OrderRow> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('${o.type.toUpperCase()} ${o.coinSymbol}',
-                        style: const TextStyle(color: kCryptoText, fontWeight: FontWeight.w600, fontSize: 12)),
+                        style: TextStyle(color: cTx(context), fontWeight: FontWeight.w600, fontSize: 12)),
                     Text('${o.cryptoAmount} ${o.coinSymbol}  •  \$${o.amountUsd.toStringAsFixed(2)}',
-                        style: const TextStyle(color: kCryptoMuted, fontSize: 10)),
+                        style: TextStyle(color: cMt(context), fontSize: 10)),
                   ],
                 ),
               ),
@@ -598,11 +594,11 @@ class _PostAdSheet extends ConsumerStatefulWidget {
 
 class _PostAdSheetState extends ConsumerState<_PostAdSheet> {
   String _type = 'sell';
-  String _coin = 'USDT';
-  final _priceCtrl = TextEditingController();
+  final String _coin = 'USDT';
+  final _priceCtrl  = TextEditingController();
   final _amountCtrl = TextEditingController();
-  final _minCtrl = TextEditingController();
-  final _maxCtrl = TextEditingController();
+  final _minCtrl    = TextEditingController();
+  final _maxCtrl    = TextEditingController();
   bool _loading = false;
 
   @override
@@ -621,30 +617,28 @@ class _PostAdSheetState extends ConsumerState<_PostAdSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Post P2P Ad',
-                style: TextStyle(color: kCryptoText, fontSize: 16, fontWeight: FontWeight.w700)),
+            Text('Post P2P Ad',
+                style: TextStyle(color: cTx(context), fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(child: _TypeBtn(label: 'Sell', active: _type == 'sell',
                     onTap: () => setState(() => _type = 'sell'))),
                 const SizedBox(width: 8),
-                Expanded(child: _TypeBtn(label: 'Buy',  active: _type == 'buy',
+                Expanded(child: _TypeBtn(label: 'Buy', active: _type == 'buy',
                     onTap: () => setState(() => _type = 'buy'))),
               ],
             ),
             const SizedBox(height: 12),
-            _field('Coin (e.g. USDT)', _priceCtrl.text, (v) {}, hint: 'USDT'),
+            _field(context, 'Price (USD)', _priceCtrl, hint: '1.01'),
             const SizedBox(height: 10),
-            _field('Price (USD)', _priceCtrl, null, hint: '1.01'),
-            const SizedBox(height: 10),
-            _field('Amount', _amountCtrl, null, hint: '100'),
+            _field(context, 'Amount', _amountCtrl, hint: '100'),
             const SizedBox(height: 10),
             Row(
               children: [
-                Expanded(child: _field('Min (USD)', _minCtrl, null, hint: '10')),
+                Expanded(child: _field(context, 'Min (USD)', _minCtrl, hint: '10')),
                 const SizedBox(width: 8),
-                Expanded(child: _field('Max (USD)', _maxCtrl, null, hint: '500')),
+                Expanded(child: _field(context, 'Max (USD)', _maxCtrl, hint: '500')),
               ],
             ),
             const SizedBox(height: 16),
@@ -659,26 +653,25 @@ class _PostAdSheetState extends ConsumerState<_PostAdSheet> {
     );
   }
 
-  Widget _field(String label, dynamic ctrl, ValueChanged<String>? onChanged, {String hint = ''}) {
+  Widget _field(BuildContext context, String label, TextEditingController ctrl, {String hint = ''}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: kCryptoMuted, fontSize: 11)),
+        Text(label, style: TextStyle(color: cMt(context), fontSize: 11)),
         const SizedBox(height: 4),
         TextField(
-          controller: ctrl is TextEditingController ? ctrl : null,
-          onChanged: onChanged,
+          controller: ctrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: const TextStyle(color: kCryptoText, fontSize: 13),
+          style: TextStyle(color: cTx(context), fontSize: 13),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: kCryptoMuted),
+            hintStyle: TextStyle(color: cMt(context)),
             filled: true,
-            fillColor: kCryptoBg,
+            fillColor: cBg(context),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: kCryptoBorder)),
+                borderSide: BorderSide(color: cBd(context))),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: kCryptoBorder)),
+                borderSide: BorderSide(color: cBd(context))),
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: kCryptoPrimary)),
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -725,12 +718,12 @@ class _TypeBtn extends StatelessWidget {
       decoration: BoxDecoration(
         color: active ? kCryptoPrimary.withAlpha(40) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: active ? kCryptoPrimary : kCryptoBorder),
+        border: Border.all(color: active ? kCryptoPrimary : cBd(context)),
       ),
       child: Text(label,
         textAlign: TextAlign.center,
         style: TextStyle(
-          color: active ? kCryptoPrimary : kCryptoMuted,
+          color: active ? kCryptoPrimary : cMt(context),
           fontWeight: FontWeight.w600,
           fontSize: 13,
         ),
@@ -754,16 +747,16 @@ class _FilterDropdown extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
     decoration: BoxDecoration(
-      color: kCryptoCard,
+      color: cCard(context),
       borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: kCryptoBorder),
+      border: Border.all(color: cBd(context)),
     ),
     child: DropdownButton<String>(
       value: value,
       isExpanded: true,
-      dropdownColor: kCryptoCard,
+      dropdownColor: cCard(context),
       underline: const SizedBox.shrink(),
-      style: const TextStyle(color: kCryptoText, fontSize: 12),
+      style: TextStyle(color: cTx(context), fontSize: 12),
       items: items.map((i) => DropdownMenuItem(value: i, child: Text(i))).toList(),
       onChanged: (v) { if (v != null) onChanged(v); },
     ),

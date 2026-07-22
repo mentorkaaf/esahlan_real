@@ -17,13 +17,12 @@ class CryptoHomeScreen extends ConsumerWidget {
     final marketsAsync   = ref.watch(cryptoMarketsProvider);
 
     return Scaffold(
-      backgroundColor: kCryptoBg,
       appBar: AppBar(
         title: const Text('eSahlan Exchange',
-            style: TextStyle(color: kCryptoText, fontSize: 16, fontWeight: FontWeight.w700)),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: kCryptoText),
+            icon: Icon(Icons.notifications_outlined, color: cTx(context)),
             onPressed: () {},
           ),
         ],
@@ -67,8 +66,8 @@ class CryptoHomeScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('My Assets',
-                      style: TextStyle(color: kCryptoText, fontSize: 16, fontWeight: FontWeight.w700)),
+                  Text('My Assets',
+                      style: TextStyle(color: cTx(context), fontSize: 16, fontWeight: FontWeight.w700)),
                   GestureDetector(
                     onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const CryptoWalletScreen())),
@@ -90,9 +89,9 @@ class CryptoHomeScreen extends ConsumerWidget {
                         padding: const EdgeInsets.all(32),
                         child: Column(
                           children: [
-                            const Icon(Icons.currency_bitcoin, color: kCryptoMuted, size: 48),
+                            Icon(Icons.currency_bitcoin, color: cMt(context), size: 48),
                             const SizedBox(height: 12),
-                            const Text('No assets yet', style: TextStyle(color: kCryptoMuted)),
+                            Text('No assets yet', style: TextStyle(color: cMt(context))),
                             const SizedBox(height: 8),
                             ElevatedButton(
                               onPressed: () => Navigator.of(context).push(
@@ -208,9 +207,8 @@ class _PortfolioCardError extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     height: 110,
     decoration: BoxDecoration(
-      color: kCryptoCard, borderRadius: BorderRadius.circular(16)),
-    child: Center(child: Text(msg,
-        style: const TextStyle(color: kCryptoMuted, fontSize: 12))),
+      color: cCard(context), borderRadius: BorderRadius.circular(16)),
+    child: Center(child: Text(msg, style: TextStyle(color: cMt(context), fontSize: 12))),
   );
 }
 
@@ -290,7 +288,7 @@ class _ActionBtn extends StatelessWidget {
           child: Icon(icon, color: color, size: 22),
         ),
         const SizedBox(height: 6),
-        Text(label, style: const TextStyle(color: kCryptoMuted, fontSize: 11)),
+        Text(label, style: TextStyle(color: cMt(context), fontSize: 11)),
       ],
     ),
   );
@@ -304,20 +302,24 @@ class _AssetRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final symbol   = asset['symbol']?.toString() ?? '';
-    final name     = asset['name']?.toString() ?? '';
+    // Portfolio response nests coin info inside 'coin' key
+    final coin     = asset['coin'] as Map<String, dynamic>? ?? asset;
+    final symbol   = coin['symbol']?.toString() ?? '';
+    final name     = coin['name']?.toString() ?? '';
     final balance  = (asset['balance'] ?? 0).toDouble();
     final usdValue = (asset['usd_value'] ?? 0).toDouble();
-    final change   = (asset['change_24h'] ?? 0).toDouble();
-    final logoUrl  = asset['logo_url']?.toString();
+    final change   = (coin['change_24h'] ?? 0).toDouble();
+    final logoUrl  = coin['logo_url']?.toString();
+
+    if (balance <= 0) return const SizedBox.shrink();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: kCryptoCard,
+        color: cCard(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kCryptoBorder),
+        border: Border.all(color: cBd(context)),
       ),
       child: Row(
         children: [
@@ -327,8 +329,8 @@ class _AssetRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(symbol, style: const TextStyle(color: kCryptoText, fontWeight: FontWeight.w600, fontSize: 14)),
-                Text(name, style: const TextStyle(color: kCryptoMuted, fontSize: 11)),
+                Text(symbol, style: TextStyle(color: cTx(context), fontWeight: FontWeight.w600, fontSize: 14)),
+                Text(name, style: TextStyle(color: cMt(context), fontSize: 11)),
               ],
             ),
           ),
@@ -336,11 +338,11 @@ class _AssetRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text('${balance.toStringAsFixed(4)} $symbol',
-                  style: const TextStyle(color: kCryptoText, fontWeight: FontWeight.w600, fontSize: 13)),
+                  style: TextStyle(color: cTx(context), fontWeight: FontWeight.w600, fontSize: 13)),
               Row(
                 children: [
                   Text('\$${usdValue.toStringAsFixed(2)}',
-                      style: const TextStyle(color: kCryptoMuted, fontSize: 11)),
+                      style: TextStyle(color: cMt(context), fontSize: 11)),
                   const SizedBox(width: 6),
                   ChangeBadge(change),
                 ],

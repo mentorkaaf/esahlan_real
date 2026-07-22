@@ -37,7 +37,6 @@ class _CryptoWalletScreenState extends ConsumerState<CryptoWalletScreen>
     final marketsAsync     = ref.watch(cryptoMarketsProvider);
 
     return Scaffold(
-      backgroundColor: kCryptoBg,
       appBar: AppBar(title: const Text('Wallet')),
       body: RefreshIndicator(
         color: kCryptoPrimary,
@@ -68,7 +67,7 @@ class _CryptoWalletScreenState extends ConsumerState<CryptoWalletScreen>
 
               // Tab bar
               Container(
-                color: kCryptoBg,
+                color: cBg(context),
                 child: TabBar(
                   controller: _tabCtrl,
                   tabs: const [Tab(text: 'Assets'), Tab(text: 'Transactions')],
@@ -84,18 +83,18 @@ class _CryptoWalletScreenState extends ConsumerState<CryptoWalletScreen>
                     // Assets tab
                     walletAsync.when(
                       loading: () => const Center(child: CircularProgressIndicator(color: kCryptoPrimary)),
-                      error: (_, __) => const Center(child: Text('Error', style: TextStyle(color: kCryptoMuted))),
+                      error: (_, __) => Center(child: Text('Error', style: TextStyle(color: cMt(context)))),
                       data: (d) {
                         final assets = (d['assets'] as List? ?? []);
                         if (assets.isEmpty) {
-                          return const Center(
-                            child: Text('No assets', style: TextStyle(color: kCryptoMuted)));
+                          return Center(
+                            child: Text('No assets', style: TextStyle(color: cMt(context))));
                         }
                         return ListView.separated(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
                           itemCount: assets.length,
                           separatorBuilder: (_, __) =>
-                              const Divider(color: kCryptoBorder, height: 1),
+                              Divider(color: cBd(context), height: 1),
                           itemBuilder: (_, i) => _WalletAssetRow(asset: assets[i]),
                         );
                       },
@@ -103,17 +102,17 @@ class _CryptoWalletScreenState extends ConsumerState<CryptoWalletScreen>
                     // Transactions tab
                     txAsync.when(
                       loading: () => const Center(child: CircularProgressIndicator(color: kCryptoPrimary)),
-                      error: (_, __) => const Center(child: Text('Error', style: TextStyle(color: kCryptoMuted))),
+                      error: (_, __) => Center(child: Text('Error', style: TextStyle(color: cMt(context)))),
                       data: (txList) {
                         if (txList.isEmpty) {
-                          return const Center(
-                            child: Text('No transactions', style: TextStyle(color: kCryptoMuted)));
+                          return Center(
+                            child: Text('No transactions', style: TextStyle(color: cMt(context))));
                         }
                         return ListView.separated(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
                           itemCount: txList.length,
                           separatorBuilder: (_, __) =>
-                              const Divider(color: kCryptoBorder, height: 1),
+                              Divider(color: cBd(context), height: 1),
                           itemBuilder: (_, i) => _TxRow(tx: txList[i]),
                         );
                       },
@@ -251,12 +250,17 @@ class _WalletAssetRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final symbol   = asset['symbol']?.toString() ?? '';
-    final name     = asset['name']?.toString() ?? '';
+    // Portfolio response nests coin info inside 'coin' key
+    final coin     = asset['coin'] as Map<String, dynamic>? ?? asset;
+    final symbol   = coin['symbol']?.toString() ?? '';
+    final name     = coin['name']?.toString() ?? '';
     final balance  = (asset['balance'] ?? 0).toDouble();
-    final locked   = (asset['locked'] ?? 0).toDouble();
+    final wallets  = asset['wallets'] as List? ?? [];
+    final locked   = wallets.fold<double>(0, (s, w) => s + ((w['locked'] ?? 0) as num).toDouble());
     final usdValue = (asset['usd_value'] ?? 0).toDouble();
-    final logoUrl  = asset['logo_url']?.toString();
+    final logoUrl  = coin['logo_url']?.toString();
+
+    if (balance <= 0) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -269,9 +273,9 @@ class _WalletAssetRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(symbol,
-                    style: const TextStyle(color: kCryptoText, fontWeight: FontWeight.w600, fontSize: 14)),
+                    style: TextStyle(color: cTx(context), fontWeight: FontWeight.w600, fontSize: 14)),
                 Text(name,
-                    style: const TextStyle(color: kCryptoMuted, fontSize: 11)),
+                    style: TextStyle(color: cMt(context), fontSize: 11)),
                 if (locked > 0)
                   Text('Locked: $locked $symbol',
                       style: const TextStyle(color: kCryptoGold, fontSize: 10)),
@@ -282,9 +286,9 @@ class _WalletAssetRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text('${balance.toStringAsFixed(6)} $symbol',
-                  style: const TextStyle(color: kCryptoText, fontWeight: FontWeight.w600, fontSize: 12)),
+                  style: TextStyle(color: cTx(context), fontWeight: FontWeight.w600, fontSize: 12)),
               Text('\$${usdValue.toStringAsFixed(2)}',
-                  style: const TextStyle(color: kCryptoMuted, fontSize: 11)),
+                  style: TextStyle(color: cMt(context), fontSize: 11)),
             ],
           ),
         ],
@@ -324,9 +328,9 @@ class _TxRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(tx.type[0].toUpperCase() + tx.type.substring(1),
-                    style: const TextStyle(color: kCryptoText, fontWeight: FontWeight.w600, fontSize: 13)),
+                    style: TextStyle(color: cTx(context), fontWeight: FontWeight.w600, fontSize: 13)),
                 Text(tx.createdAt,
-                    style: const TextStyle(color: kCryptoMuted, fontSize: 11)),
+                    style: TextStyle(color: cMt(context), fontSize: 11)),
               ],
             ),
           ),

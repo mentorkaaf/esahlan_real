@@ -17,9 +17,17 @@ class CryptoBuySellScreen extends ConsumerStatefulWidget {
 class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
   bool _isBuy = true;
   CryptoCoin? _selectedCoin;
+  CoinNetwork? _selectedNetwork;
   String _payMethod = 'epay';
   final _amountCtrl = TextEditingController();
   bool _loading = false;
+
+  void _onCoinChanged(CryptoCoin c) {
+    setState(() {
+      _selectedCoin    = c;
+      _selectedNetwork = c.networks.where((n) => n.isActive).firstOrNull ?? c.networks.firstOrNull;
+    });
+  }
 
   double get _rate => _selectedCoin?.priceUsd ?? 0;
   double get _inputAmt => double.tryParse(_amountCtrl.text) ?? 0;
@@ -53,17 +61,21 @@ class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
     setState(() => _loading = true);
     try {
       final repo = ref.read(cryptoRepositoryProvider);
+      final netId = _selectedNetwork?.id;
+      if (netId == null) throw Exception('Select a network first');
       if (_isBuy) {
-        await repo.buyCoin(
+        await repo.buy(
           symbol: _selectedCoin!.symbol,
+          networkId: netId,
           amountUsd: _inputAmt,
           paymentMethod: _payMethod,
         );
         Fluttertoast.showToast(msg: 'Buy order placed!');
       } else {
-        await repo.sellCoin(
+        await repo.sell(
           symbol: _selectedCoin!.symbol,
-          amount: _inputAmt,
+          networkId: netId,
+          cryptoAmount: _youReceive,
           receiveMethod: _payMethod,
         );
         Fluttertoast.showToast(msg: 'Sell order placed!');
@@ -83,14 +95,12 @@ class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
     final marketsAsync = ref.watch(cryptoMarketsProvider);
 
     if (_selectedCoin == null && widget.initialCoin != null) {
-      _selectedCoin = widget.initialCoin;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _onCoinChanged(widget.initialCoin!));
     }
     if (_selectedCoin == null) {
       marketsAsync.whenData((coins) {
         if (coins.isNotEmpty && _selectedCoin == null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            setState(() => _selectedCoin = coins.first);
-          });
+          WidgetsBinding.instance.addPostFrameCallback((_) => _onCoinChanged(coins.first));
         }
       });
     }
@@ -99,7 +109,6 @@ class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
         ModalRoute.of(context)?.settings.name != null;
 
     return Scaffold(
-      backgroundColor: kCryptoBg,
       appBar: isStandalone
           ? AppBar(title: const Text('Buy / Sell'))
           : null,
@@ -142,10 +151,22 @@ class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
               data: (coins) => _CoinDropdown(
                 coins: coins,
                 selected: _selectedCoin,
-                onChanged: (c) => setState(() => _selectedCoin = c),
+                onChanged: _onCoinChanged,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+
+            // Network selector (visible when coin has multiple networks)
+            if (_selectedCoin != null && _selectedCoin!.networks.length > 1) ...[
+              const Text('Network', style: TextStyle(color: kCryptoMuted, fontSize: 12)),
+              const SizedBox(height: 6),
+              _NetworkDropdown(
+                networks: _selectedCoin!.networks.where((n) => n.isActive).toList(),
+                selected: _selectedNetwork,
+                onChanged: (n) => setState(() => _selectedNetwork = n),
+              ),
+              const SizedBox(height: 12),
+            ],
 
             // Amount input
             const Text('Amount (USD)', style: TextStyle(color: kCryptoMuted, fontSize: 12)),
@@ -245,16 +266,16 @@ class _CoinDropdown extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
-        color: kCryptoCard,
+        color: cCard(context),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: kCryptoBorder),
+        border: Border.all(color: cBd(context)),
       ),
       child: DropdownButton<CryptoCoin>(
         value: selected,
         isExpanded: true,
-        dropdownColor: kCryptoCard,
+        dropdownColor: cCard(context),
         underline: const SizedBox.shrink(),
-        hint: const Text('Select a coin', style: TextStyle(color: kCryptoMuted)),
+        hint: Text('Select a coin', style: TextStyle(color: cMt(context))),
         items: coins.map((c) => DropdownMenuItem(
           value: c,
           child: Row(
@@ -262,13 +283,44 @@ class _CoinDropdown extends StatelessWidget {
               CoinAvatarWidget(symbol: c.symbol, logoUrl: c.logoUrl, size: 28),
               const SizedBox(width: 10),
               Expanded(child: Text('${c.name} (${c.symbol})',
-                  style: const TextStyle(color: kCryptoText, fontSize: 13))),
+                  style: TextStyle(color: cTx(context), fontSize: 13))),
               Text(cryptoCoinPrice(c.priceUsd),
-                  style: const TextStyle(color: kCryptoMuted, fontSize: 12)),
+                  style: TextStyle(color: cMt(context), fontSize: 12)),
             ],
           ),
         )).toList(),
         onChanged: (c) { if (c != null) onChanged(c); },
+      ),
+    );
+  }
+}
+
+class _NetworkDropdown extends StatelessWidget {
+  const _NetworkDropdown({required this.networks, required this.selected, required this.onChanged});
+  final List<CoinNetwork> networks;
+  final CoinNetwork? selected;
+  final ValueChanged<CoinNetwork> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      decoration: BoxDecoration(
+        color: cCard(context),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: cBd(context)),
+      ),
+      child: DropdownButton<CoinNetwork>(
+        value: selected,
+        isExpanded: true,
+        dropdownColor: cCard(context),
+        underline: const SizedBox.shrink(),
+        hint: Text('Select network', style: TextStyle(color: cMt(context))),
+        items: networks.map((n) => DropdownMenuItem(
+          value: n,
+          child: Text(n.label, style: TextStyle(color: cTx(context), fontSize: 13)),
+        )).toList(),
+        onChanged: (n) { if (n != null) onChanged(n); },
       ),
     );
   }
@@ -290,9 +342,9 @@ class _LiveCalc extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: kCryptoCard,
+        color: cCard(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kCryptoBorder),
+        border: Border.all(color: cBd(context)),
       ),
       child: Column(
         children: [
@@ -326,9 +378,9 @@ class _Row extends StatelessWidget {
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: kCryptoMuted, fontSize: 12)),
+        Text(label, style: TextStyle(color: cMt(context), fontSize: 12)),
         Text(value, style: TextStyle(
-          color: valueColor ?? kCryptoText,
+          color: valueColor ?? cTx(context),
           fontSize: 12,
           fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
         )),

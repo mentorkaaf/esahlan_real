@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
 
-// ── Shared theme constants for all Crypto screens ────────────────────────────
+// ── Accent colors — always the same regardless of theme ──────────────────────
+const kCryptoPrimary = Color(0xFF6C63FF);
+const kCryptoGreen   = Color(0xFF00C97A);
+const kCryptoRed     = Color(0xFFFF4B55);
+const kCryptoGold    = Color(0xFFFFB300);
 
+// ── Context-aware structural colors (follow app light/dark theme) ─────────────
+Color cBg(BuildContext c)   => Theme.of(c).scaffoldBackgroundColor;
+Color cCard(BuildContext c) => Theme.of(c).cardColor;
+Color cBd(BuildContext c)   => Theme.of(c).dividerColor;
+Color cTx(BuildContext c)   => Theme.of(c).colorScheme.onSurface;
+Color cMt(BuildContext c)   => Theme.of(c).colorScheme.onSurface.withAlpha(140);
+
+// ── Deprecated const colors — kept for CustomPainter / const-context use ─────
+// DO NOT use in new widget build() methods — use cBg/cCard/cBd/cTx/cMt above.
 const kCryptoBg     = Color(0xFF0A0D1A);
 const kCryptoCard   = Color(0xFF131928);
 const kCryptoBorder = Color(0xFF1C2640);
-const kCryptoPrimary= Color(0xFF6C63FF); // purple – Buy button
-const kCryptoGreen  = Color(0xFF00C97A);
-const kCryptoRed    = Color(0xFFFF4B55);
 const kCryptoText   = Color(0xFFFFFFFF);
 const kCryptoMuted  = Color(0xFF8899BB);
-const kCryptoGold   = Color(0xFFFFB300); // P/L accent
 
 Color cryptoChangeColor(double v) => v >= 0 ? kCryptoGreen : kCryptoRed;
 

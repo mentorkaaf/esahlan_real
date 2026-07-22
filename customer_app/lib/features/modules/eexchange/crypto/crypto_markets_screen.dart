@@ -56,12 +56,11 @@ class _CryptoMarketsScreenState extends ConsumerState<CryptoMarketsScreen> {
     final marketsAsync = ref.watch(cryptoMarketsProvider);
 
     return Scaffold(
-      backgroundColor: kCryptoBg,
       appBar: AppBar(
         title: const Text('Markets'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search, color: kCryptoText),
+            icon: Icon(Icons.search, color: cTx(context)),
             onPressed: () => setState(() {}),
           ),
         ],
@@ -73,21 +72,21 @@ class _CryptoMarketsScreenState extends ConsumerState<CryptoMarketsScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: TextField(
               controller: _searchCtrl,
-              style: const TextStyle(color: kCryptoText, fontSize: 14),
+              style: TextStyle(color: cTx(context), fontSize: 14),
               onChanged: (v) => setState(() => _search = v),
               decoration: InputDecoration(
                 hintText: 'Search coins...',
-                hintStyle: const TextStyle(color: kCryptoMuted),
-                prefixIcon: const Icon(Icons.search, color: kCryptoMuted, size: 18),
+                hintStyle: TextStyle(color: cMt(context)),
+                prefixIcon: Icon(Icons.search, color: cMt(context), size: 18),
                 filled: true,
-                fillColor: kCryptoCard,
+                fillColor: cCard(context),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: kCryptoBorder),
+                  borderSide: BorderSide(color: cBd(context)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: kCryptoBorder),
+                  borderSide: BorderSide(color: cBd(context)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -116,30 +115,30 @@ class _CryptoMarketsScreenState extends ConsumerState<CryptoMarketsScreen> {
             ),
           ),
           // Table header
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(
               children: [
-                Expanded(flex: 3, child: Text('Coin', style: TextStyle(color: kCryptoMuted, fontSize: 11))),
-                SizedBox(width: 60, child: Text('Chart', style: TextStyle(color: kCryptoMuted, fontSize: 11))),
-                Expanded(flex: 2, child: Text('Price', textAlign: TextAlign.right, style: TextStyle(color: kCryptoMuted, fontSize: 11))),
-                SizedBox(width: 8),
-                SizedBox(width: 60, child: Text('24h', textAlign: TextAlign.right, style: TextStyle(color: kCryptoMuted, fontSize: 11))),
+                Expanded(flex: 3, child: Text('Coin', style: TextStyle(color: cMt(context), fontSize: 11))),
+                SizedBox(width: 60, child: Text('Chart', style: TextStyle(color: cMt(context), fontSize: 11))),
+                Expanded(flex: 2, child: Text('Price', textAlign: TextAlign.right, style: TextStyle(color: cMt(context), fontSize: 11))),
+                const SizedBox(width: 8),
+                SizedBox(width: 60, child: Text('24h', textAlign: TextAlign.right, style: TextStyle(color: cMt(context), fontSize: 11))),
               ],
             ),
           ),
-          const Divider(color: kCryptoBorder, height: 1),
+          Divider(color: cBd(context), height: 1),
           // List
           Expanded(
             child: marketsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator(color: kCryptoPrimary)),
               error: (e, _) => Center(
-                child: Text('Error loading markets', style: const TextStyle(color: kCryptoMuted))),
+                child: Text('Error loading markets', style: TextStyle(color: cMt(context)))),
               data: (coins) {
                 final filtered = _applyFilters(coins);
                 if (filtered.isEmpty) {
-                  return const Center(
-                    child: Text('No coins found', style: TextStyle(color: kCryptoMuted)));
+                  return Center(
+                    child: Text('No coins found', style: TextStyle(color: cMt(context))));
                 }
                 return RefreshIndicator(
                   color: kCryptoPrimary,
@@ -147,7 +146,7 @@ class _CryptoMarketsScreenState extends ConsumerState<CryptoMarketsScreen> {
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const Divider(color: kCryptoBorder, height: 1, indent: 16, endIndent: 16),
+                    separatorBuilder: (_, __) => Divider(color: cBd(context), height: 1, indent: 16, endIndent: 16),
                     itemBuilder: (_, i) => _CoinRow(
                       coin: filtered[i],
                       onTap: () => Navigator.of(context).push(MaterialPageRoute(
@@ -177,13 +176,13 @@ class _Chip extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
-        color: active ? kCryptoPrimary : kCryptoCard,
+        color: active ? kCryptoPrimary : cCard(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: active ? kCryptoPrimary : kCryptoBorder),
+        border: Border.all(color: active ? kCryptoPrimary : cBd(context)),
       ),
       child: Text(label,
           style: TextStyle(
-            color: active ? Colors.white : kCryptoMuted,
+            color: active ? Colors.white : cMt(context),
             fontSize: 12,
             fontWeight: active ? FontWeight.w700 : FontWeight.normal,
           )),
@@ -216,9 +215,9 @@ class _CoinRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(coin.symbol,
-                            style: const TextStyle(color: kCryptoText, fontWeight: FontWeight.w600, fontSize: 13)),
+                            style: TextStyle(color: cTx(context), fontWeight: FontWeight.w600, fontSize: 13)),
                         Text(coin.name,
-                            style: const TextStyle(color: kCryptoMuted, fontSize: 10),
+                            style: TextStyle(color: cMt(context), fontSize: 10),
                             overflow: TextOverflow.ellipsis),
                       ],
                     ),
@@ -237,7 +236,7 @@ class _CoinRow extends StatelessWidget {
               child: Text(
                 cryptoCoinPrice(coin.priceUsd),
                 textAlign: TextAlign.right,
-                style: const TextStyle(color: kCryptoText, fontSize: 13, fontWeight: FontWeight.w600),
+                style: TextStyle(color: cTx(context), fontSize: 13, fontWeight: FontWeight.w600),
               ),
             ),
             const SizedBox(width: 8),

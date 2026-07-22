@@ -72,8 +72,19 @@ final myP2pOrdersProvider = FutureProvider.autoDispose<List<P2pOrder>>((ref) {
 
 // ── Wallet (aggregated portfolio view) ────────────────────────────────────────
 
-final cryptoWalletProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
-  return ref.read(cryptoRepoProvider).getWallet();
+final cryptoWalletProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final data = await ref.read(cryptoRepoProvider).getPortfolio();
+  double lockedUsd = 0;
+  for (final asset in (data['assets'] as List? ?? [])) {
+    final coin     = asset['coin'] as Map<String, dynamic>? ?? {};
+    final priceUsd = (coin['price_usd'] ?? 0 as num).toDouble();
+    final wallets  = asset['wallets'] as List? ?? [];
+    for (final w in wallets) {
+      lockedUsd += ((w['locked'] ?? 0) as num).toDouble() * priceUsd;
+    }
+  }
+  final totalUsd = (data['total_usd'] ?? 0 as num).toDouble();
+  return {...data, 'available_usd': totalUsd - lockedUsd, 'locked_usd': lockedUsd};
 });
 
 // ── Deposit address ───────────────────────────────────────────────────────────

@@ -32,10 +32,7 @@ class CryptoRepository {
 
   // ── Portfolio / Wallet ────────────────────────────────────────────────────────
 
-  Future<Map<String, dynamic>> getWallet() async {
-    final r = await _dio.get('/crypto/wallet');
-    return r.data['data'] as Map<String, dynamic>? ?? {};
-  }
+  Future<Map<String, dynamic>> getWallet() => getPortfolio();
 
   Future<Map<String, dynamic>> getPortfolio() async {
     final r = await _dio.get('/crypto/wallet/portfolio');
@@ -239,11 +236,11 @@ class CryptoRepository {
       await _dio.post('/crypto/p2p/orders/$uuid/messages', data: {'message': message});
 
   Future<List<P2pAd>> getMyAds({int page = 1}) async {
-    final r = await _dio.get('/crypto/p2p/my-ads', queryParameters: {'page': page});
+    final r = await _dio.get('/crypto/p2p/ads/mine', queryParameters: {'page': page});
     final list = r.data['data']?['data'] as List? ?? [];
     return list.map((j) => P2pAd.fromJson(j)).toList();
   }
 
   Future<void> cancelAd(String uuid) async =>
-      await _dio.post('/crypto/p2p/ads/$uuid/cancel');
+      await _dio.delete('/crypto/p2p/ads/$uuid');
 }
