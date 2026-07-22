@@ -25,27 +25,31 @@ class CryptoWallet extends Model
 
     public static function generateAddress(int $coinId): string
     {
-        $coin = ExchangeCoin::find($coinId);
+        $coin  = ExchangeCoin::find($coinId);
         $hex20 = bin2hex(random_bytes(20));
         $hex32 = bin2hex(random_bytes(32));
         return match($coin?->symbol) {
-            'BTC'        => '1' . self::base58($hex20),
-            'ETH','BNB'  => '0x' . strtoupper($hex20),
-            'SOL'        => self::base58($hex32),
-            'XRP'        => 'r' . self::base58($hex20),
-            default      => 'T' . self::base58($hex20),  // USDT TRC20 style
+            'BTC'       => '1' . self::hexToBase58($hex20),
+            'ETH','BNB' => '0x' . strtoupper($hex20),
+            'SOL'       => self::hexToBase58($hex32),
+            'XRP'       => 'r' . self::hexToBase58($hex20),
+            default     => 'T' . self::hexToBase58($hex20),
         };
     }
 
-    private static function base58(string $hex): string
+    private static function hexToBase58(string $hex): string
     {
         $alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-        $num = gmp_init($hex, 16);
+        // Convert hex → decimal string using bcmath (always available in Laravel)
+        $decimal = '0';
+        for ($i = 0; $i < strlen($hex); $i++) {
+            $decimal = bcadd(bcmul($decimal, '16'), (string) hexdec($hex[$i]));
+        }
         $result = '';
-        $base = gmp_init(58);
-        while (gmp_cmp($num, 0) > 0) {
-            [$num, $rem] = gmp_div_qr($num, $base);
-            $result = $alphabet[gmp_intval($rem)] . $result;
+        while (bccomp($decimal, '0') > 0) {
+            $rem     = (int) bcmod($decimal, '58');
+            $result  = $alphabet[$rem] . $result;
+            $decimal = bcdiv($decimal, '58', 0);
         }
         return $result ?: '1';
     }
