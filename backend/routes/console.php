@@ -47,8 +47,7 @@ Schedule::call(fn () => CryptoMarketService::refreshPrices())
 Schedule::job(new ScanCryptoDeposits)
     ->everyMinute()
     ->name('crypto:scan-deposits')
-    ->withoutOverlapping()
-    ->runInBackground();
+    ->withoutOverlapping();
 
 // Auto-cancel expired P2P orders every 5 minutes
 Schedule::call(function () {
