@@ -37,13 +37,35 @@
 
 @if(session('success'))<div class="alert alert-success mb-3">{{ session('success') }}</div>@endif
 
-<form method="POST" action="{{ route('admin.crypto.coins.update',$coin->id) }}">
+<form method="POST" action="{{ route('admin.crypto.coins.update',$coin->id) }}" enctype="multipart/form-data">
 @csrf
 
 {{-- Basic Info --}}
 <div class="cx-card">
   <div class="cx-hdr"><div class="cx-title">Basic Info</div></div>
   <div class="cx-body">
+    {{-- Logo upload row --}}
+    <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #F1F5F9">
+      <div id="logoPreviewWrap" style="width:72px;height:72px;border-radius:50%;border:2px solid #EEF0F6;overflow:hidden;background:#F8FAFC;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        @if($coin->logo_url)
+          <img id="logoPreview" src="{{ str_starts_with($coin->logo_url,'storage/') ? asset($coin->logo_url) : $coin->logo_url }}"
+               style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">
+        @else
+          <span id="logoPreview" style="font-size:22px;font-weight:900;color:#94A3B8">{{ strtoupper(substr($coin->symbol,0,2)) }}</span>
+        @endif
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#0F172A;margin-bottom:4px">Coin Logo</div>
+        <div style="font-size:11px;color:#94A3B8;margin-bottom:10px">PNG / JPG / WebP · max 2MB · will appear in the mobile app</div>
+        <label style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:#EEF2FF;color:#4338CA;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;border:none">
+          <i class="fas fa-upload" style="font-size:11px"></i> Upload Logo
+          <input type="file" name="logo" accept="image/*" style="display:none" onchange="previewLogo(this)">
+        </label>
+        @if($coin->logo_url)
+        <span style="font-size:11px;color:#94A3B8;margin-left:10px">Current: <code style="font-size:10px">{{ basename($coin->logo_url) }}</code></span>
+        @endif
+      </div>
+    </div>
     <div class="form-grid">
       <div><label class="form-label fw-bold">Symbol</label><input type="text" name="symbol" class="form-control" value="{{ $coin->symbol }}" readonly style="background:#F8FAFC"></div>
       <div><label class="form-label fw-bold">Name</label><input type="text" name="name" class="form-control" value="{{ $coin->name }}"></div>
@@ -163,4 +185,18 @@
 </div>
 
 </div>
+
+@push('scripts')
+<script>
+function previewLogo(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const wrap = document.getElementById('logoPreviewWrap');
+    wrap.innerHTML = '<img src="'+e.target.result+'" style="width:100%;height:100%;object-fit:cover">';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+</script>
+@endpush
 @endsection

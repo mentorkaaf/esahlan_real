@@ -51,7 +51,19 @@
         @foreach($coins as $coin)
         <tr>
           <td style="font-size:11px;color:#94A3B8">{{ $coin->id }}</td>
-          <td style="font-weight:900;font-size:15px">{{ $coin->symbol }}</td>
+          <td>
+            @php $logoSrc = $coin->logo_url ? (str_starts_with($coin->logo_url,'storage/') ? asset($coin->logo_url) : $coin->logo_url) : null; @endphp
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:32px;height:32px;border-radius:50%;background:#F1F5F9;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid #EEF0F6">
+                @if($logoSrc)
+                  <img src="{{ $logoSrc }}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.innerHTML='<span style=\'font-size:10px;font-weight:900;color:#94A3B8\'>{{ strtoupper(substr($coin->symbol,0,2)) }}</span>'">
+                @else
+                  <span style="font-size:10px;font-weight:900;color:#94A3B8">{{ strtoupper(substr($coin->symbol,0,2)) }}</span>
+                @endif
+              </div>
+              <span style="font-weight:900;font-size:14px">{{ $coin->symbol }}</span>
+            </div>
+          </td>
           <td style="font-weight:600">{{ $coin->name }}<div style="font-size:11px;color:#94A3B8;font-family:monospace">{{ $coin->coingecko_id }}</div></td>
           <td>
             @foreach($coin->networks as $n)

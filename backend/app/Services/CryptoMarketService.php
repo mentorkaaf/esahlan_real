@@ -114,7 +114,9 @@ class CryptoMarketService
             'symbol'           => $coin->symbol,
             'name'             => $coin->name,
             'coingecko_id'     => $coin->coingecko_id,
-            'logo_url'         => $coin->logo_url ?? "https://assets.coingecko.com/coins/images/1/small/{$coin->coingecko_id}.png",
+            'logo_url'         => $coin->logo_url
+                ? (str_starts_with($coin->logo_url, 'http') ? $coin->logo_url : asset($coin->logo_url))
+                : "https://assets.coingecko.com/coins/images/1/small/{$coin->coingecko_id}.png",
             'price_usd'        => $effectivePrice,
             'change_24h'       => $p?->change_24h ?? 0,
             'change_7d'        => $p?->change_7d ?? 0,

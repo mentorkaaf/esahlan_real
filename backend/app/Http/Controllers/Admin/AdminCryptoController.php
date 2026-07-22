@@ -151,7 +151,7 @@ class AdminCryptoController extends Controller
             return back()->with('success', 'Network added.');
         }
 
-        $coin->update([
+        $updates = [
             'name'               => $request->name ?? $coin->name,
             'coingecko_id'       => $request->coingecko_id ?? $coin->coingecko_id,
             'decimals'           => $request->decimals ?? $coin->decimals,
@@ -167,7 +167,19 @@ class AdminCryptoController extends Controller
             'min_withdrawal'     => $request->min_withdrawal ?? $coin->min_withdrawal,
             'max_withdrawal'     => $request->max_withdrawal ?? $coin->max_withdrawal,
             'withdrawal_fee'     => $request->withdrawal_fee ?? $coin->withdrawal_fee,
-        ]);
+        ];
+
+        // Logo upload
+        if ($request->hasFile('logo') && $request->file('logo')->isValid()) {
+            $ext  = $request->file('logo')->getClientOriginalExtension() ?: 'png';
+            $path = $request->file('logo')->storeAs(
+                'crypto/logos', strtolower($coin->symbol) . '.' . $ext, 'public'
+            );
+            $updates['logo_url'] = 'storage/' . $path;
+        }
+
+        $coin->update($updates);
+        \Illuminate\Support\Facades\Cache::forget('crypto_market_list');
         return back()->with('success', "Coin {$coin->symbol} updated.");
     }
 
