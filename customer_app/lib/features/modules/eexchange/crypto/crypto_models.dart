@@ -221,6 +221,35 @@ class CryptoOrder {
   bool get isBuy => side == 'buy';
 }
 
+// ── Extra getters (UI aliases) ────────────────────────────────────────────────
+
+extension CryptoCoinUi on CryptoCoin {
+  double get changePercent24h => change24h;
+  double get marketCapUsd    => marketCap;
+  List<double> get sparkline7d => const [];
+  bool get isFavorite        => false;
+}
+
+extension P2pAdUi on P2pAd {
+  String get traderName      => sellerName;
+  bool   get isVerified      => false;
+  int    get completedOrders => completedCount;
+  double get successRate     => 90.0;
+  double get price           => priceUsd;
+  double get minAmount       => minOrder;
+  double get maxAmount       => maxOrder;
+  double get available       => remaining;
+}
+
+extension CryptoTransactionUi on CryptoTransaction {
+  String get symbol => coinSymbol;
+}
+
+extension P2pOrderUi on P2pOrder {
+  String get type     => isBuyer ? 'buy' : 'sell';
+  double get amountUsd => totalUsd;
+}
+
 class CryptoTransaction {
   final int id;
   final String type;
@@ -231,6 +260,7 @@ class CryptoTransaction {
   final String note;
   final String coinSymbol;
   final String createdAt;
+  final String status;
 
   const CryptoTransaction({
     required this.id,
@@ -242,6 +272,7 @@ class CryptoTransaction {
     required this.note,
     required this.coinSymbol,
     required this.createdAt,
+    required this.status,
   });
 
   factory CryptoTransaction.fromJson(Map<String, dynamic> j) => CryptoTransaction(
@@ -254,6 +285,7 @@ class CryptoTransaction {
     note: j['note'] ?? '',
     coinSymbol: j['coin']?['symbol'] ?? '',
     createdAt: j['created_at'] ?? '',
+    status: j['status']?.toString() ?? 'completed',
   );
 
   bool get isCredit => ['buy','deposit','transfer_in','sell_refund'].contains(type);

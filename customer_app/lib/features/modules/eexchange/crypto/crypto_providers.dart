@@ -17,6 +17,8 @@ String _msg(Object e) {
 // ── Repository ────────────────────────────────────────────────────────────────
 
 final cryptoRepoProvider = Provider<CryptoRepository>((_) => CryptoRepository.create());
+// alias used by screens
+final cryptoRepositoryProvider = cryptoRepoProvider;
 
 // ── Markets ───────────────────────────────────────────────────────────────────
 
@@ -64,8 +66,27 @@ final p2pAdsProvider = FutureProvider.autoDispose.family<List<P2pAd>, String>((r
 
 // ── My P2P Orders ─────────────────────────────────────────────────────────────
 
-final myP2pOrdersProvider = FutureProvider.autoDispose.family<List<P2pOrder>, int>((ref, myId) {
-  return ref.read(cryptoRepoProvider).getMyP2pOrders(myId);
+final myP2pOrdersProvider = FutureProvider.autoDispose<List<P2pOrder>>((ref) {
+  return ref.read(cryptoRepoProvider).getMyP2pOrders(0);
+});
+
+// ── Wallet (aggregated portfolio view) ────────────────────────────────────────
+
+final cryptoWalletProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
+  return ref.read(cryptoRepoProvider).getWallet();
+});
+
+// ── Deposit address ───────────────────────────────────────────────────────────
+
+final depositAddressProvider = FutureProvider.autoDispose.family<String, String>((ref, symbol) async {
+  final data = await ref.read(cryptoRepoProvider).getDepositAddress(symbol);
+  return data['address']?.toString() ?? '';
+});
+
+// ── My P2P Ads ────────────────────────────────────────────────────────────────
+
+final myAdsProvider = FutureProvider.autoDispose<List<P2pAd>>((ref) {
+  return ref.read(cryptoRepoProvider).getMyAds();
 });
 
 // ── Quote / Trade ─────────────────────────────────────────────────────────────

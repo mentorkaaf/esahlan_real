@@ -32,6 +32,11 @@ class CryptoRepository {
 
   // ── Portfolio / Wallet ────────────────────────────────────────────────────────
 
+  Future<Map<String, dynamic>> getWallet() async {
+    final r = await _dio.get('/crypto/wallet');
+    return r.data['data'] as Map<String, dynamic>? ?? {};
+  }
+
   Future<Map<String, dynamic>> getPortfolio() async {
     final r = await _dio.get('/crypto/wallet/portfolio');
     return r.data['data'] as Map<String, dynamic>;
@@ -133,6 +138,19 @@ class CryptoRepository {
     });
     return r.data as Map<String, dynamic>;
   }
+
+  // Convenience wrappers used by simplified screens
+  Future<Map<String, dynamic>> buyCoin({
+    required String symbol,
+    required double amountUsd,
+    required String paymentMethod,
+  }) => buy(symbol: symbol, networkId: 0, amountUsd: amountUsd, paymentMethod: paymentMethod);
+
+  Future<Map<String, dynamic>> sellCoin({
+    required String symbol,
+    required double amount,
+    required String receiveMethod,
+  }) => sell(symbol: symbol, networkId: 0, cryptoAmount: amount, receiveMethod: receiveMethod);
 
   Future<List<CryptoOrder>> getMyOrders({int page = 1, String? side}) async {
     final r = await _dio.get('/crypto/orders',
