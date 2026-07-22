@@ -146,12 +146,18 @@ class CryptoOnboardingScreen extends StatelessWidget {
                 label: 'New Wallet',
                 color: kCryptoPrimary,
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => _CreateWalletFlow(onDone: onDone))),
+                    builder: (_) => _CreateWalletFlow(onDone: () {
+                      Navigator.of(context).pop();
+                      onDone();
+                    }))),
               ),
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => _ImportWalletScreen(onDone: onDone))),
+                    builder: (_) => _ImportWalletScreen(onDone: () {
+                      Navigator.of(context).pop();
+                      onDone();
+                    }))),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(52),
                   side: const BorderSide(color: kCryptoPrimary),
@@ -430,6 +436,10 @@ class _VerifyPhrasePageState extends ConsumerState<_VerifyPhrasePage> {
   }
 
   Future<void> _verify() async {
+    if (_nameCtrl.text.trim().isEmpty) {
+      Fluttertoast.showToast(msg: 'Please enter your name');
+      return;
+    }
     for (final q in _quiz) {
       if (q.controller.text.trim().toLowerCase() != widget.mnemonic[q.index]) {
         Fluttertoast.showToast(msg: 'Word #${q.index + 1} is incorrect. Try again.');
