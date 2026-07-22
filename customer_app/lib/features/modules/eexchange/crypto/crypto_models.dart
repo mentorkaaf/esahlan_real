@@ -11,9 +11,9 @@ class CryptoCoin {
   final double marketCap;
   final double high24h;
   final double low24h;
-  final bool isActive;
-  final bool isTradable;
-  final bool isP2pEnabled;
+  final bool buyEnabled;
+  final bool sellEnabled;
+  final bool p2pEnabled;
   final double buyFee;
   final double sellFee;
   final List<CoinNetwork> networks;
@@ -28,9 +28,9 @@ class CryptoCoin {
     required this.marketCap,
     required this.high24h,
     required this.low24h,
-    required this.isActive,
-    required this.isTradable,
-    required this.isP2pEnabled,
+    required this.buyEnabled,
+    required this.sellEnabled,
+    required this.p2pEnabled,
     required this.buyFee,
     required this.sellFee,
     required this.networks,
@@ -46,9 +46,9 @@ class CryptoCoin {
     marketCap: (j['market_cap'] ?? 0).toDouble(),
     high24h: (j['high_24h'] ?? 0).toDouble(),
     low24h: (j['low_24h'] ?? 0).toDouble(),
-    isActive: j['is_active'] == true,
-    isTradable: j['is_tradable'] == true,
-    isP2pEnabled: j['is_p2p_enabled'] == true,
+    buyEnabled: j['buy_enabled'] == true,
+    sellEnabled: j['sell_enabled'] == true,
+    p2pEnabled: j['p2p_enabled'] == true,
     buyFee: (j['buy_fee_pct'] ?? 1.5).toDouble(),
     sellFee: (j['sell_fee_pct'] ?? 1.5).toDouble(),
     networks: (j['networks'] as List? ?? []).map((n) => CoinNetwork.fromJson(n)).toList(),
@@ -61,26 +61,36 @@ class CryptoCoin {
   }
 
   bool get isUp => change24h >= 0;
+
+  CoinNetwork? get firstNetwork => networks.isNotEmpty ? networks.first : null;
 }
 
 class CoinNetwork {
   final int id;
-  final String name;
-  final String symbol;
+  final String name;  // e.g. "TRC20"
+  final String chain; // e.g. "TRON"
   final double withdrawalFee;
   final bool isActive;
 
-  const CoinNetwork({required this.id, required this.name, required this.symbol, required this.withdrawalFee, required this.isActive});
+  const CoinNetwork({
+    required this.id,
+    required this.name,
+    required this.chain,
+    required this.withdrawalFee,
+    required this.isActive,
+  });
 
   factory CoinNetwork.fromJson(Map<String, dynamic> j) => CoinNetwork(
     id: j['id'] ?? 0,
-    name: j['network_name'] ?? '',
-    symbol: j['network_symbol'] ?? '',
+    name: j['name'] ?? '',
+    chain: j['chain'] ?? '',
     withdrawalFee: (j['withdrawal_fee'] ?? 0).toDouble(),
     isActive: j['is_active'] == true,
   );
 }
 
+// Portfolio asset — maps from backend portfolio response
+// Backend: {coin: {id, symbol, name, ...}, balance, usd_value, wallets: [{address, balance, ...}]}
 class CryptoWalletBalance {
   final int coinId;
   final String symbol;
@@ -90,6 +100,7 @@ class CryptoWalletBalance {
   final double balanceUsd;
   final double priceUsd;
   final String depositAddress;
+  final int? networkId;
 
   const CryptoWalletBalance({
     required this.coinId,
@@ -100,18 +111,25 @@ class CryptoWalletBalance {
     required this.balanceUsd,
     required this.priceUsd,
     required this.depositAddress,
+    this.networkId,
   });
 
-  factory CryptoWalletBalance.fromJson(Map<String, dynamic> j) => CryptoWalletBalance(
-    coinId: j['coin_id'] ?? 0,
-    symbol: j['symbol'] ?? '',
-    name: j['name'] ?? '',
-    balance: (j['balance'] ?? 0).toDouble(),
-    lockedBalance: (j['locked_balance'] ?? 0).toDouble(),
-    balanceUsd: (j['balance_usd'] ?? 0).toDouble(),
-    priceUsd: (j['price_usd'] ?? 0).toDouble(),
-    depositAddress: j['deposit_address'] ?? '',
-  );
+  factory CryptoWalletBalance.fromJson(Map<String, dynamic> j) {
+    final coin = j['coin'] as Map<String, dynamic>? ?? {};
+    final wallets = j['wallets'] as List? ?? [];
+    final firstWallet = wallets.isNotEmpty ? wallets.first as Map<String, dynamic> : <String, dynamic>{};
+    return CryptoWalletBalance(
+      coinId: coin['id'] ?? 0,
+      symbol: coin['symbol'] ?? '',
+      name: coin['name'] ?? '',
+      balance: (j['balance'] ?? 0).toDouble(),
+      lockedBalance: (firstWallet['locked'] ?? 0).toDouble(),
+      balanceUsd: (j['usd_value'] ?? 0).toDouble(),
+      priceUsd: (coin['price_usd'] ?? 0).toDouble(),
+      depositAddress: firstWallet['address'] ?? '',
+      networkId: firstWallet['network_id'] as int?,
+    );
+  }
 }
 
 class CryptoOrder {
@@ -141,7 +159,7 @@ class CryptoOrder {
     uuid: j['uuid'] ?? '',
     side: j['side'] ?? '',
     coinSymbol: j['coin']?['symbol'] ?? '',
-    quantity: (j['quantity'] ?? 0).toDouble(),
+    quantity: (j['crypto_amount'] ?? 0).toDouble(),
     priceUsd: (j['price_usd'] ?? 0).toDouble(),
     totalUsd: (j['total_usd'] ?? 0).toDouble(),
     status: j['status'] ?? '',
@@ -239,8 +257,8 @@ class P2pOrder {
     priceUsd: (j['price_usd'] ?? 0).toDouble(),
     totalUsd: (j['total_usd'] ?? 0).toDouble(),
     paymentMethod: j['payment_method'] ?? '',
-    isBuyer: (j['buyer_id'] ?? 0) == myId,
-    counterpartyName: (j['buyer_id'] ?? 0) == myId
+    isBuyer: (j['buyer']?['id'] ?? 0) == myId,
+    counterpartyName: (j['buyer']?['id'] ?? 0) == myId
         ? (j['seller']?['name'] ?? 'Seller')
         : (j['buyer']?['name'] ?? 'Buyer'),
     paymentProof: j['payment_proof'],
