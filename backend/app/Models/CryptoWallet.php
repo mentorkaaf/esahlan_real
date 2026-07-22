@@ -26,14 +26,28 @@ class CryptoWallet extends Model
     public static function generateAddress(int $coinId): string
     {
         $coin = ExchangeCoin::find($coinId);
-        $hex  = Str::upper(bin2hex(random_bytes(20)));
+        $hex20 = bin2hex(random_bytes(20));
+        $hex32 = bin2hex(random_bytes(32));
         return match($coin?->symbol) {
-            'BTC'        => '1' . base_convert(Str::random(24), 16, 58),
-            'ETH','BNB'  => '0x' . $hex,
-            'SOL'        => base_convert(bin2hex(random_bytes(32)), 16, 58),
-            'XRP'        => 'r' . Str::random(33),
-            default      => 'T' . base_convert(bin2hex(random_bytes(20)), 16, 58),
+            'BTC'        => '1' . self::base58($hex20),
+            'ETH','BNB'  => '0x' . strtoupper($hex20),
+            'SOL'        => self::base58($hex32),
+            'XRP'        => 'r' . self::base58($hex20),
+            default      => 'T' . self::base58($hex20),  // USDT TRC20 style
         };
+    }
+
+    private static function base58(string $hex): string
+    {
+        $alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+        $num = gmp_init($hex, 16);
+        $result = '';
+        $base = gmp_init(58);
+        while (gmp_cmp($num, 0) > 0) {
+            [$num, $rem] = gmp_div_qr($num, $base);
+            $result = $alphabet[gmp_intval($rem)] . $result;
+        }
+        return $result ?: '1';
     }
 
     public function credit(float $amount, string $type, string $note = '', ?string $refType = null, ?int $refId = null): CryptoTransaction
