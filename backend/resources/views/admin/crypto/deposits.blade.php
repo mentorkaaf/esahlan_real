@@ -77,7 +77,7 @@
           <td style="font-size:10px;color:#94A3B8">{{ $d->id }}</td>
           <td style="font-weight:600">{{ $d->user->name ?? '-' }}<div style="font-size:10px;color:#94A3B8">{{ $d->user->phone ?? '' }}</div></td>
           <td style="font-weight:800">{{ $d->coin->symbol ?? '-' }}</td>
-          <td style="font-size:11px">{{ $d->network->network_name ?? '-' }}</td>
+          <td style="font-size:11px">{{ $d->network->name ?? '-' }}</td>
           <td style="text-align:right;font-variant-numeric:tabular-nums;font-weight:700">{{ number_format($d->amount,8) }}</td>
           <td style="font-size:10px;font-family:monospace;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ $d->txhash }}">{{ $d->txhash ?? '—' }}</td>
           <td style="text-align:right">{{ $d->confirmations ?? 0 }} / {{ $d->required_confirmations ?? 3 }}</td>

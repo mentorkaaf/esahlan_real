@@ -55,7 +55,7 @@
           <td style="font-weight:600">{{ $coin->name }}<div style="font-size:11px;color:#94A3B8;font-family:monospace">{{ $coin->coingecko_id }}</div></td>
           <td>
             @foreach($coin->networks as $n)
-            <span style="font-size:10px;background:#EEF2FF;color:#4338CA;padding:2px 7px;border-radius:20px;margin:1px;display:inline-block">{{ $n->network_name }}</span>
+            <span style="font-size:10px;background:#EEF2FF;color:#4338CA;padding:2px 7px;border-radius:20px;margin:1px;display:inline-block">{{ $n->name }}</span>
             @endforeach
           </td>
           <td style="text-align:right;font-variant-numeric:tabular-nums;font-weight:700">

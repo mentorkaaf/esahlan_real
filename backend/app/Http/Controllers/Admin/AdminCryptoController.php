@@ -82,13 +82,13 @@ class AdminCryptoController extends Controller
             $parts = array_map('trim', explode(',', $line));
             if (count($parts) >= 2 && $parts[0]) {
                 ExchangeNetwork::create([
-                    'coin_id'          => $coin->id,
-                    'network_name'     => $parts[0],
-                    'network_symbol'   => $parts[1] ?? $parts[0],
-                    'withdrawal_fee'   => $parts[2] ?? 1.0,
-                    'is_active'        => true,
-                    'is_deposit_enabled'    => true,
-                    'is_withdrawal_enabled' => true,
+                    'coin_id'            => $coin->id,
+                    'name'               => $parts[0],
+                    'chain'              => $parts[1] ?? $parts[0],
+                    'withdrawal_fee'     => $parts[2] ?? 1.0,
+                    'is_active'          => true,
+                    'deposit_enabled'    => true,
+                    'withdrawal_enabled' => true,
                 ]);
             }
         }
@@ -136,7 +136,25 @@ class AdminCryptoController extends Controller
     public function updateCoin(Request $request, int $id)
     {
         $coin = ExchangeCoin::findOrFail($id);
+
+        // Add network sub-action
+        if ($request->input('_action') === 'add_network') {
+            ExchangeNetwork::create([
+                'coin_id'        => $coin->id,
+                'name'           => $request->net_name,
+                'chain'          => $request->net_symbol ?? $request->net_name,
+                'withdrawal_fee' => $request->net_fee ?? 1.0,
+                'is_active'      => true,
+                'deposit_enabled'    => true,
+                'withdrawal_enabled' => true,
+            ]);
+            return back()->with('success', 'Network added.');
+        }
+
         $coin->update([
+            'name'               => $request->name ?? $coin->name,
+            'coingecko_id'       => $request->coingecko_id ?? $coin->coingecko_id,
+            'decimals'           => $request->decimals ?? $coin->decimals,
             'is_active'          => $request->boolean('is_active'),
             'buy_enabled'        => $request->boolean('buy_enabled'),
             'sell_enabled'       => $request->boolean('sell_enabled'),
@@ -145,7 +163,9 @@ class AdminCryptoController extends Controller
             'withdrawal_enabled' => $request->boolean('withdrawal_enabled'),
             'buy_fee_pct'        => $request->buy_fee_pct ?? $coin->buy_fee_pct,
             'sell_fee_pct'       => $request->sell_fee_pct ?? $coin->sell_fee_pct,
+            'min_deposit'        => $request->min_deposit ?? $coin->min_deposit,
             'min_withdrawal'     => $request->min_withdrawal ?? $coin->min_withdrawal,
+            'max_withdrawal'     => $request->max_withdrawal ?? $coin->max_withdrawal,
             'withdrawal_fee'     => $request->withdrawal_fee ?? $coin->withdrawal_fee,
         ]);
         return back()->with('success', "Coin {$coin->symbol} updated.");
