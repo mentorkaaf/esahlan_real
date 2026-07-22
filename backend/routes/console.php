@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Schedule;
 use App\Services\FeedRankingService;
+use App\Services\CryptoMarketService;
 
 // Recompute post quality scores every 5 minutes
 Schedule::call(fn () => FeedRankingService::recomputePostScores())
@@ -34,6 +35,12 @@ Schedule::command('feed:precompute --limit=500')
 Schedule::call(fn () => FeedRankingService::cleanupSeenPosts())
     ->daily()
     ->name('feed:cleanup-seen');
+
+// Refresh crypto prices from CoinGecko every 2 minutes
+Schedule::call(fn () => CryptoMarketService::refreshPrices())
+    ->everyTwoMinutes()
+    ->name('crypto:refresh-prices')
+    ->withoutOverlapping();
 
 // Clean up old interaction data weekly
 Schedule::call(fn () => FeedRankingService::cleanupOldInteractions())

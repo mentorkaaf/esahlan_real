@@ -73,6 +73,10 @@ use App\Http\Controllers\Api\Vendor\VendorWalletController;
 
 // ─── Modules ─────────────────────────────────────────────────────────────────
 use App\Http\Controllers\Api\Modules\EDataController;
+use App\Http\Controllers\Api\Crypto\CryptoMarketController;
+use App\Http\Controllers\Api\Crypto\CryptoWalletController;
+use App\Http\Controllers\Api\Crypto\CryptoBuySellController;
+use App\Http\Controllers\Api\Crypto\P2pController;
 use App\Http\Controllers\Api\Modules\EParcelController;
 use App\Http\Controllers\Api\Modules\EExchangeController;
 use App\Http\Controllers\Api\Modules\EMovingController;
@@ -537,6 +541,43 @@ Route::prefix('v1')->group(function () {
             Route::post('eparcel/order',        [EParcelController::class, 'createOrder']);
             Route::post('eexchange/transfer',   [EExchangeController::class, 'transfer']);
             Route::post('eexchange/confirm',    [EExchangeController::class, 'transfer']);    // alias used by Flutter
+
+            // ── Crypto Exchange ───────────────────────────────────────
+            Route::prefix('crypto')->group(function () {
+                $mc = CryptoMarketController::class;
+                $wc = CryptoWalletController::class;
+                $bc = CryptoBuySellController::class;
+                $pc = P2pController::class;
+                // Markets
+                Route::get('markets',                       [$mc,'index']);
+                Route::get('markets/{symbol}',              [$mc,'show']);
+                Route::get('markets/{symbol}/chart',        [$mc,'chart']);
+                // Wallet
+                Route::get('wallet/portfolio',              [$wc,'portfolio']);
+                Route::get('wallet/{symbol}/deposit',       [$wc,'depositAddress']);
+                Route::post('wallet/withdraw',              [$wc,'withdraw']);
+                Route::post('wallet/transfer',              [$wc,'transfer']);
+                Route::get('wallet/transactions',           [$wc,'transactions']);
+                // Buy/Sell
+                Route::post('quote',                        [$bc,'quote']);
+                Route::post('buy',                          [$bc,'buy']);
+                Route::post('sell',                         [$bc,'sell']);
+                Route::get('orders',                        [$bc,'orders']);
+                // P2P
+                Route::get('p2p/ads',                       [$pc,'ads']);
+                Route::post('p2p/ads',                      [$pc,'createAd']);
+                Route::get('p2p/ads/mine',                  [$pc,'myAds']);
+                Route::delete('p2p/ads/{uuid}',             [$pc,'cancelAd']);
+                Route::post('p2p/orders',                   [$pc,'placeOrder']);
+                Route::get('p2p/orders',                    [$pc,'myOrders']);
+                Route::get('p2p/orders/{uuid}',             [$pc,'orderDetail']);
+                Route::post('p2p/orders/{uuid}/paid',       [$pc,'markPaid']);
+                Route::post('p2p/orders/{uuid}/release',    [$pc,'releaseCrypto']);
+                Route::post('p2p/orders/{uuid}/cancel',     [$pc,'cancelOrder']);
+                Route::post('p2p/orders/{uuid}/dispute',    [$pc,'openDispute']);
+                Route::get('p2p/orders/{uuid}/messages',    [$pc,'orderMessages']);
+                Route::post('p2p/orders/{uuid}/messages',   [$pc,'sendMessage']);
+            });
             Route::post('emoving/order',        [EMovingController::class, 'createOrder']);
             Route::get('emoving/my-orders',     [EMovingController::class, 'myOrders']);
             Route::post('elaundry/order',       [ELaundryController::class, 'createOrder']);

@@ -28,6 +28,7 @@ use App\Http\Controllers\Admin\AdminEFoodController;
 use App\Http\Controllers\Admin\AdminWalletController;
 use App\Http\Controllers\Admin\AdminLandingController;
 use App\Http\Controllers\Admin\AdminExchangeController;
+use App\Http\Controllers\Admin\AdminCryptoController;
 use App\Http\Controllers\Admin\AdminELearningController;
 use App\Http\Controllers\Employee\EmployeeAuthController;
 use App\Http\Controllers\Employee\EmployeeController;
@@ -655,7 +656,41 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/settings',                      [$wc, 'saveSettings'])->name('settings.save');
         });
 
-        // eExchange Orders
+        // ── Crypto Exchange Admin ─────────────────────────────────────────────
+        Route::prefix('crypto')->name('crypto.')->group(function () {
+            $cc = AdminCryptoController::class;
+            Route::get('/',                              [$cc,'dashboard'])->name('dashboard');
+            // Coins
+            Route::get('/coins',                         [$cc,'coins'])->name('coins');
+            Route::post('/coins',                        [$cc,'storeCoin'])->name('coins.store');
+            Route::patch('/coins/{id}/toggle',           [$cc,'toggleCoin'])->name('coins.toggle');
+            Route::get('/coins/{id}/settings',           [$cc,'coinSettings'])->name('coins.settings');
+            Route::post('/coins/{id}',                   [$cc,'updateCoin'])->name('coins.update');
+            Route::post('/coins/spread',                 [$cc,'updateSpreads'])->name('coins.spread');
+            Route::post('/coins/{id}/price',             [$cc,'updatePrice'])->name('coins.price');
+            Route::post('/prices/refresh',               [$cc,'refreshPrices'])->name('prices.refresh');
+            Route::post('/prices/override',              [$cc,'overridePrice'])->name('prices.override');
+            // Orders
+            Route::get('/orders',                        [$cc,'orders'])->name('orders');
+            // Deposits
+            Route::get('/deposits',                      [$cc,'deposits'])->name('deposits');
+            Route::patch('/deposits/{id}/approve',       [$cc,'approveDeposit'])->name('deposits.approve');
+            Route::patch('/deposits/{id}/reject',        [$cc,'rejectDeposit'])->name('deposits.reject');
+            // Withdrawals
+            Route::get('/withdrawals',                   [$cc,'withdrawals'])->name('withdrawals');
+            Route::patch('/withdrawals/{id}/approve',    [$cc,'approveWithdrawal'])->name('withdrawals.approve');
+            Route::patch('/withdrawals/{id}/process',    [$cc,'processWithdrawal'])->name('withdrawals.process');
+            Route::patch('/withdrawals/{id}/reject',     [$cc,'rejectWithdrawal'])->name('withdrawals.reject');
+            // P2P
+            Route::get('/p2p',                           [$cc,'p2p'])->name('p2p');
+            Route::patch('/p2p/{orderId}/resolve',       [$cc,'p2pResolve'])->name('p2p.resolve');
+            Route::patch('/p2p/{orderId}/release',       [$cc,'escrowRelease'])->name('p2p.release');
+            Route::patch('/p2p/{orderId}/refund',        [$cc,'escrowRefund'])->name('p2p.refund');
+            Route::patch('/p2p/ads/{id}/disable',        [$cc,'disableAd'])->name('p2p.disableAd');
+            Route::get('/settings',                      [$cc,'settings'])->name('settings');
+        });
+
+        // eExchange Orders (local currency swap — existing)
         Route::prefix('exchange')->name('exchange.')->group(function () {
             Route::get('/',              [AdminExchangeController::class, 'index'])->name('index');
             Route::post('/bulk-delete',  [AdminExchangeController::class, 'bulkDestroy'])->name('bulk-destroy');
