@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Schedule;
 use App\Services\FeedRankingService;
 use App\Services\CryptoMarketService;
+use App\Jobs\ScanCryptoDeposits;
 
 // Recompute post quality scores every 5 minutes
 Schedule::call(fn () => FeedRankingService::recomputePostScores())
@@ -41,6 +42,13 @@ Schedule::call(fn () => CryptoMarketService::refreshPrices())
     ->everyTwoMinutes()
     ->name('crypto:refresh-prices')
     ->withoutOverlapping();
+
+// Scan blockchain for new crypto deposits every minute
+Schedule::job(new ScanCryptoDeposits)
+    ->everyMinute()
+    ->name('crypto:scan-deposits')
+    ->withoutOverlapping()
+    ->runInBackground();
 
 // Auto-cancel expired P2P orders every 5 minutes
 Schedule::call(function () {

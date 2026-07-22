@@ -10,6 +10,7 @@ use App\Models\CryptoTransaction;
 use App\Models\ExchangeCoin;
 use App\Models\ExchangeNetwork;
 use App\Services\CryptoMarketService;
+use App\Services\CryptoNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -149,10 +150,7 @@ class CryptoWalletController extends Controller
             'status'     => 'pending',
         ]);
 
-        // FCM
-        try {
-            if ($user->fcm_token) \App\Services\FcmService::sendToToken($user->fcm_token,'Withdrawal Submitted',"Your {$coin->symbol} withdrawal of {$amount} is under review.",[],null);
-        } catch (\Throwable) {}
+        CryptoNotificationService::withdrawalSubmitted($user, $amount, $coin->symbol, $request->address);
 
         return response()->json(['success'=>true,'message'=>'Withdrawal submitted. Admin will process it shortly.','data'=>['uuid'=>$wd->uuid,'status'=>'pending']]);
     }
@@ -185,9 +183,8 @@ class CryptoWalletController extends Controller
         $toWallet = CryptoWallet::getOrCreate($recipient->id, $coin->id, $network->id);
         $toWallet->credit($amount,'transfer_in',"Transfer from {$user->name}",'user_transfer',null);
 
-        try {
-            if ($recipient->fcm_token) \App\Services\FcmService::sendToToken($recipient->fcm_token,'Crypto Received',"{$user->name} sent you {$amount} {$coin->symbol}",[],null);
-        } catch (\Throwable) {}
+        CryptoNotificationService::transferSent($user, $amount, $coin->symbol, $recipient->name);
+        CryptoNotificationService::transferReceived($recipient, $amount, $coin->symbol, $user->name);
 
         return response()->json(['success'=>true,'message'=>'Transfer successful']);
     }

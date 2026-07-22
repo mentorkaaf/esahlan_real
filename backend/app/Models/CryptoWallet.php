@@ -2,6 +2,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Services\CryptoAddressService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -19,39 +20,38 @@ class CryptoWallet extends Model
     {
         return self::firstOrCreate(
             ['user_id'=>$userId,'coin_id'=>$coinId,'network_id'=>$networkId],
-            ['address'=>self::generateAddress($coinId),'balance'=>0]
+            ['address'=>self::generateAddress($coinId, $userId, $networkId),'balance'=>0]
         );
     }
 
-    public static function generateAddress(int $coinId): string
+    public static function generateAddress(int $coinId, int $userId = 0, ?int $networkId = null): string
     {
-        $coin  = ExchangeCoin::find($coinId);
-        $hex20 = bin2hex(random_bytes(20));
-        $hex32 = bin2hex(random_bytes(32));
-        return match($coin?->symbol) {
-            'BTC'       => '1' . self::hexToBase58($hex20),
-            'ETH','BNB' => '0x' . strtoupper($hex20),
-            'SOL'       => self::hexToBase58($hex32),
-            'XRP'       => 'r' . self::hexToBase58($hex20),
-            default     => 'T' . self::hexToBase58($hex20),
-        };
-    }
+        $coin    = ExchangeCoin::find($coinId);
+        $network = $networkId ? \App\Models\ExchangeNetwork::find($networkId) : null;
+        $chain   = strtoupper($network?->chain ?? '');
+        $symbol  = strtoupper($coin?->symbol ?? '');
 
-    private static function hexToBase58(string $hex): string
-    {
-        $alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-        // Convert hex → decimal string using bcmath (always available in Laravel)
-        $decimal = '0';
-        for ($i = 0; $i < strlen($hex); $i++) {
-            $decimal = bcadd(bcmul($decimal, '16'), (string) hexdec($hex[$i]));
+        // Use real secp256k1 derivation if GMP is available and user ID is provided
+        if ($userId > 0 && extension_loaded('gmp')) {
+            try {
+                if (str_contains($chain, 'TRC') || $chain === 'TRON' || $symbol === 'TRX') {
+                    return CryptoAddressService::getTronAddress($userId);
+                }
+                if (str_contains($chain, 'ERC') || $symbol === 'ETH') {
+                    return CryptoAddressService::getEthAddress($userId);
+                }
+                if (str_contains($chain, 'BEP') || $symbol === 'BNB') {
+                    return CryptoAddressService::getBscAddress($userId);
+                }
+                // Default: use Tron-style for USDT (most common)
+                return CryptoAddressService::getTronAddress($userId);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[CryptoWallet] Address derivation failed: ' . $e->getMessage());
+            }
         }
-        $result = '';
-        while (bccomp($decimal, '0') > 0) {
-            $rem     = (int) bcmod($decimal, '58');
-            $result  = $alphabet[$rem] . $result;
-            $decimal = bcdiv($decimal, '58', 0);
-        }
-        return $result ?: '1';
+
+        // Fallback (should not happen in production with GMP)
+        return 'T' . strtoupper(bin2hex(random_bytes(20)));
     }
 
     public function credit(float $amount, string $type, string $note = '', ?string $refType = null, ?int $refId = null): CryptoTransaction

@@ -9,6 +9,7 @@ use App\Models\ExchangeCoin;
 use App\Models\ExchangeNetwork;
 use App\Models\Wallet;
 use App\Services\CryptoMarketService;
+use App\Services\CryptoNotificationService;
 use App\Services\FcmService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -100,9 +101,9 @@ class CryptoBuySellController extends Controller
         if ($order->status === 'completed') {
             $cryptoWallet = CryptoWallet::getOrCreate($user->id, $coin->id, $network->id);
             $cryptoWallet->credit($cryptoAmt, 'buy', "Bought at \${$price}", 'crypto_order', $order->id);
-            try {
-                if ($user->fcm_token) FcmService::sendToToken($user->fcm_token,'Buy Order Completed',"You bought {$cryptoAmt} {$coin->symbol} for \${$amountUsd}",[],null);
-            } catch (\Throwable) {}
+            CryptoNotificationService::buyCompleted($user, $cryptoAmt, $coin->symbol, $amountUsd);
+        } else {
+            CryptoNotificationService::buyPending($user, $cryptoAmt, $coin->symbol, $amountUsd);
         }
 
         return response()->json(['success'=>true,'message'=> $order->status === 'completed' ? "Successfully bought {$cryptoAmt} {$coin->symbol}" : 'Order placed. Awaiting payment confirmation.','data'=>[
@@ -166,11 +167,11 @@ class CryptoBuySellController extends Controller
             ? "Successfully sold {$cryptoAmt} {$coin->symbol} for \${$netUsd}"
             : "Sell order placed. You will receive \${$netUsd} once admin confirms payment.";
 
-        try {
-            if ($user->fcm_token) FcmService::sendToToken($user->fcm_token,
-                $order->status === 'completed' ? 'Sell Order Completed' : 'Sell Order Placed',
-                $statusMsg,[],null);
-        } catch (\Throwable) {}
+        if ($order->status === 'completed') {
+            CryptoNotificationService::sellCompleted($user, $cryptoAmt, $coin->symbol, $netUsd);
+        } else {
+            CryptoNotificationService::sellPending($user, $cryptoAmt, $coin->symbol);
+        }
 
         return response()->json(['success'=>true,'message'=>$statusMsg,'data'=>[
             'uuid'=>$order->uuid,'net_usd'=>$netUsd,'fee_usd'=>$feeUsd,'status'=>$order->status,
