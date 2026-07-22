@@ -11,6 +11,7 @@ import '../../payment/waafi_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
+import 'crypto/crypto_exchange_screen.dart';
 
 final _svc = ModuleApiService.create();
 final _exchangeRatesProvider = FutureProvider((_) => _svc.getExchangeRates());
@@ -76,16 +77,24 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
   Widget build(BuildContext context) {
     final ratesAsync = ref.watch(_exchangeRatesProvider);
 
-    return Scaffold(
-            appBar: AppBar(
-                leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.colors.navyText),
-          onPressed: () => context.pop(),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.colors.navyText),
+            onPressed: () => context.pop(),
+          ),
+          title: Text('eExchange', style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText, fontFamily: 'Cairo')),
+          bottom: const TabBar(
+            tabs: [Tab(text: 'Local'), Tab(text: 'Crypto')],
+            labelStyle: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+          ),
         ),
-        title: Text('eExchange',
-            style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText, fontFamily: 'Cairo')),
-      ),
-      body: SingleChildScrollView(
+        body: TabBarView(
+          children: [
+            // ── Local Exchange (existing) ────────────────
+            SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(children: [
 
@@ -211,6 +220,11 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
 
           const SizedBox(height: 40),
         ]),
+      ),
+            // ── Crypto Exchange (new) ──────────────────────
+            const CryptoExchangeScreen(),
+          ],
+        ),
       ),
     );
   }
