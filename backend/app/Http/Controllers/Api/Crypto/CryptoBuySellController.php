@@ -11,6 +11,7 @@ use App\Models\Wallet;
 use App\Services\CryptoMarketService;
 use App\Services\FcmService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class CryptoBuySellController extends Controller
@@ -64,13 +65,22 @@ class CryptoBuySellController extends Controller
         $netUsd     = $amountUsd - $feeUsd;
         $cryptoAmt  = round($netUsd / $price, $coin->decimals);
 
-        // Deduct ePay wallet
+        // Payment verification
         if ($request->payment_method === 'epay') {
             $wallet = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
-            if ($wallet->balance < $amountUsd) return response()->json(['success'=>false,'message'=>'Insufficient ePay balance'],422);
+            if ($wallet->balance < $amountUsd) return response()->json(['success'=>false,'message'=>'Insufficient ePay balance. Your balance: $'.number_format($wallet->balance,2)],422);
             $wallet->debit($amountUsd, "Buy {$cryptoAmt} {$coin->symbol}", 'crypto_order', null);
+        } elseif ($request->payment_method === 'waafi_pay') {
+            if (!$request->payment_reference) return response()->json(['success'=>false,'message'=>'WaafiPay reference required'],422);
+            $ptx = DB::table('payment_transactions')
+                ->where('reference', $request->payment_reference)
+                ->where('user_id', $user->id)
+                ->where('status', 'success')
+                ->first();
+            if (!$ptx) return response()->json(['success'=>false,'message'=>'WaafiPay payment not confirmed. Please try again.'],422);
         }
 
+        $isInstant = in_array($request->payment_method, ['epay','waafi_pay']);
         $order = CryptoOrder::create([
             'uuid'             => (string) Str::uuid(),
             'user_id'          => $user->id,
@@ -83,10 +93,10 @@ class CryptoBuySellController extends Controller
             'fee_pct'          => $feePct,
             'payment_method'   => $request->payment_method,
             'payment_reference'=> $request->payment_reference,
-            'status'           => $request->payment_method === 'epay' ? 'completed' : 'pending',
+            'status'           => $isInstant ? 'completed' : 'pending',
         ]);
 
-        // Credit crypto wallet immediately for ePay
+        // Credit crypto wallet immediately for instant payments
         if ($order->status === 'completed') {
             $cryptoWallet = CryptoWallet::getOrCreate($user->id, $coin->id, $network->id);
             $cryptoWallet->credit($cryptoAmt, 'buy', "Bought at \${$price}", 'crypto_order', $order->id);
@@ -131,6 +141,7 @@ class CryptoBuySellController extends Controller
 
         $cryptoWallet->debit($cryptoAmt,'sell',"Sell for \${$netUsd}",0,'crypto_order',null);
 
+        $sellInstant = in_array($request->receive_method, ['epay','waafi_pay']);
         $order = CryptoOrder::create([
             'uuid'          => (string) Str::uuid(),
             'user_id'       => $user->id,
@@ -142,11 +153,10 @@ class CryptoBuySellController extends Controller
             'fee_usd'       => $feeUsd,
             'fee_pct'       => $feePct,
             'payment_method'=> $request->receive_method,
-            // ePay: complete immediately. Mobile money: pending admin approval
-            'status'        => $request->receive_method === 'epay' ? 'completed' : 'pending',
+            'status'        => $sellInstant ? 'completed' : 'pending',
         ]);
 
-        // Credit ePay wallet immediately
+        // Credit ePay wallet immediately for sell via epay
         if ($request->receive_method === 'epay') {
             $ePayWallet = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
             $ePayWallet->credit($netUsd,"Sold {$cryptoAmt} {$coin->symbol}",'crypto_order',$order->id,'wallet');

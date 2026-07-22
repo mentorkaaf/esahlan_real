@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import '../../../../core/api/module_api_service.dart';
+import '../../../payment/waafi_pay_sheet.dart';
 import 'crypto_theme.dart';
 import 'crypto_models.dart';
 import 'crypto_providers.dart';
 import 'crypto_widgets.dart';
+
+// Provider: fetch ePay balance
+final _ePayBalanceProvider = FutureProvider.autoDispose<double>((ref) async {
+  final svc = ModuleApiService.create();
+  final res = await svc.getWallet();
+  return (res['data']?['balance'] ?? res['balance'] ?? 0).toDouble();
+});
 
 class CryptoBuySellScreen extends ConsumerStatefulWidget {
   const CryptoBuySellScreen({super.key, this.initialCoin});
@@ -31,15 +40,17 @@ class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
 
   double get _rate => _selectedCoin?.priceUsd ?? 0;
   double get _inputAmt => double.tryParse(_amountCtrl.text) ?? 0;
-  double get _spread => _rate * 0.01; // 1% spread
-  double get _fee   => _inputAmt * 0.005; // 0.5%
+  double get _spread => _rate * (_selectedCoin?.buyFee ?? 1) / 100;
+  double get _fee   => _inputAmt * (_selectedCoin?.buyFee ?? 0.5) / 100;
 
   double get _youReceive {
     if (_isBuy) {
-      return _rate > 0 ? (_inputAmt / (_rate + _spread)) : 0;
+      final effectiveRate = _rate + _spread;
+      return effectiveRate > 0 ? (_inputAmt - _fee) / effectiveRate : 0;
     } else {
       final gross = _inputAmt * (_rate - _spread);
-      return gross - (gross * 0.005);
+      final sellFee = gross * (_selectedCoin?.sellFee ?? 0.5) / 100;
+      return gross - sellFee;
     }
   }
 
@@ -50,41 +61,67 @@ class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
   }
 
   Future<void> _submit() async {
-    if (_selectedCoin == null) {
-      Fluttertoast.showToast(msg: 'Select a coin first');
-      return;
+    if (_selectedCoin == null) { Fluttertoast.showToast(msg: 'Select a coin first'); return; }
+    if (_inputAmt <= 0)        { Fluttertoast.showToast(msg: 'Enter amount'); return; }
+    final netId = _selectedNetwork?.id;
+    if (netId == null)         { Fluttertoast.showToast(msg: 'Select a network first'); return; }
+
+    // ePay: check balance
+    if (_payMethod == 'epay') {
+      final balAsync = ref.read(_ePayBalanceProvider);
+      final bal = balAsync.valueOrNull ?? 0;
+      if (bal < _inputAmt) {
+        Fluttertoast.showToast(
+          msg: 'Insufficient ePay balance (\$${bal.toStringAsFixed(2)}). Need \$${_inputAmt.toStringAsFixed(2)}',
+          toastLength: Toast.LENGTH_LONG,
+        );
+        return;
+      }
     }
-    if (_inputAmt <= 0) {
-      Fluttertoast.showToast(msg: 'Enter amount');
-      return;
+
+    // WaafiPay: show payment sheet first
+    String? waafiRef;
+    if (_payMethod == 'waafi_pay') {
+      final result = await showWaafiPaySheet(
+        context,
+        amount: _inputAmt,
+        type: 'order',
+        description: _isBuy
+            ? 'Buy ${_selectedCoin!.symbol}'
+            : 'Sell ${_selectedCoin!.symbol}',
+      );
+      if (result == null || !result.success) return;
+      waafiRef = result.reference;
     }
+
     setState(() => _loading = true);
     try {
       final repo = ref.read(cryptoRepositoryProvider);
-      final netId = _selectedNetwork?.id;
-      if (netId == null) throw Exception('Select a network first');
       if (_isBuy) {
         await repo.buy(
           symbol: _selectedCoin!.symbol,
           networkId: netId,
           amountUsd: _inputAmt,
           paymentMethod: _payMethod,
+          paymentReference: waafiRef,
         );
-        Fluttertoast.showToast(msg: 'Buy order placed!');
+        Fluttertoast.showToast(msg: '✅ Buy order completed!');
       } else {
         await repo.sell(
           symbol: _selectedCoin!.symbol,
           networkId: netId,
-          cryptoAmount: _youReceive,
+          cryptoAmount: _inputAmt,
           receiveMethod: _payMethod,
         );
-        Fluttertoast.showToast(msg: 'Sell order placed!');
+        Fluttertoast.showToast(msg: '✅ Sell order completed!');
       }
       _amountCtrl.clear();
       ref.invalidate(cryptoPortfolioProvider);
       ref.invalidate(cryptoWalletProvider);
+      ref.invalidate(_ePayBalanceProvider);
     } catch (e) {
-      Fluttertoast.showToast(msg: e.toString());
+      final msg = e.toString().replaceAll('Exception: ', '');
+      Fluttertoast.showToast(msg: msg, toastLength: Toast.LENGTH_LONG);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -92,7 +129,8 @@ class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final marketsAsync = ref.watch(cryptoMarketsProvider);
+    final marketsAsync   = ref.watch(cryptoMarketsProvider);
+    final ePayBalAsync   = ref.watch(_ePayBalanceProvider);
 
     if (_selectedCoin == null && widget.initialCoin != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _onCoinChanged(widget.initialCoin!));
@@ -105,31 +143,19 @@ class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
       });
     }
 
-    final isStandalone = widget.initialCoin != null ||
-        ModalRoute.of(context)?.settings.name != null;
-
     return Scaffold(
-      appBar: isStandalone
-          ? AppBar(title: const Text('Buy / Sell'))
-          : null,
+      appBar: AppBar(title: const Text('Buy / Sell')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (!isStandalone)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 16, top: 8),
-                child: Text('Buy / Sell',
-                    style: TextStyle(color: kCryptoText, fontSize: 18, fontWeight: FontWeight.w800)),
-              ),
-
             // Buy / Sell toggle
             Container(
               decoration: BoxDecoration(
-                color: kCryptoCard,
+                color: cCard(context),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: kCryptoBorder),
+                border: Border.all(color: cBd(context)),
               ),
               child: Row(
                 children: [
@@ -143,11 +169,11 @@ class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
             const SizedBox(height: 20),
 
             // Coin selector
-            const Text('Select Coin', style: TextStyle(color: kCryptoMuted, fontSize: 12)),
+            Text('Select Coin', style: TextStyle(color: cMt(context), fontSize: 12)),
             const SizedBox(height: 6),
             marketsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator(color: kCryptoPrimary)),
-              error: (_, __) => const Text('Failed to load coins', style: TextStyle(color: kCryptoRed)),
+              error: (_, __) => Text('Failed to load coins', style: TextStyle(color: kCryptoRed)),
               data: (coins) => _CoinDropdown(
                 coins: coins,
                 selected: _selectedCoin,
@@ -156,9 +182,9 @@ class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Network selector (visible when coin has multiple networks)
+            // Network selector
             if (_selectedCoin != null && _selectedCoin!.networks.length > 1) ...[
-              const Text('Network', style: TextStyle(color: kCryptoMuted, fontSize: 12)),
+              Text('Network', style: TextStyle(color: cMt(context), fontSize: 12)),
               const SizedBox(height: 6),
               _NetworkDropdown(
                 networks: _selectedCoin!.networks.where((n) => n.isActive).toList(),
@@ -169,29 +195,30 @@ class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
             ],
 
             // Amount input
-            const Text('Amount (USD)', style: TextStyle(color: kCryptoMuted, fontSize: 12)),
+            Text(_isBuy ? 'Amount (USD)' : 'Amount (${_selectedCoin?.symbol ?? 'Crypto'})',
+                style: TextStyle(color: cMt(context), fontSize: 12)),
             const SizedBox(height: 6),
             TextField(
               controller: _amountCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(color: kCryptoText, fontSize: 15),
+              style: TextStyle(color: cTx(context), fontSize: 15),
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: '0.00',
-                hintStyle: const TextStyle(color: kCryptoMuted),
-                prefixText: '\$ ',
-                prefixStyle: const TextStyle(color: kCryptoMuted),
-                suffixText: 'USD',
+                hintStyle: TextStyle(color: cMt(context)),
+                prefixText: _isBuy ? '\$ ' : '',
+                prefixStyle: TextStyle(color: cMt(context)),
+                suffixText: _isBuy ? 'USD' : (_selectedCoin?.symbol ?? ''),
                 suffixStyle: const TextStyle(color: kCryptoPrimary, fontWeight: FontWeight.w600),
                 filled: true,
-                fillColor: kCryptoCard,
+                fillColor: cCard(context),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: kCryptoBorder),
+                  borderSide: BorderSide(color: cBd(context)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: kCryptoBorder),
+                  borderSide: BorderSide(color: cBd(context)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -208,9 +235,9 @@ class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
               children: [50, 100, 200, 500].map((v) => GestureDetector(
                 onTap: () => setState(() => _amountCtrl.text = v.toString()),
                 child: Chip(
-                  label: Text('\$$v', style: const TextStyle(color: kCryptoText, fontSize: 11)),
-                  backgroundColor: kCryptoCard,
-                  side: const BorderSide(color: kCryptoBorder),
+                  label: Text('\$$v', style: TextStyle(color: cTx(context), fontSize: 11)),
+                  backgroundColor: cCard(context),
+                  side: BorderSide(color: cBd(context)),
                   padding: EdgeInsets.zero,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
@@ -218,7 +245,7 @@ class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Live calculation card
+            // Live calc
             if (_selectedCoin != null && _inputAmt > 0)
               _LiveCalc(
                 isBuy: _isBuy,
@@ -231,17 +258,20 @@ class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
             const SizedBox(height: 16),
 
             // Payment method
-            const Text('Payment Method', style: TextStyle(color: kCryptoMuted, fontSize: 12)),
+            Text('Payment Method', style: TextStyle(color: cMt(context), fontSize: 12)),
             const SizedBox(height: 8),
             _PayMethodSelector(
               selected: _payMethod,
               isBuy: _isBuy,
+              ePayBalance: ePayBalAsync.valueOrNull ?? 0,
               onChanged: (v) => setState(() => _payMethod = v),
             ),
             const SizedBox(height: 24),
 
             CryptoPrimaryButton(
-              label: _isBuy ? 'Buy ${_selectedCoin?.symbol ?? ''}' : 'Sell ${_selectedCoin?.symbol ?? ''}',
+              label: _isBuy
+                  ? 'Buy ${_selectedCoin?.symbol ?? ''}'
+                  : 'Sell ${_selectedCoin?.symbol ?? ''}',
               onPressed: _loading ? null : _submit,
               isLoading: _loading,
               color: _isBuy ? kCryptoGreen : kCryptoRed,
@@ -339,6 +369,7 @@ class _LiveCalc extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final feePct = isBuy ? coin.buyFee : coin.sellFee;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -348,10 +379,10 @@ class _LiveCalc extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _Row(label: 'Market Price', value: cryptoCoinPrice(coin.priceUsd)),
-          _Row(label: 'Spread (1%)',  value: cryptoCoinPrice(spread)),
-          _Row(label: 'Fee (0.5%)',   value: '\$${fee.toStringAsFixed(4)}'),
-          const Divider(color: kCryptoBorder),
+          _Row(label: 'Market Price',      value: cryptoCoinPrice(coin.priceUsd)),
+          _Row(label: 'Spread (${feePct.toStringAsFixed(1)}%)', value: cryptoCoinPrice(spread)),
+          _Row(label: 'Fee (${feePct.toStringAsFixed(1)}%)',    value: '\$${fee.toStringAsFixed(4)}'),
+          Divider(color: cBd(context)),
           _Row(
             label: 'You will receive',
             value: isBuy
@@ -414,7 +445,7 @@ class _ToggleBtn extends StatelessWidget {
         child: Text(label,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: active ? color : kCryptoMuted,
+            color: active ? color : cMt(context),
             fontWeight: FontWeight.w700,
             fontSize: 14,
           ),
@@ -427,16 +458,26 @@ class _ToggleBtn extends StatelessWidget {
 // ── Payment method ────────────────────────────────────────────────────────────
 
 class _PayMethodSelector extends StatelessWidget {
-  const _PayMethodSelector({required this.selected, required this.isBuy, required this.onChanged});
+  const _PayMethodSelector({
+    required this.selected, required this.isBuy,
+    required this.ePayBalance, required this.onChanged,
+  });
   final String selected;
   final bool isBuy;
+  final double ePayBalance;
   final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final methods = isBuy
-        ? [('epay', 'ePay Wallet', 'Instant >'), ('waafi', 'WaafiPay', 'Instant >')]
-        : [('epay', 'ePay Wallet', 'Instant >'), ('bank', 'Bank Transfer', '1-2 days')];
+        ? [
+            ('epay',      'ePay Wallet',  'Balance: \$${ePayBalance.toStringAsFixed(2)}', Icons.account_balance_wallet_outlined),
+            ('waafi_pay', 'Waafi Pay',    'EVC / eDahab / Jeep / Premier',                Icons.phone_android_rounded),
+          ]
+        : [
+            ('epay',      'ePay Wallet',  'Instant credit to ePay',                       Icons.account_balance_wallet_outlined),
+            ('waafi_pay', 'Waafi Pay',    'Receive to mobile money',                       Icons.phone_android_rounded),
+          ];
 
     return Column(
       children: methods.map((m) {
@@ -448,9 +489,9 @@ class _PayMethodSelector extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: kCryptoCard,
+              color: cCard(context),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: isSelected ? kCryptoPrimary : kCryptoBorder),
+              border: Border.all(color: isSelected ? kCryptoPrimary : cBd(context)),
             ),
             child: Row(
               children: [
@@ -459,21 +500,30 @@ class _PayMethodSelector extends StatelessWidget {
                   width: 18, height: 18,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: isSelected ? kCryptoPrimary : kCryptoMuted, width: 2),
+                    border: Border.all(color: isSelected ? kCryptoPrimary : cMt(context), width: 2),
                     color: isSelected ? kCryptoPrimary : Colors.transparent,
                   ),
                   child: isSelected ? const Icon(Icons.check, size: 11, color: Colors.white) : null,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
+                Icon(m.$4, color: isSelected ? kCryptoPrimary : cMt(context), size: 18),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: Text(m.$2,
-                      style: TextStyle(
-                        color: isSelected ? kCryptoText : kCryptoMuted,
-                        fontSize: 13,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      )),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(m.$2,
+                          style: TextStyle(
+                            color: isSelected ? cTx(context) : cMt(context),
+                            fontSize: 13,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          )),
+                      Text(m.$3,
+                          style: TextStyle(color: cMt(context), fontSize: 10)),
+                    ],
+                  ),
                 ),
-                Text(m.$3, style: const TextStyle(color: kCryptoPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
+                const Icon(Icons.chevron_right_rounded, color: kCryptoPrimary, size: 18),
               ],
             ),
           ),

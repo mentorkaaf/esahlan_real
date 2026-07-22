@@ -6,6 +6,8 @@ import 'crypto_providers.dart';
 import 'crypto_widgets.dart';
 import 'crypto_deposit_screen.dart';
 import 'crypto_buy_sell_screen.dart';
+import 'crypto_withdraw_screen.dart';
+import 'crypto_transfer_screen.dart';
 
 class CryptoWalletScreen extends ConsumerStatefulWidget {
   const CryptoWalletScreen({super.key});
@@ -62,6 +64,11 @@ class _CryptoWalletScreenState extends ConsumerState<CryptoWalletScreen>
                   }),
                   onBuySell: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const CryptoBuySellScreen())),
+                  onWithdraw: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CryptoWithdrawScreen())),
+                  onTransfer: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CryptoTransferScreen())),
+                  onHistory: () => _tabCtrl.animateTo(1),
                 ),
               ),
 
@@ -131,9 +138,16 @@ class _CryptoWalletScreenState extends ConsumerState<CryptoWalletScreen>
 // ── Balance Card ──────────────────────────────────────────────────────────────
 
 class _BalanceCard extends StatelessWidget {
-  const _BalanceCard({required this.data, required this.onDeposit, required this.onBuySell});
+  const _BalanceCard({
+    required this.data,
+    required this.onDeposit,
+    required this.onBuySell,
+    required this.onWithdraw,
+    required this.onTransfer,
+    required this.onHistory,
+  });
   final Map<String, dynamic> data;
-  final VoidCallback onDeposit, onBuySell;
+  final VoidCallback onDeposit, onBuySell, onWithdraw, onTransfer, onHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -176,9 +190,9 @@ class _BalanceCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _CardAction(icon: Icons.arrow_downward, label: 'Deposit',  onTap: onDeposit),
-              _CardAction(icon: Icons.arrow_upward,   label: 'Withdraw', onTap: () {}),
-              _CardAction(icon: Icons.swap_horiz,     label: 'Transfer', onTap: () {}),
-              _CardAction(icon: Icons.history,        label: 'History',  onTap: () {}),
+              _CardAction(icon: Icons.arrow_upward,   label: 'Withdraw', onTap: onWithdraw),
+              _CardAction(icon: Icons.swap_horiz,     label: 'Transfer', onTap: onTransfer),
+              _CardAction(icon: Icons.history,        label: 'History',  onTap: onHistory),
             ],
           ),
         ],
