@@ -126,6 +126,19 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
           }
         }
       });
+    } else if (event == 'status_update') {
+      final newStatus = data['status'] as String?;
+      if (newStatus != null && mounted) {
+        final c = _conv ?? widget.conversation;
+        setState(() {
+          _conv = InboxConversation(
+            uuid: c.uuid, module: c.module, subject: c.subject,
+            status: newStatus, priority: c.priority,
+            lastMessage: c.lastMessage, lastMessageAt: c.lastMessageAt,
+            unread: c.unread, agent: c.agent, createdAt: c.createdAt,
+          );
+        });
+      }
     } else if (event == 'call_initiated') {
       _onIncomingCall(data);
     } else if (data.containsKey('uuid')) {
@@ -227,7 +240,8 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
       final token = data['token'] as String? ?? '';
       if (url.isEmpty || token.isEmpty) {
         _toast('Audio call not available yet');
-        _callInitiatedByMe = false;
+        // Keep flag true for 3s to absorb any late Reverb echo, then clear
+        Future.delayed(const Duration(seconds: 3), () { _callInitiatedByMe = false; });
         return;
       }
       _room = Room();
@@ -236,7 +250,7 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
       if (mounted) setState(() => _inCall = true);
     } catch (_) {
       _toast('Could not start call');
-      _callInitiatedByMe = false;
+      Future.delayed(const Duration(seconds: 3), () { _callInitiatedByMe = false; });
     }
   }
 

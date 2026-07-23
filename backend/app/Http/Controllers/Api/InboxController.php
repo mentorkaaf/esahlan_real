@@ -19,6 +19,11 @@ class InboxController extends Controller
     {
         $user = $request->user();
         $broadcasts = MarketingBroadcast::where('status', 'sent')
+            ->where(function ($q) use ($user) {
+                // specific-target broadcasts: only visible to targeted users
+                $q->where('target', '!=', 'specific')
+                  ->orWhereJsonContains('target_filters->user_ids', $user->id);
+            })
             ->orderByDesc('sent_at')
             ->paginate(20);
 
@@ -225,6 +230,18 @@ class InboxController extends Controller
         $user = $request->user();
         $conv = InboxConversation::where('uuid', $uuid)->where('user_id', $user->id)->firstOrFail();
 
+        // Check LiveKit is configured BEFORE creating session or broadcasting
+        $livekitUrl = config('services.livekit.url', env('LIVEKIT_URL', ''));
+        $apiKey     = env('LIVEKIT_API_KEY', '');
+        $apiSecret  = env('LIVEKIT_API_SECRET', '');
+
+        if (!$livekitUrl || !$apiKey || !$apiSecret) {
+            // Return failure without broadcasting — prevents fake "Incoming Call" dialog on user's device
+            return response()->json(['success' => false, 'data' => [
+                'livekit_url' => '', 'token' => '', 'call_uuid' => null,
+            ]]);
+        }
+
         $roomName = 'inbox-' . $conv->uuid . '-' . now()->timestamp;
         $session  = InboxCallSession::create([
             'uuid'           => (string) Str::uuid(),
@@ -236,7 +253,7 @@ class InboxController extends Controller
 
         $token = $this->_livekitToken($roomName, (string) $user->id, $user->name);
 
-        // Notify agent
+        // Notify agent via Reverb only when call is actually ready
         try {
             broadcast(new InboxMessageSent($conv->uuid, [
                 'event'     => 'call_initiated',
@@ -248,7 +265,7 @@ class InboxController extends Controller
         return response()->json(['success' => true, 'data' => [
             'call_uuid'  => $session->uuid,
             'room_name'  => $roomName,
-            'livekit_url'=> config('services.livekit.url', env('LIVEKIT_URL', '')),
+            'livekit_url'=> $livekitUrl,
             'token'      => $token,
         ]]);
     }

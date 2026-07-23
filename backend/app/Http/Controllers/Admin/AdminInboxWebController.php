@@ -151,11 +151,23 @@ class AdminInboxWebController extends Controller
         $conv = InboxConversation::where('uuid', $uuid)->firstOrFail();
         $conv->update(['status' => $request->status]);
 
-        if ($request->status === 'resolved') {
-            $user = User::find($conv->user_id);
+        // Broadcast status change to user's Flutter app so they see reopen button immediately
+        try {
+            broadcast(new \App\Events\InboxMessageSent($conv->uuid, [
+                'event'  => 'status_update',
+                'status' => $request->status,
+            ]));
+        } catch (\Throwable) {}
+
+        $user = User::find($conv->user_id);
+        if (in_array($request->status, ['resolved', 'closed'])) {
             try {
                 if ($user?->fcm_token) {
-                    FcmService::sendToToken($user->fcm_token, 'Ticket Resolved', 'Your support ticket has been resolved.', [
+                    $label = $request->status === 'resolved' ? 'Ticket Resolved' : 'Ticket Closed';
+                    $body  = $request->status === 'resolved'
+                        ? 'Your support ticket has been resolved.'
+                        : 'Your support ticket has been closed.';
+                    FcmService::sendToToken($user->fcm_token, $label, $body, [
                         'type' => 'inbox_resolved', 'conv_uuid' => $conv->uuid,
                     ]);
                 }

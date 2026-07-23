@@ -201,9 +201,21 @@ class _AudioBubbleState extends State<_AudioBubble> {
     if (widget.duration != null) _total = Duration(seconds: widget.duration!);
     _player.onPositionChanged.listen((p) { if (mounted) setState(() => _pos = p); });
     _player.onDurationChanged.listen((d) { if (mounted) setState(() => _total = d); });
-    _player.onPlayerComplete.listen((_) {
+    _player.onPlayerComplete.listen((_) async {
+      // Seek back to 0 so next tap of play works without re-setting source
+      await _player.seek(Duration.zero);
       if (mounted) setState(() { _playing = false; _pos = Duration.zero; });
     });
+    // Preload source so first tap plays instantly
+    _preload();
+  }
+
+  Future<void> _preload() async {
+    if (widget.url.isEmpty) return;
+    try {
+      await _player.setSourceUrl(widget.url);
+      _initialized = true;
+    } catch (_) {}
   }
 
   @override
@@ -212,14 +224,15 @@ class _AudioBubbleState extends State<_AudioBubble> {
   Future<void> _toggle() async {
     if (_playing) {
       await _player.pause();
+      if (mounted) setState(() => _playing = false);
     } else {
       if (!_initialized) {
         await _player.setSourceUrl(widget.url);
         _initialized = true;
       }
       await _player.resume();
+      if (mounted) setState(() => _playing = true);
     }
-    if (mounted) setState(() => _playing = !_playing);
   }
 
   @override
