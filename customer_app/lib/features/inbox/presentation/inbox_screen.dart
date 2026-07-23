@@ -15,13 +15,15 @@ final inboxConvsProvider = FutureProvider.autoDispose<List<InboxConversation>>((
 final inboxBroadcastsProvider = FutureProvider.autoDispose<List<MarketingBroadcast>>((ref) =>
     ref.read(_inboxRepoProvider).getBroadcasts());
 
-final unreadCountProvider = FutureProvider.autoDispose<int>((ref) async {
-  final convs   = await ref.watch(inboxConvsProvider.future);
-  final broads  = await ref.watch(inboxBroadcastsProvider.future);
-  final convUnread = convs.fold<int>(0, (s, c) => s + c.unread);
-  final brdUnread  = broads.where((b) => !b.isRead).length;
-  return convUnread + brdUnread;
-});
+// ── Design tokens ─────────────────────────────────────────────────────────────
+
+const _kPrimary   = Color(0xFF07003B);
+const _kAccent    = Color(0xFF6C63FF);
+const _kAccentOr  = Color(0xFFFF8A00);
+const _kBgLight   = Color(0xFFF4F6FB);
+const _kCardLight = Colors.white;
+const _kBgDark    = Color(0xFF0D0D1A);
+const _kCardDark  = Color(0xFF181830);
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
@@ -35,59 +37,101 @@ class InboxScreen extends ConsumerStatefulWidget {
 class _InboxScreenState extends ConsumerState<InboxScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
+  int _selectedTab = 1; // 0=Marketing, 1=Support
 
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 2, vsync: this);
+    _tab = TabController(length: 2, vsync: this, initialIndex: 1);
+    _tab.addListener(() { if (mounted) setState(() => _selectedTab = _tab.index); });
   }
 
   @override
-  void dispose() {
-    _tab.dispose();
-    super.dispose();
-  }
+  void dispose() { _tab.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final bg     = isDark ? const Color(0xFF0F0F1A) : const Color(0xFFF5F6FA);
-    const accent = Color(0xFF6C63FF);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? _kBgDark : _kBgLight;
 
     return Scaffold(
       backgroundColor: bg,
-      appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF1A1A2E) : Colors.white,
-        elevation: 0,
-        title: Text('Messages', style: TextStyle(
-          color: isDark ? Colors.white : const Color(0xFF07003B),
-          fontWeight: FontWeight.w700, fontSize: 18,
-        )),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.headset_mic_outlined, color: accent),
-            tooltip: 'New Support Request',
-            onPressed: () => _openNewSupport(context),
-          ),
-        ],
-        bottom: TabBar(
+      body: NestedScrollView(
+        headerSliverBuilder: (ctx, _) => [_buildSliverHeader(ctx, isDark)],
+        body: TabBarView(
           controller: _tab,
-          indicatorColor: accent,
-          labelColor: accent,
-          unselectedLabelColor: Colors.grey,
-          tabs: [
-            Tab(child: _TabLabel('Marketing', inboxBroadcastsProvider, (b) => b.where((x) => !x.isRead).length)),
-            Tab(child: _TabLabel('Support', inboxConvsProvider, (c) => c.fold<int>(0, (s, x) => s + x.unread))),
+          children: [
+            _MarketingTab(repo: ref.read(_inboxRepoProvider)),
+            _SupportTab(repo: ref.read(_inboxRepoProvider)),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tab,
-        children: [
-          _MarketingTab(repo: ref.read(_inboxRepoProvider)),
-          _SupportTab(repo: ref.read(_inboxRepoProvider)),
-        ],
+      floatingActionButton: _selectedTab == 1
+          ? FloatingActionButton.extended(
+              onPressed: () => _openNewSupport(context),
+              backgroundColor: _kAccent,
+              elevation: 3,
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text('New Request', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildSliverHeader(BuildContext context, bool isDark) {
+    final card = isDark ? _kCardDark : _kCardLight;
+    return SliverAppBar(
+      pinned: true,
+      expandedHeight: 130,
+      backgroundColor: card,
+      elevation: 0,
+      shadowColor: Colors.black.withAlpha(15),
+      flexibleSpace: FlexibleSpaceBar(
+        collapseMode: CollapseMode.pin,
+        background: Container(
+          decoration: BoxDecoration(
+            color: card,
+            boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 12, offset: const Offset(0, 2))],
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Container(
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [_kPrimary, Color(0xFF1a0070)]),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.inbox_rounded, color: Colors.white, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Text('Inbox', style: TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : _kPrimary,
+                      letterSpacing: -.5,
+                    )),
+                    const Spacer(),
+                    _UnreadBadge(),
+                  ]),
+                  const SizedBox(height: 6),
+                  Text('Your messages & notifications',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(44),
+        child: Container(
+          color: card,
+          child: _CustomTabBar(controller: _tab),
+        ),
       ),
     );
   }
@@ -104,34 +148,71 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
   }
 }
 
-// ── Tab label with badge ──────────────────────────────────────────────────────
+// ── Custom tab bar ────────────────────────────────────────────────────────────
 
-class _TabLabel<T> extends ConsumerWidget {
-  const _TabLabel(this.label, this.provider, this.countFn);
-  final String label;
-  final ProviderBase<AsyncValue<T>> provider;
-  final int Function(T) countFn;
+class _CustomTabBar extends ConsumerWidget {
+  const _CustomTabBar({required this.controller});
+  final TabController controller;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(provider);
-    final count = async.whenOrNull(data: countFn) ?? 0;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(label),
-        if (count > 0) ...[
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-            decoration: BoxDecoration(
-              color: const Color(0xFF6C63FF),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text('$count', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
-          ),
-        ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final broads  = ref.watch(inboxBroadcastsProvider).whenOrNull(data: (l) => l.where((b) => !b.isRead).length) ?? 0;
+    final convs   = ref.watch(inboxConvsProvider).whenOrNull(data: (l) => l.fold<int>(0, (s, c) => s + c.unread)) ?? 0;
+
+    return TabBar(
+      controller: controller,
+      indicatorColor: _kAccent,
+      indicatorWeight: 3,
+      labelColor: _kAccent,
+      unselectedLabelColor: Colors.grey[500],
+      labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+      dividerColor: isDark ? const Color(0xFF252540) : const Color(0xFFEEF0F8),
+      tabs: [
+        Tab(child: _TabChip('Marketing', broads, Icons.campaign_outlined)),
+        Tab(child: _TabChip('Support', convs, Icons.headset_mic_outlined)),
       ],
+    );
+  }
+}
+
+class _TabChip extends StatelessWidget {
+  const _TabChip(this.label, this.count, this.icon);
+  final String label;
+  final int count;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 15),
+      const SizedBox(width: 5),
+      Text(label),
+      if (count > 0) ...[
+        const SizedBox(width: 5),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          decoration: BoxDecoration(color: _kAccent, borderRadius: BorderRadius.circular(10)),
+          child: Text('$count', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+        ),
+      ],
+    ],
+  );
+}
+
+class _UnreadBadge extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final convs  = ref.watch(inboxConvsProvider).whenOrNull(data: (l) => l.fold<int>(0, (s, c) => s + c.unread)) ?? 0;
+    final broads = ref.watch(inboxBroadcastsProvider).whenOrNull(data: (l) => l.where((b) => !b.isRead).length) ?? 0;
+    final total  = convs + broads;
+    if (total == 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(12)),
+      child: Text('$total unread', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
     );
   }
 }
@@ -144,24 +225,24 @@ class _MarketingTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(inboxBroadcastsProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final async  = ref.watch(inboxBroadcastsProvider);
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF6C63FF))),
-      error: (e, _) => Center(child: Text('Error: $e')),
-      data: (list) {
-        if (list.isEmpty) return _EmptyState('No marketing messages yet', Icons.campaign_outlined);
+      loading: () => const Center(child: CircularProgressIndicator(color: _kAccent, strokeWidth: 2)),
+      error:   (e, _) => _ErrorState('$e', () => ref.invalidate(inboxBroadcastsProvider)),
+      data:    (list) {
+        if (list.isEmpty) return _EmptyState('No campaigns yet', 'Marketing messages from eSahlan\nwill appear here', Icons.campaign_outlined);
         return RefreshIndicator(
+          color: _kAccent,
           onRefresh: () async => ref.invalidate(inboxBroadcastsProvider),
           child: ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
             itemCount: list.length,
             itemBuilder: (ctx, i) => _BroadcastCard(
               b: list[i], repo: repo,
-              onTap: () {
-                Navigator.push(ctx, MaterialPageRoute(
-                  builder: (_) => InboxMarketingScreen(broadcast: list[i], repo: repo),
-                )).then((_) => ref.invalidate(inboxBroadcastsProvider));
-              },
+              onTap: () => Navigator.push(ctx, MaterialPageRoute(
+                builder: (_) => InboxMarketingScreen(broadcast: list[i], repo: repo),
+              )).then((_) => ref.invalidate(inboxBroadcastsProvider)),
             ),
           ),
         );
@@ -179,63 +260,79 @@ class _BroadcastCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final card   = isDark ? const Color(0xFF1A1A2E) : Colors.white;
+    final card   = isDark ? _kCardDark : _kCardLight;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
+        margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           color: card,
-          borderRadius: BorderRadius.circular(14),
-          border: b.isRead ? null : Border.all(color: const Color(0xFF6C63FF).withAlpha(120), width: 1.5),
-          boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 8, offset: const Offset(0,2))],
+          borderRadius: BorderRadius.circular(16),
+          border: b.isRead ? null : Border.all(color: _kAccentOr.withAlpha(100), width: 1.5),
+          boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 6), blurRadius: 10, offset: const Offset(0, 2))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (b.imageUrl != null)
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-                child: Image.network(b.imageUrl!, height: 150, width: double.infinity, fit: BoxFit.cover,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: Image.network(b.imageUrl!, height: 160, width: double.infinity, fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => const SizedBox.shrink()),
               ),
             Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    if (!b.isRead) Container(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _kAccentOr.withAlpha(20),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.campaign_outlined, size: 11, color: _kAccentOr),
+                      const SizedBox(width: 3),
+                      Text('Campaign', style: TextStyle(color: _kAccentOr, fontSize: 10, fontWeight: FontWeight.w700)),
+                    ]),
+                  ),
+                  const Spacer(),
+                  if (!b.isRead)
+                    Container(
                       width: 8, height: 8,
-                      margin: const EdgeInsets.only(right: 6),
-                      decoration: const BoxDecoration(color: Color(0xFF6C63FF), shape: BoxShape.circle),
+                      decoration: const BoxDecoration(color: _kAccentOr, shape: BoxShape.circle),
                     ),
-                    Expanded(child: Text(b.title,
-                        style: TextStyle(fontWeight: b.isRead ? FontWeight.w500 : FontWeight.w700, fontSize: 14))),
-                    if (b.sentAt != null)
-                      Text(_timeAgo(b.sentAt!), style: TextStyle(color: Colors.grey[500], fontSize: 11)),
-                  ]),
-                  const SizedBox(height: 6),
-                  Text(b.body, maxLines: 2, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                  if (b.ctaLabel != null) ...[
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 36,
-                      child: ElevatedButton(
-                        onPressed: onTap,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6C63FF),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: Text(b.ctaLabel!, style: const TextStyle(color: Colors.white, fontSize: 12)),
-                      ),
-                    ),
+                  if (b.sentAt != null) ...[
+                    const SizedBox(width: 6),
+                    Text(_timeAgo(b.sentAt!), style: TextStyle(color: Colors.grey[500], fontSize: 11)),
                   ],
+                ]),
+                const SizedBox(height: 10),
+                Text(b.title, style: TextStyle(
+                  fontWeight: b.isRead ? FontWeight.w600 : FontWeight.w800,
+                  fontSize: 15,
+                  color: isDark ? Colors.white : _kPrimary,
+                )),
+                const SizedBox(height: 6),
+                Text(b.body, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 13, height: 1.4)),
+                if (b.ctaLabel != null) ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity, height: 40,
+                    child: ElevatedButton(
+                      onPressed: onTap,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _kAccentOr,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: Text(b.ctaLabel!, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
                 ],
-              ),
+              ]),
             ),
           ],
         ),
@@ -245,9 +342,9 @@ class _BroadcastCard extends StatelessWidget {
 
   String _timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
-    if (diff.inHours < 24)   return '${diff.inHours}h';
-    return '${diff.inDays}d';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24)   return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
   }
 }
 
@@ -261,14 +358,19 @@ class _SupportTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(inboxConvsProvider);
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF6C63FF))),
-      error: (e, _) => Center(child: Text('Error: $e')),
-      data: (list) {
-        if (list.isEmpty) return _EmptyState('No support conversations\nTap the headset icon to start', Icons.support_agent_outlined);
+      loading: () => const Center(child: CircularProgressIndicator(color: _kAccent, strokeWidth: 2)),
+      error:   (e, _) => _ErrorState('$e', () => ref.invalidate(inboxConvsProvider)),
+      data:    (list) {
+        if (list.isEmpty) return _EmptyState(
+          'No support tickets yet',
+          'Tap the button below to contact\nour support team',
+          Icons.support_agent_outlined,
+        );
         return RefreshIndicator(
+          color: _kAccent,
           onRefresh: () async => ref.invalidate(inboxConvsProvider),
           child: ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
             itemCount: list.length,
             itemBuilder: (ctx, i) => _ConvCard(
               conv: list[i],
@@ -291,112 +393,106 @@ class _ConvCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final card   = isDark ? const Color(0xFF1A1A2E) : Colors.white;
+    final card   = isDark ? _kCardDark : _kCardLight;
     final mod    = kSupportModules.firstWhere((m) => m.id == conv.module, orElse: () => kSupportModules.first);
+    final (statusColor, statusLabel) = _statusInfo(conv.status);
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: card,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 8, offset: const Offset(0,2))],
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 18 : 5), blurRadius: 10, offset: const Offset(0, 2))],
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 46, height: 46,
-              decoration: BoxDecoration(
-                color: _statusColor(conv.status).withAlpha(30),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(child: Text(mod.icon, style: const TextStyle(fontSize: 22))),
+        child: Column(children: [
+          // Status color bar
+          Container(
+            height: 3,
+            decoration: BoxDecoration(
+              color: statusColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: Text(conv.subject ?? mod.label,
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                          maxLines: 1, overflow: TextOverflow.ellipsis)),
-                      if (conv.lastMessageAt != null)
-                        Text(_timeAgo(conv.lastMessageAt!),
-                            style: TextStyle(color: Colors.grey[500], fontSize: 11)),
-                    ],
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(children: [
+              // Module icon
+              Container(
+                width: 50, height: 50,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [statusColor.withAlpha(50), statusColor.withAlpha(20)],
+                    begin: Alignment.topLeft, end: Alignment.bottomRight,
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(conv.lastMessage ?? '...',
-                            maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                      ),
-                      if (conv.unread > 0) Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF6C63FF),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text('${conv.unread}',
-                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  _StatusChip(conv.status),
-                ],
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(child: Text(mod.icon, style: const TextStyle(fontSize: 22))),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(child: Text(
+                    conv.subject ?? mod.label,
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: isDark ? Colors.white : _kPrimary),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                  )),
+                  if (conv.lastMessageAt != null)
+                    Text(_timeAgo(conv.lastMessageAt!), style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                ]),
+                const SizedBox(height: 4),
+                Text(
+                  conv.lastMessage ?? 'Tap to open conversation',
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    fontSize: 12,
+                    fontWeight: conv.unread > 0 ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: statusColor.withAlpha(20),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(statusLabel, style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.w700)),
+                  ),
+                  const Spacer(),
+                  if (conv.unread > 0)
+                    Container(
+                      width: 22, height: 22,
+                      decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(11)),
+                      child: Center(child: Text('${conv.unread}',
+                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800))),
+                    ),
+                ]),
+              ])),
+            ]),
+          ),
+        ]),
       ),
     );
   }
 
-  Color _statusColor(String s) {
+  (Color, String) _statusInfo(String s) {
     switch (s) {
-      case 'open':     return const Color(0xFF6C63FF);
-      case 'assigned': return const Color(0xFF00BFA5);
-      case 'resolved': return Colors.green;
-      default:         return Colors.grey;
+      case 'open':     return (const Color(0xFF6C63FF), 'Open');
+      case 'assigned': return (const Color(0xFF00BFA5), 'In Progress');
+      case 'resolved': return (const Color(0xFF16a34a), 'Resolved');
+      default:         return (Colors.grey, 'Closed');
     }
   }
 
   String _timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
-    if (diff.inHours < 24)   return '${diff.inHours}h';
-    return '${diff.inDays}d';
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip(this.status);
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = {
-      'open':     (const Color(0xFF6C63FF), 'Open'),
-      'assigned': (const Color(0xFF00BFA5), 'In Progress'),
-      'resolved': (Colors.green,             'Resolved'),
-      'closed':   (Colors.grey,              'Closed'),
-    };
-    final (color, label) = colors[status] ?? (Colors.grey, status);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withAlpha(25),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
-    );
+    if (diff.inMinutes < 1)  return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24)   return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
   }
 }
 
@@ -418,91 +514,140 @@ class _NewSupportSheetState extends State<_NewSupportSheet> {
   bool _loading = false;
 
   @override
+  void dispose() { _subjectCtrl.dispose(); _msgCtrl.dispose(); super.dispose(); }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg     = isDark ? _kCardDark : Colors.white;
+
     return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
+      height: MediaQuery.of(context).size.height * 0.92,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        color: bg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Column(
-        children: [
-          const SizedBox(height: 8),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text('New Support Request', style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white : const Color(0xFF07003B),
-            )),
+      child: Column(children: [
+        // Handle
+        const SizedBox(height: 10),
+        Container(width: 36, height: 4, decoration: BoxDecoration(
+          color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+        const SizedBox(height: 4),
+
+        // Header
+        Container(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF252540) : const Color(0xFFEEF0F8))),
           ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _Label('Select Module'),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8, runSpacing: 8,
-                    children: kSupportModules.map((m) => GestureDetector(
-                      onTap: () => setState(() => _module = m),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: _module?.id == m.id
-                              ? const Color(0xFF6C63FF)
-                              : (isDark ? const Color(0xFF0F0F1A) : const Color(0xFFF5F6FA)),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: _module?.id == m.id
-                                ? const Color(0xFF6C63FF)
-                                : (isDark ? const Color(0xFF2A2A3E) : Colors.grey.shade300),
-                          ),
-                        ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Text(m.icon, style: const TextStyle(fontSize: 14)),
-                          const SizedBox(width: 6),
-                          Text(m.label, style: TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w500,
-                            color: _module?.id == m.id ? Colors.white : null,
-                          )),
-                        ]),
-                      ),
-                    )).toList(),
-                  ),
-                  const SizedBox(height: 16),
-                  _Label('Subject'),
-                  const SizedBox(height: 8),
-                  _Field(controller: _subjectCtrl, hint: 'Brief description of your issue'),
-                  const SizedBox(height: 12),
-                  _Label('Describe your issue'),
-                  const SizedBox(height: 8),
-                  _Field(controller: _msgCtrl, hint: 'Please provide details...', maxLines: 5),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity, height: 48,
-                    child: ElevatedButton(
-                      onPressed: _loading ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6C63FF),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: _loading
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('Submit Request', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ],
+          child: Row(children: [
+            Container(
+              width: 36, height: 36,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [_kPrimary, Color(0xFF1a0070)]),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.headset_mic_outlined, color: Colors.white, size: 18),
+            ),
+            const SizedBox(width: 10),
+            Text('New Support Request', style: TextStyle(
+              fontSize: 16, fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : _kPrimary,
+            )),
+            const Spacer(),
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: 30, height: 30,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF252540) : _kBgLight,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.close, size: 16, color: Colors.grey[600]),
               ),
             ),
+          ]),
+        ),
+
+        Expanded(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+              // Module selector
+              _SectionTitle('Select Module', Icons.grid_view_rounded),
+              const SizedBox(height: 12),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.1,
+                ),
+                itemCount: kSupportModules.length,
+                itemBuilder: (_, i) {
+                  final m = kSupportModules[i];
+                  final sel = _module?.id == m.id;
+                  return GestureDetector(
+                    onTap: () => setState(() => _module = m),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      decoration: BoxDecoration(
+                        color: sel ? _kAccent : (isDark ? const Color(0xFF252540) : _kBgLight),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: sel ? _kAccent : (isDark ? const Color(0xFF333355) : const Color(0xFFDDE2F0)),
+                          width: sel ? 2 : 1,
+                        ),
+                        boxShadow: sel ? [BoxShadow(color: _kAccent.withAlpha(50), blurRadius: 8, offset: const Offset(0, 3))] : [],
+                      ),
+                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Text(m.icon, style: const TextStyle(fontSize: 24)),
+                        const SizedBox(height: 4),
+                        Text(m.label, textAlign: TextAlign.center, style: TextStyle(
+                          fontSize: 10, fontWeight: FontWeight.w700,
+                          color: sel ? Colors.white : (isDark ? Colors.grey[300] : const Color(0xFF374151)),
+                        ), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      ]),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 22),
+              _SectionTitle('Subject', Icons.title_rounded),
+              const SizedBox(height: 8),
+              _StyledField(controller: _subjectCtrl, hint: 'Brief description of your issue', isDark: isDark),
+
+              const SizedBox(height: 16),
+              _SectionTitle('Describe your issue', Icons.chat_bubble_outline_rounded),
+              const SizedBox(height: 8),
+              _StyledField(controller: _msgCtrl, hint: 'Please provide as much detail as possible…', maxLines: 5, isDark: isDark),
+
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity, height: 52,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _kAccent,
+                    disabledBackgroundColor: _kAccent.withAlpha(100),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: _loading
+                      ? const SizedBox(width: 22, height: 22,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                      : const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                          SizedBox(width: 8),
+                          Text('Submit Request', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15)),
+                        ]),
+                ),
+              ),
+            ]),
           ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
 
@@ -514,14 +659,14 @@ class _NewSupportSheetState extends State<_NewSupportSheet> {
     setState(() => _loading = true);
     try {
       await widget.repo.createConversation(
-        module: _module!.id,
+        module:  _module!.id,
         subject: _subjectCtrl.text.trim(),
         message: _msgCtrl.text.trim(),
       );
       widget.onCreated();
       if (mounted) Navigator.of(context).pop();
       _toast('Support request submitted!');
-    } catch (e) {
+    } catch (_) {
       _toast('Failed to submit. Please try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -529,58 +674,107 @@ class _NewSupportSheetState extends State<_NewSupportSheet> {
   }
 
   void _toast(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helper widgets ────────────────────────────────────────────────────────────
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState(this.msg, this.icon);
-  final String msg; final IconData icon;
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text, this.icon);
+  final String text; final IconData icon;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Icon(icon, size: 64, color: Colors.grey[400]),
-      const SizedBox(height: 12),
-      Text(msg, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[500], fontSize: 14)),
-    ]),
-  );
+  Widget build(BuildContext context) => Row(children: [
+    Icon(icon, size: 15, color: _kAccent),
+    const SizedBox(width: 6),
+    Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _kAccent, letterSpacing: .3)),
+  ]);
 }
 
-class _Label extends StatelessWidget {
-  const _Label(this.text);
-  final String text;
-  @override
-  Widget build(BuildContext context) => Text(text,
-      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6C63FF)));
-}
-
-class _Field extends StatelessWidget {
-  const _Field({required this.controller, required this.hint, this.maxLines = 1});
+class _StyledField extends StatelessWidget {
+  const _StyledField({required this.controller, required this.hint, this.maxLines = 1, required this.isDark});
   final TextEditingController controller;
   final String hint;
   final int maxLines;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    controller: controller,
+    maxLines: maxLines,
+    style: TextStyle(color: isDark ? Colors.white : _kPrimary, fontSize: 14),
+    decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 13),
+      filled: true,
+      fillColor: isDark ? const Color(0xFF252540) : _kBgLight,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: isDark ? const Color(0xFF333355) : const Color(0xFFDDE2F0)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: isDark ? const Color(0xFF333355) : const Color(0xFFDDE2F0)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _kAccent, width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+    ),
+  );
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState(this.title, this.subtitle, this.icon);
+  final String title; final String subtitle; final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF07003B), fontSize: 13),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[500], fontSize: 13),
-        filled: true,
-        fillColor: isDark ? const Color(0xFF0F0F1A) : const Color(0xFFF5F6FA),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Container(
+            width: 80, height: 80,
+            decoration: BoxDecoration(
+              color: _kAccent.withAlpha(20),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Icon(icon, size: 36, color: _kAccent),
+          ),
+          const SizedBox(height: 20),
+          Text(title, style: TextStyle(
+            fontSize: 16, fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : _kPrimary,
+          )),
+          const SizedBox(height: 8),
+          Text(subtitle, textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.grey[500], height: 1.5)),
+        ]),
       ),
     );
   }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState(this.msg, this.onRetry);
+  final String msg; final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+      const SizedBox(height: 12),
+      Text(msg, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+      const SizedBox(height: 16),
+      TextButton(onPressed: onRetry, child: const Text('Retry', style: TextStyle(color: _kAccent, fontWeight: FontWeight.w700))),
+    ]),
+  );
 }
