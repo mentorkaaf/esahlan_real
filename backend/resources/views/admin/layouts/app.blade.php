@@ -532,12 +532,12 @@
 
         <div class="nav-section-label">Inbox</div>
         <div class="nav-link nav-toggle-btn {{ request()->is('admin/inbox*') ? 'open active' : '' }}"
-             onclick="toggleSubmenu(this)">
+             onclick="toggleNav(this,'inboxNav')">
             <div class="nav-icon"><i class="fas fa-headset"></i></div>
-            <span class="nav-text">Support &amp; Inbox</span>
-            <i class="fas fa-chevron-right toggle-arrow ms-auto"></i>
+            Support &amp; Inbox
+            <i class="fas fa-chevron-right toggle-arrow"></i>
         </div>
-        <div class="nav-submenu {{ request()->is('admin/inbox*') ? 'open' : '' }}">
+        <div class="nav-submenu {{ request()->is('admin/inbox*') ? 'open' : '' }}" id="inboxNav">
             <a href="{{ route('admin.inbox.conversations') }}" class="nav-link {{ request()->routeIs('admin.inbox.conversations') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-comments"></i></div> Support Tickets
             </a>
