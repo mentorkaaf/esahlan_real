@@ -237,9 +237,9 @@
                 </div>
                 @if($bc->status === 'sent')
                 <div class="bc-stats-row">
-                    <div class="bc-stat"><div class="bc-stat-val">{{ $bc->broadcastUsers()->count() }}</div><div class="bc-stat-lbl">Sent</div></div>
-                    <div class="bc-stat"><div class="bc-stat-val">{{ $bc->broadcastUsers()->where('is_read', true)->count() }}</div><div class="bc-stat-lbl">Read</div></div>
-                    <div class="bc-stat"><div class="bc-stat-val">{{ $bc->broadcastUsers()->where('cta_clicked', true)->count() }}</div><div class="bc-stat-lbl">CTA Clicks</div></div>
+                    <div class="bc-stat"><div class="bc-stat-val">{{ $bc->reads()->count() }}</div><div class="bc-stat-lbl">Sent</div></div>
+                    <div class="bc-stat"><div class="bc-stat-val">{{ $bc->reads()->where('is_read', true)->count() }}</div><div class="bc-stat-lbl">Read</div></div>
+                    <div class="bc-stat"><div class="bc-stat-val">{{ $bc->reads()->where('cta_clicked', true)->count() }}</div><div class="bc-stat-lbl">CTA Clicks</div></div>
                 </div>
                 @endif
             </div>
