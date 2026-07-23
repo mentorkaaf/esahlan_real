@@ -122,18 +122,17 @@ class _InboxMarketingScreenState extends State<InboxMarketingScreen> {
     );
   }
 
-  Future<void> _handleCta(BuildContext context) async {
+  Future<void> _handleCta(BuildContext ctx) async {
     try {
       final route = await widget.repo.trackCtaClick(widget.broadcast.uuid);
       if (!mounted) return;
+      Navigator.pop(ctx);
       if (route != null && route.isNotEmpty) {
-        Navigator.pop(context);
-        context.go(route);
-      } else {
-        Navigator.pop(context);
+        // ignore: use_build_context_synchronously
+        ctx.go(route);
       }
     } catch (_) {
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(ctx);
     }
   }
 
