@@ -421,6 +421,9 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
                 Route::get('/{uuid}/stats', 'broadcastStats')->name('stats');
             });
             Route::get('/stats', 'stats')->name('stats');
+            Route::get('/conversations/{uuid}/poll', 'pollMessages')->name('conversation.poll');
+            Route::get('/global-poll', 'globalPoll')->name('global-poll');
+            Route::get('/users/search', 'searchUsers')->name('users.search');
         });
 
         // Settings
