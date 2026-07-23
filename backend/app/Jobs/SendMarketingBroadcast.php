@@ -55,6 +55,7 @@ class SendMarketingBroadcast implements ShouldQueue
                             [
                                 'type'           => 'marketing',
                                 'broadcast_uuid' => $broadcast->uuid,
+                                'deep_link'      => '/inbox/broadcast/' . $broadcast->uuid,
                                 'module'         => $broadcast->module ?? '',
                                 'cta_route'      => $broadcast->cta_route ?? '',
                                 'image_url'      => $broadcast->image_url ?? '',

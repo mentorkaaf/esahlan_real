@@ -16,6 +16,11 @@ class InboxRepository {
     return list.map((j) => MarketingBroadcast.fromJson(j)).toList();
   }
 
+  Future<MarketingBroadcast> getBroadcastByUuid(String uuid) async {
+    final r = await _dio.get('/inbox/broadcasts/$uuid');
+    return MarketingBroadcast.fromJson(r.data['data'] as Map<String, dynamic>);
+  }
+
   Future<void> markBroadcastRead(String uuid) async =>
       await _dio.post('/inbox/broadcasts/$uuid/read');
 
@@ -79,14 +84,17 @@ class InboxRepository {
 
   // ── Calls ─────────────────────────────────────────────────────────────────
 
-  Future<Map<String, dynamic>> initiateCall(String uuid) async {
-    final r = await _dio.post('/inbox/conversations/$uuid/call');
+  Future<Map<String, dynamic>> initiateCall(String uuid, {String? offerSdp}) async {
+    final r = await _dio.post('/inbox/conversations/$uuid/call', data: {
+      if (offerSdp != null) 'offer_sdp': offerSdp,
+    });
     return r.data['data'] as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> joinCall(String callUuid) async {
-    final r = await _dio.post('/inbox/calls/$callUuid/join');
-    return r.data['data'] as Map<String, dynamic>;
+  Future<void> sendIceCandidate(String callUuid, Map<String, dynamic> candidate) async {
+    try {
+      await _dio.post('/inbox/calls/$callUuid/ice', data: {'candidate': candidate});
+    } catch (_) {}
   }
 
   Future<void> endCall(String callUuid) async =>

@@ -885,6 +885,7 @@ Route::prefix('v1/inbox')->middleware('auth:sanctum')->group(function () {
 
     // Marketing broadcasts
     Route::get('broadcasts',                        [$ic, 'broadcasts']);
+    Route::get('broadcasts/{uuid}',                 [$ic, 'getBroadcast']);
     Route::post('broadcasts/{uuid}/read',           [$ic, 'markBroadcastRead']);
     Route::post('broadcasts/{uuid}/cta',            [$ic, 'trackCtaClick']);
 

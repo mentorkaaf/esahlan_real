@@ -62,6 +62,8 @@ import '../../features/elearning/presentation/screens/course_builder_screen.dart
 
 // Inbox screens
 import '../../features/inbox/presentation/inbox_screen.dart';
+import '../../features/inbox/presentation/inbox_broadcast_deep_link_screen.dart';
+import '../../features/inbox/data/inbox_repository.dart';
 
 // Module screens
 import '../../features/modules/efood/efood_screen.dart';
@@ -141,6 +143,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/wallet',    builder: (_, __) => const WalletScreen()),
           GoRoute(path: '/community', builder: (_, __) => const CommunityShell()),
           GoRoute(path: '/chat',      builder: (_, __) => const InboxScreen()),
+          GoRoute(
+            path: '/inbox/broadcast/:uuid',
+            builder: (_, state) => InboxBroadcastDeepLinkScreen(
+              uuid: state.pathParameters['uuid']!,
+              repo: InboxRepository.create(),
+            ),
+          ),
           GoRoute(path: '/profile',   builder: (_, __) => const ProfileScreen()),
 
           // Community sub-routes (inside shell so back nav works)

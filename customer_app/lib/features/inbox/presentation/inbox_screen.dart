@@ -275,9 +275,17 @@ class _BroadcastCard extends StatelessWidget {
         ),
         child: Row(
           children: [
+            // Image on the LEFT
+            if (b.imageUrl != null)
+              ClipRRect(
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(14), bottomLeft: Radius.circular(14)),
+                child: Image.network(b.imageUrl!, width: 96, height: 112, fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+              ),
+            // Content on the RIGHT
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -312,17 +320,20 @@ class _BroadcastCard extends StatelessWidget {
                           style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 11, height: 1.3)),
                     ]),
                     if (b.ctaLabel != null)
-                      SizedBox(
-                        height: 28,
-                        child: ElevatedButton(
-                          onPressed: onTap,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _kAccentOr,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      Align(
+                        alignment: Alignment.center,
+                        child: SizedBox(
+                          height: 28,
+                          child: ElevatedButton(
+                            onPressed: onTap,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _kAccentOr,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: Text(b.ctaLabel!, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
                           ),
-                          child: Text(b.ctaLabel!, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
                         ),
                       )
                     else
@@ -331,12 +342,6 @@ class _BroadcastCard extends StatelessWidget {
                 ),
               ),
             ),
-            if (b.imageUrl != null)
-              ClipRRect(
-                borderRadius: const BorderRadius.only(topRight: Radius.circular(14), bottomRight: Radius.circular(14)),
-                child: Image.network(b.imageUrl!, width: 96, height: 112, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink()),
-              ),
           ],
         ),
       ),

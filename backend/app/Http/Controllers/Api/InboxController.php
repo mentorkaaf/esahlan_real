@@ -42,6 +42,15 @@ class InboxController extends Controller
         return response()->json(['success' => true, 'data' => $data]);
     }
 
+    public function getBroadcast(Request $request, string $uuid)
+    {
+        $user = $request->user();
+        $broadcast = MarketingBroadcast::where('uuid', $uuid)->where('status', 'sent')->firstOrFail();
+        $read = MarketingBroadcastUser::where('broadcast_id', $broadcast->id)
+            ->where('user_id', $user->id)->first();
+        return response()->json(['success' => true, 'data' => $this->_formatBroadcast($broadcast, $read)]);
+    }
+
     public function markBroadcastRead(Request $request, string $uuid)
     {
         $user = $request->user();

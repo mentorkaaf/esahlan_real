@@ -306,13 +306,20 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
     if (_inCall) { await _cleanupCall(); return; }
     _callInitiatedByMe = true;
     try {
-      await Permission.microphone.request();
+      // Request and verify microphone permission
+      final micStatus = await Permission.microphone.request();
+      if (!micStatus.isGranted) {
+        _callInitiatedByMe = false;
+        _toast('Microphone permission required');
+        return;
+      }
 
       _pc = await createPeerConnection(<String, dynamic>{
         'iceServers': [
           {'urls': 'stun:stun.l.google.com:19302'},
           {'urls': 'stun:stun1.l.google.com:19302'},
-        ]
+        ],
+        'sdpSemantics': 'unified-plan',
       });
 
       _localStream = await navigator.mediaDevices
@@ -353,7 +360,8 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
       if (mounted) setState(() => _inCall = true);
       _toast('Calling… waiting for agent');
 
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Call] _startCall error: $e');
       _toast('Could not start call');
       await _cleanupCall();
     }
