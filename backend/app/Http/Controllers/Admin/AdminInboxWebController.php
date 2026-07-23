@@ -51,7 +51,7 @@ class AdminInboxWebController extends Controller
             ->orderBy('created_at')
             ->paginate(100);
 
-        $agents = User::whereIn('role', ['super_admin', 'admin', 'support_agent'])->get(['id', 'name']);
+        $agents = User::whereHas('role', fn($q) => $q->whereIn('slug', ['super_admin', 'admin', 'support_agent']))->get(['id', 'name']);
 
         return view('admin.inbox.conversation_messages', compact('conv', 'messages', 'agents'))
             ->with('conversation', $conv);
