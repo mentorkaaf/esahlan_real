@@ -879,6 +879,46 @@ Route::prefix('v1/live')->middleware('auth:sanctum')->group(function () {
     Route::post('vod/{id}/view',       [LiveVODController::class, 'view']);
 });
 
+// ── Inbox / Chat / Support / Marketing ───────────────────────────────────────
+Route::prefix('v1/inbox')->middleware('auth:sanctum')->group(function () {
+    $ic = \App\Http\Controllers\Api\InboxController::class;
+
+    // Marketing broadcasts
+    Route::get('broadcasts',                        [$ic, 'broadcasts']);
+    Route::post('broadcasts/{uuid}/read',           [$ic, 'markBroadcastRead']);
+    Route::post('broadcasts/{uuid}/cta',            [$ic, 'trackCtaClick']);
+
+    // Support conversations
+    Route::get('conversations',                     [$ic, 'conversations']);
+    Route::post('conversations',                    [$ic, 'createConversation']);
+    Route::get('conversations/{uuid}/messages',     [$ic, 'messages']);
+    Route::post('conversations/{uuid}/messages',    [$ic, 'sendMessage']);
+    Route::post('conversations/{uuid}/typing',      [$ic, 'typing']);
+
+    // Audio calls
+    Route::post('conversations/{uuid}/call',        [$ic, 'initiateCall']);
+    Route::post('calls/{callUuid}/join',            [$ic, 'joinCall']);
+    Route::post('calls/{callUuid}/end',             [$ic, 'endCall']);
+});
+
+// ── Admin Inbox / Marketing ───────────────────────────────────────────────────
+Route::prefix('v1/admin/inbox')->middleware(['auth:sanctum', 'role:super_admin,admin,support_agent'])->group(function () {
+    $ai = \App\Http\Controllers\Admin\AdminInboxController::class;
+
+    Route::get('stats',                              [$ai, 'stats']);
+    Route::get('conversations',                      [$ai, 'conversations']);
+    Route::get('conversations/{uuid}/messages',      [$ai, 'conversationMessages']);
+    Route::post('conversations/{uuid}/reply',        [$ai, 'reply']);
+    Route::post('conversations/{uuid}/assign',       [$ai, 'assignAgent']);
+    Route::patch('conversations/{uuid}/status',      [$ai, 'updateStatus']);
+    Route::post('conversations/{uuid}/typing',       [$ai, 'typingIndicator']);
+
+    Route::get('broadcasts',                         [$ai, 'broadcasts']);
+    Route::post('broadcasts',                        [$ai, 'createBroadcast']);
+    Route::post('broadcasts/{uuid}/send',            [$ai, 'sendBroadcast']);
+    Route::get('broadcasts/{uuid}/stats',            [$ai, 'broadcastStats']);
+});
+
     // Admin engagement generator
     Route::prefix('admin')->middleware('auth:sanctum')->group(function () {
         Route::post('engagement/likes', [\App\Http\Controllers\Api\Admin\EngagementGeneratorController::class, 'generateLikes']);

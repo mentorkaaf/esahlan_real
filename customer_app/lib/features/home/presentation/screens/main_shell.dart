@@ -23,6 +23,7 @@ const _kAllDestinations = [
   _Dest(path: '/orders',    icon: Icons.receipt_long_outlined,            activeIcon: Icons.receipt_long_rounded,            label: 'Orders'),
   _Dest(path: '/wallet',    icon: Icons.account_balance_wallet_outlined,  activeIcon: Icons.account_balance_wallet_rounded,  label: 'ePay'),
   _Dest(path: '/community', icon: Icons.people_outline,                   activeIcon: Icons.people,                          label: 'eSpace'),
+  _Dest(path: '/chat',      icon: Icons.chat_bubble_outline,              activeIcon: Icons.chat_bubble,                     label: 'Inbox'),
   _Dest(path: '/profile',   icon: Icons.person_outline_rounded,           activeIcon: Icons.person_rounded,                  label: 'Profile'),
 ];
 
@@ -45,6 +46,7 @@ class MainShell extends ConsumerWidget {
     return path.startsWith('/home') ||
            path.startsWith('/orders') ||
            path.startsWith('/wallet') ||
+           path.startsWith('/chat') ||
            path.startsWith('/profile');
   }
 

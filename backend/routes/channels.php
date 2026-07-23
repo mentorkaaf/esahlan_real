@@ -84,3 +84,13 @@ Broadcast::channel('community.post.{postId}.owner', function ($user, $postId) {
     $post = CommunityPost::find($postId);
     return $post && (int) $post->user_id === (int) $user->id;
 });
+
+// Inbox support chat — user in conversation OR assigned admin/agent
+Broadcast::channel('inbox.{conversationUuid}', function ($user, $conversationUuid) {
+    $conv = \App\Models\InboxConversation::where('uuid', $conversationUuid)->first();
+    if (!$conv) return false;
+    // Allow: the conversation owner, the assigned agent, or any admin
+    return (int) $conv->user_id  === (int) $user->id
+        || (int) $conv->agent_id === (int) $user->id
+        || in_array($user->role ?? '', ['super_admin', 'admin', 'support_agent']);
+});

@@ -60,6 +60,9 @@ import '../../features/elearning/presentation/screens/instructor_apply_screen.da
 import '../../features/elearning/presentation/screens/create_course_screen.dart';
 import '../../features/elearning/presentation/screens/course_builder_screen.dart';
 
+// Inbox screens
+import '../../features/inbox/presentation/inbox_screen.dart';
+
 // Module screens
 import '../../features/modules/efood/efood_screen.dart';
 import '../../features/modules/eparcel/eparcel_screen.dart';
@@ -137,6 +140,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/orders',    builder: (_, __) => const OrdersScreen()),
           GoRoute(path: '/wallet',    builder: (_, __) => const WalletScreen()),
           GoRoute(path: '/community', builder: (_, __) => const CommunityShell()),
+          GoRoute(path: '/chat',      builder: (_, __) => const InboxScreen()),
           GoRoute(path: '/profile',   builder: (_, __) => const ProfileScreen()),
 
           // Community sub-routes (inside shell so back nav works)
