@@ -239,11 +239,15 @@ class AdminInboxWebController extends Controller
             ->update(['status' => 'delivered', 'delivered_at' => now()]);
         $conv->update(['unread_agent' => 0]);
 
-        // Check ringing call sessions
-        $ringingCall = $conv->calls()->where('status', 'ringing')->latest()->first();
+        // Only show ringing calls initiated within the last 90 seconds
+        $ringingCall = $conv->calls()
+            ->where('status', 'ringing')
+            ->where('created_at', '>=', now()->subSeconds(90))
+            ->latest()
+            ->first();
 
         return response()->json([
-            'messages'      => $msgs->map(fn($m) => [
+            'messages'     => $msgs->map(fn($m) => [
                 'uuid'        => $m->uuid,
                 'sender_type' => $m->sender_type,
                 'sender_name' => $m->sender?->name,
@@ -256,6 +260,17 @@ class AdminInboxWebController extends Controller
             'ringing_call' => $ringingCall ? ['uuid' => $ringingCall->uuid] : null,
             'conv_status'  => $conv->fresh()->status,
         ]);
+    }
+
+    public function declineCall(Request $request, string $callUuid)
+    {
+        try {
+            \App\Models\InboxCallSession::where('uuid', $callUuid)
+                ->where('status', 'ringing')
+                ->update(['status' => 'declined', 'ended_at' => now()]);
+        } catch (\Throwable) {}
+
+        return response()->json(['success' => true]);
     }
 
     // ── Global admin notification poll ────────────────────────────────────────

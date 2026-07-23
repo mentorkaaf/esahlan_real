@@ -17,5 +17,6 @@ jobs:
           script: |
             cd /var/www/esahlan/backend/backend
             git pull origin main
+            php artisan view:clear
             php artisan config:cache
             php artisan route:cache

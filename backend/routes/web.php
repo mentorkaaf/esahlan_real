@@ -422,6 +422,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             });
             Route::get('/stats', 'stats')->name('stats');
             Route::get('/conversations/{uuid}/poll', 'pollMessages')->name('conversation.poll');
+            Route::post('/calls/{callUuid}/decline', 'declineCall')->name('call.decline');
             Route::get('/global-poll', 'globalPoll')->name('global-poll');
             Route::get('/users/search', 'searchUsers')->name('users.search');
         });

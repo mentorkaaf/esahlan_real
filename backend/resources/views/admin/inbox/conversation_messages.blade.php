@@ -547,9 +547,15 @@ function playRingTone() {
 
 function declineCall() {
     clearInterval(ringInterval);
+    ringInterval = null;
     document.getElementById('callBanner').classList.remove('show');
+    // Mark call as declined in DB BEFORE clearing uuid
+    if (ringingCallUuid) {
+        fetch(`/admin/inbox/calls/${ringingCallUuid}/decline`, {
+            method:'POST', headers:{'X-CSRF-TOKEN':CSRF,'X-Requested-With':'XMLHttpRequest'}
+        }).catch(()=>{});
+    }
     ringingCallUuid = null;
-    fetch(`/admin/inbox/calls/${ringingCallUuid}/end`, { method:'POST', headers:{'X-CSRF-TOKEN':CSRF,'X-Requested-With':'XMLHttpRequest'} });
 }
 
 async function answerCall() {
@@ -572,11 +578,16 @@ function startCallTimer() {
 
 function endCall() {
     clearInterval(callInterval);
+    clearInterval(ringInterval);
+    ringInterval = null;
     document.getElementById('callActiveBar').classList.remove('show');
-    if (ringingCallUuid) {
-        fetch(`/admin/inbox/calls/${ringingCallUuid}/end`, {
+    document.getElementById('callBanner').classList.remove('show');
+    const uuid = ringingCallUuid;
+    ringingCallUuid = null;
+    if (uuid) {
+        fetch(`/admin/inbox/calls/${uuid}/decline`, {
             method:'POST', headers:{'X-CSRF-TOKEN':CSRF,'X-Requested-With':'XMLHttpRequest'}
-        });
+        }).catch(()=>{});
     }
 }
 
