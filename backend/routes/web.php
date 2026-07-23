@@ -407,6 +407,22 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/templates', [AdminNotificationController::class, 'saveTemplates'])->name('templates.save');
         });
 
+        // Inbox (Support + Marketing broadcasts)
+        Route::prefix('inbox')->name('inbox.')->controller(\App\Http\Controllers\Admin\AdminInboxWebController::class)->group(function () {
+            Route::get('/conversations',               'conversations')->name('conversations');
+            Route::get('/conversations/{uuid}',        'conversationMessages')->name('conversation.messages');
+            Route::post('/conversations/{uuid}/reply', 'reply')->name('conversation.reply');
+            Route::post('/conversations/{uuid}/assign', 'assignAgent')->name('conversation.assign');
+            Route::post('/conversations/{uuid}/status', 'updateStatus')->name('conversation.status');
+            Route::prefix('broadcasts')->name('broadcasts.')->group(function () {
+                Route::get('/',             'broadcasts')->name('index');
+                Route::post('/',            'createBroadcast')->name('store');
+                Route::post('/{uuid}/send', 'sendBroadcast')->name('send');
+                Route::get('/{uuid}/stats', 'broadcastStats')->name('stats');
+            });
+            Route::get('/stats', 'stats')->name('stats');
+        });
+
         // Settings
         Route::prefix('settings')->name('settings.')->group(function () {
             Route::get('/', [AdminSettingController::class, 'index'])->name('index');

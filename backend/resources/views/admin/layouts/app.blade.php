@@ -530,6 +530,25 @@
             <div class="nav-icon"><i class="fas fa-bell"></i></div> Notifications
         </a>
 
+        <div class="nav-section-label">Inbox</div>
+        <div class="nav-link nav-toggle-btn {{ request()->is('admin/inbox*') ? 'open active' : '' }}"
+             onclick="toggleSubmenu(this)">
+            <div class="nav-icon"><i class="fas fa-headset"></i></div>
+            <span class="nav-text">Support &amp; Inbox</span>
+            <i class="fas fa-chevron-right toggle-arrow ms-auto"></i>
+        </div>
+        <div class="nav-submenu {{ request()->is('admin/inbox*') ? 'open' : '' }}">
+            <a href="{{ route('admin.inbox.conversations') }}" class="nav-link {{ request()->routeIs('admin.inbox.conversations') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-comments"></i></div> Support Tickets
+            </a>
+            <a href="{{ route('admin.inbox.broadcasts.index') }}" class="nav-link {{ request()->routeIs('admin.inbox.broadcasts.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-bullhorn"></i></div> Broadcasts
+            </a>
+            <a href="{{ route('admin.inbox.stats') }}" class="nav-link {{ request()->routeIs('admin.inbox.stats') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-chart-bar"></i></div> Stats
+            </a>
+        </div>
+
         <div class="nav-section-label">Community</div>
         <div class="nav-link nav-toggle-btn {{ request()->is('admin/community*') ? 'open active' : '' }}"
              onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
