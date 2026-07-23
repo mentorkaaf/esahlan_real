@@ -32,22 +32,27 @@
 .msg-avatar { width:28px; height:28px; border-radius:8px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:900; }
 .msg-avatar.user  { background:linear-gradient(135deg,#6c63ff,#3a36d4); color:#fff; }
 .msg-avatar.agent { background:linear-gradient(135deg,#FF8A00,#e65c00); color:#fff; }
-.msg-bubble { max-width:72%; padding:10px 14px; border-radius:16px; font-size:13px; line-height:1.55; position:relative; }
+.msg-bubble { max-width:72%; min-width:0; padding:10px 14px; border-radius:16px; font-size:13px; line-height:1.55; position:relative; word-break:break-word; }
 .msg-bubble.user  { background:#fff; color:#1a1d2e; border-radius:4px 16px 16px 16px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
 .msg-bubble.agent { background:linear-gradient(135deg,#07003B,#1a0070); color:#fff; border-radius:16px 4px 16px 16px; }
 .msg-bubble.deleted { font-style:italic; opacity:.5; }
 .msg-meta { font-size:10px; margin-top:4px; opacity:.45; text-align:right; }
 .msg-name { font-size:10px; font-weight:700; margin-bottom:3px; color:#6c63ff; }
+/* image */
 .msg-image { max-width:220px; border-radius:12px; display:block; cursor:pointer; }
-.msg-audio { display:flex; align-items:center; gap:10px; min-width:180px; }
-.msg-audio-btn { width:32px; height:32px; border-radius:50%; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; }
+/* audio — consistent width across user/agent */
+.msg-bubble.has-audio { padding:10px 12px; min-width:220px; }
+.msg-audio { display:flex; align-items:center; gap:10px; width:100%; }
+.msg-audio-btn { width:34px; height:34px; border-radius:50%; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; transition:opacity .15s; }
+.msg-audio-btn:hover { opacity:.8; }
 .msg-audio-btn.user  { background:#6c63ff; color:#fff; }
-.msg-audio-btn.agent { background:rgba(255,255,255,.2); color:#fff; }
-.msg-audio-bar { flex:1; height:4px; background:rgba(0,0,0,.12); border-radius:2px; overflow:hidden; }
-.msg-audio-progress { height:100%; background:#6c63ff; width:0; transition:width .1s; }
+.msg-audio-btn.agent { background:rgba(255,255,255,.25); color:#fff; }
+.msg-audio-track { flex:1; display:flex; flex-direction:column; gap:5px; min-width:0; }
+.msg-audio-bar { height:4px; background:rgba(0,0,0,.12); border-radius:2px; overflow:hidden; }
+.msg-audio-progress { height:100%; background:#6c63ff; width:0; transition:width .1s; border-radius:2px; }
 .msg-bubble.agent .msg-audio-bar { background:rgba(255,255,255,.2); }
-.msg-bubble.agent .msg-audio-progress { background:rgba(255,255,255,.7); }
-.msg-audio-dur { font-size:10px; opacity:.6; white-space:nowrap; }
+.msg-bubble.agent .msg-audio-progress { background:rgba(255,255,255,.8); }
+.msg-audio-dur { font-size:10px; opacity:.65; font-weight:600; white-space:nowrap; }
 
 /* date divider */
 .chat-date { text-align:center; margin:10px 0 6px; }
@@ -108,7 +113,7 @@
 .sb-reopen:hover  { background:#2563eb; color:#fff; }
 
 /* ── Call notification ── */
-.call-banner { display:none; background:#16a34a; color:#fff; padding:10px 16px; display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.call-banner { display:none; background:#16a34a; color:#fff; padding:10px 16px; align-items:center; gap:10px; flex-shrink:0; }
 .call-banner.show { display:flex; }
 .call-banner-text { flex:1; font-size:13px; font-weight:700; }
 .call-btn { padding:7px 16px; border-radius:20px; font-size:12px; font-weight:700; cursor:pointer; border:none; }
@@ -192,7 +197,8 @@
                         @if(!$isAgent)
                         <div class="msg-name">{{ $msg->sender?->name ?? 'Customer' }}</div>
                         @endif
-                        <div class="msg-bubble {{ $msg->sender_type }} {{ $msg->is_deleted ? 'deleted' : '' }}">
+                        @php $audioClass = ($msg->type === 'audio' && $msg->media_url) ? ' has-audio' : ''; @endphp
+                        <div class="msg-bubble {{ $msg->sender_type }}{{ $audioClass }} {{ $msg->is_deleted ? 'deleted' : '' }}">
                             @if($msg->is_deleted)
                                 <i class="fas fa-ban" style="margin-right:5px;opacity:.5"></i>Message deleted
                             @elseif($msg->type === 'image' && $msg->media_url)
@@ -202,7 +208,7 @@
                                     <button class="msg-audio-btn {{ $isAgent ? 'agent' : 'user' }}" onclick="toggleAudio(this,'{{ $msg->media_url }}','{{ $msg->uuid }}')">
                                         <i class="fas fa-play"></i>
                                     </button>
-                                    <div style="flex:1">
+                                    <div class="msg-audio-track">
                                         <div class="msg-audio-bar"><div class="msg-audio-progress" id="prog_{{ $msg->uuid }}"></div></div>
                                         <div class="msg-audio-dur" id="dur_{{ $msg->uuid }}">{{ $msg->media_duration ? gmdate('i:s', $msg->media_duration) : '0:00' }}</div>
                                     </div>
@@ -402,18 +408,21 @@ function appendMessage(msg) {
     } else if (msg.type === 'audio' && msg.media_url) {
         content = `<div class="msg-audio">
             <button class="msg-audio-btn ${msg.sender_type}" onclick="toggleAudio(this,'${msg.media_url}','${msg.uuid}')"><i class="fas fa-play"></i></button>
-            <div style="flex:1"><div class="msg-audio-bar"><div class="msg-audio-progress" id="prog_${msg.uuid}"></div></div>
-            <div class="msg-audio-dur" id="dur_${msg.uuid}">0:00</div></div>
+            <div class="msg-audio-track">
+                <div class="msg-audio-bar"><div class="msg-audio-progress" id="prog_${msg.uuid}"></div></div>
+                <div class="msg-audio-dur" id="dur_${msg.uuid}">0:00</div>
+            </div>
         </div>`;
     } else {
         content = escHtml(msg.content ?? '');
     }
 
+    const audioClass = (msg.type === 'audio' && msg.media_url) ? ' has-audio' : '';
     row.innerHTML = `<div class="msg-row ${isAgent ? 'agent' : 'user'}">
         <div class="msg-avatar ${msg.sender_type}">${(msg.sender_name ?? (isAgent?'A':'U')).charAt(0).toUpperCase()}</div>
         <div>
             ${!isAgent ? `<div class="msg-name">${escHtml(msg.sender_name ?? 'Customer')}</div>` : ''}
-            <div class="msg-bubble ${msg.sender_type}">${content}</div>
+            <div class="msg-bubble ${msg.sender_type}${audioClass}">${content}</div>
             <div class="msg-meta">${msg.time ?? ''}</div>
         </div>
     </div>`;
