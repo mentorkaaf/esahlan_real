@@ -466,17 +466,6 @@ async function poll() {
             ringingOfferSdp = null;
         }
 
-        // Active call: apply any new user ICE candidates
-        if (data.active_call && peerConn) {
-            const candidates = data.active_call.user_ice_candidates || [];
-            for (let i = processedIceIdx; i < candidates.length; i++) {
-                try {
-                    await peerConn.addIceCandidate(new RTCIceCandidate(candidates[i]));
-                } catch(_) {}
-            }
-            processedIceIdx = candidates.length;
-        }
-
         // Update status badge
         if (data.conv_status) updateStatusBadge(data.conv_status);
 
@@ -574,6 +563,21 @@ function declineCall() {
     ringingCallUuid = null;
 }
 
+// Wait until ICE candidates are fully gathered (embedded in SDP — no trickle needed)
+function waitForIceComplete(pc) {
+    return new Promise(resolve => {
+        if (pc.iceGatheringState === 'complete') { resolve(); return; }
+        const check = () => {
+            if (pc.iceGatheringState === 'complete') {
+                pc.removeEventListener('icegatheringstatechange', check);
+                resolve();
+            }
+        };
+        pc.addEventListener('icegatheringstatechange', check);
+        setTimeout(resolve, 8000); // max 8s then proceed
+    });
+}
+
 async function answerCall() {
     clearInterval(ringInterval);
     ringInterval = null;
@@ -584,11 +588,16 @@ async function answerCall() {
     ringingCallUuid = null;
     ringingOfferSdp = null;
 
+    if (!offerSdp) {
+        console.warn('[WebRTC] No offer SDP — cannot answer');
+        return;
+    }
+
     try {
         // Get microphone
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
 
-        // Create WebRTC peer connection
+        // Create peer connection
         peerConn = new RTCPeerConnection({
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -598,45 +607,31 @@ async function answerCall() {
 
         localStream.getTracks().forEach(t => peerConn.addTrack(t, localStream));
 
-        // Play remote audio
+        // Play remote audio when track arrives
         peerConn.ontrack = (e) => {
             const audio = document.getElementById('callPlayer');
             audio.srcObject = e.streams[0];
             audio.play().catch(() => {});
         };
 
-        // Send ICE candidates to backend → Reverb → Flutter
-        peerConn.onicecandidate = async (e) => {
-            if (e.candidate && activeCallUuid) {
-                try {
-                    await fetch(`/admin/inbox/calls/${activeCallUuid}/admin-ice`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
-                        body: JSON.stringify({ candidate: e.candidate.toJSON() }),
-                    });
-                } catch (_) {}
-            }
-        };
+        // Set caller's offer (contains all their ICE candidates)
+        await peerConn.setRemoteDescription({ type: 'offer', sdp: offerSdp });
 
-        if (offerSdp) {
-            // WebRTC mode: set offer, create answer
-            await peerConn.setRemoteDescription({ type: 'offer', sdp: offerSdp });
-            const answer = await peerConn.createAnswer();
-            await peerConn.setLocalDescription(answer);
+        // Create answer and start ICE gathering
+        const answer = await peerConn.createAnswer();
+        await peerConn.setLocalDescription(answer);
 
-            // Send answer to backend → Reverb → Flutter
-            await fetch(`/admin/inbox/calls/${callUuid}/answer`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
-                body: JSON.stringify({ answer_sdp: answer.sdp }),
-            });
+        // WAIT for ICE gathering to complete — all candidates embedded in SDP
+        // This ensures the answer SDP sent to Flutter has complete connectivity info
+        await waitForIceComplete(peerConn);
 
-            activeCallUuid = callUuid;
-            processedIceIdx = 0;
-        } else {
-            // LiveKit mode — just mark active (Flutter handles LiveKit)
-            activeCallUuid = callUuid;
-        }
+        // Send complete answer (ICE candidates embedded — no trickle exchange needed)
+        activeCallUuid = callUuid;
+        await fetch(`/admin/inbox/calls/${callUuid}/answer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            body: JSON.stringify({ answer_sdp: peerConn.localDescription.sdp }),
+        });
 
         startCallTimer();
         document.getElementById('callActiveBar').classList.add('show');
@@ -645,7 +640,8 @@ async function answerCall() {
         console.error('[WebRTC] answerCall error:', err);
         if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
         if (peerConn) { peerConn.close(); peerConn = null; }
-        alert('Could not access microphone: ' + err.message);
+        activeCallUuid = null;
+        alert('Microphone error: ' + err.message);
     }
 }
 

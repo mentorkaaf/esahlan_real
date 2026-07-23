@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:audio_waveforms/audio_waveforms.dart';
-import 'package:livekit_client/livekit_client.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/services/realtime_client.dart';
 import '../data/inbox_models.dart';
 import '../data/inbox_repository.dart';
@@ -46,11 +48,18 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
   Timer? _typingTimer;
   Timer? _typingClearTimer;
 
-  // LiveKit call
-  Room? _room;
-  bool _inCall  = false;
-  bool _callMuted = false;
-  bool _callInitiatedByMe = false;
+  // Voice recording preview
+  bool    _previewMode     = false;
+  String? _recordedPath;
+  int     _previewDuration = 0;
+
+  // WebRTC call
+  RTCPeerConnection? _pc;
+  MediaStream?       _localStream;
+  bool   _inCall              = false;
+  bool   _callMuted           = false;
+  bool   _callInitiatedByMe   = false;
+  String? _activeCallUuid;
 
   // Animation for recording pulse
   late AnimationController _recAnim;
@@ -74,7 +83,7 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
     _typingClearTimer?.cancel();
     _recAnim.dispose();
     _unsubscribeRealtime();
-    _room?.disconnect();
+    _cleanupCall();
     super.dispose();
   }
 
@@ -107,7 +116,7 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
     RealtimeClient.instance.unsubscribe('private-inbox.${widget.conversation.uuid}');
   }
 
-  void _onRealtimeMessage(dynamic raw) {
+  Future<void> _onRealtimeMessage(dynamic raw) async {
     final data = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     final event = data['event'] as String?;
 
@@ -141,6 +150,30 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
       }
     } else if (event == 'call_initiated') {
       _onIncomingCall(data);
+    } else if (event == 'call_answered') {
+      final answerSdp = data['answer_sdp'] as String?;
+      if (answerSdp != null && _pc != null) {
+        try {
+          await _pc!.setRemoteDescription(RTCSessionDescription(answerSdp, 'answer'));
+          if (mounted) _toast('Connected');
+        } catch (_) {}
+      }
+    } else if (event == 'ice_candidate') {
+      final cand = data['candidate'];
+      if (cand is Map && _pc != null) {
+        try {
+          await _pc!.addCandidate(RTCIceCandidate(
+            cand['candidate'] as String? ?? '',
+            cand['sdpMid'] as String?,
+            (cand['sdpMLineIndex'] as num?)?.toInt() ?? 0,
+          ));
+        } catch (_) {}
+      }
+    } else if (event == 'call_ended') {
+      if (_inCall) {
+        await _cleanupCall();
+        if (mounted) _toast('Call ended');
+      }
     } else if (data.containsKey('uuid')) {
       // Deduplicate by uuid to prevent echo double-add
       final uuid = data['uuid'] as String?;
@@ -213,80 +246,144 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
       // Capture duration BEFORE stopping (elapsedDuration resets after stop)
       final durationSec = _recorder.elapsedDuration.inSeconds;
       final path = await _recorder.stop();
-      setState(() => _recording = false);
-      if (path == null || !mounted) return;
-      setState(() => _sending = true);
-      try {
-        final msg = await widget.repo.sendMediaMessage(
-            widget.conversation.uuid, File(path), 'audio', duration: durationSec);
-        if (mounted) setState(() => _addMessage(msg));
-        _scrollToBottom();
-      } catch (_) {} finally {
-        if (mounted) setState(() => _sending = false);
+      if (!mounted) return;
+      if (path == null) {
+        setState(() => _recording = false);
+        return;
       }
+      // Enter preview mode — user can listen before sending
+      setState(() {
+        _recording        = false;
+        _previewMode      = true;
+        _recordedPath     = path;
+        _previewDuration  = durationSec;
+      });
     } else {
       await _recorder.record();
       setState(() => _recording = true);
     }
   }
 
-  // ── Calls ─────────────────────────────────────────────────────────────────────
-
-  Future<void> _startCall() async {
-    _callInitiatedByMe = true;
+  Future<void> _sendVoice() async {
+    final path = _recordedPath;
+    final dur  = _previewDuration;
+    if (path == null) return;
+    setState(() { _previewMode = false; _recordedPath = null; _sending = true; });
     try {
-      final data  = await widget.repo.initiateCall(widget.conversation.uuid);
-      final url   = data['livekit_url'] as String? ?? '';
-      final token = data['token'] as String? ?? '';
-      if (url.isEmpty || token.isEmpty) {
-        _toast('Audio call not available yet');
-        // Keep flag true for 3s to absorb any late Reverb echo, then clear
-        Future.delayed(const Duration(seconds: 3), () { _callInitiatedByMe = false; });
-        return;
-      }
-      _room = Room();
-      await _room!.connect(url, token);
-      await _room!.localParticipant?.setMicrophoneEnabled(true);
-      if (mounted) setState(() => _inCall = true);
-    } catch (_) {
-      _toast('Could not start call');
-      Future.delayed(const Duration(seconds: 3), () { _callInitiatedByMe = false; });
+      final msg = await widget.repo.sendMediaMessage(
+          widget.conversation.uuid, File(path), 'audio', duration: dur);
+      if (mounted) setState(() => _addMessage(msg));
+      _scrollToBottom();
+    } catch (_) {} finally {
+      if (mounted) setState(() => _sending = false);
     }
   }
 
-  Future<void> _endCall() async {
-    await _room?.disconnect();
-    setState(() { _inCall = false; _room = null; _callInitiatedByMe = false; });
+  void _cancelVoice() {
+    final path = _recordedPath;
+    setState(() { _previewMode = false; _recordedPath = null; _previewDuration = 0; });
+    if (path != null) {
+      try { File(path).deleteSync(); } catch (_) {}
+    }
   }
 
+  // ── Calls (WebRTC) ───────────────────────────────────────────────────────────
+
+  /// Waits for ICE gathering to complete (all candidates embedded in SDP).
+  /// Max 8 seconds — after that we proceed with whatever candidates we have.
+  Future<void> _waitForIceComplete(RTCPeerConnection pc) async {
+    final done = Completer<void>();
+    pc.onIceGatheringState = (state) {
+      if (state == RTCIceGatheringState.RTCIceGatheringStateComplete &&
+          !done.isCompleted) {
+        done.complete();
+      }
+    };
+    await done.future.timeout(const Duration(seconds: 8), onTimeout: () {});
+  }
+
+  Future<void> _startCall() async {
+    if (_inCall) { await _cleanupCall(); return; }
+    _callInitiatedByMe = true;
+    try {
+      await Permission.microphone.request();
+
+      _pc = await createPeerConnection(<String, dynamic>{
+        'iceServers': [
+          {'urls': 'stun:stun.l.google.com:19302'},
+          {'urls': 'stun:stun1.l.google.com:19302'},
+        ]
+      });
+
+      _localStream = await navigator.mediaDevices
+          .getUserMedia(<String, dynamic>{'audio': true, 'video': false});
+      for (final track in _localStream!.getTracks()) {
+        await _pc!.addTrack(track, _localStream!);
+      }
+
+      // Create offer and start ICE gathering
+      final offer = await _pc!.createOffer(<String, dynamic>{'offerToReceiveAudio': 1});
+      await _pc!.setLocalDescription(offer);
+
+      // Wait for ICE gathering to complete — candidates are embedded in final SDP
+      // This avoids trickle ICE timing bugs (no separate candidate exchange needed)
+      await _waitForIceComplete(_pc!);
+
+      final localDesc = await _pc!.getLocalDescription();
+      final fullOfferSdp = localDesc?.sdp ?? offer.sdp ?? '';
+      if (fullOfferSdp.isEmpty) {
+        _toast('Could not prepare call');
+        await _cleanupCall();
+        return;
+      }
+
+      // Send offer with ALL ICE candidates already embedded
+      final result = await widget.repo.initiateCall(
+        widget.conversation.uuid,
+        offerSdp: fullOfferSdp,
+      );
+
+      _activeCallUuid = result['call_uuid'] as String?;
+      if (_activeCallUuid == null) {
+        _toast('Call failed');
+        await _cleanupCall();
+        return;
+      }
+
+      if (mounted) setState(() => _inCall = true);
+      _toast('Calling… waiting for agent');
+
+    } catch (_) {
+      _toast('Could not start call');
+      await _cleanupCall();
+    }
+  }
+
+  Future<void> _cleanupCall() async {
+    _callInitiatedByMe = false;
+    if (_activeCallUuid != null) {
+      try { await widget.repo.endCall(_activeCallUuid!); } catch (_) {}
+    }
+    _localStream?.getTracks().forEach((t) => t.stop());
+    await _localStream?.dispose();
+    await _pc?.close();
+    _localStream = null;
+    _pc = null;
+    _activeCallUuid = null;
+    if (mounted) setState(() { _inCall = false; _callMuted = false; });
+  }
+
+  Future<void> _endCall() => _cleanupCall();
+
   void _toggleMute() {
-    _room?.localParticipant?.setMicrophoneEnabled(_callMuted);
-    setState(() => _callMuted = !_callMuted);
+    _callMuted = !_callMuted;
+    _localStream?.getAudioTracks().forEach((t) => t.enabled = !_callMuted);
+    if (mounted) setState(() {});
   }
 
   void _onIncomingCall(Map data) {
-    // Skip — user pressed call themselves
+    // In this app, the user is always the caller — ignore incoming call events
     if (_callInitiatedByMe) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => _IncomingCallDialog(
-        onDecline: () => Navigator.pop(ctx),
-        onAnswer: () async {
-          Navigator.pop(ctx);
-          final callUuid = data['call_uuid'] as String?;
-          if (callUuid == null) return;
-          final d     = await widget.repo.joinCall(callUuid);
-          final url   = d['livekit_url'] as String? ?? '';
-          final token = d['token'] as String? ?? '';
-          if (url.isEmpty || token.isEmpty) return;
-          _room = Room();
-          await _room!.connect(url, token);
-          await _room!.localParticipant?.setMicrophoneEnabled(true);
-          if (mounted) setState(() => _inCall = true);
-        },
-      ),
-    );
   }
 
   Future<void> _reopenTicket() async {
@@ -376,8 +473,19 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
         if (conv.isResolved)
           _ReopenBar(onReopen: _reopenTicket),
 
+        // ── Voice preview bar (after recording) ──
+        if (!conv.isResolved && _previewMode && _recordedPath != null)
+          _VoicePreviewBar(
+            path: _recordedPath!,
+            durationSec: _previewDuration,
+            isDark: isDark,
+            onCancel: _cancelVoice,
+            onSend: _sendVoice,
+            sending: _sending,
+          ),
+
         // ── Input ──
-        if (!conv.isResolved)
+        if (!conv.isResolved && !_previewMode)
           _InputBar(
             controller: _msgCtrl,
             recording: _recording,
@@ -589,7 +697,7 @@ class _ReopenBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
     decoration: BoxDecoration(
       color: Theme.of(context).brightness == Brightness.dark
           ? const Color(0xFF181830) : Colors.white,
@@ -910,6 +1018,145 @@ class _SendBtn extends StatelessWidget {
       child: Center(child: child),
     ),
   );
+}
+
+// ── Voice preview bar ─────────────────────────────────────────────────────────
+
+class _VoicePreviewBar extends StatefulWidget {
+  const _VoicePreviewBar({
+    required this.path, required this.durationSec, required this.isDark,
+    required this.onCancel, required this.onSend, required this.sending,
+  });
+  final String path;
+  final int durationSec;
+  final bool isDark, sending;
+  final VoidCallback onCancel, onSend;
+
+  @override
+  State<_VoicePreviewBar> createState() => _VoicePreviewBarState();
+}
+
+class _VoicePreviewBarState extends State<_VoicePreviewBar> {
+  final _player = AudioPlayer();
+  bool     _playing     = false;
+  Duration _pos         = Duration.zero;
+  Duration _total       = Duration.zero;
+  bool     _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _total = Duration(seconds: widget.durationSec);
+    _player.onPositionChanged.listen((p) { if (mounted) setState(() => _pos = p); });
+    _player.onDurationChanged.listen((d) { if (mounted) setState(() => _total = d); });
+    _player.onPlayerComplete.listen((_) async {
+      await _player.seek(Duration.zero);
+      if (mounted) setState(() { _playing = false; _pos = Duration.zero; });
+    });
+  }
+
+  @override
+  void dispose() { _player.dispose(); super.dispose(); }
+
+  Future<void> _toggle() async {
+    if (_playing) {
+      await _player.pause();
+      if (mounted) setState(() => _playing = false);
+    } else {
+      if (!_initialized) {
+        await _player.setSource(DeviceFileSource(widget.path));
+        _initialized = true;
+      }
+      await _player.resume();
+      if (mounted) setState(() => _playing = true);
+    }
+  }
+
+  String _fmt(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = _total.inMilliseconds > 0
+        ? (_pos.inMilliseconds / _total.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: widget.isDark ? const Color(0xFF181830) : Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 12, offset: const Offset(0, -2))],
+      ),
+      padding: EdgeInsets.only(
+        left: 10, right: 10, top: 10,
+        bottom: MediaQuery.of(context).padding.bottom + 10,
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+        // Cancel
+        GestureDetector(
+          onTap: widget.onCancel,
+          child: Container(
+            width: 42, height: 42,
+            decoration: BoxDecoration(color: Colors.red.withAlpha(15), borderRadius: BorderRadius.circular(12)),
+            child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        // Play/pause button
+        GestureDetector(
+          onTap: _toggle,
+          child: Container(
+            width: 42, height: 42,
+            decoration: BoxDecoration(color: _kAccent.withAlpha(20), borderRadius: BorderRadius.circular(12)),
+            child: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: _kAccent, size: 22),
+          ),
+        ),
+        const SizedBox(width: 10),
+
+        // Progress + duration
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: _kAccent.withAlpha(25),
+                valueColor: const AlwaysStoppedAnimation<Color>(_kAccent),
+                minHeight: 3,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              _fmt(_total.inSeconds > 0 ? _total : Duration(seconds: widget.durationSec)),
+              style: TextStyle(color: _kAccent.withAlpha(180), fontSize: 10, fontWeight: FontWeight.w600),
+            ),
+          ]),
+        ),
+        const SizedBox(width: 8),
+
+        // Send button
+        GestureDetector(
+          onTap: widget.sending ? null : widget.onSend,
+          child: Container(
+            width: 46, height: 46,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [_kAccent, Color(0xFF3a36d4)]),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [BoxShadow(color: _kAccent.withAlpha(60), blurRadius: 8, offset: const Offset(0, 3))],
+            ),
+            child: Center(
+              child: widget.sending
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
 }
 
 // ── Incoming call dialog ──────────────────────────────────────────────────────
