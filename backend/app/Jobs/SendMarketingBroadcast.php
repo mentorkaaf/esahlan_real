@@ -26,8 +26,20 @@ class SendMarketingBroadcast implements ShouldQueue
         if ($broadcast->status !== 'sending') return;
 
         $sent = 0;
-        User::whereNotNull('fcm_token')
-            ->chunkById(100, function ($users) use ($broadcast, &$sent) {
+        $query = User::whereNotNull('fcm_token');
+
+        if ($broadcast->target === 'active_30d') {
+            $query->where('last_active_at', '>=', now()->subDays(30));
+        } elseif ($broadcast->target === 'specific') {
+            $ids = $broadcast->target_filters['user_ids'] ?? [];
+            if (empty($ids)) {
+                $broadcast->update(['status' => 'sent', 'sent_count' => 0, 'sent_at' => now()]);
+                return;
+            }
+            $query->whereIn('id', $ids);
+        }
+
+        $query->chunkById(100, function ($users) use ($broadcast, &$sent) {
                 foreach ($users as $user) {
                     try {
                         // Create read record

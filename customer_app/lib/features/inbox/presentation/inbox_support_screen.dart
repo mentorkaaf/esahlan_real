@@ -160,6 +160,13 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
 
   // ── Send ──────────────────────────────────────────────────────────────────────
 
+  // Adds msg only if not already present (Reverb echo may have arrived first)
+  void _addMessage(InboxMessage msg) {
+    if (!_messages.any((m) => m.uuid == msg.uuid)) {
+      _messages.add(msg);
+    }
+  }
+
   Future<void> _sendText() async {
     final text = _msgCtrl.text.trim();
     if (text.isEmpty || _sending) return;
@@ -167,7 +174,7 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
     setState(() => _sending = true);
     try {
       final msg = await widget.repo.sendTextMessage(widget.conversation.uuid, text);
-      setState(() => _messages.add(msg));
+      if (mounted) setState(() => _addMessage(msg));
       _scrollToBottom();
     } catch (_) {} finally {
       if (mounted) setState(() => _sending = false);
@@ -181,7 +188,7 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
     try {
       final msg = await widget.repo.sendMediaMessage(
           widget.conversation.uuid, File(picked.path), 'image');
-      setState(() => _messages.add(msg));
+      if (mounted) setState(() => _addMessage(msg));
       _scrollToBottom();
     } catch (_) {} finally {
       if (mounted) setState(() => _sending = false);
@@ -190,15 +197,16 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
 
   Future<void> _toggleRecording() async {
     if (_recording) {
+      // Capture duration BEFORE stopping (elapsedDuration resets after stop)
+      final durationSec = _recorder.elapsedDuration.inSeconds;
       final path = await _recorder.stop();
       setState(() => _recording = false);
       if (path == null || !mounted) return;
       setState(() => _sending = true);
       try {
-        final durationMs = _recorder.elapsedDuration.inSeconds;
         final msg = await widget.repo.sendMediaMessage(
-            widget.conversation.uuid, File(path), 'audio', duration: durationMs);
-        setState(() => _messages.add(msg));
+            widget.conversation.uuid, File(path), 'audio', duration: durationSec);
+        if (mounted) setState(() => _addMessage(msg));
         _scrollToBottom();
       } catch (_) {} finally {
         if (mounted) setState(() => _sending = false);
@@ -267,6 +275,29 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
     );
   }
 
+  Future<void> _reopenTicket() async {
+    try {
+      await widget.repo.reopenConversation(widget.conversation.uuid);
+      if (mounted) setState(() {
+        _conv = InboxConversation(
+          uuid: (_conv ?? widget.conversation).uuid,
+          module: (_conv ?? widget.conversation).module,
+          subject: (_conv ?? widget.conversation).subject,
+          status: 'open',
+          priority: (_conv ?? widget.conversation).priority,
+          lastMessage: (_conv ?? widget.conversation).lastMessage,
+          lastMessageAt: (_conv ?? widget.conversation).lastMessageAt,
+          unread: (_conv ?? widget.conversation).unread,
+          agent: (_conv ?? widget.conversation).agent,
+          createdAt: (_conv ?? widget.conversation).createdAt,
+        );
+      });
+      _toast('Ticket reopened');
+    } catch (_) {
+      _toast('Could not reopen ticket');
+    }
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
@@ -326,6 +357,10 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen>
                   agentTyping: _agentTyping,
                 ),
         ),
+
+        // ── Reopen button (when resolved) ──
+        if (conv.isResolved)
+          _ReopenBar(onReopen: _reopenTicket),
 
         // ── Input ──
         if (!conv.isResolved)
@@ -529,6 +564,41 @@ class _StatusBanner extends StatelessWidget {
       const SizedBox(width: 6),
       Text(message, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
     ]),
+  );
+}
+
+// ── Reopen bar ────────────────────────────────────────────────────────────────
+
+class _ReopenBar extends StatelessWidget {
+  const _ReopenBar({required this.onReopen});
+  final VoidCallback onReopen;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    decoration: BoxDecoration(
+      color: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF181830) : Colors.white,
+      boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 12, offset: const Offset(0, -2))],
+    ),
+    child: SizedBox(
+      width: double.infinity,
+      child: GestureDetector(
+        onTap: onReopen,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFF3a36d4)]),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
+            SizedBox(width: 8),
+            Text('Reopen Ticket', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+          ]),
+        ),
+      ),
+    ),
   );
 }
 

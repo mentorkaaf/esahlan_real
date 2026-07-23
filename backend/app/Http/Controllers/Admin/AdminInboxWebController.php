@@ -179,7 +179,7 @@ class AdminInboxWebController extends Controller
             'title'  => 'required|string|max:255',
             'body'   => 'required|string',
             'module' => 'nullable|string|max:50',
-            'target' => 'nullable|in:all,active_30d',
+            'target' => 'nullable|in:all,active_30d,specific',
         ]);
 
         $imageUrl = null;
@@ -188,15 +188,22 @@ class AdminInboxWebController extends Controller
             $imageUrl = Storage::url($path);
         }
 
+        $targetFilters = null;
+        if ($request->target === 'specific' && $request->filled('user_ids')) {
+            $ids = array_filter(array_map('intval', (array) $request->user_ids));
+            $targetFilters = ['user_ids' => array_values($ids)];
+        }
+
         MarketingBroadcast::create([
-            'uuid'       => (string) Str::uuid(),
-            'created_by' => $request->user()->id,
-            'title'      => $request->title,
-            'body'       => $request->body,
-            'image_url'  => $imageUrl,
-            'module'     => $request->module,
-            'cta_label'  => $request->cta_label,
-            'cta_route'  => $request->cta_route,
+            'uuid'           => (string) Str::uuid(),
+            'created_by'     => $request->user()->id,
+            'title'          => $request->title,
+            'body'           => $request->body,
+            'image_url'      => $imageUrl,
+            'module'         => $request->module,
+            'cta_label'      => $request->cta_label,
+            'cta_route'      => $request->cta_route,
+            'target_filters' => $targetFilters,
             'target'     => $request->target ?? 'all',
             'status'     => 'draft',
         ]);

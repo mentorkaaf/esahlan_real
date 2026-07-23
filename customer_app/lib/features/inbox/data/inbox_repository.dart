@@ -70,6 +70,9 @@ class InboxRepository {
     return InboxMessage.fromJson(r.data['data']);
   }
 
+  Future<void> reopenConversation(String uuid) async =>
+      await _dio.post('/inbox/conversations/$uuid/reopen');
+
   Future<void> sendTyping(String uuid) async {
     try { await _dio.post('/inbox/conversations/$uuid/typing'); } catch (_) {}
   }

@@ -204,6 +204,20 @@ class InboxController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function reopen(Request $request, string $uuid)
+    {
+        $user = $request->user();
+        $conv = InboxConversation::where('uuid', $uuid)->where('user_id', $user->id)->firstOrFail();
+
+        if (!in_array($conv->status, ['resolved', 'closed'])) {
+            return response()->json(['success' => false, 'message' => 'Ticket is not closed'], 422);
+        }
+
+        $conv->update(['status' => 'open', 'last_message_at' => now()]);
+
+        return response()->json(['success' => true]);
+    }
+
     // ── Audio Calls ───────────────────────────────────────────────────────────
 
     public function initiateCall(Request $request, string $uuid)

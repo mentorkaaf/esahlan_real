@@ -894,6 +894,7 @@ Route::prefix('v1/inbox')->middleware('auth:sanctum')->group(function () {
     Route::get('conversations/{uuid}/messages',     [$ic, 'messages']);
     Route::post('conversations/{uuid}/messages',    [$ic, 'sendMessage']);
     Route::post('conversations/{uuid}/typing',      [$ic, 'typing']);
+    Route::post('conversations/{uuid}/reopen',      [$ic, 'reopen']);
 
     // Audio calls
     Route::post('conversations/{uuid}/call',        [$ic, 'initiateCall']);
