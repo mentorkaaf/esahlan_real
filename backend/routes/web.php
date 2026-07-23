@@ -415,10 +415,13 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/conversations/{uuid}/assign', 'assignAgent')->name('conversation.assign');
             Route::post('/conversations/{uuid}/status', 'updateStatus')->name('conversation.status');
             Route::prefix('broadcasts')->name('broadcasts.')->group(function () {
-                Route::get('/',             'broadcasts')->name('index');
-                Route::post('/',            'createBroadcast')->name('store');
-                Route::post('/{uuid}/send', 'sendBroadcast')->name('send');
-                Route::get('/{uuid}/stats', 'broadcastStats')->name('stats');
+                Route::get('/',                  'broadcasts')->name('index');
+                Route::post('/',                 'createBroadcast')->name('store');
+                Route::post('/{uuid}/send',      'sendBroadcast')->name('send');
+                Route::post('/{uuid}/resend',    'resendBroadcast')->name('resend');
+                Route::delete('/{uuid}',         'deleteBroadcast')->name('delete');
+                Route::post('/bulk-delete',      'bulkDeleteBroadcasts')->name('bulk-delete');
+                Route::get('/{uuid}/stats',      'broadcastStats')->name('stats');
             });
             Route::get('/stats', 'stats')->name('stats');
             Route::get('/conversations/{uuid}/poll', 'pollMessages')->name('conversation.poll');

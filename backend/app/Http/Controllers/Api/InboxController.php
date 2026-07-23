@@ -18,11 +18,17 @@ class InboxController extends Controller
     public function broadcasts(Request $request)
     {
         $user = $request->user();
+        $userId = (int) $user->id;
         $broadcasts = MarketingBroadcast::where('status', 'sent')
-            ->where(function ($q) use ($user) {
-                // specific-target broadcasts: only visible to targeted users
+            ->where(function ($q) use ($userId) {
                 $q->where('target', '!=', 'specific')
-                  ->orWhereJsonContains('target_filters->user_ids', $user->id);
+                  ->orWhere(function ($q2) use ($userId) {
+                      $q2->where('target', 'specific')
+                         ->where(function ($q3) use ($userId) {
+                             $q3->whereJsonContains('target_filters->user_ids', $userId)
+                                ->orWhereJsonContains('target_filters->user_ids', (string) $userId);
+                         });
+                  });
             })
             ->orderByDesc('sent_at')
             ->paginate(20);

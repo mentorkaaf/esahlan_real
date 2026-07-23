@@ -45,26 +45,45 @@
 .bc-list-title { font-size:16px; font-weight:900; color:#1a1d2e; }
 .bc-list { display:flex; flex-direction:column; gap:10px; }
 .bc-item { background:#fff; border:1px solid #e8ecf2; border-radius:14px; padding:16px 18px; }
+.bc-item.selected { border-color:#07003B; background:#f8f7ff; }
 .bc-item-head { display:flex; align-items:flex-start; gap:12px; }
 .bc-item-icon { width:42px; height:42px; border-radius:12px; background:linear-gradient(135deg,#FF8A00,#e65c00); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
 .bc-item-title { font-size:14px; font-weight:800; color:#1a1d2e; }
 .bc-item-body  { font-size:12px; color:#64748b; margin-top:2px; line-height:1.4; }
 .bc-item-meta  { display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap; }
 .bc-badge { display:inline-flex; align-items:center; padding:2px 9px; border-radius:20px; font-size:10px; font-weight:800; }
-.bc-badge.draft   { background:#f1f5f9; color:#64748b; }
-.bc-badge.sending { background:#fffbeb; color:#d97706; }
-.bc-badge.sent    { background:#f0fdf4; color:#16a34a; }
-.bc-badge.mod     { background:#f5f3ff; color:#7c3aed; }
-.bc-actions { margin-left:auto; display:flex; gap:6px; align-items:center; }
-.bc-btn { padding:5px 12px; border-radius:8px; font-size:11px; font-weight:700; border:1.5px solid; cursor:pointer; }
-.bc-btn-send  { border-color:#16a34a; color:#16a34a; background:#f0fdf4; }
-.bc-btn-send:hover  { background:#16a34a; color:#fff; }
-.bc-btn-stats { border-color:#2563eb; color:#2563eb; background:#eff6ff; }
-.bc-btn-stats:hover { background:#2563eb; color:#fff; }
+.bc-badge.draft    { background:#f1f5f9; color:#64748b; }
+.bc-badge.sending  { background:#fffbeb; color:#d97706; }
+.bc-badge.sent     { background:#f0fdf4; color:#16a34a; }
+.bc-badge.mod      { background:#f5f3ff; color:#7c3aed; }
+.bc-badge.specific { background:#fef3c7; color:#92400e; }
+.bc-badge.public   { background:#e0f2fe; color:#0369a1; }
+.bc-badge.active30 { background:#fce7f3; color:#9d174d; }
+.bc-actions { margin-left:auto; display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+.bc-btn { padding:5px 12px; border-radius:8px; font-size:11px; font-weight:700; border:1.5px solid; cursor:pointer; background:#fff; }
+.bc-btn-send   { border-color:#16a34a; color:#16a34a; background:#f0fdf4; }
+.bc-btn-send:hover   { background:#16a34a; color:#fff; }
+.bc-btn-resend { border-color:#7c3aed; color:#7c3aed; background:#f5f3ff; }
+.bc-btn-resend:hover { background:#7c3aed; color:#fff; }
+.bc-btn-stats  { border-color:#2563eb; color:#2563eb; background:#eff6ff; }
+.bc-btn-stats:hover  { background:#2563eb; color:#fff; }
+.bc-btn-del    { border-color:#dc2626; color:#dc2626; background:#fef2f2; }
+.bc-btn-del:hover    { background:#dc2626; color:#fff; }
 .bc-stats-row { display:flex; gap:14px; margin-top:10px; padding-top:10px; border-top:1px solid #f0f2f6; }
 .bc-stat { text-align:center; }
 .bc-stat-val { font-size:16px; font-weight:900; color:#1a1d2e; }
 .bc-stat-lbl { font-size:10px; color:#94a3b8; margin-top:1px; }
+
+/* Bulk actions bar */
+.bc-bulk-bar { display:none; align-items:center; gap:10px; background:#fff; border:1.5px solid #dc2626; border-radius:10px; padding:8px 14px; margin-bottom:10px; }
+.bc-bulk-bar.show { display:flex; }
+.bc-bulk-count { font-size:13px; font-weight:700; color:#1a1d2e; }
+.bc-bulk-del { padding:6px 16px; border-radius:8px; font-size:12px; font-weight:700; border:none; background:#dc2626; color:#fff; cursor:pointer; }
+.bc-bulk-del:hover { opacity:.85; }
+.bc-bulk-cancel { padding:6px 12px; border-radius:8px; font-size:12px; font-weight:600; border:1.5px solid #e2e8f0; background:#fff; color:#64748b; cursor:pointer; }
+
+/* Checkbox */
+.bc-check { width:16px; height:16px; accent-color:#07003B; cursor:pointer; flex-shrink:0; margin-top:2px; }
 
 .empty-bc { text-align:center; padding:40px 20px; background:#fff; border:1px solid #e8ecf2; border-radius:16px; }
 .empty-bc i { font-size:36px; color:#cbd5e1; margin-bottom:10px; }
@@ -202,7 +221,24 @@
     <div>
         <div class="bc-list-head">
             <div class="bc-list-title">Recent Broadcasts</div>
+            @if(!$broadcasts->isEmpty())
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#64748b;cursor:pointer">
+                <input type="checkbox" class="bc-check" id="selectAll" onchange="toggleSelectAll(this)"> Select all
+            </label>
+            @endif
         </div>
+
+        {{-- Bulk action bar --}}
+        <div class="bc-bulk-bar" id="bulkBar">
+            <span class="bc-bulk-count" id="bulkCount">0 selected</span>
+            <form method="POST" action="{{ route('admin.inbox.broadcasts.bulk-delete') }}" id="bulkForm" onsubmit="return confirmBulk()">
+                @csrf
+                <div id="bulkHiddenInputs"></div>
+                <button type="submit" class="bc-bulk-del"><i class="fas fa-trash"></i> Delete Selected</button>
+            </form>
+            <button type="button" class="bc-bulk-cancel" onclick="clearSelection()">Cancel</button>
+        </div>
+
         @if($broadcasts->isEmpty())
         <div class="empty-bc">
             <i class="fas fa-broadcast-tower"></i>
@@ -211,14 +247,22 @@
         @else
         <div class="bc-list">
             @foreach($broadcasts as $bc)
-            <div class="bc-item">
+            <div class="bc-item" id="item-{{ $bc->uuid }}">
                 <div class="bc-item-head">
+                    <input type="checkbox" class="bc-check bc-item-check" value="{{ $bc->uuid }}" onchange="onItemCheck()" style="margin-top:12px">
                     <div class="bc-item-icon"><i class="fas fa-bullhorn"></i></div>
                     <div style="flex:1;min-width:0">
                         <div class="bc-item-title">{{ $bc->title }}</div>
                         <div class="bc-item-body">{{ Str::limit($bc->body, 80) }}</div>
                         <div class="bc-item-meta">
                             <span class="bc-badge {{ $bc->status }}">{{ ucfirst($bc->status) }}</span>
+                            @if($bc->target === 'specific')
+                                <span class="bc-badge specific"><i class="fas fa-user" style="margin-right:3px;font-size:9px"></i>Specific Users</span>
+                            @elseif($bc->target === 'active_30d')
+                                <span class="bc-badge active30"><i class="fas fa-clock" style="margin-right:3px;font-size:9px"></i>Active 30d</span>
+                            @else
+                                <span class="bc-badge public"><i class="fas fa-globe" style="margin-right:3px;font-size:9px"></i>Public</span>
+                            @endif
                             @if($bc->module)<span class="bc-badge mod">{{ $bc->module }}</span>@endif
                             <span style="font-size:11px;color:#94a3b8">{{ $bc->created_at->diffForHumans() }}</span>
                         </div>
@@ -232,7 +276,16 @@
                         @endif
                         @if($bc->status === 'sent')
                         <a href="{{ route('admin.inbox.broadcasts.stats', $bc->uuid) }}" class="bc-btn bc-btn-stats"><i class="fas fa-chart-bar"></i> Stats</a>
+                        <form method="POST" action="{{ route('admin.inbox.broadcasts.resend', $bc->uuid) }}" onsubmit="return confirm('Resend this broadcast to the same audience?')" style="display:inline">
+                            @csrf
+                            <button type="submit" class="bc-btn bc-btn-resend"><i class="fas fa-redo"></i> Resend</button>
+                        </form>
                         @endif
+                        <form method="POST" action="{{ route('admin.inbox.broadcasts.delete', $bc->uuid) }}" onsubmit="return confirm('Delete this broadcast permanently?')" style="display:inline">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="bc-btn bc-btn-del"><i class="fas fa-trash"></i></button>
+                        </form>
                     </div>
                 </div>
                 @if($bc->status === 'sent')
@@ -258,6 +311,54 @@ function setTarget(val, btn) {
     btn.classList.add('active');
     document.getElementById('targetInput').value = val;
     document.getElementById('specificUserSection').style.display = val === 'specific' ? 'block' : 'none';
+}
+
+// ── Bulk select ──────────────────────────────────────────────────────────────
+function getChecked() {
+    return [...document.querySelectorAll('.bc-item-check:checked')].map(c => c.value);
+}
+
+function updateBulkBar() {
+    const checked = getChecked();
+    const bar = document.getElementById('bulkBar');
+    if (checked.length > 0) {
+        bar.classList.add('show');
+        document.getElementById('bulkCount').textContent = checked.length + ' selected';
+        document.getElementById('bulkHiddenInputs').innerHTML =
+            checked.map(u => `<input type="hidden" name="uuids[]" value="${u}">`).join('');
+        document.querySelectorAll('.bc-item').forEach(el => {
+            const uuid = el.querySelector('.bc-item-check')?.value;
+            el.classList.toggle('selected', uuid && checked.includes(uuid));
+        });
+    } else {
+        bar.classList.remove('show');
+        document.querySelectorAll('.bc-item').forEach(el => el.classList.remove('selected'));
+    }
+}
+
+function toggleSelectAll(cb) {
+    document.querySelectorAll('.bc-item-check').forEach(c => c.checked = cb.checked);
+    updateBulkBar();
+}
+
+function onItemCheck() {
+    const all = document.querySelectorAll('.bc-item-check');
+    const checked = [...all].filter(c => c.checked);
+    const selectAll = document.getElementById('selectAll');
+    if (selectAll) selectAll.checked = checked.length === all.length && all.length > 0;
+    updateBulkBar();
+}
+
+function clearSelection() {
+    document.querySelectorAll('.bc-item-check').forEach(c => c.checked = false);
+    const sa = document.getElementById('selectAll');
+    if (sa) sa.checked = false;
+    updateBulkBar();
+}
+
+function confirmBulk() {
+    const n = getChecked().length;
+    return confirm(`Delete ${n} broadcast(s) permanently? This cannot be undone.`);
 }
 
 let selectedUsers = {};

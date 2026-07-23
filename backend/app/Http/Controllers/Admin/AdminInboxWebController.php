@@ -364,6 +364,59 @@ class AdminInboxWebController extends Controller
         return response()->json($users);
     }
 
+    public function resendBroadcast(Request $request, string $uuid)
+    {
+        $original = MarketingBroadcast::where('uuid', $uuid)->firstOrFail();
+
+        $copy = MarketingBroadcast::create([
+            'uuid'           => (string) Str::uuid(),
+            'created_by'     => $request->user()->id,
+            'title'          => $original->title,
+            'body'           => $original->body,
+            'image_url'      => $original->image_url,
+            'module'         => $original->module,
+            'cta_label'      => $original->cta_label,
+            'cta_route'      => $original->cta_route,
+            'target'         => $original->target,
+            'target_filters' => $original->target_filters,
+            'status'         => 'sending',
+            'sent_at'        => now(),
+        ]);
+
+        SendMarketingBroadcast::dispatch($copy->id);
+
+        return redirect()->route('admin.inbox.broadcasts.index')
+            ->with('success', 'Broadcast resent successfully.');
+    }
+
+    public function deleteBroadcast(Request $request, string $uuid)
+    {
+        $broadcast = MarketingBroadcast::where('uuid', $uuid)->firstOrFail();
+        $broadcast->reads()->delete();
+        $broadcast->delete();
+
+        return redirect()->route('admin.inbox.broadcasts.index')
+            ->with('success', 'Broadcast deleted.');
+    }
+
+    public function bulkDeleteBroadcasts(Request $request)
+    {
+        $uuids = array_filter((array) $request->input('uuids', []));
+        if (empty($uuids)) {
+            return redirect()->route('admin.inbox.broadcasts.index')
+                ->with('error', 'No broadcasts selected.');
+        }
+
+        $broadcasts = MarketingBroadcast::whereIn('uuid', $uuids)->get();
+        foreach ($broadcasts as $b) {
+            $b->reads()->delete();
+            $b->delete();
+        }
+
+        return redirect()->route('admin.inbox.broadcasts.index')
+            ->with('success', count($broadcasts) . ' broadcast(s) deleted.');
+    }
+
     public function broadcastStats(Request $request, string $uuid)
     {
         $broadcast = MarketingBroadcast::where('uuid', $uuid)->firstOrFail();

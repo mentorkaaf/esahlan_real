@@ -265,75 +265,78 @@ class _BroadcastCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 10),
+        height: 112,
         decoration: BoxDecoration(
           color: card,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: b.isRead ? null : Border.all(color: _kAccentOr.withAlpha(100), width: 1.5),
-          boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 6), blurRadius: 10, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withAlpha(isDark ? 20 : 6), blurRadius: 8, offset: const Offset(0, 2))],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _kAccentOr.withAlpha(20),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.campaign_outlined, size: 10, color: _kAccentOr),
+                          const SizedBox(width: 3),
+                          Text('Campaign', style: TextStyle(color: _kAccentOr, fontSize: 9, fontWeight: FontWeight.w700)),
+                        ]),
+                      ),
+                      const Spacer(),
+                      if (!b.isRead)
+                        Container(width: 7, height: 7, decoration: const BoxDecoration(color: _kAccentOr, shape: BoxShape.circle)),
+                      if (b.sentAt != null) ...[
+                        const SizedBox(width: 5),
+                        Text(_timeAgo(b.sentAt!), style: TextStyle(color: Colors.grey[500], fontSize: 10)),
+                      ],
+                    ]),
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(b.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontWeight: b.isRead ? FontWeight.w600 : FontWeight.w800, fontSize: 13,
+                              color: isDark ? Colors.white : _kPrimary)),
+                      const SizedBox(height: 2),
+                      Text(b.body, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 11, height: 1.3)),
+                    ]),
+                    if (b.ctaLabel != null)
+                      SizedBox(
+                        height: 28,
+                        child: ElevatedButton(
+                          onPressed: onTap,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _kAccentOr,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text(b.ctaLabel!, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                        ),
+                      )
+                    else
+                      const SizedBox.shrink(),
+                  ],
+                ),
+              ),
+            ),
             if (b.imageUrl != null)
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                child: Image.network(b.imageUrl!, height: 160, width: double.infinity, fit: BoxFit.cover,
+                borderRadius: const BorderRadius.only(topRight: Radius.circular(14), bottomRight: Radius.circular(14)),
+                child: Image.network(b.imageUrl!, width: 96, height: 112, fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => const SizedBox.shrink()),
               ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: _kAccentOr.withAlpha(20),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.campaign_outlined, size: 11, color: _kAccentOr),
-                      const SizedBox(width: 3),
-                      Text('Campaign', style: TextStyle(color: _kAccentOr, fontSize: 10, fontWeight: FontWeight.w700)),
-                    ]),
-                  ),
-                  const Spacer(),
-                  if (!b.isRead)
-                    Container(
-                      width: 8, height: 8,
-                      decoration: const BoxDecoration(color: _kAccentOr, shape: BoxShape.circle),
-                    ),
-                  if (b.sentAt != null) ...[
-                    const SizedBox(width: 6),
-                    Text(_timeAgo(b.sentAt!), style: TextStyle(color: Colors.grey[500], fontSize: 11)),
-                  ],
-                ]),
-                const SizedBox(height: 10),
-                Text(b.title, style: TextStyle(
-                  fontWeight: b.isRead ? FontWeight.w600 : FontWeight.w800,
-                  fontSize: 15,
-                  color: isDark ? Colors.white : _kPrimary,
-                )),
-                const SizedBox(height: 6),
-                Text(b.body, maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 13, height: 1.4)),
-                if (b.ctaLabel != null) ...[
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity, height: 40,
-                    child: ElevatedButton(
-                      onPressed: onTap,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _kAccentOr,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      child: Text(b.ctaLabel!, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ],
-              ]),
-            ),
           ],
         ),
       ),
