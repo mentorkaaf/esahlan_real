@@ -17,9 +17,20 @@ class AdminInboxWebController extends Controller
 
     public function conversations(Request $request)
     {
-        $convs = InboxConversation::with(['user', 'agent'])
-            ->orderByDesc('last_message_at')
-            ->paginate(25);
+        $query = InboxConversation::with(['user', 'agent']);
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('q')) {
+            $q = $request->q;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('subject', 'like', "%$q%")
+                   ->orWhereHas('user', fn($u) => $u->where('name', 'like', "%$q%")->orWhere('phone', 'like', "%$q%"));
+            });
+        }
+
+        $convs = $query->orderByDesc('last_message_at')->paginate(25)->withQueryString();
 
         $stats = [
             'open_tickets'     => InboxConversation::whereIn('status', ['open', 'assigned'])->count(),
@@ -106,6 +117,23 @@ class AdminInboxWebController extends Controller
             }
         } catch (\Throwable) {}
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => [
+                    'uuid'        => $msg->uuid,
+                    'sender_type' => 'agent',
+                    'sender_name' => $admin->name,
+                    'type'        => 'text',
+                    'content'     => $msg->content,
+                    'media_url'   => null,
+                    'is_deleted'  => false,
+                    'time'        => $msg->created_at->format('H:i'),
+                    'created_at'  => $msg->created_at->toISOString(),
+                ],
+            ]);
+        }
+
         return redirect()->route('admin.inbox.conversation.messages', $uuid)
             ->with('success', 'Reply sent.');
     }
@@ -183,6 +211,71 @@ class AdminInboxWebController extends Controller
         $broadcast->update(['status' => 'sending']);
         dispatch(new SendMarketingBroadcast($broadcast->id));
         return redirect()->back()->with('success', 'Broadcast queued for sending.');
+    }
+
+    // ── Real-time poll (admin chat) ───────────────────────────────────────────
+
+    public function pollMessages(Request $request, string $uuid)
+    {
+        $conv  = InboxConversation::where('uuid', $uuid)->firstOrFail();
+        $since = $request->get('since', now()->subSeconds(10)->toISOString());
+
+        $msgs = InboxMessage::with('sender')
+            ->where('conversation_id', $conv->id)
+            ->where('created_at', '>', $since)
+            ->orderBy('created_at')
+            ->get();
+
+        // Mark new user messages as delivered
+        InboxMessage::where('conversation_id', $conv->id)
+            ->where('sender_type', 'user')->whereNull('delivered_at')
+            ->update(['status' => 'delivered', 'delivered_at' => now()]);
+        $conv->update(['unread_agent' => 0]);
+
+        // Check ringing call sessions
+        $ringingCall = $conv->calls()->where('status', 'ringing')->latest()->first();
+
+        return response()->json([
+            'messages'      => $msgs->map(fn($m) => [
+                'uuid'        => $m->uuid,
+                'sender_type' => $m->sender_type,
+                'sender_name' => $m->sender?->name,
+                'type'        => $m->type,
+                'content'     => $m->is_deleted ? null : $m->content,
+                'media_url'   => $m->media_url,
+                'is_deleted'  => $m->is_deleted,
+                'time'        => $m->created_at->format('H:i'),
+            ]),
+            'ringing_call' => $ringingCall ? ['uuid' => $ringingCall->uuid] : null,
+            'conv_status'  => $conv->fresh()->status,
+        ]);
+    }
+
+    // ── Global admin notification poll ────────────────────────────────────────
+
+    public function globalPoll(Request $request)
+    {
+        $unread = InboxConversation::where('unread_agent', '>', 0)
+            ->whereIn('status', ['open', 'assigned'])->count();
+
+        $newTickets = InboxConversation::where('created_at', '>', now()->subSeconds(35))
+            ->whereIn('status', ['open'])->count();
+
+        return response()->json(['unread' => $unread, 'new_tickets' => $newTickets]);
+    }
+
+    // ── User search for targeted broadcast ───────────────────────────────────
+
+    public function searchUsers(Request $request)
+    {
+        $q     = $request->get('q', '');
+        $users = \App\Models\User::where(function ($query) use ($q) {
+            $query->where('name', 'like', "%$q%")
+                  ->orWhere('phone', 'like', "%$q%")
+                  ->orWhere('email', 'like', "%$q%");
+        })->limit(10)->get(['id', 'name', 'phone', 'email']);
+
+        return response()->json($users);
     }
 
     public function broadcastStats(Request $request, string $uuid)

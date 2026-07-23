@@ -22,7 +22,12 @@ class InboxSupportScreen extends ConsumerStatefulWidget {
 class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen> {
   final _msgCtrl      = TextEditingController();
   final _scrollCtrl   = ScrollController();
-  final _recorder     = RecorderController();
+  final _recorder     = RecorderController()
+    ..androidEncoder = AndroidEncoder.aac
+    ..androidOutputFormat = AndroidOutputFormat.mpeg4
+    ..iosEncoder = IosEncoder.kAudioFormatMPEG4AAC
+    ..sampleRate = 44100
+    ..bitRate = 128000;
   final List<InboxMessage> _messages = [];
   InboxConversation? _conv;
 
@@ -37,6 +42,7 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen> {
   Room? _room;
   bool _inCall = false;
   bool _callMuted = false;
+  bool _callInitiatedByMe = false;
 
   @override
   void initState() {
@@ -101,7 +107,9 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen> {
     } else if (event == 'call_initiated') {
       _onIncomingCall(data);
     } else if (data.containsKey('uuid')) {
-      // New message from agent
+      // New message — dedup by uuid to prevent echo double-add
+      final uuid = data['uuid'] as String?;
+      if (uuid != null && _messages.any((m) => m.uuid == uuid)) return;
       try {
         final msg = InboxMessage.fromJson(data);
         if (mounted) setState(() { _messages.add(msg); _agentTyping = false; });
@@ -182,6 +190,7 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen> {
   }
 
   Future<void> _startCall() async {
+    _callInitiatedByMe = true;
     try {
       final data = await widget.repo.initiateCall(widget.conversation.uuid);
       final url   = data['livekit_url'] as String? ?? '';
@@ -201,7 +210,7 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen> {
 
   Future<void> _endCall() async {
     await _room?.disconnect();
-    setState(() { _inCall = false; _room = null; });
+    setState(() { _inCall = false; _room = null; _callInitiatedByMe = false; });
   }
 
   void _toggleMute() {
@@ -210,6 +219,8 @@ class _InboxSupportScreenState extends ConsumerState<InboxSupportScreen> {
   }
 
   void _onIncomingCall(Map data) {
+    // Skip dialog if this user initiated the call
+    if (_callInitiatedByMe) return;
     showDialog(
       context: context,
       barrierDismissible: false,
