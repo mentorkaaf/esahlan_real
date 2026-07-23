@@ -230,44 +230,63 @@ class InboxController extends Controller
         $user = $request->user();
         $conv = InboxConversation::where('uuid', $uuid)->where('user_id', $user->id)->firstOrFail();
 
-        // Check LiveKit is configured BEFORE creating session or broadcasting
+        $roomName  = 'inbox-' . $conv->uuid . '-' . now()->timestamp;
+        $offerSdp  = $request->input('offer_sdp', '');
+
+        // Check if LiveKit is configured
         $livekitUrl = config('services.livekit.url', env('LIVEKIT_URL', ''));
         $apiKey     = env('LIVEKIT_API_KEY', '');
         $apiSecret  = env('LIVEKIT_API_SECRET', '');
+        $useLiveKit = $livekitUrl && $apiKey && $apiSecret;
 
-        if (!$livekitUrl || !$apiKey || !$apiSecret) {
-            // Return failure without broadcasting — prevents fake "Incoming Call" dialog on user's device
+        // Need either LiveKit or a WebRTC offer from the client
+        if (!$useLiveKit && !$offerSdp) {
             return response()->json(['success' => false, 'data' => [
                 'livekit_url' => '', 'token' => '', 'call_uuid' => null,
             ]]);
         }
 
-        $roomName = 'inbox-' . $conv->uuid . '-' . now()->timestamp;
-        $session  = InboxCallSession::create([
-            'uuid'           => (string) Str::uuid(),
-            'conversation_id'=> $conv->id,
-            'initiated_by'   => $user->id,
-            'room_name'      => $roomName,
-            'status'         => 'ringing',
+        $session = InboxCallSession::create([
+            'uuid'            => (string) Str::uuid(),
+            'conversation_id' => $conv->id,
+            'initiated_by'    => $user->id,
+            'room_name'       => $roomName,
+            'status'          => 'ringing',
+            'offer_sdp'       => $offerSdp ?: null,
         ]);
 
-        $token = $this->_livekitToken($roomName, (string) $user->id, $user->name);
+        if ($useLiveKit) {
+            $token = $this->_livekitToken($roomName, (string) $user->id, $user->name);
+        } else {
+            $token = '';
+        }
 
-        // Notify agent via Reverb only when call is actually ready
+        // Notify agent via Reverb
         try {
             broadcast(new InboxMessageSent($conv->uuid, [
                 'event'     => 'call_initiated',
                 'room_name' => $roomName,
                 'call_uuid' => $session->uuid,
+                'offer_sdp' => $offerSdp ?: null,
             ]))->toOthers();
         } catch (\Throwable) {}
 
         return response()->json(['success' => true, 'data' => [
-            'call_uuid'  => $session->uuid,
-            'room_name'  => $roomName,
-            'livekit_url'=> $livekitUrl,
-            'token'      => $token,
+            'call_uuid'   => $session->uuid,
+            'room_name'   => $roomName,
+            'signaling'   => $useLiveKit ? 'livekit' : 'webrtc',
+            'livekit_url' => $livekitUrl ?: '',
+            'token'       => $token,
         ]]);
+    }
+
+    public function sendIceCandidate(Request $request, string $callUuid)
+    {
+        $session    = InboxCallSession::where('uuid', $callUuid)->firstOrFail();
+        $candidates = $session->user_ice_candidates ?? [];
+        $candidates[] = $request->input('candidate');
+        $session->update(['user_ice_candidates' => $candidates]);
+        return response()->json(['success' => true]);
     }
 
     public function joinCall(Request $request, string $callUuid)

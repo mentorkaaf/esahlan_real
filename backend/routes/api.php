@@ -900,6 +900,7 @@ Route::prefix('v1/inbox')->middleware('auth:sanctum')->group(function () {
     Route::post('conversations/{uuid}/call',        [$ic, 'initiateCall']);
     Route::post('calls/{callUuid}/join',            [$ic, 'joinCall']);
     Route::post('calls/{callUuid}/end',             [$ic, 'endCall']);
+    Route::post('calls/{callUuid}/ice',             [$ic, 'sendIceCandidate']);
 });
 
 // ── Admin Inbox / Marketing ───────────────────────────────────────────────────

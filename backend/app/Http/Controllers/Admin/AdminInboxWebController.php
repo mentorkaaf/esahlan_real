@@ -251,10 +251,17 @@ class AdminInboxWebController extends Controller
             ->update(['status' => 'delivered', 'delivered_at' => now()]);
         $conv->update(['unread_agent' => 0]);
 
-        // Only show ringing calls initiated within the last 90 seconds
+        // Ringing call (WebRTC offer) — last 90 seconds
         $ringingCall = $conv->calls()
             ->where('status', 'ringing')
             ->where('created_at', '>=', now()->subSeconds(90))
+            ->latest()
+            ->first();
+
+        // Active call — return user ICE candidates for WebRTC
+        $activeCall = $conv->calls()
+            ->where('status', 'active')
+            ->where('created_at', '>=', now()->subMinutes(30))
             ->latest()
             ->first();
 
@@ -269,9 +276,54 @@ class AdminInboxWebController extends Controller
                 'is_deleted'  => $m->is_deleted,
                 'time'        => $m->created_at->format('H:i'),
             ]),
-            'ringing_call' => $ringingCall ? ['uuid' => $ringingCall->uuid] : null,
+            'ringing_call' => $ringingCall ? [
+                'uuid'      => $ringingCall->uuid,
+                'offer_sdp' => $ringingCall->offer_sdp,
+            ] : null,
+            'active_call'  => $activeCall ? [
+                'uuid'                => $activeCall->uuid,
+                'user_ice_candidates' => $activeCall->user_ice_candidates ?? [],
+            ] : null,
             'conv_status'  => $conv->fresh()->status,
         ]);
+    }
+
+    public function answerCall(Request $request, string $callUuid)
+    {
+        $session = \App\Models\InboxCallSession::where('uuid', $callUuid)
+            ->where('status', 'ringing')
+            ->firstOrFail();
+
+        $session->update([
+            'answer_sdp'  => $request->input('answer_sdp'),
+            'status'      => 'active',
+            'answered_at' => now(),
+        ]);
+
+        try {
+            broadcast(new InboxMessageSent($session->conversation->uuid, [
+                'event'      => 'call_answered',
+                'call_uuid'  => $callUuid,
+                'answer_sdp' => $request->input('answer_sdp'),
+            ]));
+        } catch (\Throwable) {}
+
+        return response()->json(['success' => true]);
+    }
+
+    public function adminIce(Request $request, string $callUuid)
+    {
+        $session = \App\Models\InboxCallSession::where('uuid', $callUuid)->firstOrFail();
+
+        try {
+            broadcast(new InboxMessageSent($session->conversation->uuid, [
+                'event'     => 'ice_candidate',
+                'call_uuid' => $callUuid,
+                'candidate' => $request->input('candidate'),
+            ]));
+        } catch (\Throwable) {}
+
+        return response()->json(['success' => true]);
     }
 
     public function declineCall(Request $request, string $callUuid)

@@ -324,14 +324,17 @@ const POLL_URL  = '{{ route("admin.inbox.conversation.poll", $conversation->uuid
 const REPLY_URL = '{{ route("admin.inbox.conversation.reply", $conversation->uuid) }}';
 const CSRF      = '{{ csrf_token() }}';
 
-let lastMsgTime = '{{ $messages->last()?->created_at->toISOString() ?? now()->toISOString() }}';
-let isAtBottom  = true;
-let ringingCallUuid = null;
-let callInterval = null;
-let callSeconds  = 0;
-let peerConn     = null;
-let localStream  = null;
-let isMuted      = false;
+let lastMsgTime      = '{{ $messages->last()?->created_at->toISOString() ?? now()->toISOString() }}';
+let isAtBottom       = true;
+let ringingCallUuid  = null;
+let ringingOfferSdp  = null;
+let activeCallUuid   = null;
+let callInterval     = null;
+let callSeconds      = 0;
+let peerConn         = null;
+let localStream      = null;
+let isMuted          = false;
+let processedIceIdx  = 0; // tracks how many user ICE candidates we've applied
 
 // ── Scroll tracking ──────────────────────────────────────────────────────────
 const msgBox = document.getElementById('msgBox');
@@ -453,12 +456,25 @@ async function poll() {
             });
         }
 
-        // Ringing call
-        if (data.ringing_call && !ringingCallUuid) {
+        // Ringing call (WebRTC)
+        if (data.ringing_call && !ringingCallUuid && !activeCallUuid) {
             ringingCallUuid = data.ringing_call.uuid;
+            ringingOfferSdp = data.ringing_call.offer_sdp || null;
             showIncomingCall();
-        } else if (!data.ringing_call) {
+        } else if (!data.ringing_call && !activeCallUuid) {
             ringingCallUuid = null;
+            ringingOfferSdp = null;
+        }
+
+        // Active call: apply any new user ICE candidates
+        if (data.active_call && peerConn) {
+            const candidates = data.active_call.user_ice_candidates || [];
+            for (let i = processedIceIdx; i < candidates.length; i++) {
+                try {
+                    await peerConn.addIceCandidate(new RTCIceCandidate(candidates[i]));
+                } catch(_) {}
+            }
+            processedIceIdx = candidates.length;
         }
 
         // Update status badge
@@ -560,10 +576,77 @@ function declineCall() {
 
 async function answerCall() {
     clearInterval(ringInterval);
+    ringInterval = null;
     document.getElementById('callBanner').classList.remove('show');
-    // For now, show "call connected" bar — real WebRTC would need LiveKit SDK
-    startCallTimer();
-    document.getElementById('callActiveBar').classList.add('show');
+
+    const callUuid = ringingCallUuid;
+    const offerSdp = ringingOfferSdp;
+    ringingCallUuid = null;
+    ringingOfferSdp = null;
+
+    try {
+        // Get microphone
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+
+        // Create WebRTC peer connection
+        peerConn = new RTCPeerConnection({
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+            ]
+        });
+
+        localStream.getTracks().forEach(t => peerConn.addTrack(t, localStream));
+
+        // Play remote audio
+        peerConn.ontrack = (e) => {
+            const audio = document.getElementById('callPlayer');
+            audio.srcObject = e.streams[0];
+            audio.play().catch(() => {});
+        };
+
+        // Send ICE candidates to backend → Reverb → Flutter
+        peerConn.onicecandidate = async (e) => {
+            if (e.candidate && activeCallUuid) {
+                try {
+                    await fetch(`/admin/inbox/calls/${activeCallUuid}/admin-ice`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                        body: JSON.stringify({ candidate: e.candidate.toJSON() }),
+                    });
+                } catch (_) {}
+            }
+        };
+
+        if (offerSdp) {
+            // WebRTC mode: set offer, create answer
+            await peerConn.setRemoteDescription({ type: 'offer', sdp: offerSdp });
+            const answer = await peerConn.createAnswer();
+            await peerConn.setLocalDescription(answer);
+
+            // Send answer to backend → Reverb → Flutter
+            await fetch(`/admin/inbox/calls/${callUuid}/answer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                body: JSON.stringify({ answer_sdp: answer.sdp }),
+            });
+
+            activeCallUuid = callUuid;
+            processedIceIdx = 0;
+        } else {
+            // LiveKit mode — just mark active (Flutter handles LiveKit)
+            activeCallUuid = callUuid;
+        }
+
+        startCallTimer();
+        document.getElementById('callActiveBar').classList.add('show');
+
+    } catch (err) {
+        console.error('[WebRTC] answerCall error:', err);
+        if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+        if (peerConn) { peerConn.close(); peerConn = null; }
+        alert('Could not access microphone: ' + err.message);
+    }
 }
 
 function startCallTimer() {
@@ -580,19 +663,32 @@ function endCall() {
     clearInterval(callInterval);
     clearInterval(ringInterval);
     ringInterval = null;
+    callInterval = null;
     document.getElementById('callActiveBar').classList.remove('show');
     document.getElementById('callBanner').classList.remove('show');
-    const uuid = ringingCallUuid;
+
+    // Stop local tracks
+    if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+    if (peerConn) { peerConn.close(); peerConn = null; }
+
+    const uuid = activeCallUuid || ringingCallUuid;
+    activeCallUuid = null;
     ringingCallUuid = null;
+    ringingOfferSdp = null;
+    processedIceIdx = 0;
+
     if (uuid) {
         fetch(`/admin/inbox/calls/${uuid}/decline`, {
-            method:'POST', headers:{'X-CSRF-TOKEN':CSRF,'X-Requested-With':'XMLHttpRequest'}
-        }).catch(()=>{});
+            method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+        }).catch(() => {});
     }
 }
 
 function toggleMute() {
     isMuted = !isMuted;
+    if (localStream) {
+        localStream.getAudioTracks().forEach(t => { t.enabled = !isMuted; });
+    }
     document.getElementById('muteBtn').innerHTML = isMuted
         ? '<i class="fas fa-microphone-slash"></i> Unmute'
         : '<i class="fas fa-microphone"></i> Mute';
