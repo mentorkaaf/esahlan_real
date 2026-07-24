@@ -444,6 +444,7 @@ class _BookDoctorSheetState extends State<_BookDoctorSheet> {
   bool _booking    = false;
   String _payMethod = 'wallet';
   String? _waafiRef;
+  String? _mobileProofToken;
 
   static const _slots = ['08:00 AM','09:00 AM','10:00 AM','11:00 AM','02:00 PM','03:00 PM','04:00 PM'];
 
