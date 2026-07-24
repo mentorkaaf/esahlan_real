@@ -1452,9 +1452,13 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
         if (_waafiReference != null) 'payment_reference': _waafiReference,
       });
       final data = resp is Map ? (resp['data'] ?? {}) : {};
+      final ticketOrderNum = data['order_number']?.toString();
+      if (_mobileProofToken != null && ticketOrderNum != null) {
+        ModuleApiService.create().attachMobilePayProof(ticketOrderNum, _mobileProofToken!);
+      }
       if (mounted) {
         setState(() {
-          _orderNumber = data['order_number']?.toString() ?? 'ESH-??????';
+          _orderNumber = ticketOrderNum ?? 'ESH-??????';
           _step = 2;
           _booking = false;
         });

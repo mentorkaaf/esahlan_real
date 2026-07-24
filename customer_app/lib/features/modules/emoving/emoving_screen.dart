@@ -1643,8 +1643,13 @@ class _BookingFlowScreenState extends ConsumerState<_BookingFlowScreen> {
         if (_waafiReference != null) 'payment_reference': _waafiReference,
       };
       final res = await _svc.placeMovingOrder(body);
+      final movingData = res['data'] ?? res;
+      final movingOrderNum = movingData['order_number'] as String?;
+      if (_mobileProofToken != null && movingOrderNum != null) {
+        _svc.attachMobilePayProof(movingOrderNum, _mobileProofToken!);
+      }
       setState(() {
-        _confirmedOrder = res['data'] ?? res;
+        _confirmedOrder = movingData;
         _submitting = false;
         _step = 2;
       });

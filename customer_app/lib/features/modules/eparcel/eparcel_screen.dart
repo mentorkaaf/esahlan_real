@@ -419,7 +419,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
 
     setState(() => _ordering = true);
     try {
-      await _svc.placeParcelOrder({
+      final parcelRes = await _svc.placeParcelOrder({
         'parcel_type_id':   _parcelTypeId,
         'pickup_address':   {'district_id': _pickupDistrictId, 'name': _senderName, 'phone': _senderPhone},
         'delivery_address': {'district_id': _deliveryDistrictId},
@@ -429,6 +429,10 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
         'payment_method':   _payMethod,
         if (_waafiRef != null) 'payment_reference': _waafiRef,
       });
+      final parcelOrderNum = (parcelRes is Map) ? ((parcelRes['data'] ?? parcelRes)['order_number'] as String?) : null;
+      if (_mobileProofToken != null && parcelOrderNum != null) {
+        _svc.attachMobilePayProof(parcelOrderNum, _mobileProofToken!);
+      }
       if (_payMethod == 'wallet') ref.invalidate(walletProvider);
       if (mounted) {
         _snack('Parcel order placed successfully! 🎉');

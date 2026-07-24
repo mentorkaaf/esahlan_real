@@ -355,8 +355,12 @@ class _EDataFlowDialogState extends ConsumerState<_EDataFlowDialog> {
       });
       final data = res is Map ? (res['data'] ?? {}) : {};
       if (_payMethod == 'wallet') ref.invalidate(walletProvider);
+      final orderNum = data['order_number']?.toString();
+      if (_mobileProofToken != null && orderNum != null) {
+        svc.attachMobilePayProof(orderNum, _mobileProofToken!);
+      }
       if (mounted) setState(() {
-        _orderNumber = data['order_number']?.toString() ?? 'DATA-??????';
+        _orderNumber = orderNum ?? 'DATA-??????';
         _step = 3;
         _loading = false;
       });

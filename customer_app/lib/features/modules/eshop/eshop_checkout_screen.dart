@@ -152,7 +152,11 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
         if (_waafiReference != null) 'payment_reference': _waafiReference,
       };
 
-      await _svc.placeShopOrderV2(body);
+      final orderRes = await _svc.placeShopOrderV2(body);
+      final orderNum = (orderRes is Map) ? ((orderRes['data'] ?? orderRes)['order_number'] as String?) : null;
+      if (_mobileProofToken != null && orderNum != null) {
+        _svc.attachMobilePayProof(orderNum, _mobileProofToken!);
+      }
 
       ref.read(eshopCartProvider.notifier).clear();
       ref.read(eshopCouponProvider.notifier).clear();

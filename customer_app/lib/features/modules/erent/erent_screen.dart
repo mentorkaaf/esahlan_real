@@ -1195,6 +1195,9 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
       if (_payMethod == 'wallet') ref.invalidate(walletProvider);
       if (mounted) {
         final ref2 = result is Map ? (result['data']?['order_number'] ?? '') : '';
+        if (_mobileProofToken != null && ref2.isNotEmpty) {
+          svc.attachMobilePayProof(ref2.toString(), _mobileProofToken!);
+        }
         setState(() { _loading = false; _done = true; _orderRef = ref2.toString(); });
       }
     } catch (e) {
