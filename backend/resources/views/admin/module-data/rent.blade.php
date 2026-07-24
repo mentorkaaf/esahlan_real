@@ -457,8 +457,10 @@
                             @endif
                         </td>
                         <td>
-                            @php $ps = $bk->payment_status ?? 'pending'; @endphp
+                            @php $ps = $bk->payment_status ?? 'pending'; $bkpm = $bk->payment_method ?? 'cod'; @endphp
+                            <span style="font-size:11px;font-weight:700;color:{{ $bkpm==='mobile_pay'?'#3949AB':($bkpm==='wallet'?'#2E7D32':'#555') }};display:block;">{{ ucwords(str_replace('_',' ',$bkpm)) }}</span>
                             <span class="badge-xs badge-{{ $ps }}">{{ ucfirst($ps) }}</span>
+                            @if($bkpm==='mobile_pay')<a href="{{ route('admin.orders.show', $bk->id) }}" style="font-size:10px;color:#3949AB;display:block;margin-top:2px;"><i class="fas fa-image"></i> Proof</a>@endif
                         </td>
                         <td>
                             @if($bkStatus === 'refund_requested')

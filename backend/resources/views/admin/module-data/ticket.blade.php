@@ -394,7 +394,12 @@
                 <td style="font-size:12px;color:#8A8A9A">{{ $bk->departure_at ? \Carbon\Carbon::parse($bk->departure_at)->format('d M Y') : '—' }}</td>
                 <td style="font-weight:700">{{ $bk->total_passengers ?? 1 }}</td>
                 <td><strong>${{ number_format($bk->total_amount ?? 0) }}</strong></td>
-                <td><span class="badge-xs {{ ($bk->payment_status ?? 'pending')==='paid' ? 'badge-active' : 'badge-boarding' }}">{{ ucfirst($bk->payment_status ?? 'pending') }}</span></td>
+                <td>
+                    @php $bkpm = $bk->payment_method ?? 'cod'; @endphp
+                    <span style="font-size:11px;font-weight:700;color:{{ $bkpm==='mobile_pay'?'#3949AB':($bkpm==='wallet'?'#2E7D32':'#555') }};display:block;">{{ ucwords(str_replace('_',' ',$bkpm)) }}</span>
+                    <span class="badge-xs {{ ($bk->payment_status ?? 'pending')==='paid' ? 'badge-active' : 'badge-boarding' }}">{{ ucfirst($bk->payment_status ?? 'pending') }}</span>
+                    @if($bkpm==='mobile_pay')<a href="{{ route('admin.orders.show', $bk->id) }}" style="font-size:10px;color:#3949AB;display:block;margin-top:2px;"><i class="fas fa-image"></i> Proof</a>@endif
+                </td>
                 <td><span class="badge-xs {{ $stMap2[$bk->order_status ?? 'confirmed'] ?? 'badge-scheduled' }}">{{ ucfirst($bk->order_status ?? 'confirmed') }}</span></td>
             </tr>
             @empty

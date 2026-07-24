@@ -387,8 +387,8 @@ class EFoodController extends Controller
 
         // ── Map payment method to schema enum values ───────────────────
         $pmRaw = $request->input('payment_method', 'wallet');
-        $pmMap = ['waafi' => 'cod', 'waafi_pay' => 'cod', 'cash' => 'cod', 'wallet' => 'wallet', 'cod' => 'cod'];
-        $pm    = $pmMap[$pmRaw] ?? 'cod';
+        $pmMap = ['waafi' => 'waafi_pay', 'cash' => 'cod', 'wallet' => 'wallet', 'waafi_pay' => 'waafi_pay', 'cod' => 'cod', 'mobile_pay' => 'mobile_pay'];
+        $pm    = $pmMap[$pmRaw] ?? $pmRaw;
 
         // Route is now auth:sanctum — user is always resolved correctly
         $userId = $request->user()->id;

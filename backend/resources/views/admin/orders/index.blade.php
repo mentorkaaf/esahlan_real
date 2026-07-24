@@ -389,7 +389,13 @@ $count = $grpOrders->count();
                         @else<span class="badge badge-secondary">Unassigned</span>@endif
                     </td>
                     <td><span style="font-weight:700;">${{ number_format($total,2) }}</span></td>
-                    <td><span class="badge {{ $ps==='paid'?'badge-success':($ps==='refunded'?'badge-info':'badge-warning') }}">{{ ucfirst($ps) }}</span></td>
+                    <td>
+                        @php $opm = $order->payment_method ?? 'cod'; @endphp
+                        <span style="font-size:11px;font-weight:700;color:{{ $opm==='mobile_pay'?'#3949AB':($opm==='wallet'?'#2E7D32':($opm==='waafi_pay'?'#7B1FA2':'#555')) }};">
+                            {{ ucwords(str_replace('_',' ',$opm)) }}
+                        </span>
+                        <br><span class="badge {{ $ps==='paid'?'badge-success':($ps==='refunded'?'badge-info':'badge-warning') }}" style="font-size:10px;">{{ ucfirst($ps) }}</span>
+                    </td>
                     <td><span class="badge {{ $bc }} badge-dot">{{ ucwords(str_replace('_',' ',$order->status)) }}</span></td>
                     <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">
                         {{ $order->created_at->setTimezone(\App\Helpers\AppSettings::timezone())->format('d M') }}<br>

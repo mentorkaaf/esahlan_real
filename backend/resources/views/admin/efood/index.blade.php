@@ -638,9 +638,13 @@
                         </td>
                         <td><strong>${{ number_format($o->total_amount ?? $o->grand_total ?? 0, 2) }}</strong></td>
                         <td>
-                            <span class="badge {{ $o->payment_status === 'paid' ? 'badge-success' : 'badge-warning' }}">
-                                {{ ucfirst(str_replace('_',' ', $o->payment_method ?? 'cod')) }}
+                            @php $pm = $o->payment_method ?? 'cod'; $pmLabel = ucwords(str_replace('_',' ', $pm)); @endphp
+                            <span class="badge {{ $o->payment_status === 'paid' ? 'badge-success' : ($pm === 'mobile_pay' ? 'badge-info' : 'badge-warning') }}">
+                                {{ $pmLabel }}
                             </span>
+                            @if($pm === 'mobile_pay')
+                            <a href="{{ route('admin.orders.show', $o->id) }}" title="View proof" style="font-size:10px;color:#3949AB;display:block;margin-top:2px;"><i class="fas fa-image"></i> Proof</a>
+                            @endif
                         </td>
                         <td>
                             @php

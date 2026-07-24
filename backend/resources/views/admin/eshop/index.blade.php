@@ -587,7 +587,13 @@ select.form-control { background:#fff; }
                 <div style="font-size:11px;color:#aaa">{{ $o->customer_phone ?? '' }}</div>
             </td>
             <td style="font-weight:800;color:var(--brand)">${{ number_format($o->total_amount,2) }}</td>
-            <td><span style="background:#f3f4f6;padding:3px 8px;border-radius:6px;font-size:11px;">{{ ucfirst($o->payment_method ?? 'cod') }}</span></td>
+            @php $pm = $o->payment_method ?? 'cod'; @endphp
+            <td>
+                <span style="background:{{ $pm==='mobile_pay'?'#EEF2FF':($pm==='wallet'?'#F0FDF4':'#f3f4f6') }};color:{{ $pm==='mobile_pay'?'#3949AB':($pm==='wallet'?'#2E7D32':'#555') }};padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;">
+                    {{ ucwords(str_replace('_',' ',$pm)) }}
+                </span>
+                @if($pm==='mobile_pay')<a href="{{ route('admin.orders.show', $o->id) }}" style="font-size:10px;color:#3949AB;display:block;margin-top:2px;"><i class="fas fa-image"></i> Proof</a>@endif
+            </td>
             <td><span class="order-status status-{{ $o->status }}">{{ ucfirst($o->status) }}</span></td>
             <td style="font-size:12px;color:#666;">{{ \Carbon\Carbon::parse($o->created_at)->format('d M Y H:i') }}</td>
             <td>

@@ -210,7 +210,11 @@ class _OrderDetailBody extends StatelessWidget {
                   ),
                   SizedBox(width: 12),
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(order.paymentMethod?.toUpperCase() ?? 'CASH',
+                    Text(
+                        (order.paymentMethod ?? 'cash')
+                            .split('_')
+                            .map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}')
+                            .join(' '),
                       style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.navyText)),
                     const SizedBox(height: 2),
                     Container(
