@@ -99,7 +99,7 @@ class WalletController extends Controller
     public function topup(Request $request)
     {
         $v = Validator::make($request->all(), [
-            'amount'  => 'required|numeric|min:1|max:10000',
+            'amount'  => 'required|numeric|min:0.1|max:10000',
             'phone'   => 'required|string|min:9',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
