@@ -192,6 +192,8 @@ $scMap = [
     'pending'=>'#FF8A00','confirmed'=>'#1565C0','preparing'=>'#6A1B9A',
     'out_for_delivery'=>'#00695C','delivered'=>'#2E7D32','cancelled'=>'#C62828',
     'refunded'=>'#F57F17','failed'=>'#C62828','ready_for_pickup'=>'#3949AB',
+    // eTicket
+    'boarded'=>'#00838F','completed'=>'#2E7D32','no_show'=>'#78909C',
 ];
 $scColor = $scMap[$order->status] ?? '#546e7a';
 
@@ -899,10 +901,24 @@ $tz = \App\Helpers\AppSettings::timezone();
     <div class="od-card-body">
         <form action="{{ route('admin.orders.status', $order->id) }}" method="POST" class="status-form">
             @csrf @method('PATCH')
-            <select name="status" class="form-control" style="max-width:200px;">
-                @foreach(['pending','confirmed','preparing','ready_for_pickup','out_for_delivery','delivered','cancelled','refunded','failed'] as $s)
-                <option value="{{ $s }}" {{ $order->status === $s ? 'selected' : '' }}>{{ ucfirst(str_replace('_',' ',$s)) }}</option>
-                @endforeach
+            <select name="status" class="form-control" style="max-width:220px;">
+                @if($slug === 'eticket')
+                    @foreach([
+                        'pending'   => '⏳ Pending',
+                        'confirmed' => '✅ Confirmed',
+                        'boarded'   => '🛫 Boarded',
+                        'completed' => '🏁 Completed',
+                        'no_show'   => '🚫 No Show',
+                        'cancelled' => '❌ Cancelled',
+                        'refunded'  => '💸 Refunded',
+                    ] as $val => $label)
+                    <option value="{{ $val }}" {{ $order->status === $val ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                @else
+                    @foreach(['pending','confirmed','preparing','ready_for_pickup','out_for_delivery','delivered','cancelled','refunded','failed'] as $s)
+                    <option value="{{ $s }}" {{ $order->status === $s ? 'selected' : '' }}>{{ ucfirst(str_replace('_',' ',$s)) }}</option>
+                    @endforeach
+                @endif
             </select>
             <input type="text" name="note" class="form-control" placeholder="Optional note..." style="flex:1;">
             <button type="submit" class="btn btn-primary" style="white-space:nowrap;"><i class="fas fa-save" style="margin-right:6px;"></i>Update</button>
@@ -1198,8 +1214,8 @@ $tz = \App\Helpers\AppSettings::timezone();
         <div class="title">Status Timeline</div>
     </div>
     @php
-    $tlColors = ['pending'=>'#FF8A00','confirmed'=>'#1565C0','preparing'=>'#6A1B9A','out_for_delivery'=>'#00695C','delivered'=>'#2E7D32','cancelled'=>'#C62828','refunded'=>'#F57F17','failed'=>'#C62828','ready_for_pickup'=>'#3949AB'];
-    $tlIcons  = ['pending'=>'fa-clock','confirmed'=>'fa-check','preparing'=>'fa-cog','out_for_delivery'=>'fa-truck','delivered'=>'fa-check-double','cancelled'=>'fa-times','refunded'=>'fa-undo','failed'=>'fa-exclamation','ready_for_pickup'=>'fa-box-check'];
+    $tlColors = ['pending'=>'#FF8A00','confirmed'=>'#1565C0','preparing'=>'#6A1B9A','out_for_delivery'=>'#00695C','delivered'=>'#2E7D32','cancelled'=>'#C62828','refunded'=>'#F57F17','failed'=>'#C62828','ready_for_pickup'=>'#3949AB','boarded'=>'#00838F','completed'=>'#2E7D32','no_show'=>'#78909C'];
+    $tlIcons  = ['pending'=>'fa-clock','confirmed'=>'fa-check','preparing'=>'fa-cog','out_for_delivery'=>'fa-truck','delivered'=>'fa-check-double','cancelled'=>'fa-times','refunded'=>'fa-undo','failed'=>'fa-exclamation','ready_for_pickup'=>'fa-box-check','boarded'=>'fa-plane-departure','completed'=>'fa-flag-checkered','no_show'=>'fa-user-slash'];
     @endphp
     <div class="timeline">
         @forelse($order->statusHistory as $h)
