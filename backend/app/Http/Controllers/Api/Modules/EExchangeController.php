@@ -78,7 +78,7 @@ class EExchangeController extends Controller
             'to'              => 'required|string|max:20',
             'amount'          => 'required|numeric|min:0.01',
             'recipient_phone' => 'required|string|min:6|max:30',
-            'payment_method'  => 'nullable|string|in:wallet,waafi_pay',
+            'payment_method'  => 'nullable|string|in:wallet,waafi_pay,mobile_pay',
         ]);
         if ($v->fails()) {
             return response()->json([

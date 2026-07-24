@@ -175,10 +175,10 @@ class ERentController extends Controller
     {
         $v = Validator::make($request->all(), [
             'property_id'    => 'required|exists:properties,id',
-            'booking_type'   => 'required|in:full_rent,carbuun',
+            'booking_type'   => 'required|in:full_rent,carbuun,mobile_pay',
             'move_in_date'   => 'required|date|after:today',
             'duration_months'=> 'required|integer|min:1',
-            'payment_method' => 'required|in:wallet,waafi_pay',
+            'payment_method' => 'required|in:wallet,waafi_pay,mobile_pay',
             'note'           => 'nullable|string',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
@@ -387,7 +387,7 @@ class ERentController extends Controller
     public function payRemaining(Request $request, $id)
     {
         $v = Validator::make($request->all(), [
-            'payment_method' => 'required|in:wallet,waafi_pay',
+            'payment_method' => 'required|in:wallet,waafi_pay,mobile_pay',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 

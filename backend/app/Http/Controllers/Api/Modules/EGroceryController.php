@@ -130,7 +130,7 @@ class EGroceryController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity'   => 'required|integer|min:1',
             'delivery_address'   => 'required|array',
-            'payment_method'     => 'required|in:wallet,cod,waafi_pay',
+            'payment_method'     => 'required|in:wallet,cod,waafi_pay,mobile_pay',
             'waafi_reference'    => 'nullable|string',
             'note'               => 'nullable|string',
         ]);

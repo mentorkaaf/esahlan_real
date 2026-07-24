@@ -99,7 +99,7 @@ class EParcelController extends Controller
             'recipient_name'               => 'required|string',
             'recipient_phone'              => 'required|string',
             'description'                  => 'nullable|string',
-            'payment_method'               => 'required|in:wallet,waafi_pay',
+            'payment_method'               => 'required|in:wallet,waafi_pay,mobile_pay',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 

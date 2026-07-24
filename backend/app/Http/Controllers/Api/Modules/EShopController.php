@@ -226,7 +226,7 @@ class EShopController extends Controller
             'items.*.quantity'    => 'required|integer|min:1',
             'items.*.variant_id'  => 'nullable|exists:product_variants,id',
             'delivery_address'    => 'required|array',
-            'payment_method'      => 'required|in:wallet,cod',
+            'payment_method'      => 'required|in:wallet,cod,mobile_pay',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 

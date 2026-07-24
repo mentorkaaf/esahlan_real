@@ -73,7 +73,7 @@ class ETicketController extends Controller
             'to'         => 'required|string',
             'date'       => 'nullable|date',
             'passengers' => 'nullable|integer|min:1|max:9',
-            'seat_class' => 'nullable|in:economy,business,first',
+            'seat_class' => 'nullable|in:economy,business,first,mobile_pay',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
@@ -141,14 +141,14 @@ class ETicketController extends Controller
     {
         $v = Validator::make($request->all(), [
             'flight_id'          => 'required|exists:flights,id',
-            'seat_class'         => 'required|in:economy,business,first',
-            'payment_method'     => 'required|in:wallet,waafi_pay,cod',
+            'seat_class'         => 'required|in:economy,business,first,mobile_pay',
+            'payment_method'     => 'required|in:wallet,waafi_pay,cod,mobile_pay',
             'passengers'         => 'required|array|min:1',
             'passengers.*.name'  => 'required|string',
             'passengers.*.passport_number' => 'required|string',
             'passengers.*.nationality'     => 'required|string',
             'passengers.*.dob'             => 'required|date',
-            'passengers.*.type'            => 'required|in:adult,child,infant',
+            'passengers.*.type'            => 'required|in:adult,child,infant,mobile_pay',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 

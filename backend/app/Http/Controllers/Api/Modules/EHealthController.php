@@ -81,7 +81,7 @@ class EHealthController extends Controller
             'pickup_address'  => 'required|array',
             'patient_name'    => 'required|string',
             'notes'           => 'nullable|string',
-            'payment_method'  => 'required|in:wallet,cod',
+            'payment_method'  => 'required|in:wallet,cod,mobile_pay',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
@@ -140,14 +140,14 @@ class EHealthController extends Controller
     public function bookAppointment(Request $request)
     {
         $v = Validator::make($request->all(), [
-            'type'            => 'required|in:nurse,doctor',
+            'type'            => 'required|in:nurse,doctor,mobile_pay',
             'doctor_id'       => 'nullable|exists:doctors,id',
             'scheduled_at'    => 'required|date|after:now',
             'patient_name'    => 'required|string',
             'patient_phone'   => 'required|string',
             'address'         => 'required|array',
             'notes'           => 'nullable|string',
-            'payment_method'  => 'required|in:wallet,cod',
+            'payment_method'  => 'required|in:wallet,cod,mobile_pay',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 

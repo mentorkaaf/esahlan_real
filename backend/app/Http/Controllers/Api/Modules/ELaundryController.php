@@ -27,7 +27,7 @@ class ELaundryController extends Controller
     public function estimate(Request $request)
     {
         $v = Validator::make($request->all(), [
-            'service_type' => 'required|in:normal,express',
+            'service_type' => 'required|in:normal,express,mobile_pay',
             'items'        => 'required|array|min:1',
             'items.*.id'   => 'required|exists:laundry_items,id',
             'items.*.qty'  => 'required|integer|min:1',
@@ -77,14 +77,14 @@ class ELaundryController extends Controller
     public function createOrder(Request $request)
     {
         $v = Validator::make($request->all(), [
-            'service_type'       => 'required|in:normal,express',
+            'service_type'       => 'required|in:normal,express,mobile_pay',
             'items'              => 'required|array|min:1',
             'items.*.id'         => 'required|exists:laundry_items,id',
             'items.*.qty'        => 'required|integer|min:1',
             'pickup_district_id' => 'required|exists:districts,id',
             'pickup_address'     => 'nullable|string',
             'delivery_address'   => 'nullable|string',
-            'payment_method'     => 'required|in:wallet,cod',
+            'payment_method'     => 'required|in:wallet,cod,mobile_pay',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 

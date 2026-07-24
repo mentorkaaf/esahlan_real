@@ -117,7 +117,7 @@ class EDataController extends Controller
             'package_id'     => 'nullable|exists:data_packages,id',
             'bundle_id'      => 'nullable|integer',
             'phone_number'   => 'required|string|min:7',
-            'payment_method' => 'required|in:wallet,waafi_pay',
+            'payment_method' => 'required|in:wallet,waafi_pay,mobile_pay',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
         if (empty($request->package_id) && empty($request->bundle_id)) {

@@ -77,7 +77,7 @@ class EMovingController extends Controller
         $v = Validator::make($request->all(), [
             'from_district_id' => 'required|exists:districts,id',
             'to_district_id'   => 'required|exists:districts,id',
-            'move_type'        => 'required|in:house,office,commercial,single_item',
+            'move_type'        => 'required|in:house,office,commercial,single_item,mobile_pay',
             'room_count'       => 'nullable|integer|min:1',
             'package_id'       => 'nullable|integer',
             'extra_services'   => 'nullable|array',
@@ -160,12 +160,12 @@ class EMovingController extends Controller
             'to_district_id'   => 'required|exists:districts,id',
             'pickup_address'   => 'nullable|string',
             'delivery_address' => 'nullable|string',
-            'move_type'        => 'required|in:house,office,commercial,single_item',
+            'move_type'        => 'required|in:house,office,commercial,single_item,mobile_pay',
             'room_count'       => 'nullable|integer|min:1',
             'package_id'       => 'nullable|integer',
             'extra_services'   => 'nullable|array',
             'scheduled_date'   => 'required|date|after_or_equal:today',
-            'payment_method'   => 'required|in:wallet,waafi_pay',
+            'payment_method'   => 'required|in:wallet,waafi_pay,mobile_pay',
             'note'             => 'nullable|string',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
