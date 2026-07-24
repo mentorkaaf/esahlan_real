@@ -12,6 +12,7 @@ import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../payment/mobile_pay_sheet.dart';
+import '../../payment/payment_method_section.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../ads/services/ad_service.dart';
 
@@ -1363,7 +1364,7 @@ class _ErrorCard extends StatelessWidget {
 // BOOKING FLOW DIALOG — handles Passengers → Payment → Success in one dialog
 // No Navigator.push needed; useRootNavigator:true guarantees full-screen cover
 // ─────────────────────────────────────────────────────────────────────────────
-class _BookingFlowDialog extends StatefulWidget {
+class _BookingFlowDialog extends ConsumerStatefulWidget {
   final Map<String, dynamic> flight;
   final int adults, children, infants;
   final String seatClass;
@@ -1374,7 +1375,7 @@ class _BookingFlowDialog extends StatefulWidget {
   State<_BookingFlowDialog> createState() => _BookingFlowDialogState();
 }
 
-class _BookingFlowDialogState extends State<_BookingFlowDialog> {
+class _BookingFlowDialogState extends ConsumerState<_BookingFlowDialog> {
   // ── State ────────────────────────────────────────────────────
   int _step = 0;          // 0=passengers, 1=payment, 2=success
   late List<_PaxData> _passengers;
@@ -1804,31 +1805,10 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
           const SizedBox(height: 14),
           // Payment method
           _PayCard(title: 'Payment Method', icon: Icons.payment_rounded,
-            child: Column(children: [
-              _PayMethodTile(
-                label: 'Mobile Pay',
-                sub: 'EVC Plus, Waafi, Sahal — USSD',
-                icon: Icons.phone_in_talk_rounded,
-                color: const Color(0xFF4CAF50), selected: _payMethod == 'mobile_pay',
-                onTap: () => setState(() => _payMethod = 'mobile_pay'),
-              ),
-              const SizedBox(height: 10),
-              _PayMethodTile(
-                label: 'ePay Balance',
-                sub: 'Deducted from your eSahlan ePay',
-                icon: Icons.account_balance_wallet_rounded,
-                color: context.colors.navyText, selected: _payMethod == 'wallet',
-                onTap: () => setState(() => _payMethod = 'wallet'),
-              ),
-              const SizedBox(height: 10),
-              _PayMethodTile(
-                label: 'Waafi Pay',
-                sub: 'EVC / eDahab / Jeep / Premier',
-                icon: Icons.phone_android_rounded,
-                color: const Color(0xFFFF8A00), selected: _payMethod == 'waafi_pay',
-                onTap: () => setState(() => _payMethod = 'waafi_pay'),
-              ),
-            ]),
+            child: PaymentMethodSection(
+              selected: _payMethod,
+              onChanged: (m) => setState(() => _payMethod = m),
+            ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 14),

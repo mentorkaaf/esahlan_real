@@ -7,6 +7,7 @@ import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../payment/mobile_pay_sheet.dart';
+import '../../payment/payment_method_section.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -375,13 +376,10 @@ class _OrderConfirmPageState extends State<_OrderConfirmPage> {
           // ── Payment Method ─────────────────────────────────────────────
           Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: c.navyText)),
           const SizedBox(height: 10),
-          Row(children: [
-            Expanded(child: _PayChip(label: 'Mobile Pay', icon: Icons.phone_in_talk_rounded, selected: _payMethod == 'mobile_pay', onTap: () => setState(() => _payMethod = 'mobile_pay'))),
-            const SizedBox(width: 10),
-            Expanded(child: _PayChip(label: 'ePay',      icon: Icons.account_balance_wallet_rounded, selected: _payMethod == 'wallet',    onTap: () => setState(() => _payMethod = 'wallet'))),
-            const SizedBox(width: 10),
-            Expanded(child: _PayChip(label: 'Waafi Pay', icon: Icons.phone_android_rounded,          selected: _payMethod == 'waafi_pay', onTap: () => setState(() => _payMethod = 'waafi_pay'))),
-          ]),
+          PaymentMethodSection(
+            selected: _payMethod,
+            onChanged: (m) => setState(() => _payMethod = m),
+          ),
 
           const SizedBox(height: 30),
         ]),

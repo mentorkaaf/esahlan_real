@@ -9,6 +9,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../payment/mobile_pay_sheet.dart';
+import '../../payment/payment_method_section.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../auth/data/models/district_model.dart';
 import '../../auth/data/repositories/district_repository.dart';
@@ -696,11 +697,10 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
 
         // Payment
         _section('Payment Method', Icons.payment_outlined, children: [
-          _paymentOption('mobile_pay', 'Mobile Pay', Icons.phone_in_talk_rounded, 'EVC Plus, Waafi, Sahal — USSD'),
-          const SizedBox(height: 10),
-          _paymentOption('wallet', 'ePay',   Icons.account_balance_wallet_outlined, 'Pay from ePay balance'),
-          const SizedBox(height: 10),
-          _paymentOption('waafi_pay', 'Waafi Pay', Icons.phone_android_rounded, 'EVC / eDahab'),
+          PaymentMethodSection(
+            selected: _payment,
+            onChanged: (m) => setState(() => _payment = m),
+          ),
         ]),
       ]),
       bottomNavigationBar: Container(

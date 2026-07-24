@@ -18,6 +18,7 @@ import '../widgets/live_goal_bar.dart';
 import '../widgets/live_qa_panel.dart';
 import '../widgets/live_raid_sheet.dart';
 import '../widgets/live_beauty_filter.dart';
+import '../../services/live_filter_processor.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/services/realtime_client.dart';
 
@@ -59,6 +60,7 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
   BeautyFilter _filter = BeautyFilter.none;
   bool _showFilterStrip = false;
   bool _showRaidConfirm = false;
+  LiveNativeFilterProcessor? _filterProcessor;
 
   @override
   void initState() {
@@ -89,7 +91,11 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
         roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true),
       );
 
-      await _room.localParticipant?.setCameraEnabled(true);
+      _filterProcessor = LiveNativeFilterProcessor(_filter.name);
+      await _room.localParticipant?.setCameraEnabled(
+        true,
+        cameraCaptureOptions: CameraCaptureOptions(processor: _filterProcessor),
+      );
       await _room.localParticipant?.setMicrophoneEnabled(true);
     } catch (e) {
       debugPrint('[Live] connect error: $e');
@@ -388,6 +394,13 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
     });
   }
 
+  Future<void> _applyFilter(BeautyFilter filter) async {
+    // Update local preview immediately (no latency for host)
+    setState(() => _filter = filter);
+    // Update native filter in-place (no camera restart needed)
+    await _filterProcessor?.updateFilter(filter.name);
+  }
+
   String get _durationStr {
     final m = (_duration ~/ 60).toString().padLeft(2, '0');
     final s = (_duration % 60).toString().padLeft(2, '0');
@@ -398,6 +411,7 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
   void dispose() {
     _timer?.cancel();
     _listener?.dispose();
+    _filterProcessor?.destroy();
     _room.dispose();
     _battleRoom?.dispose();
     RealtimeClient.instance.unsubscribe(_reverbChannel);
@@ -726,7 +740,7 @@ class _LiveHostScreenState extends State<LiveHostScreen> {
               bottom: 95, left: 0, right: 0,
               child: FilterSelectorStrip(
                 selected: _filter,
-                onSelect: (f) => setState(() => _filter = f),
+                onSelect: _applyFilter,
                 onClose: () => setState(() => _showFilterStrip = false),
               ),
             ),

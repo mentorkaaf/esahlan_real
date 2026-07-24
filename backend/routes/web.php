@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\AdminVendorController;
 use App\Http\Controllers\Admin\AdminOrderController;
 use App\Http\Controllers\Admin\AdminModuleController;
 use App\Http\Controllers\Admin\AdminMobilePayController;
+use App\Http\Controllers\Admin\AdminPaymentSettingsController;
 use App\Http\Controllers\Admin\AdminBannerController;
 use App\Http\Controllers\Admin\AdminAdController;
 use App\Http\Controllers\Admin\AdminSettingController;
@@ -247,7 +248,19 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/{module}/districts', [AdminModuleController::class, 'updateDistricts'])->name('districts');
         });
 
-        // Mobile Pay Accounts
+        // Payment Settings (enable/disable + config)
+        Route::prefix('payment-settings')->name('payment-settings.')->group(function () {
+            Route::get('/',                                      [AdminPaymentSettingsController::class, 'index'])->name('index');
+            Route::post('/toggle/{method}',                      [AdminPaymentSettingsController::class, 'toggle'])->name('toggle');
+            Route::post('/waafi',                                [AdminPaymentSettingsController::class, 'updateWaafi'])->name('waafi');
+            Route::post('/wallet',                               [AdminPaymentSettingsController::class, 'updateWallet'])->name('wallet');
+            Route::post('/mobile',                               [AdminPaymentSettingsController::class, 'mobileStore'])->name('mobile.store');
+            Route::patch('/mobile/{account}',                    [AdminPaymentSettingsController::class, 'mobileUpdate'])->name('mobile.update');
+            Route::delete('/mobile/{account}',                   [AdminPaymentSettingsController::class, 'mobileDestroy'])->name('mobile.destroy');
+            Route::patch('/mobile/{account}/toggle',             [AdminPaymentSettingsController::class, 'mobileToggle'])->name('mobile.toggle');
+        });
+
+        // Mobile Pay Accounts (legacy — keep for backward compat)
         Route::prefix('mobile-pay')->name('mobile-pay.')->group(function () {
             Route::get('/',                              [AdminMobilePayController::class, 'index'])->name('index');
             Route::post('/',                             [AdminMobilePayController::class, 'store'])->name('store');

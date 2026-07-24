@@ -127,6 +127,16 @@ class WalletNotifier extends StateNotifier<AsyncValue<WalletData>> {
     onEvent?.call(type, amount, note);
   }
 
+  /// Update balance instantly (no loading flash) then re-fetch transactions in background.
+  void updateBalanceImmediate(double newBalance) {
+    final current = state.valueOrNull;
+    if (current != null) {
+      state = AsyncValue.data(current.copyWith(balance: newBalance));
+    }
+    // Background sync for transactions list
+    _fetch();
+  }
+
   Future<void> refresh() async {
     state = const AsyncValue.loading();
     await _fetch();

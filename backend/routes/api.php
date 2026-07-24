@@ -171,6 +171,11 @@ Route::prefix('v1')->group(function () {
     Route::post('ads/{id}/track',       [AdController::class, 'track']);         // body: {action: impression|click}
     Route::get('modules',               [HomeController::class, 'modules']);
     Route::get('modules/{slug}',        [HomeController::class, 'moduleDetails']);
+    Route::get('payment/methods',           function () {
+        return response()->json([
+            'enabled' => \App\Http\Controllers\Admin\AdminPaymentSettingsController::enabledMethods()
+        ]);
+    });
     Route::get('mobile-pay/accounts',      [MobilePayController::class, 'accounts']);
     Route::post('mobile-pay/submit-proof', [MobilePayController::class, 'submitProof']);
     Route::post('mobile-pay/attach-proof', [MobilePayController::class, 'attachProof']);

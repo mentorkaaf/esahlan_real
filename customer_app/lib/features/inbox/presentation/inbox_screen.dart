@@ -62,7 +62,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
           controller: _tab,
           children: [
             _MarketingTab(repo: ref.read(_inboxRepoProvider)),
-            _SupportTab(repo: ref.read(_inboxRepoProvider)),
+            _SupportTab(repo: ref.read(_inboxRepoProvider), onNewRequest: () => _openNewSupport(context)),
           ],
         ),
       ),
@@ -359,8 +359,9 @@ class _BroadcastCard extends StatelessWidget {
 // ── Support Tab ───────────────────────────────────────────────────────────────
 
 class _SupportTab extends ConsumerWidget {
-  const _SupportTab({required this.repo});
+  const _SupportTab({required this.repo, required this.onNewRequest});
   final InboxRepository repo;
+  final VoidCallback onNewRequest;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -371,8 +372,10 @@ class _SupportTab extends ConsumerWidget {
       data:    (list) {
         if (list.isEmpty) return _EmptyState(
           'No support tickets yet',
-          'Tap the button below to contact\nour support team',
+          'Start a conversation with our support team',
           Icons.support_agent_outlined,
+          action: onNewRequest,
+          actionLabel: 'New Request',
         );
         return RefreshIndicator(
           color: _kAccent,
@@ -516,6 +519,7 @@ class _NewSupportSheet extends StatefulWidget {
 }
 
 class _NewSupportSheetState extends State<_NewSupportSheet> {
+  int _step = 0; // 0 = pick module, 1 = fill form
   SupportModule? _module;
   final _subjectCtrl = TextEditingController();
   final _msgCtrl     = TextEditingController();
@@ -524,114 +528,184 @@ class _NewSupportSheetState extends State<_NewSupportSheet> {
   @override
   void dispose() { _subjectCtrl.dispose(); _msgCtrl.dispose(); super.dispose(); }
 
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg     = isDark ? _kCardDark : Colors.white;
-
+  Widget _buildHeader(BuildContext context, bool isDark) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.92,
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF252540) : const Color(0xFFEEF0F8))),
       ),
-      child: Column(children: [
-        // Handle
-        const SizedBox(height: 10),
-        Container(width: 36, height: 4, decoration: BoxDecoration(
-          color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-        const SizedBox(height: 4),
-
-        // Header
-        Container(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF252540) : const Color(0xFFEEF0F8))),
-          ),
-          child: Row(children: [
-            Container(
-              width: 36, height: 36,
+      child: Row(children: [
+        if (_step == 1)
+          GestureDetector(
+            onTap: () => setState(() => _step = 0),
+            child: Container(
+              width: 30, height: 30, margin: const EdgeInsets.only(right: 10),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [_kPrimary, Color(0xFF1a0070)]),
-                borderRadius: BorderRadius.circular(10),
+                color: isDark ? const Color(0xFF252540) : _kBgLight,
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.headset_mic_outlined, color: Colors.white, size: 18),
+              child: Icon(Icons.arrow_back_ios_rounded, size: 14, color: Colors.grey[600]),
             ),
-            const SizedBox(width: 10),
-            Text('New Support Request', style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w800,
-              color: isDark ? Colors.white : _kPrimary,
-            )),
-            const Spacer(),
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                width: 30, height: 30,
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF252540) : _kBgLight,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.close, size: 16, color: Colors.grey[600]),
-              ),
+          )
+        else ...[
+          Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [_kPrimary, Color(0xFF1a0070)]),
+              borderRadius: BorderRadius.circular(10),
             ),
-          ]),
+            child: const Icon(Icons.headset_mic_outlined, color: Colors.white, size: 18),
+          ),
+          const SizedBox(width: 10),
+        ],
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('New Support Request', style: TextStyle(
+            fontSize: 16, fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : _kPrimary,
+          )),
+          Text(_step == 0 ? 'Step 1 of 2 — Choose a module' : 'Step 2 of 2 — Describe your issue',
+            style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+        ])),
+        GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            width: 30, height: 30,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF252540) : _kBgLight,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.close, size: 16, color: Colors.grey[600]),
+          ),
         ),
+      ]),
+    );
+  }
 
+  Widget _buildStepIndicator() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+      child: Row(children: [
+        Expanded(child: Container(height: 3, decoration: BoxDecoration(
+          color: _kAccent, borderRadius: BorderRadius.circular(2)))),
+        const SizedBox(width: 6),
+        Expanded(child: Container(height: 3, decoration: BoxDecoration(
+          color: _step == 1 ? _kAccent : _kAccent.withAlpha(40),
+          borderRadius: BorderRadius.circular(2)))),
+      ]),
+    );
+  }
+
+  Widget _buildModuleStep(BuildContext context, bool isDark) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Expanded(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 0.95,
+            ),
+            itemCount: kSupportModules.length,
+            itemBuilder: (_, i) {
+              final m = kSupportModules[i];
+              final sel = _module?.id == m.id;
+              return GestureDetector(
+                onTap: () => setState(() => _module = m),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  decoration: BoxDecoration(
+                    color: sel ? _kAccent : (isDark ? const Color(0xFF252540) : _kBgLight),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: sel ? _kAccent : (isDark ? const Color(0xFF333355) : const Color(0xFFDDE2F0)),
+                      width: sel ? 2 : 1,
+                    ),
+                    boxShadow: sel ? [BoxShadow(color: _kAccent.withAlpha(60), blurRadius: 6, offset: const Offset(0, 2))] : [],
+                  ),
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Text(m.icon, style: const TextStyle(fontSize: 20)),
+                    const SizedBox(height: 4),
+                    Text(m.label, textAlign: TextAlign.center, style: TextStyle(
+                      fontSize: 9, fontWeight: FontWeight.w700,
+                      color: sel ? Colors.white : (isDark ? Colors.grey[300] : const Color(0xFF374151)),
+                    ), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  ]),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+      // Next button
+      Padding(
+        padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).padding.bottom + 20),
+        child: SizedBox(
+          width: double.infinity, height: 52,
+          child: ElevatedButton(
+            onPressed: _module == null ? null : () => setState(() => _step = 1),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _kAccent,
+              disabledBackgroundColor: _kAccent.withAlpha(60),
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Text(
+                _module == null ? 'Select a module to continue' : 'Continue with ${_module!.label}',
+                style: TextStyle(
+                  color: _module == null ? Colors.white54 : Colors.white,
+                  fontWeight: FontWeight.w800, fontSize: 14,
+                ),
+              ),
+              if (_module != null) ...[
+                const SizedBox(width: 6),
+                const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+              ],
+            ]),
+          ),
+        ),
+      ),
+    ]);
+  }
+
+  Widget _buildFormStep(BuildContext context, bool isDark) {
+    return Expanded(
+      child: Column(children: [
+        // Selected module chip
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              color: _kAccent.withAlpha(15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _kAccent.withAlpha(60)),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(_module!.icon, style: const TextStyle(fontSize: 16)),
+              const SizedBox(width: 8),
+              Text(_module!.label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: _kAccent)),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => setState(() => _step = 0),
+                child: const Text('Change', style: TextStyle(fontSize: 11, color: _kAccent, fontWeight: FontWeight.w600)),
+              ),
+            ]),
+          ),
+        ),
         Expanded(
           child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+            padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(context).viewInsets.bottom + 16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-              // Module selector
-              _SectionTitle('Select Module', Icons.grid_view_rounded),
-              const SizedBox(height: 12),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.1,
-                ),
-                itemCount: kSupportModules.length,
-                itemBuilder: (_, i) {
-                  final m = kSupportModules[i];
-                  final sel = _module?.id == m.id;
-                  return GestureDetector(
-                    onTap: () => setState(() => _module = m),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      decoration: BoxDecoration(
-                        color: sel ? _kAccent : (isDark ? const Color(0xFF252540) : _kBgLight),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: sel ? _kAccent : (isDark ? const Color(0xFF333355) : const Color(0xFFDDE2F0)),
-                          width: sel ? 2 : 1,
-                        ),
-                        boxShadow: sel ? [BoxShadow(color: _kAccent.withAlpha(50), blurRadius: 8, offset: const Offset(0, 3))] : [],
-                      ),
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Text(m.icon, style: const TextStyle(fontSize: 24)),
-                        const SizedBox(height: 4),
-                        Text(m.label, textAlign: TextAlign.center, style: TextStyle(
-                          fontSize: 10, fontWeight: FontWeight.w700,
-                          color: sel ? Colors.white : (isDark ? Colors.grey[300] : const Color(0xFF374151)),
-                        ), maxLines: 2, overflow: TextOverflow.ellipsis),
-                      ]),
-                    ),
-                  );
-                },
-              ),
-
-              const SizedBox(height: 22),
               _SectionTitle('Subject', Icons.title_rounded),
               const SizedBox(height: 8),
               _StyledField(controller: _subjectCtrl, hint: 'Brief description of your issue', isDark: isDark),
-
               const SizedBox(height: 16),
               _SectionTitle('Describe your issue', Icons.chat_bubble_outline_rounded),
               const SizedBox(height: 8),
               _StyledField(controller: _msgCtrl, hint: 'Please provide as much detail as possible…', maxLines: 5, isDark: isDark),
-
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity, height: 52,
                 child: ElevatedButton(
@@ -655,6 +729,30 @@ class _NewSupportSheetState extends State<_NewSupportSheet> {
             ]),
           ),
         ),
+      ]),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg     = isDark ? _kCardDark : Colors.white;
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.92,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(children: [
+        const SizedBox(height: 10),
+        Container(width: 36, height: 4, decoration: BoxDecoration(
+          color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+        _buildHeader(context, isDark),
+        _buildStepIndicator(),
+        const SizedBox(height: 4),
+        if (_step == 0) Expanded(child: _buildModuleStep(context, isDark))
+        else _buildFormStep(context, isDark),
       ]),
     );
   }
@@ -739,8 +837,10 @@ class _StyledField extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState(this.title, this.subtitle, this.icon);
+  const _EmptyState(this.title, this.subtitle, this.icon, {this.action, this.actionLabel});
   final String title; final String subtitle; final IconData icon;
+  final VoidCallback? action;
+  final String? actionLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -765,6 +865,21 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 8),
           Text(subtitle, textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: Colors.grey[500], height: 1.5)),
+          if (action != null) ...[
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: action,
+              icon: const Icon(Icons.add, size: 18),
+              label: Text(actionLabel ?? 'New Request', style: const TextStyle(fontWeight: FontWeight.w700)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kAccent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 0,
+              ),
+            ),
+          ],
         ]),
       ),
     );

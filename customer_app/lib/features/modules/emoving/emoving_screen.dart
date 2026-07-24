@@ -8,6 +8,7 @@ import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../payment/mobile_pay_sheet.dart';
+import '../../payment/payment_method_section.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -1815,7 +1816,7 @@ class _StepIndicator extends StatelessWidget {
 
 // ─── Schedule Step ───────────────────────────────────────────────────────────
 
-class _ScheduleStep extends StatelessWidget {
+class _ScheduleStep extends ConsumerWidget {
   final DateTime moveDate;
   final String notes;
   final String paymentMethod;
@@ -1836,7 +1837,7 @@ class _ScheduleStep extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
         Expanded(
@@ -1893,35 +1894,9 @@ class _ScheduleStep extends StatelessWidget {
                 // Payment
                 const _FormLabel('Payment Method'),
                 const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _PaymentTile(
-                        label: 'Mobile Pay',
-                        icon: Icons.phone_in_talk_rounded,
-                        selected: paymentMethod == 'mobile_pay',
-                        onTap: () => onPaymentChanged('mobile_pay'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _PaymentTile(
-                        label: 'ePay',
-                        icon: Icons.account_balance_wallet_rounded,
-                        selected: paymentMethod == 'wallet',
-                        onTap: () => onPaymentChanged('wallet'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _PaymentTile(
-                        label: 'Waafi Pay',
-                        icon: Icons.phone_android_rounded,
-                        selected: paymentMethod == 'waafi_pay',
-                        onTap: () => onPaymentChanged('waafi_pay'),
-                      ),
-                    ),
-                  ],
+                PaymentMethodSection(
+                  selected: paymentMethod,
+                  onChanged: onPaymentChanged,
                 ),
                 const SizedBox(height: 20),
                 // Notes

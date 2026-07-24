@@ -12,6 +12,7 @@ import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../payment/mobile_pay_sheet.dart';
+import '../../payment/payment_method_section.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 
@@ -793,7 +794,7 @@ class _BundleSkeleton extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP 2 — Order Summary
 // ─────────────────────────────────────────────────────────────────────────────
-class _OrderSummaryStep extends StatelessWidget {
+class _OrderSummaryStep extends ConsumerWidget {
   final Map bundle, package, provider;
   final Color providerColor;
   final TextEditingController phoneCtrl;
@@ -811,7 +812,7 @@ class _OrderSummaryStep extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final price = _toD(bundle['price']);
     final dataAmt = bundle['data_amount']?.toString() ?? '';
     final days    = bundle['validity_days']?.toString() ?? '';
@@ -925,31 +926,10 @@ class _OrderSummaryStep extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
             const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: _PayTile(
-                icon: Icons.phone_in_talk_rounded,
-                label: 'Mobile Pay', subtitle: 'USSD dial',
-                selected: payMethod == 'mobile_pay',
-                color: const Color(0xFF4CAF50),
-                onTap: () => onPayMethodChanged('mobile_pay'),
-              )),
-              const SizedBox(width: 10),
-              Expanded(child: _PayTile(
-                icon: Icons.account_balance_wallet_rounded,
-                label: 'ePay', subtitle: 'Pay from balance',
-                selected: payMethod == 'wallet',
-                color: providerColor,
-                onTap: () => onPayMethodChanged('wallet'),
-              )),
-              const SizedBox(width: 10),
-              Expanded(child: _PayTile(
-                icon: Icons.phone_android_rounded,
-                label: 'Waafi Pay', subtitle: 'EVC / eDahab',
-                selected: payMethod == 'waafi_pay',
-                color: const Color(0xFFFF8A00),
-                onTap: () => onPayMethodChanged('waafi_pay'),
-              )),
-            ]),
+            PaymentMethodSection(
+              selected: payMethod,
+              onChanged: onPayMethodChanged,
+            ),
           ]),
         ),
 

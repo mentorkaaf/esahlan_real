@@ -151,16 +151,18 @@ class SupportModule {
 }
 
 const kSupportModules = [
-  SupportModule(id: 'general',   label: 'General',       icon: '💬'),
-  SupportModule(id: 'efood',     label: 'eFood',         icon: '🍔'),
-  SupportModule(id: 'egrocery',  label: 'eGrocery',      icon: '🛒'),
-  SupportModule(id: 'eshop',     label: 'eShop',         icon: '🛍️'),
-  SupportModule(id: 'epay',      label: 'ePay / Wallet', icon: '💳'),
-  SupportModule(id: 'crypto',    label: 'Crypto',        icon: '₿'),
-  SupportModule(id: 'delivery',  label: 'Delivery',      icon: '🚴'),
-  SupportModule(id: 'elearning', label: 'eLearning',     icon: '📚'),
-  SupportModule(id: 'erent',     label: 'eRent',         icon: '🏠'),
-  SupportModule(id: 'account',   label: 'My Account',    icon: '👤'),
+  SupportModule(id: 'general',    label: 'General',    icon: '💬'),
+  SupportModule(id: 'efood',      label: 'eFood',      icon: '🍔'),
+  SupportModule(id: 'egrocery',   label: 'eGrocery',   icon: '🛒'),
+  SupportModule(id: 'eshop',      label: 'eShop',      icon: '🛍️'),
+  SupportModule(id: 'epay',       label: 'Wallet',     icon: '💳'),
+  SupportModule(id: 'elearning',  label: 'eLearning',  icon: '📚'),
+  SupportModule(id: 'erent',      label: 'eRent',      icon: '🏠'),
+  SupportModule(id: 'eparcel',    label: 'eParcel',    icon: '📦'),
+  SupportModule(id: 'emoving',    label: 'eMoving',    icon: '🚛'),
+  SupportModule(id: 'elaundry',   label: 'eLaundry',   icon: '👕'),
+  SupportModule(id: 'eexchange',  label: 'eExchange',  icon: '💱'),
+  SupportModule(id: 'account',    label: 'My Account', icon: '👤'),
 ];
 
 // Route mapping for marketing CTA

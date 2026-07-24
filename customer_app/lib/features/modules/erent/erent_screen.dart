@@ -15,6 +15,7 @@ import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../payment/mobile_pay_sheet.dart';
+import '../../payment/payment_method_section.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -1407,22 +1408,10 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
 
       const _SectionTitle(title: 'Payment Method'),
       const SizedBox(height: 12),
-      Row(children: [
-        Expanded(child: _PayBtn(
-            label: 'Mobile Pay', icon: Icons.phone_in_talk_rounded,
-            selected: _payMethod == 'mobile_pay', color: const Color(0xFF4CAF50),
-            onTap: () => setState(() => _payMethod = 'mobile_pay'))),
-        const SizedBox(width: 8),
-        Expanded(child: _PayBtn(
-            label: 'ePay', icon: Icons.account_balance_wallet_outlined,
-            selected: _payMethod == 'wallet', color: _accentColor,
-            onTap: () => setState(() => _payMethod = 'wallet'))),
-        const SizedBox(width: 8),
-        Expanded(child: _PayBtn(
-            label: 'Waafi Pay', icon: Icons.phone_android_rounded,
-            selected: _payMethod == 'waafi_pay', color: const Color(0xFFFF8A00),
-            onTap: () => setState(() => _payMethod = 'waafi_pay'))),
-      ]),
+      PaymentMethodSection(
+        selected: _payMethod,
+        onChanged: (m) => setState(() => _payMethod = m),
+      ),
       SizedBox(height: 24),
 
       // Confirm button
@@ -1842,22 +1831,10 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
       const SizedBox(height: 20),
       const _SectionTitle(title: 'Payment Method'),
       SizedBox(height: 12),
-      Row(children: [
-        Expanded(child: _PayBtn(
-            label: 'Mobile Pay', icon: Icons.phone_in_talk_rounded,
-            selected: _payMethod == 'mobile_pay', color: const Color(0xFF4CAF50),
-            onTap: () => setState(() => _payMethod = 'mobile_pay'))),
-        const SizedBox(width: 8),
-        Expanded(child: _PayBtn(
-            label: 'ePay', icon: Icons.account_balance_wallet_outlined,
-            selected: _payMethod == 'wallet', color: context.colors.navyText,
-            onTap: () => setState(() => _payMethod = 'wallet'))),
-        const SizedBox(width: 8),
-        Expanded(child: _PayBtn(
-            label: 'Waafi Pay', icon: Icons.phone_android_rounded,
-            selected: _payMethod == 'waafi_pay', color: const Color(0xFFFF8A00),
-            onTap: () => setState(() => _payMethod = 'waafi_pay'))),
-      ]),
+      PaymentMethodSection(
+        selected: _payMethod,
+        onChanged: (m) => setState(() => _payMethod = m),
+      ),
       SizedBox(height: 24),
       // Confirm
       Container(

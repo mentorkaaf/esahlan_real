@@ -10,6 +10,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/module_widgets.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../payment/mobile_pay_sheet.dart';
+import '../../payment/payment_method_section.dart';
 import '../../ads/services/ad_service.dart';
 
 final _svc = ModuleApiService.create();
@@ -561,23 +562,17 @@ class _BookDoctorSheetState extends State<_BookDoctorSheet> {
   }
 }
 
-class _HealthPayRow extends StatelessWidget {
+class _HealthPayRow extends ConsumerWidget {
   final String payMethod;
   final ValueChanged<String> onChanged;
   const _HealthPayRow({required this.payMethod, required this.onChanged});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
       const SizedBox(height: 8),
-      Row(children: [
-        Expanded(child: _HealthPayChip(label: 'Mobile Pay', icon: Icons.phone_in_talk_rounded, selected: payMethod == 'mobile_pay', onTap: () => onChanged('mobile_pay'))),
-        const SizedBox(width: 10),
-        Expanded(child: _HealthPayChip(label: 'ePay',      icon: Icons.account_balance_wallet_rounded, selected: payMethod == 'wallet',    onTap: () => onChanged('wallet'))),
-        const SizedBox(width: 10),
-        Expanded(child: _HealthPayChip(label: 'Waafi Pay', icon: Icons.phone_android_rounded,          selected: payMethod == 'waafi_pay', onTap: () => onChanged('waafi_pay'))),
-      ]),
+      PaymentMethodSection(selected: payMethod, onChanged: onChanged),
     ]);
   }
 }

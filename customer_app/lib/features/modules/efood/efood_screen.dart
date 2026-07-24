@@ -12,6 +12,7 @@ import '../../../core/utils/error_handler.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../payment/mobile_pay_sheet.dart';
+import '../../payment/payment_method_section.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../../features/wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
@@ -2506,15 +2507,14 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         const SizedBox(height: 24),
         Text('Payment Method', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
         const SizedBox(height: 12),
-        ...[
-          ('mobile', '📲', 'Mobile Pay', 'EVC Plus, Waafi, Sahal — USSD'),
-          ('waafi',  '📱', 'Waafi Pay',  'EVC / eDahab / Jeep / Premier'),
-          ('wallet', '👛', 'ePay',       'Pay from your ePay balance'),
-        ].map((m) => _PaymentOption(
-          id: m.$1, icon: m.$2, label: m.$3, subtitle: m.$4,
-          selected: _payment == m.$1,
-          onTap: () => setState(() => _payment = m.$1),
-        )),
+        PaymentMethodSection(
+          selected: _apiPayment,
+          onChanged: (m) => setState(() {
+            if (m == 'mobile_pay') _payment = 'mobile';
+            else if (m == 'waafi_pay') _payment = 'waafi';
+            else _payment = m;
+          }),
+        ),
 
         const SizedBox(height: 24),
         Text('Order Summary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),

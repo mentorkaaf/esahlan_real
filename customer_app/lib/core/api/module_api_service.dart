@@ -241,6 +241,18 @@ class ModuleApiService {
   Future<dynamic> getDistricts() => _get('/districts');
 
   // ═══════════════════════════════════════════════════════════════════
+  // PAYMENT METHODS (enabled by admin)
+  // ═══════════════════════════════════════════════════════════════════
+  Future<List<String>> getEnabledPaymentMethods() async {
+    try {
+      final res = await _get('/payment/methods');
+      return List<String>.from(res['enabled'] ?? ['cod', 'waafi_pay', 'wallet', 'mobile_pay']);
+    } catch (_) {
+      return ['cod', 'waafi_pay', 'wallet', 'mobile_pay'];
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
   // PAYMENT (Waafi Pay)
   // ═══════════════════════════════════════════════════════════════════
   Future<dynamic> initiatePayment(Map<String, dynamic> data) => _post('/payment/initiate', data);

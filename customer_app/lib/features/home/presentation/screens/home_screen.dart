@@ -70,6 +70,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         await LocationService.ensureLocationEnabled(context);
       }
       LocationService.startTracking();
+      _checkSingleModule();
     });
   }
 
@@ -77,6 +78,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _checkSingleModule() {
+    final modulesAsync = ref.read(modulesProvider);
+    modulesAsync.whenData((modules) {
+      if (modules.length == 1 && mounted) {
+        context.go('/${modules.first.slug}');
+      }
+    });
+    // Also listen for when modules load asynchronously
+    ref.listenManual<AsyncValue<List<ModuleModel>>>(modulesProvider, (_, next) {
+      next.whenData((modules) {
+        if (modules.length == 1 && mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) context.go('/${modules.first.slug}');
+          });
+        }
+      });
+    });
   }
 
   @override
@@ -309,19 +329,22 @@ class _ApiDrivenServicesGrid extends ConsumerWidget {
       error: (_, __) => const SizedBox.shrink(),
       data: (modules) {
         if (modules.isEmpty) return const SizedBox.shrink();
+        final count = modules.length;
+        final cols = count == 1 ? 1 : count == 2 ? 2 : count == 3 ? 3 : 4;
+        final ratio = count == 1 ? 3.2 : count == 2 ? 1.6 : count == 3 ? 1.1 : 0.95;
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             padding: EdgeInsets.zero,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              childAspectRatio: 0.95,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: cols,
+              childAspectRatio: ratio,
               crossAxisSpacing: 6,
               mainAxisSpacing: 6,
             ),
-            itemCount: modules.length,
+            itemCount: count,
             itemBuilder: (_, i) => _PremiumServiceCard(module: modules[i]),
           ),
         );
@@ -442,16 +465,21 @@ class _PremiumServiceCardState extends ConsumerState<_PremiumServiceCard>
       onTapCancel: _onCancel,
       child: ScaleTransition(
         scale: _scale,
-        child: Column(
+        child: LayoutBuilder(builder: (context, constraints) {
+          final cellW = constraints.maxWidth;
+          final iconSz = (cellW * 0.62).clamp(50.0, 96.0);
+          final iconIconSz = (iconSz * 0.44).clamp(22.0, 42.0);
+          final fontSize = cellW > 120 ? 13.0 : 11.0;
+          return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 120),
               curve: Curves.easeInOut,
-              width: 62, height: 62,
+              width: iconSz, height: iconSz,
               decoration: BoxDecoration(
                 color: _pressed ? _kOrange : (context.isDark ? const Color(0xFF0b013d) : _kNavy),
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(iconSz * 0.29),
                 border: null,
                 boxShadow: [
                   BoxShadow(
@@ -462,7 +490,7 @@ class _PremiumServiceCardState extends ConsumerState<_PremiumServiceCard>
                 ],
               ),
               child: Center(
-                child: Icon(style.icon, color: Colors.white, size: 28),
+                child: Icon(style.icon, color: Colors.white, size: iconIconSz),
               ),
             ),
             const SizedBox(height: 8),
@@ -472,14 +500,15 @@ class _PremiumServiceCardState extends ConsumerState<_PremiumServiceCard>
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: fontSize,
                 fontWeight: FontWeight.w700,
                 color: _pressed ? _kOrange : (context.isDark ? Colors.white : context.colors.navyText),
                 height: 1.25,
               ),
             ),
           ],
-        ),
+        );
+        }),
       ),
     );
   }

@@ -385,7 +385,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
             SizedBox(
               width: double.infinity, height: 52,
               child: ElevatedButton.icon(
-                onPressed: amount < 1 ? null : () async {
+                onPressed: amount < 0.1 ? null : () async {
                   Navigator.pop(ctx);
                   final result = await showWaafiPaySheet(
                     context,
@@ -394,7 +394,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                     description: 'eSahlan ePay Top Up',
                   );
                   if (result?.success == true) {
-                    ref.read(walletProvider.notifier).refresh();
+                    if (result!.newBalance != null) {
+                      ref.read(walletProvider.notifier).updateBalanceImmediate(result.newBalance!);
+                    } else {
+                      ref.read(walletProvider.notifier).refresh();
+                    }
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('ePay topped up with \$${amount.toStringAsFixed(2)}!'), backgroundColor: Colors.green),
@@ -403,7 +407,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                   }
                 },
                 icon: const Icon(Icons.account_balance_wallet_rounded),
-                label: Text(amount >= 1 ? 'Pay \$${amount.toStringAsFixed(2)} via Waafi Pay' : 'Enter Amount', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                label: Text(amount >= 0.1 ? 'Pay \$${amount.toStringAsFixed(2)} via Waafi Pay' : 'Enter Amount', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
