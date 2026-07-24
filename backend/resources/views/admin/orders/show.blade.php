@@ -235,82 +235,277 @@ $tz = \App\Helpers\AppSettings::timezone();
 {{-- ═══════════════════════ LEFT ═══════════════════════ --}}
 <div>
 
-{{-- ══════ ETICKET: Boarding Pass ══════ --}}
+{{-- ══════ ETICKET: Full Airline-Style Page ══════ --}}
 @if($slug === 'eticket')
-<div class="mod-hero">
-    <div class="bp-card">
-        {{-- Badges row --}}
-        <div class="bp-badges" style="margin-bottom:16px;">
-            <span class="bp-badge"><i class="fas fa-plane" style="margin-right:4px;"></i>{{ $note['flight_number'] ?? '—' }}</span>
-            <span class="bp-badge orange"><i class="fas fa-chair" style="margin-right:4px;"></i>{{ ucfirst($note['seat_class'] ?? 'Economy') }}</span>
-            <span class="bp-badge"><i class="fas fa-users" style="margin-right:4px;"></i>{{ count($note['passengers'] ?? []) }} Pax</span>
-            @if(!empty($note['airline']))<span class="bp-badge">{{ $note['airline'] }}</span>@endif
-        </div>
+@php
+    $depDt  = !empty($note['departure']) ? \Carbon\Carbon::parse($note['departure'])->setTimezone($tz) : null;
+    $arrDt  = !empty($note['arrival'])   ? \Carbon\Carbon::parse($note['arrival'])->setTimezone($tz)   : null;
+    $dur    = ($depDt && $arrDt) ? $depDt->diff($arrDt) : null;
+    $durStr = $dur ? $dur->h.'h '.($dur->i > 0 ? $dur->i.'m' : '') : '—';
+    $paxList = $note['passengers'] ?? [];
+    $paxCount = count($paxList);
+    $seatClass = ucfirst($note['seat_class'] ?? 'economy');
+    $airline   = $note['airline'] ?? 'Airline';
+    $flightNo  = $note['flight_number'] ?? '—';
+    $fromCode  = strtoupper($note['from_code'] ?? '???');
+    $toCode    = strtoupper($note['to_code']   ?? '???');
+    $fromCity  = $note['from'] ?? '';
+    $toCity    = $note['to']   ?? '';
+    $pricePax  = (float)($note['price_per_pax'] ?? ($order->total_amount / max($paxCount,1)));
 
-        {{-- Route --}}
-        <div class="bp-route">
-            <div class="bp-city">
-                <div class="bp-code">{{ $note['from_code'] ?? '—' }}</div>
-                <div class="bp-name">{{ $note['from'] ?? '—' }}</div>
+    // Seat class color
+    $classColor = match(strtolower($note['seat_class'] ?? '')) {
+        'business' => ['bg'=>'#7B1FA2','light'=>'#F3E5F5','text'=>'#7B1FA2'],
+        'first'    => ['bg'=>'#B8860B','light'=>'#FFF8E1','text'=>'#7A5C00'],
+        default    => ['bg'=>'#1565C0','light'=>'#E3F2FD','text'=>'#1565C0'],
+    };
+
+    // PNR = last 6 of order number
+    $pnr = strtoupper(substr(str_replace('-','', $order->order_number), -6));
+@endphp
+
+<style>
+/* ── Airline-specific styles ── */
+.etkt-wrap { display:flex; flex-direction:column; gap:20px; }
+.etkt-bp { border-radius:18px; overflow:hidden; box-shadow:0 8px 32px rgba(7,0,59,.18); }
+
+/* Header strip */
+.etkt-header { background:linear-gradient(135deg,#07003B 0%,#0d2f8a 50%,#1a0e6e 100%); padding:18px 28px; display:flex; justify-content:space-between; align-items:center; }
+.etkt-airline-name { font-size:13px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,.9); }
+.etkt-flight-no { font-size:13px; font-weight:700; color:#FF8A00; letter-spacing:1px; }
+.etkt-class-pill { padding:4px 14px; border-radius:20px; font-size:11px; font-weight:800; letter-spacing:.5px; background:rgba(255,255,255,.15); color:#fff; }
+
+/* Route section */
+.etkt-route { background:linear-gradient(180deg,#07003B 0%,#0a1a5c 100%); padding:28px 32px 0; }
+.etkt-cities { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.etkt-city { text-align:center; }
+.etkt-iata { font-size:60px; font-weight:900; color:#fff; letter-spacing:-2px; line-height:1; font-variant-numeric:tabular-nums; }
+.etkt-city-name { font-size:12px; color:rgba(255,255,255,.6); margin-top:6px; letter-spacing:.5px; }
+.etkt-arc { flex:1; padding:0 20px; display:flex; flex-direction:column; align-items:center; gap:6px; }
+.etkt-arc svg { width:100%; max-width:200px; height:48px; overflow:visible; }
+
+/* Times strip */
+.etkt-times { background:rgba(255,255,255,.07); border-radius:12px; margin:0 4px 0; padding:0; display:flex; border:1px solid rgba(255,255,255,.1); overflow:hidden; margin-bottom:0; }
+.etkt-time-cell { flex:1; padding:14px 16px; text-align:center; }
+.etkt-time-cell + .etkt-time-cell { border-left:1px solid rgba(255,255,255,.1); }
+.etkt-time-val { font-size:26px; font-weight:900; color:#fff; font-variant-numeric:tabular-nums; }
+.etkt-time-date { font-size:11px; color:rgba(255,255,255,.55); margin-top:3px; letter-spacing:.3px; }
+.etkt-time-lbl { font-size:10px; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:.8px; margin-bottom:4px; }
+.etkt-dur-cell { padding:14px 12px; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; }
+.etkt-dur-val { font-size:13px; font-weight:700; color:#FF8A00; }
+.etkt-dur-lbl { font-size:9px; color:rgba(255,255,255,.35); text-transform:uppercase; letter-spacing:.5px; }
+
+/* Tear + stub */
+.etkt-tear { height:22px; background:linear-gradient(180deg,#0a1a5c,#07003B); position:relative; margin-top:20px; }
+.etkt-tear::before { content:''; position:absolute; bottom:0; left:-2px; right:-2px; height:22px;
+    background:radial-gradient(circle at 0 100%, transparent 11px, #f4f5f8 12px) 0 0/28px 22px,
+               radial-gradient(circle at 100% 100%, transparent 11px, #f4f5f8 12px) 100% 0/28px 22px;
+    background-repeat:repeat-x; }
+
+/* Stub (bottom white section) */
+.etkt-stub { background:#f4f5f8; padding:18px 28px 20px; }
+.etkt-stub-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:16px; }
+.etkt-stub-item {}
+.etkt-stub-label { font-size:9px; text-transform:uppercase; letter-spacing:.8px; color:#aaa; font-weight:700; margin-bottom:5px; }
+.etkt-stub-val { font-size:14px; font-weight:800; color:#07003B; }
+.etkt-barcode { height:40px; margin:0 auto; display:block; width:100%; max-width:360px; }
+
+/* Passenger table */
+.etkt-pax-card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.07); overflow:hidden; }
+.etkt-pax-header { padding:14px 20px; background:#07003B; display:flex; align-items:center; justify-content:space-between; }
+.etkt-pax-title { font-size:13px; font-weight:800; color:#fff; letter-spacing:.5px; text-transform:uppercase; }
+.etkt-pax-count { background:rgba(255,255,255,.15); color:#FF8A00; font-size:11px; font-weight:800; padding:3px 10px; border-radius:20px; }
+.etkt-pax-table { width:100%; border-collapse:collapse; }
+.etkt-pax-table th { padding:10px 16px; font-size:10px; text-transform:uppercase; letter-spacing:.6px; color:#999; background:#FAFBFF; font-weight:700; border-bottom:1px solid #F0F1F5; }
+.etkt-pax-table td { padding:13px 16px; border-bottom:1px solid #F8F9FC; font-size:13px; }
+.etkt-pax-table tr:last-child td { border-bottom:none; }
+.etkt-pax-table tr:nth-child(even) td { background:#FAFBFF; }
+.etkt-pax-name { font-weight:700; color:#07003B; }
+.etkt-pax-type { display:inline-block; padding:2px 8px; border-radius:5px; font-size:10px; font-weight:800; text-transform:uppercase; }
+.etkt-pax-type.adult  { background:#E3F2FD; color:#1565C0; }
+.etkt-pax-type.child  { background:#F3E5F5; color:#6A1B9A; }
+.etkt-pax-type.infant { background:#FFF3E0; color:#E65100; }
+
+/* Price summary */
+.etkt-price-card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.07); overflow:hidden; }
+.etkt-price-header { padding:12px 20px; background:#F8F9FC; border-bottom:1px solid #F0F1F5; display:flex; align-items:center; gap:8px; }
+.etkt-price-header .icon { width:28px; height:28px; background:#FF8A0022; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; }
+.etkt-price-row { padding:10px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #F8F9FC; font-size:13px; }
+.etkt-price-total { padding:12px 20px; display:flex; justify-content:space-between; align-items:center; background:#FFF8EE; }
+</style>
+
+<div class="etkt-wrap">
+
+{{-- ① Boarding Pass ─────────────────────────────────────── --}}
+<div class="etkt-bp">
+    {{-- Header strip --}}
+    <div class="etkt-header">
+        <div>
+            <div class="etkt-airline-name"><i class="fas fa-plane" style="margin-right:8px;color:#FF8A00;"></i>{{ $airline }}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:3px;letter-spacing:.5px;">BOARDING PASS</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <span class="etkt-class-pill" style="background:{{ $classColor['bg'] }};">{{ $seatClass }}</span>
+            <span class="etkt-flight-no">{{ $flightNo }}</span>
+        </div>
+    </div>
+
+    {{-- Route --}}
+    <div class="etkt-route">
+        <div class="etkt-cities">
+            <div class="etkt-city">
+                <div class="etkt-iata">{{ $fromCode }}</div>
+                <div class="etkt-city-name">{{ $fromCity }}</div>
             </div>
-            <div class="bp-mid">
-                <div class="bp-plane-line">
-                    <div class="bp-line"></div>
-                    <i class="fas fa-plane bp-plane-icon"></i>
-                    <div class="bp-line"></div>
-                </div>
+            <div class="etkt-arc">
+                <svg viewBox="0 0 200 48" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                    <path d="M10,38 Q100,0 190,38" stroke="rgba(255,138,0,.5)" stroke-width="1.5" fill="none" stroke-dasharray="4 3"/>
+                    <polygon points="183,34 193,38 183,42" fill="#FF8A00"/>
+                    <circle cx="10" cy="38" r="3" fill="#FF8A00" opacity=".7"/>
+                </svg>
+                <div style="font-size:11px;color:rgba(255,255,255,.4);letter-spacing:.5px;margin-top:-4px;">{{ $durStr }}</div>
             </div>
-            <div class="bp-city" style="text-align:right;">
-                <div class="bp-code">{{ $note['to_code'] ?? '—' }}</div>
-                <div class="bp-name">{{ $note['to'] ?? '—' }}</div>
+            <div class="etkt-city" style="text-align:right;">
+                <div class="etkt-iata">{{ $toCode }}</div>
+                <div class="etkt-city-name">{{ $toCity }}</div>
             </div>
         </div>
 
         {{-- Times --}}
-        <div class="bp-times" style="margin-bottom:20px;">
-            <div class="bp-time-block">
-                <div class="bp-time-val">{{ $note['departure'] ? \Carbon\Carbon::parse($note['departure'])->setTimezone($tz)->format('H:i') : '—' }}</div>
-                <div class="bp-time-lbl">Departure</div>
-                <div style="font-size:11px;opacity:.5;margin-top:2px;">{{ $note['departure'] ? \Carbon\Carbon::parse($note['departure'])->setTimezone($tz)->format('d M Y') : '' }}</div>
+        <div class="etkt-times">
+            <div class="etkt-time-cell">
+                <div class="etkt-time-lbl">Departure</div>
+                <div class="etkt-time-val">{{ $depDt ? $depDt->format('H:i') : '—' }}</div>
+                <div class="etkt-time-date">{{ $depDt ? $depDt->format('d M Y') : '' }}</div>
             </div>
-            <div style="text-align:center;opacity:.5;">
-                <i class="fas fa-clock" style="font-size:20px;"></i>
+            <div class="etkt-dur-cell">
+                <i class="fas fa-clock" style="color:rgba(255,255,255,.2);font-size:16px;"></i>
+                <div class="etkt-dur-val">{{ $durStr }}</div>
+                <div class="etkt-dur-lbl">Duration</div>
             </div>
-            <div class="bp-time-block" style="text-align:right;">
-                <div class="bp-time-val">{{ $note['arrival'] ? \Carbon\Carbon::parse($note['arrival'])->setTimezone($tz)->format('H:i') : '—' }}</div>
-                <div class="bp-time-lbl">Arrival</div>
-                <div style="font-size:11px;opacity:.5;margin-top:2px;">{{ $note['arrival'] ? \Carbon\Carbon::parse($note['arrival'])->setTimezone($tz)->format('d M Y') : '' }}</div>
+            <div class="etkt-time-cell" style="text-align:right;">
+                <div class="etkt-time-lbl">Arrival</div>
+                <div class="etkt-time-val">{{ $arrDt ? $arrDt->format('H:i') : '—' }}</div>
+                <div class="etkt-time-date">{{ $arrDt ? $arrDt->format('d M Y') : '' }}</div>
             </div>
         </div>
 
-        <div class="bp-tear"></div>
+        <div class="etkt-tear"></div>
     </div>
 
-    {{-- Passengers list --}}
-    <div class="bp-bottom">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#888;font-weight:700;margin-bottom:10px;">Passengers</div>
-        <div class="bp-pax-list">
-            @forelse($note['passengers'] ?? [] as $pax)
-            <div class="bp-pax-item">
-                <div class="bp-pax-name">{{ $pax['title'] ?? '' }} {{ $pax['full_name'] ?? $pax['name'] ?? '—' }}</div>
-                <div class="bp-pax-meta">
-                    <span style="text-transform:capitalize;">{{ $pax['type'] ?? 'adult' }}</span>
-                    @if(!empty($pax['passport_number'])) · {{ $pax['passport_number'] }}@endif
-                    @if(!empty($pax['nationality'])) · {{ $pax['nationality'] }}@endif
-                </div>
+    {{-- Stub section --}}
+    <div class="etkt-stub">
+        <div class="etkt-stub-grid">
+            <div class="etkt-stub-item">
+                <div class="etkt-stub-label">Booking Ref</div>
+                <div class="etkt-stub-val" style="color:#FF8A00;letter-spacing:1px;">{{ $pnr }}</div>
             </div>
-            @empty
-            <div style="color:#aaa;font-size:13px;">No passenger data</div>
-            @endforelse
+            <div class="etkt-stub-item">
+                <div class="etkt-stub-label">Passengers</div>
+                <div class="etkt-stub-val">{{ $paxCount }} {{ $paxCount === 1 ? 'Pax' : 'Pax' }}</div>
+            </div>
+            <div class="etkt-stub-item">
+                <div class="etkt-stub-label">Class</div>
+                <div class="etkt-stub-val" style="color:{{ $classColor['text'] }};">{{ $seatClass }}</div>
+            </div>
+            <div class="etkt-stub-item">
+                <div class="etkt-stub-label">Total</div>
+                <div class="etkt-stub-val" style="color:#FF8A00;">${{ number_format($order->total_amount,2) }}</div>
+            </div>
         </div>
-        @if(!empty($note['price_per_pax']))
-        <div style="margin-top:14px;padding-top:14px;border-top:1px dashed #E0E0E0;display:flex;justify-content:space-between;align-items:center;">
-            <div style="font-size:13px;color:#888;">${{ number_format($note['price_per_pax'],2) }} × {{ count($note['passengers'] ?? []) }} pax</div>
-            <div style="font-size:20px;font-weight:900;color:#FF8A00;">${{ number_format($order->total_amount,2) }}</div>
-        </div>
-        @endif
+
+        {{-- Fake barcode SVG --}}
+        <svg class="etkt-barcode" viewBox="0 0 360 40" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+        @php
+            $seed = crc32($order->order_number);
+            $bars = [];
+            for($i=0;$i<90;$i++){
+                $seed = ($seed * 1664525 + 1013904223) & 0x7fffffff;
+                $w = ($seed % 4) + 1;
+                $bars[] = $w;
+            }
+            $total = array_sum($bars); $scale = 360/$total; $x=0;
+            foreach($bars as $idx=>$w){ $pw=round($w*$scale,2); if($idx%2===0){ echo "<rect x=\"$x\" y=\"4\" width=\"$pw\" height=\"32\" fill=\"#07003B\" rx=\"0.5\"/>"; } $x+=$pw; }
+        @endphp
+        </svg>
+        <div style="text-align:center;font-size:9px;color:#bbb;letter-spacing:2px;margin-top:4px;font-family:monospace;">{{ $order->order_number }}</div>
     </div>
 </div>
+
+{{-- ② Passenger Manifest ───────────────────────────────── --}}
+<div class="etkt-pax-card">
+    <div class="etkt-pax-header">
+        <div class="etkt-pax-title"><i class="fas fa-users" style="margin-right:8px;color:#FF8A00;"></i>Passenger Manifest</div>
+        <span class="etkt-pax-count">{{ $paxCount }} Passenger{{ $paxCount !== 1 ? 's' : '' }}</span>
+    </div>
+    <table class="etkt-pax-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Full Name</th>
+                <th>Type</th>
+                <th>Passport / ID</th>
+                <th>Nationality</th>
+                <th>Gender</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($paxList as $i => $pax)
+            @php $ptype = strtolower($pax['type'] ?? 'adult'); @endphp
+            <tr>
+                <td style="color:#aaa;font-weight:700;font-size:12px;">{{ $i+1 }}</td>
+                <td>
+                    <div class="etkt-pax-name">{{ trim(($pax['title'] ?? '').' '.($pax['full_name'] ?? $pax['name'] ?? '—')) }}</div>
+                    @if(!empty($pax['dob']))
+                    <div style="font-size:11px;color:#aaa;margin-top:2px;">DOB: {{ \Carbon\Carbon::parse($pax['dob'])->format('d M Y') }}</div>
+                    @endif
+                </td>
+                <td><span class="etkt-pax-type {{ $ptype }}">{{ ucfirst($ptype) }}</span></td>
+                <td style="font-family:monospace;font-size:12px;letter-spacing:.5px;color:#555;">{{ $pax['passport_number'] ?? $pax['id_number'] ?? '—' }}</td>
+                <td style="font-size:12px;color:#555;">{{ $pax['nationality'] ?? '—' }}</td>
+                <td style="font-size:12px;color:#555;">{{ ucfirst($pax['gender'] ?? '—') }}</td>
+            </tr>
+            @empty
+            <tr><td colspan="6" style="text-align:center;padding:24px;color:#ccc;"><i class="fas fa-user-slash" style="font-size:22px;display:block;margin-bottom:8px;"></i>No passenger data</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
+
+{{-- ③ Price Summary ──────────────────────────────────────── --}}
+<div class="etkt-price-card">
+    <div class="etkt-price-header">
+        <div class="icon"><i class="fas fa-receipt" style="color:#FF8A00;"></i></div>
+        <span style="font-size:13px;font-weight:700;color:#1a1a2e;">Price Summary</span>
+    </div>
+    @if($paxCount > 0)
+    <div class="etkt-price-row">
+        <span style="color:#666;">Base Fare <span style="color:#aaa;font-size:11px;">({{ $seatClass }})</span></span>
+        <span style="color:#1a1a2e;font-weight:600;">${{ number_format($pricePax,2) }} × {{ $paxCount }}</span>
+    </div>
+    @foreach(['adult','child','infant'] as $pt)
+    @php $ptPax = array_filter($paxList, fn($p) => strtolower($p['type']??'adult') === $pt); @endphp
+    @if(count($ptPax) > 0)
+    <div class="etkt-price-row">
+        <span style="color:#aaa;font-size:12px;padding-left:14px;">↳ {{ ucfirst($pt) }}</span>
+        <span style="color:#888;font-size:12px;">{{ count($ptPax) }} pax</span>
+    </div>
+    @endif
+    @endforeach
+    @endif
+    @if(($order->discount_amount ?? 0) > 0)
+    <div class="etkt-price-row" style="color:#c62828;">
+        <span>Discount</span>
+        <span>-${{ number_format($order->discount_amount,2) }}</span>
+    </div>
+    @endif
+    <div class="etkt-price-total">
+        <span style="font-size:14px;font-weight:800;color:#07003B;">Total Charged</span>
+        <span style="font-size:22px;font-weight:900;color:#FF8A00;">${{ number_format($order->total_amount,2) }}</span>
+    </div>
+</div>
+
+</div>{{-- /etkt-wrap --}}
 
 {{-- ══════ EMOVING: Moving Card ══════ --}}
 @elseif($slug === 'emoving')
@@ -770,11 +965,42 @@ $tz = \App\Helpers\AppSettings::timezone();
                 </span>
             </td>
         </tr>
+        @if($slug === 'eticket')
+        <tr>
+            <td>Flight</td>
+            <td>
+                <span style="font-weight:800;color:#07003B;font-size:13px;letter-spacing:.5px;">{{ $note['flight_number'] ?? '—' }}</span>
+                @if(!empty($note['airline']))<span style="color:#888;font-size:12px;"> · {{ $note['airline'] }}</span>@endif
+            </td>
+        </tr>
+        <tr>
+            <td>Route</td>
+            <td style="font-weight:700;font-size:13px;color:#07003B;letter-spacing:.5px;">
+                {{ $note['from_code'] ?? '?' }} <span style="color:#FF8A00;margin:0 4px;">→</span> {{ $note['to_code'] ?? '?' }}
+            </td>
+        </tr>
+        <tr>
+            <td>Departure</td>
+            <td style="font-size:13px;color:#1565C0;font-weight:600;">
+                @if(!empty($note['departure'])){{ \Carbon\Carbon::parse($note['departure'])->setTimezone($tz)->format('d M Y · H:i') }}@else—@endif
+            </td>
+        </tr>
+        <tr>
+            <td>Arrival</td>
+            <td style="font-size:13px;color:#2E7D32;font-weight:600;">
+                @if(!empty($note['arrival'])){{ \Carbon\Carbon::parse($note['arrival'])->setTimezone($tz)->format('d M Y · H:i') }}@else—@endif
+            </td>
+        </tr>
+        <tr>
+            <td>Class</td>
+            <td><span style="background:{{ ($classColor['light'] ?? '#E3F2FD') }};color:{{ ($classColor['text'] ?? '#1565C0') }};padding:3px 10px;border-radius:6px;font-size:11px;font-weight:800;">{{ $seatClass }}</span></td>
+        </tr>
+        @endif
         <tr>
             <td>Payment</td>
             <td>
-                <span style="text-transform:capitalize;font-size:13px;">{{ ucfirst($order->payment_method ?? '—') }}</span>
-                @php $ps = strtolower($order->payment_status ?? 'pending'); @endphp
+                @php $pmLabel = ucwords(str_replace('_',' ',$order->payment_method ?? 'cash')); $ps = strtolower($order->payment_status ?? 'pending'); @endphp
+                <span style="font-size:13px;font-weight:700;">{{ $pmLabel }}</span>
                 <span class="pay-{{ $ps }}" style="margin-left:6px;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:800;">{{ strtoupper($ps) }}</span>
             </td>
         </tr>
