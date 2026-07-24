@@ -51,7 +51,6 @@ class AdminModuleController extends Controller
     {
         try {
             $modules = Module::where('is_active', true)->orderBy('sort_order')->get(['id', 'slug', 'name']);
-            \Illuminate\Support\Facades\Broadcast::channel('modules', fn () => true);
             event(new \App\Events\ModulesUpdated($modules->toArray()));
         } catch (\Throwable) {}
     }
