@@ -6,6 +6,7 @@ use App\Models\Module;
 use App\Models\District;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Broadcast;
 
 class AdminModuleController extends Controller
 {
@@ -34,6 +35,7 @@ class AdminModuleController extends Controller
 
         $module->update($data);
         Cache::forget('modules.active');
+        $this->_broadcastModulesChanged();
         return back()->with('success', 'Module updated.');
     }
 
@@ -41,7 +43,17 @@ class AdminModuleController extends Controller
     {
         $module->update(['is_active' => !$module->is_active]);
         Cache::forget('modules.active');
+        $this->_broadcastModulesChanged();
         return back()->with('success', 'Module status updated.');
+    }
+
+    private function _broadcastModulesChanged(): void
+    {
+        try {
+            $modules = Module::where('is_active', true)->orderBy('sort_order')->get(['id', 'slug', 'name']);
+            \Illuminate\Support\Facades\Broadcast::channel('modules', fn () => true);
+            event(new \App\Events\ModulesUpdated($modules->toArray()));
+        } catch (\Throwable) {}
     }
 
     public function updateDistricts(Request $request, Module $module)
