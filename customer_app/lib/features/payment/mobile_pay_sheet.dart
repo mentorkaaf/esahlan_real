@@ -78,10 +78,9 @@ class MobilePayAccount {
   );
 
   String buildUssd(double amount) {
-    final amtStr = amount == amount.truncateToDouble()
-        ? amount.toInt().toString()
-        : amount.toStringAsFixed(2);
-    return ussdTemplate.replaceAll('{amount}', amtStr);
+    // DTMF tones don't include '.' — dialers strip it, turning 6.49 → 649.
+    // Round to nearest whole dollar (USSD amount fields are integer-only).
+    return ussdTemplate.replaceAll('{amount}', amount.round().toString());
   }
 }
 
@@ -170,6 +169,10 @@ class _MobilePaySheetState extends State<_MobilePaySheet> {
           RichText(text: TextSpan(style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.5), children: [
             const TextSpan(text: 'Amount: '),
             TextSpan(text: '\$${widget.amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800, color: _kGreen)),
+            if (widget.amount != widget.amount.roundToDouble()) ...[
+              const TextSpan(text: ' → '),
+              TextSpan(text: '\$${widget.amount.round()} (USSD rounded)', style: const TextStyle(fontSize: 11, color: Colors.orange)),
+            ],
           ])),
           const SizedBox(height: 6),
           Text('USSD: $ussd', style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: Colors.black54)),
