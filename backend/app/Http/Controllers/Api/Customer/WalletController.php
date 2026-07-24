@@ -62,6 +62,9 @@ class WalletController extends Controller
             } elseif (str_contains($note, 'Transfer from') || str_contains($note, 'Received from')) {
                 $category = 'transfer_in';
                 $icon     = 'move_to_inbox';
+            } elseif (str_contains($note, 'Withdrawal') || str_contains($note, 'withdrawal') || str_contains($note, 'withdraw')) {
+                $category = 'withdrawal';
+                $icon     = 'arrow_upward';
             } elseif (str_contains($note, 'order') || str_contains($note, 'Order') || str_contains($note, 'purchase') || $pm === 'wallet') {
                 $category = 'purchase';
                 $icon     = 'shopping_bag';
