@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -46,6 +46,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
   bool _ordering     = false;
   String _payMethod  = 'wallet';
   String? _waafiRef;
+  String? _mobileProofToken;
 
   String _senderName  = '';
   String _senderPhone = '';
@@ -400,6 +401,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
         final result = await showMobilePaySheet(context, amount: price, description: 'eParcel Delivery');
         if (result?.success != true) return;
         _waafiRef = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+      _mobileProofToken = result.proofToken;
       } else {
         final result = await showWaafiPaySheet(
           context, amount: price, type: 'order', description: 'eParcel Delivery',

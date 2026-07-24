@@ -302,6 +302,7 @@ class _EDataFlowDialogState extends ConsumerState<_EDataFlowDialog> {
 
   String _payMethod = 'wallet';
   String? _waafiReference;
+  String? _mobileProofToken;
   final _phoneCtrl = TextEditingController();
   bool _loading = false;
   String? _error;
@@ -322,6 +323,7 @@ class _EDataFlowDialogState extends ConsumerState<_EDataFlowDialog> {
       final result = await showMobilePaySheet(context, amount: price, description: 'eData: ${_selectedBundle!['name'] ?? ''}');
       if (result?.success != true) return;
       _waafiReference = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+      _mobileProofToken = result.proofToken;
     }
 
     if (_payMethod == 'waafi_pay') {

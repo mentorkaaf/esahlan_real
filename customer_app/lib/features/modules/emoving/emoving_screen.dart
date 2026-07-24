@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:intl/intl.dart';
@@ -1567,6 +1567,7 @@ class _BookingFlowScreenState extends ConsumerState<_BookingFlowScreen> {
   String _notes         = '';
   String _paymentMethod = 'wallet';
   String? _waafiReference;
+  String? _mobileProofToken;
   bool _submitting      = false;
   Map<String, dynamic>? _confirmedOrder;
   Map<String, dynamic>? _finalBreakdown;
@@ -1609,6 +1610,7 @@ class _BookingFlowScreenState extends ConsumerState<_BookingFlowScreen> {
         final result = await showMobilePaySheet(context, amount: total, description: 'eMoving Order');
         if (result?.success != true) return;
         _waafiReference = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+      _mobileProofToken = result.proofToken;
       } else {
         final result = await showWaafiPaySheet(
           context,

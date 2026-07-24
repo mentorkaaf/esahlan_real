@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'web_video_helper.dart' as webvideo;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -1134,6 +1134,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
   int _duration = 1;
   String _payMethod = 'wallet';
   String? _waafiReference;
+  String? _mobileProofToken;
   bool _loading = false;
   bool _done = false;
   String _orderRef = '';
@@ -1160,6 +1161,7 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
         final result = await showMobilePaySheet(context, amount: _amountDue, description: 'eRent: ${widget.property['title'] ?? ''}');
         if (result?.success != true) return;
         _waafiReference = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+      _mobileProofToken = result.proofToken;
       } else {
         final result = await showWaafiPaySheet(
           context,

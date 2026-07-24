@@ -33,6 +33,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
   String? _districtName;
   String _paymentMethod = 'wallet';
   String? _waafiReference;
+  String? _mobileProofToken;
   bool _placing = false;
   bool _districtInitialized = false;
 
@@ -108,6 +109,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
         final result = await showMobilePaySheet(context, amount: total, description: 'eSahlan Shop Order');
         if (result?.success != true) return;
         _waafiReference = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+      _mobileProofToken = result.proofToken;
       } else {
         final result = await showWaafiPaySheet(
           context,

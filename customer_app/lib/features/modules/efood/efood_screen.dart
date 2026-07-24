@@ -2573,6 +2573,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
   );
 
   String? _waafiReference;
+  String? _mobileProofToken;
 
   String get _apiPayment => _payment == 'wallet' ? 'wallet' : _payment == 'mobile' ? 'mobile_pay' : 'waafi_pay';
 
@@ -2590,6 +2591,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
       final result = await showMobilePaySheet(context, amount: _total, description: 'eFood Order');
       if (result?.success != true) return;
       _waafiReference = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+      _mobileProofToken = result.proofToken;
     } else if (_payment == 'waafi') {
       final result = await showWaafiPaySheet(
         context,
@@ -2636,8 +2638,12 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
       ref.read(_cartProvider.notifier).clear();
       if (_payment == 'wallet') ref.invalidate(walletProvider);
       if (mounted) {
-        final data    = result['data'] ?? result;
-        final orderId = data['order_id'] ?? data['id'] ?? 1;
+        final data        = result['data'] ?? result;
+        final orderId     = data['order_id'] ?? data['id'] ?? 1;
+        final orderNumber = data['order_number'] as String?;
+        if (_mobileProofToken != null && orderNumber != null) {
+          _svc.attachMobilePayProof(orderNumber, _mobileProofToken!);
+        }
         Navigator.pushReplacement(context, MaterialPageRoute(
             builder: (_) => _TrackOrderPage(orderId: (orderId as num).toInt())));
       }

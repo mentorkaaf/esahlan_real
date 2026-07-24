@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -206,6 +206,7 @@ class _NurseSectionState extends State<_NurseSection> {
   bool _booking     = false;
   String _payMethod = 'wallet';
   String? _waafiRef;
+  String? _mobileProofToken;
 
   @override
   void dispose() { _nameCtrl.dispose(); _addrCtrl.dispose(); _notesCtrl.dispose(); super.dispose(); }
@@ -301,6 +302,7 @@ class _NurseSectionState extends State<_NurseSection> {
       final result = await showMobilePaySheet(context, amount: nurseRate, description: 'Nurse Home Visit');
       if (result?.success != true) return;
       _waafiRef = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+      _mobileProofToken = result.proofToken;
     } else if (_payMethod == 'waafi_pay') {
       const nurseRate = 15.0;
       final result = await showWaafiPaySheet(context, amount: nurseRate, type: 'order', description: 'Nurse Home Visit');
@@ -531,6 +533,7 @@ class _BookDoctorSheetState extends State<_BookDoctorSheet> {
       final result = await showMobilePaySheet(context, amount: fee, description: 'Doctor Appointment');
       if (result?.success != true) return;
       _waafiRef = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+      _mobileProofToken = result.proofToken;
     } else if (_payMethod == 'waafi_pay') {
       final fee = (widget.doctor['consultation_fee'] as num?)?.toDouble() ?? 10.0;
       final result = await showWaafiPaySheet(context, amount: fee, type: 'order', description: 'Doctor Appointment');

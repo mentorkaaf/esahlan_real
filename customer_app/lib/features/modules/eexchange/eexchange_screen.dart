@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -43,6 +43,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
   double _amount        = 0;
   String _paymentMethod = 'wallet'; // 'wallet' or 'waafi_pay'
   String? _waafiRef;
+  String? _mobileProofToken;
   Map<String, dynamic>? _preview;
   bool   _converting = false;
   bool   _confirming = false;
@@ -518,6 +519,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
       final result = await showMobilePaySheet(context, amount: _amount, description: 'eExchange ${_fromWallet.toUpperCase()} → ${_toWallet.toUpperCase()}');
       if (result?.success != true) return;
       _waafiRef = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+      _mobileProofToken = result.proofToken;
     } else if (_paymentMethod == 'waafi_pay') {
       final result = await showWaafiPaySheet(
         context,

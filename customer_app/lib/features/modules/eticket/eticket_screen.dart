@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
@@ -1381,6 +1381,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
   final _formKey = GlobalKey<FormState>();
   String _payMethod = 'wallet';
   String? _waafiReference;
+  String? _mobileProofToken;
   bool _booking = false;
   String? _error;
   String _orderNumber = '';
@@ -1428,6 +1429,7 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
       final result = await showMobilePaySheet(context, amount: _total, description: 'eTicket Flight Booking');
       if (result?.success != true) return;
       _waafiReference = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+      _mobileProofToken = result.proofToken;
     } else if (_payMethod == 'waafi_pay') {
       final result = await showWaafiPaySheet(
         context,

@@ -256,4 +256,37 @@ class ModuleApiService {
   Future<dynamic> walletSend(Map<String, dynamic> data) => _post('/wallet/send', data);
   Future<dynamic> walletWithdraw(Map<String, dynamic> data) => _post('/wallet/withdraw', data);
   Future<dynamic> verifyWalletPin(String pin) => _post('/wallet/verify-pin', {'pin': pin});
+
+  // MOBILE PAY
+  // ═══════════════════════════════════════════════════════════════════
+  Future<dynamic> getMobilePayAccounts() => _get('/mobile-pay/accounts');
+
+  Future<String> submitMobilePayProof({
+    required String phone,
+    required int accountId,
+    required double amount,
+    required String imagePath,
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'phone':      phone,
+        'account_id': accountId,
+        'amount':     amount,
+        'image':      await MultipartFile.fromFile(imagePath, filename: 'proof.jpg'),
+      });
+      final r = await _dio.post('/mobile-pay/submit-proof', data: formData);
+      return r.data['proof_token'] as String;
+    } on DioException catch (e) {
+      throw ApiException(e.response?.data?['message'] ?? 'Upload failed');
+    }
+  }
+
+  Future<void> attachMobilePayProof(String orderNumber, String proofToken) async {
+    try {
+      await _dio.post('/mobile-pay/attach-proof', data: {
+        'order_number': orderNumber,
+        'proof_token':  proofToken,
+      });
+    } catch (_) {}  // best-effort — don't block the user
+  }
 }

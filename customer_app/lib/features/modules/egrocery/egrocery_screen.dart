@@ -577,6 +577,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
   }
 
   String? _waafiReference;
+  String? _mobileProofToken;
 
   Future<void> _placeOrder() async {
     if (_districtId == null) { _snack('Select delivery district'); return; }
@@ -589,6 +590,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
       final result = await showMobilePaySheet(context, amount: total, description: 'eGrocery Order');
       if (result?.success != true) return;
       _waafiReference = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+      _mobileProofToken = result.proofToken;
     } else if (_payment == 'waafi_pay') {
       final result = await showWaafiPaySheet(context, amount: total, type: 'order', description: 'eGrocery Order');
       if (result?.success != true) return;
@@ -602,7 +604,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
     setState(() => _ordering = true);
     try {
       final items = cart.map((e) => {'product_id': e.product['id'], 'quantity': e.qty}).toList();
-      await _svc.placeGroceryOrder({
+      final orderRes = await _svc.placeGroceryOrder({
         'items': items,
         'district_id': _districtId,
         'delivery_address': {'district': _districtName, 'city': _districtName},
@@ -611,6 +613,10 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
       });
       ref.read(_cartProvider.notifier).clear();
       if (_payment == 'wallet') ref.invalidate(walletProvider);
+      final orderNumber = (orderRes['data'] ?? orderRes)?['order_number'] as String?;
+      if (_mobileProofToken != null && orderNumber != null) {
+        _svc.attachMobilePayProof(orderNumber, _mobileProofToken!);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Grocery order placed! 🛒'), backgroundColor: AppColors.success));
         Navigator.pop(context);
