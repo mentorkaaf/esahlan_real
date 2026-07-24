@@ -14,6 +14,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../payment/mobile_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -1154,15 +1155,21 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
       return;
     }
 
-    if (_payMethod == 'waafi_pay') {
-      final result = await showWaafiPaySheet(
-        context,
-        amount: _amountDue,
-        type: 'order',
-        description: 'eRent: ${widget.property['title'] ?? ''}',
-      );
-      if (result?.success != true) return;
-      _waafiReference = result!.reference;
+    if (_payMethod == 'mobile_pay' || _payMethod == 'waafi_pay') {
+      if (_payMethod == 'mobile_pay') {
+        final result = await showMobilePaySheet(context, amount: _amountDue, description: 'eRent: ${widget.property['title'] ?? ''}');
+        if (result?.success != true) return;
+        _waafiReference = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+      } else {
+        final result = await showWaafiPaySheet(
+          context,
+          amount: _amountDue,
+          type: 'order',
+          description: 'eRent: ${widget.property['title'] ?? ''}',
+        );
+        if (result?.success != true) return;
+        _waafiReference = result!.reference;
+      }
     }
 
     if (_payMethod == 'wallet') {
@@ -1397,10 +1404,15 @@ class _BookingScreenState extends ConsumerState<_BookingScreen> {
       const SizedBox(height: 12),
       Row(children: [
         Expanded(child: _PayBtn(
+            label: 'Mobile Pay', icon: Icons.phone_in_talk_rounded,
+            selected: _payMethod == 'mobile_pay', color: const Color(0xFF4CAF50),
+            onTap: () => setState(() => _payMethod = 'mobile_pay'))),
+        const SizedBox(width: 8),
+        Expanded(child: _PayBtn(
             label: 'ePay', icon: Icons.account_balance_wallet_outlined,
             selected: _payMethod == 'wallet', color: _accentColor,
             onTap: () => setState(() => _payMethod = 'wallet'))),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         Expanded(child: _PayBtn(
             label: 'Waafi Pay', icon: Icons.phone_android_rounded,
             selected: _payMethod == 'waafi_pay', color: const Color(0xFFFF8A00),
@@ -1827,10 +1839,15 @@ class _PayRemainingScreenState extends ConsumerState<_PayRemainingScreen> {
       SizedBox(height: 12),
       Row(children: [
         Expanded(child: _PayBtn(
+            label: 'Mobile Pay', icon: Icons.phone_in_talk_rounded,
+            selected: _payMethod == 'mobile_pay', color: const Color(0xFF4CAF50),
+            onTap: () => setState(() => _payMethod = 'mobile_pay'))),
+        const SizedBox(width: 8),
+        Expanded(child: _PayBtn(
             label: 'ePay', icon: Icons.account_balance_wallet_outlined,
             selected: _payMethod == 'wallet', color: context.colors.navyText,
             onTap: () => setState(() => _payMethod = 'wallet'))),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         Expanded(child: _PayBtn(
             label: 'Waafi Pay', icon: Icons.phone_android_rounded,
             selected: _payMethod == 'waafi_pay', color: const Color(0xFFFF8A00),

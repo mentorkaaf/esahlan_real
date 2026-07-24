@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../payment/mobile_pay_sheet.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -375,6 +376,8 @@ class _OrderConfirmPageState extends State<_OrderConfirmPage> {
           Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: c.navyText)),
           const SizedBox(height: 10),
           Row(children: [
+            Expanded(child: _PayChip(label: 'Mobile Pay', icon: Icons.phone_in_talk_rounded, selected: _payMethod == 'mobile_pay', onTap: () => setState(() => _payMethod = 'mobile_pay'))),
+            const SizedBox(width: 10),
             Expanded(child: _PayChip(label: 'ePay',      icon: Icons.account_balance_wallet_rounded, selected: _payMethod == 'wallet',    onTap: () => setState(() => _payMethod = 'wallet'))),
             const SizedBox(width: 10),
             Expanded(child: _PayChip(label: 'Waafi Pay', icon: Icons.phone_android_rounded,          selected: _payMethod == 'waafi_pay', onTap: () => setState(() => _payMethod = 'waafi_pay'))),
@@ -393,6 +396,10 @@ class _OrderConfirmPageState extends State<_OrderConfirmPage> {
               if (_payMethod == 'wallet') {
                 final ok = await showWalletPinDialog(context);
                 if (!ok) return;
+              } else if (_payMethod == 'mobile_pay') {
+                final result = await showMobilePaySheet(context, amount: widget.total, description: 'eLaundry Order');
+                if (result?.success != true) return;
+                _waafiRef = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
               } else {
                 final result = await showWaafiPaySheet(
                   context, amount: widget.total, type: 'order', description: 'eLaundry Order');

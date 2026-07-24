@@ -11,6 +11,7 @@ import '../../../../core/theme/theme_x.dart';
 import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../payment/mobile_pay_sheet.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../ads/services/ad_service.dart';
 
@@ -1423,6 +1424,10 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
     if (_payMethod == 'wallet') {
       final ok = await showWalletPinDialog(context);
       if (!ok) return;
+    } else if (_payMethod == 'mobile_pay') {
+      final result = await showMobilePaySheet(context, amount: _total, description: 'eTicket Flight Booking');
+      if (result?.success != true) return;
+      _waafiReference = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
     } else if (_payMethod == 'waafi_pay') {
       final result = await showWaafiPaySheet(
         context,
@@ -1794,6 +1799,14 @@ class _BookingFlowDialogState extends State<_BookingFlowDialog> {
           // Payment method
           _PayCard(title: 'Payment Method', icon: Icons.payment_rounded,
             child: Column(children: [
+              _PayMethodTile(
+                label: 'Mobile Pay',
+                sub: 'EVC Plus, Waafi, Sahal — USSD',
+                icon: Icons.phone_in_talk_rounded,
+                color: const Color(0xFF4CAF50), selected: _payMethod == 'mobile_pay',
+                onTap: () => setState(() => _payMethod = 'mobile_pay'),
+              ),
+              const SizedBox(height: 10),
               _PayMethodTile(
                 label: 'ePay Balance',
                 sub: 'Deducted from your eSahlan ePay',

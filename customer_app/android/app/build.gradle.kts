@@ -63,4 +63,6 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // WebRTC classes (VideoFrame, JavaI420Buffer, etc.) used in LiveVideoFilterPlugin
+    compileOnly("io.github.webrtc-sdk:android:137.7151.04")
 }

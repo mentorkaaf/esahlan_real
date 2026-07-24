@@ -9,6 +9,7 @@ import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/module_widgets.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../payment/mobile_pay_sheet.dart';
 import '../../ads/services/ad_service.dart';
 
 final _svc = ModuleApiService.create();
@@ -295,7 +296,12 @@ class _NurseSectionState extends State<_NurseSection> {
   );
 
   Future<void> _book() async {
-    if (_payMethod == 'waafi_pay') {
+    if (_payMethod == 'mobile_pay') {
+      const nurseRate = 15.0;
+      final result = await showMobilePaySheet(context, amount: nurseRate, description: 'Nurse Home Visit');
+      if (result?.success != true) return;
+      _waafiRef = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+    } else if (_payMethod == 'waafi_pay') {
       const nurseRate = 15.0;
       final result = await showWaafiPaySheet(context, amount: nurseRate, type: 'order', description: 'Nurse Home Visit');
       if (result?.success != true) return;
@@ -520,7 +526,12 @@ class _BookDoctorSheetState extends State<_BookDoctorSheet> {
   }
 
   Future<void> _book() async {
-    if (_payMethod == 'waafi_pay') {
+    if (_payMethod == 'mobile_pay') {
+      final fee = (widget.doctor['consultation_fee'] as num?)?.toDouble() ?? 10.0;
+      final result = await showMobilePaySheet(context, amount: fee, description: 'Doctor Appointment');
+      if (result?.success != true) return;
+      _waafiRef = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+    } else if (_payMethod == 'waafi_pay') {
       final fee = (widget.doctor['consultation_fee'] as num?)?.toDouble() ?? 10.0;
       final result = await showWaafiPaySheet(context, amount: fee, type: 'order', description: 'Doctor Appointment');
       if (result?.success != true) return;
@@ -557,6 +568,8 @@ class _HealthPayRow extends StatelessWidget {
       Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
       const SizedBox(height: 8),
       Row(children: [
+        Expanded(child: _HealthPayChip(label: 'Mobile Pay', icon: Icons.phone_in_talk_rounded, selected: payMethod == 'mobile_pay', onTap: () => onChanged('mobile_pay'))),
+        const SizedBox(width: 10),
         Expanded(child: _HealthPayChip(label: 'ePay',      icon: Icons.account_balance_wallet_rounded, selected: payMethod == 'wallet',    onTap: () => onChanged('wallet'))),
         const SizedBox(width: 10),
         Expanded(child: _HealthPayChip(label: 'Waafi Pay', icon: Icons.phone_android_rounded,          selected: payMethod == 'waafi_pay', onTap: () => onChanged('waafi_pay'))),

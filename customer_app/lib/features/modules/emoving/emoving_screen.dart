@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../payment/mobile_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -1602,16 +1603,22 @@ class _BookingFlowScreenState extends ConsumerState<_BookingFlowScreen> {
   }
 
   Future<void> _submitOrder() async {
-    if (_paymentMethod == 'waafi_pay') {
+    if (_paymentMethod == 'mobile_pay' || _paymentMethod == 'waafi_pay') {
       final total = (_finalBreakdown?['total'] as num?)?.toDouble() ?? 0;
-      final result = await showWaafiPaySheet(
-        context,
-        amount: total,
-        type: 'order',
-        description: 'eMoving Order',
-      );
-      if (result?.success != true) return;
-      _waafiReference = result!.reference;
+      if (_paymentMethod == 'mobile_pay') {
+        final result = await showMobilePaySheet(context, amount: total, description: 'eMoving Order');
+        if (result?.success != true) return;
+        _waafiReference = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+      } else {
+        final result = await showWaafiPaySheet(
+          context,
+          amount: total,
+          type: 'order',
+          description: 'eMoving Order',
+        );
+        if (result?.success != true) return;
+        _waafiReference = result!.reference;
+      }
     }
 
     if (_paymentMethod == 'wallet') {
@@ -1883,6 +1890,15 @@ class _ScheduleStep extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _PaymentTile(
+                        label: 'Mobile Pay',
+                        icon: Icons.phone_in_talk_rounded,
+                        selected: paymentMethod == 'mobile_pay',
+                        onTap: () => onPaymentChanged('mobile_pay'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _PaymentTile(
                         label: 'ePay',
                         icon: Icons.account_balance_wallet_rounded,
                         selected: paymentMethod == 'wallet',
@@ -2094,7 +2110,7 @@ class _ConfirmStep extends ConsumerWidget {
                     _ConfirmRow(
                         icon: Icons.payment_rounded,
                         label: 'Payment',
-                        value: paymentMethod == 'wallet' ? 'ePay' : 'Waafi Pay'),
+                        value: paymentMethod == 'wallet' ? 'ePay' : paymentMethod == 'mobile_pay' ? 'Mobile Pay' : 'Waafi Pay'),
                   ],
                 ),
                 if (notes.isNotEmpty) ...[

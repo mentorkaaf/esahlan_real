@@ -11,19 +11,18 @@ class WaafiPayResult {
   final bool success;
   final String? reference;
   final String? message;
-  const WaafiPayResult({required this.success, this.reference, this.message});
+  final double? newBalance; // wallet balance after successful topup
+  const WaafiPayResult({required this.success, this.reference, this.message, this.newBalance});
 }
 
-/// Show the Waafi Pay payment bottom sheet.
-/// [type] can be 'order', 'topup', or 'custom'
-/// Returns WaafiPayResult when dismissed.
+/// Show the Waafi Pay payment bottom sheet (topup or order).
 Future<WaafiPayResult?> showWaafiPaySheet(
   BuildContext context, {
   required double amount,
   required String type,
   String? description,
   String? prefillPhone,
-}) {
+}) async {
   return showModalBottomSheet<WaafiPayResult>(
     context: context,
     isScrollControlled: true,
@@ -58,6 +57,7 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
   _PayState _state = _PayState.input;
   String? _reference;
   String _message = '';
+  double? _newBalance;
   Timer? _pollTimer;
   int _pollCount = 0;
   static const _maxPolls = 20; // 60 seconds
@@ -75,6 +75,8 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
     super.dispose();
   }
 
+  bool get _isTopup => widget.type == 'topup';
+
   Future<void> _initiate() async {
     final phone = '${_country.dialCode}${_phoneCtrl.text.trim()}';
     if (_phoneCtrl.text.trim().length < 6) {
@@ -85,16 +87,22 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
     setState(() { _state = _PayState.loading; _message = ''; });
 
     try {
-      final res = await _svc.initiatePayment({
-        'amount':      widget.amount,
-        'phone':       phone,
-        'type':        widget.type,
-        'description': widget.description ?? 'eSahlan Payment',
-      });
+      final dynamic res;
+      if (_isTopup) {
+        res = await _svc.walletTopup({'amount': widget.amount, 'phone': phone});
+      } else {
+        res = await _svc.initiatePayment({
+          'amount':      widget.amount,
+          'phone':       phone,
+          'type':        widget.type,
+          'description': widget.description ?? 'eSahlan Payment',
+        });
+      }
 
       if (res['success'] == true) {
         _reference = res['reference'];
         if (res['status'] == 'success') {
+          _newBalance = (res['balance'] as num?)?.toDouble();
           setState(() { _state = _PayState.success; _message = 'Payment approved!'; });
         } else {
           setState(() { _state = _PayState.waiting; _message = 'Confirmation sent to $phone'; });
@@ -123,10 +131,16 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
     }
 
     try {
-      final res = await _svc.checkPaymentStatus(_reference!);
+      final dynamic res;
+      if (_isTopup) {
+        res = await _svc.checkTopupStatus(_reference!);
+      } else {
+        res = await _svc.checkPaymentStatus(_reference!);
+      }
       final status = res['status'] ?? 'pending';
       if (status == 'success') {
         _pollTimer?.cancel();
+        _newBalance = (res['balance'] as num?)?.toDouble();
         if (mounted) setState(() { _state = _PayState.success; _message = 'Payment approved!'; });
       } else if (status == 'failed') {
         _pollTimer?.cancel();
@@ -141,6 +155,7 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
       success: success,
       reference: _reference,
       message: _message,
+      newBalance: success ? _newBalance : null,
     ));
   }
 

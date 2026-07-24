@@ -11,6 +11,7 @@ import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../payment/mobile_pay_sheet.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../../features/wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
@@ -2506,6 +2507,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         Text('Payment Method', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
         const SizedBox(height: 12),
         ...[
+          ('mobile', '📲', 'Mobile Pay', 'EVC Plus, Waafi, Sahal — USSD'),
           ('waafi',  '📱', 'Waafi Pay',  'EVC / eDahab / Jeep / Premier'),
           ('wallet', '👛', 'ePay',       'Pay from your ePay balance'),
         ].map((m) => _PaymentOption(
@@ -2572,7 +2574,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
 
   String? _waafiReference;
 
-  String get _apiPayment => _payment == 'wallet' ? 'wallet' : 'waafi_pay';
+  String get _apiPayment => _payment == 'wallet' ? 'wallet' : _payment == 'mobile' ? 'mobile_pay' : 'waafi_pay';
 
   Future<void> _placeOrder() async {
     if (_districtId == null) {
@@ -2584,7 +2586,11 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
       return;
     }
 
-    if (_payment == 'waafi') {
+    if (_payment == 'mobile') {
+      final result = await showMobilePaySheet(context, amount: _total, description: 'eFood Order');
+      if (result?.success != true) return;
+      _waafiReference = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+    } else if (_payment == 'waafi') {
       final result = await showWaafiPaySheet(
         context,
         amount: _total,

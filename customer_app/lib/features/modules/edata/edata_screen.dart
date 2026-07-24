@@ -11,6 +11,7 @@ import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../payment/mobile_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 
@@ -315,6 +316,13 @@ class _EDataFlowDialogState extends ConsumerState<_EDataFlowDialog> {
   Future<void> _placeOrder() async {
     final phone = _phoneCtrl.text.trim();
     if (phone.isEmpty) { setState(() => _error = 'Enter phone number'); return; }
+
+    if (_payMethod == 'mobile_pay') {
+      final price = _toD(_selectedBundle!['price']);
+      final result = await showMobilePaySheet(context, amount: price, description: 'eData: ${_selectedBundle!['name'] ?? ''}');
+      if (result?.success != true) return;
+      _waafiReference = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+    }
 
     if (_payMethod == 'waafi_pay') {
       final price = _toD(_selectedBundle!['price']);
@@ -913,13 +921,20 @@ class _OrderSummaryStep extends StatelessWidget {
             const SizedBox(height: 12),
             Row(children: [
               Expanded(child: _PayTile(
+                icon: Icons.phone_in_talk_rounded,
+                label: 'Mobile Pay', subtitle: 'USSD dial',
+                selected: payMethod == 'mobile_pay',
+                color: const Color(0xFF4CAF50),
+                onTap: () => onPayMethodChanged('mobile_pay'),
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: _PayTile(
                 icon: Icons.account_balance_wallet_rounded,
                 label: 'ePay', subtitle: 'Pay from balance',
                 selected: payMethod == 'wallet',
                 color: providerColor,
                 onTap: () => onPayMethodChanged('wallet'),
               )),
-              const SizedBox(width: 10),
               const SizedBox(width: 10),
               Expanded(child: _PayTile(
                 icon: Icons.phone_android_rounded,

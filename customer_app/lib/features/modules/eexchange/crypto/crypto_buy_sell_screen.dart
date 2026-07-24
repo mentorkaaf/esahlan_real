@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../../../../core/api/module_api_service.dart';
 import '../../../payment/waafi_pay_sheet.dart';
+import '../../../payment/mobile_pay_sheet.dart';
 import 'crypto_theme.dart';
 import 'crypto_models.dart';
 import 'crypto_providers.dart';
@@ -79,16 +80,20 @@ class _CryptoBuySellScreenState extends ConsumerState<CryptoBuySellScreen> {
       }
     }
 
-    // WaafiPay: show payment sheet first
     String? waafiRef;
-    if (_payMethod == 'waafi_pay') {
+    if (_payMethod == 'mobile_pay') {
+      final result = await showMobilePaySheet(
+        context, amount: _inputAmt,
+        description: _isBuy ? 'Buy ${_selectedCoin!.symbol}' : 'Sell ${_selectedCoin!.symbol}',
+      );
+      if (result == null || !result.success) return;
+      waafiRef = result.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+    } else if (_payMethod == 'waafi_pay') {
       final result = await showWaafiPaySheet(
         context,
         amount: _inputAmt,
         type: 'order',
-        description: _isBuy
-            ? 'Buy ${_selectedCoin!.symbol}'
-            : 'Sell ${_selectedCoin!.symbol}',
+        description: _isBuy ? 'Buy ${_selectedCoin!.symbol}' : 'Sell ${_selectedCoin!.symbol}',
       );
       if (result == null || !result.success) return;
       waafiRef = result.reference;
@@ -471,12 +476,14 @@ class _PayMethodSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final methods = isBuy
         ? [
-            ('epay',      'ePay Wallet',  'Balance: \$${ePayBalance.toStringAsFixed(2)}', Icons.account_balance_wallet_outlined),
-            ('waafi_pay', 'Waafi Pay',    'EVC / eDahab / Jeep / Premier',                Icons.phone_android_rounded),
+            ('mobile_pay', 'Mobile Pay',   'EVC Plus, Waafi, Sahal — USSD',                Icons.phone_in_talk_rounded),
+            ('epay',       'ePay Wallet',  'Balance: \$${ePayBalance.toStringAsFixed(2)}', Icons.account_balance_wallet_outlined),
+            ('waafi_pay',  'Waafi Pay',    'EVC / eDahab / Jeep / Premier',                Icons.phone_android_rounded),
           ]
         : [
-            ('epay',      'ePay Wallet',  'Instant credit to ePay',                       Icons.account_balance_wallet_outlined),
-            ('waafi_pay', 'Waafi Pay',    'Receive to mobile money',                       Icons.phone_android_rounded),
+            ('mobile_pay', 'Mobile Pay',   'EVC Plus, Waafi, Sahal — USSD',                Icons.phone_in_talk_rounded),
+            ('epay',       'ePay Wallet',  'Instant credit to ePay',                       Icons.account_balance_wallet_outlined),
+            ('waafi_pay',  'Waafi Pay',    'Receive to mobile money',                       Icons.phone_android_rounded),
           ];
 
     return Column(

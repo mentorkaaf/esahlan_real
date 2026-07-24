@@ -9,6 +9,7 @@ import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../payment/mobile_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../auth/data/models/district_model.dart';
 import '../../auth/data/repositories/district_repository.dart';
@@ -96,22 +97,28 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
       return;
     }
 
-    if (_paymentMethod == 'waafi_pay') {
+    if (_paymentMethod == 'mobile_pay' || _paymentMethod == 'waafi_pay') {
       final cart     = ref.read(eshopCartProvider);
       final coupon   = ref.read(eshopCouponProvider);
       final subtotal = cart.fold(0.0, (s, c) => s + c.lineTotal);
       final discount = coupon.calculateDiscount(subtotal);
       final total    = subtotal - discount + _deliveryFee;
 
-      final result = await showWaafiPaySheet(
-        context,
-        amount: total,
-        type: 'order',
-        description: 'eSahlan Shop Order',
-        prefillPhone: _phoneCtrl.text.trim(),
-      );
-      if (result?.success != true) return;
-      _waafiReference = result!.reference;
+      if (_paymentMethod == 'mobile_pay') {
+        final result = await showMobilePaySheet(context, amount: total, description: 'eSahlan Shop Order');
+        if (result?.success != true) return;
+        _waafiReference = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+      } else {
+        final result = await showWaafiPaySheet(
+          context,
+          amount: total,
+          type: 'order',
+          description: 'eSahlan Shop Order',
+          prefillPhone: _phoneCtrl.text.trim(),
+        );
+        if (result?.success != true) return;
+        _waafiReference = result!.reference;
+      }
     }
 
     if (_paymentMethod == 'wallet') {
@@ -278,6 +285,8 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
         // ── Payment Method ────────────────────────────────────────
         _section('Payment Method', Icons.payment_outlined, children: [
           _paymentOption('wallet',    'ePay',      Icons.account_balance_wallet_outlined, 'Pay from your ePay balance'),
+          const SizedBox(height: 10),
+          _paymentOption('mobile_pay', 'Mobile Pay', Icons.phone_in_talk_rounded, 'EVC Plus, Waafi, Sahal — USSD'),
           const SizedBox(height: 10),
           _paymentOption('waafi_pay', 'Waafi Pay', Icons.phone_android_rounded,           'EVC / eDahab / Jeep / Premier'),
         ]),

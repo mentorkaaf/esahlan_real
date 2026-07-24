@@ -8,6 +8,7 @@ import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../payment/mobile_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../auth/data/models/district_model.dart';
 import '../../auth/data/repositories/district_repository.dart';
@@ -584,7 +585,11 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
     final subtotal = ref.read(_cartProvider.notifier).subtotal;
     final total = subtotal + AppConstants.groceryDeliveryFee;
 
-    if (_payment == 'waafi_pay') {
+    if (_payment == 'mobile_pay') {
+      final result = await showMobilePaySheet(context, amount: total, description: 'eGrocery Order');
+      if (result?.success != true) return;
+      _waafiReference = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+    } else if (_payment == 'waafi_pay') {
       final result = await showWaafiPaySheet(context, amount: total, type: 'order', description: 'eGrocery Order');
       if (result?.success != true) return;
       _waafiReference = result!.reference;
@@ -685,6 +690,8 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
 
         // Payment
         _section('Payment Method', Icons.payment_outlined, children: [
+          _paymentOption('mobile_pay', 'Mobile Pay', Icons.phone_in_talk_rounded, 'EVC Plus, Waafi, Sahal — USSD'),
+          const SizedBox(height: 10),
           _paymentOption('wallet', 'ePay',   Icons.account_balance_wallet_outlined, 'Pay from ePay balance'),
           const SizedBox(height: 10),
           _paymentOption('waafi_pay', 'Waafi Pay', Icons.phone_android_rounded, 'EVC / eDahab'),

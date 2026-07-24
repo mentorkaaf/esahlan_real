@@ -8,6 +8,7 @@ import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../payment/mobile_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -428,6 +429,8 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
         Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
       ]),
       const SizedBox(height: 12),
+      _payOption('mobile_pay', 'Mobile Pay', Icons.phone_in_talk_rounded,           'EVC Plus, Waafi, Sahal — USSD'),
+      const SizedBox(height: 10),
       _payOption('wallet',    'ePay',       Icons.account_balance_wallet_outlined, 'Deducted from your ePay balance'),
       const SizedBox(height: 10),
       _payOption('waafi_pay', 'Waafi Pay',  Icons.phone_android_rounded,           'EVC / eDahab / Jeep / Premier'),
@@ -511,8 +514,11 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
   }
 
   Future<void> _confirm() async {
-    // Waafi Pay — show payment sheet first, capture reference
-    if (_paymentMethod == 'waafi_pay') {
+    if (_paymentMethod == 'mobile_pay') {
+      final result = await showMobilePaySheet(context, amount: _amount, description: 'eExchange ${_fromWallet.toUpperCase()} → ${_toWallet.toUpperCase()}');
+      if (result?.success != true) return;
+      _waafiRef = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+    } else if (_paymentMethod == 'waafi_pay') {
       final result = await showWaafiPaySheet(
         context,
         amount: _amount,
@@ -520,7 +526,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen> {
         description: 'eExchange ${_fromWallet.toUpperCase()} → ${_toWallet.toUpperCase()}',
         prefillPhone: _cleanPhone,
       );
-      if (result?.success != true) return; // user cancelled or failed
+      if (result?.success != true) return;
       _waafiRef = result!.reference;
     }
 

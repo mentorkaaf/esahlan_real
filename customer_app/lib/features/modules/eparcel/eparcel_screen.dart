@@ -7,6 +7,7 @@ import '../../../core/api/module_api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
+import '../../payment/mobile_pay_sheet.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -335,6 +336,8 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
                   const SizedBox(height: 14),
                   // Payment method
                   Row(children: [
+                    Expanded(child: _PayTile(label: 'Mobile Pay', icon: Icons.phone_in_talk_rounded, selected: _payMethod == 'mobile_pay', color: const Color(0xFF4CAF50), onTap: () => setState(() => _payMethod = 'mobile_pay'))),
+                    const SizedBox(width: 10),
                     Expanded(child: _PayTile(label: 'ePay',      icon: Icons.account_balance_wallet_rounded, selected: _payMethod == 'wallet',    color: AppColors.primary,        onTap: () => setState(() => _payMethod = 'wallet'))),
                     const SizedBox(width: 10),
                     Expanded(child: _PayTile(label: 'Waafi Pay', icon: Icons.phone_android_rounded,          selected: _payMethod == 'waafi_pay', color: const Color(0xFFFF8A00), onTap: () => setState(() => _payMethod = 'waafi_pay'))),
@@ -391,14 +394,20 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
     if (_recipientNameCtrl.text.trim().isEmpty) { _snack('Enter receiver name', error: true); return; }
     if (_recipientPhoneCtrl.text.trim().isEmpty) { _snack('Enter receiver phone', error: true); return; }
 
-    if (_payMethod == 'waafi_pay') {
+    if (_payMethod == 'mobile_pay' || _payMethod == 'waafi_pay') {
       final price = double.tryParse(_price?['total']?.toString() ?? '0') ?? 0;
-      final result = await showWaafiPaySheet(
-        context, amount: price, type: 'order', description: 'eParcel Delivery',
-        prefillPhone: _senderPhone,
-      );
-      if (result?.success != true) return;
-      _waafiRef = result!.reference;
+      if (_payMethod == 'mobile_pay') {
+        final result = await showMobilePaySheet(context, amount: price, description: 'eParcel Delivery');
+        if (result?.success != true) return;
+        _waafiRef = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
+      } else {
+        final result = await showWaafiPaySheet(
+          context, amount: price, type: 'order', description: 'eParcel Delivery',
+          prefillPhone: _senderPhone,
+        );
+        if (result?.success != true) return;
+        _waafiRef = result!.reference;
+      }
     }
 
     if (_payMethod == 'wallet') {
