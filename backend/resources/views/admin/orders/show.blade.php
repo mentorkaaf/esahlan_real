@@ -911,7 +911,7 @@ $tz = \App\Helpers\AppSettings::timezone();
 </div>
 
 {{-- ── Assign Deliveryman ── --}}
-@if(in_array($order->status, ['confirmed','preparing','ready_for_pickup']) && !$order->deliveryman_id)
+@if($slug !== 'eticket' && in_array($order->status, ['confirmed','preparing','ready_for_pickup']) && !$order->deliveryman_id)
 <div class="od-card">
     <div class="od-card-header">
         <div class="icon" style="background:#00695C;"><i class="fas fa-motorcycle"></i></div>
