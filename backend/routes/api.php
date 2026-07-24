@@ -52,6 +52,7 @@ use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Customer\HomeController;
 use App\Http\Controllers\Api\Customer\OrderController;
 use App\Http\Controllers\Api\Customer\WalletController;
+use App\Http\Controllers\Api\Customer\MobilePayController;
 use App\Http\Controllers\Api\Payment\PaymentController;
 use App\Http\Controllers\Api\Customer\VendorController;
 use App\Http\Controllers\Api\Customer\CartController;
@@ -170,6 +171,7 @@ Route::prefix('v1')->group(function () {
     Route::post('ads/{id}/track',       [AdController::class, 'track']);         // body: {action: impression|click}
     Route::get('modules',               [HomeController::class, 'modules']);
     Route::get('modules/{slug}',        [HomeController::class, 'moduleDetails']);
+    Route::get('mobile-pay/accounts',   [MobilePayController::class, 'accounts']);
     Route::get('districts',             [HomeController::class, 'districts']);
     Route::get('banners',               [HomeController::class, 'banners']);   // public banner endpoint — filter by ?position=home_top
     Route::get('vendors',               [VendorController::class, 'index']);

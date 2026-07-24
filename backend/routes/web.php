@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AdminVendorController;
 use App\Http\Controllers\Admin\AdminOrderController;
 use App\Http\Controllers\Admin\AdminModuleController;
+use App\Http\Controllers\Admin\AdminMobilePayController;
 use App\Http\Controllers\Admin\AdminBannerController;
 use App\Http\Controllers\Admin\AdminAdController;
 use App\Http\Controllers\Admin\AdminSettingController;
@@ -244,6 +245,15 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::patch('/{module}', [AdminModuleController::class, 'update'])->name('update');
             Route::post('/{module}/toggle', [AdminModuleController::class, 'toggleStatus'])->name('toggle');
             Route::post('/{module}/districts', [AdminModuleController::class, 'updateDistricts'])->name('districts');
+        });
+
+        // Mobile Pay Accounts
+        Route::prefix('mobile-pay')->name('mobile-pay.')->group(function () {
+            Route::get('/',                              [AdminMobilePayController::class, 'index'])->name('index');
+            Route::post('/',                             [AdminMobilePayController::class, 'store'])->name('store');
+            Route::patch('/{account}',                   [AdminMobilePayController::class, 'update'])->name('update');
+            Route::delete('/{account}',                  [AdminMobilePayController::class, 'destroy'])->name('destroy');
+            Route::patch('/{account}/toggle',            [AdminMobilePayController::class, 'toggleStatus'])->name('toggle');
         });
 
         // Banners

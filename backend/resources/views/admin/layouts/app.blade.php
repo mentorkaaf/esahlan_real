@@ -427,6 +427,9 @@
         <a href="{{ route('admin.wallet.index') }}" class="nav-link {{ request()->routeIs('admin.wallet.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-wallet"></i></div> ePay
         </a>
+        <a href="{{ route('admin.mobile-pay.index') }}" class="nav-link {{ request()->routeIs('admin.mobile-pay.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-mobile-alt"></i></div> Mobile Pay
+        </a>
         <a href="{{ route('admin.crypto.dashboard') }}" class="nav-link {{ request()->routeIs('admin.crypto.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fab fa-bitcoin"></i></div> Crypto Exchange
             @php try { $__pendingWd = \App\Models\CryptoWithdrawal::where('status','pending')->count(); $__openDsp = \App\Models\P2pDispute::where('status','open')->count(); $__cx = $__pendingWd + $__openDsp; } catch(\Exception $e){ $__cx=0; } @endphp
