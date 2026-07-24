@@ -12,7 +12,7 @@ const _ussdChannel = MethodChannel('com.esahlan.app/ussd');
 
 Future<_UssdResult> _dialUssdInApp(String code) async {
   if (Platform.isIOS) {
-    // iOS: cannot do in-app USSD — open phone dialer
+    // iOS: tel: URL — system opens USSD dialog natively
     final encoded = code.replaceAll('#', '%23');
     try {
       await launchUrl(Uri.parse('tel:$encoded'), mode: LaunchMode.externalApplication);
@@ -21,21 +21,22 @@ Future<_UssdResult> _dialUssdInApp(String code) async {
       return _UssdResult(launched: false, response: null);
     }
   }
-  // Android API 26+ in-app USSD
+  // Android: ACTION_CALL intent — places USSD silently, carrier dialog pops
+  // on top of the app so user can enter PIN without leaving the app.
   try {
     final res = await _ussdChannel.invokeMethod<Map>('dialUssd', {'code': code});
     final success = res?['success'] as bool? ?? false;
-    final response = res?['response'] as String?;
-    return _UssdResult(launched: true, inApp: true, success: success, response: response);
+    return _UssdResult(launched: success, inApp: false, success: success, response: null);
   } on PlatformException catch (e) {
-    if (e.code == 'UNSUPPORTED' || e.code == 'PERMISSION_DENIED') {
-      // Fallback: open dialer
-      final encoded = code.replaceAll('#', '%23');
-      try {
-        await launchUrl(Uri.parse('tel:$encoded'), mode: LaunchMode.externalApplication);
-        return _UssdResult(launched: true, response: null);
-      } catch (_) {}
+    if (e.code == 'PERMISSION_DENIED') {
+      return _UssdResult(launched: false, response: 'Call permission denied');
     }
+    // Fallback: tel: URL
+    final encoded = code.replaceAll('#', '%23');
+    try {
+      await launchUrl(Uri.parse('tel:$encoded'), mode: LaunchMode.externalApplication);
+      return _UssdResult(launched: true, response: null);
+    } catch (_) {}
     return _UssdResult(launched: false, response: e.message);
   }
 }
@@ -224,35 +225,13 @@ class _MobilePaySheetState extends State<_MobilePaySheet> {
       return;
     }
 
-    // Show carrier response if in-app (Android)
-    if (result.inApp && result.response != null && result.response!.isNotEmpty) {
-      await showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(children: [
-            Icon(result.success ? Icons.check_circle_rounded : Icons.info_rounded,
-                color: result.success ? _kGreenLight : Colors.orange),
-            const SizedBox(width: 8),
-            const Text('Payment Response', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-          ]),
-          content: Text(result.response!, style: const TextStyle(fontSize: 14, height: 1.5)),
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx),
-              style: ElevatedButton.styleFrom(backgroundColor: _kGreen, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-              child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w800)),
-            ),
-          ],
-        ),
-      );
-    }
-
+    // Carrier's USSD PIN dialog will appear on top of the app automatically.
+    // Close the sheet immediately so the user sees the carrier dialog clearly.
     if (mounted) {
       Navigator.of(context).pop(MobilePayResult(
-        success: result.launched,
+        success: true,
         account: acc,
-        ussdResponse: result.response,
+        ussdResponse: null,
       ));
     }
   }

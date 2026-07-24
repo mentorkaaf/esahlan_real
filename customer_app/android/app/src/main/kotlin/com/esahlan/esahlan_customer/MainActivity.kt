@@ -1,12 +1,10 @@
 package com.esahlan.user
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
-import android.telephony.TelephonyManager
-import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -28,17 +26,12 @@ class MainActivity : FlutterActivity() {
                 val code = call.argument<String>("code") ?: run {
                     result.error("INVALID", "No USSD code", null); return@setMethodCallHandler
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
-                        sendUssd(code, result)
-                    } else {
-                        pendingUssdCode = code
-                        pendingResult = result
-                        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CALL_PHONE), CALL_PERMISSION_CODE)
-                    }
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+                    dialUssdViaIntent(code, result)
                 } else {
-                    // Android < 8: not supported in-app, tell Flutter to fallback
-                    result.error("UNSUPPORTED", "Android < 8 not supported", null)
+                    pendingUssdCode = code
+                    pendingResult = result
+                    ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CALL_PHONE), CALL_PERMISSION_CODE)
                 }
             } else {
                 result.notImplemented()
@@ -46,28 +39,19 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    private fun sendUssd(code: String, result: MethodChannel.Result) {
+    // Use ACTION_CALL intent so the system places the USSD silently and shows
+    // the carrier's multi-session USSD dialog on top of the app for PIN entry.
+    private fun dialUssdViaIntent(code: String, result: MethodChannel.Result) {
         try {
-            val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-            tm.sendUssdRequest(code, object : TelephonyManager.UssdResponseCallback() {
-                override fun onReceiveUssdResponse(tm: TelephonyManager, request: String, response: CharSequence) {
-                    Handler(Looper.getMainLooper()).post {
-                        result.success(mapOf("success" to true, "response" to response.toString()))
-                    }
-                }
-                override fun onReceiveUssdResponseFailed(tm: TelephonyManager, request: String, failureCode: Int) {
-                    Handler(Looper.getMainLooper()).post {
-                        result.success(mapOf("success" to false, "response" to "USSD failed (code $failureCode)"))
-                    }
-                }
-            }, Handler(Looper.getMainLooper()))
+            val encoded = code.replace("#", Uri.encode("#"))
+            val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$encoded"))
+            startActivity(intent)
+            result.success(mapOf("success" to true, "response" to ""))
         } catch (e: Exception) {
             result.error("ERROR", e.message, null)
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == CALL_PERMISSION_CODE) {
@@ -77,7 +61,7 @@ class MainActivity : FlutterActivity() {
             pendingResult   = null
             if (code != null && res != null) {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    sendUssd(code, res)
+                    dialUssdViaIntent(code, res)
                 } else {
                     res.error("PERMISSION_DENIED", "Call permission denied", null)
                 }
