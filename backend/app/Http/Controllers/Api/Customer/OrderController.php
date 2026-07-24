@@ -253,6 +253,11 @@ class OrderController extends Controller
             $request, $user, $vendor, $orderItems, $subtotal, $deliveryFee,
             $commission, $discount, $totalAmount, $couponId
         ) {
+            $meta = [];
+            if ($request->payment_method === 'mobile_pay' && $request->proof_token) {
+                $meta['proof_token'] = $request->proof_token;
+            }
+
             $order = Order::create([
                 'order_number'     => 'ORD-' . strtoupper(Str::random(8)),
                 'user_id'          => $user->id,
@@ -269,6 +274,7 @@ class OrderController extends Controller
                 'total_amount'     => $totalAmount,
                 'note'             => $request->note,
                 'placed_at'        => now(),
+                'meta'             => $meta ?: null,
             ]);
 
             foreach ($orderItems as $item) {

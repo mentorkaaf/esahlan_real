@@ -171,7 +171,9 @@ Route::prefix('v1')->group(function () {
     Route::post('ads/{id}/track',       [AdController::class, 'track']);         // body: {action: impression|click}
     Route::get('modules',               [HomeController::class, 'modules']);
     Route::get('modules/{slug}',        [HomeController::class, 'moduleDetails']);
-    Route::get('mobile-pay/accounts',   [MobilePayController::class, 'accounts']);
+    Route::get('mobile-pay/accounts',      [MobilePayController::class, 'accounts']);
+    Route::post('mobile-pay/submit-proof', [MobilePayController::class, 'submitProof']);
+    Route::post('mobile-pay/attach-proof', [MobilePayController::class, 'attachProof']);
     Route::get('districts',             [HomeController::class, 'districts']);
     Route::get('banners',               [HomeController::class, 'banners']);   // public banner endpoint — filter by ?position=home_top
     Route::get('vendors',               [VendorController::class, 'index']);

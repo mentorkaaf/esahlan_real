@@ -778,6 +778,33 @@ $tz = \App\Helpers\AppSettings::timezone();
                 <span class="pay-{{ $ps }}" style="margin-left:6px;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:800;">{{ strtoupper($ps) }}</span>
             </td>
         </tr>
+        @if($order->payment_method === 'mobile_pay')
+        @php
+            $proofToken = data_get($order->meta, 'proof_token');
+            $proof = $proofToken ? \Illuminate\Support\Facades\Cache::get('mobile_pay_proof:' . $proofToken) : null;
+        @endphp
+        <tr>
+            <td>Mobile Pay Proof</td>
+            <td>
+                @if($proof)
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <div style="font-size:13px;">
+                            <i class="fas fa-phone" style="color:#2E7D32;margin-right:6px;"></i>
+                            <strong>{{ $proof['phone'] }}</strong>
+                        </div>
+                        <div style="font-size:11px;color:#888;">Amount: ${{ number_format($proof['amount'],2) }} &nbsp;·&nbsp; {{ \Carbon\Carbon::parse($proof['created_at'])->setTimezone($tz)->format('d M Y · H:i') }}</div>
+                        <a href="{{ $proof['image_url'] }}" target="_blank" style="display:inline-block;">
+                            <img src="{{ $proof['image_url'] }}" alt="Payment Proof"
+                                 style="max-width:220px;max-height:300px;border-radius:10px;border:2px solid #4CAF50;cursor:zoom-in;object-fit:cover;">
+                        </a>
+                        <div style="font-size:11px;color:#4CAF50;"><i class="fas fa-check-circle"></i> Proof submitted</div>
+                    </div>
+                @else
+                    <span style="color:#888;font-size:12px;">No proof submitted yet</span>
+                @endif
+            </td>
+        </tr>
+        @endif
         <tr>
             <td>Placed At</td>
             <td style="font-size:13px;">{{ ($order->placed_at ?? $order->created_at)?->setTimezone($tz)->format('d M Y · H:i') }}</td>
