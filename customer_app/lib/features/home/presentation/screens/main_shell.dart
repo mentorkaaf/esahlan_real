@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/providers/community_feature_provider.dart';
+import '../../../../core/services/realtime_client.dart';
+import '../providers/home_provider.dart';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const _kNavy   = Color(0xFF07003B);
@@ -29,10 +31,15 @@ const _kAllDestinations = [
 
 // ─── Main shell ───────────────────────────────────────────────────────────────
 
-class MainShell extends ConsumerWidget {
+class MainShell extends ConsumerStatefulWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
 
+  @override
+  ConsumerState<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends ConsumerState<MainShell> {
   // Returns -1 when on a module screen (no tab is active)
   int _selectedIndex(String path, List<_Dest> dests) {
     for (var i = 0; i < dests.length; i++) {
@@ -41,17 +48,46 @@ class MainShell extends ConsumerWidget {
     return -1;
   }
 
-  // Show nav bar on main tabs — community has its own nav bar
-  bool _showNav(String path) {
-    return path.startsWith('/home') ||
-           path.startsWith('/orders') ||
-           path.startsWith('/wallet') ||
-           path.startsWith('/chat') ||
-           path.startsWith('/profile');
+  // Show nav bar only on core tab paths; hide on module screens and community
+  static const _kNavRoots = {'/home', '/orders', '/wallet', '/chat', '/profile'};
+  bool _showNav(String path) => _kNavRoots.any((r) => path.startsWith(r));
+
+  @override
+  void initState() {
+    super.initState();
+    RealtimeClient.instance.listen('modules', 'modules.updated', _onModulesUpdated);
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void dispose() {
+    RealtimeClient.instance.removeListener('modules', 'modules.updated', _onModulesUpdated);
+    super.dispose();
+  }
+
+  void _onModulesUpdated(dynamic _) {
+    if (!mounted) return;
+    ref.invalidate(modulesProvider);
+    // Re-check single-module redirect after refresh
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      final location = GoRouterState.of(context).uri.path;
+      ref.read(modulesProvider.future).then((modules) {
+        if (!mounted) return;
+        if (modules.length == 1) {
+          context.go('/${modules.first.slug}');
+        } else if (modules.length > 1 && !location.startsWith('/home') &&
+            !location.startsWith('/orders') && !location.startsWith('/wallet') &&
+            !location.startsWith('/chat') && !location.startsWith('/profile') &&
+            !location.startsWith('/community')) {
+          // Was on a module screen, modules expanded — go back to home
+          context.go('/home');
+        }
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final communityEnabled = ref.watch(communityFeatureProvider);
     final location = GoRouterState.of(context).uri.path;
 
@@ -78,8 +114,8 @@ class MainShell extends ConsumerWidget {
       ),
       child: Scaffold(
         backgroundColor: _kBg,
-        extendBody: true,
-        body: child,
+        extendBody: showBar, // only extend behind floating nav when it's visible
+        body: widget.child,
         bottomNavigationBar: showBar
             ? _FloatingNavBar(selectedIndex: idx, location: location, destinations: dests)
             : null,
