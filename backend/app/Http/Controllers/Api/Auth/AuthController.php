@@ -33,7 +33,7 @@ class AuthController extends Controller
             'phone'         => 'required|string|unique:users,phone',
             'email'         => 'nullable|email|unique:users,email',
             'password'      => $passwordRule,
-            'referral_code' => 'nullable|string|exists:users,referral_code',
+            'referral_code' => 'nullable|string|max:20',
             'affiliate_code'=> 'nullable|string',
             'district_id'   => 'nullable|integer|exists:districts,id',
         ], [
