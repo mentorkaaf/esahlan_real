@@ -10,15 +10,23 @@ return new class extends Migration
     public function up(): void
     {
         // Add cached points balance to users (avoids SUM every request)
-        Schema::table('users', function (Blueprint $table) {
-            $table->unsignedInteger('points_balance')->default(0)->after('referral_code');
-        });
+        if (!Schema::hasColumn('users', 'points_balance')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->unsignedInteger('points_balance')->default(0)->after('referral_code');
+            });
+        }
 
-        // Add points_discount to orders (how many $ were discounted via points)
+        // Add points columns to orders
         Schema::table('orders', function (Blueprint $table) {
-            $table->decimal('points_discount', 10, 2)->default(0)->after('wallet_used');
-            $table->unsignedInteger('points_used')->default(0)->after('points_discount');
-            $table->unsignedInteger('points_earned')->default(0)->after('points_used');
+            if (!Schema::hasColumn('orders', 'points_discount')) {
+                $table->decimal('points_discount', 10, 2)->default(0)->after('wallet_used');
+            }
+            if (!Schema::hasColumn('orders', 'points_used')) {
+                $table->unsignedInteger('points_used')->default(0)->after('points_discount');
+            }
+            if (!Schema::hasColumn('orders', 'points_earned')) {
+                $table->unsignedInteger('points_earned')->default(0)->after('points_used');
+            }
         });
 
         // Reward settings (seeded defaults)
