@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use AppServicesLoyaltyService;
 
 class EGroceryController extends Controller
 {
@@ -160,13 +161,17 @@ class EGroceryController extends Controller
 
         $grandTotal = round($total + $deliveryFee, 2);
 
+        // Points redeem
+        $loyalty    = LoyaltyService::processOrderRequest($request, $user->id, $grandTotal, 'egrocery');
+        $grandTotal = round(max(0, $grandTotal - $loyalty['points_discount']), 2);
+
         if ($request->payment_method === 'wallet') {
             if (!$user->wallet || $user->wallet->balance < $grandTotal) {
                 return response()->json(['success' => false, 'message' => 'Insufficient wallet balance'], 422);
             }
         }
 
-        $order = DB::transaction(function () use ($request, $user, $total, $deliveryFee, $grandTotal, $commissionAmount, $lines) {
+        $order = DB::transaction(function () use ($request, $user, $total, $deliveryFee, $grandTotal, $commissionAmount, $lines, $loyalty) {
             $order = Order::create([
                 'order_number'    => 'GRC-' . strtoupper(Str::random(8)),
                 'user_id'         => $user->id,
@@ -179,6 +184,8 @@ class EGroceryController extends Controller
                 'delivery_fee'    => $deliveryFee,
                 'commission'      => $commissionAmount,
                 'total_amount'    => $grandTotal,
+                'points_used'     => $loyalty['points_used'],
+                'points_discount' => $loyalty['points_discount'],
                 'note'            => $request->note,
                 'placed_at'       => now(),
             ]);

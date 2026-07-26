@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use AppServicesLoyaltyService;
 
 class EParcelController extends Controller
 {
@@ -122,6 +123,10 @@ class EParcelController extends Controller
 
         $totalAmount = round($zone->base_price, 2);
 
+        // Points redeem
+        $loyalty     = LoyaltyService::processOrderRequest($request, $user->id, $totalAmount, 'eparcel');
+        $totalAmount = round(max(0, $totalAmount - $loyalty['points_discount']), 2);
+
         if ($request->payment_method === 'wallet') {
             $wallet = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
             if ($wallet->balance < $totalAmount) {
@@ -129,7 +134,7 @@ class EParcelController extends Controller
             }
         }
 
-        $order = DB::transaction(function () use ($request, $user, $totalAmount) {
+        $order = DB::transaction(function () use ($request, $user, $totalAmount, $loyalty) {
             $order = Order::create([
                 'order_number'    => 'PCL-' . strtoupper(Str::random(8)),
                 'user_id'         => $user->id,
@@ -141,6 +146,8 @@ class EParcelController extends Controller
                 'subtotal'        => $totalAmount,
                 'delivery_fee'    => 0,
                 'total_amount'    => $totalAmount,
+                'points_used'     => $loyalty['points_used'],
+                'points_discount' => $loyalty['points_discount'],
                 'note'            => json_encode([
                     'pickup'          => $request->pickup_address,
                     'recipient'       => $request->recipient_name,

@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use AppServicesLoyaltyService;
 
 class EHealthController extends Controller
 {
@@ -86,9 +87,13 @@ class EHealthController extends Controller
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
         $user = $request->user();
-        $fee  = DB::table('settings')->where('key', 'ambulance_base_fee')->value('value') ?? 25.00;
+        $fee  = (float) (DB::table('settings')->where('key', 'ambulance_base_fee')->value('value') ?? 25.00);
 
-        $order = DB::transaction(function () use ($request, $user, $fee) {
+        // Points redeem
+        $loyalty = LoyaltyService::processOrderRequest($request, $user->id, $fee, 'ehealth');
+        $fee     = round(max(0, $fee - $loyalty['points_discount']), 2);
+
+        $order = DB::transaction(function () use ($request, $user, $fee, $loyalty) {
             $order = Order::create([
                 'order_number'    => 'AMB-' . strtoupper(Str::random(8)),
                 'user_id'         => $user->id,
@@ -100,6 +105,8 @@ class EHealthController extends Controller
                 'subtotal'        => $fee,
                 'delivery_fee'    => 0,
                 'total_amount'    => $fee,
+                'points_used'     => $loyalty['points_used'],
+                'points_discount' => $loyalty['points_discount'],
                 'note'            => json_encode([
                     'type'          => 'ambulance',
                     'patient_name'  => $request->patient_name,

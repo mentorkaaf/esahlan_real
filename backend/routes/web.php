@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\AdminOrderController;
 use App\Http\Controllers\Admin\AdminModuleController;
 use App\Http\Controllers\Admin\AdminMobilePayController;
 use App\Http\Controllers\Admin\AdminPaymentSettingsController;
+use App\Http\Controllers\Admin\AdminRewardController;
 use App\Http\Controllers\Admin\AdminBannerController;
 use App\Http\Controllers\Admin\AdminAdController;
 use App\Http\Controllers\Admin\AdminSettingController;
@@ -246,6 +247,13 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::patch('/{module}', [AdminModuleController::class, 'update'])->name('update');
             Route::post('/{module}/toggle', [AdminModuleController::class, 'toggleStatus'])->name('toggle');
             Route::post('/{module}/districts', [AdminModuleController::class, 'updateDistricts'])->name('districts');
+        });
+
+        // Rewards & Points
+        Route::prefix('rewards')->name('rewards.')->group(function () {
+            Route::get('/',       [AdminRewardController::class, 'index'])->name('index');
+            Route::patch('/',     [AdminRewardController::class, 'update'])->name('update');
+            Route::get('/ledger', [AdminRewardController::class, 'ledger'])->name('ledger');
         });
 
         // Payment Settings (enable/disable + config)

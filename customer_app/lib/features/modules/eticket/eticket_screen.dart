@@ -1372,7 +1372,7 @@ class _BookingFlowDialog extends ConsumerStatefulWidget {
       required this.children, required this.infants, required this.seatClass});
 
   @override
-  State<_BookingFlowDialog> createState() => _BookingFlowDialogState();
+  ConsumerState<_BookingFlowDialog> createState() => _BookingFlowDialogState();
 }
 
 class _BookingFlowDialogState extends ConsumerState<_BookingFlowDialog> {

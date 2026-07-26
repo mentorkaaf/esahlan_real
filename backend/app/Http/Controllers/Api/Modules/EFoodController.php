@@ -8,6 +8,7 @@ use App\Models\OrderStatusHistory;
 use App\Models\Wallet;
 use App\Helpers\WorkingHours;
 use App\Helpers\AppSettings;
+use App\Services\LoyaltyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -491,6 +492,10 @@ class EFoodController extends Controller
         $discountTotal = round($discountTotal, 2);
         $total         = round(max(0, $subtotal - $discountTotal) + $deliveryFee, 2);
 
+        // Points redeem
+        $loyalty = LoyaltyService::processOrderRequest($request, $userId, $total, 'efood');
+        $total   = round(max(0, $total - $loyalty['points_discount']), 2);
+
         // Commission calculation (vendor override → module rate → 10% default)
         $commissionRate = 0;
         if ($vendor && $vendor->commission_value > 0) {
@@ -527,7 +532,7 @@ class EFoodController extends Controller
         $order = DB::transaction(function () use (
             $userId, $vendorId, $moduleId, $pm, $total, $subtotal,
             $deliveryFee, $discountTotal, $commissionAmount, $commissionRate,
-            $vendorEarning, $activeCampaign,
+            $vendorEarning, $activeCampaign, $loyalty,
             $deliveryAddr, $orderItems, $request
         ) {
             $orderData = [
@@ -544,6 +549,8 @@ class EFoodController extends Controller
                 'discount_amount' => $discountTotal,
                 'commission'      => $commissionAmount,
                 'total_amount'    => $total,
+                'points_used'     => $loyalty['points_used'],
+                'points_discount' => $loyalty['points_discount'],
                 'notes'           => $request->input('note'),
                 'placed_at'       => now(),
             ];

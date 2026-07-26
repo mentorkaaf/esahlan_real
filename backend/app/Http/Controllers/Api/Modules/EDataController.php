@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use AppServicesLoyaltyService;
 
 class EDataController extends Controller
 {
@@ -139,6 +140,10 @@ class EDataController extends Controller
             $type = 'bundle';
         }
 
+        // Points redeem
+        $loyalty = LoyaltyService::processOrderRequest($request, $user->id, $price, 'edata');
+        $price   = round(max(0, $price - $loyalty['points_discount']), 2);
+
         if ($request->payment_method === 'wallet') {
             $wallet = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
             if ($wallet->balance < $price) {
@@ -146,7 +151,7 @@ class EDataController extends Controller
             }
         }
 
-        $order = DB::transaction(function () use ($request, $user, $item, $price, $itemName, $type) {
+        $order = DB::transaction(function () use ($request, $user, $item, $price, $itemName, $type, $loyalty) {
             $ref = 'DATA-' . strtoupper(Str::random(8));
 
             $order = Order::create([
@@ -160,6 +165,8 @@ class EDataController extends Controller
                 'subtotal'        => $price,
                 'delivery_fee'    => 0,
                 'total_amount'    => $price,
+                'points_used'     => $loyalty['points_used'],
+                'points_discount' => $loyalty['points_discount'],
                 'note'            => json_encode([
                     'type'         => $type,
                     'item_id'      => $item->id,

@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use AppServicesLoyaltyService;
 
 class EShopController extends Controller
 {
@@ -279,13 +280,17 @@ class EShopController extends Controller
         $deliveryFee = \App\Helpers\DeliveryPricing::forShopOrLaundry($customerDistrictId ? (int)$customerDistrictId : null, 2.00);
         $total += $deliveryFee;
 
+        // Points redeem
+        $loyalty = LoyaltyService::processOrderRequest($request, $user->id, $total, 'eshop');
+        $total   = round(max(0, $total - $loyalty['points_discount']), 2);
+
         if ($request->payment_method === 'wallet') {
             if (!$user->wallet || $user->wallet->balance < $total) {
                 return response()->json(['success' => false, 'message' => 'Insufficient wallet balance'], 422);
             }
         }
 
-        $order = DB::transaction(function () use ($request, $user, $total, $deliveryFee, $lines) {
+        $order = DB::transaction(function () use ($request, $user, $total, $deliveryFee, $lines, $loyalty) {
             $subtotal = $total - $deliveryFee;
             $order = Order::create([
                 'order_number'    => 'SHOP-' . strtoupper(Str::random(8)),
@@ -298,6 +303,8 @@ class EShopController extends Controller
                 'subtotal'        => $subtotal,
                 'delivery_fee'    => $deliveryFee,
                 'total_amount'    => $total,
+                'points_used'     => $loyalty['points_used'],
+                'points_discount' => $loyalty['points_discount'],
                 'placed_at'       => now(),
             ]);
 

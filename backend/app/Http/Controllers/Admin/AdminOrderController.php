@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use App\Models\Wallet;
 use App\Services\FcmService;
+use App\Services\LoyaltyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -147,6 +148,13 @@ class AdminOrderController extends Controller
                 'note'       => $request->note ?? 'Status updated by admin',
                 'changed_by' => auth()->id(),
             ]);
+
+            // Credit loyalty points on delivery or completion
+            if (in_array($request->status, ['delivered', 'completed', 'boarded'])) {
+                \Illuminate\Support\Facades\Queue::push(function () use ($order) {
+                    LoyaltyService::creditOrderPoints($order->id);
+                });
+            }
 
             // Credit vendor wallet on delivery
             if ($request->status === 'delivered' && $order->vendor_id) {

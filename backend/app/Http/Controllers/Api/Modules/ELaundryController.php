@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use AppServicesLoyaltyService;
 
 class ELaundryController extends Controller
 {
@@ -105,6 +106,10 @@ class ELaundryController extends Controller
             $orderLines[] = ['name' => $dbItem->name, 'qty' => $reqItem['qty'], 'price' => $price, 'sub' => $sub];
         }
 
+        // Points redeem
+        $loyalty = LoyaltyService::processOrderRequest($request, $user->id, $total, 'elaundry');
+        $total   = round(max(0, $total - $loyalty['points_discount']), 2);
+
         if ($request->payment_method === 'wallet') {
             if (!$user->wallet || $user->wallet->balance < $total) {
                 return response()->json(['success' => false, 'message' => 'Insufficient wallet balance'], 422);
@@ -115,7 +120,7 @@ class ELaundryController extends Controller
         $deliveryFee = \App\Helpers\DeliveryPricing::forShopOrLaundry($request->pickup_district_id ? (int)$request->pickup_district_id : null, 0);
         $totalWithDelivery = $total + $deliveryFee;
 
-        $order = DB::transaction(function () use ($request, $user, $total, $totalWithDelivery, $deliveryFee, $orderLines, $district, $isExpress, $dbItems) {
+        $order = DB::transaction(function () use ($request, $user, $total, $totalWithDelivery, $deliveryFee, $orderLines, $district, $isExpress, $dbItems, $loyalty) {
             $order = Order::create([
                 'order_number'    => 'LDR-' . strtoupper(Str::random(8)),
                 'user_id'         => $user->id,
@@ -127,6 +132,8 @@ class ELaundryController extends Controller
                 'subtotal'        => $total,
                 'delivery_fee'    => $deliveryFee,
                 'total_amount'    => $totalWithDelivery,
+                'points_used'     => $loyalty['points_used'],
+                'points_discount' => $loyalty['points_discount'],
                 'note'            => json_encode([
                     'service_type'   => $request->service_type,
                     'items'          => $orderLines,

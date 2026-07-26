@@ -26,7 +26,7 @@ class WalletController extends Controller
             'data'    => [
                 'balance'        => (float) ($wallet?->balance ?? 0),
                 'currency'       => $wallet?->currency ?? 'USD',
-                'loyalty_points' => (int) ($user->loyalty_points ?? 0),
+                'loyalty_points' => (int) ($user->points_balance ?? $user->loyalty_points ?? 0),
                 'has_wallet'     => (bool) $wallet,
             ],
         ]);
@@ -206,6 +206,56 @@ class WalletController extends Controller
         }
 
         return response()->json(['success' => true, 'status' => $result['status'], 'message' => $result['message']]);
+    }
+
+    // POST /wallet/topup/mobile-pay — credit wallet after Mobile Pay USSD proof
+    public function topupMobilePay(Request $request)
+    {
+        $v = Validator::make($request->all(), [
+            'amount'      => 'required|numeric|min:0.1|max:10000',
+            'proof_token' => 'required|string',
+        ]);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $user      = $request->user();
+        $amount    = (float) $request->amount;
+        $token     = $request->proof_token;
+
+        // Verify the proof token exists in cache (uploaded by mobile_pay_sheet)
+        $proof = \Illuminate\Support\Facades\Cache::get("mobile_pay_proof:{$token}");
+        if (!$proof) {
+            return response()->json(['success' => false, 'message' => 'Proof not found or expired. Please upload proof again.'], 422);
+        }
+
+        $reference = 'MPY-' . strtoupper(Str::random(12));
+
+        $ptxId = DB::table('payment_transactions')->insertGetId([
+            'reference'        => $reference,
+            'user_id'          => $user->id,
+            'gateway'          => 'mobile_pay',
+            'amount'           => $amount,
+            'currency'         => 'USD',
+            'transaction_type' => 'topup',
+            'phone'            => $proof['phone'] ?? null,
+            'status'           => 'success',
+            'gateway_reference'=> $token,
+            'gateway_response' => json_encode(['proof_token' => $token, 'proof_path' => $proof['path'] ?? null, 'account' => $proof['account'] ?? null]),
+            'created_at'       => now(),
+            'updated_at'       => now(),
+        ]);
+
+        $wallet = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
+        $wallet->credit($amount, 'Wallet top-up via Mobile Pay', 'payment_transactions', $ptxId, 'mobile_pay');
+
+        DB::table('payment_transactions')->where('id', $ptxId)->update(['transaction_type' => 'topup_done', 'updated_at' => now()]);
+
+        return response()->json([
+            'success'   => true,
+            'status'    => 'success',
+            'reference' => $reference,
+            'message'   => 'Wallet credited successfully',
+            'balance'   => (float) Wallet::getOrCreateFor('App\\Models\\User', $user->id)->balance,
+        ]);
     }
 
     // POST /wallet/send — transfer to another user

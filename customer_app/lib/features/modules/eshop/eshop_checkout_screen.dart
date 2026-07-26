@@ -10,6 +10,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../payment/mobile_pay_sheet.dart';
+import '../../payment/payment_method_section.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../auth/data/models/district_model.dart';
 import '../../auth/data/repositories/district_repository.dart';
@@ -290,11 +291,10 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
 
         // ── Payment Method ────────────────────────────────────────
         _section('Payment Method', Icons.payment_outlined, children: [
-          _paymentOption('wallet',    'ePay',      Icons.account_balance_wallet_outlined, 'Pay from your ePay balance'),
-          const SizedBox(height: 10),
-          _paymentOption('mobile_pay', 'Mobile Pay', Icons.phone_in_talk_rounded, 'EVC Plus, Waafi, Sahal — USSD'),
-          const SizedBox(height: 10),
-          _paymentOption('waafi_pay', 'Waafi Pay', Icons.phone_android_rounded,           'EVC / eDahab / Jeep / Premier'),
+          PaymentMethodSection(
+            selected: _paymentMethod,
+            onChanged: (v) => setState(() => _paymentMethod = v),
+          ),
         ]),
       ]),
       bottomNavigationBar: Container(
@@ -345,37 +345,6 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
     ),
   );
 
-  Widget _paymentOption(String value, String label, IconData icon, String subtitle) {
-    final selected = _paymentMethod == value;
-    return GestureDetector(
-      onTap: () => setState(() => _paymentMethod = value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary.withValues(alpha: 0.05) : AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: selected ? AppColors.primary : AppColors.divider, width: selected ? 2 : 1),
-        ),
-        child: Row(children: [
-          Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(
-              color: selected ? AppColors.primary : context.colors.cardBg,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, size: 22, color: selected ? Colors.white : AppColors.textGrey),
-          ),
-          const SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: selected ? AppColors.primary : context.colors.navyText)),
-            Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
-          ])),
-          if (selected) const Icon(Icons.check_circle_rounded, color: AppColors.primary),
-        ]),
-      ),
-    );
-  }
 
   Widget _row(String label, String value, {Color? valueColor}) => Padding(
     padding: const EdgeInsets.only(bottom: 8),

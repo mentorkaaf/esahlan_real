@@ -4,6 +4,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import '../../../../core/api/module_api_service.dart';
 import '../../../payment/waafi_pay_sheet.dart';
 import '../../../payment/mobile_pay_sheet.dart';
+import '../../../../../core/providers/payment_methods_provider.dart';
 import 'crypto_theme.dart';
 import 'crypto_models.dart';
 import 'crypto_providers.dart';
@@ -462,7 +463,7 @@ class _ToggleBtn extends StatelessWidget {
 
 // ── Payment method ────────────────────────────────────────────────────────────
 
-class _PayMethodSelector extends StatelessWidget {
+class _PayMethodSelector extends ConsumerWidget {
   const _PayMethodSelector({
     required this.selected, required this.isBuy,
     required this.ePayBalance, required this.onChanged,
@@ -473,7 +474,17 @@ class _PayMethodSelector extends StatelessWidget {
   final ValueChanged<String> onChanged;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabledAsync = ref.watch(enabledPaymentMethodsProvider);
+    final enabled = enabledAsync.valueOrNull; // null = loading/error → show all (fail-open)
+
+    // crypto uses 'epay' key, but server stores 'wallet'
+    bool methodEnabled(String key) {
+      if (enabled == null) return true;
+      final serverKey = key == 'epay' ? 'wallet' : key;
+      return enabled.contains(serverKey);
+    }
+
     final methods = isBuy
         ? [
             ('mobile_pay', 'Mobile Pay',   'EVC Plus, Waafi, Sahal — USSD',                Icons.phone_in_talk_rounded),
@@ -486,8 +497,10 @@ class _PayMethodSelector extends StatelessWidget {
             ('waafi_pay',  'Waafi Pay',    'Receive to mobile money',                       Icons.phone_android_rounded),
           ];
 
+    final filtered = methods.where((m) => methodEnabled(m.$1)).toList();
+
     return Column(
-      children: methods.map((m) {
+      children: filtered.map((m) {
         final isSelected = selected == m.$1;
         return GestureDetector(
           onTap: () => onChanged(m.$1),

@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/utils/error_handler.dart';
 import '../../../payment/waafi_pay_sheet.dart';
+import '../../../payment/mobile_pay_sheet.dart';
 import '../providers/wallet_provider.dart';
 import '../../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -326,6 +327,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
 
   void _showTopUp(BuildContext context) {
     double amount = 0;
+    String method = 'waafi'; // 'waafi' | 'mobile_pay'
     final ctrl = TextEditingController();
 
     showModalBottomSheet(
@@ -347,7 +349,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
             SizedBox(height: 20),
             Text('Top Up ePay', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: context.colors.navyText)),
             const SizedBox(height: 4),
-            const Text('Add money to your eSahlan ePay via Waafi Pay', style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
+            const Text('Add money to your eSahlan ePay wallet', style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
             const SizedBox(height: 20),
             TextField(
               controller: ctrl,
@@ -382,34 +384,45 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
               )).toList(),
             ),
             const SizedBox(height: 20),
+            // Payment method selector
+            Row(children: [
+              Expanded(child: _TopUpMethodTile(
+                label: 'Waafi Pay',
+                icon: Icons.phone_android_rounded,
+                color: AppColors.primary,
+                selected: method == 'waafi',
+                onTap: () => setModal(() => method = 'waafi'),
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: _TopUpMethodTile(
+                label: 'Mobile Pay',
+                icon: Icons.smartphone_rounded,
+                color: const Color(0xFF2E7D32),
+                selected: method == 'mobile_pay',
+                onTap: () => setModal(() => method = 'mobile_pay'),
+              )),
+            ]),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity, height: 52,
               child: ElevatedButton.icon(
                 onPressed: amount < 0.1 ? null : () async {
                   Navigator.pop(ctx);
-                  final result = await showWaafiPaySheet(
-                    context,
-                    amount: amount,
-                    type: 'topup',
-                    description: 'eSahlan ePay Top Up',
-                  );
-                  if (result?.success == true) {
-                    if (result!.newBalance != null) {
-                      ref.read(walletProvider.notifier).updateBalanceImmediate(result.newBalance!);
-                    } else {
-                      ref.read(walletProvider.notifier).refresh();
-                    }
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('ePay topped up with \$${amount.toStringAsFixed(2)}!'), backgroundColor: Colors.green),
-                      );
-                    }
+                  if (method == 'mobile_pay') {
+                    await _doMobilePayTopUp(context, amount);
+                  } else {
+                    await _doWaafiTopUp(context, amount);
                   }
                 },
-                icon: const Icon(Icons.account_balance_wallet_rounded),
-                label: Text(amount >= 0.1 ? 'Pay \$${amount.toStringAsFixed(2)} via Waafi Pay' : 'Enter Amount', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                icon: Icon(method == 'mobile_pay' ? Icons.smartphone_rounded : Icons.account_balance_wallet_rounded),
+                label: Text(
+                  amount >= 0.1
+                    ? 'Pay \$${amount.toStringAsFixed(2)} via ${method == 'mobile_pay' ? 'Mobile Pay' : 'Waafi Pay'}'
+                    : 'Enter Amount',
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: method == 'mobile_pay' ? const Color(0xFF2E7D32) : AppColors.primary,
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: Colors.grey.shade200,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -420,6 +433,69 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
         );
       }),
     );
+  }
+
+  Future<void> _doWaafiTopUp(BuildContext context, double amount) async {
+    final result = await showWaafiPaySheet(
+      context,
+      amount: amount,
+      type: 'topup',
+      description: 'eSahlan ePay Top Up',
+    );
+    if (result?.success == true) {
+      if (result!.newBalance != null) {
+        ref.read(walletProvider.notifier).updateBalanceImmediate(result.newBalance!);
+      } else {
+        ref.read(walletProvider.notifier).refresh();
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('ePay topped up with \$${amount.toStringAsFixed(2)}!'), backgroundColor: Colors.green),
+        );
+      }
+    }
+  }
+
+  Future<void> _doMobilePayTopUp(BuildContext context, double amount) async {
+    final result = await showMobilePaySheet(
+      context,
+      amount: amount,
+      description: 'eSahlan ePay Top Up',
+    );
+    if (result == null || !result.success || result.proofToken == null) return;
+
+    try {
+      final svc = ModuleApiService.create();
+      final res = await svc.walletTopupMobilePay({
+        'amount': amount,
+        'proof_token': result.proofToken!,
+      });
+      if (res['success'] == true) {
+        final newBalance = (res['balance'] as num?)?.toDouble();
+        if (newBalance != null) {
+          ref.read(walletProvider.notifier).updateBalanceImmediate(newBalance);
+        } else {
+          ref.read(walletProvider.notifier).refresh();
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('ePay topped up with \$${amount.toStringAsFixed(2)}!'), backgroundColor: Colors.green),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(res['message'] ?? 'Top-up failed'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppErrorHandler.message(e)), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   // ─── Send Money sheet ─────────────────────────────────────────────────────
@@ -858,6 +934,36 @@ class _TransactionTile extends StatelessWidget {
             ),
         ]),
       ]),
+    );
+  }
+}
+
+class _TopUpMethodTile extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+  const _TopUpMethodTile({required this.label, required this.icon, required this.color, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+        decoration: BoxDecoration(
+          color: selected ? color.withOpacity(0.1) : context.colors.surfaceBg,
+          border: Border.all(color: selected ? color : Colors.grey.shade300, width: selected ? 2 : 1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, color: selected ? color : AppColors.textGrey, size: 18),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: selected ? color : AppColors.textGrey)),
+        ]),
+      ),
     );
   }
 }

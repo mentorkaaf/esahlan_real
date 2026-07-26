@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use AppServicesLoyaltyService;
 
 class EMovingController extends Controller
 {
@@ -175,6 +176,10 @@ class EMovingController extends Controller
         $calc  = json_decode($calcResp->getContent(), true)['data'];
         $total = $calc['total'];
 
+        // Points redeem
+        $loyalty = LoyaltyService::processOrderRequest($request, $user->id, $total, 'emoving');
+        $total   = round(max(0, $total - $loyalty['points_discount']), 2);
+
         if ($request->payment_method === 'wallet') {
             $wCheck = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
             if ($wCheck->balance < $total) {
@@ -202,7 +207,7 @@ class EMovingController extends Controller
             $distanceFee = $movingRoute ? (float) ($movingRoute->distance_price ?? 20) : 20.00;
         }
 
-        $order = DB::transaction(function () use ($request, $user, $total, $distanceFee, $calc, $extraNames, $packageName, $fromDistrict, $toDistrict) {
+        $order = DB::transaction(function () use ($request, $user, $total, $distanceFee, $calc, $extraNames, $packageName, $fromDistrict, $toDistrict, $loyalty) {
             $order = Order::create([
                 'order_number'    => 'MOV-' . strtoupper(Str::random(8)),
                 'user_id'         => $user->id,
@@ -214,6 +219,8 @@ class EMovingController extends Controller
                 'subtotal'        => $total,
                 'delivery_fee'    => $distanceFee,
                 'total_amount'    => $total,
+                'points_used'     => $loyalty['points_used'],
+                'points_discount' => $loyalty['points_discount'],
                 'note'            => json_encode(array_merge($calc, [
                     'move_type'      => $request->move_type,
                     'room_count'     => $request->room_count,

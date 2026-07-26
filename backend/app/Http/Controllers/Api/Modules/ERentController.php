@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use AppServicesLoyaltyService;
 
 class ERentController extends Controller
 {
@@ -197,6 +198,10 @@ class ERentController extends Controller
         $amountDue = $request->booking_type === 'carbuun' ? round($total * 0.30, 2) : $total;
         $remaining  = $request->booking_type === 'carbuun' ? round($total * 0.70, 2) : 0;
 
+        // Points redeem
+        $loyalty   = LoyaltyService::processOrderRequest($request, $user->id, $amountDue, 'erent');
+        $amountDue = round(max(0, $amountDue - $loyalty['points_discount']), 2);
+
         if ($request->payment_method === 'wallet') {
             $wCheck = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
             if ($wCheck->balance < $amountDue) {
@@ -204,7 +209,7 @@ class ERentController extends Controller
             }
         }
 
-        $order = DB::transaction(function () use ($request, $user, $property, $amountDue, $remaining, $total) {
+        $order = DB::transaction(function () use ($request, $user, $property, $amountDue, $remaining, $total, $loyalty) {
             $ref = 'RENT-' . strtoupper(Str::random(8));
             $order = Order::create([
                 'order_number'    => $ref,
@@ -217,6 +222,8 @@ class ERentController extends Controller
                 'subtotal'        => $property->monthly_rent,
                 'delivery_fee'    => $property->brokerage_fee,
                 'total_amount'    => $amountDue,
+                'points_used'     => $loyalty['points_used'],
+                'points_discount' => $loyalty['points_discount'],
                 'note'            => json_encode([
                     'property_title'  => $property->title,
                     'property_type'   => $property->type,

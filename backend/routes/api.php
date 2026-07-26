@@ -52,6 +52,7 @@ use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Customer\HomeController;
 use App\Http\Controllers\Api\Customer\OrderController;
 use App\Http\Controllers\Api\Customer\WalletController;
+use App\Http\Controllers\Api\Customer\RewardController;
 use App\Http\Controllers\Api\Customer\MobilePayController;
 use App\Http\Controllers\Api\Payment\PaymentController;
 use App\Http\Controllers\Api\Customer\VendorController;
@@ -508,7 +509,8 @@ Route::prefix('v1')->group(function () {
 
             // Wallet + Payment (throttle:payment — max 10/min, fraud protection)
             Route::middleware('throttle:payment')->group(function () {
-                Route::post('wallet/topup',          [WalletController::class, 'topup']);
+                Route::post('wallet/topup',                [WalletController::class, 'topup']);
+                Route::post('wallet/topup/mobile-pay',     [WalletController::class, 'topupMobilePay']);
                 Route::post('wallet/send',           [WalletController::class, 'send']);
                 Route::post('wallet/withdraw',       [WalletController::class, 'requestWithdrawal']);
                 Route::post('wallet/verify-pin',     [WalletController::class, 'verifyPin']);
@@ -520,6 +522,14 @@ Route::prefix('v1')->group(function () {
             Route::post('wallet/set-pin',           [WalletController::class, 'setPin']);
             Route::get('wallet/loyalty-points',     [WalletController::class, 'loyaltyPoints']);
             Route::get('wallet/referral',           [WalletController::class, 'referral']);
+
+            // Rewards (Points)
+            Route::prefix('rewards')->group(function () {
+                Route::get('/',                  [RewardController::class, 'index']);
+                Route::get('/history',           [RewardController::class, 'history']);
+                Route::post('/validate-redeem',  [RewardController::class, 'validateRedeem']);
+                Route::get('/earn-preview',      [RewardController::class, 'earnPreview']);
+            });
             Route::get('payment/status/{ref}',      [PaymentController::class, 'status']);
 
             // Addresses

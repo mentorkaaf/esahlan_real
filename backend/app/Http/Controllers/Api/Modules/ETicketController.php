@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use AppServicesLoyaltyService;
 
 class ETicketController extends Controller
 {
@@ -166,13 +167,17 @@ class ETicketController extends Controller
         $price     = $classes[$request->seat_class] ?? ($classes['economy'] ?? 0);
         $total     = $price * count($request->passengers);
 
+        // Points redeem (2x multiplier for eTicket)
+        $loyalty = LoyaltyService::processOrderRequest($request, $user->id, $total, 'eticket');
+        $total   = round(max(0, $total - $loyalty['points_discount']), 2);
+
         if ($request->payment_method === 'wallet') {
             if (!$user->wallet || $user->wallet->balance < $total) {
                 return response()->json(['success' => false, 'message' => 'Insufficient wallet balance'], 422);
             }
         }
 
-        $order = DB::transaction(function () use ($request, $user, $flight, $total, $price) {
+        $order = DB::transaction(function () use ($request, $user, $flight, $total, $price, $loyalty) {
             $ref = 'TKT-' . strtoupper(Str::random(6));
 
             $order = Order::create([
@@ -186,6 +191,8 @@ class ETicketController extends Controller
                 'subtotal'        => $total,
                 'delivery_fee'    => 0,
                 'total_amount'    => $total,
+                'points_used'     => $loyalty['points_used'],
+                'points_discount' => $loyalty['points_discount'],
                 'note'            => json_encode([
                     'flight_number' => $flight->flight_number,
                     'from'          => $flight->from_city,
