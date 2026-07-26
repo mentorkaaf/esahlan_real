@@ -78,7 +78,7 @@ class AdminRewardController extends Controller
         // Recent transactions
         $recentTxns = DB::table('loyalty_points as lp')
             ->join('users', 'users.id', '=', 'lp.user_id')
-            ->select('lp.id', 'lp.points', 'lp.type', 'lp.description', 'lp.created_at', 'users.name', 'users.phone')
+            ->select('lp.id', 'lp.points', 'lp.type', 'lp.note', 'lp.reference_type', 'lp.created_at', 'users.name', 'users.phone')
             ->orderByDesc('lp.created_at')
             ->limit(12)
             ->get();

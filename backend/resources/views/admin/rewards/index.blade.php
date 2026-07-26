@@ -418,7 +418,7 @@
                 </span>
               </td>
               <td style="font-size:12px;color:var(--rw-muted);max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                {{ $t->description }}
+                {{ $t->note ?: ucfirst($t->reference_type ?? 'reward') }}
               </td>
               <td style="font-size:11px;color:var(--rw-muted);white-space:nowrap;">
                 {{ \Carbon\Carbon::parse($t->created_at)->diffForHumans() }}
