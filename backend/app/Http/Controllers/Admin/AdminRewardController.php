@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\LoyaltyService;
+use App\Services\TierService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,9 @@ class AdminRewardController extends Controller
             'pts_mult_elaundry', 'pts_mult_edata', 'pts_mult_ehealth',
             'referral_enabled', 'referral_reward_pts', 'referral_commission_pct',
             'referral_l2_pct', 'referral_min_order',
+            'tier_silver_pts', 'tier_gold_pts', 'tier_platinum_pts',
+            'tier_bronze_bonus', 'tier_silver_bonus', 'tier_gold_bonus', 'tier_platinum_bonus',
+            'tier_bronze_redeem_extra', 'tier_silver_redeem_extra', 'tier_gold_redeem_extra', 'tier_platinum_redeem_extra',
         ];
 
         $settings = DB::table('settings')->whereIn('key', $keys)->pluck('value', 'key');
@@ -32,12 +36,20 @@ class AdminRewardController extends Controller
         $totalRedeemed = DB::table('loyalty_points')->where('type', 'redeemed')->selectRaw('SUM(ABS(points))')->value('SUM(ABS(points))') ?? 0;
 
         // Referral stats
-        $totalReferrals  = DB::table('referrals')->count();
+        $totalReferrals    = DB::table('referrals')->count();
         $rewardedReferrals = DB::table('referrals')->where('status', 'rewarded')->count();
+
+        // Tier stats
+        $tierStats = DB::table('users')
+            ->selectRaw("tier, COUNT(*) as cnt")
+            ->whereIn('tier', TierService::TIERS)
+            ->groupBy('tier')
+            ->pluck('cnt', 'tier')
+            ->toArray();
 
         return view('admin.rewards.index', compact(
             'settings', 'totalUsers', 'totalPts', 'totalEarned', 'totalRedeemed',
-            'totalReferrals', 'rewardedReferrals'
+            'totalReferrals', 'rewardedReferrals', 'tierStats'
         ));
     }
 
@@ -67,6 +79,17 @@ class AdminRewardController extends Controller
             'referral_commission_pct' => 'integer|min:0|max:50',
             'referral_l2_pct'      => 'integer|min:0|max:20',
             'referral_min_order'   => 'integer|min:0|max:1000',
+            'tier_silver_pts'      => 'integer|min:1',
+            'tier_gold_pts'        => 'integer|min:1',
+            'tier_platinum_pts'    => 'integer|min:1',
+            'tier_bronze_bonus'    => 'integer|min:0|max:200',
+            'tier_silver_bonus'    => 'integer|min:0|max:200',
+            'tier_gold_bonus'      => 'integer|min:0|max:200',
+            'tier_platinum_bonus'  => 'integer|min:0|max:200',
+            'tier_bronze_redeem_extra'   => 'integer|min:0|max:50',
+            'tier_silver_redeem_extra'   => 'integer|min:0|max:50',
+            'tier_gold_redeem_extra'     => 'integer|min:0|max:50',
+            'tier_platinum_redeem_extra' => 'integer|min:0|max:50',
         ]);
 
         foreach ($data as $key => $value) {

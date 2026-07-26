@@ -12,6 +12,8 @@ import '../providers/wallet_provider.dart';
 import '../../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'referral_screen.dart';
+import '../../../rewards/tier_widgets.dart';
+import '../../../rewards/rewards_provider.dart';
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -158,6 +160,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
             slivers: [
               _buildSliverAppBar(wallet),
               SliverToBoxAdapter(child: _buildActions(context, wallet)),
+              const SliverToBoxAdapter(child: TierProgressCard()),
               SliverToBoxAdapter(child: _buildStats(wallet)),
               SliverToBoxAdapter(child: _buildTabBar()),
               _buildTransactionList(wallet),
@@ -199,21 +202,47 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                     '\$${wallet.balance.toStringAsFixed(2)}',
                     style: const TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w900, letterSpacing: -1),
                   ),
-                  if (wallet.points > 0) ...[
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.stars_rounded, color: Colors.amber, size: 15),
-                        const SizedBox(width: 4),
-                        Text('${wallet.points} Points', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
-                      ]),
-                    ),
-                  ],
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      if (wallet.points > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.stars_rounded, color: Colors.amber, size: 15),
+                            const SizedBox(width: 4),
+                            Text('${wallet.points} Points', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                          ]),
+                        ),
+                      const SizedBox(width: 8),
+                      Builder(builder: (ctx) {
+                        final tier = ref.watch(rewardsProvider).valueOrNull?.tier ?? 'bronze';
+                        return GestureDetector(
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TierInfoScreen())),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: tierColor(tier).withAlpha(60),
+                              border: Border.all(color: tierColor(tier).withAlpha(120)),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Text(tierEmoji(tier), style: const TextStyle(fontSize: 12)),
+                              const SizedBox(width: 4),
+                              Text(
+                                tier[0].toUpperCase() + tier.substring(1),
+                                style: TextStyle(color: tierColor(tier), fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                            ]),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
                 ],
               ),
             ),

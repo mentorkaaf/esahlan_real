@@ -109,6 +109,76 @@
     </div>
   </div>
 
+  {{-- Tier System --}}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-bold d-flex align-items-center justify-content-between">
+      <span>🏆 Loyalty Tiers</span>
+      <div class="d-flex gap-2 small">
+        @foreach(['bronze'=>['🥉','secondary'],'silver'=>['🥈','secondary'],'gold'=>['🥇','warning'],'platinum'=>['💎','info']] as $t=>[$emoji,$color])
+          <span class="badge bg-{{ $color }}">{{ $emoji }} {{ ucfirst($t) }}: {{ number_format($tierStats[$t] ?? 0) }}</span>
+        @endforeach
+      </div>
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">Thresholds are based on <strong>lifetime points earned</strong> (not current balance — spending points never drops tier).</p>
+      {{-- Thresholds --}}
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">🥈 Silver threshold (pts)</label>
+          <input type="number" name="tier_silver_pts" class="form-control" value="{{ $settings['tier_silver_pts'] ?? 1000 }}" min="1">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">🥇 Gold threshold (pts)</label>
+          <input type="number" name="tier_gold_pts" class="form-control" value="{{ $settings['tier_gold_pts'] ?? 5000 }}" min="1">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">💎 Platinum threshold (pts)</label>
+          <input type="number" name="tier_platinum_pts" class="form-control" value="{{ $settings['tier_platinum_pts'] ?? 20000 }}" min="1">
+        </div>
+      </div>
+      {{-- Per-tier benefits table --}}
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle small mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Tier</th>
+              <th>Earn Bonus (%)</th>
+              <th>Extra Redeem Cap (%)</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach([
+              ['bronze',  '🥉 Bronze',   0,   0],
+              ['silver',  '🥈 Silver',  10,   5],
+              ['gold',    '🥇 Gold',    25,  10],
+              ['platinum','💎 Platinum', 50,  20],
+            ] as [$key, $label, $defBonus, $defRedeem])
+            <tr>
+              <td class="fw-semibold">{{ $label }}</td>
+              <td>
+                <div class="input-group input-group-sm" style="width:150px">
+                  <input type="number" name="tier_{{ $key }}_bonus" class="form-control"
+                    value="{{ $settings["tier_{$key}_bonus"] ?? $defBonus }}" min="0" max="200"
+                    {{ $key === 'bronze' ? 'readonly' : '' }}>
+                  <span class="input-group-text">%</span>
+                </div>
+              </td>
+              <td>
+                <div class="input-group input-group-sm" style="width:150px">
+                  <input type="number" name="tier_{{ $key }}_redeem_extra" class="form-control"
+                    value="{{ $settings["tier_{$key}_redeem_extra"] ?? $defRedeem }}" min="0" max="50"
+                    {{ $key === 'bronze' ? 'readonly' : '' }}>
+                  <span class="input-group-text">%</span>
+                </div>
+              </td>
+            </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   {{-- Referral Program --}}
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-transparent fw-bold d-flex align-items-center justify-content-between">

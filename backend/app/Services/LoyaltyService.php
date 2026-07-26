@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use App\Services\TierService;
 
 class LoyaltyService
 {
@@ -37,10 +38,14 @@ class LoyaltyService
         return max(1, (int) self::cfg('points_to_dollar', 100));
     }
 
-    /** Convert dollar amount → points earned */
-    public static function dollarToPoints(float $amount, string $moduleSlug = ''): int
+    /** Convert dollar amount → points earned (with optional tier bonus) */
+    public static function dollarToPoints(float $amount, string $moduleSlug = '', int $userId = 0): int
     {
-        return (int) floor($amount * self::earnRate($moduleSlug));
+        $rate = self::earnRate($moduleSlug);
+        if ($userId > 0) {
+            $rate *= TierService::earnMultiplier($userId);
+        }
+        return (int) floor($amount * $rate);
     }
 
     /** Convert points → dollar discount */
@@ -76,7 +81,11 @@ class LoyaltyService
                 'created_at'     => now(),
             ]);
             DB::table('users')->where('id', $userId)->increment('points_balance', $points);
+            DB::table('users')->where('id', $userId)->increment('total_points_earned', $points);
         });
+
+        // Check tier upgrade (after transaction so total_points_earned is updated)
+        TierService::checkAndUpgrade($userId);
     }
 
     // ── Redeem ────────────────────────────────────────────────────────────────
@@ -133,7 +142,7 @@ class LoyaltyService
         $billable = max(0, (float) $order->total_amount - (float) ($order->points_discount ?? 0));
         if ($billable < $minOrder) return;
 
-        $pts = self::dollarToPoints($billable, $order->module_slug ?? '');
+        $pts = self::dollarToPoints($billable, $order->module_slug ?? '', $order->user_id);
         if ($pts <= 0) return;
 
         DB::table('orders')->where('id', $orderId)->update(['points_earned' => $pts]);
@@ -170,7 +179,7 @@ class LoyaltyService
         $requested = (int) $request->input('points_to_redeem', 0);
         if ($requested <= 0 || !self::isEnabled()) return ['points_used' => 0, 'points_discount' => 0.0];
 
-        $maxPct      = (int) self::cfg('max_redeem_percent', 50);
+        $maxPct      = (int) self::cfg('max_redeem_percent', 50) + TierService::redeemExtra($userId);
         $maxDiscount = $total * ($maxPct / 100);
 
         $result = self::redeem($userId, $requested, $maxDiscount, "Order points redeem [{$moduleSlug}]", 'App\\Models\\Order', 0);

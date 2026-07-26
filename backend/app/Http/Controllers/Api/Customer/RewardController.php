@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Services\LoyaltyService;
+use App\Services\TierService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -27,16 +28,32 @@ class RewardController extends Controller
             ')
             ->first();
 
+        // Tier info
+        $totalEarned = (int) DB::table('users')->where('id', $user->id)->value('total_points_earned');
+        $tier        = $user->tier ?? 'bronze';
+        $nextInfo    = TierService::nextTierInfo($totalEarned);
+        $earnBonus   = TierService::earnMultiplier($user->id);
+        $redeemExtra = TierService::redeemExtra($user->id);
+        $allTiers    = TierService::allTiersInfo();
+
         return response()->json([
             'success' => true,
             'data'    => [
-                'enabled'        => $enabled,
-                'balance'        => $balance,
-                'points_to_dollar' => $rate,
-                'dollar_value'   => LoyaltyService::pointsToDollarValue($balance),
-                'total_earned'   => (int) ($stats->total_earned ?? 0),
-                'total_redeemed' => (int) ($stats->total_redeemed ?? 0),
-                'expire_days'    => (int) LoyaltyService::cfg('points_expire_days', 365),
+                'enabled'           => $enabled,
+                'balance'           => $balance,
+                'points_to_dollar'  => $rate,
+                'dollar_value'      => LoyaltyService::pointsToDollarValue($balance),
+                'total_earned'      => (int) ($stats->total_earned ?? 0),
+                'total_redeemed'    => (int) ($stats->total_redeemed ?? 0),
+                'expire_days'       => (int) LoyaltyService::cfg('points_expire_days', 365),
+                'tier'              => $tier,
+                'total_pts_earned'  => $totalEarned,
+                'earn_bonus_pct'    => (int) round(($earnBonus - 1) * 100),
+                'redeem_extra_pct'  => $redeemExtra,
+                'next_tier'         => $nextInfo['next_tier'],
+                'pts_to_next_tier'  => $nextInfo['pts_to_next'],
+                'next_threshold'    => $nextInfo['next_threshold'],
+                'tiers'             => $allTiers,
             ],
         ]);
     }
@@ -88,7 +105,7 @@ class RewardController extends Controller
     {
         $amount = (float) $request->query('amount', 0);
         $module = $request->query('module', '');
-        $pts    = LoyaltyService::dollarToPoints($amount, $module);
+        $pts    = LoyaltyService::dollarToPoints($amount, $module, $request->user()->id);
 
         return response()->json([
             'success' => true,
