@@ -47,9 +47,82 @@ class AdminRewardController extends Controller
             ->pluck('cnt', 'tier')
             ->toArray();
 
+        // Points earned last 30 days (daily chart)
+        $chartData = DB::table('loyalty_points')
+            ->where('type', 'earned')
+            ->where('created_at', '>=', now()->subDays(29))
+            ->selectRaw('DATE(created_at) as day, SUM(points) as pts, COUNT(DISTINCT user_id) as users')
+            ->groupBy('day')
+            ->orderBy('day')
+            ->get()
+            ->keyBy('day');
+
+        $chartLabels = [];
+        $chartPts    = [];
+        $chartUsers  = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $day = now()->subDays($i)->toDateString();
+            $chartLabels[] = now()->subDays($i)->format('M d');
+            $chartPts[]    = (int) ($chartData[$day]->pts   ?? 0);
+            $chartUsers[]  = (int) ($chartData[$day]->users ?? 0);
+        }
+
+        // Top earners
+        $topEarners = DB::table('users')
+            ->select('id', 'name', 'phone', 'points_balance', 'total_points_earned', 'tier')
+            ->where('points_balance', '>', 0)
+            ->orderByDesc('total_points_earned')
+            ->limit(10)
+            ->get();
+
+        // Recent transactions
+        $recentTxns = DB::table('loyalty_points as lp')
+            ->join('users', 'users.id', '=', 'lp.user_id')
+            ->select('lp.id', 'lp.points', 'lp.type', 'lp.description', 'lp.created_at', 'users.name', 'users.phone')
+            ->orderByDesc('lp.created_at')
+            ->limit(12)
+            ->get();
+
+        // Module breakdown (earned pts per module slug last 30 days)
+        $moduleBreakdown = DB::table('loyalty_points')
+            ->where('type', 'earned')
+            ->where('created_at', '>=', now()->subDays(30))
+            ->whereNotNull('reference_type')
+            ->where('reference_type', '!=', 'streak')
+            ->where('reference_type', '!=', 'badge')
+            ->selectRaw('reference_type as module, SUM(points) as pts, COUNT(*) as txns')
+            ->groupBy('reference_type')
+            ->orderByDesc('pts')
+            ->get();
+
+        // Pts earned this month vs last month
+        $earnedThisMonth = DB::table('loyalty_points')->where('type','earned')->whereMonth('created_at', now()->month)->sum('points');
+        $earnedLastMonth = DB::table('loyalty_points')->where('type','earned')->whereMonth('created_at', now()->subMonth()->month)->sum('points');
+        $earnedGrowth    = $earnedLastMonth > 0 ? round((($earnedThisMonth - $earnedLastMonth) / $earnedLastMonth) * 100, 1) : 0;
+
+        // Streak stats
+        $activeStreaks  = DB::table('user_streaks')->where('current_streak', '>', 0)->count();
+        $maxStreak      = DB::table('user_streaks')->max('longest_streak') ?? 0;
+        $avgStreak      = round(DB::table('user_streaks')->avg('current_streak') ?? 0, 1);
+
+        // Badge stats
+        $totalBadgesAwarded = DB::table('user_badges')->count();
+        $badgeBreakdown = DB::table('user_badges as ub')
+            ->join('badges', 'badges.id', '=', 'ub.badge_id')
+            ->selectRaw('badges.name, badges.icon, COUNT(*) as cnt')
+            ->groupBy('badges.id', 'badges.name', 'badges.icon')
+            ->orderByDesc('cnt')
+            ->limit(8)
+            ->get();
+
         return view('admin.rewards.index', compact(
             'settings', 'totalUsers', 'totalPts', 'totalEarned', 'totalRedeemed',
-            'totalReferrals', 'rewardedReferrals', 'tierStats'
+            'totalReferrals', 'rewardedReferrals', 'tierStats',
+            'chartLabels', 'chartPts', 'chartUsers',
+            'topEarners', 'recentTxns', 'moduleBreakdown',
+            'earnedThisMonth', 'earnedLastMonth', 'earnedGrowth',
+            'activeStreaks', 'maxStreak', 'avgStreak',
+            'totalBadgesAwarded', 'badgeBreakdown'
         ));
     }
 
