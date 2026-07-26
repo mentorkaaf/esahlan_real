@@ -26,7 +26,7 @@ class AffiliateScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Affiliate Program'), centerTitle: true),
       body: data.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error:   (e, _) => Center(child: Text(ErrorHandler.message(e))),
+        error:   (e, _) => Center(child: Text(AppErrorHandler.message(e))),
         data:    (d) => d['has_affiliate'] == true
             ? _Dashboard(data: d, onRefresh: () => ref.refresh(_affiliateProvider))
             : _ApplyScreen(onApplied: () => ref.refresh(_affiliateProvider)),
@@ -57,7 +57,7 @@ class _ApplyScreenState extends State<_ApplyScreen> {
         widget.onApplied();
       }
     } catch (e) {
-      if (mounted) ErrorHandler.show(context, e);
+      if (mounted) AppErrorHandler.show(context, e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -167,7 +167,7 @@ class _DashboardState extends State<_Dashboard> {
         widget.onRefresh();
       }
     } catch (e) {
-      if (mounted) ErrorHandler.show(context, e);
+      if (mounted) AppErrorHandler.show(context, e);
     } finally {
       if (mounted) setState(() => _payoutLoading = false);
     }

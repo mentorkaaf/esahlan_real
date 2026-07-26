@@ -85,7 +85,7 @@ class _BadgesTab extends ConsumerWidget {
 
     return data.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(ErrorHandler.message(e))),
+      error: (e, _) => Center(child: Text(AppErrorHandler.message(e))),
       data: (d) {
         final allBadges = (d['all_badges'] as List?)?.cast<Map<String, dynamic>>() ?? [];
         final earned = d['badges_earned'] as int? ?? 0;
@@ -283,7 +283,7 @@ class _StreakTab extends ConsumerWidget {
 
     return data.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(ErrorHandler.message(e))),
+      error: (e, _) => Center(child: Text(AppErrorHandler.message(e))),
       data: (d) {
         final streak   = d['streak'] as Map<String, dynamic>? ?? {};
         final current  = streak['current'] as int? ?? 0;
@@ -511,7 +511,7 @@ class _LeaderboardTab extends ConsumerWidget {
         Expanded(
           child: board.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text(ErrorHandler.message(e))),
+            error: (e, _) => Center(child: Text(AppErrorHandler.message(e))),
             data: (rows) => rows.isEmpty
                 ? Center(
                     child: Column(

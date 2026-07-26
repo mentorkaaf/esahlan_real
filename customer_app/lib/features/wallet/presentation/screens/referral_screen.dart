@@ -7,8 +7,7 @@ import '../../../../core/theme/theme_x.dart';
 import '../../../../core/utils/error_handler.dart';
 
 final _referralProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  final svc = ModuleApiService();
-  final res = await svc.getReferral();
+  final res = await ModuleApiService.create().getReferral();
   return (res['data'] as Map<String, dynamic>?) ?? {};
 });
 
@@ -26,7 +25,7 @@ class ReferralScreen extends ConsumerWidget {
       ),
       body: data.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(ErrorHandler.message(e))),
+        error: (e, _) => Center(child: Text(AppErrorHandler.message(e))),
         data: (d) => _ReferralBody(data: d),
       ),
     );
