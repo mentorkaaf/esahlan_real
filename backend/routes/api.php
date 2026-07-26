@@ -53,6 +53,7 @@ use App\Http\Controllers\Api\Customer\HomeController;
 use App\Http\Controllers\Api\Customer\OrderController;
 use App\Http\Controllers\Api\Customer\WalletController;
 use App\Http\Controllers\Api\Customer\AffiliateController;
+use App\Http\Controllers\Api\Customer\GamificationController;
 use App\Http\Controllers\Api\Customer\RewardController;
 use App\Http\Controllers\Api\Customer\MobilePayController;
 use App\Http\Controllers\Api\Payment\PaymentController;
@@ -530,6 +531,10 @@ Route::prefix('v1')->group(function () {
                 Route::get('/history',           [RewardController::class, 'history']);
                 Route::post('/validate-redeem',  [RewardController::class, 'validateRedeem']);
                 Route::get('/earn-preview',      [RewardController::class, 'earnPreview']);
+            });
+            Route::prefix('gamification')->group(function () {
+                Route::get('/',             [GamificationController::class, 'profile']);
+                Route::get('/leaderboard',  [GamificationController::class, 'leaderboard']);
             });
             Route::prefix('affiliate')->group(function () {
                 Route::get('/',              [AffiliateController::class, 'dashboard']);

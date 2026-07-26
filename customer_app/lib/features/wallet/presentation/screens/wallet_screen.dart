@@ -15,6 +15,7 @@ import 'referral_screen.dart';
 import '../../../rewards/tier_widgets.dart';
 import '../../../rewards/rewards_provider.dart';
 import '../../../affiliate/affiliate_screen.dart';
+import '../../../gamification/gamification_screen.dart';
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -220,6 +221,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                           ]),
                         ),
                       const SizedBox(width: 8),
+                      const StreakFlame(),
+                      const SizedBox(width: 8),
                       Builder(builder: (ctx) {
                         final tier = ref.watch(rewardsProvider).valueOrNull?.tier ?? 'bronze';
                         return GestureDetector(
@@ -274,7 +277,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
           }),
           _ActionBtn(icon: Icons.history_rounded,         label: 'History',  color: const Color(0xFF00695C), onTap: () { setState(() => _tab = 0); _scrollToTransactions(); }),
           _ActionBtn(icon: Icons.people_alt_rounded,      label: 'Referral', color: const Color(0xFF6A1B9A), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralScreen()))),
-          _ActionBtn(icon: Icons.handshake_rounded,       label: 'Affiliate',color: const Color(0xFF00796B), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AffiliateScreen()))),
+          _ActionBtn(icon: Icons.handshake_rounded,       label: 'Affiliate',   color: const Color(0xFF00796B), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AffiliateScreen()))),
+          _ActionBtn(icon: Icons.military_tech_rounded,   label: 'Achievements', color: const Color(0xFFE65100), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GamificationScreen()))),
         ],
       ),
     );

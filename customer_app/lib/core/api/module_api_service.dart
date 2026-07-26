@@ -265,6 +265,10 @@ class ModuleApiService {
   Future<dynamic> getWalletTransactions() => _get('/wallet/transactions');
   Future<dynamic> walletTopup(Map<String, dynamic> data) => _post('/wallet/topup', data);
 
+  // ── Gamification ──────────────────────────────────────────────────────────
+  Future<dynamic> getGamificationProfile() => _get('/gamification');
+  Future<dynamic> getLeaderboard({String period = 'weekly'}) => _get('/gamification/leaderboard?period=$period');
+
   // ── Affiliate ─────────────────────────────────────────────────────────────
   Future<dynamic> getAffiliateDashboard() => _get('/affiliate');
   Future<dynamic> applyAffiliate() => _post('/affiliate/apply', {});
