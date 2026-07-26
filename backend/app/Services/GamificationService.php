@@ -203,9 +203,7 @@ class GamificationService
             ->join('users', 'users.id', '=', 'lp.user_id')
             ->where('lp.type', 'earned')
             ->where('lp.points', '>', 0)
-            ->selectRaw("lp.user_id, users.name, users.tier,
-                SUM(lp.points) as pts_earned,
-                ROW_NUMBER() OVER (ORDER BY SUM(lp.points) DESC) as rank");
+            ->selectRaw('lp.user_id, users.name, users.tier, SUM(lp.points) as pts_earned');
 
         if ($period === 'weekly') {
             $query->where('lp.created_at', '>=', now()->startOfWeek());
@@ -217,9 +215,10 @@ class GamificationService
             ->orderByDesc('pts_earned')
             ->limit($limit)
             ->get()
+            ->values()
             ->map(fn($r, $i) => [
                 'rank'       => $i + 1,
-                '_user_id'   => $r->user_id, // controller uses this to set is_me then strips it
+                '_user_id'   => $r->user_id,
                 'name'       => substr($r->name, 0, 1) . str_repeat('*', max(0, strlen($r->name) - 2)) . substr($r->name, -1),
                 'tier'       => $r->tier ?? 'bronze',
                 'pts_earned' => (int) $r->pts_earned,
