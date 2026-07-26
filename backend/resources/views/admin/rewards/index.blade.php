@@ -109,6 +109,47 @@
     </div>
   </div>
 
+  {{-- Referral Program --}}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-bold d-flex align-items-center justify-content-between">
+      <span>🔗 Referral Program</span>
+      <div class="d-flex gap-3 small text-muted">
+        <span>Total referrals: <strong>{{ number_format($totalReferrals) }}</strong></span>
+        <span>Rewarded: <strong class="text-success">{{ number_format($rewardedReferrals) }}</strong></span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <div class="form-check form-switch fs-5 mb-0">
+          <input class="form-check-input" type="checkbox" name="referral_enabled" id="referralEnabled" value="1"
+            {{ ($settings['referral_enabled'] ?? '1') == '1' ? 'checked' : '' }}>
+          <label class="form-check-label fw-semibold" for="referralEnabled">Referral Rewards Enabled</label>
+        </div>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Base reward (pts)</label>
+          <input type="number" name="referral_reward_pts" class="form-control" value="{{ $settings['referral_reward_pts'] ?? 500 }}" min="0" max="10000">
+          <div class="form-text">Fixed pts given to referrer on friend's first order</div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Commission — Level 1 (%)</label>
+          <input type="number" name="referral_commission_pct" class="form-control" value="{{ $settings['referral_commission_pct'] ?? 5 }}" min="0" max="50">
+          <div class="form-text">% of friend's order value as pts (in addition to base)</div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Commission — Level 2 (%)</label>
+          <input type="number" name="referral_l2_pct" class="form-control" value="{{ $settings['referral_l2_pct'] ?? 2 }}" min="0" max="20">
+          <div class="form-text">% to the person who referred the referrer</div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Min order to trigger ($)</label>
+          <input type="number" name="referral_min_order" class="form-control" value="{{ $settings['referral_min_order'] ?? 5 }}" min="0" max="1000">
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="d-flex gap-2">
     <button type="submit" class="btn btn-primary px-4 fw-bold">Save Settings</button>
     <a href="{{ route('admin.dashboard') }}" class="btn btn-outline-secondary">Cancel</a>

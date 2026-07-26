@@ -11,6 +11,7 @@ import '../../../payment/mobile_pay_sheet.dart';
 import '../providers/wallet_provider.dart';
 import '../../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import 'referral_screen.dart';
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -240,6 +241,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
             if (ok && mounted) _showWithdraw(context, wallet.balance);
           }),
           _ActionBtn(icon: Icons.history_rounded,       label: 'History',  color: const Color(0xFF00695C), onTap: () { setState(() => _tab = 0); _scrollToTransactions(); }),
+          _ActionBtn(icon: Icons.people_alt_rounded,    label: 'Referral', color: const Color(0xFF6A1B9A), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralScreen()))),
         ],
       ),
     );

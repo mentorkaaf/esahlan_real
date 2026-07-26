@@ -27,8 +27,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   // Credential mode: 0 = PIN, 1 = Email+Password
   int _credMode = 0;
 
-  final _nameCtrl  = TextEditingController();
-  final _phoneCtrl = TextEditingController();
+  final _nameCtrl     = TextEditingController();
+  final _phoneCtrl    = TextEditingController();
+  final _referralCtrl = TextEditingController();
   CountryCode _country = kDefaultCountry;
   int? _districtId;
 
@@ -70,6 +71,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
     _animCtrl.dispose();
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
+    _referralCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
@@ -113,6 +115,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
       password: password,
       email: email,
       districtId: _districtId,
+      referralCode: _referralCtrl.text.trim().isEmpty ? null : _referralCtrl.text.trim().toUpperCase(),
     );
     if (!mounted) return;
     ref.read(registerProvider).whenOrNull(
@@ -287,6 +290,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                                   ),
                                 ),
                               )),
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // ── Referral Code (optional) ───────────────────
+                            const _Label('Referral Code (optional)'),
+                            const SizedBox(height: 8),
+                            _InputField(
+                              ctrl: _referralCtrl,
+                              hint: 'e.g. ABC12345',
+                              icon: Icons.card_giftcard_rounded,
+                              cap: TextCapitalization.characters,
                             ),
 
                             const SizedBox(height: 20),

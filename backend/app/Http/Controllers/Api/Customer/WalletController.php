@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Models\Wallet;
+use App\Services\ReferralService;
 use App\Services\WaafiPayService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -356,20 +357,18 @@ class WalletController extends Controller
     // GET /wallet/referral
     public function referral(Request $request)
     {
-        $user      = $request->user();
-        $referrals = DB::table('referrals')
-            ->where('referrer_id', $user->id)
-            ->join('users', 'users.id', '=', 'referrals.referred_id')
-            ->select('users.name', 'referrals.status', 'referrals.reward_given', 'referrals.created_at')
-            ->latest('referrals.created_at')
-            ->get();
+        $user  = $request->user();
+        $stats = ReferralService::getReferralStats($user->id);
 
         return response()->json([
             'success' => true,
             'data'    => [
-                'referral_code'  => $user->referral_code,
-                'referral_count' => $referrals->count(),
-                'referrals'      => $referrals,
+                'referral_code'   => $user->referral_code,
+                'referral_count'  => $stats['total'],
+                'rewarded_count'  => $stats['rewarded'],
+                'pending_count'   => $stats['pending'],
+                'total_earned_pts'=> $stats['earned'],
+                'referrals'       => $stats['list'],
             ],
         ]);
     }
