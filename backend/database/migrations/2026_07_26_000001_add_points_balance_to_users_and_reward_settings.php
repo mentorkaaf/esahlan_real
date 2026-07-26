@@ -27,7 +27,7 @@ return new class extends Migration
             ['key' => 'points_per_dollar',       'value' => '10',   'type' => 'integer'], // earn 10 pts per $1 spent
             ['key' => 'points_to_dollar',        'value' => '100',  'type' => 'integer'], // 100 pts = $1 discount
             ['key' => 'points_expire_days',      'value' => '365',  'type' => 'integer'],
-            ['key' => 'min_order_for_points',    'value' => '2',    'type' => 'float'],   // min $2 order to earn
+            ['key' => 'min_order_for_points',    'value' => '2',    'type' => 'integer'],  // min $2 order to earn
             ['key' => 'max_redeem_percent',      'value' => '50',   'type' => 'integer'], // max 50% of order value
             // Per-module multipliers (×10 = integer, so 2x = 20, 1x = 10, 0.5x = 5)
             ['key' => 'pts_mult_efood',          'value' => '10',   'type' => 'integer'],
