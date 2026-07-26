@@ -441,6 +441,9 @@
         <a href="{{ route('admin.rewards.index') }}" class="nav-link {{ request()->routeIs('admin.rewards.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-star"></i></div> Rewards
         </a>
+        <a href="{{ route('admin.affiliates.index') }}" class="nav-link {{ request()->routeIs('admin.affiliates.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-handshake"></i></div> Affiliates
+        </a>
         <a href="{{ route('admin.payment-settings.index') }}" class="nav-link {{ request()->routeIs('admin.payment-settings.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-credit-card"></i></div> Payments
         </a>

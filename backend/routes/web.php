@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\AdminOrderController;
 use App\Http\Controllers\Admin\AdminModuleController;
 use App\Http\Controllers\Admin\AdminMobilePayController;
 use App\Http\Controllers\Admin\AdminPaymentSettingsController;
+use App\Http\Controllers\Admin\AdminAffiliateController;
 use App\Http\Controllers\Admin\AdminRewardController;
 use App\Http\Controllers\Admin\AdminBannerController;
 use App\Http\Controllers\Admin\AdminAdController;
@@ -254,6 +255,15 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('/',       [AdminRewardController::class, 'index'])->name('index');
             Route::patch('/',     [AdminRewardController::class, 'update'])->name('update');
             Route::get('/ledger', [AdminRewardController::class, 'ledger'])->name('ledger');
+        });
+        Route::prefix('affiliates')->name('affiliates.')->group(function () {
+            Route::get('/',                          [AdminAffiliateController::class, 'index'])->name('index');
+            Route::get('/{id}',                      [AdminAffiliateController::class, 'show'])->name('show');
+            Route::patch('/{id}/status',             [AdminAffiliateController::class, 'updateStatus'])->name('status');
+            Route::get('/payouts/list',              [AdminAffiliateController::class, 'payouts'])->name('payouts');
+            Route::post('/payouts/{id}/process',     [AdminAffiliateController::class, 'processPayout'])->name('payout.process');
+            Route::get('/settings/config',           [AdminAffiliateController::class, 'settings'])->name('settings');
+            Route::post('/settings/config',          [AdminAffiliateController::class, 'saveSettings'])->name('settings.save');
         });
 
         // Payment Settings (enable/disable + config)

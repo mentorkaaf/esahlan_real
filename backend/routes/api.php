@@ -52,6 +52,7 @@ use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Customer\HomeController;
 use App\Http\Controllers\Api\Customer\OrderController;
 use App\Http\Controllers\Api\Customer\WalletController;
+use App\Http\Controllers\Api\Customer\AffiliateController;
 use App\Http\Controllers\Api\Customer\RewardController;
 use App\Http\Controllers\Api\Customer\MobilePayController;
 use App\Http\Controllers\Api\Payment\PaymentController;
@@ -529,6 +530,11 @@ Route::prefix('v1')->group(function () {
                 Route::get('/history',           [RewardController::class, 'history']);
                 Route::post('/validate-redeem',  [RewardController::class, 'validateRedeem']);
                 Route::get('/earn-preview',      [RewardController::class, 'earnPreview']);
+            });
+            Route::prefix('affiliate')->group(function () {
+                Route::get('/',              [AffiliateController::class, 'dashboard']);
+                Route::post('/apply',        [AffiliateController::class, 'apply']);
+                Route::post('/payout',       [AffiliateController::class, 'requestPayout']);
             });
             Route::get('payment/status/{ref}',      [PaymentController::class, 'status']);
 

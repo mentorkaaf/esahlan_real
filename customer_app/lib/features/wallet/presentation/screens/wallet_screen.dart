@@ -14,6 +14,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import 'referral_screen.dart';
 import '../../../rewards/tier_widgets.dart';
 import '../../../rewards/rewards_provider.dart';
+import '../../../affiliate/affiliate_screen.dart';
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -257,11 +258,13 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
   Widget _buildActions(BuildContext context, WalletData wallet) {
     return Container(
       color: context.colors.cardBg,
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-      child: Row(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      child: Wrap(
+        spacing: 0,
+        runSpacing: 8,
         children: [
-          _ActionBtn(icon: Icons.add_circle_rounded,    label: 'Top Up',   color: AppColors.primary,    onTap: () => _showTopUp(context)),
-          _ActionBtn(icon: Icons.send_rounded,          label: 'Send',     color: const Color(0xFF7B1FA2), onTap: () async {
+          _ActionBtn(icon: Icons.add_circle_rounded,      label: 'Top Up',   color: AppColors.primary,       onTap: () => _showTopUp(context)),
+          _ActionBtn(icon: Icons.send_rounded,            label: 'Send',     color: const Color(0xFF7B1FA2), onTap: () async {
             final ok = await showWalletPinDialog(context);
             if (ok && mounted) _showSend(context, wallet.balance);
           }),
@@ -269,8 +272,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
             final ok = await showWalletPinDialog(context);
             if (ok && mounted) _showWithdraw(context, wallet.balance);
           }),
-          _ActionBtn(icon: Icons.history_rounded,       label: 'History',  color: const Color(0xFF00695C), onTap: () { setState(() => _tab = 0); _scrollToTransactions(); }),
-          _ActionBtn(icon: Icons.people_alt_rounded,    label: 'Referral', color: const Color(0xFF6A1B9A), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralScreen()))),
+          _ActionBtn(icon: Icons.history_rounded,         label: 'History',  color: const Color(0xFF00695C), onTap: () { setState(() => _tab = 0); _scrollToTransactions(); }),
+          _ActionBtn(icon: Icons.people_alt_rounded,      label: 'Referral', color: const Color(0xFF6A1B9A), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralScreen()))),
+          _ActionBtn(icon: Icons.handshake_rounded,       label: 'Affiliate',color: const Color(0xFF00796B), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AffiliateScreen()))),
         ],
       ),
     );
@@ -815,7 +819,8 @@ class _ActionBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
+    return SizedBox(
+      width: 72,
       child: GestureDetector(
         onTap: onTap,
         child: Column(children: [
@@ -828,7 +833,8 @@ class _ActionBtn extends StatelessWidget {
             child: Icon(icon, color: Colors.white, size: 24),
           ),
           const SizedBox(height: 6),
-          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.isDark ? AppColors.primary : color)),
+          Text(label, textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.isDark ? AppColors.primary : color)),
         ]),
       ),
     );

@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use App\Services\AffiliateService;
 
 class AuthController extends Controller
 {
@@ -33,6 +34,7 @@ class AuthController extends Controller
             'email'         => 'nullable|email|unique:users,email',
             'password'      => $passwordRule,
             'referral_code' => 'nullable|string|exists:users,referral_code',
+            'affiliate_code'=> 'nullable|string',
             'district_id'   => 'nullable|integer|exists:districts,id',
         ], [
             'password.regex' => 'Password must contain uppercase, lowercase, number and special character (@$!%*#?&).',
@@ -76,6 +78,11 @@ class AuthController extends Controller
                         'created_at'  => now(),
                     ]);
                 }
+            }
+
+            // Affiliate attribution (separate from referral)
+            if ($request->affiliate_code) {
+                AffiliateService::attributeUser($user->id, $request->affiliate_code);
             }
 
             return $user;

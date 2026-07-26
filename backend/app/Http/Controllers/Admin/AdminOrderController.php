@@ -9,6 +9,7 @@ use App\Models\OrderStatusHistory;
 use App\Models\Wallet;
 use App\Services\FcmService;
 use App\Services\LoyaltyService;
+use App\Services\AffiliateService;
 use App\Services\ReferralService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -150,11 +151,12 @@ class AdminOrderController extends Controller
                 'changed_by' => auth()->id(),
             ]);
 
-            // Credit loyalty points + referral commission on delivery or completion
+            // Credit loyalty points + referral + affiliate commissions on delivery or completion
             if (in_array($request->status, ['delivered', 'completed', 'boarded'])) {
                 \Illuminate\Support\Facades\Queue::push(function () use ($order) {
                     LoyaltyService::creditOrderPoints($order->id);
                     ReferralService::processFirstOrderReward($order->user_id, $order->id, (float) $order->total_amount);
+                    AffiliateService::processOrderCommission($order->id);
                 });
             }
 
