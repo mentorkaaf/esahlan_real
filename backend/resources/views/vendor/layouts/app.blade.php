@@ -250,11 +250,12 @@
 
 {{-- Sidebar --}}
 <aside class="sidebar">
-    <a href="{{ route('vendor.dashboard') }}" class="sidebar-brand">
-        <div class="brand-icon"><i class="fa-solid fa-store"></i></div>
+    @php $isEshopVendor = (auth()->user()?->vendor?->module_slug ?? '') === 'eshop'; @endphp
+    <a href="{{ $isEshopVendor ? route('vendor.eshop.dashboard') : route('vendor.dashboard') }}" class="sidebar-brand">
+        <div class="brand-icon"><i class="fa-solid fa-{{ $isEshopVendor ? 'shop' : 'store' }}"></i></div>
         <div>
             <div class="brand-name">eSahlan</div>
-            <div class="brand-sub">Vendor Panel</div>
+            <div class="brand-sub">{{ $isEshopVendor ? 'eShop Panel' : 'Vendor Panel' }}</div>
         </div>
     </a>
 
@@ -288,6 +289,47 @@
         </div>
         @endif
 
+        @if(($vendor?->module_slug ?? '') === 'eshop')
+        {{-- ═══════════════ eSHOP VENDOR NAV ═══════════════ --}}
+        <div class="nav-section-label">Main</div>
+        <a href="{{ route('vendor.eshop.dashboard') }}" class="nav-link {{ request()->routeIs('vendor.eshop.dashboard') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+            <span class="nav-text">Dashboard</span>
+        </a>
+
+        <div class="nav-section-label">Catalog</div>
+        <a href="{{ route('vendor.eshop.products') }}" class="nav-link {{ request()->routeIs('vendor.eshop.products') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-box-open"></i></span>
+            <span class="nav-text">My Products</span>
+        </a>
+
+        <div class="nav-section-label">Orders</div>
+        <a href="{{ route('vendor.eshop.orders') }}" class="nav-link {{ request()->routeIs('vendor.eshop.orders') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-receipt"></i></span>
+            <span class="nav-text">Orders</span>
+            @php $eshopPending = \DB::table('orders')
+                ->join('order_items','orders.id','=','order_items.order_id')
+                ->join('products','order_items.product_id','=','products.id')
+                ->where('products.vendor_id', $vendor?->id)
+                ->where('orders.status','pending')
+                ->distinct('orders.id')->count('orders.id'); @endphp
+            @if($eshopPending > 0)
+            <span class="nav-badge">{{ $eshopPending }}</span>
+            @endif
+        </a>
+
+        <div class="nav-section-label">Business</div>
+        <a href="{{ route('vendor.eshop.store') }}" class="nav-link {{ request()->routeIs('vendor.eshop.store') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-store"></i></span>
+            <span class="nav-text">Store Profile</span>
+        </a>
+        <a href="{{ route('vendor.eshop.earnings') }}" class="nav-link {{ request()->routeIs('vendor.eshop.earnings') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-hand-holding-dollar"></i></span>
+            <span class="nav-text">Earnings</span>
+        </a>
+
+        @else
+        {{-- ═══════════════ REGULAR VENDOR NAV ═══════════════ --}}
         <div class="nav-section-label">Main</div>
         <a href="{{ route('vendor.dashboard') }}" class="nav-link {{ request()->routeIs('vendor.dashboard') ? 'active' : '' }}">
             <span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span>
@@ -328,29 +370,6 @@
         <a href="{{ route('vendor.wallet.index') }}" class="nav-link {{ request()->routeIs('vendor.wallet.*') ? 'active' : '' }}">
             <span class="nav-icon"><i class="fa-solid fa-wallet"></i></span>
             <span class="nav-text">Wallet</span>
-        </a>
-
-        @if(($vendor?->module_slug ?? '') === 'eshop')
-        <div class="nav-section-label" style="margin-top:8px;color:rgba(255,138,0,.7)">eShop Panel</div>
-        <a href="{{ route('vendor.eshop.dashboard') }}" class="nav-link {{ request()->routeIs('vendor.eshop.dashboard') ? 'active' : '' }}">
-            <span class="nav-icon"><i class="fa-solid fa-shop"></i></span>
-            <span class="nav-text">eShop Dashboard</span>
-        </a>
-        <a href="{{ route('vendor.eshop.products') }}" class="nav-link {{ request()->routeIs('vendor.eshop.products') ? 'active' : '' }}">
-            <span class="nav-icon"><i class="fa-solid fa-box-open"></i></span>
-            <span class="nav-text">My Products</span>
-        </a>
-        <a href="{{ route('vendor.eshop.orders') }}" class="nav-link {{ request()->routeIs('vendor.eshop.orders') ? 'active' : '' }}">
-            <span class="nav-icon"><i class="fa-solid fa-receipt"></i></span>
-            <span class="nav-text">eShop Orders</span>
-        </a>
-        <a href="{{ route('vendor.eshop.store') }}" class="nav-link {{ request()->routeIs('vendor.eshop.store') ? 'active' : '' }}">
-            <span class="nav-icon"><i class="fa-solid fa-pen-to-square"></i></span>
-            <span class="nav-text">Store Profile</span>
-        </a>
-        <a href="{{ route('vendor.eshop.earnings') }}" class="nav-link {{ request()->routeIs('vendor.eshop.earnings') ? 'active' : '' }}">
-            <span class="nav-icon"><i class="fa-solid fa-hand-holding-dollar"></i></span>
-            <span class="nav-text">Earnings</span>
         </a>
         @endif
     </div>
