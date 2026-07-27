@@ -314,8 +314,91 @@ class VendorEShopController extends Controller
             ->where('owner_type', 'App\\Models\\Vendor')
             ->where('owner_id', $vendor->id)
             ->orderByDesc('created_at')
-            ->limit(10)->get();
+            ->get();
 
-        return view('vendor.eshop.earnings', compact('vendor', 'commissions', 'summary', 'withdrawals'));
+        // Available balance = settled earnings - already-withdrawn amounts
+        $totalSettled   = (float)($summary->paid ?? 0);
+        $totalWithdrawn = DB::table('withdrawal_requests')
+            ->where('owner_type', 'App\\Models\\Vendor')
+            ->where('owner_id', $vendor->id)
+            ->whereIn('status', ['pending', 'approved', 'processed'])
+            ->sum('amount');
+        $availableBalance = max(0, $totalSettled - $totalWithdrawn);
+
+        return view('vendor.eshop.earnings', compact(
+            'vendor', 'commissions', 'summary', 'withdrawals', 'availableBalance'
+        ));
+    }
+
+    public function requestWithdrawal(Request $request)
+    {
+        $vendor = $this->vendor();
+
+        $data = $request->validate([
+            'amount'         => 'required|numeric|min:1',
+            'method'         => 'required|in:evc_plus,zaad,bank_transfer',
+            'account_number' => 'required|string|max:50',
+            'account_name'   => 'required|string|max:100',
+            'note'           => 'nullable|string|max:300',
+        ]);
+
+        // Recalculate available balance server-side
+        $totalSettled   = (float) DB::table('commissions')
+            ->where('vendor_id', $vendor->id)
+            ->where('status', 'settled')
+            ->sum('vendor_earning');
+
+        $totalWithdrawn = (float) DB::table('withdrawal_requests')
+            ->where('owner_type', 'App\\Models\\Vendor')
+            ->where('owner_id', $vendor->id)
+            ->whereIn('status', ['pending', 'approved', 'processed'])
+            ->sum('amount');
+
+        $available = max(0, $totalSettled - $totalWithdrawn);
+
+        if ($data['amount'] > $available) {
+            return back()->withErrors(['amount' => "Insufficient balance. Available: \${$available}"]);
+        }
+
+        // Get or create vendor wallet (for record-keeping)
+        $wallet = DB::table('wallets')
+            ->where('owner_type', 'App\\Models\\Vendor')
+            ->where('owner_id', $vendor->id)
+            ->first();
+
+        if (!$wallet) {
+            $walletId = DB::table('wallets')->insertGetId([
+                'owner_type'    => 'App\\Models\\Vendor',
+                'owner_id'      => $vendor->id,
+                'balance'       => 0,
+                'pending_balance'=> 0,
+                'total_earned'  => 0,
+                'total_withdrawn'=> 0,
+                'currency'      => 'USD',
+                'is_active'     => 1,
+                'is_frozen'     => 0,
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ]);
+        } else {
+            $walletId = $wallet->id;
+        }
+
+        DB::table('withdrawal_requests')->insert([
+            'wallet_id'      => $walletId,
+            'owner_type'     => 'App\\Models\\Vendor',
+            'owner_id'       => $vendor->id,
+            'amount'         => $data['amount'],
+            'method'         => $data['method'],
+            'payment_method' => $data['method'],
+            'account_number' => $data['account_number'],
+            'account_name'   => $data['account_name'],
+            'note'           => $data['note'] ?? null,
+            'status'         => 'pending',
+            'created_at'     => now(),
+            'updated_at'     => now(),
+        ]);
+
+        return back()->with('success', 'Withdrawal request submitted successfully. Admin will process it shortly.');
     }
 }

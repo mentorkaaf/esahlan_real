@@ -799,7 +799,71 @@ class AdminEShopController extends Controller
         return back()->with('success', 'Commission marked as paid.');
     }
 
-    public function withdrawalProcess(Request $request, int $id)
+    // ── Vendor Withdrawals ────────────────────────────────────────────────────
+
+    public function withdrawals(\Illuminate\Http\Request $request)
+    {
+        $status = $request->input('status', 'pending');
+
+        $withdrawals = DB::table('withdrawal_requests')
+            ->join('vendors', function ($j) {
+                $j->on('withdrawal_requests.owner_id', '=', 'vendors.id')
+                  ->where('withdrawal_requests.owner_type', 'App\\Models\\Vendor');
+            })
+            ->where('vendors.module_slug', 'eshop')
+            ->when($status !== 'all', fn($q) => $q->where('withdrawal_requests.status', $status))
+            ->select('withdrawal_requests.*', 'vendors.name as vendor_name', 'vendors.logo as vendor_logo')
+            ->orderByDesc('withdrawal_requests.created_at')
+            ->paginate(20)->withQueryString();
+
+        $counts = DB::table('withdrawal_requests')
+            ->join('vendors', function ($j) {
+                $j->on('withdrawal_requests.owner_id', '=', 'vendors.id')
+                  ->where('withdrawal_requests.owner_type', 'App\\Models\\Vendor');
+            })
+            ->where('vendors.module_slug', 'eshop')
+            ->selectRaw('status, COUNT(*) as cnt')
+            ->groupBy('status')
+            ->pluck('cnt', 'status');
+
+        return view('admin.eshop.withdrawals', compact('withdrawals', 'status', 'counts'));
+    }
+
+    public function withdrawalApprove(\Illuminate\Http\Request $request, int $id)
+    {
+        $data = $request->validate([
+            'transaction_reference' => 'required|string|max:200',
+            'admin_note'            => 'nullable|string|max:500',
+        ]);
+
+        DB::table('withdrawal_requests')->where('id', $id)->update([
+            'status'                => 'processed',
+            'transaction_reference' => $data['transaction_reference'],
+            'admin_note'            => $data['admin_note'] ?? null,
+            'processed_at'          => now(),
+            'processed_by'          => auth()->id(),
+            'updated_at'            => now(),
+        ]);
+
+        return back()->with('success', 'Withdrawal approved and marked as processed.');
+    }
+
+    public function withdrawalReject(\Illuminate\Http\Request $request, int $id)
+    {
+        $request->validate(['admin_note' => 'required|string|max:500']);
+
+        DB::table('withdrawal_requests')->where('id', $id)->update([
+            'status'       => 'rejected',
+            'admin_note'   => $request->admin_note,
+            'processed_at' => now(),
+            'processed_by' => auth()->id(),
+            'updated_at'   => now(),
+        ]);
+
+        return back()->with('success', 'Withdrawal request rejected.');
+    }
+
+    public function withdrawalProcess(\Illuminate\Http\Request $request, int $id)
     {
         $data = $request->validate([
             'status'     => 'required|in:approved,rejected',

@@ -80,6 +80,7 @@ Route::prefix('vendor')->name('vendor.')->group(function () {
             Route::get('/store',                [$es, 'store'])->name('store');
             Route::post('/store',               [$es, 'storeUpdate'])->name('store.update');
             Route::get('/earnings',             [$es, 'earnings'])->name('earnings');
+            Route::post('/withdraw',            [$es, 'requestWithdrawal'])->name('withdraw');
         });
 
         // Branch Switcher
@@ -642,6 +643,10 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
         Route::prefix('eshop')->name('eshop.')->group(function () {
             $es = \App\Http\Controllers\Admin\AdminEShopController::class;
             Route::get('/', [$es, 'index'])->name('index');
+            // Withdrawals
+            Route::get('/withdrawals',                    [$es, 'withdrawals'])->name('withdrawals');
+            Route::post('/withdrawals/{id}/approve',      [$es, 'withdrawalApprove'])->name('withdrawals.approve');
+            Route::post('/withdrawals/{id}/reject',       [$es, 'withdrawalReject'])->name('withdrawals.reject');
             // Categories
             Route::post('/categories',           [$es, 'categoryStore'])->name('category.store');
             Route::patch('/categories/{id}',     [$es, 'categoryUpdate'])->name('category.update');
