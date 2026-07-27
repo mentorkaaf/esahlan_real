@@ -274,6 +274,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   SizedBox(height: 20),
                 ])),
 
+                // ── Vendor card ───────────────────────────────────────
+                if (product['vendor_id'] != null)
+                  _VendorCard(product: product),
+
                 // Variants
                 if (activeVariants.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('Variants', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
@@ -400,4 +404,114 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       child: Icon(icon, color: active ? Colors.white : AppColors.textGrey, size: 20),
     ),
   );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Vendor Card Widget
+// ─────────────────────────────────────────────────────────────────
+class _VendorCard extends StatelessWidget {
+  final Map<String, dynamic> product;
+  const _VendorCard({required this.product});
+
+  @override
+  Widget build(BuildContext context) {
+    final vendorId   = int.tryParse(product['vendor_id']?.toString() ?? '0') ?? 0;
+    final name       = product['shop_name']?.toString() ?? 'Store';
+    final logo       = product['shop_logo']?.toString();
+    final rating     = double.tryParse(product['shop_rating']?.toString() ?? '0') ?? 0.0;
+    final reviews    = int.tryParse(product['shop_review_count']?.toString() ?? '0') ?? 0;
+    final isOpen     = product['shop_is_open'] == true || product['shop_is_open'] == 1;
+    final deliveryTime = product['shop_delivery_time']?.toString();
+    final salesCount = int.tryParse(product['sales_count']?.toString() ?? '0') ?? 0;
+
+    return GestureDetector(
+      onTap: vendorId > 0 ? () => context.push('/eshop/stores/$vendorId') : null,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Row(
+            children: [
+              // Logo
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  border: Border.all(color: AppColors.divider),
+                ),
+                child: ClipOval(
+                  child: logo != null && logo.isNotEmpty
+                      ? NetImage(url: logo, fit: BoxFit.cover)
+                      : const Icon(Icons.store_rounded, size: 26, color: AppColors.textGrey),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Expanded(
+                        child: Text(name,
+                            style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                                color: context.colors.navyText),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      Container(
+                        width: 7, height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isOpen ? AppColors.success : AppColors.textGrey,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(isOpen ? 'Open' : 'Closed',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: isOpen ? AppColors.success : AppColors.textGrey)),
+                    ]),
+                    const SizedBox(height: 4),
+                    Row(children: [
+                      const Icon(Icons.star_rounded, size: 13, color: Color(0xFFFFC107)),
+                      const SizedBox(width: 3),
+                      Text('${rating.toStringAsFixed(1)} ($reviews)',
+                          style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
+                      if (salesCount > 0) ...[
+                        const SizedBox(width: 10),
+                        const Icon(Icons.shopping_bag_outlined, size: 12, color: AppColors.textGrey),
+                        const SizedBox(width: 3),
+                        Text('$salesCount sold',
+                            style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
+                      ],
+                      if (deliveryTime != null) ...[
+                        const SizedBox(width: 10),
+                        const Icon(Icons.access_time_rounded, size: 12, color: AppColors.textGrey),
+                        const SizedBox(width: 3),
+                        Text(deliveryTime,
+                            style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
+                      ],
+                    ]),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.textGrey, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -186,7 +186,17 @@ class EShopController extends Controller
             ->whereNull('products.deleted_at')
             ->join('vendors', 'products.vendor_id', '=', 'vendors.id')
             ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
-            ->select(['products.*', 'vendors.name as shop_name', 'categories.name as category_name'])
+            ->select([
+                'products.*',
+                'vendors.id as vendor_id',
+                'vendors.name as shop_name',
+                'vendors.logo as shop_logo',
+                'vendors.rating as shop_rating',
+                'vendors.review_count as shop_review_count',
+                'vendors.is_open as shop_is_open',
+                'vendors.delivery_time as shop_delivery_time',
+                'categories.name as category_name',
+            ])
             ->first();
 
         if (!$product) {
@@ -211,6 +221,8 @@ class EShopController extends Controller
         $now = now();
         [$flashMap, $dealMap, $campMap] = $this->activeDealMaps([$id], $now);
         $productArr = $this->applyDealPrice((array)$product, $flashMap, $dealMap, $campMap);
+
+        $productArr['shop_logo'] = cdn_url($productArr['shop_logo'] ?? null);
 
         return response()->json([
             'success' => true,
