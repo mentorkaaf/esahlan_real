@@ -160,7 +160,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
             slivers: [
               _buildSliverAppBar(wallet),
               SliverToBoxAdapter(child: _buildActions(context, wallet)),
-              const SliverToBoxAdapter(child: TierProgressCard()),
               SliverToBoxAdapter(child: _buildStats(wallet)),
               SliverToBoxAdapter(child: _buildTabBar()),
               _buildTransactionList(wallet),
@@ -202,49 +201,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                     '\$${wallet.balance.toStringAsFixed(2)}',
                     style: const TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w900, letterSpacing: -1),
                   ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      if (wallet.points > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            const Icon(Icons.stars_rounded, color: Colors.amber, size: 15),
-                            const SizedBox(width: 4),
-                            Text('${wallet.points} Points', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
-                          ]),
-                        ),
-                      const SizedBox(width: 8),
-                      StreakFlame(),
-                      const SizedBox(width: 8),
-                      Builder(builder: (ctx) {
-                        final tier = ref.watch(rewardsProvider).valueOrNull?.tier ?? 'bronze';
-                        return GestureDetector(
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TierInfoScreen())),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: tierColor(tier).withAlpha(60),
-                              border: Border.all(color: tierColor(tier).withAlpha(120)),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(mainAxisSize: MainAxisSize.min, children: [
-                              Text(tierEmoji(tier), style: const TextStyle(fontSize: 12)),
-                              const SizedBox(width: 4),
-                              Text(
-                                tier[0].toUpperCase() + tier.substring(1),
-                                style: TextStyle(color: tierColor(tier), fontSize: 11, fontWeight: FontWeight.bold),
-                              ),
-                            ]),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
                 ],
               ),
             ),
@@ -257,7 +213,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
   // ─── Quick action buttons ──────────────────────────────────────────────────
 
   Widget _buildActions(BuildContext context, WalletData wallet) {
-    final userPoints = ref.watch(rewardsProvider).valueOrNull?.balance ?? wallet.points;
     return Container(
       color: context.colors.cardBg,
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
@@ -274,7 +229,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
             if (ok && mounted) _showWithdraw(context, wallet.balance);
           }),
           _ActionBtn(icon: Icons.history_rounded,           label: 'History',     color: const Color(0xFF00695C), onTap: () { setState(() => _tab = 0); _scrollToTransactions(); }),
-          _ActionBtn(icon: Icons.currency_exchange_rounded, label: 'Convert Pts', color: const Color(0xFFF59E0B), onTap: () => _showConvertPoints(context, userPoints)),
         ],
       ),
     );

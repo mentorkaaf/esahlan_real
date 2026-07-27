@@ -162,18 +162,68 @@ class _ReferralBody extends StatelessWidget {
                 color: isDark ? Colors.white : const Color(0xFF1A1A2E))),
         const SizedBox(height: 8),
         if (referrals.isNotEmpty)
-          ...referrals.map((item) {
+          ...referrals.map((item) => Builder(builder: (ctx) {
             try {
-              return _ReferralTile(item: item, isDark: isDark);
+              final isRewarded = item['status']?.toString() == 'rewarded';
+              final name       = item['name']?.toString() ?? '?';
+              final createdAt  = item['created_at']?.toString() ?? '';
+              final rewardPts  = (item['reward_amount'] is num)
+                  ? (item['reward_amount'] as num).toInt()
+                  : int.tryParse(item['reward_amount']?.toString() ?? '') ?? 0;
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+                ),
+                child: Row(children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: const Color(0xFF07003B).withValues(alpha: 0.12),
+                    child: Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : '?',
+                      style: const TextStyle(color: Color(0xFF07003B), fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14,
+                        color: isDark ? Colors.white : const Color(0xFF1A1A2E))),
+                    if (createdAt.length >= 10)
+                      Text(createdAt.substring(0, 10),
+                          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  ])),
+                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isRewarded ? Colors.green.withValues(alpha: 0.12) : Colors.orange.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(isRewarded ? '✓ Rewarded' : '⏳ Pending',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                              color: isRewarded ? Colors.green : Colors.orange)),
+                    ),
+                    if (rewardPts > 0) ...[
+                      const SizedBox(height: 4),
+                      Text('+$rewardPts pts',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF07003B), fontWeight: FontWeight.bold)),
+                    ],
+                  ]),
+                ]),
+              );
             } catch (e) {
               return Container(
-                padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 8),
-                color: Colors.red.shade100,
-                child: Text('Error: $e', style: const TextStyle(color: Colors.red, fontSize: 12)),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
+                child: Text('Error: $e\nData: $item', style: const TextStyle(color: Colors.red, fontSize: 11)),
               );
             }
-          })
+          }))
         else
           Container(
             width: double.infinity,

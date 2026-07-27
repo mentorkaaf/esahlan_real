@@ -13,6 +13,8 @@ import '../../../wallet/presentation/screens/referral_screen.dart';
 import '../../../wallet/presentation/screens/wallet_screen.dart';
 import '../../../affiliate/affiliate_screen.dart';
 import '../../../gamification/gamification_screen.dart';
+import '../../../rewards/tier_widgets.dart';
+import '../../../rewards/rewards_provider.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const _kNavy   = Color(0xFF07003B);
@@ -516,16 +518,63 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   // ── Rewards & Referrals section ───────────────────────────────────────────────
 
   Widget _buildRewardsSection(BuildContext context, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 12),
-          child: Text('Rewards & Referrals',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : const Color(0xFF07003B))),
-        ),
-        Row(children: [
+    final rewards = ref.watch(rewardsProvider).valueOrNull;
+    final pts     = rewards?.balance ?? 0;
+    final tier    = rewards?.tier ?? 'bronze';
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Text('Rewards & Referrals',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF07003B))),
+      ),
+      const SizedBox(height: 10),
+
+      // Points / Streak / Tier chips
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(children: [
+          _chip(
+            icon: Icons.stars_rounded, iconColor: Colors.amber,
+            label: '$pts Points', bg: AppColors.primary.withValues(alpha: 0.12),
+            fg: AppColors.primary,
+          ),
+          const SizedBox(width: 8),
+          StreakFlame(),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TierInfoScreen())),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: tierColor(tier).withValues(alpha: 0.1),
+                border: Border.all(color: tierColor(tier).withValues(alpha: 0.4)),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(tierEmoji(tier), style: const TextStyle(fontSize: 13)),
+                const SizedBox(width: 4),
+                Text(tier[0].toUpperCase() + tier.substring(1),
+                    style: TextStyle(color: tierColor(tier), fontSize: 12, fontWeight: FontWeight.bold)),
+              ]),
+            ),
+          ),
+        ]),
+      ),
+      const SizedBox(height: 12),
+
+      // Tier progress card
+      const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        child: TierProgressCard(),
+      ),
+      const SizedBox(height: 12),
+
+      // Icon cards row
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(children: [
           _RewardIconCard(
             icon: Icons.people_alt_rounded,
             label: 'Referral',
@@ -554,6 +603,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _ConvertWalletScreen())),
           ),
         ]),
+      ),
+    ]);
+  }
+
+  Widget _chip({required IconData icon, required Color iconColor, required String label, required Color bg, required Color fg}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, color: iconColor, size: 14),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w700)),
       ]),
     );
   }
