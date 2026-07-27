@@ -675,6 +675,13 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::patch('/orders/{id}/status',   [$es, 'orderUpdateStatus'])->name('order.status');
             // Image Upload
             Route::post('/upload-image',          [$es, 'uploadImage'])->name('upload.image');
+            // Vendors (multivendor)
+            Route::post('/vendors/{id}/approve',           [$es, 'vendorApprove'])->name('vendor.approve');
+            Route::post('/vendors/{id}/toggle-featured',   [$es, 'vendorToggleFeatured'])->name('vendor.toggle-featured');
+            Route::patch('/vendors/{id}/commission',       [$es, 'vendorUpdateCommission'])->name('vendor.commission');
+            // Commissions
+            Route::post('/commissions/{id}/mark-paid',     [$es, 'commissionMarkPaid'])->name('commission.mark-paid');
+            Route::patch('/withdrawals/{id}',              [$es, 'withdrawalProcess'])->name('withdrawal.process');
         });
 
         // Landing Page Management

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
-import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import 'eshop_providers.dart';
 import '../../ads/services/ad_service.dart';
@@ -272,6 +271,32 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
             },
           ),
 
+          // ── Stores ───────────────────────────────────────────────
+          homeAsync.when(
+            loading: () => const SliverToBoxAdapter(child: SizedBox()),
+            error: (_, __) => const SliverToBoxAdapter(child: SizedBox()),
+            data: (home) {
+              final stores = _asList(home['stores']);
+              if (stores.isEmpty) return const SliverToBoxAdapter(child: SizedBox());
+              return SliverToBoxAdapter(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      Text('Stores', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+                      GestureDetector(
+                        onTap: () => context.push('/eshop/stores'),
+                        child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                      ),
+                    ]),
+                  ),
+                  _StoresRow(stores: stores),
+                ],
+              ));
+            },
+          ),
+
           // ── Deals of the Day ──────────────────────────────────────
           dealsAsync.when(
             loading: () => const SliverToBoxAdapter(child: SizedBox()),
@@ -360,6 +385,43 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
               if (products.isEmpty) return const SliverToBoxAdapter(child: SizedBox());
               return SliverToBoxAdapter(child: _FeaturedCarousel(
                 products: products, cartNotifier: cartNotifier, cart: cart));
+            },
+          ),
+
+          // ── Popular Products ──────────────────────────────────────
+          homeAsync.when(
+            loading: () => const SliverToBoxAdapter(child: SizedBox()),
+            error: (_, __) => const SliverToBoxAdapter(child: SizedBox()),
+            data: (home) {
+              final popular = _asList(home['popular_products']);
+              if (popular.isEmpty) return const SliverToBoxAdapter(child: SizedBox());
+              return SliverToBoxAdapter(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      Text('Most Popular', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+                      GestureDetector(
+                        onTap: () => context.push('/eshop/popular'),
+                        child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                      ),
+                    ]),
+                  ),
+                  SizedBox(height: 228, child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: popular.length,
+                    itemBuilder: (_, i) => _ProductCard(
+                      product: _asMap(popular[i]),
+                      cartNotifier: cartNotifier,
+                      cart: cart,
+                      horizontal: true,
+                    ),
+                  )),
+                ],
+              ));
             },
           ),
 
@@ -1083,6 +1145,74 @@ class _DealsOfDaySection extends StatelessWidget {
         )),
         const SizedBox(height: 4),
       ]),
+    ));
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Stores Row (horizontal)
+// ─────────────────────────────────────────────────────────────────
+class _StoresRow extends StatelessWidget {
+  final List<dynamic> stores;
+  const _StoresRow({required this.stores});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(height: 114, child: ListView.builder(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: stores.length,
+      itemBuilder: (_, i) {
+        final s = _asMap(stores[i]);
+        final isOpen = s['is_open'] == true || s['is_open'] == 1;
+        return GestureDetector(
+          onTap: () => context.push('/eshop/stores/${s['id']}'),
+          child: Container(
+            width: 100,
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              color: context.colors.cardBg,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8)],
+            ),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Stack(children: [
+                Container(
+                  width: 56, height: 56,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.divider),
+                  ),
+                  child: ClipOval(child: _netImg(s['logo'])),
+                ),
+                Positioned(bottom: 2, right: 2, child: Container(
+                  width: 12, height: 12,
+                  decoration: BoxDecoration(
+                    color: isOpen ? const Color(0xFF22C55E) : AppColors.textGrey,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                )),
+              ]),
+              const SizedBox(height: 7),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Text(s['name'] ?? '', textAlign: TextAlign.center,
+                  maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.colors.navyText)),
+              ),
+              const SizedBox(height: 3),
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Icon(Icons.star_rounded, color: Color(0xFFFFC107), size: 11),
+                const SizedBox(width: 2),
+                Text(_toD(s['rating']).toStringAsFixed(1), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textGrey)),
+              ]),
+            ]),
+          ),
+        );
+      },
     ));
   }
 }

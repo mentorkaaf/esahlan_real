@@ -104,21 +104,35 @@ select.form-control { background:#fff; }
         <span class="val" style="color:#ef4444">{{ $stats['flash_deals'] }}</span>
         <span class="lbl"><i class="fas fa-bolt"></i> Live Flash Deals</span>
     </div>
+    <div class="es-stat">
+        <span class="val" style="color:#0891b2">{{ number_format($stats['total_vendors']) }}</span>
+        <span class="lbl"><i class="fas fa-store"></i> Total Vendors</span>
+    </div>
+    <div class="es-stat">
+        <span class="val" style="color:#f59e0b">{{ number_format($stats['pending_vendors']) }}</span>
+        <span class="lbl"><i class="fas fa-clock"></i> Pending Approval</span>
+    </div>
+    <div class="es-stat">
+        <span class="val" style="color:#10b981">${{ number_format($stats['total_commissions'],2) }}</span>
+        <span class="lbl"><i class="fas fa-hand-holding-usd"></i> Total Commissions</span>
+    </div>
 </div>
 
 {{-- TABS --}}
 <div class="card" style="padding:0;overflow:hidden;">
 <div class="tab-row" style="padding:0 20px;">
     @foreach([
-        ['products',   'fa-box',        'Products'],
-        ['categories', 'fa-th-large',   'Categories'],
-        ['attributes', 'fa-sliders-h',  'Attributes'],
-        ['units',      'fa-balance-scale','Units'],
-        ['flash',      'fa-bolt',       'Flash Deals'],
-        ['deals',      'fa-fire',       'Deals of Day'],
-        ['coupons',    'fa-tag',        'Coupons'],
-        ['campaigns',  'fa-bullhorn',   'Campaigns'],
-        ['orders',     'fa-receipt',    'Orders'],
+        ['products',    'fa-box',              'Products'],
+        ['categories',  'fa-th-large',         'Categories'],
+        ['attributes',  'fa-sliders-h',        'Attributes'],
+        ['units',       'fa-balance-scale',    'Units'],
+        ['flash',       'fa-bolt',             'Flash Deals'],
+        ['deals',       'fa-fire',             'Deals of Day'],
+        ['coupons',     'fa-tag',              'Coupons'],
+        ['campaigns',   'fa-bullhorn',         'Campaigns'],
+        ['orders',      'fa-receipt',          'Orders'],
+        ['vendors',     'fa-store',            'Vendors'],
+        ['commissions', 'fa-hand-holding-usd', 'Commissions'],
     ] as [$key,$icon,$lbl])
     <button class="tab-btn {{ $key==='products'?'active':'' }}" id="tab-{{ $key }}" onclick="showTab('{{ $key }}')">
         <i class="fas {{ $icon }}"></i> {{ $lbl }}
@@ -616,8 +630,144 @@ select.form-control { background:#fff; }
     @endif
 </div>
 
+{{-- ═══════════════════════════ VENDORS TAB ═══════════════════════════ --}}
+<div class="tab-pane" id="pane-vendors">
+    <div class="section-bar">
+        <h4><i class="fas fa-store" style="color:#0891b2"></i> Vendors ({{ $vendors->total() }})</h4>
+    </div>
+    @if($vendors->isEmpty())
+    <div class="empty-state"><i class="fas fa-store"></i><br>No vendors registered yet.</div>
+    @else
+    <div style="overflow-x:auto;">
+    <table class="es-table">
+        <thead><tr><th>Vendor</th><th>Status</th><th>Commission</th><th>Products</th><th>Orders</th><th>Rating</th><th>Joined</th><th>Actions</th></tr></thead>
+        <tbody>
+        @foreach($vendors as $v)
+        <tr>
+            <td>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <img src="{{ cdn_url($v->logo) ?? 'https://ui-avatars.com/api/?name='.urlencode($v->name).'&size=40&background=eef2ff&color=3730a3' }}" style="width:38px;height:38px;border-radius:8px;object-fit:cover;background:#f3f4f6;">
+                    <div>
+                        <div style="font-weight:700">{{ $v->name }}</div>
+                        <div style="font-size:11px;color:#aaa">{{ $v->email }}</div>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <span class="{{ $v->is_approved ? 'badge-active' : 'badge-inactive' }}">{{ $v->is_approved ? 'Approved' : 'Pending' }}</span>
+                @if($v->is_featured) <span class="badge-featured" style="margin-left:4px">★ Featured</span> @endif
+            </td>
+            <td>
+                <span class="{{ $v->commission_type==='percentage' ? 'badge-pct' : 'badge-fixed' }}">
+                    {{ $v->commission_type==='percentage' ? $v->commission_value.'%' : '$'.$v->commission_value }}
+                </span>
+            </td>
+            <td style="font-weight:700">{{ $v->product_count }}</td>
+            <td style="font-weight:700">{{ $v->order_count }}</td>
+            <td>
+                <span style="color:#f59e0b;font-weight:700">★ {{ number_format($v->rating,1) }}</span>
+                <div style="font-size:10px;color:#aaa">({{ $v->review_count }})</div>
+            </td>
+            <td style="font-size:12px;color:#666">{{ \Carbon\Carbon::parse($v->created_at)->format('d M Y') }}</td>
+            <td style="white-space:nowrap;">
+                <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                    {{-- Approve / Reject --}}
+                    <form method="POST" action="{{ route('admin.eshop.vendor.approve', $v->id) }}" style="display:inline">
+                        @csrf
+                        <input type="hidden" name="is_approved" value="{{ $v->is_approved ? '0' : '1' }}">
+                        <button class="btn-xs {{ $v->is_approved ? 'btn-del' : 'btn-tog' }}" type="submit">{{ $v->is_approved ? 'Reject' : 'Approve' }}</button>
+                    </form>
+                    {{-- Toggle Featured --}}
+                    <form method="POST" action="{{ route('admin.eshop.vendor.toggle-featured', $v->id) }}" style="display:inline">
+                        @csrf
+                        <button class="btn-xs btn-warn" type="submit">{{ $v->is_featured ? 'Unfeature' : 'Feature' }}</button>
+                    </form>
+                    {{-- Commission --}}
+                    <button class="btn-xs btn-edit" onclick="editVendorCommission({{ $v->id }}, '{{ $v->commission_type }}', {{ $v->commission_value ?? 0 }})">Commission</button>
+                </div>
+            </td>
+        </tr>
+        @endforeach
+        </tbody>
+    </table>
+    </div>
+    <div class="pagination-wrap">{{ $vendors->links() }}</div>
+    @endif
+</div>
+
+{{-- ═══════════════════════════ COMMISSIONS TAB ═══════════════════════════ --}}
+<div class="tab-pane" id="pane-commissions">
+    <div class="section-bar">
+        <h4><i class="fas fa-hand-holding-usd" style="color:#10b981"></i> Commissions</h4>
+    </div>
+    @if($commissions->isEmpty())
+    <div class="empty-state"><i class="fas fa-hand-holding-usd"></i><br>No commissions yet.</div>
+    @else
+    <div style="overflow-x:auto;">
+    <table class="es-table">
+        <thead><tr><th>Order #</th><th>Vendor</th><th>Order Total</th><th>Rate</th><th>Commission</th><th>Vendor Earning</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
+        <tbody>
+        @foreach($commissions as $c)
+        <tr>
+            <td><code style="font-weight:700;font-size:12px;">{{ $c->order_number }}</code></td>
+            <td style="font-weight:600">{{ $c->vendor_name }}</td>
+            <td>${{ number_format($c->total_amount,2) }}</td>
+            <td><span class="badge-pct">{{ $c->commission_rate }}%</span></td>
+            <td style="font-weight:800;color:#ef4444">${{ number_format($c->commission_amount,2) }}</td>
+            <td style="font-weight:800;color:#10b981">${{ number_format($c->vendor_earning,2) }}</td>
+            <td>
+                <span class="{{ $c->status==='paid' ? 'badge-active' : 'badge-inactive' }}">
+                    {{ ucfirst($c->status) }}
+                </span>
+                @if($c->paid_at)<div style="font-size:10px;color:#aaa">{{ \Carbon\Carbon::parse($c->paid_at)->format('d M Y') }}</div>@endif
+            </td>
+            <td style="font-size:12px;color:#666">{{ \Carbon\Carbon::parse($c->created_at)->format('d M Y') }}</td>
+            <td>
+                @if($c->status !== 'paid')
+                <form method="POST" action="{{ route('admin.eshop.commission.mark-paid', $c->id) }}" style="display:inline">
+                    @csrf
+                    <button class="btn-xs btn-tog" type="submit">Mark Paid</button>
+                </form>
+                @else
+                <span style="font-size:11px;color:#aaa">Paid</span>
+                @endif
+            </td>
+        </tr>
+        @endforeach
+        </tbody>
+    </table>
+    </div>
+    <div class="pagination-wrap">{{ $commissions->links() }}</div>
+    @endif
+</div>
+
 </div>{{-- /card body --}}
 </div>{{-- /card --}}
+
+{{-- Vendor Commission Modal --}}
+<div class="modal-backdrop" id="modal-vendor-commission">
+<div class="modal-box" style="max-width:380px;">
+    <h3><i class="fas fa-hand-holding-usd" style="color:#10b981"></i> Update Commission</h3>
+    <form method="POST" id="form-vendor-commission">
+        @csrf @method('PATCH')
+        <div class="form-group" style="margin-bottom:14px;">
+            <label>Commission Type</label>
+            <select name="commission_type" id="vc-type" class="form-control">
+                <option value="percentage">Percentage (%)</option>
+                <option value="fixed">Fixed Amount ($)</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:20px;">
+            <label>Commission Value</label>
+            <input name="commission_value" id="vc-value" type="number" step="0.01" min="0" max="100" class="form-control" required>
+        </div>
+        <div class="form-actions">
+            <button type="button" class="btn-cancel" onclick="closeModal('modal-vendor-commission')">Cancel</button>
+            <button type="submit" class="btn-save">Update</button>
+        </div>
+    </form>
+</div>
+</div>
 
 {{-- ═══════════════════ MODALS ═══════════════════ --}}
 
@@ -1392,5 +1542,13 @@ function updateCountdowns() {
 }
 setInterval(updateCountdowns, 1000);
 updateCountdowns();
+
+// Vendor commission modal
+function editVendorCommission(id, type, value) {
+    document.getElementById('form-vendor-commission').action = '/admin/eshop/vendors/'+id+'/commission';
+    document.getElementById('vc-type').value = type;
+    document.getElementById('vc-value').value = value;
+    openModal('modal-vendor-commission');
+}
 </script>
 @endsection

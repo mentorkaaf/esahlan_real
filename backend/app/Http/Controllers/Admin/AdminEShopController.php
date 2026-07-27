@@ -146,9 +146,72 @@ class AdminEShopController extends Controller
             ->orderByDesc('orders.created_at')
             ->paginate(20);
 
+        // ── Multivendor: Vendors ──────────────────────────────────────────
+        $vendors = DB::table('vendors')
+            ->where('module_id', $moduleId)
+            ->whereNull('deleted_at')
+            ->select([
+                'id', 'name', 'email', 'phone', 'logo', 'status',
+                'is_approved', 'is_featured', 'is_open',
+                'commission_type', 'commission_value',
+                'rating', 'review_count', 'created_at',
+            ])
+            ->orderByDesc('created_at')
+            ->paginate(25, ['*'], 'vendor_page');
+
+        // Enrich vendors with product + order counts
+        $vendorIds = $vendors->pluck('id')->toArray();
+        $vendorProductCounts = DB::table('products')
+            ->whereIn('vendor_id', $vendorIds)
+            ->select('vendor_id', DB::raw('COUNT(*) as cnt'))
+            ->groupBy('vendor_id')
+            ->pluck('cnt', 'vendor_id');
+        $vendorOrderCounts = DB::table('order_items')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->join('products', 'order_items.product_id', '=', 'products.id')
+            ->whereIn('products.vendor_id', $vendorIds)
+            ->where('orders.module_slug', 'eshop')
+            ->select('products.vendor_id', DB::raw('COUNT(DISTINCT orders.id) as cnt'))
+            ->groupBy('products.vendor_id')
+            ->pluck('cnt', 'vendor_id');
+        $vendors->getCollection()->transform(fn($v) => (object)array_merge((array)$v, [
+            'product_count' => $vendorProductCounts[$v->id] ?? 0,
+            'order_count'   => $vendorOrderCounts[$v->id] ?? 0,
+        ]));
+
+        // Vendor stats for header
+        $stats['total_vendors']   = DB::table('vendors')->where('module_id', $moduleId)->whereNull('deleted_at')->count();
+        $stats['pending_vendors'] = DB::table('vendors')->where('module_id', $moduleId)->whereNull('deleted_at')->where('is_approved', false)->count();
+
+        // ── Multivendor: Commissions ──────────────────────────────────────
+        $commissions = DB::table('commissions')
+            ->join('orders', 'commissions.order_id', '=', 'orders.id')
+            ->join('vendors', 'commissions.vendor_id', '=', 'vendors.id')
+            ->where('orders.module_slug', 'eshop')
+            ->select([
+                'commissions.id', 'commissions.order_id', 'commissions.vendor_id',
+                'commissions.commission_rate', 'commissions.commission_amount',
+                'commissions.vendor_earning', 'commissions.status',
+                'commissions.paid_at', 'commissions.created_at',
+                'orders.order_number', 'orders.total_amount',
+                'vendors.name as vendor_name',
+            ])
+            ->orderByDesc('commissions.created_at')
+            ->paginate(20, ['*'], 'comm_page');
+
+        $stats['total_commissions']  = DB::table('commissions')
+            ->join('orders', 'commissions.order_id', '=', 'orders.id')
+            ->where('orders.module_slug', 'eshop')
+            ->sum('commissions.commission_amount');
+        $stats['pending_payouts'] = DB::table('withdrawal_requests')
+            ->where('status', 'pending')
+            ->where('owner_type', 'App\\Models\\Vendor')
+            ->count();
+
         return view('admin.eshop.index', compact(
             'stats', 'products', 'categories', 'attributes', 'units',
-            'flashDeals', 'dealsOfDay', 'coupons', 'campaigns', 'orders', 'moduleId'
+            'flashDeals', 'dealsOfDay', 'coupons', 'campaigns', 'orders',
+            'vendors', 'commissions', 'moduleId'
         ));
     }
 
@@ -688,5 +751,64 @@ class AdminEShopController extends Controller
         $request->validate(['image' => 'required|image|max:10240']);
         $url = $this->storeUpload($request->file('image'), 'eshop/uploads');
         return response()->json(['url' => $url]);
+    }
+
+    // ── Multivendor: Vendor Actions ───────────────────────────────────────
+
+    public function vendorApprove(Request $request, int $id)
+    {
+        $approved = $request->boolean('is_approved');
+        DB::table('vendors')->where('id', $id)->update([
+            'is_approved' => $approved,
+            'status'      => $approved ? 'active' : 'inactive',
+            'updated_at'  => now(),
+        ]);
+        return back()->with('success', $approved ? 'Vendor approved.' : 'Vendor rejected.');
+    }
+
+    public function vendorToggleFeatured(int $id)
+    {
+        $vendor = DB::table('vendors')->find($id);
+        if (!$vendor) return back()->with('error', 'Vendor not found.');
+        DB::table('vendors')->where('id', $id)->update([
+            'is_featured' => !$vendor->is_featured,
+            'updated_at'  => now(),
+        ]);
+        return back()->with('success', 'Vendor featured status updated.');
+    }
+
+    public function vendorUpdateCommission(Request $request, int $id)
+    {
+        $data = $request->validate([
+            'commission_type'  => 'required|in:percentage,fixed',
+            'commission_value' => 'required|numeric|min:0|max:100',
+        ]);
+        DB::table('vendors')->where('id', $id)->update(array_merge($data, ['updated_at' => now()]));
+        return back()->with('success', 'Commission updated.');
+    }
+
+    // ── Multivendor: Commission Actions ──────────────────────────────────
+
+    public function commissionMarkPaid(int $id)
+    {
+        DB::table('commissions')->where('id', $id)->update([
+            'status'  => 'paid',
+            'paid_at' => now(),
+            'updated_at' => now(),
+        ]);
+        return back()->with('success', 'Commission marked as paid.');
+    }
+
+    public function withdrawalProcess(Request $request, int $id)
+    {
+        $data = $request->validate([
+            'status'     => 'required|in:approved,rejected',
+            'admin_note' => 'nullable|string|max:500',
+        ]);
+        DB::table('withdrawal_requests')->where('id', $id)->update(array_merge($data, [
+            'processed_at' => now(),
+            'updated_at'   => now(),
+        ]));
+        return back()->with('success', 'Withdrawal request processed.');
     }
 }
