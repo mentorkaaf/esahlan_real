@@ -4,6 +4,7 @@ import '../../data/repositories/auth_repository.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../../../core/router/app_router.dart' show authChangeNotifierProvider;
 import '../../../../core/services/location_service.dart';
+import '../../../rewards/rewards_provider.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) => AuthRepository());
 
@@ -107,6 +108,7 @@ final logoutProvider = Provider<Future<void> Function()>((ref) {
     LocationService.stopTracking();
     await ref.read(authRepositoryProvider).logout();
     ref.invalidate(authStateProvider);
+    ref.invalidate(rewardsProvider);
     // Trigger GoRouter redirect refresh without recreating the router
     // The notifier is read lazily — only notifies if router is already built
     try {

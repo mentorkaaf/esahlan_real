@@ -14,6 +14,8 @@ import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../features/ads/widgets/banner_ad_strip.dart';
 import '../../../../features/ads/widgets/card_ad_strip.dart';
+import '../../../notifications/notification_screen.dart';
+import '../../../notifications/notification_provider.dart';
 
 // ── eSahlan Brand Gradient — Navy dominant, subtle orange touch at corner ──────
 // All service cards share ONE unified gradient: deep navy → very faint orange
@@ -171,23 +173,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                         ref.read(themeModeProvider.notifier).toggle(),
                     tooltip: isDark ? 'Light mode' : 'Dark mode',
                   ),
-                  Stack(
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.notifications_outlined,
-                            color: cs.onSurface, size: 26),
-                        onPressed: () {},
-                      ),
-                      Positioned(
-                        top: 8, right: 8,
-                        child: Container(
-                          width: 8, height: 8,
-                          decoration: const BoxDecoration(
-                              color: AppColors.primary, shape: BoxShape.circle),
-                        ),
-                      ),
-                    ],
-                  ),
+                  _NotifBell(cs: cs),
                 ],
               ),
             ),
@@ -758,6 +744,42 @@ class _FallbackHeroBanner extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ── Notification bell with unread badge ───────────────────────────────────────
+
+class _NotifBell extends ConsumerWidget {
+  final ColorScheme cs;
+  const _NotifBell({required this.cs});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
+    return Stack(children: [
+      IconButton(
+        icon: Icon(Icons.notifications_outlined, color: cs.onSurface, size: 26),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const NotificationScreen()),
+        ).then((_) => ref.invalidate(unreadNotificationCountProvider)),
+      ),
+      if (count > 0)
+        Positioned(
+          top: 8, right: 6,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              count > 99 ? '99+' : '$count',
+              style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+    ]);
   }
 }
 

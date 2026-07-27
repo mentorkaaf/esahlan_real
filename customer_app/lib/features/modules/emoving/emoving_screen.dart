@@ -12,6 +12,7 @@ import '../../payment/payment_method_section.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
+import '../../rewards/redeem_points_bar.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DESIGN CONSTANTS
@@ -1572,6 +1573,8 @@ class _BookingFlowScreenState extends ConsumerState<_BookingFlowScreen> {
   bool _submitting      = false;
   Map<String, dynamic>? _confirmedOrder;
   Map<String, dynamic>? _finalBreakdown;
+  int _pointsToRedeem   = 0;
+  double _pointsDiscount = 0.0;
 
   String get _typeSlug =>
       (widget.moveType['id'] ?? widget.moveType['slug'] ?? widget.moveType['type'] ?? 'house')
@@ -1606,7 +1609,7 @@ class _BookingFlowScreenState extends ConsumerState<_BookingFlowScreen> {
 
   Future<void> _submitOrder() async {
     if (_paymentMethod == 'mobile_pay' || _paymentMethod == 'waafi_pay') {
-      final total = (_finalBreakdown?['total'] as num?)?.toDouble() ?? 0;
+      final total = ((_finalBreakdown?['total'] as num?)?.toDouble() ?? 0) - _pointsDiscount;
       if (_paymentMethod == 'mobile_pay') {
         final result = await showMobilePaySheet(context, amount: total, description: 'eMoving Order');
         if (result?.success != true) return;
@@ -1642,6 +1645,7 @@ class _BookingFlowScreenState extends ConsumerState<_BookingFlowScreen> {
         'payment_method': _paymentMethod,
         'note': _notes,
         if (_waafiReference != null) 'payment_reference': _waafiReference,
+        if (_pointsToRedeem > 0) 'points_to_redeem': _pointsToRedeem,
       };
       final res = await _svc.placeMovingOrder(body);
       final movingData = res['data'] ?? res;
@@ -1731,6 +1735,7 @@ class _BookingFlowScreenState extends ConsumerState<_BookingFlowScreen> {
           submitting:     _submitting,
           onConfirm:      _submitOrder,
           onBack:         () => setState(() => _step = 0),
+          onPointsChanged: (pts, disc) => setState(() { _pointsToRedeem = pts; _pointsDiscount = disc; }),
         );
       case 2:
         return _SuccessScreen(
@@ -1985,6 +1990,7 @@ class _ConfirmStep extends ConsumerWidget {
   final bool submitting;
   final VoidCallback onConfirm;
   final VoidCallback onBack;
+  final void Function(int pts, double disc)? onPointsChanged;
 
   const _ConfirmStep({
     super.key,
@@ -2001,6 +2007,7 @@ class _ConfirmStep extends ConsumerWidget {
     required this.submitting,
     required this.onConfirm,
     required this.onBack,
+    this.onPointsChanged,
   });
 
   @override
@@ -2141,6 +2148,13 @@ class _ConfirmStep extends ConsumerWidget {
                 ],
               ],
             ),
+          ),
+        ),
+        if (onPointsChanged != null) Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: RedeemPointsBar(
+            orderTotal: double.tryParse(priceBreakdown?['total']?.toString() ?? '0') ?? 0,
+            onChanged: onPointsChanged!,
           ),
         ),
         _BottomCTA(

@@ -16,6 +16,7 @@ import '../../auth/data/models/district_model.dart';
 import '../../auth/data/repositories/district_repository.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import 'eshop_providers.dart';
+import '../../rewards/redeem_points_bar.dart';
 
 final _eshopDistrictsProvider = FutureProvider<List<DistrictModel>>(
   (_) => DistrictRepository().getDistricts(),
@@ -37,6 +38,8 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
   String? _mobileProofToken;
   bool _placing = false;
   bool _districtInitialized = false;
+  int    _pointsToRedeem  = 0;
+  double _pointsDiscount  = 0.0;
 
   static const double _deliveryFee = AppConstants.eshopDeliveryFee;
   final _svc = ModuleApiService.create();
@@ -151,6 +154,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
         'payment_method': _paymentMethod,
         if (coupon.isValid && coupon.code != null) 'coupon_code': coupon.code,
         if (_waafiReference != null) 'payment_reference': _waafiReference,
+        if (_pointsToRedeem > 0) 'points_to_redeem': _pointsToRedeem,
       };
 
       final orderRes = await _svc.placeShopOrderV2(body);
@@ -220,7 +224,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
     final coupon   = ref.watch(eshopCouponProvider);
     final subtotal = cart.fold(0.0, (s, c) => s + c.lineTotal);
     final discount = coupon.calculateDiscount(subtotal);
-    final total    = subtotal - discount + _deliveryFee;
+    final total    = subtotal - discount + _deliveryFee - _pointsDiscount;
 
     return Scaffold(
       appBar: AppBar(
@@ -279,6 +283,8 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
           _row('Subtotal', '\$${subtotal.toStringAsFixed(2)}'),
           if (coupon.isValid && discount > 0)
             _row('Coupon (${coupon.code})', '-\$${discount.toStringAsFixed(2)}', valueColor: AppColors.success),
+          if (_pointsDiscount > 0)
+            _row('Points ($_pointsToRedeem pts)', '-\$${_pointsDiscount.toStringAsFixed(2)}', valueColor: const Color(0xFFF59E0B)),
           _row('Delivery Fee', '\$${_deliveryFee.toStringAsFixed(2)}'),
           const Divider(height: 16),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -288,6 +294,12 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
         ]),
 
         const SizedBox(height: 16),
+
+        // ── Points Redeem ─────────────────────────────────────────
+        RedeemPointsBar(
+          orderTotal: subtotal - discount + _deliveryFee,
+          onChanged: (pts, disc) => setState(() { _pointsToRedeem = pts; _pointsDiscount = disc; }),
+        ),
 
         // ── Payment Method ────────────────────────────────────────
         _section('Payment Method', Icons.payment_outlined, children: [

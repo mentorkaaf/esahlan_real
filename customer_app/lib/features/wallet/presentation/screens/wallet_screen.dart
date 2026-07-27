@@ -11,11 +11,9 @@ import '../../../payment/mobile_pay_sheet.dart';
 import '../providers/wallet_provider.dart';
 import '../../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import 'referral_screen.dart';
 import '../../../rewards/tier_widgets.dart';
-import '../../../rewards/rewards_provider.dart';
-import '../../../affiliate/affiliate_screen.dart';
 import '../../../gamification/gamification_screen.dart';
+import '../../../rewards/rewards_provider.dart';
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -221,7 +219,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                           ]),
                         ),
                       const SizedBox(width: 8),
-                      const StreakFlame(),
+                      StreakFlame(),
                       const SizedBox(width: 8),
                       Builder(builder: (ctx) {
                         final tier = ref.watch(rewardsProvider).valueOrNull?.tier ?? 'bronze';
@@ -259,26 +257,24 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
   // ─── Quick action buttons ──────────────────────────────────────────────────
 
   Widget _buildActions(BuildContext context, WalletData wallet) {
+    final userPoints = ref.watch(rewardsProvider).valueOrNull?.balance ?? wallet.points;
     return Container(
       color: context.colors.cardBg,
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-      child: Wrap(
-        spacing: 0,
-        runSpacing: 8,
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _ActionBtn(icon: Icons.add_circle_rounded,      label: 'Top Up',   color: AppColors.primary,       onTap: () => _showTopUp(context)),
-          _ActionBtn(icon: Icons.send_rounded,            label: 'Send',     color: const Color(0xFF7B1FA2), onTap: () async {
+          _ActionBtn(icon: Icons.add_circle_rounded,        label: 'Top Up',      color: AppColors.primary,       onTap: () => _showTopUp(context)),
+          _ActionBtn(icon: Icons.send_rounded,              label: 'Send',        color: const Color(0xFF7B1FA2), onTap: () async {
             final ok = await showWalletPinDialog(context);
             if (ok && mounted) _showSend(context, wallet.balance);
           }),
-          _ActionBtn(icon: Icons.arrow_circle_up_rounded, label: 'Withdraw', color: const Color(0xFFC62828), onTap: () async {
+          _ActionBtn(icon: Icons.arrow_circle_up_rounded,  label: 'Withdraw',    color: const Color(0xFFC62828), onTap: () async {
             final ok = await showWalletPinDialog(context);
             if (ok && mounted) _showWithdraw(context, wallet.balance);
           }),
-          _ActionBtn(icon: Icons.history_rounded,         label: 'History',  color: const Color(0xFF00695C), onTap: () { setState(() => _tab = 0); _scrollToTransactions(); }),
-          _ActionBtn(icon: Icons.people_alt_rounded,      label: 'Referral', color: const Color(0xFF6A1B9A), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralScreen()))),
-          _ActionBtn(icon: Icons.handshake_rounded,       label: 'Affiliate',   color: const Color(0xFF00796B), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AffiliateScreen()))),
-          _ActionBtn(icon: Icons.military_tech_rounded,   label: 'Achievements', color: const Color(0xFFE65100), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GamificationScreen()))),
+          _ActionBtn(icon: Icons.history_rounded,           label: 'History',     color: const Color(0xFF00695C), onTap: () { setState(() => _tab = 0); _scrollToTransactions(); }),
+          _ActionBtn(icon: Icons.currency_exchange_rounded, label: 'Convert Pts', color: const Color(0xFFF59E0B), onTap: () => _showConvertPoints(context, userPoints)),
         ],
       ),
     );
@@ -629,6 +625,109 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
+              ),
+            ),
+          ]),
+        );
+      }),
+    );
+  }
+
+  // ─── Convert Points to Wallet ─────────────────────────────────────────────
+
+  void _showConvertPoints(BuildContext context, int pointsBalance) {
+    final svc = ModuleApiService.create();
+    final rewards = ref.read(rewardsProvider).valueOrNull;
+    final ptsToDollar = rewards?.pointsToDollar ?? 100;
+    const minPts = 500;
+
+    int ptsToRedeem = 0;
+    bool converting = false;
+    String? error;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, ss) {
+        final dollarValue = ptsToRedeem / ptsToDollar;
+        return Container(
+          padding: EdgeInsets.fromLTRB(20, 24, 20, MediaQuery.of(ctx).viewInsets.bottom + 28),
+          decoration: BoxDecoration(
+            color: context.colors.cardBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(width: 40, height: 40,
+                decoration: BoxDecoration(color: const Color(0xFFF59E0B).withOpacity(0.12), shape: BoxShape.circle),
+                child: const Icon(Icons.currency_exchange_rounded, color: Color(0xFFF59E0B), size: 22)),
+              const SizedBox(width: 12),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Convert Points to Wallet', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+                Text('$ptsToDollar pts = \$1.00  •  Min $minPts pts', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
+              ]),
+            ]),
+            const SizedBox(height: 20),
+            Text('Available: $pointsBalance pts', style: TextStyle(fontSize: 13, color: context.colors.mutedText)),
+            const SizedBox(height: 8),
+            TextField(
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                hintText: 'Enter points (min $minPts)',
+                suffixText: 'pts',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true, fillColor: context.colors.inputFill,
+              ),
+              onChanged: (v) => ss(() {
+                ptsToRedeem = int.tryParse(v) ?? 0;
+                error = null;
+              }),
+            ),
+            if (ptsToRedeem > 0) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(color: const Color(0xFFF59E0B).withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text('You will receive:', style: TextStyle(fontSize: 13, color: context.colors.mutedText)),
+                  Text('\$${dollarValue.toStringAsFixed(2)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFFF59E0B))),
+                ]),
+              ),
+            ],
+            if (error != null) ...[
+              const SizedBox(height: 8),
+              Text(error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+            ],
+            const SizedBox(height: 20),
+            SizedBox(width: double.infinity,
+              child: ElevatedButton(
+                onPressed: converting || ptsToRedeem < minPts || ptsToRedeem > pointsBalance ? null : () async {
+                  ss(() { converting = true; error = null; });
+                  try {
+                    await svc.redeemPointsToWallet(ptsToRedeem);
+                    ref.invalidate(walletProvider);
+                    ref.invalidate(rewardsProvider);
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text('Successfully converted $ptsToRedeem pts to \$${dollarValue.toStringAsFixed(2)}!'),
+                        backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
+                      ));
+                    }
+                  } catch (e) {
+                    ss(() { converting = false; error = e.toString().replaceAll('Exception: ', ''); });
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: converting
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Convert to Wallet', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
               ),
             ),
           ]),

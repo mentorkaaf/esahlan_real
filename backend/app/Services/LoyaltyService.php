@@ -155,18 +155,11 @@ class LoyaltyService
             $orderId
         );
 
-        // Push notification
-        try {
-            $user = DB::table('users')->where('id', $order->user_id)->first();
-            if ($user?->fcm_token) {
-                \App\Services\FcmService::send(
-                    $user->fcm_token,
-                    '🌟 Points Earned!',
-                    "You earned {$pts} eSahlan Points for order #{$order->order_number}",
-                    ['type' => 'points_earned', 'points' => $pts]
-                );
-            }
-        } catch (\Throwable) {}
+        RewardNotificationService::pointsEarned(
+            $order->user_id,
+            $pts,
+            "order #{$order->order_number}"
+        );
     }
 
     /**

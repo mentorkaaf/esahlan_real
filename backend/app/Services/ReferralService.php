@@ -67,6 +67,10 @@ class ReferralService
             'reward_amount' => $l1Total,
             'rewarded_at' => now(),
         ]);
+
+        // Notify the referrer
+        $friend = DB::table('users')->where('id', $userId)->value('name') ?? 'Your friend';
+        RewardNotificationService::referralRewarded($referral->referrer_id, $friend, $l1Total);
     }
 
     public static function getReferralStats(int $userId): array

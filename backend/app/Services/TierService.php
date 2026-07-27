@@ -84,18 +84,10 @@ class TierService
 
         DB::table('users')->where('id', $userId)->update(['tier' => $newTier]);
 
-        // Push notification
-        try {
-            if ($user->fcm_token) {
-                $label = ucfirst($newTier);
-                \App\Services\FcmService::send(
-                    $user->fcm_token,
-                    "🏆 You reached {$label} tier!",
-                    "Congratulations! You're now a {$label} member. Enjoy better rewards!",
-                    ['type' => 'tier_upgrade', 'tier' => $newTier]
-                );
-            }
-        } catch (\Throwable) {}
+        // Award tier badges
+        try { \App\Services\GamificationService::checkAllBadges($userId); } catch (\Throwable) {}
+
+        RewardNotificationService::tierUpgrade($userId, $user->tier ?? 'bronze', $newTier);
     }
 
     /** All tier thresholds + bonus info for display/API */

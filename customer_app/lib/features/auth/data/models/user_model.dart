@@ -12,6 +12,7 @@ class UserModel {
   final String status;
   final String? referralCode;
   final int loyaltyPoints;
+  final String tier;
   final String preferredLanguage;
   final int? districtId;
   final String? districtName;
@@ -30,6 +31,7 @@ class UserModel {
     required this.status,
     this.referralCode,
     this.loyaltyPoints = 0,
+    this.tier = 'bronze',
     this.preferredLanguage = 'so',
     this.districtId,
     this.districtName,
@@ -51,7 +53,8 @@ class UserModel {
       roleName:          role?['name'] as String?,
       status:            json['status'] as String? ?? 'active',
       referralCode:      json['referral_code'] as String?,
-      loyaltyPoints:     json['loyalty_points'] as int? ?? 0,
+      loyaltyPoints:     json['points_balance'] as int? ?? json['loyalty_points'] as int? ?? 0,
+      tier:              json['tier'] as String? ?? 'bronze',
       preferredLanguage: json['preferred_language'] as String? ?? 'so',
       districtId:        json['district_id'] as int?,
       districtName:      district?['name'] as String?,
@@ -63,7 +66,7 @@ class UserModel {
   Map<String, dynamic> toJson() => {
     'id': id, 'uuid': uuid, 'name': name, 'email': email,
     'phone': phone, 'avatar': avatar, 'status': status,
-    'referral_code': referralCode, 'loyalty_points': loyaltyPoints,
+    'referral_code': referralCode, 'points_balance': loyaltyPoints, 'tier': tier,
     'preferred_language': preferredLanguage,
     'district_id': districtId,
     'role': roleSlug != null ? {'slug': roleSlug, 'name': roleName} : null,
@@ -86,7 +89,7 @@ class UserModel {
         email: email ?? this.email,
         avatar: avatar ?? this.avatar,
         roleSlug: roleSlug, roleName: roleName,
-        referralCode: referralCode, loyaltyPoints: loyaltyPoints,
+        referralCode: referralCode, loyaltyPoints: loyaltyPoints, tier: tier,
         preferredLanguage: preferredLanguage ?? this.preferredLanguage,
         districtId: districtId, districtName: districtName,
         districtLat: districtLat, districtLng: districtLng,

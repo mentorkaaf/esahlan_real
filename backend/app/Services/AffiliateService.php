@@ -129,18 +129,11 @@ class AffiliateService
             $affiliate->id
         );
 
-        // Push notification
-        try {
-            $affUser = DB::table('users')->where('id', $affiliate->user_id)->first();
-            if ($affUser?->fcm_token) {
-                \App\Services\FcmService::send(
-                    $affUser->fcm_token,
-                    '💰 Affiliate Commission!',
-                    "You earned {$commissionPts} pts from an order by your referral.",
-                    ['type' => 'affiliate_commission', 'pts' => $commissionPts]
-                );
-            }
-        } catch (\Throwable) {}
+        RewardNotificationService::affiliateCommission(
+            $affiliate->user_id,
+            $commissionPts,
+            round($orderAmount, 2)
+        );
     }
 
     // ── Payout request ────────────────────────────────────────────────────────

@@ -9,6 +9,10 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../features/auth/data/models/user_model.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
+import '../../../wallet/presentation/screens/referral_screen.dart';
+import '../../../wallet/presentation/screens/wallet_screen.dart';
+import '../../../affiliate/affiliate_screen.dart';
+import '../../../gamification/gamification_screen.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const _kNavy   = Color(0xFF07003B);
@@ -215,6 +219,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 _buildReferralCard(context, user!),
                 const SizedBox(height: 12),
               ],
+              _buildRewardsSection(context, isDark),
+              const SizedBox(height: 12),
               _buildAccountSection(context, user, isDark),
               const SizedBox(height: 12),
               _buildPreferencesSection(context, settings, isDark),
@@ -503,6 +509,51 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           )).toList(),
         ),
+      ]),
+    );
+  }
+
+  // ── Rewards & Referrals section ───────────────────────────────────────────────
+
+  Widget _buildRewardsSection(BuildContext context, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 12),
+          child: Text('Rewards & Referrals',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : const Color(0xFF07003B))),
+        ),
+        Row(children: [
+          _RewardIconCard(
+            icon: Icons.people_alt_rounded,
+            label: 'Referral',
+            color: const Color(0xFF7B1FA2),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralScreen())),
+          ),
+          const SizedBox(width: 12),
+          _RewardIconCard(
+            icon: Icons.handshake_rounded,
+            label: 'Affiliate',
+            color: const Color(0xFF00897B),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AffiliateScreen())),
+          ),
+          const SizedBox(width: 12),
+          _RewardIconCard(
+            icon: Icons.military_tech_rounded,
+            label: 'Achievements',
+            color: const Color(0xFFFF8A00),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GamificationScreen())),
+          ),
+          const SizedBox(width: 12),
+          _RewardIconCard(
+            icon: Icons.currency_exchange_rounded,
+            label: 'Convert\nWallet',
+            color: const Color(0xFF1565C0),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _ConvertWalletScreen())),
+          ),
+        ]),
       ]),
     );
   }
@@ -967,6 +1018,47 @@ class _EditSheet extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _RewardIconCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _RewardIconCard({required this.icon, required this.label, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, color: Colors.white, size: 28),
+            const SizedBox(height: 6),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700, height: 1.2)),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _ConvertWalletScreen extends StatelessWidget {
+  const _ConvertWalletScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const WalletScreen();
   }
 }
 

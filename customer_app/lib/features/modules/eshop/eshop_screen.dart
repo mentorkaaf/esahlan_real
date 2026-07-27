@@ -9,6 +9,17 @@ import '../../../core/widgets/network_image_widget.dart';
 import 'eshop_providers.dart';
 import '../../ads/services/ad_service.dart';
 
+Widget _errorSliver(Object err) => SliverToBoxAdapter(
+  child: Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: Row(children: [
+      const Icon(Icons.error_outline, color: AppColors.error, size: 16),
+      const SizedBox(width: 8),
+      Expanded(child: Text(err.toString(), style: const TextStyle(color: AppColors.error, fontSize: 12))),
+    ]),
+  ),
+);
+
 // ─────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────
@@ -187,7 +198,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: _shimmer(h: 180, r: 16),
             )),
-            error: (_, __) => const SliverToBoxAdapter(child: SizedBox()),
+            error: (e, __) => _errorSliver(e),
             data: (home) {
               final banners = (home['banners'] as List?) ?? [];
               if (banners.isEmpty) return const SliverToBoxAdapter(child: SizedBox());
@@ -243,7 +254,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
                 child: _shimmer(w: 64, h: 90, r: 16),
               )))),
             )),
-            error: (_, __) => const SliverToBoxAdapter(child: SizedBox()),
+            error: (e, __) => _errorSliver(e),
             data: (home) {
               final cats = (home['categories'] as List?) ?? [];
               if (cats.isEmpty) return const SliverToBoxAdapter(child: SizedBox());
@@ -333,7 +344,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
                 child: _shimmer(w: 150, h: 220, r: 14),
               )),
             ))),
-            error: (_, __) => const SliverToBoxAdapter(child: SizedBox()),
+            error: (e, __) => _errorSliver(e),
             data: (res) {
               final products = (res['data'] as List?) ?? [];
               if (products.isEmpty) return const SliverToBoxAdapter(child: SizedBox());
@@ -376,7 +387,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
                   crossAxisCount: 2, childAspectRatio: 0.72, crossAxisSpacing: 12, mainAxisSpacing: 12),
               ),
             ),
-            error: (_, __) => const SliverToBoxAdapter(child: SizedBox()),
+            error: (e, __) => _errorSliver(e),
             data: (res) {
               final products = (res['data'] as List?) ?? [];
               if (products.isEmpty) return const SliverToBoxAdapter(child: SizedBox());

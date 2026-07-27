@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Wallet;
 use App\Services\LoyaltyService;
+use App\Services\RewardNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -115,6 +116,8 @@ class AdminAffiliateController extends Controller
                 'updated_at'   => now(),
             ]);
 
+            RewardNotificationService::payoutApproved($affiliate->user_id, $payout->points_requested, $payout->dollar_value);
+
             return back()->with('success', 'Payout approved and wallet credited.');
         }
 
@@ -124,6 +127,12 @@ class AdminAffiliateController extends Controller
             'processed_at' => now(),
             'updated_at'   => now(),
         ]);
+
+        $payout = DB::table('affiliate_payouts')->where('id', $payoutId)->first();
+        $affiliate = DB::table('affiliates')->where('id', $payout->affiliate_id)->first();
+        if ($affiliate) {
+            RewardNotificationService::payoutRejected($affiliate->user_id, $payout->points_requested, $request->admin_note ?? '');
+        }
 
         return back()->with('success', 'Payout rejected.');
     }

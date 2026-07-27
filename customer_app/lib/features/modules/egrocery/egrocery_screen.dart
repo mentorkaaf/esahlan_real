@@ -15,6 +15,7 @@ import '../../auth/data/models/district_model.dart';
 import '../../auth/data/repositories/district_repository.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../../core/theme/theme_x.dart';
+import '../../rewards/redeem_points_bar.dart';
 
 final _svc = ModuleApiService.create();
 final _catsProvider = FutureProvider((_) => _svc.getGroceryCategories());
@@ -551,6 +552,8 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
   String _payment = 'wallet';
   bool _ordering = false;
   bool _districtInit = false;
+  int _pointsToRedeem = 0;
+  double _pointsDiscount = 0.0;
 
   @override
   void initState() {
@@ -585,7 +588,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
     final cart = ref.read(_cartProvider);
     if (cart.isEmpty) return;
     final subtotal = ref.read(_cartProvider.notifier).subtotal;
-    final total = subtotal + AppConstants.groceryDeliveryFee;
+    final total = subtotal + AppConstants.groceryDeliveryFee - _pointsDiscount;
 
     if (_payment == 'mobile_pay') {
       final result = await showMobilePaySheet(context, amount: total, description: 'eGrocery Order');
@@ -611,6 +614,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         'delivery_address': {'district': _districtName, 'city': _districtName},
         'payment_method': _payment,
         if (_waafiReference != null) 'waafi_reference': _waafiReference,
+        if (_pointsToRedeem > 0) 'points_to_redeem': _pointsToRedeem,
       });
       ref.read(_cartProvider.notifier).clear();
       if (_payment == 'wallet') ref.invalidate(walletProvider);
@@ -635,7 +639,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
     final cart = ref.watch(_cartProvider);
     final subtotal = ref.read(_cartProvider.notifier).subtotal;
     const deliveryFee = AppConstants.groceryDeliveryFee;
-    final total = subtotal + deliveryFee;
+    final total = subtotal + deliveryFee - _pointsDiscount;
 
     return Scaffold(
       appBar: AppBar(
@@ -687,6 +691,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
           const SizedBox(height: 8),
           _priceRow('Subtotal', '\$${subtotal.toStringAsFixed(2)}'),
           _priceRow('Delivery Fee', '\$${deliveryFee.toStringAsFixed(2)}'),
+          if (_pointsDiscount > 0) _priceRow('Points ($_pointsToRedeem pts)', '-\$${_pointsDiscount.toStringAsFixed(2)}', valueColor: const Color(0xFFF59E0B)),
           const Divider(height: 16),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text('Total', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: context.colors.navyText)),
@@ -694,6 +699,12 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
           ]),
         ]),
         const SizedBox(height: 16),
+
+        RedeemPointsBar(
+          orderTotal: subtotal + deliveryFee,
+          onChanged: (pts, disc) => setState(() { _pointsToRedeem = pts; _pointsDiscount = disc; }),
+        ),
+        const SizedBox(height: 8),
 
         // Payment
         _section('Payment Method', Icons.payment_outlined, children: [
@@ -726,10 +737,10 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
     ]),
   );
 
-  Widget _priceRow(String label, String value) => Padding(padding: const EdgeInsets.only(bottom: 8),
+  Widget _priceRow(String label, String value, {Color? valueColor}) => Padding(padding: const EdgeInsets.only(bottom: 8),
     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
       Text(label, style: const TextStyle(color: AppColors.textGrey, fontSize: 13)),
-      Text(value, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
+      Text(value, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: valueColor ?? context.colors.navyText)),
     ]));
 
   Widget _paymentOption(String value, String label, IconData icon, String subtitle) {

@@ -11,6 +11,7 @@ import '../../payment/payment_method_section.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
+import '../../rewards/redeem_points_bar.dart';
 
 final _svc = ModuleApiService.create();
 final _laundryItemsProvider = FutureProvider((_) => _svc.getLaundryItems());
@@ -223,7 +224,7 @@ class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
         items: items,
         qty: _qty,
         total: total,
-        onConfirm: (districtId, payMethod, waafiRef) async {
+        onConfirm: (districtId, payMethod, waafiRef, pointsToRedeem) async {
           final selected = <Map<String, dynamic>>[];
           _qty.forEach((id, q) { if (q > 0) selected.add({'id': id, 'qty': q}); });
           await _svc.placeLaundryOrder({
@@ -232,6 +233,7 @@ class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
             'pickup_district_id': districtId,
             'payment_method': payMethod,
             if (waafiRef != null) 'payment_reference': waafiRef,
+            if (pointsToRedeem > 0) 'points_to_redeem': pointsToRedeem,
           });
         },
       ),
@@ -280,7 +282,7 @@ class _OrderConfirmPage extends StatefulWidget {
   final List items;
   final Map<int, int> qty;
   final double total;
-  final Future<void> Function(int districtId, String payMethod, String? waafiRef) onConfirm;
+  final Future<void> Function(int districtId, String payMethod, String? waafiRef, int pointsToRedeem) onConfirm;
 
   const _OrderConfirmPage({required this.serviceType, required this.items,
       required this.qty, required this.total, required this.onConfirm});
@@ -301,6 +303,8 @@ class _OrderConfirmPageState extends State<_OrderConfirmPage> {
   String? _waafiRef;
   bool   _loading    = false;
   bool   _success    = false;
+  int    _pointsToRedeem = 0;
+  double _pointsDiscount = 0.0;
 
   @override
   Widget build(BuildContext context) {
@@ -373,6 +377,13 @@ class _OrderConfirmPageState extends State<_OrderConfirmPage> {
 
           const SizedBox(height: 22),
 
+          RedeemPointsBar(
+            orderTotal: widget.total,
+            onChanged: (pts, disc) => setState(() { _pointsToRedeem = pts; _pointsDiscount = disc; }),
+          ),
+
+          const SizedBox(height: 22),
+
           // ── Payment Method ─────────────────────────────────────────────
           Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: c.navyText)),
           const SizedBox(height: 10),
@@ -395,18 +406,18 @@ class _OrderConfirmPageState extends State<_OrderConfirmPage> {
                 final ok = await showWalletPinDialog(context);
                 if (!ok) return;
               } else if (_payMethod == 'mobile_pay') {
-                final result = await showMobilePaySheet(context, amount: widget.total, description: 'eLaundry Order');
+                final result = await showMobilePaySheet(context, amount: widget.total - _pointsDiscount, description: 'eLaundry Order');
                 if (result?.success != true) return;
                 _waafiRef = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
               } else {
                 final result = await showWaafiPaySheet(
-                  context, amount: widget.total, type: 'order', description: 'eLaundry Order');
+                  context, amount: widget.total - _pointsDiscount, type: 'order', description: 'eLaundry Order');
                 if (result?.success != true) return;
                 _waafiRef = result!.reference;
               }
               setState(() => _loading = true);
               try {
-                await widget.onConfirm(_districtId, _payMethod, _waafiRef);
+                await widget.onConfirm(_districtId, _payMethod, _waafiRef, _pointsToRedeem);
                 if (mounted) setState(() { _loading = false; _success = true; });
               } catch (e) {
                 if (mounted) {

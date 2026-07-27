@@ -279,6 +279,11 @@ class ModuleApiService {
   Future<dynamic> getRewards() => _get('/rewards');
   Future<dynamic> getRewardsHistory() => _get('/rewards/history');
   Future<dynamic> validatePointsRedeem(Map<String, dynamic> data) => _post('/rewards/validate-redeem', data);
+  Future<dynamic> redeemPointsToWallet(int points) => _post('/rewards/redeem-to-wallet', {'points': points});
+  Future<dynamic> getNotifications({int page = 1, int perPage = 20}) => _get('/notifications?page=$page&per_page=$perPage');
+  Future<dynamic> getUnreadNotificationCount() => _get('/notifications/unread');
+  Future<dynamic> markNotificationRead({String? id, bool all = false}) =>
+      _post('/notifications/read', all ? {'all': true} : {'id': id});
   Future<dynamic> getEarnPreview({required double amount, required String module}) =>
       _get('/rewards/earn-preview?amount=$amount&module=$module');
   Future<dynamic> walletTopupMobilePay(Map<String, dynamic> data) => _post('/wallet/topup/mobile-pay', data);

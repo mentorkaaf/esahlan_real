@@ -530,6 +530,7 @@ Route::prefix('v1')->group(function () {
                 Route::get('/',                  [RewardController::class, 'index']);
                 Route::get('/history',           [RewardController::class, 'history']);
                 Route::post('/validate-redeem',  [RewardController::class, 'validateRedeem']);
+                Route::post('/redeem-to-wallet', [RewardController::class, 'redeemToWallet']);
                 Route::get('/earn-preview',      [RewardController::class, 'earnPreview']);
             });
             Route::prefix('gamification')->group(function () {
@@ -541,6 +542,13 @@ Route::prefix('v1')->group(function () {
                 Route::post('/apply',        [AffiliateController::class, 'apply']);
                 Route::post('/payout',       [AffiliateController::class, 'requestPayout']);
             });
+            // In-app notifications
+            Route::prefix('notifications')->group(function () {
+                Route::get('/',         [\App\Http\Controllers\Api\Customer\NotificationController::class, 'index']);
+                Route::post('/read',    [\App\Http\Controllers\Api\Customer\NotificationController::class, 'markRead']);
+                Route::get('/unread',   [\App\Http\Controllers\Api\Customer\NotificationController::class, 'unreadCount']);
+            });
+
             Route::get('payment/status/{ref}',      [PaymentController::class, 'status']);
 
             // Addresses

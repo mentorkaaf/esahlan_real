@@ -19,6 +19,7 @@ import '../../ads/services/ad_service.dart';
 import '../../auth/data/models/district_model.dart';
 import '../../auth/data/repositories/district_repository.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
+import '../../rewards/redeem_points_bar.dart';
 
 final _efoodDistrictsProvider = FutureProvider<List<DistrictModel>>(
   (_) => DistrictRepository().getDistricts(),
@@ -2406,8 +2407,10 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
   bool    _districtInitialized = false;
   final _nameCtrl  = TextEditingController();
   final _phoneCtrl = TextEditingController();
+  int    _pointsToRedeem = 0;
+  double _pointsDiscount = 0.0;
 
-  double get _total => widget.subtotal + widget.deliveryFee + widget.tax - widget.discount;
+  double get _total => widget.subtotal + widget.deliveryFee + widget.tax - widget.discount - _pointsDiscount;
 
   @override
   void initState() {
@@ -2505,6 +2508,11 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         _buildTextField(_phoneCtrl, 'Phone Number', Icons.phone_outlined, keyboardType: TextInputType.phone),
 
         const SizedBox(height: 24),
+        RedeemPointsBar(
+          orderTotal: widget.subtotal + widget.deliveryFee + widget.tax - widget.discount,
+          onChanged: (pts, disc) => setState(() { _pointsToRedeem = pts; _pointsDiscount = disc; }),
+        ),
+        const SizedBox(height: 8),
         Text('Payment Method', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
         const SizedBox(height: 12),
         PaymentMethodSection(
@@ -2527,6 +2535,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
             _PriceRow('Delivery Fee', '\$${widget.deliveryFee.toStringAsFixed(2)}'),
             _PriceRow('Tax', '\$${widget.tax.toStringAsFixed(2)}'),
             if (widget.discount > 0) _PriceRow('Discount', '-\$${widget.discount.toStringAsFixed(2)}', color: Colors.green),
+            if (_pointsDiscount > 0) _PriceRow('Points ($_pointsToRedeem pts)', '-\$${_pointsDiscount.toStringAsFixed(2)}', color: const Color(0xFFF59E0B)),
             const Divider(height: 20),
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.colors.navyText)),
@@ -2633,6 +2642,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
           if (_nameCtrl.text.trim().isNotEmpty)  'name':  _nameCtrl.text.trim(),
           if (_phoneCtrl.text.trim().isNotEmpty) 'phone': _phoneCtrl.text.trim(),
         },
+        if (_pointsToRedeem > 0) 'points_to_redeem': _pointsToRedeem,
       });
 
       ref.read(_cartProvider.notifier).clear();

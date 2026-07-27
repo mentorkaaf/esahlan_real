@@ -134,6 +134,7 @@ class ApiException implements Exception {
     final data   = e.response?.data;
     final status = e.response?.statusCode;
     String msg   = 'Something went wrong. Please try again.';
+    bool backendMsgFound = false;
 
     // Extract backend message first (most specific)
     if (data is Map) {
@@ -144,19 +145,22 @@ class ApiException implements Exception {
 
       if (backendMsg != null && backendMsg.isNotEmpty) {
         msg = backendMsg;
+        backendMsgFound = true;
       } else if (data['errors'] is Map) {
         // Validation errors — take the first one
         final errs = data['errors'] as Map;
         final first = errs.values.firstOrNull;
         if (first is List && first.isNotEmpty) {
           msg = first.first.toString();
+          backendMsgFound = true;
         } else if (first is String) {
           msg = first;
+          backendMsgFound = true;
         }
       }
     }
 
-    // Override with friendly messages for specific conditions
+    // Override with friendly messages only when backend didn't provide one
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.sendTimeout) {
@@ -164,9 +168,9 @@ class ApiException implements Exception {
     } else if (e.type == DioExceptionType.connectionError ||
                e.type == DioExceptionType.unknown) {
       msg = 'No internet connection. Please check your network and try again.';
-    } else if (status == 401) {
+    } else if (status == 401 && !backendMsgFound) {
       msg = 'Your session has expired. Please sign in again.';
-    } else if (status == 403) {
+    } else if (status == 403 && !backendMsgFound) {
       msg = 'You don\'t have permission to perform this action.';
     } else if (status == 404) {
       msg = data is Map ? (data['message']?.toString() ?? 'The requested item was not found.') : 'Not found.';

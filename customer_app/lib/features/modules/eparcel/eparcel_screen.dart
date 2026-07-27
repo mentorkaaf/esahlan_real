@@ -12,6 +12,7 @@ import '../../payment/payment_method_section.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
+import '../../rewards/redeem_points_bar.dart';
 
 final _svc = ModuleApiService.create();
 final _parcelTypesProvider     = FutureProvider((_) => _svc.getParcelTypes());
@@ -48,6 +49,8 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
   String _payMethod  = 'wallet';
   String? _waafiRef;
   String? _mobileProofToken;
+  int _pointsToRedeem = 0;
+  double _pointsDiscount = 0.0;
 
   String _senderName  = '';
   String _senderPhone = '';
@@ -336,6 +339,11 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
                     child: _PriceCard(price: _price!),
                   ),
                   const SizedBox(height: 14),
+                  RedeemPointsBar(
+                    orderTotal: double.tryParse(_price!['total']?.toString() ?? _price!['price']?.toString() ?? '0') ?? 0,
+                    onChanged: (pts, disc) => setState(() { _pointsToRedeem = pts; _pointsDiscount = disc; }),
+                  ),
+                  const SizedBox(height: 14),
                   // Payment method
                   PaymentMethodSection(
                     selected: _payMethod,
@@ -426,6 +434,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
         'description':      _descCtrl.text.trim(),
         'payment_method':   _payMethod,
         if (_waafiRef != null) 'payment_reference': _waafiRef,
+        if (_pointsToRedeem > 0) 'points_to_redeem': _pointsToRedeem,
       });
       final parcelOrderNum = (parcelRes is Map) ? ((parcelRes['data'] ?? parcelRes)['order_number'] as String?) : null;
       if (_mobileProofToken != null && parcelOrderNum != null) {

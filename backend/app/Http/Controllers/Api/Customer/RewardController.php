@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Services\LoyaltyService;
+use App\Services\RewardNotificationService;
 use App\Services\TierService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -98,6 +99,66 @@ class RewardController extends Controller
         );
 
         return response()->json(['success' => true, 'data' => $result]);
+    }
+
+    // POST /rewards/redeem-to-wallet — convert points → wallet balance
+    public function redeemToWallet(Request $request)
+    {
+        $request->validate(['points' => 'required|integer|min:1']);
+
+        $user      = $request->user();
+        $requested = (int) $request->points;
+
+        if (!LoyaltyService::isEnabled()) {
+            return response()->json(['success' => false, 'message' => 'Loyalty system is disabled.'], 422);
+        }
+
+        $minPts = (int) LoyaltyService::cfg('points_payout_min_pts', 500);
+        if ($requested < $minPts) {
+            return response()->json(['success' => false, 'message' => "Minimum {$minPts} pts required to redeem."], 422);
+        }
+
+        $balance = LoyaltyService::balance($user->id);
+        if ($requested > $balance) {
+            return response()->json(['success' => false, 'message' => "Insufficient points. You have {$balance} pts."], 422);
+        }
+
+        $dollarValue = LoyaltyService::pointsToDollarValue($requested);
+        if ($dollarValue <= 0) {
+            return response()->json(['success' => false, 'message' => 'Points value is too low.'], 422);
+        }
+
+        // Deduct points then credit wallet
+        DB::transaction(function () use ($user, $requested, $dollarValue) {
+            DB::table('loyalty_points')->insert([
+                'user_id'        => $user->id,
+                'points'         => -$requested,
+                'type'           => 'redeemed',
+                'reference_type' => null,
+                'reference_id'   => null,
+                'note'           => "Redeemed {$requested} pts to wallet (\${$dollarValue})",
+                'expires_at'     => null,
+                'created_at'     => now(),
+            ]);
+            DB::table('users')->where('id', $user->id)->decrement('points_balance', $requested);
+
+            $wallet = \App\Models\Wallet::getOrCreateFor('App\\Models\\User', $user->id);
+            $wallet->credit($dollarValue, "Points redemption ({$requested} pts)", null, null, 'points');
+        });
+
+        $newBalance = LoyaltyService::balance($user->id);
+
+        RewardNotificationService::pointsRedeemed($user->id, $requested, $dollarValue);
+
+        return response()->json([
+            'success'        => true,
+            'message'        => "Successfully redeemed {$requested} pts for \${$dollarValue} wallet credit!",
+            'data'           => [
+                'points_redeemed' => $requested,
+                'dollar_value'    => $dollarValue,
+                'points_balance'  => $newBalance,
+            ],
+        ]);
     }
 
     // GET /rewards/earn-preview?amount=&module=

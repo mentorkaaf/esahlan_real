@@ -10,6 +10,7 @@ use App\Models\Wallet;
 use App\Services\FcmService;
 use App\Services\LoyaltyService;
 use App\Services\AffiliateService;
+use App\Services\GamificationService;
 use App\Services\ReferralService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -157,6 +158,8 @@ class AdminOrderController extends Controller
                     LoyaltyService::creditOrderPoints($order->id);
                     ReferralService::processFirstOrderReward($order->user_id, $order->id, (float) $order->total_amount);
                     AffiliateService::processOrderCommission($order->id);
+                    GamificationService::recordOrderAndCheckStreak($order->user_id, $order->id);
+                    GamificationService::checkAllBadges($order->user_id);
                 });
             }
 

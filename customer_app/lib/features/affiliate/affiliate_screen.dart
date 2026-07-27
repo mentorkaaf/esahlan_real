@@ -182,8 +182,12 @@ class _DashboardState extends State<_Dashboard> {
     final minPayout   = (d['min_payout_pts'] as num?)?.toInt() ?? 1000;
     final canPayout   = d['can_request_payout'] == true;
     final hasPending  = d['has_pending_payout'] == true;
-    final conversions = (d['conversions'] as List?) ?? [];
-    final payouts     = (d['payouts'] as List?) ?? [];
+    final conversions = d['conversions'] != null
+        ? List<dynamic>.from(d['conversions'] as Iterable)
+        : <dynamic>[];
+    final payouts = d['payouts'] != null
+        ? List<dynamic>.from(d['payouts'] as Iterable)
+        : <dynamic>[];
 
     return RefreshIndicator(
       onRefresh: () async => widget.onRefresh(),
