@@ -230,6 +230,14 @@ class EShopController extends Controller
         ]);
     }
 
+    // GET /eshop/delivery-fee?district_id=X
+    public function deliveryFee(Request $request)
+    {
+        $districtId  = $request->integer('district_id') ?: null;
+        $fee         = \App\Helpers\DeliveryPricing::forShopOrLaundry($districtId, 2.00);
+        return response()->json(['success' => true, 'delivery_fee' => $fee]);
+    }
+
     // POST /eshop/order (auth)
     public function createOrder(Request $request)
     {

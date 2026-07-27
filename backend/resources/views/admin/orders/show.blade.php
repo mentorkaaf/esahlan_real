@@ -669,6 +669,81 @@ $tz = \App\Helpers\AppSettings::timezone();
     </div>
 </div>
 
+{{-- ══════ eSHOP ══════ --}}
+@elseif($slug === 'eshop')
+<div class="mod-hero">
+    <div style="background:linear-gradient(135deg,#4A148C,#7B1FA2);color:#fff;padding:20px 24px 0;border-radius:14px 14px 0 0;">
+        @if($order->vendor)
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+            @if($order->vendor->logo)
+            <img src="{{ $order->vendor->logo }}" style="width:44px;height:44px;border-radius:10px;object-fit:cover;border:2px solid rgba(255,255,255,.3);">
+            @else
+            <div style="width:44px;height:44px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:20px;">🛍️</div>
+            @endif
+            <div>
+                <div style="font-weight:800;font-size:15px;">{{ $order->vendor->name }}</div>
+                <div style="font-size:11px;opacity:.7;">eShop Vendor</div>
+            </div>
+        </div>
+        @endif
+        <table style="width:100%;border-collapse:collapse;margin-bottom:0;">
+            <thead>
+                <tr style="border-bottom:1px solid rgba(255,255,255,.15);">
+                    <th style="text-align:left;font-size:11px;opacity:.7;padding:6px 0;font-weight:600;">PRODUCT</th>
+                    <th style="text-align:center;font-size:11px;opacity:.7;padding:6px 0;font-weight:600;">QTY</th>
+                    <th style="text-align:right;font-size:11px;opacity:.7;padding:6px 0;font-weight:600;">TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>
+            @forelse($order->items as $item)
+            @php $meta = $item->meta ? (is_string($item->meta) ? json_decode($item->meta,true) : (array)$item->meta) : []; @endphp
+            <tr>
+                <td style="padding:8px 0;font-size:13px;">
+                    {{ $item->name ?? $item->product?->name ?? '—' }}
+                    @if(!empty($meta['variant_name']))<div style="font-size:11px;opacity:.65;">{{ $meta['variant_name'] }}</div>@endif
+                </td>
+                <td style="text-align:center;font-size:13px;opacity:.85;">×{{ $item->quantity }}</td>
+                <td style="text-align:right;font-size:13px;font-weight:700;">${{ number_format($item->price * $item->quantity,2) }}</td>
+            </tr>
+            @empty
+            <tr><td colspan="3" style="padding:16px;text-align:center;opacity:.5;">No items</td></tr>
+            @endforelse
+            </tbody>
+        </table>
+    </div>
+    <div style="background:#fff;padding:14px 20px;">
+        @php
+            $commission   = (float)($order->commission ?? 0);
+            $commRate     = $order->vendor ? ($order->vendor->commission_value ?? 10) : 10;
+            $vendorEarn   = round((float)$order->subtotal - $commission, 2);
+        @endphp
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:#666;margin-bottom:4px;"><span>Subtotal</span><span>${{ number_format($order->subtotal,2) }}</span></div>
+        @if($order->delivery_fee > 0)
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:#666;margin-bottom:4px;"><span>Delivery Fee</span><span>+${{ number_format($order->delivery_fee,2) }}</span></div>
+        @endif
+        @if(($order->discount ?? 0) > 0)
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:#c62828;margin-bottom:4px;"><span>Discount</span><span>-${{ number_format($order->discount,2) }}</span></div>
+        @endif
+        <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;color:#FF8A00;padding-top:10px;border-top:2px solid #F0F1F5;margin-bottom:10px;"><span>Total (Customer Paid)</span><span>${{ number_format($order->total_amount,2) }}</span></div>
+
+        <div style="background:#f8f9fa;border-radius:10px;padding:12px;margin-top:4px;">
+            <div style="font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;margin-bottom:8px;">💰 Revenue Breakdown</div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:#1565C0;margin-bottom:6px;font-weight:600;">
+                <span>Admin Commission ({{ $commRate }}%)</span>
+                <span>+${{ number_format($commission, 2) }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:#2e7d32;margin-bottom:6px;font-weight:600;">
+                <span>Vendor Earning</span>
+                <span>+${{ number_format($vendorEarn, 2) }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:#555;border-top:1px solid #e5e7eb;padding-top:6px;">
+                <span>Delivery Revenue (Admin)</span>
+                <span>+${{ number_format($order->delivery_fee, 2) }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- ══════ EPARCEL ══════ --}}
 @elseif($isParcel)
 <div class="mod-hero" style="border:none;box-shadow:none;">

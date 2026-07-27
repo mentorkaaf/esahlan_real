@@ -41,8 +41,17 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
   int    _pointsToRedeem  = 0;
   double _pointsDiscount  = 0.0;
 
-  static const double _deliveryFee = AppConstants.eshopDeliveryFee;
+  double _deliveryFee = AppConstants.eshopDeliveryFee;
   final _svc = ModuleApiService.create();
+
+  Future<void> _fetchDeliveryFee() async {
+    if (_districtId == null) return;
+    try {
+      final res = await _svc.getEshopDeliveryFee(_districtId!);
+      final fee = double.tryParse(res?['delivery_fee']?.toString() ?? '') ?? AppConstants.eshopDeliveryFee;
+      if (mounted) setState(() => _deliveryFee = fee);
+    } catch (_) {}
+  }
 
   @override
   void initState() {
@@ -59,6 +68,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
       if (user.districtId != null) {
         _districtId   = user.districtId;
         _districtName = user.districtName;
+        _fetchDeliveryFee();
       }
       _districtInitialized = true;
       setState(() {});
@@ -86,6 +96,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
         selectedId: _districtId,
         onSelected: (d) {
           setState(() { _districtId = d.id; _districtName = d.name; });
+          _fetchDeliveryFee();
           Navigator.pop(context);
         },
       ),

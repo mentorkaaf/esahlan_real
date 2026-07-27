@@ -633,6 +633,7 @@ Route::prefix('v1')->group(function () {
             Route::post('erent/bookings/{id}/cancel',          [ERentController::class, 'cancelBooking']);
             Route::post('erent/bookings/{id}/pay-remaining',   [ERentController::class, 'payRemaining']);
             Route::post('erent/bookings/{id}/request-refund',  [ERentController::class, 'requestRefund']);
+            Route::get('eshop/delivery-fee',        [EShopController::class, 'deliveryFee']);
             Route::post('eshop/order',              [EShopController::class, 'createOrder']);
             Route::post('eshop/coupon/validate',    [EShopController::class, 'validateCoupon']);
             Route::post('eshop/products/{id}/reviews', [EShopController::class, 'submitReview']);
