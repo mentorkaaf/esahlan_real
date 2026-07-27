@@ -77,7 +77,19 @@
         </td>
         <td style="white-space:nowrap;">
             <div style="display:flex;gap:5px;">
-                <button onclick='editProduct({{ $p->id }}, @json(['name'=>$p->name,'price'=>$p->price,'sale_price'=>$p->sale_price,'category_id'=>$p->category_id,'description'=>$p->description,'sku'=>$p->sku,'stock_quantity'=>$p->stock_quantity,'is_available'=>$p->is_available]))'
+                @php
+                    $editData = htmlspecialchars(json_encode([
+                        'name'           => $p->name,
+                        'price'          => $p->price,
+                        'sale_price'     => $p->sale_price,
+                        'category_id'    => $p->category_id,
+                        'description'    => $p->description,
+                        'sku'            => $p->sku,
+                        'stock_quantity' => $p->stock_quantity,
+                        'is_available'   => $p->is_available,
+                    ]), ENT_QUOTES);
+                @endphp
+                <button onclick="editProduct({{ $p->id }}, JSON.parse(this.dataset.p))" data-p="{{ $editData }}"
                     style="background:#eff6ff;color:#2563eb;border:none;padding:4px 10px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">Edit</button>
                 <form method="POST" action="{{ route('vendor.eshop.products.toggle', $p->id) }}" style="display:inline">
                     @csrf
