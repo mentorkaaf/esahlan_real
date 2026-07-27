@@ -197,7 +197,7 @@ class EShopController extends Controller
         $galleryRows = DB::table('product_images')->where('product_id', $id)->orderBy('sort_order')->get();
         $images = $galleryRows->map(fn($img) => [
             'id'    => $img->id,
-            'image' => str_starts_with($img->image, 'http') ? $img->image : url('/api/v1/img/'.$img->image),
+            'image' => cdn_url($img->image),
         ]);
 
         // Variants: cast is_active to bool, decode attributes JSON
@@ -371,7 +371,7 @@ class EShopController extends Controller
                 'id'         => $b->id,
                 'title'      => $b->title,
                 'subtitle'   => $b->subtitle,
-                'image'      => $b->image ? (str_starts_with($b->image,'http') ? $b->image : url('/api/v1/img/'.$b->image)) : null,
+                'image'      => cdn_url($b->image),
                 'action_url' => $b->action_url,
             ]);
 

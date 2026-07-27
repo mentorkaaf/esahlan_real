@@ -21,6 +21,8 @@ class ELaundryController extends Controller
             ->orderBy('sort_order')
             ->get(['id', 'name', 'name_so', 'normal_price', 'express_price', 'normal_days', 'express_hours', 'image']);
 
+        $items = $items->map(fn($i) => array_merge((array)$i, ['image' => cdn_url($i->image)]));
+
         return response()->json(['success' => true, 'data' => $items]);
     }
 
