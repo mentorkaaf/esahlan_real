@@ -210,7 +210,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
             )),
             error: (e, __) => _errorSliver(e),
             data: (home) {
-              final banners = (home['banners'] as List?) ?? [];
+              final banners = _asList(home['banners']);
               if (banners.isEmpty) return const SliverToBoxAdapter(child: SizedBox());
               final loopCount = banners.length * 1000;
               return SliverToBoxAdapter(child: Column(children: [
@@ -266,7 +266,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
             )),
             error: (e, __) => _errorSliver(e),
             data: (home) {
-              final cats = (home['categories'] as List?) ?? [];
+              final cats = _asList(home['categories']);
               if (cats.isEmpty) return const SliverToBoxAdapter(child: SizedBox());
               return SliverToBoxAdapter(child: _CategoriesCarousel(cats: cats));
             },
@@ -356,7 +356,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
             ))),
             error: (e, __) => _errorSliver(e),
             data: (res) {
-              final products = (res['data'] as List?) ?? [];
+              final products = _asList(res['data']);
               if (products.isEmpty) return const SliverToBoxAdapter(child: SizedBox());
               return SliverToBoxAdapter(child: _FeaturedCarousel(
                 products: products, cartNotifier: cartNotifier, cart: cart));
@@ -399,7 +399,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
             ),
             error: (e, __) => _errorSliver(e),
             data: (res) {
-              final products = (res['data'] as List?) ?? [];
+              final products = _asList(res['data']);
               if (products.isEmpty) return const SliverToBoxAdapter(child: SizedBox());
               return SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),

@@ -112,10 +112,22 @@ final _svc = ModuleApiService.create();
 // ─────────────────────────────────────────────────────────────────
 // Home data
 // ─────────────────────────────────────────────────────────────────
+Map<String, dynamic> _safeMap(dynamic v) {
+  if (v is Map<String, dynamic>) return v;
+  if (v is Map) return Map<String, dynamic>.from(v);
+  return {};
+}
+
+List<dynamic> _safeList(dynamic v) {
+  if (v is List) return v;
+  return [];
+}
+
 final eshopHomeProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   ref.cacheFor(const Duration(seconds: 30));
   final res = await _svc.getShopHome();
-  return (res['data'] as Map<String, dynamic>?) ?? {};
+  final map = _safeMap(res);
+  return _safeMap(map['data']);
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -124,7 +136,8 @@ final eshopHomeProvider = FutureProvider<Map<String, dynamic>>((ref) async {
 final eshopCategoriesProvider = FutureProvider<List<dynamic>>((ref) async {
   ref.cacheFor(const Duration(seconds: 30));
   final res = await _svc.getShopCategories();
-  return (res['data'] as List?) ?? [];
+  final map = _safeMap(res);
+  return _safeList(map['data']);
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -160,7 +173,7 @@ final eshopProductsProvider = FutureProvider.family<Map<String, dynamic>, Produc
     page: p.page,
     featured: p.featured,
   );
-  return res as Map<String, dynamic>;
+  return _safeMap(res);
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -169,7 +182,7 @@ final eshopProductsProvider = FutureProvider.family<Map<String, dynamic>, Produc
 final eshopFlashDealsProvider = FutureProvider<List<dynamic>>((ref) async {
   ref.cacheFor(const Duration(seconds: 30));
   final res = await _svc.getShopFlashDeals();
-  return (res['data'] as List?) ?? [];
+  return _safeList(_safeMap(res)['data']);
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -178,7 +191,7 @@ final eshopFlashDealsProvider = FutureProvider<List<dynamic>>((ref) async {
 final eshopDealsOfDayProvider = FutureProvider<List<dynamic>>((ref) async {
   ref.cacheFor(const Duration(seconds: 30));
   final res = await _svc.getShopDealsOfDay();
-  return (res['data'] as List?) ?? [];
+  return _safeList(_safeMap(res)['data']);
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -187,7 +200,7 @@ final eshopDealsOfDayProvider = FutureProvider<List<dynamic>>((ref) async {
 final eshopCampaignsProvider = FutureProvider<List<dynamic>>((ref) async {
   ref.cacheFor(const Duration(seconds: 30));
   final res = await _svc.getShopCampaigns();
-  return (res['data'] as List?) ?? [];
+  return _safeList(_safeMap(res)['data']);
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -195,7 +208,7 @@ final eshopCampaignsProvider = FutureProvider<List<dynamic>>((ref) async {
 // ─────────────────────────────────────────────────────────────────
 final eshopProductProvider = FutureProvider.family<Map<String, dynamic>, int>((_, id) async {
   final res = await _svc.getShopProduct(id);
-  return (res['data'] as Map<String, dynamic>?) ?? {};
+  return _safeMap(_safeMap(res)['data']);
 });
 
 // ─────────────────────────────────────────────────────────────────
