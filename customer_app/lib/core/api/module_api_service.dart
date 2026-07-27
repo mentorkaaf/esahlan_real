@@ -178,6 +178,21 @@ class ModuleApiService {
   Future<dynamic> placeShopOrderV2(Map<String, dynamic> body) => _post('/eshop/order', body);
   Future<dynamic> validateShopCoupon({required String code, required double orderAmount}) =>
       _post('/eshop/coupon/validate', {'code': code, 'order_amount': orderAmount});
+  Future<dynamic> getShopStores({String? search, bool? featured, int? page}) =>
+      _get('/eshop/stores', params: {
+        if (search != null) 'search': search,
+        if (featured == true) 'featured': 1,
+        if (page != null) 'page': page,
+      });
+  Future<dynamic> getShopStoreDetail(int id) => _get('/eshop/stores/$id');
+  Future<dynamic> getShopPopular() => _get('/eshop/popular');
+  Future<dynamic> getShopProductReviews(int productId, {int page = 1}) =>
+      _get('/eshop/products/$productId/reviews', params: {'page': page});
+  Future<dynamic> submitShopReview(int productId, {required int rating, String? comment}) =>
+      _post('/eshop/products/$productId/reviews', {'rating': rating, if (comment != null) 'comment': comment});
+  Future<dynamic> trackShopView(int productId) async {
+    try { await _dio.patch('/eshop/products/$productId/view'); } catch (_) {}
+  }
 
   // ═══════════════════════════════════════════════════════════════════
   // eWHOLESALE

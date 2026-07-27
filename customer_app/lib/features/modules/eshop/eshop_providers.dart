@@ -252,3 +252,37 @@ class CouponNotifier extends StateNotifier<CouponState> {
 }
 
 final eshopCouponProvider = StateNotifierProvider<CouponNotifier, CouponState>((_) => CouponNotifier());
+
+// ─────────────────────────────────────────────────────────────────
+// Stores list
+// ─────────────────────────────────────────────────────────────────
+final eshopStoresProvider = FutureProvider<List<dynamic>>((ref) async {
+  ref.cacheFor(const Duration(seconds: 60));
+  final res = await _svc.getShopStores();
+  return _safeList(_safeMap(res)['data']);
+});
+
+// ─────────────────────────────────────────────────────────────────
+// Store detail (by id)
+// ─────────────────────────────────────────────────────────────────
+final eshopStoreDetailProvider = FutureProvider.family<Map<String, dynamic>, int>((_, id) async {
+  final res = await _svc.getShopStoreDetail(id);
+  return _safeMap(_safeMap(res)['data']);
+});
+
+// ─────────────────────────────────────────────────────────────────
+// Popular products
+// ─────────────────────────────────────────────────────────────────
+final eshopPopularProvider = FutureProvider<List<dynamic>>((ref) async {
+  ref.cacheFor(const Duration(seconds: 60));
+  final res = await _svc.getShopPopular();
+  return _safeList(_safeMap(res)['data']);
+});
+
+// ─────────────────────────────────────────────────────────────────
+// Product reviews (by product id)
+// ─────────────────────────────────────────────────────────────────
+final eshopProductReviewsProvider = FutureProvider.family<Map<String, dynamic>, int>((_, id) async {
+  final res = await _svc.getShopProductReviews(id);
+  return _safeMap(res);
+});

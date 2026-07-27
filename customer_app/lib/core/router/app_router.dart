@@ -82,6 +82,9 @@ import '../../features/modules/eshop/product_list_screen.dart';
 import '../../features/modules/eshop/product_detail_screen.dart';
 import '../../features/modules/eshop/eshop_cart_screen.dart';
 import '../../features/modules/eshop/eshop_checkout_screen.dart';
+import '../../features/modules/eshop/eshop_stores_screen.dart';
+import '../../features/modules/eshop/eshop_store_detail_screen.dart';
+import '../../features/modules/eshop/eshop_popular_screen.dart';
 
 // ── Auth change notifier ─────────────────────────────────────────────────────
 // GoRouter listens to this so it re-evaluates redirect without recreating itself.
@@ -225,6 +228,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(path: '/eshop/cart',     builder: (_, __) => const EShopCartScreen()),
           GoRoute(path: '/eshop/checkout', builder: (_, __) => const EShopCheckoutScreen()),
+          GoRoute(path: '/eshop/stores',   builder: (_, __) => const EShopStoresScreen()),
+          GoRoute(
+            path: '/eshop/stores/:id',
+            builder: (_, state) => EShopStoreDetailScreen(
+                storeId: int.parse(state.pathParameters['id']!)),
+          ),
+          GoRoute(path: '/eshop/popular',  builder: (_, __) => const EShopPopularScreen()),
 
           // eLearning routes (inside shell for bottom nav)
           GoRoute(path: '/elearning', builder: (_, __) => const ELearningScreen()),
