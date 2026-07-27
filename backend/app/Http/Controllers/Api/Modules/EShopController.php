@@ -678,11 +678,11 @@ class EShopController extends Controller
             ->where('products.is_available', true)
             ->whereNull('products.deleted_at')
             ->where('categories.is_active', true)
-            ->select('categories.id', 'categories.name', 'categories.image')
+            ->select('categories.id', 'categories.name', 'categories.image', 'categories.sort_order')
             ->distinct()
             ->orderBy('categories.sort_order')
             ->get()
-            ->map(fn($c) => array_merge((array)$c, ['image' => cdn_url($c->image)]));
+            ->map(fn($c) => ['id' => $c->id, 'name' => $c->name, 'image' => cdn_url($c->image)]);
 
         // Products (first page)
         $now = now();
