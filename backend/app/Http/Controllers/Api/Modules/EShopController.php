@@ -445,13 +445,41 @@ class EShopController extends Controller
         [$flashMap, $dealMap, $campMap] = $this->activeDealMaps($featuredIds, $now);
         $featured = $featuredRaw->map(fn($p) => $this->applyDealPrice($p, $flashMap, $dealMap, $campMap));
 
+        // Featured stores (top 6)
+        $stores = DB::table('vendors')
+            ->where('vendors.module_id', $mid)
+            ->where('vendors.status', 'active')
+            ->where('vendors.is_approved', true)
+            ->whereNull('vendors.deleted_at')
+            ->select(['vendors.id','vendors.name','vendors.logo','vendors.rating','vendors.delivery_time','vendors.is_featured','vendors.is_open'])
+            ->orderByDesc('vendors.is_featured')
+            ->orderByDesc('vendors.rating')
+            ->limit(8)->get()
+            ->map(fn($v) => array_merge((array)$v, ['logo' => cdn_url($v->logo)]));
+
+        // Popular products (by sales_count + view_count)
+        $popularRaw = DB::table('products')
+            ->join('vendors', 'products.vendor_id', '=', 'vendors.id')
+            ->where('products.module_id', $mid)
+            ->where('products.is_available', true)
+            ->whereNull('products.deleted_at')
+            ->where('vendors.status', 'active')
+            ->select(['products.id','products.name','products.price','products.sale_price','products.thumbnail','products.rating','products.total_reviews','products.sales_count'])
+            ->orderByRaw('(products.sales_count * 3 + products.view_count + products.total_reviews * 2) DESC')
+            ->limit(10)->get();
+        $popularIds = $popularRaw->pluck('id')->toArray();
+        [$pFlash, $pDeal, $pCamp] = $this->activeDealMaps($popularIds, $now);
+        $popular = $popularRaw->map(fn($p) => $this->applyDealPrice($p, $pFlash, $pDeal, $pCamp));
+
         return response()->json(['success' => true, 'data' => [
             'banners'          => $banners,
             'categories'       => $categories,
+            'stores'           => $stores,
             'flash_deals'      => $flashDeals,
             'deals_of_day'     => $dealsOfDay,
             'campaigns'        => $campaigns,
             'featured_products'=> $featured,
+            'popular_products' => $popular,
         ]]);
     }
 
@@ -574,5 +602,269 @@ class EShopController extends Controller
             'max_discount'   => $coupon->max_discount,
             'message'        => 'Coupon applied! You save $'.number_format($discount, 2),
         ]);
+    }
+
+    // ── Multivendor: Stores ───────────────────────────────────────────────
+
+    // GET /eshop/stores
+    public function stores(Request $request)
+    {
+        $mid = DB::table('modules')->where('slug', 'eshop')->value('id');
+
+        $query = DB::table('vendors')
+            ->where('vendors.module_id', $mid)
+            ->where('vendors.status', 'active')
+            ->where('vendors.is_approved', true)
+            ->whereNull('vendors.deleted_at')
+            ->select([
+                'vendors.id', 'vendors.name', 'vendors.slug', 'vendors.logo',
+                'vendors.cover_image', 'vendors.description', 'vendors.address',
+                'vendors.rating', 'vendors.review_count', 'vendors.is_open',
+                'vendors.is_featured', 'vendors.delivery_fee', 'vendors.delivery_time',
+                'vendors.minimum_order',
+            ]);
+
+        if ($request->filled('search')) {
+            $query->where('vendors.name', 'like', '%'.$request->search.'%');
+        }
+        if ($request->boolean('featured')) {
+            $query->where('vendors.is_featured', true);
+        }
+
+        $vendors = $query->orderByDesc('vendors.is_featured')
+            ->orderByDesc('vendors.rating')
+            ->paginate(20);
+
+        $vendors->getCollection()->transform(fn($v) => array_merge((array)$v, [
+            'logo'        => cdn_url($v->logo),
+            'cover_image' => cdn_url($v->cover_image),
+            'product_count' => DB::table('products')
+                ->where('vendor_id', $v->id)
+                ->where('is_available', true)
+                ->whereNull('deleted_at')
+                ->count(),
+        ]));
+
+        return response()->json(['success' => true, 'data' => $vendors]);
+    }
+
+    // GET /eshop/stores/{id}
+    public function storeDetail(int $id)
+    {
+        $mid = DB::table('modules')->where('slug', 'eshop')->value('id');
+
+        $vendor = DB::table('vendors')
+            ->where('vendors.id', $id)
+            ->where('vendors.module_id', $mid)
+            ->where('vendors.status', 'active')
+            ->whereNull('vendors.deleted_at')
+            ->select([
+                'vendors.id', 'vendors.name', 'vendors.slug', 'vendors.logo',
+                'vendors.cover_image', 'vendors.description', 'vendors.address',
+                'vendors.phone', 'vendors.email', 'vendors.rating', 'vendors.review_count',
+                'vendors.is_open', 'vendors.is_featured', 'vendors.is_verified',
+                'vendors.delivery_fee', 'vendors.delivery_time', 'vendors.minimum_order',
+                'vendors.working_hours', 'vendors.created_at',
+            ])->first();
+
+        if (!$vendor) {
+            return response()->json(['success' => false, 'message' => 'Store not found.'], 404);
+        }
+
+        // Categories this store has products in
+        $categories = DB::table('categories')
+            ->join('products', 'categories.id', '=', 'products.category_id')
+            ->where('products.vendor_id', $id)
+            ->where('products.is_available', true)
+            ->whereNull('products.deleted_at')
+            ->where('categories.is_active', true)
+            ->select('categories.id', 'categories.name', 'categories.image')
+            ->distinct()
+            ->orderBy('categories.sort_order')
+            ->get()
+            ->map(fn($c) => array_merge((array)$c, ['image' => cdn_url($c->image)]));
+
+        // Products (first page)
+        $now = now();
+        $products = DB::table('products')
+            ->where('products.vendor_id', $id)
+            ->where('products.is_available', true)
+            ->whereNull('products.deleted_at')
+            ->select([
+                'products.id', 'products.name', 'products.price', 'products.sale_price',
+                'products.thumbnail', 'products.rating', 'products.total_reviews',
+                'products.is_featured', 'products.sales_count',
+            ])
+            ->orderByDesc('products.is_featured')
+            ->orderByDesc('products.sales_count')
+            ->paginate(20);
+
+        $productIds = array_column($products->items(), 'id');
+        [$flashMap, $dealMap, $campMap] = $this->activeDealMaps($productIds, $now);
+        $products->getCollection()->transform(
+            fn($p) => $this->applyDealPrice($p, $flashMap, $dealMap, $campMap)
+        );
+
+        // Store reviews (latest 5)
+        $reviews = DB::table('reviews')
+            ->join('users', 'reviews.user_id', '=', 'users.id')
+            ->where('reviews.reviewable_type', 'App\\Models\\Vendor')
+            ->where('reviews.reviewable_id', $id)
+            ->where('reviews.is_approved', true)
+            ->select([
+                'reviews.id', 'reviews.rating', 'reviews.comment',
+                'reviews.created_at', 'users.name as reviewer_name', 'users.avatar as reviewer_avatar',
+            ])
+            ->orderByDesc('reviews.created_at')
+            ->limit(5)->get()
+            ->map(fn($r) => array_merge((array)$r, ['reviewer_avatar' => cdn_url($r->reviewer_avatar)]));
+
+        return response()->json(['success' => true, 'data' => [
+            'store'      => array_merge((array)$vendor, [
+                'logo'        => cdn_url($vendor->logo),
+                'cover_image' => cdn_url($vendor->cover_image),
+            ]),
+            'categories' => $categories,
+            'products'   => $products,
+            'reviews'    => $reviews,
+        ]]);
+    }
+
+    // GET /eshop/popular — most popular products (by sales_count + view_count)
+    public function popular(Request $request)
+    {
+        $mid = DB::table('modules')->where('slug', 'eshop')->value('id');
+        $now = now();
+
+        $products = DB::table('products')
+            ->join('vendors', 'products.vendor_id', '=', 'vendors.id')
+            ->where('products.module_id', $mid)
+            ->where('products.is_available', true)
+            ->whereNull('products.deleted_at')
+            ->where('vendors.status', 'active')
+            ->select([
+                'products.id', 'products.name', 'products.price', 'products.sale_price',
+                'products.thumbnail', 'products.rating', 'products.total_reviews',
+                'products.sales_count', 'products.view_count',
+                'vendors.name as shop_name', 'vendors.id as vendor_id',
+            ])
+            ->orderByRaw('(products.sales_count * 3 + products.view_count + products.total_reviews * 2) DESC')
+            ->limit(20)->get();
+
+        $productIds = $products->pluck('id')->toArray();
+        [$flashMap, $dealMap, $campMap] = $this->activeDealMaps($productIds, $now);
+        $enriched = $products->map(fn($p) => $this->applyDealPrice($p, $flashMap, $dealMap, $campMap));
+
+        return response()->json(['success' => true, 'data' => $enriched]);
+    }
+
+    // GET /eshop/products/{id}/reviews
+    public function productReviews(int $id)
+    {
+        $reviews = DB::table('reviews')
+            ->join('users', 'reviews.user_id', '=', 'users.id')
+            ->where('reviews.reviewable_type', 'App\\Models\\Product')
+            ->where('reviews.reviewable_id', $id)
+            ->where('reviews.is_approved', true)
+            ->select([
+                'reviews.id', 'reviews.rating', 'reviews.comment', 'reviews.images',
+                'reviews.vendor_reply', 'reviews.created_at',
+                'users.name as reviewer_name', 'users.avatar as reviewer_avatar',
+            ])
+            ->orderByDesc('reviews.created_at')
+            ->paginate(10);
+
+        $reviews->getCollection()->transform(fn($r) => array_merge((array)$r, [
+            'reviewer_avatar' => cdn_url($r->reviewer_avatar),
+            'images'          => $r->images ? json_decode($r->images, true) : [],
+        ]));
+
+        // Summary stats
+        $stats = DB::table('reviews')
+            ->where('reviewable_type', 'App\\Models\\Product')
+            ->where('reviewable_id', $id)
+            ->where('is_approved', true)
+            ->selectRaw('COUNT(*) as total, AVG(rating) as average,
+                SUM(rating=5) as five, SUM(rating=4) as four,
+                SUM(rating=3) as three, SUM(rating=2) as two, SUM(rating=1) as one')
+            ->first();
+
+        return response()->json(['success' => true, 'data' => [
+            'reviews' => $reviews,
+            'stats'   => $stats,
+        ]]);
+    }
+
+    // POST /eshop/products/{id}/reviews (auth)
+    public function submitReview(Request $request, int $id)
+    {
+        $v = Validator::make($request->all(), [
+            'rating'  => 'required|integer|min:1|max:5',
+            'comment' => 'nullable|string|max:1000',
+        ]);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $user = auth()->user();
+
+        // Only allow review if user actually purchased this product
+        $hasPurchased = DB::table('orders')
+            ->join('order_items', 'orders.id', '=', 'order_items.order_id')
+            ->where('orders.user_id', $user->id)
+            ->where('orders.module_slug', 'eshop')
+            ->whereIn('orders.status', ['delivered', 'completed'])
+            ->where('order_items.product_id', $id)
+            ->exists();
+
+        if (!$hasPurchased) {
+            return response()->json(['success' => false, 'message' => 'You can only review products you have purchased.'], 403);
+        }
+
+        // One review per product per user
+        $existing = DB::table('reviews')
+            ->where('user_id', $user->id)
+            ->where('reviewable_type', 'App\\Models\\Product')
+            ->where('reviewable_id', $id)
+            ->first();
+
+        if ($existing) {
+            DB::table('reviews')->where('id', $existing->id)->update([
+                'rating'     => $request->rating,
+                'comment'    => $request->comment,
+                'updated_at' => now(),
+            ]);
+        } else {
+            DB::table('reviews')->insert([
+                'user_id'          => $user->id,
+                'reviewable_type'  => 'App\\Models\\Product',
+                'reviewable_id'    => $id,
+                'rating'           => $request->rating,
+                'comment'          => $request->comment,
+                'is_approved'      => true,
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ]);
+        }
+
+        // Recalculate product rating
+        $agg = DB::table('reviews')
+            ->where('reviewable_type', 'App\\Models\\Product')
+            ->where('reviewable_id', $id)
+            ->where('is_approved', true)
+            ->selectRaw('AVG(rating) as avg_rating, COUNT(*) as total')
+            ->first();
+
+        DB::table('products')->where('id', $id)->update([
+            'rating'        => round($agg->avg_rating, 2),
+            'total_reviews' => $agg->total,
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Review submitted successfully.']);
+    }
+
+    // PATCH /eshop/products/{id}/view — increment view count (fire-and-forget)
+    public function trackView(int $id)
+    {
+        DB::table('products')->where('id', $id)->increment('view_count');
+        return response()->json(['success' => true]);
     }
 }

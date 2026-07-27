@@ -264,6 +264,11 @@ Route::prefix('v1')->group(function () {
     Route::get('eshop/flash-deals',                      [EShopController::class, 'flashDeals']);
     Route::get('eshop/deals-of-day',                     [EShopController::class, 'dealsOfDay']);
     Route::get('eshop/campaigns',                        [EShopController::class, 'campaigns']);
+    Route::get('eshop/stores',                           [EShopController::class, 'stores']);
+    Route::get('eshop/stores/{id}',                      [EShopController::class, 'storeDetail']);
+    Route::get('eshop/popular',                          [EShopController::class, 'popular']);
+    Route::get('eshop/products/{id}/reviews',            [EShopController::class, 'productReviews']);
+    Route::patch('eshop/products/{id}/view',             [EShopController::class, 'trackView']);
 
     // eWholesale
     Route::get('ewholesale/categories',                  [EWholesaleController::class, 'categories']);
@@ -630,6 +635,7 @@ Route::prefix('v1')->group(function () {
             Route::post('erent/bookings/{id}/request-refund',  [ERentController::class, 'requestRefund']);
             Route::post('eshop/order',              [EShopController::class, 'createOrder']);
             Route::post('eshop/coupon/validate',    [EShopController::class, 'validateCoupon']);
+            Route::post('eshop/products/{id}/reviews', [EShopController::class, 'submitReview']);
             Route::post('ewholesale/order',     [EWholesaleController::class, 'inquire']);
             Route::post('egrocery/order',       [EGroceryController::class, 'createOrder']);
             Route::post('eticket/book',         [ETicketController::class, 'book']);
