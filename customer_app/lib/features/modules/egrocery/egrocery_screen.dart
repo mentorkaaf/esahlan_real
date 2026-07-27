@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/cart_sync_service.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/constants/app_constants.dart';
@@ -44,17 +45,30 @@ class _CartItem {
 
 class _CartNotifier extends StateNotifier<List<_CartItem>> {
   _CartNotifier() : super([]);
+
+  void _sync() {
+    CartSyncService.instance.syncDebounced('egrocery', state.map((e) => {
+      'product_id':    e.product['id'],
+      'product_name':  e.product['name'] ?? '',
+      'product_image': e.product['image'] ?? e.product['thumbnail'] ?? '',
+      'price':         e.unitPrice,
+      'quantity':      e.qty,
+    }).toList());
+  }
+
   void add(Map<String, dynamic> product) {
     final i = state.indexWhere((e) => e.product['id'] == product['id']);
     if (i >= 0) { state[i].qty++; state = [...state]; } else { state = [...state, _CartItem(product)]; }
+    _sync();
   }
-  void increment(int productId) { final i = state.indexWhere((e) => e.product['id'] == productId); if (i >= 0) { state[i].qty++; state = [...state]; } }
+  void increment(int productId) { final i = state.indexWhere((e) => e.product['id'] == productId); if (i >= 0) { state[i].qty++; state = [...state]; } _sync(); }
   void decrement(int productId) {
     final i = state.indexWhere((e) => e.product['id'] == productId);
     if (i >= 0) { if (state[i].qty > 1) { state[i].qty--; state = [...state]; } else { state = [...state]..removeAt(i); } }
+    _sync();
   }
-  void remove(int productId) { state = state.where((e) => e.product['id'] != productId).toList(); }
-  void clear() => state = [];
+  void remove(int productId) { state = state.where((e) => e.product['id'] != productId).toList(); _sync(); }
+  void clear() { state = []; CartSyncService.instance.clearModule('egrocery'); }
   int get totalItems => state.fold(0, (s, e) => s + e.qty);
   double get subtotal => state.fold(0, (s, e) => s + e.lineTotal);
   int qtyOf(int productId) => state.where((e) => e.product['id'] == productId).fold(0, (s, e) => s + e.qty);

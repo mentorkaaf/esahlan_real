@@ -72,3 +72,10 @@ Schedule::call(function () {
 Schedule::call(fn () => FeedRankingService::cleanupOldInteractions())
     ->weekly()
     ->name('feed:cleanup-interactions');
+
+// Cart abandonment notifications: every 15 minutes
+Schedule::command('cart:notify-abandoned')
+    ->everyFifteenMinutes()
+    ->name('cart:abandonment-notifications')
+    ->withoutOverlapping()
+    ->runInBackground();

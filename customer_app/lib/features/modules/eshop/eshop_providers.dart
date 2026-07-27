@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/module_api_service.dart';
+import '../../../core/services/cart_sync_service.dart';
 
 extension _CacheFor on Ref {
   void cacheFor(Duration d) {
@@ -57,6 +58,17 @@ class CartItem {
 class EShopCartNotifier extends StateNotifier<List<CartItem>> {
   EShopCartNotifier() : super([]);
 
+  void _sync() {
+    final items = state.map((c) => {
+      'product_id':    c.productId,
+      'product_name':  c.product['name'] ?? '',
+      'product_image': c.product['thumbnail'] ?? c.product['image'] ?? '',
+      'price':         c.effectivePrice,
+      'quantity':      c.qty,
+    }).toList();
+    CartSyncService.instance.syncDebounced('eshop', items);
+  }
+
   void addItem(Map<String, dynamic> product, {int qty = 1, int? variantId, Map<String, dynamic>? variant}) {
     final id = _toId(product['id']);
     final idx = state.indexWhere((c) => c.productId == id && c.variantId == variantId);
@@ -67,10 +79,12 @@ class EShopCartNotifier extends StateNotifier<List<CartItem>> {
     } else {
       state = [...state, CartItem(productId: id, product: product, qty: qty, variantId: variantId, variant: variant)];
     }
+    _sync();
   }
 
   void removeItem(int productId, {int? variantId}) {
     state = state.where((c) => !(c.productId == productId && c.variantId == variantId)).toList();
+    _sync();
   }
 
   void updateQty(int productId, int qty, {int? variantId}) {
@@ -79,9 +93,13 @@ class EShopCartNotifier extends StateNotifier<List<CartItem>> {
       return;
     }
     state = state.map((c) => c.productId == productId && c.variantId == variantId ? c.copyWith(qty: qty) : c).toList();
+    _sync();
   }
 
-  void clear() => state = [];
+  void clear() {
+    state = [];
+    CartSyncService.instance.clearModule('eshop');
+  }
 
   int qtyFor(int productId, {int? variantId}) {
     try {

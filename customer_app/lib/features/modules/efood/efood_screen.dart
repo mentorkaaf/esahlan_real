@@ -1,5 +1,6 @@
 ﻿import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../core/services/cart_sync_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/api/module_api_service.dart';
@@ -166,6 +167,17 @@ class _CartItem {
 class _CartNotifier extends StateNotifier<List<_CartItem>> {
   _CartNotifier() : super([]);
 
+  void _syncToBackend() {
+    final items = state.map((e) => {
+      'product_id':    e.product['id'],
+      'product_name':  e.product['name'] ?? '',
+      'product_image': e.product['image'] ?? e.product['thumbnail'] ?? '',
+      'price':         e.unitPrice,
+      'quantity':      e.qty,
+    }).toList();
+    CartSyncService.instance.syncDebounced('efood', items);
+  }
+
   void add(_CartItem item) {
     final idx = state.indexWhere((e) => e.key == item.key);
     if (idx >= 0) {
@@ -175,12 +187,14 @@ class _CartNotifier extends StateNotifier<List<_CartItem>> {
     } else {
       state = [...state, item];
     }
+    _syncToBackend();
   }
 
   void increment(String key) {
     state = [for (final e in state) if (e.key == key)
       _CartItem(product: e.product, addons: e.addons, size: e.size, overridePrice: e.overridePrice, qty: e.qty + 1)
     else e];
+    _syncToBackend();
   }
 
   void decrement(String key) {
@@ -191,11 +205,18 @@ class _CartNotifier extends StateNotifier<List<_CartItem>> {
       return e;
     }).where((e) => e.qty > 0).toList();
     state = updated;
+    _syncToBackend();
   }
 
-  void remove(String key) => state = state.where((e) => e.key != key).toList();
+  void remove(String key) {
+    state = state.where((e) => e.key != key).toList();
+    _syncToBackend();
+  }
 
-  void clear() => state = [];
+  void clear() {
+    state = [];
+    CartSyncService.instance.clearModule('efood');
+  }
 
   double get subtotal => state.fold(0, (s, e) => s + e.total);
   int get totalItems  => state.fold(0, (s, e) => s + e.qty);
@@ -247,7 +268,10 @@ class EFoodScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return const _HomeTab();
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: const _HomeTab(),
+    );
   }
 }
 

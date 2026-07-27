@@ -507,6 +507,10 @@ Route::prefix('v1')->group(function () {
             Route::patch('cart/{item}',     [CartController::class, 'update']);
             Route::delete('cart',           [CartController::class, 'clear']);
 
+            // Cart abandonment sync
+            Route::post('cart/sync',        [\App\Http\Controllers\Api\Customer\CartSyncController::class, 'sync']);
+            Route::post('cart/clear-module',[\App\Http\Controllers\Api\Customer\CartSyncController::class, 'clear']);
+
             // Orders
             Route::get('orders',            [OrderController::class, 'index']);
             Route::post('orders',           [OrderController::class, 'store']);
