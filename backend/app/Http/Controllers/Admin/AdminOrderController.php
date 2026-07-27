@@ -154,12 +154,15 @@ class AdminOrderController extends Controller
 
             // Credit loyalty points + referral + affiliate commissions on delivery or completion
             if (in_array($request->status, ['delivered', 'completed', 'boarded'])) {
-                \Illuminate\Support\Facades\Queue::push(function () use ($order) {
-                    LoyaltyService::creditOrderPoints($order->id);
-                    ReferralService::processFirstOrderReward($order->user_id, $order->id, (float) $order->total_amount);
-                    AffiliateService::processOrderCommission($order->id);
-                    GamificationService::recordOrderAndCheckStreak($order->user_id, $order->id);
-                    GamificationService::checkAllBadges($order->user_id);
+                $orderId    = $order->id;
+                $orderUserId = $order->user_id;
+                $orderTotal  = (float) $order->total_amount;
+                \Illuminate\Support\Facades\DB::afterCommit(function () use ($orderId, $orderUserId, $orderTotal) {
+                    try { LoyaltyService::creditOrderPoints($orderId); } catch (\Throwable $e) { \Log::error('creditOrderPoints: '.$e->getMessage()); }
+                    try { ReferralService::processFirstOrderReward($orderUserId, $orderId, $orderTotal); } catch (\Throwable $e) { \Log::error('processFirstOrderReward: '.$e->getMessage()); }
+                    try { AffiliateService::processOrderCommission($orderId); } catch (\Throwable $e) { \Log::error('processOrderCommission: '.$e->getMessage()); }
+                    try { GamificationService::recordOrderAndCheckStreak($orderUserId, $orderId); } catch (\Throwable $e) { \Log::error('recordOrderAndCheckStreak: '.$e->getMessage()); }
+                    try { GamificationService::checkAllBadges($orderUserId); } catch (\Throwable $e) { \Log::error('checkAllBadges: '.$e->getMessage()); }
                 });
             }
 
