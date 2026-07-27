@@ -240,6 +240,69 @@ class VendorEShopController extends Controller
         return view('vendor.eshop.orders', compact('vendor', 'orders', 'orderItemsMap'));
     }
 
+    // ── Order Status Update ───────────────────────────────────────────────────
+
+    public function updateOrderStatus(Request $request, int $orderId)
+    {
+        $vendor = $this->vendor();
+
+        $request->validate([
+            'status' => 'required|in:confirmed,preparing,ready_for_pickup,out_for_delivery,delivered,cancelled',
+        ]);
+
+        // Verify this order belongs to this vendor (via products)
+        $belongs = DB::table('order_items')
+            ->join('products', 'order_items.product_id', '=', 'products.id')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->where('order_items.order_id', $orderId)
+            ->where('products.vendor_id', $vendor->id)
+            ->where('orders.module_slug', 'eshop')
+            ->exists();
+
+        if (!$belongs) abort(403, 'Not your order.');
+
+        $order = DB::table('orders')->where('id', $orderId)->first();
+        if (!$order) abort(404);
+
+        $data = [
+            'status'     => $request->status,
+            'updated_at' => now(),
+        ];
+        if ($request->status === 'delivered') $data['delivered_at'] = now();
+        if ($request->status === 'confirmed')  $data['confirmed_at'] = now();
+
+        DB::table('orders')->where('id', $orderId)->update($data);
+
+        DB::table('order_status_histories')->insert([
+            'order_id'   => $orderId,
+            'status'     => $request->status,
+            'note'       => 'Status updated by vendor',
+            'changed_by' => auth()->id(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Settle commission when vendor marks delivered
+        if ($request->status === 'delivered') {
+            DB::table('commissions')
+                ->where('order_id', $orderId)
+                ->where('status', 'pending')
+                ->update(['status' => 'settled', 'settled_at' => now()]);
+        }
+
+        // Notify customer via FCM
+        try {
+            $user = DB::table('users')->where('id', $order->user_id)->value('fcm_token');
+            if ($user) {
+                \App\Services\FcmService::sendOrderUpdate(
+                    $user, $order->order_number, $request->status, $orderId, 'eshop'
+                );
+            }
+        } catch (\Throwable) {}
+
+        return back()->with('success', 'Order #' . $order->order_number . ' marked as ' . ucfirst($request->status) . '.');
+    }
+
     // ── Store Profile ─────────────────────────────────────────────────────────
 
     public function store()

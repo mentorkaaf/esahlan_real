@@ -27,7 +27,7 @@ class SendCartAbandonmentNotifications extends Command
         $now = now();
 
         // Get all carts grouped by user+module that still have items
-        $carts = DB::table('cart_items')
+        $carts = DB::table('abandoned_cart_items')
             ->select('user_id', 'module', DB::raw('MIN(added_at) as first_added'))
             ->groupBy('user_id', 'module')
             ->get();
@@ -38,7 +38,7 @@ class SendCartAbandonmentNotifications extends Command
             $hoursOld     = $firstAdded->diffInHours($now);
 
             // Get notification timestamps for this user+module
-            $notifRow = DB::table('cart_items')
+            $notifRow = DB::table('abandoned_cart_items')
                 ->where('user_id', $cart->user_id)
                 ->where('module', $cart->module)
                 ->select('notified_30min_at', 'notified_2h_at', 'notified_24h_at')
@@ -53,7 +53,7 @@ class SendCartAbandonmentNotifications extends Command
             if (!$user?->fcm_token) continue;
 
             // Get cart items for message
-            $items = DB::table('cart_items')
+            $items = DB::table('abandoned_cart_items')
                 ->where('user_id', $cart->user_id)
                 ->where('module', $cart->module)
                 ->get();
@@ -68,7 +68,7 @@ class SendCartAbandonmentNotifications extends Command
             // 30 min reminder
             if ($minutesOld >= 30 && !$notifRow->notified_30min_at) {
                 $this->sendNotification($user->fcm_token, $moduleInfo, $firstName, $itemCount, $totalPrice, 'first');
-                DB::table('cart_items')
+                DB::table('abandoned_cart_items')
                     ->where('user_id', $cart->user_id)
                     ->where('module', $cart->module)
                     ->update(['notified_30min_at' => $now]);
@@ -78,7 +78,7 @@ class SendCartAbandonmentNotifications extends Command
             // 2 hour reminder
             if ($hoursOld >= 2 && !$notifRow->notified_2h_at) {
                 $this->sendNotification($user->fcm_token, $moduleInfo, $firstName, $itemCount, $totalPrice, 'second');
-                DB::table('cart_items')
+                DB::table('abandoned_cart_items')
                     ->where('user_id', $cart->user_id)
                     ->where('module', $cart->module)
                     ->update(['notified_2h_at' => $now]);
@@ -88,7 +88,7 @@ class SendCartAbandonmentNotifications extends Command
             // 24 hour reminder
             if ($hoursOld >= 24 && !$notifRow->notified_24h_at) {
                 $this->sendNotification($user->fcm_token, $moduleInfo, $firstName, $itemCount, $totalPrice, 'final');
-                DB::table('cart_items')
+                DB::table('abandoned_cart_items')
                     ->where('user_id', $cart->user_id)
                     ->where('module', $cart->module)
                     ->update(['notified_24h_at' => $now]);
@@ -97,7 +97,7 @@ class SendCartAbandonmentNotifications extends Command
 
             // 48 hours → auto-clear (stop spamming)
             if ($hoursOld >= 48) {
-                DB::table('cart_items')
+                DB::table('abandoned_cart_items')
                     ->where('user_id', $cart->user_id)
                     ->where('module', $cart->module)
                     ->delete();

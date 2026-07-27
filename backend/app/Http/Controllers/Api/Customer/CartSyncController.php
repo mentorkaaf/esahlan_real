@@ -34,7 +34,7 @@ class CartSyncController extends Controller
 
         DB::transaction(function () use ($user, $module, $items) {
             // Delete existing items for this user+module
-            DB::table('cart_items')
+            DB::table('abandoned_cart_items')
                 ->where('user_id', $user->id)
                 ->where('module', $module)
                 ->delete();
@@ -56,7 +56,7 @@ class CartSyncController extends Controller
                 'updated_at'   => $now,
             ], $items);
 
-            DB::table('cart_items')->insert($rows);
+            DB::table('abandoned_cart_items')->insert($rows);
         });
 
         return response()->json(['success' => true]);
@@ -72,7 +72,7 @@ class CartSyncController extends Controller
 
         $module = $request->input('module');
 
-        $query = DB::table('cart_items')->where('user_id', $user->id);
+        $query = DB::table('abandoned_cart_items')->where('user_id', $user->id);
         if ($module) $query->where('module', $module);
         $query->delete();
 

@@ -77,6 +77,7 @@ Route::prefix('vendor')->name('vendor.')->group(function () {
             Route::delete('/products/{id}',     [$es, 'productDelete'])->name('products.delete');
             Route::post('/products/{id}/toggle',[$es, 'productToggle'])->name('products.toggle');
             Route::get('/orders',               [$es, 'orders'])->name('orders');
+            Route::post('/orders/{id}/status', [$es, 'updateOrderStatus'])->name('orders.status');
             Route::get('/store',                [$es, 'store'])->name('store');
             Route::post('/store',               [$es, 'storeUpdate'])->name('store.update');
             Route::get('/earnings',             [$es, 'earnings'])->name('earnings');

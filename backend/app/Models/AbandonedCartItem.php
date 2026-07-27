@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class AbandonedCartItem extends Model
 {
-    protected $table = 'cart_items';
+    protected $table = 'abandoned_cart_items';
 
     protected $fillable = [
         'user_id', 'module', 'product_id', 'product_name',
