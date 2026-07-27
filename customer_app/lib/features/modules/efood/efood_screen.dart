@@ -238,8 +238,6 @@ final _favProvider = StateNotifierProvider<_FavNotifier, Set<int>>(
 // BOTTOM NAV INDEX
 // ════════════════════════════════════════════════════════════════════
 
-final _navIndexProvider = StateProvider<int>((_) => 0);
-
 // ════════════════════════════════════════════════════════════════════
 // ROOT SCREEN
 // ════════════════════════════════════════════════════════════════════
@@ -249,63 +247,7 @@ class EFoodScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final idx = ref.watch(_navIndexProvider);
-    final cart = ref.watch(_cartProvider);
-
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: IndexedStack(
-        index: idx,
-        children: const [
-          _HomeTab(),
-          _SearchTab(),
-          _OrdersTab(),
-          _FavoritesTab(),
-          _ProfileTab(),
-        ],
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, -4))],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: idx,
-          onTap: (i) => ref.read(_navIndexProvider.notifier).state = i,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          selectedItemColor: _primary,
-          unselectedItemColor: Colors.grey[400],
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
-          unselectedLabelStyle: const TextStyle(fontSize: 11),
-          elevation: 0,
-          items: [
-            const BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
-            const BottomNavigationBarItem(icon: Icon(Icons.search_rounded), label: 'Search'),
-            BottomNavigationBarItem(
-              icon: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(Icons.receipt_long_rounded),
-                  if (cart.isNotEmpty)
-                    Positioned(
-                      right: -6, top: -4,
-                      child: Container(
-                        width: 16, height: 16,
-                        decoration: const BoxDecoration(color: _primary, shape: BoxShape.circle),
-                        child: Center(child: Text('${cart.length}', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
-                      ),
-                    ),
-                ],
-              ),
-              label: 'Orders',
-            ),
-            const BottomNavigationBarItem(icon: Icon(Icons.favorite_rounded), label: 'Favorites'),
-            const BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profile'),
-          ],
-        ),
-      ),
-    );
+    return const _HomeTab();
   }
 }
 
@@ -436,7 +378,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
     child: Row(children: [
       Expanded(
         child: GestureDetector(
-          onTap: () => ref.read(_navIndexProvider.notifier).state = 1,
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _SearchTab())),
           child: Container(
             height: 48,
             decoration: BoxDecoration(
@@ -3215,47 +3157,6 @@ class _FavRestaurantTile extends ConsumerWidget {
 // PROFILE TAB
 // ════════════════════════════════════════════════════════════════════
 
-class _ProfileTab extends StatelessWidget {
-  const _ProfileTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(child: ListView(padding: const EdgeInsets.all(16), children: [
-      const SizedBox(height: 8),
-      Center(child: Column(children: [
-        Container(
-          width: 80, height: 80,
-          decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFFFE0B2)),
-          child: const Icon(Icons.person_rounded, color: _primary, size: 44),
-        ),
-        const SizedBox(height: 12),
-        Text('Rafi Ahmed', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: context.colors.navyText)),
-        Text('+252 61 XXXXXXX', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
-      ])),
-      const SizedBox(height: 28),
-      ...[
-        (Icons.location_on_rounded,   'Saved Addresses'),
-        (Icons.payment_rounded,        'Payment Methods'),
-        (Icons.history_rounded,        'Order History'),
-        (Icons.local_offer_rounded,    'Promo Codes'),
-        (Icons.notifications_rounded,  'Notifications'),
-        (Icons.help_outline_rounded,   'Help & Support'),
-        (Icons.info_outline_rounded,   'About'),
-        (Icons.logout_rounded,         'Logout'),
-      ].map((item) => Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
-        child: ListTile(
-          leading: Container(width: 38, height: 38, decoration: BoxDecoration(color: _primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: Icon(item.$1, color: item.$2 == 'Logout' ? Colors.red : _primary, size: 20)),
-          title: Text(item.$2, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: item.$2 == 'Logout' ? Colors.red : context.colors.navyText)),
-          trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
-          onTap: () {},
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-      )),
-    ]));
-  }
-}
 
 // ── District picker bottom sheet for efood checkout ─────────────────────────
 
