@@ -67,6 +67,21 @@ Route::prefix('vendor')->name('vendor.')->group(function () {
         // Earnings
         Route::get('/earnings', [VendorDashboardWebController::class, 'earnings'])->name('earnings');
 
+        // ── eShop Vendor Panel ───────────────────────────────────────────
+        Route::prefix('eshop')->name('eshop.')->group(function () {
+            $es = \App\Http\Controllers\Vendor\VendorEShopController::class;
+            Route::get('/dashboard',            [$es, 'dashboard'])->name('dashboard');
+            Route::get('/products',             [$es, 'products'])->name('products');
+            Route::post('/products',            [$es, 'productStore'])->name('products.store');
+            Route::patch('/products/{id}',      [$es, 'productUpdate'])->name('products.update');
+            Route::delete('/products/{id}',     [$es, 'productDelete'])->name('products.delete');
+            Route::post('/products/{id}/toggle',[$es, 'productToggle'])->name('products.toggle');
+            Route::get('/orders',               [$es, 'orders'])->name('orders');
+            Route::get('/store',                [$es, 'store'])->name('store');
+            Route::post('/store',               [$es, 'storeUpdate'])->name('store.update');
+            Route::get('/earnings',             [$es, 'earnings'])->name('earnings');
+        });
+
         // Branch Switcher
         Route::post('/switch-branch', function (\Illuminate\Http\Request $request) {
             $vendorId = $request->input('vendor_id');

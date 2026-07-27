@@ -329,6 +329,30 @@
             <span class="nav-icon"><i class="fa-solid fa-wallet"></i></span>
             <span class="nav-text">Wallet</span>
         </a>
+
+        @if(($vendor?->module_slug ?? '') === 'eshop')
+        <div class="nav-section-label" style="margin-top:8px;color:rgba(255,138,0,.7)">eShop Panel</div>
+        <a href="{{ route('vendor.eshop.dashboard') }}" class="nav-link {{ request()->routeIs('vendor.eshop.dashboard') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-shop"></i></span>
+            <span class="nav-text">eShop Dashboard</span>
+        </a>
+        <a href="{{ route('vendor.eshop.products') }}" class="nav-link {{ request()->routeIs('vendor.eshop.products') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-box-open"></i></span>
+            <span class="nav-text">My Products</span>
+        </a>
+        <a href="{{ route('vendor.eshop.orders') }}" class="nav-link {{ request()->routeIs('vendor.eshop.orders') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-receipt"></i></span>
+            <span class="nav-text">eShop Orders</span>
+        </a>
+        <a href="{{ route('vendor.eshop.store') }}" class="nav-link {{ request()->routeIs('vendor.eshop.store') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-pen-to-square"></i></span>
+            <span class="nav-text">Store Profile</span>
+        </a>
+        <a href="{{ route('vendor.eshop.earnings') }}" class="nav-link {{ request()->routeIs('vendor.eshop.earnings') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-hand-holding-dollar"></i></span>
+            <span class="nav-text">Earnings</span>
+        </a>
+        @endif
     </div>
 
     <div class="sidebar-footer">
