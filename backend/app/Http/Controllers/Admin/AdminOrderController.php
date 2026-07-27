@@ -169,13 +169,18 @@ class AdminOrderController extends Controller
                 });
             }
 
-            // Credit vendor wallet on delivery
+            // Credit vendor wallet + settle commission on delivery
             if ($request->status === 'delivered' && $order->vendor_id) {
                 $vendorEarning = (float) $order->subtotal - (float) ($order->commission ?? 0);
                 if ($vendorEarning > 0) {
                     $vendorWallet = Wallet::getOrCreateFor('App\\Models\\Vendor', $order->vendor_id);
                     $vendorWallet->credit($vendorEarning, "Order #{$order->order_number} earning", 'App\\Models\\Order', $order->id);
                 }
+                // Settle commission record
+                DB::table('commissions')
+                    ->where('order_id', $order->id)
+                    ->where('status', 'pending')
+                    ->update(['status' => 'settled', 'settled_at' => now()]);
             }
         });
 

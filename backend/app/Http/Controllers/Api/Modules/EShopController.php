@@ -302,11 +302,27 @@ class EShopController extends Controller
             }
         }
 
-        $order = DB::transaction(function () use ($request, $user, $total, $deliveryFee, $lines, $loyalty) {
+        // Determine vendor from first product's vendor_id
+        $firstProduct = DB::table('products')->find($lines[0]['product_id']);
+        $vendor       = $firstProduct ? DB::table('vendors')->find($firstProduct->vendor_id) : null;
+        $vendorId     = $vendor?->id ?? null;
+        $moduleId     = $vendor?->module_id ?? null;
+
+        // Commission calculation
+        $subtotalForCommission = array_sum(array_column($lines, 'total'));
+        $commissionRate   = $vendor?->commission_value ?? 10;
+        $commissionAmount = round($subtotalForCommission * $commissionRate / 100, 2);
+        $vendorEarning    = round($subtotalForCommission - $commissionAmount, 2);
+
+        $order = DB::transaction(function () use (
+            $request, $user, $total, $deliveryFee, $lines, $loyalty,
+            $vendorId, $moduleId, $commissionRate, $commissionAmount, $vendorEarning, $subtotalForCommission
+        ) {
             $subtotal = $total - $deliveryFee;
             $order = Order::create([
-                'order_number'    => 'SHOP-' . strtoupper(Str::random(8)),
+                'order_number'    => 'ESH-' . strtoupper(Str::random(8)),
                 'user_id'         => $user->id,
+                'vendor_id'       => $vendorId,
                 'module_slug'     => 'eshop',
                 'status'          => 'pending',
                 'payment_method'  => $request->payment_method,
@@ -314,6 +330,7 @@ class EShopController extends Controller
                 'delivery_address'=> $request->delivery_address,
                 'subtotal'        => $subtotal,
                 'delivery_fee'    => $deliveryFee,
+                'commission'      => $commissionAmount,
                 'total_amount'    => $total,
                 'points_used'     => $loyalty['points_used'],
                 'points_discount' => $loyalty['points_discount'],
@@ -328,6 +345,8 @@ class EShopController extends Controller
                     'price'      => $line['price'],
                     'quantity'   => $line['quantity'],
                     'total'      => $line['total'],
+                    'variant_id' => $line['variant_id'] ?? null,
+                    'meta'       => $line['meta'] ?? null,
                 ]);
             }
 
@@ -342,6 +361,22 @@ class EShopController extends Controller
 
             if ($request->payment_method === 'wallet') {
                 $user->wallet->decrement('balance', $total);
+            }
+
+            // Commission record
+            if ($vendorId && $moduleId) {
+                DB::table('commissions')->insert([
+                    'order_id'          => $order->id,
+                    'vendor_id'         => $vendorId,
+                    'module_id'         => $moduleId,
+                    'commission_type'   => 'percentage',
+                    'commission_rate'   => $commissionRate,
+                    'order_amount'      => $subtotalForCommission,
+                    'commission_amount' => $commissionAmount,
+                    'vendor_earning'    => $vendorEarning,
+                    'status'            => 'pending',
+                    'created_at'        => now(),
+                ]);
             }
 
             return $order;

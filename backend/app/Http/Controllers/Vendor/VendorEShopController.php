@@ -46,7 +46,7 @@ class VendorEShopController extends Controller
             'pending_orders'  => DB::table('orders')->whereIn('id', $orderIds)->where('status', 'pending')->count(),
             'today_orders'    => DB::table('orders')->whereIn('id', $orderIds)->whereDate('created_at', $today)->count(),
             'today_revenue'   => DB::table('commissions')->where('vendor_id', $vendor->id)->whereDate('created_at', $today)->sum('vendor_earning'),
-            'total_earned'    => DB::table('commissions')->where('vendor_id', $vendor->id)->where('status', 'paid')->sum('vendor_earning'),
+            'total_earned'    => DB::table('commissions')->where('vendor_id', $vendor->id)->where('status', 'settled')->sum('vendor_earning'),
             'pending_payout'  => DB::table('commissions')->where('vendor_id', $vendor->id)->where('status', 'pending')->sum('vendor_earning'),
             'rating'          => round($vendor->rating ?? 0, 1),
             'review_count'    => $vendor->review_count ?? 0,
@@ -305,7 +305,7 @@ class VendorEShopController extends Controller
             ->paginate(20);
 
         $summary = DB::table('commissions')->where('vendor_id', $vendor->id)->selectRaw('
-            SUM(CASE WHEN status="paid" THEN vendor_earning ELSE 0 END) as paid,
+            SUM(CASE WHEN status="settled" THEN vendor_earning ELSE 0 END) as paid,
             SUM(CASE WHEN status="pending" THEN vendor_earning ELSE 0 END) as pending,
             SUM(commission_amount) as total_commission
         ')->first();

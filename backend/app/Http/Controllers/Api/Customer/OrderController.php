@@ -313,6 +313,21 @@ class OrderController extends Controller
                 ]);
             }
 
+            // Commission record — vendor earning = subtotal - commission
+            $commissionRate = $vendor->commission_value ?? $vendor->module?->commission_value ?? 10;
+            DB::table('commissions')->insert([
+                'order_id'         => $order->id,
+                'vendor_id'        => $vendor->id,
+                'module_id'        => $vendor->module_id,
+                'commission_type'  => 'percentage',
+                'commission_rate'  => $commissionRate,
+                'order_amount'     => $subtotal,
+                'commission_amount'=> $commission,
+                'vendor_earning'   => round($subtotal - $commission, 2),
+                'status'           => 'pending',
+                'created_at'       => now(),
+            ]);
+
             return $order;
         });
 
