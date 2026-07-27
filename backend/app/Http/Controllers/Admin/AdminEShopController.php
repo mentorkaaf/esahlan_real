@@ -192,7 +192,7 @@ class AdminEShopController extends Controller
                 'commissions.id', 'commissions.order_id', 'commissions.vendor_id',
                 'commissions.commission_rate', 'commissions.commission_amount',
                 'commissions.vendor_earning', 'commissions.status',
-                'commissions.paid_at', 'commissions.created_at',
+                'commissions.settled_at', 'commissions.created_at',
                 'orders.order_number', 'orders.total_amount',
                 'vendors.name as vendor_name',
             ])
@@ -792,8 +792,8 @@ class AdminEShopController extends Controller
     public function commissionMarkPaid(int $id)
     {
         DB::table('commissions')->where('id', $id)->update([
-            'status'  => 'paid',
-            'paid_at' => now(),
+            'status'     => 'settled',
+            'settled_at' => now(),
             'updated_at' => now(),
         ]);
         return back()->with('success', 'Commission marked as paid.');

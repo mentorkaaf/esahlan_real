@@ -22,6 +22,7 @@ class Wallet extends Model
 
     public function transactions() { return $this->hasMany(Transaction::class); }
     public function withdrawalRequests() { return $this->hasMany(WithdrawalRequest::class); }
+    public function owner() { return $this->morphTo(); }
 
     public function credit(float $amount, string $note = '', ?string $refType = null, ?int $refId = null, string $method = 'wallet'): Transaction
     {

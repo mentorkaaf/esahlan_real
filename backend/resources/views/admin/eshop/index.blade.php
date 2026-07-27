@@ -719,7 +719,7 @@ select.form-control { background:#fff; }
                 <span class="{{ $c->status==='paid' ? 'badge-active' : 'badge-inactive' }}">
                     {{ ucfirst($c->status) }}
                 </span>
-                @if($c->paid_at)<div style="font-size:10px;color:#aaa">{{ \Carbon\Carbon::parse($c->paid_at)->format('d M Y') }}</div>@endif
+                @if($c->settled_at)<div style="font-size:10px;color:#aaa">{{ \Carbon\Carbon::parse($c->settled_at)->format('d M Y') }}</div>@endif
             </td>
             <td style="font-size:12px;color:#666">{{ \Carbon\Carbon::parse($c->created_at)->format('d M Y') }}</td>
             <td>
