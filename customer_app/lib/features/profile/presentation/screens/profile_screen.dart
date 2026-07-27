@@ -10,7 +10,7 @@ import '../../../../core/theme/theme_x.dart';
 import '../../../../features/auth/data/models/user_model.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../wallet/presentation/screens/referral_screen.dart';
-import '../../../wallet/presentation/screens/wallet_screen.dart';
+import '../../../../core/api/module_api_service.dart';
 import '../../../affiliate/affiliate_screen.dart';
 import '../../../gamification/gamification_screen.dart';
 import '../../../rewards/tier_widgets.dart';
@@ -600,11 +600,117 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             icon: Icons.currency_exchange_rounded,
             label: 'Convert\nWallet',
             color: const Color(0xFF1565C0),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _ConvertWalletScreen())),
+            onTap: () => _showConvertPoints(context),
           ),
         ]),
       ),
     ]);
+  }
+
+  void _showConvertPoints(BuildContext context) {
+    final rewards = ref.read(rewardsProvider).valueOrNull;
+    final pointsBalance = rewards?.balance ?? 0;
+    final ptsToDollar   = rewards?.pointsToDollar ?? 100;
+    const minPts = 500;
+    final svc = ModuleApiService.create();
+
+    int ptsToRedeem = 0;
+    bool converting = false;
+    String? error;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, ss) {
+        final dollarValue = ptsToRedeem / ptsToDollar;
+        return Container(
+          padding: EdgeInsets.fromLTRB(20, 24, 20, MediaQuery.of(ctx).viewInsets.bottom + 28),
+          decoration: BoxDecoration(
+            color: context.colors.cardBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2)))),
+            Row(children: [
+              Container(width: 40, height: 40,
+                decoration: const BoxDecoration(color: Color(0x1FF59E0B), shape: BoxShape.circle),
+                child: const Icon(Icons.currency_exchange_rounded, color: Color(0xFFF59E0B), size: 22)),
+              const SizedBox(width: 12),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Convert Points to Wallet',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+                Text('$ptsToDollar pts = \$1.00  •  Min $minPts pts',
+                    style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
+              ]),
+            ]),
+            const SizedBox(height: 20),
+            Text('Available: $pointsBalance pts',
+                style: TextStyle(fontSize: 13, color: context.colors.mutedText)),
+            const SizedBox(height: 8),
+            TextField(
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                hintText: 'Enter points (min $minPts)',
+                suffixText: 'pts',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: context.colors.inputFill,
+              ),
+              onChanged: (v) => ss(() { ptsToRedeem = int.tryParse(v) ?? 0; error = null; }),
+            ),
+            if (ptsToRedeem > 0) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(color: const Color(0x1AF59E0B), borderRadius: BorderRadius.circular(10)),
+                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text('You will receive:', style: TextStyle(fontSize: 13, color: context.colors.mutedText)),
+                  Text('\$${dollarValue.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFFF59E0B))),
+                ]),
+              ),
+            ],
+            if (error != null) ...[
+              const SizedBox(height: 8),
+              Text(error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+            ],
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: converting || ptsToRedeem < minPts || ptsToRedeem > pointsBalance ? null : () async {
+                  ss(() { converting = true; error = null; });
+                  try {
+                    await svc.redeemPointsToWallet(ptsToRedeem);
+                    ref.invalidate(rewardsProvider);
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text('Converted $ptsToRedeem pts → \$${dollarValue.toStringAsFixed(2)}!'),
+                        backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
+                      ));
+                    }
+                  } catch (e) {
+                    ss(() { converting = false; error = e.toString().replaceAll('Exception: ', ''); });
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: converting
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Convert to Wallet', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+              ),
+            ),
+          ]),
+        );
+      }),
+    );
   }
 
   Widget _chip({required IconData icon, required Color iconColor, required String label, required Color bg, required Color fg}) {
@@ -1111,15 +1217,6 @@ class _RewardIconCard extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _ConvertWalletScreen extends StatelessWidget {
-  const _ConvertWalletScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return const WalletScreen();
   }
 }
 
