@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../../core/theme/theme_x.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import 'eshop_providers.dart';
 
@@ -90,8 +89,8 @@ class _State extends ConsumerState<EShopStoreDetailScreen> with SingleTickerProv
           SliverAppBar(
             expandedHeight: 220,
             pinned: true,
-            backgroundColor: context.surface,
-            foregroundColor: context.onSurface,
+            backgroundColor: Theme.of(context).cardColor,
+            foregroundColor: Theme.of(context).colorScheme.onSurface,
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
@@ -175,7 +174,7 @@ class _State extends ConsumerState<EShopStoreDetailScreen> with SingleTickerProv
           // Info bar
           SliverToBoxAdapter(
             child: Container(
-              color: context.surface,
+              color: Theme.of(context).cardColor,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,7 +201,7 @@ class _State extends ConsumerState<EShopStoreDetailScreen> with SingleTickerProv
             SliverToBoxAdapter(
               child: Container(
                 height: 44,
-                color: context.surface,
+                color: Theme.of(context).cardColor,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -320,7 +319,7 @@ class _ProductCard extends ConsumerWidget {
       onTap: () => context.push('/eshop/products/$id'),
       child: Container(
         decoration: BoxDecoration(
-          color: context.surface,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 2))],
         ),
@@ -356,7 +355,7 @@ class _ProductCard extends ConsumerWidget {
                         const Spacer(),
                         GestureDetector(
                           onTap: () {
-                            ref.read(eshopCartProvider.notifier).add(product, 1);
+                            ref.read(eshopCartProvider.notifier).addItem(product);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('$name added to cart'), duration: const Duration(seconds: 1)),
                             );
@@ -427,7 +426,7 @@ class _RatingSummary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: context.surface,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
       ),
@@ -491,7 +490,7 @@ class _ReviewCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: context.surface,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
       ),

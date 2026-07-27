@@ -161,7 +161,7 @@ class _PopularCard extends ConsumerWidget {
                         ),
                         GestureDetector(
                           onTap: () {
-                            ref.read(eshopCartProvider.notifier).add(product, 1);
+                            ref.read(eshopCartProvider.notifier).addItem(product);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('$name added'), duration: const Duration(seconds: 1)),
                             );
