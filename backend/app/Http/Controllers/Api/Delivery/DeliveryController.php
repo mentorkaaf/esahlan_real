@@ -364,14 +364,30 @@ class DeliveryController extends Controller
                     'created_at'     => now(),
                 ]);
 
-                // Credit vendor wallet (net earning after commission)
-                if ($order->vendor_id) {
-                    $vendorEarning = (float) $order->subtotal - (float) ($order->commission ?? 0);
+                // Settle commission record — use commission table as fallback if vendor_id not set on order
+                $commissionRow = DB::table('commissions')
+                    ->where('order_id', $order->id)
+                    ->where('status', 'pending')
+                    ->first();
+
+                $effectiveVendorId = $order->vendor_id ?? $commissionRow?->vendor_id;
+
+                if ($effectiveVendorId) {
+                    $vendorEarning = $commissionRow
+                        ? (float) $commissionRow->vendor_earning
+                        : max(0, (float) $order->subtotal - (float) ($order->commission ?? 0));
+
                     if ($vendorEarning > 0) {
-                        $vendorWallet = Wallet::getOrCreateFor('App\\Models\\Vendor', $order->vendor_id);
+                        $vendorWallet = Wallet::getOrCreateFor('App\\Models\\Vendor', $effectiveVendorId);
                         $vendorWallet->credit($vendorEarning, "Order #{$order->order_number} earning", 'App\\Models\\Order', $order->id);
                     }
                 }
+
+                // Always settle any pending commission for this order
+                DB::table('commissions')
+                    ->where('order_id', $order->id)
+                    ->where('status', 'pending')
+                    ->update(['status' => 'settled', 'settled_at' => now()]);
 
                 $dm->update(['status' => 'available', 'is_available' => true]);
                 $dm->increment('total_deliveries');
