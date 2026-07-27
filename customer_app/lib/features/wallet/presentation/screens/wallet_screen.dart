@@ -602,6 +602,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(builder: (ctx, ss) {
         final dollarValue = ptsToRedeem / ptsToDollar;

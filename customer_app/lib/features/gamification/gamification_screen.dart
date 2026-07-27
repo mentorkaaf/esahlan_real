@@ -272,6 +272,7 @@ class _BadgeTile extends StatelessWidget {
     final earned = badge['earned'] as bool? ?? false;
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         decoration: const BoxDecoration(

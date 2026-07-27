@@ -68,6 +68,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _EditSheet(
         label: label,
@@ -94,6 +95,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ];
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _BottomSheet(
         title: 'Language',
@@ -129,6 +131,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ];
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _BottomSheet(
         title: 'Font Size',
@@ -621,6 +624,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(builder: (ctx, ss) {
         final dollarValue = ptsToRedeem / ptsToDollar;
@@ -831,6 +835,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void _showThemePicker(AppSettings settings) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _BottomSheet(
         title: 'Appearance',
@@ -864,6 +869,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void _showVideoAutoplayPicker(AppSettings settings) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _BottomSheet(
         title: 'Video Autoplay',
