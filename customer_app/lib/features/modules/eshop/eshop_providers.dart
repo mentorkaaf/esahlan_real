@@ -11,6 +11,7 @@ extension _CacheFor on Ref {
 }
 
 double _toD(dynamic v) => double.tryParse(v?.toString() ?? '0') ?? 0;
+int _toId(dynamic v) => int.tryParse(v?.toString() ?? '0') ?? 0;
 
 // ─────────────────────────────────────────────────────────────────
 // Cart model
@@ -57,13 +58,14 @@ class EShopCartNotifier extends StateNotifier<List<CartItem>> {
   EShopCartNotifier() : super([]);
 
   void addItem(Map<String, dynamic> product, {int qty = 1, int? variantId, Map<String, dynamic>? variant}) {
-    final idx = state.indexWhere((c) => c.productId == product['id'] && c.variantId == variantId);
+    final id = _toId(product['id']);
+    final idx = state.indexWhere((c) => c.productId == id && c.variantId == variantId);
     if (idx >= 0) {
       final updated = List<CartItem>.from(state);
       updated[idx] = updated[idx].copyWith(qty: updated[idx].qty + qty);
       state = updated;
     } else {
-      state = [...state, CartItem(productId: product['id'], product: product, qty: qty, variantId: variantId, variant: variant)];
+      state = [...state, CartItem(productId: id, product: product, qty: qty, variantId: variantId, variant: variant)];
     }
   }
 

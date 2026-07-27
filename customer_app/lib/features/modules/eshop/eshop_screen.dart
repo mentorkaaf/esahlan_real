@@ -25,6 +25,16 @@ Widget _errorSliver(Object err) => SliverToBoxAdapter(
 // ─────────────────────────────────────────────────────────────────
 double _toD(dynamic v) => double.tryParse(v?.toString() ?? '0') ?? 0;
 String _fmt(dynamic v) => '\$${_toD(v).toStringAsFixed(2)}';
+int _toId(dynamic v) => int.tryParse(v?.toString() ?? '0') ?? 0;
+Map<String, dynamic> _asMap(dynamic v) {
+  if (v is Map<String, dynamic>) return v;
+  if (v is Map) return Map<String, dynamic>.from(v);
+  return {};
+}
+List<Map<String, dynamic>> _asList(dynamic v) {
+  if (v is! List) return [];
+  return v.map(_asMap).toList();
+}
 
 Widget _netImg(String? url, {BoxFit fit = BoxFit.cover, Widget? placeholder}) =>
     NetImage(url: url, fit: fit);
@@ -286,7 +296,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
                     child: Text('Campaigns', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
                   ),
                   ...campaigns.map((c) {
-                    final campaign = c as Map<String, dynamic>;
+                    final campaign = _asMap(c);
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                       child: GestureDetector(
@@ -359,8 +369,8 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
             error: (_, __) => const SliverToBoxAdapter(child: SizedBox()),
             data: (deals) {
               if (deals.isEmpty) return const SliverToBoxAdapter(child: SizedBox());
-              final deal = deals.first as Map<String, dynamic>;
-              final products = (deal['products'] as List?) ?? [];
+              final deal = _asMap(deals.first);
+              final products = _asList(deal['products']);
               if (products.isEmpty) return const SliverToBoxAdapter(child: SizedBox());
               return SliverToBoxAdapter(child: _FlashDealBanner(
                 deal: deal, products: products, cartNotifier: cartNotifier, cart: cart));
@@ -396,7 +406,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
                 sliver: SliverGrid(
                   delegate: SliverChildBuilderDelegate(
                     (_, i) => _ProductCard(
-                      product: products[i] as Map<String, dynamic>,
+                      product: _asMap(products[i]),
                       cartNotifier: cartNotifier,
                       cart: cart,
                     ),
@@ -490,7 +500,7 @@ class _CategoriesCarouselState extends State<_CategoriesCarousel> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: widget.cats.length,
       itemBuilder: (_, i) {
-        final cat = widget.cats[i] as Map<String, dynamic>;
+        final cat = _asMap(widget.cats[i]);
         return GestureDetector(
           onTap: () => context.push(
             '/eshop/products?category_id=${cat['id']}&category_name=${Uri.encodeComponent(cat['name'] ?? '')}'),
@@ -575,7 +585,7 @@ class _FeaturedCarouselState extends State<_FeaturedCarousel> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: widget.products.length,
       itemBuilder: (_, i) => _ProductCard(
-        product: widget.products[i] as Map<String, dynamic>,
+        product: _asMap(widget.products[i]),
         cartNotifier: widget.cartNotifier,
         cart: widget.cart,
         horizontal: true,
@@ -748,11 +758,11 @@ class _FlashDealSheet extends StatelessWidget {
             crossAxisSpacing: 12, mainAxisSpacing: 12),
           itemCount: products.length,
           itemBuilder: (_, i) {
-            final p = products[i] as Map<String, dynamic>;
-            final qty = cartNotifier.qtyFor(p['id'] as int);
+            final p = _asMap(products[i]);
+            final qty = cartNotifier.qtyFor(_toId(p['id']));
             final hasDisc = p['sale_price'] != null && _toD(p['sale_price']) < _toD(p['price']);
             return GestureDetector(
-              onTap: () => onTap(p['id'] as int),
+              onTap: () => onTap(_toId(p['id'])),
               child: Container(
                 decoration: BoxDecoration(
                   color: context.colors.cardBg,
@@ -937,8 +947,8 @@ class _FlashDealSectionState extends State<_FlashDealSection> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
           itemCount: widget.products.length,
           itemBuilder: (_, i) {
-            final p = widget.products[i] as Map<String, dynamic>;
-            final qty = widget.cartNotifier.qtyFor(p['id'] as int);
+            final p = _asMap(widget.products[i]);
+            final qty = widget.cartNotifier.qtyFor(_toId(p['id']));
             final hasDisc = p['sale_price'] != null && _toD(p['sale_price']) < _toD(p['price']);
             return GestureDetector(
               onTap: () => context.push('/eshop/products/${p['id']}'),
@@ -1026,8 +1036,8 @@ class _DealsOfDaySection extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           itemCount: deals.length,
           itemBuilder: (_, i) {
-            final item = deals[i] as Map<String, dynamic>;
-            final p = item['product'] as Map<String, dynamic>? ?? {};
+            final item = _asMap(deals[i]);
+            final p = _asMap(item['product']);
             final badge = item['badge'] as String?;
             return GestureDetector(
               onTap: () => context.push('/eshop/products/${p['id']}'),
@@ -1097,7 +1107,7 @@ class _ProductCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final p = product;
     final inWishlist = ref.watch(eshopWishlistProvider).contains(p['id']);
-    final qty = cartNotifier.qtyFor(p['id'] as int);
+    final qty = cartNotifier.qtyFor(_toId(p['id']));
     final hasDiscount = p['sale_price'] != null && _toD(p['sale_price']) < _toD(p['price']);
 
     Widget card = Container(
@@ -1124,7 +1134,7 @@ class _ProductCard extends ConsumerWidget {
             onTap: () {
               final wl = ref.read(eshopWishlistProvider);
               ref.read(eshopWishlistProvider.notifier).state =
-                inWishlist ? (Set<int>.from(wl)..remove(p['id'])) : (Set<int>.from(wl)..add(p['id'] as int));
+                inWishlist ? (Set<int>.from(wl)..remove(_toId(p['id']))) : (Set<int>.from(wl)..add(_toId(p['id'])));
             },
             child: Container(
               padding: const EdgeInsets.all(5),
