@@ -64,10 +64,14 @@ class _State extends ConsumerState<EShopStoreDetailScreen> with SingleTickerProv
   }
 
   Widget _buildScreen(BuildContext context, Map<String, dynamic> store) {
-    final vendor = _asMap(store['vendor']);
+    final vendor = _asMap(store['store']);
     final categories = _asList(store['categories']);
-    final products = _asList(store['products']);
-    final reviewStats = _asMap(store['review_stats']);
+    // products is a paginated object → extract 'data' key
+    final productsRaw = store['products'];
+    final products = productsRaw is Map
+        ? _asList((productsRaw as Map)['data'])
+        : _asList(productsRaw);
+    final reviewStats = <String, dynamic>{};
     final reviews = _asList(store['reviews']);
 
     final name = vendor['name']?.toString() ?? 'Store';
