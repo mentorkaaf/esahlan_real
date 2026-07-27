@@ -45,7 +45,7 @@
         @forelse($commissions as $c)
         <tr>
             <td><code style="font-weight:700">{{ $c->order_number }}</code></td>
-            <td>${{ number_format($c->total_amount, 2) }}</td>
+            <td>${{ number_format($c->order_amount, 2) }}</td>
             <td style="color:#ef4444;font-weight:700">-${{ number_format($c->commission_amount ?? 0, 2) }}</td>
             <td style="color:#22c55e;font-weight:800">${{ number_format($c->vendor_earning ?? 0, 2) }}</td>
             <td>
