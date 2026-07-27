@@ -442,11 +442,12 @@ class _VendorCard extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(12),
                   color: Colors.white,
                   border: Border.all(color: AppColors.divider),
                 ),
-                child: ClipOval(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
                   child: logo != null && logo.isNotEmpty
                       ? NetImage(url: logo, fit: BoxFit.cover)
                       : const Icon(Icons.store_rounded, size: 26, color: AppColors.textGrey),

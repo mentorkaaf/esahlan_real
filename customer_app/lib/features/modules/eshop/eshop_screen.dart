@@ -1182,10 +1182,10 @@ class _StoresRow extends StatelessWidget {
                   width: 56, height: 56,
                   decoration: BoxDecoration(
                     color: AppColors.surface,
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: AppColors.divider),
                   ),
-                  child: ClipOval(child: _netImg(s['logo'])),
+                  child: ClipRRect(borderRadius: BorderRadius.circular(14), child: _netImg(s['logo'])),
                 ),
                 Positioned(bottom: 2, right: 2, child: Container(
                   width: 12, height: 12,

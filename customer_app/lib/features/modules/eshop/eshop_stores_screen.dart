@@ -217,12 +217,13 @@ class _StoreCard extends StatelessWidget {
                     width: 46,
                     height: 46,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.white, width: 2),
                       boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6)],
                       color: Colors.white,
                     ),
-                    child: ClipOval(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
                       child: store['logo'] != null
                           ? NetImage(url: store['logo']?.toString(), fit: BoxFit.cover)
                           : const Icon(Icons.store, size: 24, color: Colors.grey),

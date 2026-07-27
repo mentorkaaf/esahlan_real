@@ -122,11 +122,12 @@ class _State extends ConsumerState<EShopStoreDetailScreen> with SingleTickerProv
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
-                            shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(14),
                             border: Border.all(color: Colors.white, width: 2.5),
                             color: Colors.white,
                           ),
-                          child: ClipOval(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
                             child: vendor['logo'] != null
                                 ? NetImage(url: vendor['logo']?.toString(), fit: BoxFit.cover)
                                 : const Icon(Icons.store, size: 32, color: Colors.grey),
