@@ -402,6 +402,32 @@ class EShopController extends Controller
                 );
             }
         } catch (\Throwable) {}
+
+        // Vendor FCM notification (own try — always runs)
+        try {
+            $vendorToken = $vendor->vendor_fcm_token ?? null;
+            \Illuminate\Support\Facades\Log::info('[ESHOP] vendor FCM', ['set' => !empty($vendorToken), 'vid' => $vendor->id ?? null]);
+            if ($vendorToken) {
+                $itemCount    = count($lines);
+                $customerName = $user->name ?? 'Customer';
+                \App\Services\FcmService::sendToToken(
+                    $vendorToken,
+                    '🛎 New Order #' . $order->order_number,
+                    $customerName . ' · ' . $itemCount . ' item' . ($itemCount > 1 ? 's' : '') . ' · $' . number_format($total, 2),
+                    [
+                        'type'         => 'vendor_new_order',
+                        'order_id'     => (string) $order->id,
+                        'order_number' => $order->order_number,
+                        'total'        => (string) $total,
+                        'module'       => 'eshop',
+                        'deep_link'    => '/orders',
+                    ]
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('[ESHOP] vendor FCM failed: ' . $e->getMessage());
+        }
+
         return response()->json([
             'success' => true, 'message' => 'Order placed successfully!',
             'data'    => ['order_number' => $order->order_number, 'total' => $total],
