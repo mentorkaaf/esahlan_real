@@ -673,7 +673,8 @@ Route::prefix('v1')->group(function () {
         Route::prefix('vendor')->middleware('role:vendor_owner,vendor_employee')->group(function () {
             Route::get('dashboard',         [VendorDashboardController::class, 'index']);
             Route::post('store/toggle',     [VendorDashboardController::class, 'toggleStore']);
-            Route::post('fcm-token', [VendorDashboardController::class, 'updateFcmToken']);
+            Route::post('fcm-token',           [VendorDashboardController::class, 'updateFcmToken']);
+            Route::post('test-notification',   [VendorDashboardController::class, 'testNotification']);
 
 
             Route::get('orders',            [VendorOrderController::class, 'index']);

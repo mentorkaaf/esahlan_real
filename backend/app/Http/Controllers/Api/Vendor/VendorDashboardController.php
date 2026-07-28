@@ -80,4 +80,26 @@ class VendorDashboardController extends Controller
         $vendor->update(['vendor_fcm_token' => $token]);
         return $this->success(['message' => 'FCM token updated']);
     }
+
+    public function testNotification(): JsonResponse
+    {
+        $vendor = auth()->user()->vendor;
+        $token  = $vendor?->vendor_fcm_token;
+
+        if (!$token) {
+            return $this->error('No FCM token. Logout and login again to register.', 422);
+        }
+
+        $ok = \App\Services\FcmService::sendToToken(
+            $token,
+            '🔔 Test Notification',
+            'FCM is working! You will receive order notifications.',
+            ['type' => 'test', 'deep_link' => '/orders']
+        );
+
+        return $this->success([
+            'sent'          => $ok,
+            'token_preview' => '...' . substr($token, -20),
+        ]);
+    }
 }

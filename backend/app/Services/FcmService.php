@@ -72,21 +72,31 @@ class FcmService
         curl_close($ch);
 
         if ($code !== 200) {
-            Log::error('[FCM] sendToToken failed', ['code' => $code, 'resp' => $resp]);
+            Log::error('[FCM] sendToToken failed', [
+                'code'  => $code,
+                'token' => '...' . substr($fcmToken, -20),
+                'resp'  => $resp,
+            ]);
 
-            // Auto-clear stale tokens so we don't retry dead tokens
+            // Auto-clear stale tokens (check both user and vendor tables)
             if ($code === 404) {
                 $parsed  = json_decode($resp, true);
                 $errCode = $parsed['error']['details'][0]['errorCode'] ?? '';
                 if (in_array($errCode, ['UNREGISTERED', 'SENDER_ID_MISMATCH'])) {
                     \App\Models\User::where('fcm_token', $fcmToken)->update(['fcm_token' => null]);
-                    Log::info('[FCM] Cleared stale token', ['errorCode' => $errCode]);
+                    \App\Models\Vendor::where('vendor_fcm_token', $fcmToken)->update(['vendor_fcm_token' => null]);
+                    Log::info('[FCM] Cleared stale token', ['errorCode' => $errCode, 'token' => '...' . substr($fcmToken, -20)]);
                 }
             }
             return false;
         }
 
-        Log::info('[FCM] sendToToken OK', ['code' => $code]);
+        $parsed = json_decode($resp, true);
+        Log::info('[FCM] sendToToken OK', [
+            'code'   => $code,
+            'msg_id' => $parsed['name'] ?? 'unknown',
+            'token'  => '...' . substr($fcmToken, -20),
+        ]);
         return true;
     }
 
