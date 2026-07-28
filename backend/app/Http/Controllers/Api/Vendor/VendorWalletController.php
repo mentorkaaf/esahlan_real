@@ -18,8 +18,8 @@ class VendorWalletController extends Controller
 
         $stats = [
             'balance'           => $wallet->balance,
-            'total_earned'      => Commission::where('vendor_id', $vendor->id)->sum('vendor_amount'),
-            'pending_commission'=> Commission::where('vendor_id', $vendor->id)->where('status', 'pending')->sum('vendor_amount'),
+            'total_earned'      => Commission::where('vendor_id', $vendor->id)->sum('vendor_earning'),
+            'pending_commission'=> Commission::where('vendor_id', $vendor->id)->where('status', 'pending')->sum('vendor_earning'),
             'total_withdrawn'   => WithdrawalRequest::where('owner_type', Vendor::class)
                 ->where('owner_id', $vendor->id)->where('status', 'completed')->sum('amount'),
         ];
