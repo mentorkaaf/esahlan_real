@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 use App\Http\Controllers\Api\Community\CommunityFeedController;
 use App\Http\Controllers\Api\Community\CommunityPostController;
 use App\Http\Controllers\Api\Community\CommunityCommentController;

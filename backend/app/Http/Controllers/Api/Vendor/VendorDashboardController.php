@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 namespace App\Http\Controllers\Api\Vendor;
 
 use App\Http\Controllers\Controller;
