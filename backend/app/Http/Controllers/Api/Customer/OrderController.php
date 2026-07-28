@@ -337,13 +337,14 @@ class OrderController extends Controller
             $order->loadMissing(['items', 'user', 'vendor']);
             event(new NewOrderForVendor($order));
 
-            // FCM push to vendor's user
-            $vendorUser = $order->vendor?->user;
-            if ($vendorUser?->fcm_token) {
+            // FCM push to vendor device
+            $vendorToken = $order->vendor?->vendor_fcm_token;
+            \Illuminate\Support\Facades\Log::info('[ORDER] vendor token', ['set' => !empty($vendorToken), 'vid' => $order->vendor_id]);
+            if ($vendorToken) {
                 $itemCount   = $order->items->count();
                 $customerName = $order->user?->name ?? 'Customer';
                 \App\Services\FcmService::sendToToken(
-                    $vendorUser->fcm_token,
+                    $vendorToken,
                     '🛎 New Order #' . $order->order_number,
                     "{$customerName} · {$itemCount} item" . ($itemCount > 1 ? 's' : '') . ' · $' . number_format($order->total_amount, 2),
                     [
