@@ -19,6 +19,19 @@ class StoreScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Store Profile'),
         actions: [
+          IconButton(
+            icon: Icon(Icons.notifications_active_rounded, color: context.vcTextSec),
+            tooltip: 'Test Notification',
+            onPressed: () async {
+              final ok = await VendorFcmService.sendTestNotification();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(ok ? 'Test notification sent!' : 'Failed — logout and login again'),
+                  backgroundColor: ok ? VC.green : VC.red,
+                ));
+              }
+            },
+          ),
           IconButton(icon: Icon(Icons.refresh_rounded, color: context.vcTextSec), onPressed: () => ref.invalidate(_storeProvider)),
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: VC.red),

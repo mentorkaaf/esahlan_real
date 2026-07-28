@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../core/services/vendor_repository.dart';
+import '../../core/services/fcm_service.dart';
 import '../../core/theme/vc.dart';
 import '../orders/order_detail_sheet.dart';
 
@@ -62,6 +63,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             color: VC.orange,
             onRefresh: () async => ref.invalidate(_dashProvider),
             child: ListView(padding: const EdgeInsets.all(16), children: [
+
+              // Notification permission warning
+              if (!VendorFcmService.notificationsEnabled)
+                _NotificationWarning(),
+              if (!VendorFcmService.notificationsEnabled)
+                const SizedBox(height: 12),
 
               // Store banner — always dark gradient (intentional branded element)
               Container(
@@ -202,6 +209,69 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ]),
         ]),
       ),
+    );
+  }
+}
+
+class _NotificationWarning extends StatefulWidget {
+  @override
+  State<_NotificationWarning> createState() => _NotificationWarningState();
+}
+
+class _NotificationWarningState extends State<_NotificationWarning> {
+  bool _testing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: VC.red.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: VC.red.withValues(alpha: 0.4)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.notifications_off_rounded, color: VC.red, size: 18),
+          const SizedBox(width: 8),
+          const Expanded(child: Text('Notifications are disabled',
+            style: TextStyle(color: VC.red, fontWeight: FontWeight.w800, fontSize: 13))),
+        ]),
+        const SizedBox(height: 6),
+        const Text(
+          'You will NOT receive new order alerts.\n'
+          'Fix: Settings → Apps → eSahlan Vendor → Notifications → Enable All\n'
+          'Also: Battery → set to Unrestricted',
+          style: TextStyle(color: VC.red, fontSize: 11, height: 1.5),
+        ),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: VC.orange,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: _testing
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.send_rounded, size: 14, color: Colors.white),
+              label: const Text('Send Test Notification', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+              onPressed: _testing ? null : () async {
+                setState(() => _testing = true);
+                final ok = await VendorFcmService.sendTestNotification();
+                if (mounted) {
+                  setState(() => _testing = false);
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(ok ? 'Test sent! Check your notifications.' : 'Failed — no token. Logout and login again.'),
+                    backgroundColor: ok ? VC.green : VC.red,
+                  ));
+                }
+              },
+            ),
+          ),
+        ]),
+      ]),
     );
   }
 }
