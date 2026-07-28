@@ -44,9 +44,9 @@
 
 <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#1e40af;">
     <strong>Variables:</strong>
-    <code>{{product_name}}</code> — First item name &nbsp;|&nbsp;
-    <code>{{extra_items}}</code> — e.g. " + 2 more" &nbsp;|&nbsp;
-    <code>{{total}}</code> — Cart total price
+    <code>@{{product_name}}</code> — First item name &nbsp;|&nbsp;
+    <code>@{{extra_items}}</code> — e.g. " + 2 more" &nbsp;|&nbsp;
+    <code>@{{total}}</code> — Cart total price
 </div>
 
 @php
@@ -91,7 +91,7 @@ $stageBadge = ['30min' => 'badge-30min', '2h' => 'badge-2h', '24h' => 'badge-24h
         </div>
         <div>
             <textarea name="body" class="tmpl-input" rows="2" placeholder="Notification body..." required>{{ $tpl?->body ?? '' }}</textarea>
-            <div class="var-hint">Use: {{product_name}} {{extra_items}} {{total}}</div>
+            <div class="var-hint">Use: @{{product_name}} @{{extra_items}} @{{total}}</div>
         </div>
         <div>
             <button type="submit" class="save-btn">Save</button>
