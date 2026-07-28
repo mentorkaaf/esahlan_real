@@ -85,6 +85,14 @@ Broadcast::channel('community.post.{postId}.owner', function ($user, $postId) {
     return $post && (int) $post->user_id === (int) $user->id;
 });
 
+// Vendor channel — new orders and store events for the vendor app
+Broadcast::channel('vendor.{vendorId}', function ($user, $vendorId) {
+    $vendor = $user->vendor;
+    if (!$vendor) return false;
+    return (int) $vendor->id === (int) $vendorId
+        && in_array($user->role?->slug ?? '', ['vendor_owner', 'vendor_employee']);
+});
+
 // Inbox support chat — user in conversation OR assigned admin/agent
 Broadcast::channel('inbox.{conversationUuid}', function ($user, $conversationUuid) {
     $conv = \App\Models\InboxConversation::where('uuid', $conversationUuid)->first();

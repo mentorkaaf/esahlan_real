@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Customer;
 
 use App\Http\Controllers\Controller;
+use App\Events\NewOrderForVendor;
 use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -330,6 +331,12 @@ class OrderController extends Controller
 
             return $order;
         });
+
+        // Notify vendor in realtime
+        try {
+            $order->loadMissing(['items', 'user', 'vendor']);
+            event(new NewOrderForVendor($order));
+        } catch (\Throwable) {}
 
         return response()->json([
             'success' => true,

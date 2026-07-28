@@ -680,6 +680,7 @@ Route::prefix('v1')->group(function () {
             Route::post('orders/{order}/reject',     [VendorOrderController::class, 'reject']);
             Route::post('orders/{order}/ready',      [VendorOrderController::class, 'markReady']);
 
+            Route::get('categories',            [VendorProductController::class, 'categories']);
             Route::get('products',              [VendorProductController::class, 'index']);
             Route::post('products',             [VendorProductController::class, 'store']);
             Route::patch('products/{product}',  [VendorProductController::class, 'update']);

@@ -11,6 +11,18 @@ use Illuminate\Support\Str;
 
 class VendorProductController extends Controller
 {
+    public function categories(): JsonResponse
+    {
+        $vendor = auth()->user()->vendor;
+        $categories = Category::where('module_id', $vendor->module_id)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'name_so', 'slug', 'image']);
+
+        return $this->success($categories);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $vendor = auth()->user()->vendor;

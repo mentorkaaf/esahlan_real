@@ -239,6 +239,12 @@ class AuthController extends Controller
             ['user_id' => $user->id, 'identifier' => $identifier, 'device' => $deviceName]
         ));
 
+        // Load vendor profile for vendor_owner/vendor_employee roles
+        $roleSlug = $user->role?->slug ?? '';
+        if (in_array($roleSlug, ['vendor_owner', 'vendor_employee'])) {
+            $user->load(['vendor:id,name,slug,logo,cover_image,module_slug,module_id,is_open,temporarily_closed,rating,phone,address']);
+        }
+
         return response()->json([
             'success' => true,
             'data'    => ['user' => $user, 'token' => $tokenModel->plainTextToken],
