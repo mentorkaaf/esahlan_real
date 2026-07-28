@@ -145,6 +145,7 @@ class AdminDeliverymanController extends Controller
             ->join('deliverymen', 'deliverymen.id', '=', 'deliveryman_earnings.deliveryman_id')
             ->join('users', 'users.id', '=', 'deliverymen.user_id')
             ->leftJoin('orders', 'orders.id', '=', 'deliveryman_earnings.order_id')
+            ->leftJoin('commissions', 'commissions.order_id', '=', 'deliveryman_earnings.order_id')
             ->select(
                 'deliveryman_earnings.*',
                 'users.name as driver_name',
@@ -152,7 +153,9 @@ class AdminDeliverymanController extends Controller
                 'deliverymen.vehicle_type',
                 'deliverymen.driver_type',
                 'orders.order_number',
-                'orders.module_slug'
+                'orders.module_slug',
+                'orders.delivery_fee as original_delivery_fee',
+                'commissions.delivery_fee_commission as commission_deducted'
             );
 
         if ($request->filled('driver_id')) {
@@ -173,23 +176,34 @@ class AdminDeliverymanController extends Controller
         if ($request->filled('from')) $summaryQuery->whereDate('created_at', '>=', $request->from);
         if ($request->filled('to')) $summaryQuery->whereDate('created_at', '<=', $request->to);
 
+        // Commission deducted summary (from commissions table)
+        $commissionDeductedQuery = DB::table('commissions')
+            ->join('deliveryman_earnings', 'commissions.order_id', '=', 'deliveryman_earnings.order_id');
+        if ($request->filled('driver_id')) $commissionDeductedQuery->where('deliveryman_earnings.deliveryman_id', $request->driver_id);
+        if ($request->filled('from')) $commissionDeductedQuery->whereDate('deliveryman_earnings.created_at', '>=', $request->from);
+        if ($request->filled('to')) $commissionDeductedQuery->whereDate('deliveryman_earnings.created_at', '<=', $request->to);
+
         $summary = [
-            'total'       => (float) (clone $summaryQuery)->sum('amount'),
-            'today'       => (float) (clone $summaryQuery)->whereDate('created_at', today())->sum('amount'),
-            'this_month'  => (float) (clone $summaryQuery)->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->sum('amount'),
-            'total_count' => (clone $summaryQuery)->count(),
+            'total'               => (float) (clone $summaryQuery)->sum('amount'),
+            'today'               => (float) (clone $summaryQuery)->whereDate('created_at', today())->sum('amount'),
+            'this_month'          => (float) (clone $summaryQuery)->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->sum('amount'),
+            'total_count'         => (clone $summaryQuery)->count(),
+            'total_commission'    => (float) (clone $commissionDeductedQuery)->sum('commissions.delivery_fee_commission'),
+            'commission_rate'     => (float) (DB::table('settings')->where('key', 'delivery_fee_commission_pct')->value('value') ?? 0),
         ];
 
         // Driver list for filter dropdown
         $drivers = Deliveryman::with('user:id,name')->whereHas('earnings')->get();
 
-        // Per-driver summary
+        // Per-driver summary with commission deducted
         $perDriver = DB::table('deliveryman_earnings')
             ->join('deliverymen', 'deliverymen.id', '=', 'deliveryman_earnings.deliveryman_id')
             ->join('users', 'users.id', '=', 'deliverymen.user_id')
+            ->leftJoin('commissions', 'commissions.order_id', '=', 'deliveryman_earnings.order_id')
             ->select('deliveryman_earnings.deliveryman_id', 'users.name', 'deliverymen.vehicle_type',
                 DB::raw('SUM(deliveryman_earnings.amount) as total_earned'),
-                DB::raw('COUNT(*) as total_deliveries'))
+                DB::raw('COUNT(DISTINCT deliveryman_earnings.id) as total_deliveries'),
+                DB::raw('SUM(COALESCE(commissions.delivery_fee_commission, 0)) as total_commission_deducted'))
             ->groupBy('deliveryman_earnings.deliveryman_id', 'users.name', 'deliverymen.vehicle_type')
             ->orderByDesc('total_earned')
             ->get();
