@@ -1675,7 +1675,8 @@
       "PowerShell(Select-String -Path \"C:\\\\Users\\\\CITYSIGN\\\\Desktop\\\\esahlan-project\\\\customer_app\\\\lib\\\\features\\\\modules\\\\elaundry\\\\elaundry_screen.dart\" -Pattern \"CartNotifier|void add|void clear|StateNotifier\" | Select-Object -First 10 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" })",
       "PowerShell(Select-String -Path \"C:\\\\Users\\\\CITYSIGN\\\\Desktop\\\\esahlan-project\\\\customer_app\\\\lib\\\\features\\\\modules\\\\elaundry\\\\elaundry_screen.dart\" -Pattern \"cart|Cart\" | Select-Object -First 5 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" })",
       "Bash(ssh -i \"C:\\\\Users\\\\CITYSIGN\\\\.ssh\\\\esahlan\" -o StrictHostKeyChecking=no root@168.144.117.91 \"cd /var/www/esahlan/backend/backend && git fetch origin && git reset --hard origin/main && php artisan migrate --force && php artisan config:cache && php artisan route:cache 2>&1 | tail -10\")",
-      "Bash(ssh -i \"C:\\\\Users\\\\CITYSIGN\\\\.ssh\\\\esahlan\" -o StrictHostKeyChecking=no root@168.144.117.91 \"mysql -u esahlan -p'eSahlan_DB_2026!' esahlan_db -e 'DESCRIBE cart_items;' 2>/dev/null\")"
+      "Bash(ssh -i \"C:\\\\Users\\\\CITYSIGN\\\\.ssh\\\\esahlan\" -o StrictHostKeyChecking=no root@168.144.117.91 \"mysql -u esahlan -p'eSahlan_DB_2026!' esahlan_db -e 'DESCRIBE cart_items;' 2>/dev/null\")",
+      "Bash(ssh -i \"C:\\\\Users\\\\CITYSIGN\\\\.ssh\\\\esahlan\" -o StrictHostKeyChecking=no root@168.144.117.91 \"cd /var/www/esahlan/backend/backend && git fetch origin && git reset --hard origin/main && php artisan migrate --force && php artisan config:cache && php artisan route:cache 2>&1 | tail -8\")"
     ]
   }
 }

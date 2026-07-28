@@ -538,8 +538,11 @@
         <a href="{{ route('admin.ads.index') }}" class="nav-link {{ request()->routeIs('admin.ads.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-ad"></i></div> Ads Manager
         </a>
-        <a href="{{ route('admin.notifications.index') }}" class="nav-link {{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}">
+        <a href="{{ route('admin.notifications.index') }}" class="nav-link {{ request()->routeIs('admin.notifications.index') || request()->routeIs('admin.notifications.send') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-bell"></i></div> Notifications
+        </a>
+        <a href="{{ route('admin.notifications.cart-templates') }}" class="nav-link {{ request()->routeIs('admin.notifications.cart-templates*') ? 'active' : '' }}" style="padding-left:36px;font-size:12px;">
+            <div class="nav-icon"><i class="fas fa-shopping-cart"></i></div> Cart Reminders
         </a>
 
         <div class="nav-section-label">Inbox</div>

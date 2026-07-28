@@ -158,6 +158,51 @@ class AdminNotificationController extends Controller
         return back()->with('success', 'Notification deleted.');
     }
 
+    // ── Cart Abandonment Notification Templates ───────────────────────────────
+
+    public function cartTemplates()
+    {
+        $templates = \Illuminate\Support\Facades\DB::table('cart_notification_templates')
+            ->orderBy('module')
+            ->orderByRaw("FIELD(stage, '30min', '2h', '24h')")
+            ->get();
+
+        return view('admin.notifications.cart_templates', compact('templates'));
+    }
+
+    public function updateCartTemplate(Request $request)
+    {
+        $request->validate([
+            'module' => 'required|string',
+            'stage'  => 'required|in:30min,2h,24h',
+            'title'  => 'required|string|max:255',
+            'body'   => 'required|string',
+        ]);
+
+        \Illuminate\Support\Facades\DB::table('cart_notification_templates')->updateOrInsert(
+            ['module' => $request->module, 'stage' => $request->stage],
+            ['title' => $request->title, 'body' => $request->body, 'is_active' => true, 'updated_at' => now(), 'created_at' => now()]
+        );
+
+        return back()->with('success', 'Template updated successfully.');
+    }
+
+    public function toggleCartTemplate(Request $request)
+    {
+        $request->validate([
+            'module'    => 'required|string',
+            'stage'     => 'required|in:30min,2h,24h',
+            'is_active' => 'required|boolean',
+        ]);
+
+        \Illuminate\Support\Facades\DB::table('cart_notification_templates')->updateOrInsert(
+            ['module' => $request->module, 'stage' => $request->stage],
+            ['is_active' => $request->is_active, 'updated_at' => now(), 'created_at' => now()]
+        );
+
+        return response()->json(['success' => true]);
+    }
+
     public function searchUsers(Request $request)
     {
         $q = $request->get('q', '');

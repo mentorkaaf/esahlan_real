@@ -463,6 +463,11 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('/users/search', [AdminNotificationController::class, 'searchUsers'])->name('users.search');
             Route::get('/templates', [AdminNotificationController::class, 'templates'])->name('templates');
             Route::post('/templates', [AdminNotificationController::class, 'saveTemplates'])->name('templates.save');
+
+            // Cart abandonment templates
+            Route::get('/cart-templates',         [AdminNotificationController::class, 'cartTemplates'])->name('cart-templates');
+            Route::post('/cart-templates/update', [AdminNotificationController::class, 'updateCartTemplate'])->name('cart-templates.update');
+            Route::post('/cart-templates/toggle', [AdminNotificationController::class, 'toggleCartTemplate'])->name('cart-templates.toggle');
         });
 
         // Inbox (Support + Marketing broadcasts)
