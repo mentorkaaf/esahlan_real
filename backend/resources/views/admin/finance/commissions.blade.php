@@ -18,30 +18,39 @@
 
 {{-- Summary --}}
 @php
-    $totalCommission  = $commissions->sum('platform_amount');
-    $pendingAmount    = $commissions->where('status','pending')->sum('platform_amount');
-    $paidAmount       = $commissions->where('status','paid')->sum('platform_amount');
+    $totalOrderCommission    = $commissions->sum('commission_amount');
+    $totalDeliveryCommission = $commissions->sum('delivery_fee_commission');
+    $totalPlatform           = $totalOrderCommission + $totalDeliveryCommission;
+    $pendingAmount           = $commissions->where('status','pending')->sum('commission_amount');
+    $settledAmount           = $commissions->where('status','settled')->sum('commission_amount');
 @endphp
-<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;">
+<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
     <div class="stat-card orange">
-        <div class="stat-icon-wrap orange"><i class="fas fa-hand-holding-usd"></i></div>
+        <div class="stat-icon-wrap orange"><i class="fas fa-coins"></i></div>
         <div class="stat-body">
-            <div class="stat-value">${{ number_format($totalCommission,2) }}</div>
-            <div class="stat-label">Page Total Commission</div>
+            <div class="stat-value">${{ number_format($totalPlatform,2) }}</div>
+            <div class="stat-label">Total Platform Revenue</div>
+        </div>
+    </div>
+    <div class="stat-card blue">
+        <div class="stat-icon-wrap blue"><i class="fas fa-percentage"></i></div>
+        <div class="stat-body">
+            <div class="stat-value">${{ number_format($totalOrderCommission,2) }}</div>
+            <div class="stat-label">Order Commission</div>
+        </div>
+    </div>
+    <div class="stat-card teal">
+        <div class="stat-icon-wrap teal" style="background:rgba(20,184,166,.1);color:#14b8a6;"><i class="fas fa-motorcycle"></i></div>
+        <div class="stat-body">
+            <div class="stat-value">${{ number_format($totalDeliveryCommission,2) }}</div>
+            <div class="stat-label">Delivery Fee Commission</div>
         </div>
     </div>
     <div class="stat-card green">
         <div class="stat-icon-wrap green"><i class="fas fa-check-circle"></i></div>
         <div class="stat-body">
-            <div class="stat-value">${{ number_format($paidAmount,2) }}</div>
-            <div class="stat-label">Paid</div>
-        </div>
-    </div>
-    <div class="stat-card red">
-        <div class="stat-icon-wrap red"><i class="fas fa-clock"></i></div>
-        <div class="stat-body">
-            <div class="stat-value">${{ number_format($pendingAmount,2) }}</div>
-            <div class="stat-label">Pending</div>
+            <div class="stat-value">${{ number_format($settledAmount,2) }}</div>
+            <div class="stat-label">Settled</div>
         </div>
     </div>
 </div>
@@ -51,8 +60,8 @@
         <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;width:100%;">
             <select name="status" class="form-control" style="width:160px;" onchange="this.form.submit()">
                 <option value="">All Status</option>
-                <option value="pending" {{ request('status')==='pending'?'selected':'' }}>Pending</option>
-                <option value="paid"    {{ request('status')==='paid'   ?'selected':'' }}>Paid</option>
+                <option value="pending"  {{ request('status')==='pending' ?'selected':'' }}>Pending</option>
+                <option value="settled"  {{ request('status')==='settled' ?'selected':'' }}>Settled</option>
             </select>
             <input type="text" name="vendor_id" class="form-control" style="width:160px;"
                    placeholder="Vendor ID…" value="{{ request('vendor_id') }}">
@@ -67,7 +76,7 @@
 <div class="card">
     <div class="card-header">
         <div class="card-header-title">
-            <div class="card-header-icon" style="background:rgba(255,138,0,0.1);color:var(--brand);">
+            <div class="card-header-icon" style="background:rgba(255,138,0,0.1);color:#ff6b35;">
                 <i class="fas fa-percentage"></i>
             </div>
             Commissions
@@ -82,13 +91,22 @@
                     <th>Vendor</th>
                     <th>Order Amount</th>
                     <th>Commission Rate</th>
-                    <th>Platform Amount</th>
+                    <th style="color:#14b8a6;">Order Commission</th>
+                    <th style="color:#14b8a6;">Delivery Fee</th>
+                    <th style="color:#14b8a6;">Delivery Commission</th>
+                    <th style="color:#ff6b35;">Total Platform</th>
                     <th>Status</th>
                     <th>Date</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($commissions as $comm)
+                @php
+                    $orderCommission    = (float) ($comm->commission_amount ?? 0);
+                    $deliveryFee        = (float) ($comm->delivery_fee ?? 0);
+                    $deliveryCommission = (float) ($comm->delivery_fee_commission ?? 0);
+                    $totalPlatformRow   = $orderCommission + $deliveryCommission;
+                @endphp
                 <tr>
                     <td>
                         @if($comm->order)
@@ -114,12 +132,29 @@
                         <span class="badge badge-info">{{ $comm->commission_rate ?? 0 }}%</span>
                     </td>
                     <td>
-                        <span style="font-weight:800;font-size:14px;color:var(--brand);">
-                            ${{ number_format($comm->platform_amount ?? 0, 2) }}
+                        <span style="font-weight:700;color:#1d4ed8;">${{ number_format($orderCommission, 2) }}</span>
+                    </td>
+                    <td style="color:#6b7280;">
+                        @if($deliveryFee > 0)
+                            ${{ number_format($deliveryFee, 2) }}
+                        @else
+                            <span class="text-muted">—</span>
+                        @endif
+                    </td>
+                    <td>
+                        @if($deliveryCommission > 0)
+                            <span style="font-weight:700;color:#14b8a6;">${{ number_format($deliveryCommission, 2) }}</span>
+                        @else
+                            <span class="text-muted">—</span>
+                        @endif
+                    </td>
+                    <td>
+                        <span style="font-weight:800;font-size:14px;color:#ff6b35;">
+                            ${{ number_format($totalPlatformRow, 2) }}
                         </span>
                     </td>
                     <td>
-                        <span class="badge {{ ($comm->status??'pending')==='paid'?'badge-success':'badge-warning' }} badge-dot">
+                        <span class="badge {{ ($comm->status??'pending')==='settled'?'badge-success':'badge-warning' }} badge-dot">
                             {{ ucfirst($comm->status ?? 'pending') }}
                         </span>
                     </td>
@@ -129,7 +164,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7">
+                    <td colspan="10">
                         <div class="empty-state">
                             <i class="fas fa-percentage"></i>
                             <h3>No commissions found</h3>

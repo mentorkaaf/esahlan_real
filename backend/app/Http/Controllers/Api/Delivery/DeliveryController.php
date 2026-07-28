@@ -347,20 +347,24 @@ class DeliveryController extends Controller
                     $data['meta'] = $meta;
                 }
 
-                // Credit delivery fee to driver wallet
+                // Delivery fee — split between driver and admin commission
                 $fee = (float) ($order->delivery_fee ?? 0);
-                if ($fee > 0) {
+                $deliveryCommissionPct = (float) (DB::table('settings')->where('key', 'delivery_fee_commission_pct')->value('value') ?? 0);
+                $adminDeliveryCommission = $fee > 0 ? round($fee * $deliveryCommissionPct / 100, 2) : 0;
+                $driverEarning = max(0, $fee - $adminDeliveryCommission);
+
+                if ($driverEarning > 0) {
                     $wallet = Wallet::getOrCreateFor('App\\Models\\User', $request->user()->id);
-                    $wallet->credit($fee, "Delivery: #{$order->order_number}", 'App\\Models\\Order', $order->id);
+                    $wallet->credit($driverEarning, "Delivery: #{$order->order_number}", 'App\\Models\\Order', $order->id);
                 }
 
-                // Record earning
+                // Record earning (driver gets their share)
                 DB::table('deliveryman_earnings')->insert([
                     'deliveryman_id' => $dm->id,
                     'order_id'       => $order->id,
                     'type'           => 'delivery_fee',
-                    'amount'         => $fee,
-                    'note'           => "Order #{$order->order_number}",
+                    'amount'         => $driverEarning,
+                    'note'           => "Order #{$order->order_number}" . ($adminDeliveryCommission > 0 ? " (fee commission: -{$adminDeliveryCommission})" : ''),
                     'created_at'     => now(),
                 ]);
 
@@ -383,11 +387,16 @@ class DeliveryController extends Controller
                     }
                 }
 
-                // Always settle any pending commission for this order
+                // Always settle any pending commission — record delivery fee commission for admin tracking
                 DB::table('commissions')
                     ->where('order_id', $order->id)
                     ->where('status', 'pending')
-                    ->update(['status' => 'settled', 'settled_at' => now()]);
+                    ->update([
+                        'status'                  => 'settled',
+                        'settled_at'              => now(),
+                        'delivery_fee'            => $fee,
+                        'delivery_fee_commission' => $adminDeliveryCommission,
+                    ]);
 
                 $dm->update(['status' => 'available', 'is_available' => true]);
                 $dm->increment('total_deliveries');
