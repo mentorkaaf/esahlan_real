@@ -607,6 +607,31 @@ class EFoodController extends Controller
             }
         } catch (\Throwable) {}
 
+        // Vendor FCM notification (own try — always runs)
+        try {
+            $vendorToken = $vendorId ? DB::table('vendors')->where('id', $vendorId)->value('vendor_fcm_token') : null;
+            \Illuminate\Support\Facades\Log::info('[EFOOD] vendor FCM', ['set' => !empty($vendorToken), 'vid' => $vendorId]);
+            if ($vendorToken) {
+                $itemCount    = count($rawItems);
+                $customerName = $request->user()->name ?? 'Customer';
+                \App\Services\FcmService::sendToToken(
+                    $vendorToken,
+                    '🛎 New Order #' . $order->order_number,
+                    $customerName . ' · ' . $itemCount . ' item' . ($itemCount > 1 ? 's' : '') . ' · $' . number_format($total, 2),
+                    [
+                        'type'         => 'vendor_new_order',
+                        'order_id'     => (string) $order->id,
+                        'order_number' => $order->order_number,
+                        'total'        => (string) $total,
+                        'module'       => 'efood',
+                        'deep_link'    => '/orders',
+                    ]
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('[EFOOD] vendor FCM failed: ' . $e->getMessage());
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Order placed successfully!',
