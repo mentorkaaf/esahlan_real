@@ -252,6 +252,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/{deliveryman}/approve', [AdminDeliverymanController::class, 'approve'])->name('approve');
             Route::post('/{deliveryman}/reject', [AdminDeliverymanController::class, 'reject'])->name('reject');
             Route::post('/{deliveryman}/toggle-block', [AdminDeliverymanController::class, 'toggleBlock'])->name('toggle-block');
+            Route::post('/{deliveryman}/change-password', [AdminDeliverymanController::class, 'changePassword'])->name('change-password');
             Route::delete('/{deliveryman}', [AdminDeliverymanController::class, 'destroy'])->name('destroy');
             Route::post('/settings', [AdminDeliverymanController::class, 'saveSettings'])->name('settings');
             Route::post('/documents/{document}/approve', [AdminDeliverymanController::class, 'approveDocument'])->name('document.approve');

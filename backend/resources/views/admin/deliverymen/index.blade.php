@@ -129,6 +129,10 @@
                                 <button class="btn btn-xs btn-warning"><i class="fas fa-times"></i></button>
                             </form>
                             @endif
+                            <button class="btn btn-xs btn-primary" title="Change Password"
+                                onclick="openPasswordModal({{ $dm->id }}, '{{ addslashes($dm->user->name) }}')">
+                                <i class="fas fa-key"></i>
+                            </button>
                             <form action="{{ route('admin.deliverymen.toggle-block', $dm->id) }}" method="POST" style="margin:0;">
                                 @csrf
                                 <button class="btn btn-xs {{ $dm->user->status === 'banned' ? 'btn-outline' : 'btn-danger' }}" title="{{ $dm->user->status === 'banned' ? 'Unblock' : 'Block' }}">
@@ -253,4 +257,55 @@
         </form>
     </div>
 </div>
+{{-- Change Password Modal --}}
+<div class="modal-overlay" id="passwordModal">
+    <div class="modal-box" style="max-width:420px;">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fas fa-key" style="color:#ff6b35;margin-right:8px;"></i> Change Password</h3>
+            <button class="modal-close" onclick="closeModal('passwordModal')">✕</button>
+        </div>
+        <form id="passwordForm" method="POST" action="">
+            @csrf
+            <div class="modal-body">
+                <p id="pwd-driver-name" style="font-size:13px;color:#6b7280;margin-bottom:16px;"></p>
+                <div class="form-group">
+                    <label class="form-label">New Password *</label>
+                    <div style="position:relative;">
+                        <input type="text" name="password" id="pwd-input" class="form-control" required
+                               placeholder="Enter new password (min 4 chars)" minlength="4"
+                               style="padding-right:40px;">
+                        <button type="button" onclick="generatePwd()" title="Generate random password"
+                                style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#ff6b35;font-size:14px;">
+                            <i class="fas fa-dice"></i>
+                        </button>
+                    </div>
+                    <p style="font-size:11px;color:#9ca3af;margin-top:4px;">Click 🎲 to auto-generate a strong password</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('passwordModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update Password</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+function openPasswordModal(driverId, driverName) {
+    document.getElementById('pwd-driver-name').textContent = 'Driver: ' + driverName;
+    document.getElementById('passwordForm').action = '/admin/deliverymen/' + driverId + '/change-password';
+    document.getElementById('pwd-input').value = '';
+    openModal('passwordModal');
+}
+
+function generatePwd() {
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    var pwd = '';
+    for (var i = 0; i < 8; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    document.getElementById('pwd-input').value = pwd;
+}
+</script>
+@endpush
+
 @endsection

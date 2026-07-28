@@ -97,6 +97,18 @@ class AdminDeliverymanController extends Controller
         return back()->with('success', 'Driver rejected.');
     }
 
+    public function changePassword(Request $request, Deliveryman $deliveryman)
+    {
+        $request->validate(['password' => 'required|string|min:4']);
+
+        $deliveryman->user->update([
+            'password'   => Hash::make($request->password),
+            'wallet_pin' => Hash::make($request->password),
+        ]);
+
+        return back()->with('success', 'Password updated for ' . ($deliveryman->user->name ?? 'driver') . '.');
+    }
+
     public function toggleBlock(Deliveryman $deliveryman)
     {
         $newStatus = $deliveryman->user->status === 'active' ? 'banned' : 'active';
