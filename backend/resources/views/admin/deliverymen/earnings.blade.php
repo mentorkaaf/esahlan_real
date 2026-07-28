@@ -19,23 +19,43 @@
     </div>
 </div>
 
+{{-- Commission Config Banner --}}
+<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;background:#3b82f6;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+            <i class="fas fa-percentage" style="color:#fff;font-size:14px;"></i>
+        </div>
+        <div>
+            <div style="font-weight:800;font-size:13px;color:#1e40af;">Delivery Fee Commission Rate: <span style="color:#ff6b35;">{{ $summary['commission_rate'] }}%</span></div>
+            <div style="font-size:11px;color:#6b7280;">Admin keeps {{ $summary['commission_rate'] }}% of each delivery fee. Total collected: <strong>${{ number_format($summary['total_commission'], 2) }}</strong></div>
+        </div>
+    </div>
+    <a href="{{ route('admin.settings.index') }}#tab-delivery" class="btn btn-primary btn-sm" style="background:#3b82f6;border:none;">
+        <i class="fas fa-cog"></i> Change Rate
+    </a>
+</div>
+
 {{-- Summary Cards --}}
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;">
     <div style="background:#fff;border-radius:14px;padding:20px;border-left:5px solid #10B981;">
-        <div style="font-size:11px;color:#8A8A9A;margin-bottom:6px;">Total Earnings</div>
-        <div style="font-size:28px;font-weight:900;color:#10B981;">${{ number_format($summary['total'], 2) }}</div>
+        <div style="font-size:11px;color:#8A8A9A;margin-bottom:6px;">Total Paid to Drivers</div>
+        <div style="font-size:24px;font-weight:900;color:#10B981;">${{ number_format($summary['total'], 2) }}</div>
     </div>
     <div style="background:#fff;border-radius:14px;padding:20px;border-left:5px solid #FF8A00;">
         <div style="font-size:11px;color:#8A8A9A;margin-bottom:6px;">Today</div>
-        <div style="font-size:28px;font-weight:900;color:#FF8A00;">${{ number_format($summary['today'], 2) }}</div>
+        <div style="font-size:24px;font-weight:900;color:#FF8A00;">${{ number_format($summary['today'], 2) }}</div>
     </div>
     <div style="background:#fff;border-radius:14px;padding:20px;border-left:5px solid #3B82F6;">
         <div style="font-size:11px;color:#8A8A9A;margin-bottom:6px;">This Month</div>
-        <div style="font-size:28px;font-weight:900;color:#3B82F6;">${{ number_format($summary['this_month'], 2) }}</div>
+        <div style="font-size:24px;font-weight:900;color:#3B82F6;">${{ number_format($summary['this_month'], 2) }}</div>
     </div>
     <div style="background:#fff;border-radius:14px;padding:20px;border-left:5px solid #8B5CF6;">
         <div style="font-size:11px;color:#8A8A9A;margin-bottom:6px;">Total Deliveries</div>
-        <div style="font-size:28px;font-weight:900;color:#8B5CF6;">{{ number_format($summary['total_count']) }}</div>
+        <div style="font-size:24px;font-weight:900;color:#8B5CF6;">{{ number_format($summary['total_count']) }}</div>
+    </div>
+    <div style="background:#fff;border-radius:14px;padding:20px;border-left:5px solid #ef4444;">
+        <div style="font-size:11px;color:#8A8A9A;margin-bottom:6px;">Platform Commission</div>
+        <div style="font-size:24px;font-weight:900;color:#ef4444;">${{ number_format($summary['total_commission'], 2) }}</div>
     </div>
 </div>
 
@@ -73,13 +93,19 @@
                             <th>Order</th>
                             <th>Module</th>
                             <th>Type</th>
-                            <th style="text-align:right">Amount</th>
+                            <th style="text-align:right;color:#6b7280;">Original Fee</th>
+                            <th style="text-align:right;color:#ef4444;">Commission Deducted</th>
+                            <th style="text-align:right;color:#10B981;">Driver Received</th>
                             <th>Date</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($earnings as $e)
-                        @php $vEmoji = ['motorcycle'=>'🏍️','bajaj'=>'🛺','car'=>'🚗','van'=>'🚐','truck'=>'🚛','bicycle'=>'🚲'][$e->vehicle_type] ?? '🚗'; @endphp
+                        @php
+                            $vEmoji = ['motorcycle'=>'🏍️','bajaj'=>'🛺','car'=>'🚗','van'=>'🚐','truck'=>'🚛','bicycle'=>'🚲'][$e->vehicle_type] ?? '🚗';
+                            $originalFee = (float) ($e->original_delivery_fee ?? 0);
+                            $deducted    = (float) ($e->commission_deducted ?? 0);
+                        @endphp
                         <tr>
                             <td>
                                 <div style="display:flex;align-items:center;gap:8px;">
@@ -108,11 +134,21 @@
                                 @php $tc = ['delivery_fee'=>'badge-success','bonus'=>'badge-warning','incentive'=>'badge-info','penalty'=>'badge-danger'][$e->type] ?? 'badge-secondary'; @endphp
                                 <span class="badge {{ $tc }}">{{ ucfirst(str_replace('_',' ',$e->type)) }}</span>
                             </td>
+                            <td style="text-align:right;color:#6b7280;font-size:13px;">
+                                {{ $originalFee > 0 ? '$'.number_format($originalFee,2) : '—' }}
+                            </td>
+                            <td style="text-align:right;">
+                                @if($deducted > 0)
+                                <span style="font-weight:700;color:#ef4444;">-${{ number_format($deducted,2) }}</span>
+                                @else
+                                <span style="color:#d1d5db;">$0.00</span>
+                                @endif
+                            </td>
                             <td style="text-align:right;font-weight:800;color:#10B981;font-size:14px;">${{ number_format($e->amount, 2) }}</td>
                             <td style="font-size:12px;color:#8A8A9A;">{{ \Carbon\Carbon::parse($e->created_at)->format('d M Y, H:i') }}</td>
                         </tr>
                         @empty
-                        <tr><td colspan="6" style="text-align:center;padding:30px;color:#8A8A9A;">No earnings found</td></tr>
+                        <tr><td colspan="8" style="text-align:center;padding:30px;color:#8A8A9A;">No earnings found</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -141,6 +177,9 @@
                 </div>
                 <div style="text-align:right;">
                     <div style="font-weight:800;color:#10B981;font-size:14px;">${{ number_format($pd->total_earned, 2) }}</div>
+                    @if(($pd->total_commission_deducted ?? 0) > 0)
+                    <div style="font-size:10px;color:#ef4444;font-weight:600;">-${{ number_format($pd->total_commission_deducted, 2) }} fee</div>
+                    @endif
                     <form action="{{ route('admin.deliverymen.reset-earning', $pd->deliveryman_id) }}" method="POST" style="margin:2px 0 0;" onsubmit="return confirm('Reset earnings for {{ $pd->name }}?')">
                         @csrf
                         <button style="background:none;border:none;color:#EF4444;font-size:10px;cursor:pointer;font-weight:600;padding:0;"><i class="fas fa-undo" style="font-size:9px;"></i> Reset</button>
