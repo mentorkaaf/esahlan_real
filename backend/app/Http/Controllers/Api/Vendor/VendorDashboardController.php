@@ -50,6 +50,7 @@ class VendorDashboardController extends Controller
                 'id'                   => $vendor->id,
                 'name'                 => $vendor->name,
                 'logo'                 => $vendor->logo_url,
+                'module_slug'          => $vendor->module_slug,
                 'is_open'              => $vendor->isCurrentlyOpen(),
                 'temporarily_closed'   => $vendor->temporarily_closed,
                 'rating'               => round($vendor->rating, 1),

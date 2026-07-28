@@ -74,6 +74,6 @@ class VendorWalletController extends Controller
             'status'         => 'pending',
         ]);
 
-        return $this->success($withdrawal, 'Withdrawal request submitted.', 201);
+        return $this->success(['withdrawal' => $withdrawal, 'message' => 'Withdrawal request submitted.'], 201);
     }
 }
