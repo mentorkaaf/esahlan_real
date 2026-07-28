@@ -82,14 +82,17 @@ class VendorFcmService {
   }
 
   /// Call after successful login — forces re-upload even if token unchanged.
+  /// Call after successful login — always registers to vendor-specific endpoint.
+  /// Uses /vendor/fcm-token so token is stored in vendors.vendor_fcm_token,
+  /// NOT in users.fcm_token (which customer app also writes to).
   static Future<void> forceRegisterToken() async {
     try {
       final token = await FirebaseMessaging.instance.getToken();
       if (token == null) return;
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('vendor_fcm_token'); // clear cache so upload always runs
+      await prefs.remove('vendor_fcm_token');
       await prefs.setString('vendor_fcm_token', token);
-      await ApiClient().post('/auth/fcm-token', data: {'fcm_token': token});
+      await ApiClient().post('/vendor/fcm-token', data: {'fcm_token': token});
     } catch (_) {}
   }
 
@@ -104,9 +107,10 @@ class VendorFcmService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cached = prefs.getString('vendor_fcm_token');
-      if (cached == token) return; // unchanged
+      if (cached == token) return;
       await prefs.setString('vendor_fcm_token', token);
-      await ApiClient().post('/auth/fcm-token', data: {'fcm_token': token});
+      // Best-effort pre-login upload (will 401 if not logged in — that's OK)
+      await ApiClient().post('/vendor/fcm-token', data: {'fcm_token': token});
     } catch (_) {}
   }
 
@@ -176,6 +180,9 @@ class VendorFcmService {
 
   /// Clear token on logout so next login re-registers cleanly
   static Future<void> clearToken() async {
+    try {
+      await ApiClient().post('/vendor/fcm-token', data: {'fcm_token': ''});
+    } catch (_) {}
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('vendor_fcm_token');

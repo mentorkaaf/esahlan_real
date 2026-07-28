@@ -1,9 +1,10 @@
-<?php
+﻿<?php
 namespace App\Http\Controllers\Api\Vendor;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class VendorDashboardController extends Controller
@@ -69,5 +70,13 @@ class VendorDashboardController extends Controller
             'temporarily_closed' => $vendor->temporarily_closed,
             'message' => $vendor->temporarily_closed ? 'Store closed temporarily.' : 'Store is now open.',
         ]);
+    }
+
+    public function updateFcmToken(Request $request): JsonResponse
+    {
+        $request->validate(['fcm_token' => 'required|string']);
+        $vendor = auth()->user()->vendor;
+        $vendor->update(['vendor_fcm_token' => $request->fcm_token]);
+        return $this->success(['message' => 'FCM token updated']);
     }
 }

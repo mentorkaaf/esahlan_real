@@ -90,9 +90,19 @@ class AuthRepository {
     return res.data['data'] as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> walletTransactions() async {
-    final res = await _dio.get('/delivery/wallet/transactions');
+  Future<Map<String, dynamic>> walletTransactions({int page = 1}) async {
+    final res = await _dio.get('/delivery/wallet/transactions', queryParameters: {'page': page});
     return res.data['data'] as Map<String, dynamic>;
+  }
+
+  Future<void> withdrawRequest({required double amount, required String method, required String accountNumber, required String accountName}) async {
+    final res = await _dio.post('/delivery/wallet/withdraw', data: {
+      'amount': amount,
+      'payment_method': method,
+      'account_number': accountNumber,
+      'account_name': accountName,
+    });
+    if (res.data['success'] != true) throw res.data['message'] ?? 'Failed';
   }
 
   Future<Map<String, dynamic>> profile() async {
