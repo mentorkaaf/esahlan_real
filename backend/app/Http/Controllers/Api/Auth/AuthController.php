@@ -242,7 +242,7 @@ class AuthController extends Controller
         // Load vendor profile for vendor_owner/vendor_employee roles
         $roleSlug = $user->role?->slug ?? '';
         if (in_array($roleSlug, ['vendor_owner', 'vendor_employee'])) {
-            $user->load(['vendor:id,name,slug,logo,cover_image,module_slug,module_id,is_open,temporarily_closed,rating,phone,address']);
+            $user->load(['vendor:id,user_id,name,slug,logo,cover_image,module_slug,module_id,is_open,temporarily_closed,rating,phone,address']);
         }
 
         return response()->json([
