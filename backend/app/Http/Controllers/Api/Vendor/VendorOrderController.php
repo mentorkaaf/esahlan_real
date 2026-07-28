@@ -49,12 +49,17 @@ class VendorOrderController extends Controller
         $order->updateStatus('confirmed', 'Order confirmed by vendor', auth()->id());
 
         // Notify customer
-        $this->notificationService->notifyUser(
-            $order->user_id,
-            'Order Confirmed',
-            "Your order #{$order->order_number} has been confirmed.",
-            ['order_id' => $order->id, 'type' => 'order_confirmed']
-        );
+        try {
+            $customerToken = $order->user?->fcm_token;
+            if ($customerToken) {
+                $this->notificationService->sendPush(
+                    [$customerToken],
+                    'Order Confirmed',
+                    "Your order #{$order->order_number} has been confirmed.",
+                    ['order_id' => (string)$order->id, 'type' => 'order_confirmed']
+                );
+            }
+        } catch (\Throwable $e) {}
 
         // Auto-dispatch
         dispatch(new \App\Jobs\AssignDeliverymanJob($order));
@@ -72,12 +77,17 @@ class VendorOrderController extends Controller
         $request->validate(['reason' => 'required|string|max:255']);
         $this->orderService->updateStatus($order, 'cancelled', $request->reason, auth()->id());
 
-        $this->notificationService->notifyUser(
-            $order->user_id,
-            'Order Rejected',
-            "Your order #{$order->order_number} was rejected: {$request->reason}",
-            ['order_id' => $order->id, 'type' => 'order_rejected']
-        );
+        try {
+            $customerToken = $order->user?->fcm_token;
+            if ($customerToken) {
+                $this->notificationService->sendPush(
+                    [$customerToken],
+                    'Order Rejected',
+                    "Your order #{$order->order_number} was rejected: {$request->reason}",
+                    ['order_id' => (string)$order->id, 'type' => 'order_rejected']
+                );
+            }
+        } catch (\Throwable $e) {}
 
         return $this->success(['message' => 'Order rejected.']);
     }
