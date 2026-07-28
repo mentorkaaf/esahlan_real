@@ -74,9 +74,10 @@ class VendorDashboardController extends Controller
 
     public function updateFcmToken(Request $request): JsonResponse
     {
-        $request->validate(['fcm_token' => 'required|string']);
+        $request->validate(['fcm_token' => 'nullable|string']);
         $vendor = auth()->user()->vendor;
-        $vendor->update(['vendor_fcm_token' => $request->fcm_token]);
+        $token = $request->input('fcm_token') ?: null;
+        $vendor->update(['vendor_fcm_token' => $token]);
         return $this->success(['message' => 'FCM token updated']);
     }
 }
