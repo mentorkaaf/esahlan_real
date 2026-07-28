@@ -332,16 +332,23 @@ class OrderController extends Controller
             return $order;
         });
 
-        // Notify vendor — realtime + FCM push
+        // Realtime broadcast (separate try — failure must not kill FCM)
         try {
             $order->loadMissing(['items', 'user', 'vendor']);
             event(new NewOrderForVendor($order));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[ORDER] broadcast failed: ' . $e->getMessage());
+        }
 
-            // FCM push to vendor device
+        // FCM push to vendor device (own try — always runs)
+        try {
+            if (!$order->relationLoaded('vendor')) {
+                $order->loadMissing('vendor');
+            }
             $vendorToken = $order->vendor?->vendor_fcm_token;
-            \Illuminate\Support\Facades\Log::info('[ORDER] vendor token', ['set' => !empty($vendorToken), 'vid' => $order->vendor_id]);
+            \Illuminate\Support\Facades\Log::info('[ORDER] vendor FCM', ['set' => !empty($vendorToken), 'vid' => $order->vendor_id]);
             if ($vendorToken) {
-                $itemCount   = $order->items->count();
+                $itemCount    = $order->items->count();
                 $customerName = $order->user?->name ?? 'Customer';
                 \App\Services\FcmService::sendToToken(
                     $vendorToken,
@@ -357,7 +364,9 @@ class OrderController extends Controller
                     ]
                 );
             }
-        } catch (\Throwable) {}
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('[ORDER] FCM failed: ' . $e->getMessage());
+        }
 
         return response()->json([
             'success' => true,
