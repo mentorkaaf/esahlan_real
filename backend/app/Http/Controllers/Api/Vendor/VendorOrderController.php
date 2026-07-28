@@ -61,9 +61,6 @@ class VendorOrderController extends Controller
             }
         } catch (\Throwable $e) {}
 
-        // Auto-dispatch
-        dispatch(new \App\Jobs\AssignDeliverymanJob($order));
-
         return $this->success(['message' => 'Order accepted.', 'status' => 'confirmed']);
     }
 
