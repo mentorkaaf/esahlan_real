@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 use App\Http\Controllers\Api\Community\CommunityFeedController;
 use App\Http\Controllers\Api\Community\CommunityPostController;
 use App\Http\Controllers\Api\Community\CommunityCommentController;
@@ -673,6 +673,8 @@ Route::prefix('v1')->group(function () {
         Route::prefix('vendor')->middleware('role:vendor_owner,vendor_employee')->group(function () {
             Route::get('dashboard',         [VendorDashboardController::class, 'index']);
             Route::post('store/toggle',     [VendorDashboardController::class, 'toggleStore']);
+            Route::post('fcm-token', [VendorDashboardController::class, 'updateFcmToken']);
+
 
             Route::get('orders',            [VendorOrderController::class, 'index']);
             Route::get('orders/{order}',    [VendorOrderController::class, 'show']);
