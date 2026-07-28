@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -17,7 +17,7 @@ class Vendor extends Model
         'latitude','longitude','vendor_type','status','is_open','is_active','is_approved',
         'is_featured','is_verified','temporarily_closed','minimum_order','delivery_fee',
         'delivery_time','tax_percentage','commission_type','commission_value',
-        'rating','review_count','meta','working_hours',
+        'rating','review_count','meta','working_hours','vendor_fcm_token',
     ];
 
     protected $casts = [
