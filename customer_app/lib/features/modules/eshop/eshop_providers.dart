@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/services/cart_sync_service.dart';
+import '../../../core/services/cart_persistence_service.dart';
 
 extension _CacheFor on Ref {
   void cacheFor(Duration d) {
@@ -56,7 +57,35 @@ class CartItem {
 // Cart notifier
 // ─────────────────────────────────────────────────────────────────
 class EShopCartNotifier extends StateNotifier<List<CartItem>> {
-  EShopCartNotifier() : super([]);
+  EShopCartNotifier() : super([]) {
+    _loadFromDisk();
+  }
+
+  static const _module = 'eshop';
+
+  Future<void> _loadFromDisk() async {
+    final saved = await CartPersistenceService.instance.load(_module);
+    if (saved.isEmpty || !mounted) return;
+    final items = saved.map((m) => CartItem(
+      productId: (m['productId'] as num).toInt(),
+      product:   Map<String, dynamic>.from(m['product'] as Map? ?? {}),
+      qty:       (m['qty'] as num?)?.toInt() ?? 1,
+      variantId: m['variantId'] != null ? (m['variantId'] as num).toInt() : null,
+      variant:   m['variant'] != null ? Map<String, dynamic>.from(m['variant'] as Map) : null,
+    )).toList();
+    if (mounted) state = items;
+  }
+
+  void _saveToDisk() {
+    final data = state.map((c) => {
+      'productId': c.productId,
+      'product':   c.product,
+      'qty':       c.qty,
+      'variantId': c.variantId,
+      'variant':   c.variant,
+    }).toList();
+    CartPersistenceService.instance.save(_module, data);
+  }
 
   void _sync() {
     final items = state.map((c) => {
@@ -66,7 +95,7 @@ class EShopCartNotifier extends StateNotifier<List<CartItem>> {
       'price':         c.effectivePrice,
       'quantity':      c.qty,
     }).toList();
-    CartSyncService.instance.syncDebounced('eshop', items);
+    CartSyncService.instance.syncDebounced(_module, items);
   }
 
   void addItem(Map<String, dynamic> product, {int qty = 1, int? variantId, Map<String, dynamic>? variant}) {
@@ -79,11 +108,13 @@ class EShopCartNotifier extends StateNotifier<List<CartItem>> {
     } else {
       state = [...state, CartItem(productId: id, product: product, qty: qty, variantId: variantId, variant: variant)];
     }
+    _saveToDisk();
     _sync();
   }
 
   void removeItem(int productId, {int? variantId}) {
     state = state.where((c) => !(c.productId == productId && c.variantId == variantId)).toList();
+    _saveToDisk();
     _sync();
   }
 
@@ -93,12 +124,14 @@ class EShopCartNotifier extends StateNotifier<List<CartItem>> {
       return;
     }
     state = state.map((c) => c.productId == productId && c.variantId == variantId ? c.copyWith(qty: qty) : c).toList();
+    _saveToDisk();
     _sync();
   }
 
   void clear() {
     state = [];
-    CartSyncService.instance.clearModule('eshop');
+    CartPersistenceService.instance.clear(_module);
+    CartSyncService.instance.clearModule(_module);
   }
 
   int qtyFor(int productId, {int? variantId}) {

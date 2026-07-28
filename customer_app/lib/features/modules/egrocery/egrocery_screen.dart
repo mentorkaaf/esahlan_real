@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/cart_sync_service.dart';
+import '../../../core/services/cart_persistence_service.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
 import '../../../core/constants/app_constants.dart';
@@ -44,10 +45,32 @@ class _CartItem {
 }
 
 class _CartNotifier extends StateNotifier<List<_CartItem>> {
-  _CartNotifier() : super([]);
+  _CartNotifier() : super([]) {
+    _loadFromDisk();
+  }
+
+  static const _module = 'egrocery';
+
+  Future<void> _loadFromDisk() async {
+    final saved = await CartPersistenceService.instance.load(_module);
+    if (saved.isEmpty || !mounted) return;
+    final items = saved.map((m) {
+      final item = _CartItem(Map<String, dynamic>.from(m['product'] as Map? ?? {}));
+      item.qty = (m['qty'] as num?)?.toInt() ?? 1;
+      return item;
+    }).toList();
+    if (mounted) state = items;
+  }
+
+  void _saveToDisk() {
+    CartPersistenceService.instance.save(_module, state.map((e) => {
+      'product': e.product,
+      'qty':     e.qty,
+    }).toList());
+  }
 
   void _sync() {
-    CartSyncService.instance.syncDebounced('egrocery', state.map((e) => {
+    CartSyncService.instance.syncDebounced(_module, state.map((e) => {
       'product_id':    e.product['id'],
       'product_name':  e.product['name'] ?? '',
       'product_image': e.product['image'] ?? e.product['thumbnail'] ?? '',
@@ -59,16 +82,27 @@ class _CartNotifier extends StateNotifier<List<_CartItem>> {
   void add(Map<String, dynamic> product) {
     final i = state.indexWhere((e) => e.product['id'] == product['id']);
     if (i >= 0) { state[i].qty++; state = [...state]; } else { state = [...state, _CartItem(product)]; }
-    _sync();
+    _saveToDisk(); _sync();
   }
-  void increment(int productId) { final i = state.indexWhere((e) => e.product['id'] == productId); if (i >= 0) { state[i].qty++; state = [...state]; } _sync(); }
+  void increment(int productId) {
+    final i = state.indexWhere((e) => e.product['id'] == productId);
+    if (i >= 0) { state[i].qty++; state = [...state]; }
+    _saveToDisk(); _sync();
+  }
   void decrement(int productId) {
     final i = state.indexWhere((e) => e.product['id'] == productId);
     if (i >= 0) { if (state[i].qty > 1) { state[i].qty--; state = [...state]; } else { state = [...state]..removeAt(i); } }
-    _sync();
+    _saveToDisk(); _sync();
   }
-  void remove(int productId) { state = state.where((e) => e.product['id'] != productId).toList(); _sync(); }
-  void clear() { state = []; CartSyncService.instance.clearModule('egrocery'); }
+  void remove(int productId) {
+    state = state.where((e) => e.product['id'] != productId).toList();
+    _saveToDisk(); _sync();
+  }
+  void clear() {
+    state = [];
+    CartPersistenceService.instance.clear(_module);
+    CartSyncService.instance.clearModule(_module);
+  }
   int get totalItems => state.fold(0, (s, e) => s + e.qty);
   double get subtotal => state.fold(0, (s, e) => s + e.lineTotal);
   int qtyOf(int productId) => state.where((e) => e.product['id'] == productId).fold(0, (s, e) => s + e.qty);

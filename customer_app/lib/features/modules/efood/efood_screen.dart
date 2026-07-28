@@ -1,6 +1,7 @@
 ﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/services/cart_sync_service.dart';
+import '../../../core/services/cart_persistence_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/api/module_api_service.dart';
@@ -165,7 +166,38 @@ class _CartItem {
 }
 
 class _CartNotifier extends StateNotifier<List<_CartItem>> {
-  _CartNotifier() : super([]);
+  _CartNotifier() : super([]) {
+    _loadFromDisk();
+  }
+
+  static const _module = 'efood';
+
+  Future<void> _loadFromDisk() async {
+    final saved = await CartPersistenceService.instance.load(_module);
+    if (saved.isEmpty || !mounted) return;
+    final items = saved.map((m) {
+      final item = _CartItem(
+        product: Map<String, dynamic>.from(m['product'] as Map? ?? {}),
+        qty: (m['qty'] as num?)?.toInt() ?? 1,
+        addons: (m['addons'] as List?)?.map((a) => Map<String, dynamic>.from(a as Map)).toList() ?? [],
+        size: m['size'] as String?,
+        overridePrice: (m['overridePrice'] as num?)?.toDouble(),
+      );
+      return item;
+    }).toList();
+    if (mounted) state = items;
+  }
+
+  void _saveToDisk() {
+    final data = state.map((e) => {
+      'product':       e.product,
+      'qty':           e.qty,
+      'addons':        e.addons,
+      'size':          e.size,
+      'overridePrice': e.overridePrice,
+    }).toList();
+    CartPersistenceService.instance.save(_module, data);
+  }
 
   void _syncToBackend() {
     final items = state.map((e) => {
@@ -175,7 +207,7 @@ class _CartNotifier extends StateNotifier<List<_CartItem>> {
       'price':         e.unitPrice,
       'quantity':      e.qty,
     }).toList();
-    CartSyncService.instance.syncDebounced('efood', items);
+    CartSyncService.instance.syncDebounced(_module, items);
   }
 
   void add(_CartItem item) {
@@ -187,6 +219,7 @@ class _CartNotifier extends StateNotifier<List<_CartItem>> {
     } else {
       state = [...state, item];
     }
+    _saveToDisk();
     _syncToBackend();
   }
 
@@ -194,6 +227,7 @@ class _CartNotifier extends StateNotifier<List<_CartItem>> {
     state = [for (final e in state) if (e.key == key)
       _CartItem(product: e.product, addons: e.addons, size: e.size, overridePrice: e.overridePrice, qty: e.qty + 1)
     else e];
+    _saveToDisk();
     _syncToBackend();
   }
 
@@ -205,17 +239,20 @@ class _CartNotifier extends StateNotifier<List<_CartItem>> {
       return e;
     }).where((e) => e.qty > 0).toList();
     state = updated;
+    _saveToDisk();
     _syncToBackend();
   }
 
   void remove(String key) {
     state = state.where((e) => e.key != key).toList();
+    _saveToDisk();
     _syncToBackend();
   }
 
   void clear() {
     state = [];
-    CartSyncService.instance.clearModule('efood');
+    CartPersistenceService.instance.clear(_module);
+    CartSyncService.instance.clearModule(_module);
   }
 
   double get subtotal => state.fold(0, (s, e) => s + e.total);
