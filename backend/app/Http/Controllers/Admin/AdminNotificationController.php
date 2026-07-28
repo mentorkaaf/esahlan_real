@@ -19,7 +19,8 @@ class AdminNotificationController extends Controller
         $stats = [
             'total'      => PushNotificationLog::count(),
             'today'      => PushNotificationLog::whereDate('created_at', today())->count(),
-            'with_token' => User::whereNotNull('fcm_token')->count(),
+            'with_token' => User::whereNotNull('fcm_token')->count()
+                          + \App\Models\Vendor::whereNotNull('vendor_fcm_token')->count(),
         ];
         return view('admin.notifications.index', compact('logs', 'stats'));
     }
@@ -108,12 +109,22 @@ class AdminNotificationController extends Controller
             $sentCount = count($tokens);
             $this->notificationService->sendPush($tokens, $request->title, $request->body, $data, $imageUrl);
         } else {
-            $roleMap = ['customers' => 'customer', 'vendors' => 'vendor_owner', 'deliverymen' => 'deliveryman'];
-            $role    = $roleMap[$request->target_type];
-            $tokens  = User::whereHas('role', fn($q) => $q->where('slug', $role))
-                ->whereNotNull('fcm_token')
-                ->pluck('fcm_token')
-                ->toArray();
+            if ($request->target_type === 'vendors') {
+                // Vendors have their own separate FCM token (vendor app vs customer app)
+                $tokens = \App\Models\Vendor::whereNotNull('vendor_fcm_token')
+                    ->pluck('vendor_fcm_token')
+                    ->toArray();
+            } elseif ($request->target_type === 'deliverymen') {
+                $tokens = User::whereHas('role', fn($q) => $q->where('slug', 'deliveryman'))
+                    ->whereNotNull('fcm_token')
+                    ->pluck('fcm_token')
+                    ->toArray();
+            } else {
+                $tokens = User::whereHas('role', fn($q) => $q->where('slug', 'customer'))
+                    ->whereNotNull('fcm_token')
+                    ->pluck('fcm_token')
+                    ->toArray();
+            }
             $sentCount = count($tokens);
             $this->notificationService->sendPush($tokens, $request->title, $request->body, $data, $imageUrl);
         }
