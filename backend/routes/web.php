@@ -802,6 +802,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
 
         // Dispatch Center
         Route::get('/dispatch', [DispatchController::class, 'index'])->name('dispatch');
+        Route::get('/dispatch/map', [DispatchController::class, 'liveMap'])->name('dispatch.map');
+        Route::get('/dispatch/live-drivers', [DispatchController::class, 'liveDrivers'])->name('dispatch.live-drivers');
         Route::get('/dispatch/orders', [DispatchController::class, 'activeOrders'])->name('dispatch.orders');
         Route::post('/dispatch/assign', [DispatchController::class, 'manualAssign'])->name('dispatch.assign');
         Route::get('/dispatch/deliverymen/available', [DispatchController::class, 'availableDeliverymen'])->name('dispatch.deliverymen');

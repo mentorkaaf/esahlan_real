@@ -134,4 +134,45 @@ class DispatchController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Driver assigned successfully.']);
     }
+
+    public function liveMap()
+    {
+        return view('admin.dispatch.live_map');
+    }
+
+    public function liveDrivers()
+    {
+        $drivers = Deliveryman::with('user:id,name,phone')
+            ->where('is_approved', true)
+            ->whereIn('status', ['available', 'busy'])
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->where('last_location_at', '>=', now()->subMinutes(5))
+            ->get()
+            ->map(function ($d) {
+                $activeOrder = null;
+                if ($d->status === 'busy') {
+                    $activeOrder = DB::table('orders')
+                        ->where('deliveryman_id', $d->id)
+                        ->whereIn('status', ['out_for_delivery', 'ready_for_pickup'])
+                        ->select('id', 'order_number', 'status', 'module_slug')
+                        ->first();
+                }
+                return [
+                    'id'           => $d->id,
+                    'name'         => $d->user?->name ?? 'Driver #' . $d->id,
+                    'phone'        => $d->user?->phone,
+                    'vehicle_type' => $d->vehicle_type,
+                    'status'       => $d->status,
+                    'latitude'     => (float) $d->latitude,
+                    'longitude'    => (float) $d->longitude,
+                    'last_seen'    => \Carbon\Carbon::parse($d->last_location_at)->diffForHumans(),
+                    'last_seen_at' => $d->last_location_at,
+                    'rating'       => round($d->rating ?? 5, 1),
+                    'order'        => $activeOrder,
+                ];
+            });
+
+        return response()->json(['data' => $drivers, 'updated_at' => now()->toISOString()]);
+    }
 }

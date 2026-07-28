@@ -9,7 +9,9 @@ use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Events\DeliveryLocationUpdated;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -451,6 +453,7 @@ class DeliveryController extends Controller
         $dm = $this->dm($request);
         if (!$dm) return response()->json(['success' => false], 404);
 
+        $dm->loadMissing('user:id,name');
         $dm->update([
             'latitude'        => $request->latitude,
             'longitude'       => $request->longitude,
@@ -467,8 +470,26 @@ class DeliveryController extends Controller
                     'longitude'      => $request->longitude,
                     'created_at'     => now(),
                 ]);
+                // Broadcast to order channel for customer tracking
+                event(new DeliveryLocationUpdated(
+                    $order->id,
+                    $request->latitude,
+                    $request->longitude,
+                    $order->status
+                ));
             }
         }
+
+        // Broadcast to admin drivers channel for live map
+        broadcast(new \App\Events\DriverLocationUpdated(
+            $dm->id,
+            $dm->user_id,
+            $dm->user?->name ?? 'Driver',
+            $request->latitude,
+            $request->longitude,
+            $dm->status,
+            $request->order_id,
+        ))->toOthers();
 
         return response()->json(['success' => true]);
     }
@@ -516,22 +537,36 @@ class DeliveryController extends Controller
         $recentDeliveries = DB::table('deliveryman_earnings')
             ->where('deliveryman_earnings.deliveryman_id', $dm->id)
             ->leftJoin('orders', 'orders.id', '=', 'deliveryman_earnings.order_id')
-            ->select('deliveryman_earnings.*', 'orders.order_number', 'orders.module_slug')
+            ->leftJoin('commissions', 'commissions.order_id', '=', 'deliveryman_earnings.order_id')
+            ->select(
+                'deliveryman_earnings.*',
+                'orders.order_number',
+                'orders.module_slug',
+                'orders.delivery_fee as original_delivery_fee',
+                'commissions.delivery_fee_commission'
+            )
             ->orderByDesc('deliveryman_earnings.created_at')
             ->limit(20)
             ->get();
 
+        // Total platform commission deducted from this driver's delivery fees
+        $totalPlatformCommission = DB::table('commissions')
+            ->join('deliveryman_earnings', 'commissions.order_id', '=', 'deliveryman_earnings.order_id')
+            ->where('deliveryman_earnings.deliveryman_id', $dm->id)
+            ->sum('commissions.delivery_fee_commission');
+
         return response()->json([
             'success' => true,
             'data'    => [
-                'today'       => round((float) $todayEarnings, 2),
-                'weekly'      => round((float) $weeklyEarnings, 2),
-                'monthly'     => round((float) $monthlyEarnings, 2),
-                'total'       => round((float) $totalEarnings, 2),
-                'total_orders'=> $dm->total_deliveries,
-                'rating'      => round($dm->rating ?? 5.0, 1),
-                'daily_chart' => $dailyChart,
-                'recent'      => $recentDeliveries,
+                'today'                    => round((float) $todayEarnings, 2),
+                'weekly'                   => round((float) $weeklyEarnings, 2),
+                'monthly'                  => round((float) $monthlyEarnings, 2),
+                'total'                    => round((float) $totalEarnings, 2),
+                'total_platform_commission'=> round((float) $totalPlatformCommission, 2),
+                'total_orders'             => $dm->total_deliveries,
+                'rating'                   => round($dm->rating ?? 5.0, 1),
+                'daily_chart'              => $dailyChart,
+                'recent'                   => $recentDeliveries,
             ],
         ]);
     }

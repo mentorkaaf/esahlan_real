@@ -438,6 +438,9 @@
         <a href="{{ route('admin.dispatch') }}" class="nav-link {{ request()->routeIs('admin.dispatch') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-map-marked-alt"></i></div> Dispatch
         </a>
+        <a href="{{ route('admin.dispatch.map') }}" class="nav-link {{ request()->routeIs('admin.dispatch.map') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-satellite-dish"></i></div> Live Tracking
+        </a>
         <a href="{{ route('admin.rewards.index') }}" class="nav-link {{ request()->routeIs('admin.rewards.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-star"></i></div> Rewards
         </a>

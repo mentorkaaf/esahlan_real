@@ -84,10 +84,25 @@ class EarningsScreen extends ConsumerWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Text('Breakdown', style: TextStyle(color: DC.text, fontSize: 15, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 14),
-                _BreakdownRow(Icons.delivery_dining_rounded, 'Delivery Earnings', '\$${_fmt(d['total'])}', DC.success),
+                _BreakdownRow(Icons.delivery_dining_rounded, 'Delivery Earnings (Net)', '\$${_fmt(d['total'])}', DC.success),
+                if ((double.tryParse('${d['total_platform_commission'] ?? 0}') ?? 0) > 0) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(color: DC.error.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10)),
+                    child: Row(children: [
+                      const Icon(Icons.info_outline_rounded, color: DC.error, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(
+                        'Platform fee deducted: \$${_fmt(d['total_platform_commission'])} from delivery fees',
+                        style: const TextStyle(color: DC.error, fontSize: 11, fontWeight: FontWeight.w600),
+                      )),
+                    ]),
+                  ),
+                ],
+                const SizedBox(height: 8),
                 _BreakdownRow(Icons.star_rounded, 'Tips', '\$0.00', DC.busy),
                 _BreakdownRow(Icons.card_giftcard_rounded, 'Bonuses', '\$0.00', DC.orange),
-                _BreakdownRow(Icons.tune_rounded, 'Adjustments', '\$0.00', DC.textMuted),
               ]),
             ),
             const SizedBox(height: 24),
@@ -95,21 +110,36 @@ class EarningsScreen extends ConsumerWidget {
             // Recent deliveries
             const Text('Recent Deliveries', style: TextStyle(color: DC.text, fontSize: 16, fontWeight: FontWeight.w800)),
             const SizedBox(height: 10),
-            ...((d['recent'] as List? ?? []).map((e) => Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: DC.border.withValues(alpha: 0.3))),
-              child: Row(children: [
-                Container(width: 40, height: 40, decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(10)),
-                  child: const Icon(Icons.receipt_long_rounded, color: DC.orange, size: 20)),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('#${e['order_number'] ?? ''}', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 13)),
-                  Text(e['module_slug'] ?? '', style: const TextStyle(color: DC.textMuted, fontSize: 11)),
-                ])),
-                Text('+\$${_fmt(e['amount'])}', style: const TextStyle(color: DC.success, fontWeight: FontWeight.w800, fontSize: 15)),
-              ]),
-            ))),
+            ...((d['recent'] as List? ?? []).map((e) {
+              final commission = double.tryParse('${e['delivery_fee_commission'] ?? 0}') ?? 0;
+              final original = double.tryParse('${e['original_delivery_fee'] ?? 0}') ?? 0;
+              final net = double.tryParse('${e['amount'] ?? 0}') ?? 0;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: DC.border.withValues(alpha: 0.3))),
+                child: Row(children: [
+                  Container(width: 40, height: 40, decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.receipt_long_rounded, color: DC.orange, size: 20)),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('#${e['order_number'] ?? ''}', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 13)),
+                    Row(children: [
+                      Text(e['module_slug'] ?? '', style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+                      if (commission > 0) ...[
+                        const Text(' · ', style: TextStyle(color: DC.textMuted, fontSize: 11)),
+                        Text('fee: -\$${_fmt(commission)}', style: const TextStyle(color: DC.error, fontSize: 10, fontWeight: FontWeight.w600)),
+                      ],
+                    ]),
+                  ])),
+                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                    Text('+\$${_fmt(net)}', style: const TextStyle(color: DC.success, fontWeight: FontWeight.w800, fontSize: 15)),
+                    if (original > 0 && commission > 0)
+                      Text('of \$${_fmt(original)}', style: const TextStyle(color: DC.textMuted, fontSize: 10)),
+                  ]),
+                ]),
+              );
+            })),
             const SizedBox(height: 20),
           ]),
         ),
