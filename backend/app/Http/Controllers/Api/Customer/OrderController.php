@@ -332,10 +332,30 @@ class OrderController extends Controller
             return $order;
         });
 
-        // Notify vendor in realtime
+        // Notify vendor — realtime + FCM push
         try {
             $order->loadMissing(['items', 'user', 'vendor']);
             event(new NewOrderForVendor($order));
+
+            // FCM push to vendor's user
+            $vendorUser = $order->vendor?->user;
+            if ($vendorUser?->fcm_token) {
+                $itemCount   = $order->items->count();
+                $customerName = $order->user?->name ?? 'Customer';
+                \App\Services\FcmService::sendToToken(
+                    $vendorUser->fcm_token,
+                    '🛎 New Order #' . $order->order_number,
+                    "{$customerName} · {$itemCount} item" . ($itemCount > 1 ? 's' : '') . ' · $' . number_format($order->total_amount, 2),
+                    [
+                        'type'         => 'vendor_new_order',
+                        'order_id'     => (string) $order->id,
+                        'order_number' => $order->order_number,
+                        'total'        => (string) $order->total_amount,
+                        'module'       => $order->module_slug ?? '',
+                        'deep_link'    => '/orders',
+                    ]
+                );
+            }
         } catch (\Throwable) {}
 
         return response()->json([
