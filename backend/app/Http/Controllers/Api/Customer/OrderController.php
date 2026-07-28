@@ -340,33 +340,7 @@ class OrderController extends Controller
             \Illuminate\Support\Facades\Log::warning('[ORDER] broadcast failed: ' . $e->getMessage());
         }
 
-        // FCM push to vendor device (own try — always runs)
-        try {
-            if (!$order->relationLoaded('vendor')) {
-                $order->loadMissing('vendor');
-            }
-            $vendorToken = $order->vendor?->vendor_fcm_token;
-            \Illuminate\Support\Facades\Log::info('[ORDER] vendor FCM', ['set' => !empty($vendorToken), 'vid' => $order->vendor_id]);
-            if ($vendorToken) {
-                $itemCount    = $order->items->count();
-                $customerName = $order->user?->name ?? 'Customer';
-                \App\Services\FcmService::sendToToken(
-                    $vendorToken,
-                    '🛎 New Order #' . $order->order_number,
-                    "{$customerName} · {$itemCount} item" . ($itemCount > 1 ? 's' : '') . ' · $' . number_format($order->total_amount, 2),
-                    [
-                        'type'         => 'vendor_new_order',
-                        'order_id'     => (string) $order->id,
-                        'order_number' => $order->order_number,
-                        'total'        => (string) $order->total_amount,
-                        'module'       => $order->module_slug ?? '',
-                        'deep_link'    => '/orders',
-                    ]
-                );
-            }
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('[ORDER] FCM failed: ' . $e->getMessage());
-        }
+        if ($order->vendor_id) \App\Services\FcmService::notifyVendorNewOrder($order->vendor_id, $order, $order->module_slug ?? 'efood');
 
         return response()->json([
             'success' => true,

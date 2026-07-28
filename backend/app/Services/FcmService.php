@@ -210,6 +210,48 @@ class FcmService
         return self::sendToToken($t, $ti, $bo, ['type' => 'booking_update', 'module' => $mod, 'booking_id' => (string) $id, 'status' => $st, 'deep_link' => '/orders']);
     }
 
+    // ── Notify vendor of new order (call from every module createOrder) ──────
+    // Pass $vendorId (int) + the created Order model + module slug.
+    // Looks up vendor_fcm_token itself — no need to fetch it in the controller.
+    public static function notifyVendorNewOrder(int $vendorId, \App\Models\Order $order, string $module): void
+    {
+        try {
+            $token = \Illuminate\Support\Facades\DB::table('vendors')
+                ->where('id', $vendorId)
+                ->value('vendor_fcm_token');
+
+            Log::info("[FCM] notifyVendorNewOrder", [
+                'module'    => $module,
+                'vendor_id' => $vendorId,
+                'has_token' => !empty($token),
+            ]);
+
+            if (!$token) return;
+
+            $itemCount    = $order->items()->count();
+            $customerName = $order->user?->name ?? 'Customer';
+
+            self::sendToToken(
+                $token,
+                '🛎 New Order #' . $order->order_number,
+                $customerName . ' · ' . $itemCount . ' item' . ($itemCount > 1 ? 's' : '') . ' · $' . number_format($order->total_amount, 2),
+                [
+                    'type'         => 'vendor_new_order',
+                    'order_id'     => (string) $order->id,
+                    'order_number' => $order->order_number,
+                    'total'        => (string) $order->total_amount,
+                    'module'       => $module,
+                    'deep_link'    => '/orders',
+                ]
+            );
+        } catch (\Throwable $e) {
+            Log::error('[FCM] notifyVendorNewOrder failed: ' . $e->getMessage(), [
+                'vendor_id' => $vendorId,
+                'module'    => $module,
+            ]);
+        }
+    }
+
     // ── Internal: load service account JSON ──────────────────────────────────
     private static function loadServiceAccount(): ?array
     {
