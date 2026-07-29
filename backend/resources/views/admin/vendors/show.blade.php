@@ -246,13 +246,16 @@ $deliveredPct = $orders > 0 ? round($delivered / $orders * 100) : 0;
                     <div class="vd-kpi-sub">{{ $withdrawalStats->total_requests ?? 0 }} requests</div>
                 </div>
             </div>
-            <div class="vd-kpi" style="padding:14px 16px;">
+            <a href="{{ route('admin.finance.index') }}" style="text-decoration:none;" title="View withdrawal requests">
+            <div class="vd-kpi" style="padding:14px 16px;cursor:pointer;transition:box-shadow .15s;border-color:#fbbf24;" onmouseover="this.style.boxShadow='0 4px 16px rgba(245,158,11,.2)'" onmouseout="this.style.boxShadow=''">
                 <div class="vd-kpi-icon" style="background:rgba(245,158,11,.12);color:#f59e0b;width:38px;height:38px;font-size:15px;"><i class="fas fa-clock"></i></div>
                 <div>
                     <div class="vd-kpi-label">Pending Withdrawal</div>
-                    <div class="vd-kpi-value" style="font-size:18px;">${{ number_format($withdrawalStats->pending_amount ?? 0, 2) }}</div>
+                    <div class="vd-kpi-value" style="font-size:18px;color:#f59e0b;">${{ number_format($withdrawalStats->pending_amount ?? 0, 2) }}</div>
+                    <div class="vd-kpi-sub" style="color:#f59e0b;font-weight:700;">View requests →</div>
                 </div>
             </div>
+            </a>
             <div class="vd-kpi" style="padding:14px 16px;">
                 <div class="vd-kpi-icon" style="background:rgba(139,92,246,.12);color:#8b5cf6;width:38px;height:38px;font-size:15px;"><i class="fas fa-percentage"></i></div>
                 <div>
