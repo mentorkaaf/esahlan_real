@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/driver_colors.dart';
+import '../../../../core/providers/theme_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 final _profileProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) => ref.read(authRepoProvider).profile());
@@ -11,6 +12,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.dc;
+    final themeMode = ref.watch(themeModeProvider);
     final data = ref.watch(_profileProvider);
 
     return Scaffold(
@@ -86,6 +88,7 @@ class ProfileScreen extends ConsumerWidget {
                   _Section(title: 'Settings', icon: Icons.settings_rounded, children: [
                     _SettingsTile(Icons.notifications_outlined, 'Notifications', onTap: () {}),
                     _SettingsTile(Icons.language_rounded, 'Language', trailing: 'English', onTap: () {}),
+                    _ThemeToggleTile(themeMode: themeMode, onToggle: () => ref.read(themeModeProvider.notifier).toggle(context)),
                     _SettingsTile(Icons.privacy_tip_outlined, 'Privacy Policy', onTap: () {}),
                   ]),
                   const SizedBox(height: 20),
@@ -211,6 +214,57 @@ class _SettingsTile extends StatelessWidget {
         const SizedBox(width: 4),
         Icon(Icons.chevron_right_rounded, color: c.textMuted, size: 18),
       ])),
+    );
+  }
+}
+
+class _ThemeToggleTile extends StatelessWidget {
+  final ThemeMode themeMode;
+  final VoidCallback onToggle;
+  const _ThemeToggleTile({required this.themeMode, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.dc;
+    final isDark = switch (themeMode) {
+      ThemeMode.dark   => true,
+      ThemeMode.light  => false,
+      ThemeMode.system => Theme.of(context).brightness == Brightness.dark,
+    };
+    final label = switch (themeMode) {
+      ThemeMode.system => 'Auto (System)',
+      ThemeMode.dark   => 'Dark',
+      ThemeMode.light  => 'Light',
+    };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(children: [
+        Icon(isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded, color: c.textMuted, size: 18),
+        const SizedBox(width: 10),
+        Expanded(child: Text('Theme', style: TextStyle(color: c.textSec, fontSize: 13))),
+        Text(label, style: TextStyle(color: c.textMuted, fontSize: 12)),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: onToggle,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            width: 46, height: 26,
+            decoration: BoxDecoration(
+              color: isDark ? DC.orange : c.border,
+              borderRadius: BorderRadius.circular(13),
+            ),
+            padding: const EdgeInsets.all(3),
+            child: AnimatedAlign(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              alignment: isDark ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(width: 20, height: 20,
+                decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4)])),
+            ),
+          ),
+        ),
+      ]),
     );
   }
 }

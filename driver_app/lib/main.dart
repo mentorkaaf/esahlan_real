@@ -10,6 +10,7 @@ import 'core/services/firebase_service.dart';
 import 'core/services/location_service.dart';
 import 'core/theme/driver_theme.dart';
 import 'core/constants/app_constants.dart';
+import 'core/providers/theme_provider.dart';
 import 'firebase_options.dart';
 
 String? _coldDeepLink;
@@ -31,8 +32,6 @@ void main() async {
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-    systemNavigationBarColor: Color(0xFF12233D),
   ));
 
   runApp(const ProviderScope(child: DriverApp()));
@@ -109,7 +108,9 @@ class _DriverAppState extends ConsumerState<DriverApp> with WidgetsBindingObserv
     return MaterialApp.router(
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
-      theme: DriverTheme.dark,
+      theme: DriverTheme.light,
+      darkTheme: DriverTheme.dark,
+      themeMode: ref.watch(themeModeProvider),
       routerConfig: ref.watch(routerProvider),
     );
   }
