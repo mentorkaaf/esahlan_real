@@ -21,6 +21,11 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A"/>
 
+        <!-- FCM default notification channel — must match channel registered in FirebaseService -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="esahlan_driver_v1"/>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

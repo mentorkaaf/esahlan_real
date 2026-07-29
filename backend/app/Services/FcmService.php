@@ -17,6 +17,7 @@ class FcmService
         string  $body,
         array   $data     = [],
         ?string $imageUrl = null,
+        string  $channelId = 'esahlan_high_v3',
     ): bool {
         if (empty($fcmToken)) return false;
 
@@ -40,9 +41,9 @@ class FcmService
                 'android' => [
                     'priority'     => 'high',
                     'notification' => array_filter([
-                        'channel_id' => 'esahlan_high_v3',
+                        'channel_id' => $channelId,
                         'sound'      => 'default',
-                        'color'      => '#140465',
+                        'color'      => '#FF8A00',
                         'image'      => $imageUrl,
                     ]),
                 ],
@@ -107,10 +108,11 @@ class FcmService
         string  $body,
         array   $data     = [],
         ?string $imageUrl = null,
+        string  $channelId = 'esahlan_high_v3',
     ): int {
         $sent = 0;
         foreach (array_filter($fcmTokens) as $token) {
-            if (self::sendToToken($token, $title, $body, $data, $imageUrl)) {
+            if (self::sendToToken($token, $title, $body, $data, $imageUrl, $channelId)) {
                 $sent++;
             }
         }
@@ -157,7 +159,7 @@ class FcmService
             'status'       => $status,
             'module'       => (string) ($moduleSlug ?? ''),
             'deep_link'    => '/orders',
-        ]);
+        ], null, 'esahlan_driver_v1');
     }
 
     // ── Wallet / withdrawal helpers ───────────────────────────────────────────

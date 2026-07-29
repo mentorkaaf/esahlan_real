@@ -314,11 +314,19 @@ class AdminOrderController extends Controller
                     $tpl = \App\Models\OrderNotificationTemplate::resolve($request->status, $order->module_slug, 'driver');
                     $title = $tpl['title'];
                     $body = str_replace('{order_number}', $order->order_number, $tpl['body']);
-                    FcmService::sendToTokens($onlineDrivers, $title, $body, [
-                        'type' => 'new_order_available',
-                        'order_id' => (string) $order->id,
+                    $sent = FcmService::sendToTokens($onlineDrivers, $title, $body, [
+                        'type'         => 'new_order_available',
+                        'order_id'     => (string) $order->id,
                         'order_number' => $order->order_number,
-                        'deep_link' => '/orders',
+                        'deep_link'    => '/orders',
+                    ], null, 'esahlan_driver_v1');
+                    \Log::info('[FCM] Nearby driver notifications sent', [
+                        'order_id'       => $order->id,
+                        'drivers_found'  => count($onlineDrivers),
+                        'sent'           => $sent,
+                        'pickup_lat'     => $pickupLat,
+                        'pickup_lng'     => $pickupLng,
+                        'radius_km'      => $radiusKm,
                     ]);
                 }
             } catch (\Throwable) {}
