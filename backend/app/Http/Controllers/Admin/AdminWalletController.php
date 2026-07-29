@@ -379,7 +379,10 @@ class AdminWalletController extends Controller
         if (!$wr || $wr->status !== 'pending') return back()->with('error', 'Invalid request.');
 
         DB::transaction(function () use ($wr, $id, $request) {
-            $wallet = Wallet::getOrCreateFor('App\\Models\\User', $wr->owner_id);
+            // Use wallet_id directly so vendor/user wallets are both handled correctly
+            $wallet = $wr->wallet_id
+                ? Wallet::find($wr->wallet_id)
+                : Wallet::getOrCreateFor($wr->owner_type ?? 'App\\Models\\User', $wr->owner_id);
             $wallet->credit((float) $wr->amount, 'Withdrawal rejected - refunded', null, null, 'refund');
             DB::table('withdrawal_requests')->where('id', $id)->update([
                 'status'      => 'rejected',

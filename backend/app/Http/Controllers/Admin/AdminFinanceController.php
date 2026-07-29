@@ -45,13 +45,30 @@ class AdminFinanceController extends Controller
 
     public function rejectWithdrawal(Request $request, WithdrawalRequest $withdrawal)
     {
-        $withdrawal->update([
-            'status'       => 'rejected',
-            'admin_note'   => $request->reason,
-            'processed_at' => now(),
-            'processed_by' => auth()->id(),
-        ]);
-        return back()->with('success', 'Withdrawal rejected.');
+        if ($withdrawal->status !== 'pending') {
+            return back()->with('error', 'Only pending requests can be rejected.');
+        }
+
+        DB::transaction(function () use ($withdrawal, $request) {
+            // Refund to the correct wallet (vendor or user — use wallet_id directly)
+            $wallet = Wallet::find($withdrawal->wallet_id);
+            if ($wallet) {
+                $wallet->credit(
+                    (float) $withdrawal->amount,
+                    'Withdrawal rejected — refunded by admin',
+                    null, null, 'refund'
+                );
+            }
+
+            $withdrawal->update([
+                'status'       => 'rejected',
+                'admin_note'   => $request->reason,
+                'processed_at' => now(),
+                'processed_by' => auth()->id(),
+            ]);
+        });
+
+        return back()->with('success', 'Withdrawal rejected and amount refunded to wallet.');
     }
 
     public function transactions(Request $request)
