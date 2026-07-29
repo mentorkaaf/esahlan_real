@@ -59,9 +59,17 @@ class AdminVendorController extends Controller
             ->selectRaw('DATE(created_at) as date, COUNT(*) as orders, SUM(total_amount) as revenue')
             ->groupBy(DB::raw('DATE(created_at)'))->orderBy('date')->get();
 
-        // Commission
+        // Commission — prefer commissions table, fall back to calculating from orders + vendor rate
         $commissionStats = DB::table('commissions')->where('vendor_id', $vid)
             ->selectRaw('SUM(commission_amount) as total_commission, SUM(vendor_earning) as total_earning')->first();
+        if (!$commissionStats || (!$commissionStats->total_commission && !$commissionStats->total_earning)) {
+            $rate = floatval($vendor->commission_value ?? 10) / 100;
+            $totalRev = floatval($orderStats->delivered_revenue ?? 0);
+            $commissionStats = (object)[
+                'total_commission' => round($totalRev * $rate, 2),
+                'total_earning'    => round($totalRev * (1 - $rate), 2),
+            ];
+        }
 
         // Top products
         $topProducts = DB::table('order_items')
