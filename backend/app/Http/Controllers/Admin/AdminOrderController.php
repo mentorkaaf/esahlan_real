@@ -243,9 +243,15 @@ class AdminOrderController extends Controller
                 $module = $order->module_slug ?? '';
 
                 if (in_array($module, ['efood', 'egrocery', 'eshop', 'elaundry'])) {
-                    // Standard modules: pickup = vendor location
+                    // Standard modules: pickup = vendor location, fallback to vendor's district
                     $pickupLat = (float) ($order->vendor?->latitude ?? 0);
                     $pickupLng = (float) ($order->vendor?->longitude ?? 0);
+                    if (!$pickupLat || !$pickupLng) {
+                        $vendorDistrictId = $order->vendor?->district_id ?? $order->district_id;
+                        $dist = DB::table('districts')->find($vendorDistrictId);
+                        $pickupLat = (float) ($dist->latitude ?? 0);
+                        $pickupLng = (float) ($dist->longitude ?? 0);
+                    }
                 } elseif ($module === 'eparcel') {
                     // eParcel: pickup = sender district (stored in order.note JSON)
                     $noteData = is_array($order->note) ? $order->note : json_decode($order->note ?? '{}', true);
