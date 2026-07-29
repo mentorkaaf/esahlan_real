@@ -126,6 +126,7 @@ class _NewOrderCard extends StatelessWidget {
     final module = (o['module_slug'] ?? 'order').toString();
     final fee = double.tryParse('${o['delivery_fee'] ?? 0}') ?? 0;
     final distance = o['distance_km'];
+    final driverToPickup = o['driver_to_pickup_km'];
     final estMin = o['estimated_minutes'];
     final parcel = o['parcel'] as Map<String, dynamic>?;
     final moving = o['moving'] as Map<String, dynamic>?;
@@ -270,15 +271,32 @@ class _NewOrderCard extends StatelessWidget {
           ],
         ])),
 
-        // Stats row
+        // Distance row
         Container(
           margin: const EdgeInsets.fromLTRB(18, 14, 18, 0),
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(border: Border(top: BorderSide(color: DC.border.withValues(alpha: 0.5)))),
-          child: Row(children: [
-            _Stat('Distance', distance != null ? '${distance} km' : '—'),
-            _Stat('Time', estMin != null ? '$estMin min' : '—'),
-            _Stat('Earnings', '\$${fee.toStringAsFixed(2)}'),
+          child: Column(children: [
+            Row(children: [
+              _DistanceStat(
+                icon: Icons.two_wheeler_rounded,
+                color: DC.orange,
+                label: 'You → Store',
+                value: driverToPickup != null ? '$driverToPickup km' : '—',
+              ),
+              Container(width: 1, height: 32, color: DC.border.withValues(alpha: 0.4)),
+              _DistanceStat(
+                icon: Icons.place_rounded,
+                color: DC.success,
+                label: 'Store → Customer',
+                value: distance != null ? '$distance km' : '—',
+              ),
+            ]),
+            const SizedBox(height: 10),
+            Row(children: [
+              _Stat('Time', estMin != null ? '$estMin min' : '—'),
+              _Stat('Earnings', '\$${fee.toStringAsFixed(2)}'),
+            ]),
           ]),
         ),
 
@@ -344,6 +362,22 @@ class _Stat extends StatelessWidget {
     Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
     const SizedBox(height: 4),
     Text(value, style: const TextStyle(color: DC.text, fontSize: 15, fontWeight: FontWeight.w900)),
+  ]));
+}
+
+class _DistanceStat extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label, value;
+  const _DistanceStat({required this.icon, required this.color, required this.label, required this.value});
+  @override
+  Widget build(BuildContext context) => Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+    Icon(icon, color: color, size: 16),
+    const SizedBox(width: 6),
+    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+      Text(value, style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w900)),
+    ]),
   ]));
 }
 

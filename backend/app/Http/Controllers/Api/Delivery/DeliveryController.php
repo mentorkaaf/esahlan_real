@@ -996,6 +996,15 @@ class DeliveryController extends Controller
             ];
         }
 
+        // Driver → pickup distance (how far the driver needs to travel to collect the order)
+        $dLat = (float) ($dm->latitude ?? 0);
+        $dLng = (float) ($dm->longitude ?? 0);
+        $pLat = (float) ($result['pickup']['lat'] ?? 0);
+        $pLng = (float) ($result['pickup']['lng'] ?? 0);
+        $result['driver_to_pickup_km'] = ($dLat && $dLng && $pLat && $pLng)
+            ? round($this->haversine($dLat, $dLng, $pLat, $pLng), 1)
+            : null;
+
         return $result;
     }
 
