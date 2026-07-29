@@ -66,6 +66,32 @@ class AdminFinanceController extends Controller
         return view('admin.finance.transactions', compact('transactions'));
     }
 
+    public function resetTransactions(Request $request)
+    {
+        $action = $request->input('action'); // 'delete' or 'reset'
+
+        DB::transaction(function () use ($action) {
+            // Zero-out all wallet balances
+            Wallet::query()->update(['balance' => 0]);
+
+            if ($action === 'delete') {
+                // Hard delete all transactions
+                Transaction::query()->delete();
+            } else {
+                // Soft reset: keep rows but mark them voided
+                Transaction::query()->update([
+                    'amount'      => 0,
+                    'description' => '[RESET BY ADMIN]',
+                    'type'        => 'debit',
+                ]);
+            }
+        });
+
+        $label = $action === 'delete' ? 'deleted' : 'reset';
+        return redirect()->route('admin.finance.transactions')
+            ->with('success', "All transactions {$label} and all wallet balances set to zero.");
+    }
+
     public function commissions(Request $request)
     {
         $commissions = Commission::with(['order', 'vendor'])

@@ -11,10 +11,59 @@
             <li>Transactions</li>
         </ul>
     </div>
-    <a href="{{ route('admin.finance.index') }}" class="btn btn-outline btn-sm">
-        <i class="fas fa-arrow-left"></i> Back to Finance
-    </a>
+    <div style="display:flex;gap:8px;">
+        <button onclick="openResetModal('reset')" class="btn btn-sm" style="background:#fff3cd;color:#92400e;border:1px solid #fbbf24;font-weight:700;">
+            <i class="fas fa-undo"></i> Reset All
+        </button>
+        <button onclick="openResetModal('delete')" class="btn btn-sm" style="background:#fee2e2;color:#7f1d1d;border:1px solid #fca5a5;font-weight:700;">
+            <i class="fas fa-trash"></i> Delete All
+        </button>
+        <a href="{{ route('admin.finance.index') }}" class="btn btn-outline btn-sm">
+            <i class="fas fa-arrow-left"></i> Back to Finance
+        </a>
+    </div>
 </div>
+
+{{-- Confirm Modal --}}
+<div id="txResetModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:32px 28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+        <div id="txModalIcon" style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 16px;"></div>
+        <h3 id="txModalTitle" style="text-align:center;font-size:18px;font-weight:800;color:#1a1a2e;margin-bottom:8px;"></h3>
+        <p id="txModalDesc" style="text-align:center;font-size:13.5px;color:#6b7280;line-height:1.6;margin-bottom:24px;"></p>
+        <div style="display:flex;gap:10px;">
+            <button onclick="closeTxModal()" style="flex:1;padding:10px;border-radius:9px;border:1.5px solid #e5e7eb;background:#fff;font-weight:700;cursor:pointer;font-size:13px;">Cancel</button>
+            <form id="txResetForm" method="POST" action="{{ route('admin.finance.transactions.reset') }}" style="flex:1;">
+                @csrf
+                <input type="hidden" name="action" id="txActionInput">
+                <button type="submit" id="txConfirmBtn" style="width:100%;padding:10px;border-radius:9px;border:none;font-weight:800;font-size:13px;cursor:pointer;"></button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openResetModal(action) {
+    const isDelete = action === 'delete';
+    document.getElementById('txActionInput').value = action;
+    document.getElementById('txModalIcon').style.background = isDelete ? '#fee2e2' : '#fff3cd';
+    document.getElementById('txModalIcon').style.color     = isDelete ? '#b91c1c' : '#92400e';
+    document.getElementById('txModalIcon').innerHTML = isDelete ? '<i class="fas fa-trash"></i>' : '<i class="fas fa-undo"></i>';
+    document.getElementById('txModalTitle').textContent = isDelete ? 'Delete All Transactions?' : 'Reset All Transactions?';
+    document.getElementById('txModalDesc').innerHTML = isDelete
+        ? 'This will <strong>permanently delete</strong> every transaction record and set all wallet balances to <strong>$0.00</strong>. This cannot be undone.'
+        : 'This will set all transaction amounts to zero and reset all wallet balances to <strong>$0.00</strong>. Records will remain.';
+    document.getElementById('txConfirmBtn').textContent = isDelete ? 'Yes, Delete All' : 'Yes, Reset All';
+    document.getElementById('txConfirmBtn').style.background = isDelete ? '#dc2626' : '#f59e0b';
+    document.getElementById('txConfirmBtn').style.color = '#fff';
+    document.getElementById('txResetModal').style.display = 'flex';
+}
+function closeTxModal() {
+    document.getElementById('txResetModal').style.display = 'none';
+}
+document.getElementById('txResetModal').addEventListener('click', function(e){
+    if(e.target === this) closeTxModal();
+});
+</script>
 
 <div class="card">
     <div class="filter-bar">

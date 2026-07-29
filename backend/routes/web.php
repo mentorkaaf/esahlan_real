@@ -330,6 +330,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('/commissions', [AdminFinanceController::class, 'commissions'])->name('commissions');
             Route::post('/withdrawals/{withdrawal}/approve', [AdminFinanceController::class, 'approveWithdrawal'])->name('withdrawals.approve');
             Route::post('/withdrawals/{withdrawal}/reject', [AdminFinanceController::class, 'rejectWithdrawal'])->name('withdrawals.reject');
+            Route::post('/transactions/reset', [AdminFinanceController::class, 'resetTransactions'])->name('transactions.reset');
         });
 
         // Reports
