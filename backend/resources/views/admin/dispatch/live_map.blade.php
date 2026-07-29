@@ -234,6 +234,6 @@ function panTo(lat, lng, driverId) {
 @endif
 </script>
 <script async defer
-    src="https://maps.googleapis.com/maps/api/js?key={{ config('services.maps_api_key', env('GOOGLE_MAPS_API_KEY')) }}&callback=initMap">
+    src="https://maps.googleapis.com/maps/api/js?key={{ \App\Models\Setting::get('google_maps_api_key', config('services.maps_api_key', env('GOOGLE_MAPS_API_KEY'))) }}&callback=initMap">
 </script>
 @endpush
