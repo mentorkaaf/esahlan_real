@@ -94,10 +94,33 @@ class AdminVendorController extends Controller
         $statusBreakdown = DB::table('orders')->where('vendor_id', $vid)
             ->selectRaw('status, COUNT(*) as cnt')->groupBy('status')->get();
 
+        // Vendor wallet balance
+        $wallet = DB::table('wallets')
+            ->where('owner_type', 'App\\Models\\Vendor')
+            ->where('owner_id', $vid)
+            ->first();
+
+        // Withdrawal history
+        $withdrawals = DB::table('withdrawal_requests')
+            ->where('owner_type', 'App\\Models\\Vendor')
+            ->where('owner_id', $vid)
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get();
+
+        $withdrawalStats = DB::table('withdrawal_requests')
+            ->where('owner_type', 'App\\Models\\Vendor')
+            ->where('owner_id', $vid)
+            ->selectRaw("
+                SUM(CASE WHEN status='processed' THEN amount ELSE 0 END) as total_paid,
+                SUM(CASE WHEN status='pending'   THEN amount ELSE 0 END) as pending_amount,
+                COUNT(*) as total_requests
+            ")->first();
+
         return view('admin.vendors.show', compact(
             'vendor', 'orderStats', 'thisMonth', 'lastMonth',
             'chart', 'commissionStats', 'topProducts', 'productCount',
-            'recentOrders', 'statusBreakdown'
+            'recentOrders', 'statusBreakdown', 'wallet', 'withdrawals', 'withdrawalStats'
         ));
     }
 

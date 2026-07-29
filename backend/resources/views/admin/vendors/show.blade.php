@@ -254,6 +254,98 @@ $deliveredPct = $orders > 0 ? round($delivered / $orders * 100) : 0;
     </div>
 </div>
 
+{{-- ═══ WALLET + WITHDRAWAL SUMMARY ═══ --}}
+<div class="vd-kpi-row" style="margin-bottom:16px;">
+    <div class="vd-kpi">
+        <div class="vd-kpi-icon" style="background:rgba(16,185,129,.12);color:#10b981;"><i class="fas fa-wallet"></i></div>
+        <div>
+            <div class="vd-kpi-label">Wallet Balance</div>
+            <div class="vd-kpi-value">${{ number_format($wallet->balance ?? 0, 2) }}</div>
+            <div class="vd-kpi-sub">Current ePay balance</div>
+        </div>
+    </div>
+    <div class="vd-kpi">
+        <div class="vd-kpi-icon" style="background:rgba(59,130,246,.12);color:#3b82f6;"><i class="fas fa-money-bill-wave"></i></div>
+        <div>
+            <div class="vd-kpi-label">Total Withdrawn</div>
+            <div class="vd-kpi-value">${{ number_format($withdrawalStats->total_paid ?? 0, 2) }}</div>
+            <div class="vd-kpi-sub">{{ $withdrawalStats->total_requests ?? 0 }} total requests</div>
+        </div>
+    </div>
+    <div class="vd-kpi">
+        <div class="vd-kpi-icon" style="background:rgba(245,158,11,.12);color:#f59e0b;"><i class="fas fa-clock"></i></div>
+        <div>
+            <div class="vd-kpi-label">Pending Withdrawal</div>
+            <div class="vd-kpi-value">${{ number_format($withdrawalStats->pending_amount ?? 0, 2) }}</div>
+            <div class="vd-kpi-sub">Awaiting approval</div>
+        </div>
+    </div>
+    <div class="vd-kpi">
+        <div class="vd-kpi-icon" style="background:rgba(139,92,246,.12);color:#8b5cf6;"><i class="fas fa-percentage"></i></div>
+        <div>
+            <div class="vd-kpi-label">Net Vendor Earnings</div>
+            <div class="vd-kpi-value">${{ number_format($vendorEarning, 2) }}</div>
+            <div class="vd-kpi-sub">After {{ $vendor->commission_value ?? 10 }}% commission</div>
+        </div>
+    </div>
+</div>
+
+{{-- ═══ WITHDRAWAL HISTORY ═══ --}}
+<div class="vd-card" style="margin-bottom:16px;">
+    <div class="vd-card-head">
+        <span class="vd-card-title"><i class="fas fa-history" style="color:#3b82f6;"></i> Withdrawal History</span>
+        @if($wallet)
+        <span style="font-size:12px;font-weight:700;color:#10b981;">Balance: ${{ number_format($wallet->balance ?? 0,2) }}</span>
+        @endif
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="vd-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Amount</th>
+                    <th>Method</th>
+                    <th>Account</th>
+                    <th>Status</th>
+                    <th>Reference</th>
+                    <th>Requested</th>
+                    <th>Processed</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($withdrawals as $wd)
+                @php
+                $wdColors = ['pending'=>['#fff3cd','#92400e'],'approved'=>['#dbeafe','#1e40af'],'processed'=>['#d1fae5','#065f46'],'rejected'=>['#fee2e2','#7f1d1d']];
+                [$wdBg,$wdFg] = $wdColors[$wd->status] ?? ['#f3f4f6','#374151'];
+                @endphp
+                <tr>
+                    <td style="color:var(--muted);font-size:12px;">{{ $wd->id }}</td>
+                    <td style="font-weight:800;font-size:14px;">${{ number_format($wd->amount,2) }}</td>
+                    <td style="font-size:12.5px;">{{ ucfirst($wd->method ?? $wd->payment_method ?? '—') }}</td>
+                    <td>
+                        <div style="font-size:12.5px;font-weight:600;">{{ $wd->account_name ?? '—' }}</div>
+                        <div style="font-size:11px;color:var(--muted);">{{ $wd->account_number ?? '' }}</div>
+                    </td>
+                    <td>
+                        <span style="padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:{{ $wdBg }};color:{{ $wdFg }};">
+                            {{ ucfirst($wd->status) }}
+                        </span>
+                    </td>
+                    <td style="font-size:12px;color:var(--muted);">{{ $wd->transaction_reference ?? '—' }}</td>
+                    <td style="font-size:11.5px;color:var(--muted);white-space:nowrap;">{{ \Carbon\Carbon::parse($wd->created_at)->format('d M y') }}</td>
+                    <td style="font-size:11.5px;color:var(--muted);white-space:nowrap;">{{ $wd->processed_at ? \Carbon\Carbon::parse($wd->processed_at)->format('d M y') : '—' }}</td>
+                </tr>
+                @empty
+                <tr><td colspan="8" style="text-align:center;padding:28px;color:#9ca3af;">
+                    <i class="fas fa-money-bill-wave" style="font-size:24px;opacity:.3;display:block;margin-bottom:6px;"></i>
+                    No withdrawal requests yet
+                </td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+
 {{-- ═══ MONTH COMPARE + STATUS + TOP PRODUCTS ═══ --}}
 <div class="vd-grid-2">
     <div style="display:flex;flex-direction:column;gap:16px;">
