@@ -232,9 +232,13 @@ class AdminDeliverymanController extends Controller
             ? (int) $request->max_orders_custom
             : (int) ($request->max_orders_per_driver ?? 5);
 
-        \App\Helpers\AppSettings::set('max_orders_per_driver', $max);
+        \App\Helpers\AppSettings::set('max_orders_per_driver', $max, 'integer');
 
-        return back()->with('success', "Max orders per driver set to {$max}.");
+        $radius = (float) ($request->driver_notification_radius_km ?? 2);
+        $radius = max(0.5, min(20, $radius));
+        \App\Helpers\AppSettings::set('driver_notification_radius_km', $radius, 'decimal');
+
+        return back()->with('success', "Settings saved — max orders: {$max}, notification radius: {$radius} km.");
     }
 
     public function approveDocument(DeliverymanDocument $document)

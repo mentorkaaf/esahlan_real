@@ -281,7 +281,7 @@ class AdminOrderController extends Controller
                     }
                 }
 
-                $radiusKm = 2; // notify drivers within 2 km of pickup
+                $radiusKm = (float) \App\Helpers\AppSettings::get('driver_notification_radius_km', 2);
 
                 $onlineDrivers = Deliveryman::where('is_approved', true)
                     ->where('is_online', true)

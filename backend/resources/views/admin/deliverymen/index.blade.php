@@ -229,32 +229,161 @@
         </div>
         <form action="{{ route('admin.deliverymen.settings') }}" method="POST">
             @csrf
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label">Max Orders Per Driver</label>
-                    <p style="font-size:11px;color:#8A8A9A;margin:0 0 8px;">Maximum number of active orders a single driver can accept at once.</p>
-                    <div style="display:flex;gap:8px;align-items:center;">
-                        @php $currentMax = (int) \App\Helpers\AppSettings::get('max_orders_per_driver', 5); @endphp
+            <div class="modal-body" style="padding:0;">
+
+                @php
+                    $currentMax    = (int) \App\Helpers\AppSettings::get('max_orders_per_driver', 5);
+                    $currentRadius = (float) \App\Helpers\AppSettings::get('driver_notification_radius_km', 2);
+                @endphp
+
+                {{-- ── Section: Notification Radius ───────────────────────── --}}
+                <div style="padding:20px 24px 0;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                        <div style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#FF8A00,#ffb347);display:flex;align-items:center;justify-content:center;">
+                            <i class="fas fa-broadcast-tower" style="color:#fff;font-size:15px;"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight:800;font-size:14px;color:#07003B;">Order Notification Radius</div>
+                            <div style="font-size:11px;color:#8A8A9A;">Drivers within this distance from pickup receive alerts</div>
+                        </div>
+                    </div>
+
+                    {{-- Visual radius map indicator --}}
+                    <div style="position:relative;background:#f0f6ff;border-radius:14px;padding:18px 16px 12px;margin:12px 0 16px;border:1px solid #dbeafe;text-align:center;">
+                        <div style="display:flex;justify-content:center;align-items:center;gap:0;margin-bottom:10px;" id="radiusVisual">
+                            {{-- rings rendered by JS --}}
+                        </div>
+                        <div style="font-size:12px;color:#3B82F6;font-weight:700;" id="radiusLabel">
+                            Radius: <span id="radiusDisplay">{{ $currentRadius }}</span> km
+                        </div>
+                        <div style="font-size:11px;color:#8A8A9A;margin-top:2px;" id="radiusDesc"></div>
+                    </div>
+
+                    {{-- Slider --}}
+                    <div style="margin-bottom:16px;">
+                        <input type="range" id="radiusSlider" name="driver_notification_radius_km"
+                            min="0.5" max="20" step="0.5" value="{{ $currentRadius }}"
+                            style="width:100%;accent-color:#FF8A00;cursor:pointer;height:6px;">
+                        <div style="display:flex;justify-content:space-between;font-size:10px;color:#8A8A9A;margin-top:4px;">
+                            <span>0.5 km</span><span>5 km</span><span>10 km</span><span>15 km</span><span>20 km</span>
+                        </div>
+                    </div>
+
+                    {{-- Quick presets --}}
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
+                        @foreach([1 => '1 km — Very tight', 2 => '2 km — Recommended', 5 => '5 km — Wide', 10 => '10 km — City-wide'] as $val => $label)
+                        <button type="button" onclick="setRadius({{ $val }})"
+                            class="radius-preset {{ $currentRadius == $val ? 'active' : '' }}"
+                            data-val="{{ $val }}"
+                            style="padding:6px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid {{ $currentRadius == $val ? '#FF8A00' : '#e5e7eb' }};
+                                background:{{ $currentRadius == $val ? '#fff5e6' : '#fff' }};color:{{ $currentRadius == $val ? '#FF8A00' : '#6b7280' }};">
+                            {{ $label }}
+                        </button>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div style="height:1px;background:#f3f4f6;margin:20px 0;"></div>
+
+                {{-- ── Section: Max Orders ─────────────────────────────────── --}}
+                <div style="padding:0 24px 20px;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                        <div style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;">
+                            <i class="fas fa-layer-group" style="color:#fff;font-size:14px;"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight:800;font-size:14px;color:#07003B;">Max Orders Per Driver</div>
+                            <div style="font-size:11px;color:#8A8A9A;">Active orders one driver can hold simultaneously</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
                         @foreach([1, 3, 5, 10, 15, 20] as $v)
-                        <label style="display:flex;align-items:center;gap:4px;padding:8px 14px;border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;
-                            {{ $currentMax == $v ? 'background:#FF8A00;color:#fff;' : 'background:#f0f1f5;color:#07003B;' }}">
+                        <label style="display:flex;align-items:center;gap:4px;padding:8px 16px;border-radius:10px;cursor:pointer;font-weight:800;font-size:14px;transition:all .15s;
+                            {{ $currentMax == $v ? 'background:#6366f1;color:#fff;box-shadow:0 2px 8px rgba(99,102,241,.35);' : 'background:#f0f1f5;color:#07003B;' }}">
                             <input type="radio" name="max_orders_per_driver" value="{{ $v }}" {{ $currentMax == $v ? 'checked' : '' }} style="display:none;">
                             {{ $v }}
                         </label>
                         @endforeach
                     </div>
-                </div>
-                <div class="form-group" style="margin-top:16px;">
-                    <label class="form-label">Or enter custom value</label>
-                    <input type="number" name="max_orders_custom" class="form-control" min="1" max="50" placeholder="e.g. 7" style="width:120px;">
-                    <p style="font-size:11px;color:#8A8A9A;margin:4px 0 0;">Leave empty to use the selected value above.</p>
+                    <div style="margin-top:12px;display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:12px;color:#8A8A9A;">Custom:</span>
+                        <input type="number" name="max_orders_custom" class="form-control" min="1" max="50" placeholder="e.g. 7"
+                            style="width:100px;height:34px;font-size:13px;padding:4px 10px;">
+                    </div>
                 </div>
             </div>
-            <div class="modal-footer">
+
+            <div class="modal-footer" style="border-top:1px solid #f3f4f6;">
                 <button type="button" class="btn btn-outline" onclick="closeModal('settingsModal')">Cancel</button>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Settings</button>
             </div>
         </form>
+
+        <script>
+        (function(){
+            const slider = document.getElementById('radiusSlider');
+            const display = document.getElementById('radiusDisplay');
+            const desc = document.getElementById('radiusDesc');
+            const visual = document.getElementById('radiusVisual');
+
+            const descriptions = {
+                0.5: 'Ultra-tight — only drivers at the door',
+                1:   'Very tight — 1-2 blocks away',
+                2:   'Recommended — nearby neighbourhood',
+                3:   'Moderate — larger coverage area',
+                5:   'Wide — covers most of a district',
+                10:  'City-wide — large urban coverage',
+                20:  'Region-wide — all drivers in city',
+            };
+
+            function getDesc(v) {
+                const keys = Object.keys(descriptions).map(Number).sort((a,b)=>a-b);
+                for (let k of keys) { if (v <= k) return descriptions[k]; }
+                return 'Very wide coverage';
+            }
+
+            function renderRings(v) {
+                const maxR = 20;
+                const rings = 4;
+                let html = '<div style="position:relative;width:120px;height:120px;">';
+                for (let i = rings; i >= 1; i--) {
+                    const pct = (i / rings);
+                    const sz = 24 + pct * 88;
+                    const active = v / maxR >= (i / rings) * 0.6;
+                    html += `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+                        width:${sz}px;height:${sz}px;border-radius:50%;
+                        border:2px solid ${active ? '#FF8A00' : '#cbd5e1'};
+                        background:${active ? 'rgba(255,138,0,0.06)' : 'transparent'};
+                        transition:all .3s;"></div>`;
+                }
+                // Center dot
+                html += '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#FF8A00;box-shadow:0 0 0 4px rgba(255,138,0,.25);"></div>';
+                html += '</div>';
+                visual.innerHTML = html;
+            }
+
+            function update(v) {
+                display.textContent = v;
+                desc.textContent = getDesc(parseFloat(v));
+                renderRings(parseFloat(v));
+                document.querySelectorAll('.radius-preset').forEach(btn => {
+                    const bv = parseFloat(btn.dataset.val);
+                    const active = Math.abs(bv - parseFloat(v)) < 0.01;
+                    btn.style.borderColor = active ? '#FF8A00' : '#e5e7eb';
+                    btn.style.background  = active ? '#fff5e6' : '#fff';
+                    btn.style.color       = active ? '#FF8A00' : '#6b7280';
+                });
+            }
+
+            window.setRadius = function(v) {
+                slider.value = v;
+                update(v);
+            };
+
+            slider.addEventListener('input', () => update(slider.value));
+            update(slider.value);
+        })();
+        </script>
     </div>
 </div>
 {{-- Change Password Modal --}}
