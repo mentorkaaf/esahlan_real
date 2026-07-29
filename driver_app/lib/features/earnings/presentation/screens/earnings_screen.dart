@@ -11,20 +11,21 @@ class EarningsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.dc;
     final data = ref.watch(_earningsProvider);
 
     return Scaffold(
-      backgroundColor: DC.navy,
+      backgroundColor: c.navy,
       appBar: AppBar(
-        backgroundColor: DC.navyLight,
-        title: const Text('Earnings', style: TextStyle(fontWeight: FontWeight.w800)),
+        backgroundColor: c.navyLight,
+        title: Text('Earnings', style: TextStyle(fontWeight: FontWeight.w800, color: c.text)),
       ),
       body: data.when(
         loading: () => const Center(child: CircularProgressIndicator(color: DC.orange)),
         error: (e, _) => Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.error_outline, color: DC.error, size: 40),
           const SizedBox(height: 8),
-          Text('$e', style: const TextStyle(color: DC.textSec, fontSize: 13)),
+          Text('$e', style: TextStyle(color: c.textSec, fontSize: 13)),
           const SizedBox(height: 12),
           ElevatedButton(onPressed: () => ref.invalidate(_earningsProvider), child: const Text('Retry')),
         ])),
@@ -41,7 +42,7 @@ class EarningsScreen extends ConsumerWidget {
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 16)],
               ),
               child: Column(children: [
-                const Text('Total Earnings', style: TextStyle(color: DC.textSec, fontSize: 13, letterSpacing: 0.5)),
+                const Text('Total Earnings', style: TextStyle(color: Color(0xFF8B9CC7), fontSize: 13, letterSpacing: 0.5)),
                 const SizedBox(height: 8),
                 Text('\$${_fmt(d['total'])}', style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w900, letterSpacing: -1)),
                 const SizedBox(height: 6),
@@ -64,7 +65,7 @@ class EarningsScreen extends ConsumerWidget {
 
             // Chart
             Row(children: [
-              const Text('Last 7 Days', style: TextStyle(color: DC.text, fontSize: 16, fontWeight: FontWeight.w800)),
+              Text('Last 7 Days', style: TextStyle(color: c.text, fontSize: 16, fontWeight: FontWeight.w800)),
               const Spacer(),
               Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(6)),
                 child: const Text('This Week', style: TextStyle(color: DC.orange, fontSize: 10, fontWeight: FontWeight.w700))),
@@ -72,19 +73,18 @@ class EarningsScreen extends ConsumerWidget {
             const SizedBox(height: 14),
             Container(
               height: 200, padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: DC.border.withValues(alpha: 0.5))),
-              child: _buildChart(d['daily_chart'] as List? ?? []),
+              decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: c.border.withValues(alpha: 0.5))),
+              child: _buildChart(d['daily_chart'] as List? ?? [], c.textMuted),
             ),
             const SizedBox(height: 24),
 
             // Breakdown section
             Container(
               padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(18)),
+              decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(18)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Breakdown', style: TextStyle(color: DC.text, fontSize: 15, fontWeight: FontWeight.w800)),
+                Text('Breakdown', style: TextStyle(color: c.text, fontSize: 15, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 14),
-                // Delivery fee breakdown
                 Builder(builder: (_) {
                   final commission = double.tryParse('${d['total_platform_commission'] ?? 0}') ?? 0;
                   final net = double.tryParse('${d['total'] ?? 0}') ?? 0;
@@ -94,9 +94,9 @@ class EarningsScreen extends ConsumerWidget {
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1A2535),
+                        color: c.surface,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFF2A3A50), width: 1),
+                        border: Border.all(color: c.border.withValues(alpha: 0.5)),
                       ),
                       child: Column(children: [
                         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -104,19 +104,19 @@ class EarningsScreen extends ConsumerWidget {
                             Container(width: 32, height: 32, decoration: BoxDecoration(color: DC.success.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
                               child: const Icon(Icons.delivery_dining_rounded, color: DC.success, size: 17)),
                             const SizedBox(width: 10),
-                            const Text('Gross Delivery Fee', style: TextStyle(color: DC.textMuted, fontSize: 12, fontWeight: FontWeight.w500)),
+                            Text('Gross Delivery Fee', style: TextStyle(color: c.textMuted, fontSize: 12, fontWeight: FontWeight.w500)),
                           ]),
-                          Text('\$${_fmt(original)}', style: const TextStyle(color: DC.text, fontSize: 13, fontWeight: FontWeight.w700)),
+                          Text('\$${_fmt(original)}', style: TextStyle(color: c.text, fontSize: 13, fontWeight: FontWeight.w700)),
                         ]),
                         const SizedBox(height: 10),
-                        Container(height: 1, color: const Color(0xFF2A3A50)),
+                        Divider(color: c.divider, height: 1),
                         const SizedBox(height: 10),
                         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                           Row(children: [
                             Container(width: 32, height: 32, decoration: BoxDecoration(color: DC.error.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(8)),
                               child: const Icon(Icons.percent_rounded, color: DC.error, size: 16)),
                             const SizedBox(width: 10),
-                            const Text('Platform Commission', style: TextStyle(color: DC.textMuted, fontSize: 12, fontWeight: FontWeight.w500)),
+                            Text('Platform Commission', style: TextStyle(color: c.textMuted, fontSize: 12, fontWeight: FontWeight.w500)),
                           ]),
                           Text('-\$${_fmt(commission)}', style: const TextStyle(color: DC.error, fontSize: 13, fontWeight: FontWeight.w700)),
                         ]),
@@ -141,7 +141,7 @@ class EarningsScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // Recent deliveries
-            const Text('Recent Deliveries', style: TextStyle(color: DC.text, fontSize: 16, fontWeight: FontWeight.w800)),
+            Text('Recent Deliveries', style: TextStyle(color: c.text, fontSize: 16, fontWeight: FontWeight.w800)),
             const SizedBox(height: 10),
             ...((d['recent'] as List? ?? []).map((e) {
               final commission = double.tryParse('${e['delivery_fee_commission'] ?? 0}') ?? 0;
@@ -150,13 +150,13 @@ class EarningsScreen extends ConsumerWidget {
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: DC.border.withValues(alpha: 0.3))),
+                decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: c.border.withValues(alpha: 0.3))),
                 child: Row(children: [
                   Container(width: 40, height: 40, decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(10)),
                     child: const Icon(Icons.receipt_long_rounded, color: DC.orange, size: 20)),
                   const SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('#${e['order_number'] ?? ''}', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 13)),
+                    Text('#${e['order_number'] ?? ''}', style: TextStyle(color: c.text, fontWeight: FontWeight.w700, fontSize: 13)),
                     const SizedBox(height: 2),
                     Row(children: [
                       if ((e['module_slug'] ?? '').toString().isNotEmpty)
@@ -178,7 +178,7 @@ class EarningsScreen extends ConsumerWidget {
                   Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                     Text('+\$${_fmt(net)}', style: const TextStyle(color: DC.success, fontWeight: FontWeight.w800, fontSize: 15)),
                     if (original > 0 && commission > 0)
-                      Text('gross \$${_fmt(original)}', style: const TextStyle(color: DC.textMuted, fontSize: 10)),
+                      Text('gross \$${_fmt(original)}', style: TextStyle(color: c.textMuted, fontSize: 10)),
                   ]),
                 ]),
               );
@@ -192,8 +192,8 @@ class EarningsScreen extends ConsumerWidget {
 
   static String _fmt(dynamic v) => (double.tryParse('${v ?? 0}') ?? 0).toStringAsFixed(2);
 
-  Widget _buildChart(List data) {
-    if (data.isEmpty) return const Center(child: Text('No data yet', style: TextStyle(color: DC.textMuted)));
+  Widget _buildChart(List data, Color textMuted) {
+    if (data.isEmpty) return Center(child: Text('No data yet', style: TextStyle(color: textMuted)));
     final bars = data.asMap().entries.map((e) {
       final v = double.tryParse('${e.value['total'] ?? 0}') ?? 0;
       return BarChartGroupData(x: e.key, barRods: [
@@ -203,14 +203,14 @@ class EarningsScreen extends ConsumerWidget {
     }).toList();
 
     return BarChart(BarChartData(
-      barGroups: bars, gridData: FlGridData(show: false),
+      barGroups: bars, gridData: const FlGridData(show: false),
       titlesData: FlTitlesData(
         leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40,
-          getTitlesWidget: (v, _) => Text('\$${v.toInt()}', style: const TextStyle(color: DC.textMuted, fontSize: 10)))),
+          getTitlesWidget: (v, _) => Text('\$${v.toInt()}', style: TextStyle(color: textMuted, fontSize: 10)))),
         bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true,
           getTitlesWidget: (v, _) {
-            final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-            return Text(v.toInt() < days.length ? days[v.toInt()] : '', style: const TextStyle(color: DC.textMuted, fontSize: 10));
+            const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            return Text(v.toInt() < days.length ? days[v.toInt()] : '', style: TextStyle(color: textMuted, fontSize: 10));
           })),
         topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -225,12 +225,13 @@ class _PeriodCard extends StatelessWidget {
   const _PeriodCard(this.label, this.value, this.color);
   @override
   Widget build(BuildContext context) {
+    final c = context.dc;
     final v = double.tryParse('${value ?? 0}') ?? 0;
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: DC.border.withValues(alpha: 0.3))),
+      decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.border.withValues(alpha: 0.3))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+        Text(label, style: TextStyle(color: c.textMuted, fontSize: 11)),
         const SizedBox(height: 8),
         Text('\$${v.toStringAsFixed(2)}', style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w900)),
       ]),
@@ -242,14 +243,17 @@ class _BreakdownRow extends StatelessWidget {
   final IconData icon; final String label, value; final Color color;
   const _BreakdownRow(this.icon, this.label, this.value, this.color);
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Row(children: [
-      Container(width: 36, height: 36, decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-        child: Icon(icon, color: color, size: 18)),
-      const SizedBox(width: 12),
-      Expanded(child: Text(label, style: const TextStyle(color: DC.textSec, fontSize: 13))),
-      Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 14)),
-    ]),
-  );
+  Widget build(BuildContext context) {
+    final c = context.dc;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(children: [
+        Container(width: 36, height: 36, decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, color: color, size: 18)),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label, style: TextStyle(color: c.textSec, fontSize: 13))),
+        Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 14)),
+      ]),
+    );
+  }
 }

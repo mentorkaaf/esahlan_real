@@ -38,12 +38,13 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
+    final c = context.dc;
     return Scaffold(
-      backgroundColor: DC.navy,
+      backgroundColor: c.navy,
       appBar: AppBar(
-        backgroundColor: DC.navyLight,
-        title: const Text('Orders', style: TextStyle(fontWeight: FontWeight.w800)),
-        bottom: TabBar(controller: _tabs, indicatorColor: DC.orange, indicatorWeight: 3, labelColor: DC.orange, unselectedLabelColor: DC.textMuted,
+        backgroundColor: c.navyLight,
+        title: Text('Orders', style: TextStyle(fontWeight: FontWeight.w800, color: c.text)),
+        bottom: TabBar(controller: _tabs, indicatorColor: DC.orange, indicatorWeight: 3, labelColor: DC.orange, unselectedLabelColor: c.textMuted,
           tabs: const [Tab(text: 'Available'), Tab(text: 'My Deliveries')]),
       ),
       body: TabBarView(controller: _tabs, children: [
@@ -64,23 +65,24 @@ class _AvailableTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.dc;
     final orders = ref.watch(_availableProvider);
     return orders.when(
       loading: () => const Center(child: CircularProgressIndicator(color: DC.orange)),
       error: (e, _) => Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
         const Icon(Icons.error_outline, color: DC.error, size: 40),
         const SizedBox(height: 8),
-        Text('$e', style: const TextStyle(color: DC.textSec, fontSize: 13), textAlign: TextAlign.center),
+        Text('$e', style: TextStyle(color: c.textSec, fontSize: 13), textAlign: TextAlign.center),
         const SizedBox(height: 12),
         ElevatedButton(onPressed: () => ref.invalidate(_availableProvider), child: const Text('Retry')),
       ])),
       data: (list) => list.isEmpty
           ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.inbox_rounded, size: 60, color: DC.textMuted.withValues(alpha: 0.3)),
+              Icon(Icons.inbox_rounded, size: 60, color: c.textMuted.withValues(alpha: 0.3)),
               const SizedBox(height: 14),
-              const Text('No available orders', style: TextStyle(color: DC.textMuted, fontSize: 16, fontWeight: FontWeight.w700)),
+              Text('No available orders', style: TextStyle(color: c.textMuted, fontSize: 16, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
-              const Text('New orders will appear here automatically', style: TextStyle(color: DC.textMuted, fontSize: 12)),
+              Text('New orders will appear here automatically', style: TextStyle(color: c.textMuted, fontSize: 12)),
             ]))
           : RefreshIndicator(
               color: DC.orange,
@@ -108,7 +110,7 @@ class _AvailableTab extends ConsumerWidget {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// NEW ORDER REQUEST CARD (matches UI reference exactly)
+// NEW ORDER REQUEST CARD
 // ══════════════════════════════════════════════════════════════════
 
 class _NewOrderCard extends StatelessWidget {
@@ -120,6 +122,7 @@ class _NewOrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.dc;
     final o = order;
     final pickup = o['pickup'] as Map<String, dynamic>? ?? {};
     final delivery = o['delivery'] as Map<String, dynamic>? ?? {};
@@ -144,27 +147,27 @@ class _NewOrderCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: DC.card, borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: DC.border.withValues(alpha: 0.5)),
+        color: c.card, borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: c.border.withValues(alpha: 0.5)),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Column(children: [
         // Header
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          decoration: const BoxDecoration(color: DC.surface, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          decoration: BoxDecoration(color: c.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
           child: Row(children: [
             Container(width: 36, height: 36, decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(10)),
               child: const Icon(Icons.delivery_dining_rounded, color: DC.orange, size: 20)),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(_moduleLabels[module] ?? 'Delivery', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
-              Text('Order #${o['order_number'] ?? ''}', style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+              Text(_moduleLabels[module] ?? 'Delivery', style: TextStyle(color: c.text, fontWeight: FontWeight.w700, fontSize: 14)),
+              Text('Order #${o['order_number'] ?? ''}', style: TextStyle(color: c.textMuted, fontSize: 11)),
             ])),
           ]),
         ),
 
-        // MAP — always visible when coordinates exist
+        // MAP
         if (hasCoords) SizedBox(height: 160, child: GoogleMap(
           initialCameraPosition: CameraPosition(
             target: LatLng((pickupLat + deliveryLat) / 2, (pickupLng + deliveryLng) / 2), zoom: 12),
@@ -184,7 +187,7 @@ class _NewOrderCard extends StatelessWidget {
 
         Padding(padding: const EdgeInsets.fromLTRB(18, 14, 18, 0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-          // ═══ eParcel: Sender → Receiver ═══
+          // ═══ eParcel ═══
           if (isParcel) ...[
             _PersonCard(
               icon: Icons.person_outline_rounded, color: DC.orange, label: 'SENDER',
@@ -207,15 +210,15 @@ class _NewOrderCard extends StatelessWidget {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Text('📦 Package Info', style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.w700, fontSize: 11)),
                   const SizedBox(height: 6),
-                  if (parcel!['package_type'] != null) _DetailLine('Type', parcel['package_type']),
-                  if (parcel['weight'] != null) _DetailLine('Weight', '${parcel['weight']} kg'),
-                  if (parcel['description'] != null) _DetailLine('Note', parcel['description']),
+                  if (parcel?['package_type'] != null) _DetailLine(parcel!['package_type'].toString(), 'Type'),
+                  if (parcel?['weight'] != null) _DetailLine('${parcel!['weight']} kg', 'Weight'),
+                  if (parcel?['description'] != null) _DetailLine(parcel!['description'].toString(), 'Note'),
                 ]),
               ),
             ],
           ]
 
-          // ═══ eMoving: Moving Details ═══
+          // ═══ eMoving ═══
           else if (isMoving) ...[
             Container(
               padding: const EdgeInsets.all(12),
@@ -223,51 +226,48 @@ class _NewOrderCard extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Row(children: [Icon(Icons.local_shipping_rounded, color: DC.error, size: 16), SizedBox(width: 8), Text('Moving Details', style: TextStyle(color: DC.error, fontWeight: FontWeight.w800, fontSize: 13))]),
                 const SizedBox(height: 10),
-                _DetailLine('Customer', '${moving?['customer_name'] ?? delivery['name']} · ${moving?['customer_phone'] ?? delivery['phone'] ?? ''}'),
-                const Divider(color: DC.divider, height: 14),
-                _DetailLine('From', moving?['from_district'] ?? pickup['district'] ?? '—'),
-                if (moving?['from_address'] != null) _DetailLine('Address', moving!['from_address']),
-                const Divider(color: DC.divider, height: 14),
-                _DetailLine('To', moving?['to_district'] ?? delivery['district'] ?? '—'),
-                if (moving?['to_address'] != null) _DetailLine('Address', moving!['to_address']),
-                if (moving?['moving_type'] != null) ...[const Divider(color: DC.divider, height: 14), _DetailLine('Type', '${moving!['moving_type']}${moving['room_count'] != null ? ' · ${moving['room_count']} rooms' : ''}')],
-                if (moving?['scheduled_date'] != null) _DetailLine('Date', moving!['scheduled_date']),
-
-                // Driver earning — only distance price
+                _DetailLine('${moving?['customer_name'] ?? delivery['name']} · ${moving?['customer_phone'] ?? delivery['phone'] ?? ''}', 'Customer'),
+                Divider(color: c.divider, height: 14),
+                _DetailLine(moving?['from_district'] ?? pickup['district'] ?? '—', 'From'),
+                if (moving?['from_address'] != null) _DetailLine(moving!['from_address'].toString(), 'Address'),
+                Divider(color: c.divider, height: 14),
+                _DetailLine(moving?['to_district'] ?? delivery['district'] ?? '—', 'To'),
+                if (moving?['to_address'] != null) _DetailLine(moving!['to_address'].toString(), 'Address'),
+                if (moving?['moving_type'] != null) ...[Divider(color: c.divider, height: 14), _DetailLine('${moving!['moving_type']}${moving['room_count'] != null ? ' · ${moving['room_count']} rooms' : ''}', 'Type')],
+                if (moving?['scheduled_date'] != null) _DetailLine(moving!['scheduled_date'].toString(), 'Date'),
                 if (moving?['distance_price'] != null) ...[
-                  const Divider(color: DC.divider, height: 14),
-                  _DetailLine('Your Earning', '\$${moving!['distance_price']}', valueColor: DC.success),
+                  Divider(color: c.divider, height: 14),
+                  _DetailLine('\$${moving!['distance_price']}', 'Your Earning', valueColor: DC.success),
                 ],
-
                 if (moving?['packages'] is List && (moving!['packages'] as List).isNotEmpty) ...[
-                  const Divider(color: DC.divider, height: 14),
-                  const Text('Packages:', style: TextStyle(color: DC.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
+                  Divider(color: c.divider, height: 14),
+                  Text('Packages:', style: TextStyle(color: c.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
                   ...(moving!['packages'] as List).map((p) => Padding(
                     padding: const EdgeInsets.only(bottom: 2),
-                    child: Text('• ${p is Map ? (p['name'] ?? p.toString()) : p}', style: const TextStyle(color: DC.textSec, fontSize: 11)),
+                    child: Text('• ${p is Map ? (p['name'] ?? p.toString()) : p}', style: TextStyle(color: c.textSec, fontSize: 11)),
                   )),
                 ],
-                if (moving?['description'] != null) ...[const Divider(color: DC.divider, height: 14), _DetailLine('Note', moving!['description'])],
+                if (moving?['description'] != null) ...[Divider(color: c.divider, height: 14), _DetailLine(moving!['description'].toString(), 'Note')],
               ]),
             ),
           ]
 
-          // ═══ eFood/eShop/eLaundry/eGrocery: Pickup → Delivery ═══
+          // ═══ eFood/eShop/eLaundry/eGrocery ═══
           else ...[
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Column(children: [
-                Container(width: 12, height: 12, decoration: BoxDecoration(color: DC.orange, shape: BoxShape.circle, border: Border.all(color: DC.card, width: 2))),
-                Container(width: 2, height: 28, color: DC.border),
-                Container(width: 12, height: 12, decoration: BoxDecoration(color: DC.success, shape: BoxShape.circle, border: Border.all(color: DC.card, width: 2))),
+                Container(width: 12, height: 12, decoration: BoxDecoration(color: DC.orange, shape: BoxShape.circle, border: Border.all(color: c.card, width: 2))),
+                Container(width: 2, height: 28, color: c.border),
+                Container(width: 12, height: 12, decoration: BoxDecoration(color: DC.success, shape: BoxShape.circle, border: Border.all(color: c.card, width: 2))),
               ]),
               const SizedBox(width: 14),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(pickup['name'] ?? 'Vendor', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w800, fontSize: 15)),
-                if (pickup['district'] != null) Text(pickup['district'], style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+                Text(pickup['name'] ?? 'Vendor', style: TextStyle(color: c.text, fontWeight: FontWeight.w800, fontSize: 15)),
+                if (pickup['district'] != null) Text(pickup['district'].toString(), style: TextStyle(color: c.textMuted, fontSize: 11)),
                 const SizedBox(height: 10),
-                Text(delivery['name'] ?? 'Customer', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
-                if (delivery['district'] != null) Text(delivery['district'], style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+                Text(delivery['name'] ?? 'Customer', style: TextStyle(color: c.text, fontWeight: FontWeight.w700, fontSize: 14)),
+                if (delivery['district'] != null) Text(delivery['district'].toString(), style: TextStyle(color: c.textMuted, fontSize: 11)),
               ])),
             ]),
           ],
@@ -277,22 +277,12 @@ class _NewOrderCard extends StatelessWidget {
         Container(
           margin: const EdgeInsets.fromLTRB(18, 14, 18, 0),
           padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(border: Border(top: BorderSide(color: DC.border.withValues(alpha: 0.5)))),
+          decoration: BoxDecoration(border: Border(top: BorderSide(color: c.border.withValues(alpha: 0.5)))),
           child: Column(children: [
             Row(children: [
-              _DistanceStat(
-                icon: Icons.two_wheeler_rounded,
-                color: DC.orange,
-                label: pickupLabel,
-                value: driverToPickup != null ? '$driverToPickup km' : '—',
-              ),
-              Container(width: 1, height: 32, color: DC.border.withValues(alpha: 0.4)),
-              _DistanceStat(
-                icon: Icons.place_rounded,
-                color: DC.success,
-                label: dropoffLabel,
-                value: distance != null ? '$distance km' : '—',
-              ),
+              _DistanceStat(icon: Icons.two_wheeler_rounded, color: DC.orange, label: pickupLabel, value: driverToPickup != null ? '$driverToPickup km' : '—'),
+              Container(width: 1, height: 32, color: c.border.withValues(alpha: 0.4)),
+              _DistanceStat(icon: Icons.place_rounded, color: DC.success, label: dropoffLabel, value: distance != null ? '$distance km' : '—'),
             ]),
             const SizedBox(height: 10),
             Row(children: [
@@ -306,7 +296,7 @@ class _NewOrderCard extends StatelessWidget {
         Padding(padding: const EdgeInsets.all(14), child: Row(children: [
           Expanded(child: SizedBox(height: 48, child: OutlinedButton(
             onPressed: () {},
-            style: OutlinedButton.styleFrom(foregroundColor: DC.textSec, side: BorderSide(color: DC.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+            style: OutlinedButton.styleFrom(foregroundColor: c.textSec, side: BorderSide(color: c.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
             child: const Text('Decline', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
           ))),
           const SizedBox(width: 12),
@@ -325,46 +315,55 @@ class _PersonCard extends StatelessWidget {
   final IconData icon; final Color color; final String label, name; final String? phone, district;
   const _PersonCard({required this.icon, required this.color, required this.label, required this.name, this.phone, this.district});
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(color: color.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withValues(alpha: 0.15))),
-    child: Row(children: [
-      Container(width: 40, height: 40, decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-        child: Icon(icon, color: color, size: 20)),
-      const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
-        Text(name, style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
-        if (phone != null) Text(phone!, style: const TextStyle(color: DC.textMuted, fontSize: 11)),
-        if (district != null) Text('📍 $district', style: const TextStyle(color: DC.textSec, fontSize: 11)),
-      ])),
-    ]),
-  );
+  Widget build(BuildContext context) {
+    final c = context.dc;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withValues(alpha: 0.15))),
+      child: Row(children: [
+        Container(width: 40, height: 40, decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, color: color, size: 20)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
+          Text(name, style: TextStyle(color: c.text, fontWeight: FontWeight.w700, fontSize: 14)),
+          if (phone != null) Text(phone!, style: TextStyle(color: c.textMuted, fontSize: 11)),
+          if (district != null) Text('📍 $district', style: TextStyle(color: c.textSec, fontSize: 11)),
+        ])),
+      ]),
+    );
+  }
 }
 
 class _DetailLine extends StatelessWidget {
-  final String label, value;
+  final String value, label;
   final Color? valueColor;
-  const _DetailLine(this.label, this.value, {this.valueColor});
+  const _DetailLine(this.value, this.label, {this.valueColor});
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SizedBox(width: 80, child: Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 11))),
-      Expanded(child: Text(value, style: TextStyle(color: valueColor ?? DC.text, fontSize: 11, fontWeight: FontWeight.w600))),
-    ]),
-  );
+  Widget build(BuildContext context) {
+    final c = context.dc;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(width: 80, child: Text(label, style: TextStyle(color: c.textMuted, fontSize: 11))),
+        Expanded(child: Text(value, style: TextStyle(color: valueColor ?? c.text, fontSize: 11, fontWeight: FontWeight.w600))),
+      ]),
+    );
+  }
 }
 
 class _Stat extends StatelessWidget {
   final String label, value;
   const _Stat(this.label, this.value);
   @override
-  Widget build(BuildContext context) => Expanded(child: Column(children: [
-    Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
-    const SizedBox(height: 4),
-    Text(value, style: const TextStyle(color: DC.text, fontSize: 15, fontWeight: FontWeight.w900)),
-  ]));
+  Widget build(BuildContext context) {
+    final c = context.dc;
+    return Expanded(child: Column(children: [
+      Text(label, style: TextStyle(color: c.textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 4),
+      Text(value, style: TextStyle(color: c.text, fontSize: 15, fontWeight: FontWeight.w900)),
+    ]));
+  }
 }
 
 class _DistanceStat extends StatelessWidget {
@@ -392,15 +391,16 @@ class _ActiveTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.dc;
     final orders = ref.watch(_activeProvider);
     return orders.when(
       loading: () => const Center(child: CircularProgressIndicator(color: DC.orange)),
-      error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: DC.error))),
+      error: (e, _) => Center(child: Text('$e', style: TextStyle(color: DC.error))),
       data: (list) => list.isEmpty
           ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.check_circle_outline_rounded, size: 60, color: DC.textMuted.withValues(alpha: 0.3)),
+              Icon(Icons.check_circle_outline_rounded, size: 60, color: c.textMuted.withValues(alpha: 0.3)),
               const SizedBox(height: 14),
-              const Text('No active deliveries', style: TextStyle(color: DC.textMuted, fontSize: 16, fontWeight: FontWeight.w700)),
+              Text('No active deliveries', style: TextStyle(color: c.textMuted, fontSize: 16, fontWeight: FontWeight.w700)),
             ]))
           : RefreshIndicator(
               color: DC.orange,
@@ -424,6 +424,7 @@ class _ActiveCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.dc;
     final vendor = order['vendor'] as Map<String, dynamic>?;
     final customer = order['customer'] as Map<String, dynamic>?;
     final module = (order['module_slug'] ?? '').toString();
@@ -434,7 +435,7 @@ class _ActiveCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: DC.card, borderRadius: BorderRadius.circular(18),
+        color: c.card, borderRadius: BorderRadius.circular(18),
         border: Border.all(color: DC.orange.withValues(alpha: 0.3), width: 1.5),
         boxShadow: [BoxShadow(color: DC.orange.withValues(alpha: 0.06), blurRadius: 12)],
       ),
@@ -450,18 +451,18 @@ class _ActiveCard extends StatelessWidget {
             child: Text(status.replaceAll('_', ' '), style: const TextStyle(color: DC.success, fontSize: 10, fontWeight: FontWeight.w700))),
         ]),
         const SizedBox(height: 12),
-        Text(vendor?['name'] ?? '', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 15)),
+        Text(vendor?['name'] ?? '', style: TextStyle(color: c.text, fontWeight: FontWeight.w700, fontSize: 15)),
         const SizedBox(height: 4),
         Row(children: [
-          const Icon(Icons.person_rounded, color: DC.textMuted, size: 14),
+          Icon(Icons.person_rounded, color: c.textMuted, size: 14),
           const SizedBox(width: 4),
-          Text(customer?['name'] ?? '', style: const TextStyle(color: DC.textSec, fontSize: 13)),
+          Text(customer?['name'] ?? '', style: TextStyle(color: c.textSec, fontSize: 13)),
           const Spacer(),
           Text('\$${fee.toStringAsFixed(2)}', style: const TextStyle(color: DC.success, fontWeight: FontWeight.w800, fontSize: 14)),
         ]),
         const SizedBox(height: 8),
         Row(children: [
-          Text('#${order['order_number'] ?? ''}', style: const TextStyle(color: DC.textMuted, fontSize: 11)),
+          Text('#${order['order_number'] ?? ''}', style: TextStyle(color: c.textMuted, fontSize: 11)),
           const Spacer(),
           const Text('Tap for details →', style: TextStyle(color: DC.orange, fontSize: 11, fontWeight: FontWeight.w600)),
         ]),
@@ -471,7 +472,7 @@ class _ActiveCard extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// ACTIVE DELIVERY PAGE (matches reference — map + details + actions)
+// ACTIVE DELIVERY PAGE
 // ══════════════════════════════════════════════════════════════════
 
 class _ActiveDeliveryPage extends ConsumerStatefulWidget {
@@ -486,11 +487,11 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.dc;
     final o = widget.order;
     final vendor = o['vendor'] as Map<String, dynamic>?;
     final customer = o['customer'] as Map<String, dynamic>?;
     final module = (o['module_slug'] ?? '').toString();
-    final fee = double.tryParse('${o['delivery_fee'] ?? 0}') ?? 0;
     final distance = o['distance_km'];
     final status = o['status']?.toString() ?? '';
     final vLat = double.tryParse('${vendor?['lat'] ?? 0}') ?? 0;
@@ -504,10 +505,10 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
     final nextStatus = isPickup ? 'out_for_delivery' : 'delivered';
 
     return Scaffold(
-      backgroundColor: DC.navy,
+      backgroundColor: c.navy,
       appBar: AppBar(
-        backgroundColor: DC.navyLight,
-        title: const Text('Active Delivery', style: TextStyle(fontWeight: FontWeight.w800)),
+        backgroundColor: c.navyLight,
+        title: Text('Active Delivery', style: TextStyle(fontWeight: FontWeight.w800, color: c.text)),
         actions: [
           if (customer?['phone'] != null) IconButton(
             icon: const Icon(Icons.phone_rounded, color: DC.success),
@@ -534,9 +535,7 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
 
         // Details
         Expanded(child: SingleChildScrollView(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Pickup card
-          _LocationCard(
-            icon: Icons.store_rounded, color: DC.orange, label: 'Pickup',
+          _LocationCard(icon: Icons.store_rounded, color: DC.orange, label: 'Pickup',
             title: vendor?['name'] ?? '—', subtitle: vendor?['address'] ?? '',
             trailing: isPickup ? Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -546,20 +545,17 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
           ),
           const SizedBox(height: 12),
 
-          // Dropoff card
-          _LocationCard(
-            icon: Icons.location_on_rounded, color: DC.success, label: 'Drop Off',
+          _LocationCard(icon: Icons.location_on_rounded, color: DC.success, label: 'Drop Off',
             title: customer?['name'] ?? '—', subtitle: district.toString(),
-            trailing: distance != null ? Text('${distance} km away', style: const TextStyle(color: DC.textMuted, fontSize: 11)) : null,
+            trailing: distance != null ? Text('$distance km away', style: TextStyle(color: c.textMuted, fontSize: 11)) : null,
           ),
           const SizedBox(height: 16),
 
-          // Order info
           Container(
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: DC.border.withValues(alpha: 0.3))),
+            decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: c.border.withValues(alpha: 0.3))),
             child: Row(children: [
-              Text('Order #${o['order_number'] ?? ''}', style: const TextStyle(color: DC.textSec, fontSize: 13, fontWeight: FontWeight.w600)),
+              Text('Order #${o['order_number'] ?? ''}', style: TextStyle(color: c.textSec, fontSize: 13, fontWeight: FontWeight.w600)),
               const Spacer(),
               Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(6)),
@@ -568,15 +564,13 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
           ),
           const SizedBox(height: 12),
 
-          // Module-specific details
           if (o['parcel'] != null) _ParcelDetails(data: o['parcel'] as Map<String, dynamic>),
           if (o['moving'] != null) _MovingDetails(data: o['moving'] as Map<String, dynamic>),
           if (o['laundry'] != null) _LaundryDetails(data: o['laundry'] as Map<String, dynamic>),
 
-          // Stats
           Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-            decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: DC.border.withValues(alpha: 0.3))),
+            decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: c.border.withValues(alpha: 0.3))),
             child: Row(children: [
               _MiniInfo(Icons.timer_rounded, distance != null ? '${(distance * 3).toInt()} min' : '—', 'ETA'),
               _MiniInfo(Icons.route_rounded, distance != null ? '$distance km' : '—', 'Distance'),
@@ -588,9 +582,8 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
         // Bottom action
         Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-          decoration: BoxDecoration(color: DC.navyLight, border: Border(top: BorderSide(color: DC.border))),
+          decoration: BoxDecoration(color: c.navyLight, border: Border(top: BorderSide(color: c.border))),
           child: Column(children: [
-            // Main action button
             SizedBox(width: double.infinity, height: 52, child: ElevatedButton(
               onPressed: _loading ? null : () => _handleAction(nextStatus),
               style: ElevatedButton.styleFrom(
@@ -603,7 +596,6 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
             )),
             if (!isPickup) ...[
               const SizedBox(height: 8),
-              // Navigate button
               SizedBox(width: double.infinity, height: 44, child: OutlinedButton.icon(
                 onPressed: hasLoc ? () => launchUrl(Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$vLat,$vLng&travelmode=driving')) : null,
                 icon: const Icon(Icons.navigation_rounded, size: 18),
@@ -639,33 +631,39 @@ class _LocationCard extends StatelessWidget {
   final IconData icon; final Color color; final String label, title, subtitle; final Widget? trailing;
   const _LocationCard({required this.icon, required this.color, required this.label, required this.title, required this.subtitle, this.trailing});
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: DC.border.withValues(alpha: 0.3))),
-    child: Row(children: [
-      Container(width: 40, height: 40, decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-        child: Icon(icon, color: color, size: 20)),
-      const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-        Text(title, style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
-        if (subtitle.isNotEmpty) Text(subtitle, style: const TextStyle(color: DC.textMuted, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
-      ])),
-      if (trailing != null) trailing!,
-    ]),
-  );
+  Widget build(BuildContext context) {
+    final c = context.dc;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: c.border.withValues(alpha: 0.3))),
+      child: Row(children: [
+        Container(width: 40, height: 40, decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, color: color, size: 20)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+          Text(title, style: TextStyle(color: c.text, fontWeight: FontWeight.w700, fontSize: 14)),
+          if (subtitle.isNotEmpty) Text(subtitle, style: TextStyle(color: c.textMuted, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+        ])),
+        if (trailing != null) trailing!,
+      ]),
+    );
+  }
 }
 
 class _MiniInfo extends StatelessWidget {
   final IconData icon; final String value, label;
   const _MiniInfo(this.icon, this.value, this.label);
   @override
-  Widget build(BuildContext context) => Expanded(child: Column(children: [
-    Icon(icon, color: DC.textMuted, size: 16),
-    const SizedBox(height: 4),
-    Text(value, style: const TextStyle(color: DC.text, fontWeight: FontWeight.w800, fontSize: 14)),
-    Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 10)),
-  ]));
+  Widget build(BuildContext context) {
+    final c = context.dc;
+    return Expanded(child: Column(children: [
+      Icon(icon, color: c.textMuted, size: 16),
+      const SizedBox(height: 4),
+      Text(value, style: TextStyle(color: c.text, fontWeight: FontWeight.w800, fontSize: 14)),
+      Text(label, style: TextStyle(color: c.textMuted, fontSize: 10)),
+    ]));
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -676,104 +674,116 @@ class _ParcelDetails extends StatelessWidget {
   final Map<String, dynamic> data;
   const _ParcelDetails({required this.data});
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3))),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        const Icon(Icons.inventory_2_rounded, color: Color(0xFF8B5CF6), size: 18),
-        const SizedBox(width: 8),
-        const Text('Parcel Details', style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.w700, fontSize: 14)),
+  Widget build(BuildContext context) {
+    final c = context.dc;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Row(children: [
+          Icon(Icons.inventory_2_rounded, color: Color(0xFF8B5CF6), size: 18),
+          SizedBox(width: 8),
+          Text('Parcel Details', style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.w700, fontSize: 14)),
+        ]),
+        const SizedBox(height: 12),
+        if (data['sender_name'] != null) _DetailRow('Sender', data['sender_name'].toString()),
+        if (data['sender_phone'] != null) _DetailRow('Sender Phone', data['sender_phone'].toString()),
+        if (data['sender_address'] != null) _DetailRow('Pickup Address', data['sender_address'].toString()),
+        if (data['receiver_name'] != null) _DetailRow('Receiver', data['receiver_name'].toString()),
+        if (data['receiver_phone'] != null) _DetailRow('Receiver Phone', data['receiver_phone'].toString()),
+        if (data['receiver_address'] != null) _DetailRow('Delivery Address', data['receiver_address'].toString()),
+        if (data['package_type'] != null) _DetailRow('Package Type', data['package_type'].toString()),
+        if (data['weight'] != null) _DetailRow('Weight', '${data['weight']} kg'),
+        if (data['description'] != null) _DetailRow('Description', data['description'].toString()),
       ]),
-      const SizedBox(height: 12),
-      if (data['sender_name'] != null) _DetailRow('Sender', data['sender_name']),
-      if (data['sender_phone'] != null) _DetailRow('Sender Phone', data['sender_phone']),
-      if (data['sender_address'] != null) _DetailRow('Pickup Address', data['sender_address']),
-      if (data['receiver_name'] != null) _DetailRow('Receiver', data['receiver_name']),
-      if (data['receiver_phone'] != null) _DetailRow('Receiver Phone', data['receiver_phone']),
-      if (data['receiver_address'] != null) _DetailRow('Delivery Address', data['receiver_address']),
-      if (data['package_type'] != null) _DetailRow('Package Type', data['package_type']),
-      if (data['weight'] != null) _DetailRow('Weight', '${data['weight']} kg'),
-      if (data['description'] != null) _DetailRow('Description', data['description']),
-    ]),
-  );
+    );
+  }
 }
 
 class _MovingDetails extends StatelessWidget {
   final Map<String, dynamic> data;
   const _MovingDetails({required this.data});
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: DC.error.withValues(alpha: 0.3))),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        const Icon(Icons.local_shipping_rounded, color: DC.error, size: 18),
-        const SizedBox(width: 8),
-        const Text('Moving Details', style: TextStyle(color: DC.error, fontWeight: FontWeight.w700, fontSize: 14)),
+  Widget build(BuildContext context) {
+    final c = context.dc;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: DC.error.withValues(alpha: 0.3))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Row(children: [
+          Icon(Icons.local_shipping_rounded, color: DC.error, size: 18),
+          SizedBox(width: 8),
+          Text('Moving Details', style: TextStyle(color: DC.error, fontWeight: FontWeight.w700, fontSize: 14)),
+        ]),
+        const SizedBox(height: 12),
+        if (data['from_address'] != null) _DetailRow('From', data['from_address'].toString()),
+        if (data['to_address'] != null) _DetailRow('To', data['to_address'].toString()),
+        if (data['moving_type'] != null) _DetailRow('Type', data['moving_type'].toString()),
+        if (data['description'] != null) _DetailRow('Notes', data['description'].toString()),
+        if (data['packages'] is List) ...[
+          const SizedBox(height: 6),
+          Text('Items:', style: TextStyle(color: c.textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+          ...(data['packages'] as List).map((p) => Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text('• ${p is Map ? (p['name'] ?? p.toString()) : p}', style: TextStyle(color: c.textSec, fontSize: 12)),
+          )),
+        ],
       ]),
-      const SizedBox(height: 12),
-      if (data['from_address'] != null) _DetailRow('From', data['from_address']),
-      if (data['to_address'] != null) _DetailRow('To', data['to_address']),
-      if (data['moving_type'] != null) _DetailRow('Type', data['moving_type']),
-      if (data['description'] != null) _DetailRow('Notes', data['description']),
-      if (data['packages'] is List) ...[
-        const SizedBox(height: 6),
-        const Text('Items:', style: TextStyle(color: DC.textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
-        ...(data['packages'] as List).map((p) => Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text('• ${p is Map ? (p['name'] ?? p.toString()) : p}', style: const TextStyle(color: DC.textSec, fontSize: 12)),
-        )),
-      ],
-    ]),
-  );
+    );
+  }
 }
 
 class _LaundryDetails extends StatelessWidget {
   final Map<String, dynamic> data;
   const _LaundryDetails({required this.data});
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(color: DC.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFF06B6D4).withValues(alpha: 0.3))),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        const Icon(Icons.local_laundry_service_rounded, color: Color(0xFF06B6D4), size: 18),
-        const SizedBox(width: 8),
-        const Text('Laundry Details', style: TextStyle(color: Color(0xFF06B6D4), fontWeight: FontWeight.w700, fontSize: 14)),
+  Widget build(BuildContext context) {
+    final c = context.dc;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFF06B6D4).withValues(alpha: 0.3))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Row(children: [
+          Icon(Icons.local_laundry_service_rounded, color: Color(0xFF06B6D4), size: 18),
+          SizedBox(width: 8),
+          Text('Laundry Details', style: TextStyle(color: Color(0xFF06B6D4), fontWeight: FontWeight.w700, fontSize: 14)),
+        ]),
+        const SizedBox(height: 12),
+        if (data['service_type'] != null) _DetailRow('Service', data['service_type'] == 'express' ? '⚡ Express' : '🌿 Normal'),
+        if (data['eta'] != null) _DetailRow('ETA', data['eta'].toString()),
+        if (data['district'] != null) _DetailRow('District', data['district'].toString()),
+        if (data['items'] is List) ...[
+          const SizedBox(height: 6),
+          ...(data['items'] as List).map((item) => Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text(item is Map ? '${item['name']} × ${item['qty']}' : '$item', style: TextStyle(color: c.textSec, fontSize: 12)),
+              if (item is Map && item['sub'] != null) Text('\$${item['sub']}', style: const TextStyle(color: DC.success, fontSize: 12, fontWeight: FontWeight.w600)),
+            ]),
+          )),
+        ],
       ]),
-      const SizedBox(height: 12),
-      if (data['service_type'] != null) _DetailRow('Service', data['service_type'] == 'express' ? '⚡ Express' : '🌿 Normal'),
-      if (data['eta'] != null) _DetailRow('ETA', data['eta']),
-      if (data['district'] != null) _DetailRow('District', data['district']),
-      if (data['items'] is List) ...[
-        const SizedBox(height: 6),
-        ...(data['items'] as List).map((item) => Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(item is Map ? '${item['name']} × ${item['qty']}' : '$item', style: const TextStyle(color: DC.textSec, fontSize: 12)),
-            if (item is Map && item['sub'] != null) Text('\$${item['sub']}', style: const TextStyle(color: DC.success, fontSize: 12, fontWeight: FontWeight.w600)),
-          ]),
-        )),
-      ],
-    ]),
-  );
+    );
+  }
 }
 
 class _DetailRow extends StatelessWidget {
   final String label, value; final Color? valueColor;
   const _DetailRow(this.label, this.value, {this.valueColor});
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 6),
-    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SizedBox(width: 110, child: Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 12))),
-      Expanded(child: Text(value, style: TextStyle(color: valueColor ?? DC.text, fontWeight: FontWeight.w600, fontSize: 12))),
-    ]),
-  );
+  Widget build(BuildContext context) {
+    final c = context.dc;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(width: 110, child: Text(label, style: TextStyle(color: c.textMuted, fontSize: 12))),
+        Expanded(child: Text(value, style: TextStyle(color: valueColor ?? c.text, fontWeight: FontWeight.w600, fontSize: 12))),
+      ]),
+    );
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -820,31 +830,32 @@ class _PhotoConfirmState extends ConsumerState<_PhotoConfirmPage> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.dc;
     return Scaffold(
-      backgroundColor: DC.navy,
-      appBar: AppBar(backgroundColor: DC.navyLight, title: const Text('Confirm Delivery', style: TextStyle(fontWeight: FontWeight.w800))),
+      backgroundColor: c.navy,
+      appBar: AppBar(backgroundColor: c.navyLight, title: Text('Confirm Delivery', style: TextStyle(fontWeight: FontWeight.w800, color: c.text))),
       body: Padding(padding: const EdgeInsets.all(24), child: Column(children: [
         const SizedBox(height: 20),
         Container(width: 80, height: 80, decoration: BoxDecoration(color: DC.orangeDim, shape: BoxShape.circle),
           child: const Icon(Icons.camera_alt_rounded, color: DC.orange, size: 36)),
         const SizedBox(height: 20),
-        const Text('Take a delivery photo', style: TextStyle(color: DC.text, fontSize: 22, fontWeight: FontWeight.w800)),
+        Text('Take a delivery photo', style: TextStyle(color: c.text, fontSize: 22, fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
-        const Text('Photo confirms successful delivery', style: TextStyle(color: DC.textSec, fontSize: 13)),
+        Text('Photo confirms successful delivery', style: TextStyle(color: c.textSec, fontSize: 13)),
         const SizedBox(height: 28),
         GestureDetector(
           onTap: _pickPhoto,
           child: Container(
             width: double.infinity, height: 200,
             decoration: BoxDecoration(
-              color: DC.surface, borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: _photo != null ? DC.success : DC.border, width: 2)),
+              color: c.surface, borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: _photo != null ? DC.success : c.border, width: 2)),
             child: _photo != null
                 ? ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.file(_photo!, fit: BoxFit.cover))
                 : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(Icons.add_a_photo_rounded, color: DC.textMuted.withValues(alpha: 0.5), size: 44),
+                    Icon(Icons.add_a_photo_rounded, color: c.textMuted.withValues(alpha: 0.5), size: 44),
                     const SizedBox(height: 8),
-                    const Text('Tap to take photo', style: TextStyle(color: DC.textMuted, fontSize: 13)),
+                    Text('Tap to take photo', style: TextStyle(color: c.textMuted, fontSize: 13)),
                   ]),
           ),
         ),
@@ -857,7 +868,7 @@ class _PhotoConfirmState extends ConsumerState<_PhotoConfirmPage> {
               : const Text('Complete Delivery', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
         )),
         const SizedBox(height: 10),
-        TextButton(onPressed: _loading ? null : _confirm, child: const Text('Skip photo', style: TextStyle(color: DC.textMuted))),
+        TextButton(onPressed: _loading ? null : _confirm, child: Text('Skip photo', style: TextStyle(color: c.textMuted))),
       ])),
     );
   }

@@ -14,16 +14,17 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.dc;
     final dash = ref.watch(_dashProvider);
 
     return Scaffold(
-      backgroundColor: DC.navy,
+      backgroundColor: c.navy,
       body: dash.when(
         loading: () => const Center(child: CircularProgressIndicator(color: DC.orange)),
         error: (e, _) => Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.error_outline, color: DC.error, size: 48),
           const SizedBox(height: 12),
-          Text('$e', style: const TextStyle(color: DC.textSec, fontSize: 13), textAlign: TextAlign.center),
+          Text('$e', style: TextStyle(color: c.textSec, fontSize: 13), textAlign: TextAlign.center),
           const SizedBox(height: 16),
           ElevatedButton(onPressed: () => ref.invalidate(_dashProvider), child: const Text('Retry')),
         ])),
@@ -34,7 +35,7 @@ class DashboardScreen extends ConsumerWidget {
             // ── App Bar ──────────────────────────────────────────
             SliverAppBar(
               floating: true, snap: true,
-              backgroundColor: DC.navyLight,
+              backgroundColor: c.navyLight,
               title: Row(mainAxisSize: MainAxisSize.min, children: [
                 Container(width: 36, height: 36,
                   decoration: BoxDecoration(
@@ -43,13 +44,13 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                   child: const Icon(Icons.delivery_dining_rounded, color: Colors.white, size: 20)),
                 const SizedBox(width: 10),
-                const Text('eSahlan Driver', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+                Text('eSahlan Driver', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: c.text)),
               ]),
               actions: [
                 Container(
                   margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(color: DC.surface, shape: BoxShape.circle, border: Border.all(color: DC.border)),
-                  child: IconButton(icon: const Icon(Icons.notifications_outlined, size: 20), onPressed: () {}),
+                  decoration: BoxDecoration(color: c.surface, shape: BoxShape.circle, border: Border.all(color: c.border)),
+                  child: IconButton(icon: Icon(Icons.notifications_outlined, size: 20, color: c.textSec), onPressed: () {}),
                 ),
               ],
             ),
@@ -61,8 +62,6 @@ class DashboardScreen extends ConsumerWidget {
                 _OnlineCard(isOnline: d['is_online'] == true, onToggle: () async {
                   await ref.read(authRepoProvider).toggleStatus();
                   ref.invalidate(_dashProvider);
-                  // Always keep tracking running — admin map shows driver location
-                  // regardless of online/offline status. Only logout stops tracking.
                   if (!DriverLocationService.isRunning) {
                     DriverLocationService.startTracking();
                   }
@@ -73,13 +72,13 @@ class DashboardScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: DC.card,
+                    color: c.card,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: DC.border.withValues(alpha: 0.5)),
+                    border: Border.all(color: c.border.withValues(alpha: 0.5)),
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
-                      const Text("Today's Overview", style: TextStyle(color: DC.text, fontSize: 16, fontWeight: FontWeight.w800)),
+                      Text("Today's Overview", style: TextStyle(color: c.text, fontSize: 16, fontWeight: FontWeight.w800)),
                       const Spacer(),
                       GestureDetector(
                         onTap: () => context.go('/orders'),
@@ -94,7 +93,7 @@ class DashboardScreen extends ConsumerWidget {
                       _OverviewStat(icon: Icons.cancel_outlined, value: '0', label: 'Cancelled', color: DC.error),
                     ]),
                     const SizedBox(height: 18),
-                    const Divider(color: DC.divider, height: 1),
+                    Divider(color: c.divider, height: 1),
                     const SizedBox(height: 14),
                     Row(children: [
                       _MiniStat('Cash in Hand', '\$${_fmt(0)}'),
@@ -157,6 +156,7 @@ class _OnlineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.dc;
     return GestureDetector(
       onTap: onToggle,
       child: AnimatedContainer(
@@ -167,47 +167,45 @@ class _OnlineCard extends StatelessWidget {
           gradient: LinearGradient(
             colors: isOnline
                 ? [const Color(0xFF064E3B), const Color(0xFF065F46)]
-                : [DC.card, DC.cardLight],
+                : [c.card, c.cardLight],
           ),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isOnline ? DC.success.withValues(alpha: 0.4) : DC.border,
+            color: isOnline ? DC.success.withValues(alpha: 0.4) : c.border,
             width: 1.5,
           ),
           boxShadow: isOnline ? [BoxShadow(color: DC.success.withValues(alpha: 0.15), blurRadius: 20)] : [],
         ),
         child: Row(children: [
-          // Animated icon
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             width: 52, height: 52,
             decoration: BoxDecoration(
-              color: isOnline ? DC.success.withValues(alpha: 0.2) : DC.textMuted.withValues(alpha: 0.1),
+              color: isOnline ? DC.success.withValues(alpha: 0.2) : c.textMuted.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
               isOnline ? Icons.power_settings_new_rounded : Icons.power_off_rounded,
-              color: isOnline ? DC.success : DC.textMuted, size: 26,
+              color: isOnline ? DC.success : c.textMuted, size: 26,
             ),
           ),
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(
               isOnline ? 'You are Online' : 'You are Offline',
-              style: TextStyle(color: isOnline ? DC.success : DC.textMuted, fontSize: 17, fontWeight: FontWeight.w800),
+              style: TextStyle(color: isOnline ? DC.success : c.textMuted, fontSize: 17, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 2),
             Text(
               isOnline ? 'Receiving delivery requests' : 'Tap to go online and start earning',
-              style: TextStyle(color: (isOnline ? DC.success : DC.textMuted).withValues(alpha: 0.7), fontSize: 12),
+              style: TextStyle(color: (isOnline ? DC.success : c.textMuted).withValues(alpha: 0.7), fontSize: 12),
             ),
           ])),
-          // Toggle switch
           AnimatedContainer(
             duration: const Duration(milliseconds: 250),
             width: 56, height: 32,
             decoration: BoxDecoration(
-              color: isOnline ? DC.success : DC.textMuted.withValues(alpha: 0.3),
+              color: isOnline ? DC.success : c.textMuted.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(16),
             ),
             padding: const EdgeInsets.all(3),
@@ -233,24 +231,30 @@ class _OverviewStat extends StatelessWidget {
   const _OverviewStat({required this.icon, required this.value, required this.label, required this.color});
 
   @override
-  Widget build(BuildContext context) => Expanded(child: Column(children: [
-    Container(width: 40, height: 40, decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-      child: Icon(icon, color: color, size: 20)),
-    const SizedBox(height: 8),
-    Text(value, style: const TextStyle(color: DC.text, fontSize: 16, fontWeight: FontWeight.w900)),
-    const SizedBox(height: 2),
-    Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 10)),
-  ]));
+  Widget build(BuildContext context) {
+    final c = context.dc;
+    return Expanded(child: Column(children: [
+      Container(width: 40, height: 40, decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+        child: Icon(icon, color: color, size: 20)),
+      const SizedBox(height: 8),
+      Text(value, style: TextStyle(color: c.text, fontSize: 16, fontWeight: FontWeight.w900)),
+      const SizedBox(height: 2),
+      Text(label, style: TextStyle(color: c.textMuted, fontSize: 10)),
+    ]));
+  }
 }
 
 class _MiniStat extends StatelessWidget {
   final String label, value;
   const _MiniStat(this.label, this.value);
   @override
-  Widget build(BuildContext context) => Expanded(child: Row(children: [
-    Expanded(child: Text(label, style: const TextStyle(color: DC.textMuted, fontSize: 11))),
-    Text(value, style: const TextStyle(color: DC.text, fontSize: 12, fontWeight: FontWeight.w700)),
-  ]));
+  Widget build(BuildContext context) {
+    final c = context.dc;
+    return Expanded(child: Row(children: [
+      Expanded(child: Text(label, style: TextStyle(color: c.textMuted, fontSize: 11))),
+      Text(value, style: TextStyle(color: c.text, fontSize: 12, fontWeight: FontWeight.w700)),
+    ]));
+  }
 }
 
 // ── Glass Card ────────────────────────────────────────────────────────────────
@@ -272,14 +276,14 @@ class _GlassCard extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Icon(icon, color: DC.orange, size: 22),
         const SizedBox(height: 12),
-        Text(title, style: const TextStyle(color: DC.textSec, fontSize: 11)),
+        Text(title, style: const TextStyle(color: Color(0xFF8B9CC7), fontSize: 11)),
         const SizedBox(height: 4),
-        Text(value, style: const TextStyle(color: DC.text, fontSize: 22, fontWeight: FontWeight.w900)),
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
         const SizedBox(height: 4),
-        Row(children: [
-          const Icon(Icons.arrow_forward_rounded, color: DC.orange, size: 14),
-          const SizedBox(width: 4),
-          const Text('View', style: TextStyle(color: DC.orange, fontSize: 11, fontWeight: FontWeight.w600)),
+        const Row(children: [
+          Icon(Icons.arrow_forward_rounded, color: DC.orange, size: 14),
+          SizedBox(width: 4),
+          Text('View', style: TextStyle(color: DC.orange, fontSize: 11, fontWeight: FontWeight.w600)),
         ]),
       ]),
     ),
@@ -295,6 +299,7 @@ class _ActiveOrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.dc;
     final vendor = order['vendor'] as Map<String, dynamic>?;
     final module = (order['module_slug'] ?? 'order').toString();
 
@@ -303,46 +308,23 @@ class _ActiveOrderCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: DC.card,
+          color: c.card,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: DC.orange.withValues(alpha: 0.3), width: 1.5),
           boxShadow: [BoxShadow(color: DC.orange.withValues(alpha: 0.08), blurRadius: 16)],
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(
-              width: 10, height: 10,
-              decoration: BoxDecoration(color: DC.orange, shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: DC.orange.withValues(alpha: 0.5), blurRadius: 8)]),
-            ),
-            const SizedBox(width: 8),
-            const Text('Active Delivery', style: TextStyle(color: DC.orange, fontSize: 13, fontWeight: FontWeight.w700)),
-            const Spacer(),
-            Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(6)),
-              child: Text(module.toUpperCase(), style: const TextStyle(color: DC.orange, fontSize: 10, fontWeight: FontWeight.w800))),
-          ]),
-          const SizedBox(height: 14),
-          Row(children: [
-            Container(width: 44, height: 44,
-              decoration: BoxDecoration(color: DC.surface, borderRadius: BorderRadius.circular(12)),
-              child: const Icon(Icons.store_rounded, color: DC.orange, size: 22)),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(vendor?['name'] ?? 'Restaurant', style: const TextStyle(color: DC.text, fontWeight: FontWeight.w700, fontSize: 15)),
-              Text('#${order['order_number'] ?? ''}', style: const TextStyle(color: DC.textMuted, fontSize: 12)),
-            ])),
-            const Icon(Icons.chevron_right_rounded, color: DC.textMuted),
-          ]),
-          const SizedBox(height: 14),
-          Container(
-            width: double.infinity, height: 48,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFFFF8A00), Color(0xFFFF6B00)]),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Center(child: Text('View Details →', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15))),
-          ),
+        child: Row(children: [
+          Container(width: 48, height: 48, decoration: BoxDecoration(color: DC.orangeDim, borderRadius: BorderRadius.circular(14)),
+            child: const Icon(Icons.delivery_dining_rounded, color: DC.orange, size: 24)),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Active Delivery', style: TextStyle(color: c.text, fontSize: 14, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 2),
+            Text(vendor?['name'] ?? module, style: TextStyle(color: c.textSec, fontSize: 12)),
+          ])),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(color: DC.success.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+            child: const Text('In Progress', style: TextStyle(color: DC.success, fontSize: 11, fontWeight: FontWeight.w700))),
         ]),
       ),
     );

@@ -88,14 +88,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.dc;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-          colors: [Color(0xFF0A1628), Color(0xFF0F1E38), Color(0xFF162A4A)])),
+        decoration: BoxDecoration(gradient: LinearGradient(
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+          colors: isDark
+            ? [const Color(0xFF0A1628), const Color(0xFF0F1E38), const Color(0xFF162A4A)]
+            : [c.navyLight, c.navy, const Color(0xFFE0E8F4)],
+        )),
         child: SafeArea(child: Column(children: [
           Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(children: [
-              if (_step > 0) IconButton(icon: const Icon(Icons.arrow_back_rounded, color: Colors.white), onPressed: () => setState(() => _step--)),
+              if (_step > 0) IconButton(icon: Icon(Icons.arrow_back_rounded, color: c.text), onPressed: () => setState(() => _step--)),
               const Spacer(),
               RichText(text: const TextSpan(children: [
                 TextSpan(text: 'eSahlan ', style: TextStyle(color: DC.orange, fontSize: 18, fontWeight: FontWeight.w900)),
@@ -107,7 +113,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           Padding(padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 8),
             child: Row(children: List.generate(3, (i) => Expanded(child: Container(
               height: 4, margin: const EdgeInsets.symmetric(horizontal: 3),
-              decoration: BoxDecoration(color: _step >= i ? DC.orange : DC.border, borderRadius: BorderRadius.circular(2))))))),
+              decoration: BoxDecoration(color: _step >= i ? DC.orange : c.border, borderRadius: BorderRadius.circular(2))))))),
           Expanded(child: SingleChildScrollView(padding: const EdgeInsets.symmetric(horizontal: 28),
             child: [_stepType, _stepPersonal, _stepDocuments][_step]())),
         ])),
@@ -115,164 +121,183 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Widget _stepType() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    const SizedBox(height: 24),
-    const Text('Choose Your Role', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
-    const SizedBox(height: 4),
-    const Text('What type of deliveries will you do?', style: TextStyle(color: DC.textSec, fontSize: 14)),
-    const SizedBox(height: 28),
+  Widget _stepType() {
+    final c = context.dc;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const SizedBox(height: 24),
+      Text('Choose Your Role', style: TextStyle(color: c.text, fontSize: 26, fontWeight: FontWeight.w900)),
+      const SizedBox(height: 4),
+      Text('What type of deliveries will you do?', style: TextStyle(color: c.textSec, fontSize: 14)),
+      const SizedBox(height: 28),
 
-    _TypeCard(
-      selected: _driverType == 'normal',
-      emoji: '🏍️',
-      title: 'Normal Delivery',
-      desc: 'Food, parcels, shop orders, grocery, laundry',
-      modules: 'eFood · eShop · eParcel · eGrocery · eLaundry',
-      onTap: () => setState(() { _driverType = 'normal'; _vehicleType = 'motorcycle'; }),
-    ),
-    const SizedBox(height: 12),
-    _TypeCard(
-      selected: _driverType == 'truck',
-      emoji: '🚛',
-      title: 'Truck / Moving',
-      desc: 'Furniture, house moving, large items',
-      modules: 'eMoving',
-      onTap: () => setState(() { _driverType = 'truck'; _vehicleType = 'truck'; }),
-    ),
-    const SizedBox(height: 32),
-    _orangeBtn('Continue →', () => setState(() => _step = 1)),
-    const SizedBox(height: 24),
-    Center(child: GestureDetector(onTap: () => context.go('/login'),
-      child: RichText(text: const TextSpan(style: TextStyle(fontSize: 14), children: [
-        TextSpan(text: 'Already have an account? ', style: TextStyle(color: DC.textSec)),
-        TextSpan(text: 'Login', style: TextStyle(color: DC.orange, fontWeight: FontWeight.w700)),
-      ])))),
-    const SizedBox(height: 30),
-  ]);
-
-  Widget _stepPersonal() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    const SizedBox(height: 24),
-    const Text('Personal Info', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
-    const SizedBox(height: 28),
-    _label('Full Name'),
-    _field(_nameCtrl, 'Enter your name', Icons.person_outline_rounded),
-    const SizedBox(height: 14),
-    _label('Phone Number'),
-    _field(_phoneCtrl, '+252 61 234 5678', Icons.phone_outlined, keyboard: TextInputType.phone),
-    const SizedBox(height: 14),
-    _label('Password'),
-    _field(_passCtrl, 'Min 4 characters', Icons.lock_outline_rounded, obscure: _obscure,
-      suffix: IconButton(icon: Icon(_obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: DC.textMuted, size: 20),
-        onPressed: () => setState(() => _obscure = !_obscure))),
-    const SizedBox(height: 14),
-    _label('Vehicle Type'),
-    Wrap(spacing: 8, runSpacing: 8, children: _driverType == 'normal'
-      ? [_chip('motorcycle', '🏍️'), _chip('bajaj', '🛺'), _chip('car', '🚗'), _chip('bicycle', '🚲')]
-      : [_chip('truck', '🚛'), _chip('van', '🚐'), _chip('pickup', '🚛')]),
-    const SizedBox(height: 14),
-    _label('Plate Number'),
-    _field(_plateCtrl, 'e.g. MG-1234', Icons.directions_car_outlined),
-    const SizedBox(height: 32),
-    _orangeBtn('Continue →', () {
-      if (_nameCtrl.text.trim().isEmpty || _phoneCtrl.text.trim().isEmpty || _passCtrl.text.length < 4) {
-        _snack('Fill all fields (min 4 chars password)');
-        return;
-      }
-      setState(() => _step = 2);
-    }),
-    const SizedBox(height: 30),
-  ]);
-
-  Widget _stepDocuments() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    const SizedBox(height: 24),
-    const Text('Documents', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
-    const SizedBox(height: 4),
-    const Text('Upload required documents for verification', style: TextStyle(color: DC.textSec, fontSize: 14)),
-    const SizedBox(height: 28),
-    _docUpload('National ID (NIRA)', 'national_id', _nationalId),
-    const SizedBox(height: 12),
-    _docUpload('Driver License', 'driver_license', _driverLicense),
-    const SizedBox(height: 12),
-    _docUpload('Vehicle Registration', 'vehicle_reg', _vehicleReg),
-    const SizedBox(height: 32),
-    _orangeBtn(_loading ? null : 'Submit Application', _loading ? () {} : _register, loading: _loading),
-    const SizedBox(height: 12),
-    Center(child: Text('Your application will be reviewed by admin',
-      style: TextStyle(color: DC.textMuted, fontSize: 12))),
-    const SizedBox(height: 30),
-  ]);
-
-  Widget _docUpload(String label, String type, File? file) => GestureDetector(
-    onTap: () => _pickDoc(type),
-    child: Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: file != null ? DC.success.withValues(alpha: 0.08) : DC.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: file != null ? DC.success.withValues(alpha: 0.4) : DC.border),
+      _TypeCard(
+        selected: _driverType == 'normal',
+        emoji: '🏍️',
+        title: 'Normal Delivery',
+        desc: 'Food, parcels, shop orders, grocery, laundry',
+        modules: 'eFood · eShop · eParcel · eGrocery · eLaundry',
+        onTap: () => setState(() { _driverType = 'normal'; _vehicleType = 'motorcycle'; }),
       ),
-      child: Row(children: [
-        Container(width: 44, height: 44,
-          decoration: BoxDecoration(
-            color: file != null ? DC.success.withValues(alpha: 0.15) : DC.border.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(12)),
-          child: Icon(file != null ? Icons.check_circle_rounded : Icons.upload_file_rounded,
-            color: file != null ? DC.success : DC.textMuted, size: 22)),
-        const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: TextStyle(color: file != null ? DC.success : DC.text, fontWeight: FontWeight.w700, fontSize: 14)),
-          Text(file != null ? 'Uploaded ✓' : 'Tap to upload photo',
-            style: TextStyle(color: file != null ? DC.success.withValues(alpha: 0.7) : DC.textMuted, fontSize: 12)),
-        ])),
-        Icon(Icons.camera_alt_rounded, color: file != null ? DC.success : DC.textMuted),
-      ]),
-    ),
-  );
+      const SizedBox(height: 12),
+      _TypeCard(
+        selected: _driverType == 'truck',
+        emoji: '🚛',
+        title: 'Truck / Moving',
+        desc: 'Furniture, house moving, large items',
+        modules: 'eMoving',
+        onTap: () => setState(() { _driverType = 'truck'; _vehicleType = 'truck'; }),
+      ),
+      const SizedBox(height: 32),
+      _orangeBtn('Continue →', () => setState(() => _step = 1)),
+      const SizedBox(height: 24),
+      Center(child: GestureDetector(onTap: () => context.go('/login'),
+        child: RichText(text: TextSpan(style: const TextStyle(fontSize: 14), children: [
+          TextSpan(text: 'Already have an account? ', style: TextStyle(color: c.textSec)),
+          const TextSpan(text: 'Login', style: TextStyle(color: DC.orange, fontWeight: FontWeight.w700)),
+        ])))),
+      const SizedBox(height: 30),
+    ]);
+  }
 
-  Widget _TypeCard({required bool selected, required String emoji, required String title, required String desc, required String modules, required VoidCallback onTap}) =>
-    GestureDetector(onTap: onTap, child: AnimatedContainer(
+  Widget _stepPersonal() {
+    final c = context.dc;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const SizedBox(height: 24),
+      Text('Personal Info', style: TextStyle(color: c.text, fontSize: 26, fontWeight: FontWeight.w900)),
+      const SizedBox(height: 28),
+      _label('Full Name'),
+      _field(_nameCtrl, 'Enter your name', Icons.person_outline_rounded),
+      const SizedBox(height: 14),
+      _label('Phone Number'),
+      _field(_phoneCtrl, '+252 61 234 5678', Icons.phone_outlined, keyboard: TextInputType.phone),
+      const SizedBox(height: 14),
+      _label('Password'),
+      _field(_passCtrl, 'Min 4 characters', Icons.lock_outline_rounded, obscure: _obscure,
+        suffix: IconButton(icon: Icon(_obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: c.textMuted, size: 20),
+          onPressed: () => setState(() => _obscure = !_obscure))),
+      const SizedBox(height: 14),
+      _label('Vehicle Type'),
+      Wrap(spacing: 8, runSpacing: 8, children: _driverType == 'normal'
+        ? [_chip('motorcycle', '🏍️'), _chip('bajaj', '🛺'), _chip('car', '🚗'), _chip('bicycle', '🚲')]
+        : [_chip('truck', '🚛'), _chip('van', '🚐'), _chip('pickup', '🚛')]),
+      const SizedBox(height: 14),
+      _label('Plate Number'),
+      _field(_plateCtrl, 'e.g. MG-1234', Icons.directions_car_outlined),
+      const SizedBox(height: 32),
+      _orangeBtn('Continue →', () {
+        if (_nameCtrl.text.trim().isEmpty || _phoneCtrl.text.trim().isEmpty || _passCtrl.text.length < 4) {
+          _snack('Fill all fields (min 4 chars password)');
+          return;
+        }
+        setState(() => _step = 2);
+      }),
+      const SizedBox(height: 30),
+    ]);
+  }
+
+  Widget _stepDocuments() {
+    final c = context.dc;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const SizedBox(height: 24),
+      Text('Documents', style: TextStyle(color: c.text, fontSize: 26, fontWeight: FontWeight.w900)),
+      const SizedBox(height: 4),
+      Text('Upload required documents for verification', style: TextStyle(color: c.textSec, fontSize: 14)),
+      const SizedBox(height: 28),
+      _docUpload('National ID (NIRA)', 'national_id', _nationalId),
+      const SizedBox(height: 12),
+      _docUpload('Driver License', 'driver_license', _driverLicense),
+      const SizedBox(height: 12),
+      _docUpload('Vehicle Registration', 'vehicle_reg', _vehicleReg),
+      const SizedBox(height: 32),
+      _orangeBtn(_loading ? null : 'Submit Application', _loading ? () {} : _register, loading: _loading),
+      const SizedBox(height: 12),
+      Center(child: Text('Your application will be reviewed by admin',
+        style: TextStyle(color: c.textMuted, fontSize: 12))),
+      const SizedBox(height: 30),
+    ]);
+  }
+
+  Widget _docUpload(String label, String type, File? file) {
+    final c = context.dc;
+    return GestureDetector(
+      onTap: () => _pickDoc(type),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: file != null ? DC.success.withValues(alpha: 0.08) : c.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: file != null ? DC.success.withValues(alpha: 0.4) : c.border),
+        ),
+        child: Row(children: [
+          Container(width: 44, height: 44,
+            decoration: BoxDecoration(
+              color: file != null ? DC.success.withValues(alpha: 0.15) : c.border.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(12)),
+            child: Icon(file != null ? Icons.check_circle_rounded : Icons.upload_file_rounded,
+              color: file != null ? DC.success : c.textMuted, size: 22)),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: TextStyle(color: file != null ? DC.success : c.text, fontWeight: FontWeight.w700, fontSize: 14)),
+            Text(file != null ? 'Uploaded ✓' : 'Tap to upload photo',
+              style: TextStyle(color: file != null ? DC.success.withValues(alpha: 0.7) : c.textMuted, fontSize: 12)),
+          ])),
+          Icon(Icons.camera_alt_rounded, color: file != null ? DC.success : c.textMuted),
+        ]),
+      ),
+    );
+  }
+
+  Widget _TypeCard({required bool selected, required String emoji, required String title, required String desc, required String modules, required VoidCallback onTap}) {
+    final c = context.dc;
+    return GestureDetector(onTap: onTap, child: AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: selected ? DC.orange.withValues(alpha: 0.08) : DC.surface,
+        color: selected ? DC.orange.withValues(alpha: 0.08) : c.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: selected ? DC.orange : DC.border, width: selected ? 2 : 1),
+        border: Border.all(color: selected ? DC.orange : c.border, width: selected ? 2 : 1),
       ),
       child: Row(children: [
         Text(emoji, style: const TextStyle(fontSize: 36)),
         const SizedBox(width: 16),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: TextStyle(color: selected ? DC.orange : DC.text, fontSize: 16, fontWeight: FontWeight.w800)),
+          Text(title, style: TextStyle(color: selected ? DC.orange : c.text, fontSize: 16, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
-          Text(desc, style: const TextStyle(color: DC.textSec, fontSize: 12)),
+          Text(desc, style: TextStyle(color: c.textSec, fontSize: 12)),
           const SizedBox(height: 6),
-          Text(modules, style: TextStyle(color: DC.textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
+          Text(modules, style: TextStyle(color: c.textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
         ])),
         if (selected) const Icon(Icons.check_circle_rounded, color: DC.orange, size: 24),
       ]),
     ));
+  }
 
   Widget _chip(String value, String emoji) {
+    final c = context.dc;
     final sel = _vehicleType == value;
     return GestureDetector(onTap: () => setState(() => _vehicleType = value),
       child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(color: sel ? DC.orangeDim : DC.surface, borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: sel ? DC.orange : DC.border, width: sel ? 2 : 1)),
+        decoration: BoxDecoration(color: sel ? DC.orangeDim : c.surface, borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: sel ? DC.orange : c.border, width: sel ? 2 : 1)),
         child: Text('$emoji ${value[0].toUpperCase()}${value.substring(1)}',
-          style: TextStyle(color: sel ? DC.orange : DC.textSec, fontWeight: sel ? FontWeight.w700 : FontWeight.w500, fontSize: 13))));
+          style: TextStyle(color: sel ? DC.orange : c.textSec, fontWeight: sel ? FontWeight.w700 : FontWeight.w500, fontSize: 13))));
   }
 
-  Widget _label(String t) => Padding(padding: const EdgeInsets.only(bottom: 8),
-    child: Text(t, style: const TextStyle(color: DC.textSec, fontSize: 12, fontWeight: FontWeight.w600)));
+  Widget _label(String t) {
+    return Padding(padding: const EdgeInsets.only(bottom: 8),
+      child: Text(t, style: TextStyle(color: context.dc.textSec, fontSize: 12, fontWeight: FontWeight.w600)));
+  }
 
-  Widget _field(TextEditingController ctrl, String hint, IconData icon, {bool obscure = false, Widget? suffix, TextInputType? keyboard}) =>
-    Container(
-      decoration: BoxDecoration(color: DC.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: DC.border)),
+  Widget _field(TextEditingController ctrl, String hint, IconData icon, {bool obscure = false, Widget? suffix, TextInputType? keyboard}) {
+    final c = context.dc;
+    return Container(
+      decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: c.border)),
       child: TextField(controller: ctrl, obscureText: obscure, keyboardType: keyboard,
-        style: const TextStyle(color: Colors.white, fontSize: 15),
-        decoration: InputDecoration(hintText: hint, hintStyle: TextStyle(color: DC.textMuted.withValues(alpha: 0.7)),
-          prefixIcon: Icon(icon, color: DC.textMuted, size: 20), suffixIcon: suffix,
+        style: TextStyle(color: c.text, fontSize: 15),
+        decoration: InputDecoration(hintText: hint, hintStyle: TextStyle(color: c.textMuted.withValues(alpha: 0.7)),
+          prefixIcon: Icon(icon, color: c.textMuted, size: 20), suffixIcon: suffix,
           border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16))));
+  }
 
   Widget _orangeBtn(String? label, VoidCallback onTap, {bool loading = false}) => GestureDetector(
     onTap: loading ? null : onTap,
