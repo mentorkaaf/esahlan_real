@@ -78,11 +78,12 @@ class AdminFinanceController extends Controller
                 // Hard delete all transactions
                 Transaction::query()->delete();
             } else {
-                // Soft reset: keep rows but mark them voided
+                // Soft reset: keep rows but zero amounts and mark note
                 Transaction::query()->update([
-                    'amount'      => 0,
-                    'description' => '[RESET BY ADMIN]',
-                    'type'        => 'debit',
+                    'amount'         => 0,
+                    'balance_before' => 0,
+                    'balance_after'  => 0,
+                    'note'           => '[RESET BY ADMIN]',
                 ]);
             }
         });
