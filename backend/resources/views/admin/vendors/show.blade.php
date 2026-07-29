@@ -219,13 +219,48 @@ $deliveredPct = $orders > 0 ? round($delivered / $orders * 100) : 0;
 
 {{-- ═══ CHART + INFO ═══ --}}
 <div class="vd-grid-3-1">
-    {{-- Revenue chart --}}
-    <div class="vd-card">
-        <div class="vd-card-head">
-            <span class="vd-card-title"><i class="fas fa-chart-area" style="color:#FF8A00;"></i> Revenue — Last 30 Days</span>
+    {{-- Revenue chart + wallet mini stats --}}
+    <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="vd-card">
+            <div class="vd-card-head">
+                <span class="vd-card-title"><i class="fas fa-chart-area" style="color:#FF8A00;"></i> Revenue — Last 30 Days</span>
+            </div>
+            <div class="chart-container" style="height:200px;">
+                <canvas id="revenueChart"></canvas>
+            </div>
         </div>
-        <div class="chart-container" style="height:220px;">
-            <canvas id="revenueChart"></canvas>
+        {{-- 4 mini wallet KPI cards in 2x2 grid --}}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="vd-kpi" style="padding:14px 16px;">
+                <div class="vd-kpi-icon" style="background:rgba(16,185,129,.12);color:#10b981;width:38px;height:38px;font-size:15px;"><i class="fas fa-wallet"></i></div>
+                <div>
+                    <div class="vd-kpi-label">Wallet Balance</div>
+                    <div class="vd-kpi-value" style="font-size:18px;">${{ number_format($wallet->balance ?? 0, 2) }}</div>
+                </div>
+            </div>
+            <div class="vd-kpi" style="padding:14px 16px;">
+                <div class="vd-kpi-icon" style="background:rgba(59,130,246,.12);color:#3b82f6;width:38px;height:38px;font-size:15px;"><i class="fas fa-money-bill-wave"></i></div>
+                <div>
+                    <div class="vd-kpi-label">Total Withdrawn</div>
+                    <div class="vd-kpi-value" style="font-size:18px;">${{ number_format($withdrawalStats->total_paid ?? 0, 2) }}</div>
+                    <div class="vd-kpi-sub">{{ $withdrawalStats->total_requests ?? 0 }} requests</div>
+                </div>
+            </div>
+            <div class="vd-kpi" style="padding:14px 16px;">
+                <div class="vd-kpi-icon" style="background:rgba(245,158,11,.12);color:#f59e0b;width:38px;height:38px;font-size:15px;"><i class="fas fa-clock"></i></div>
+                <div>
+                    <div class="vd-kpi-label">Pending Withdrawal</div>
+                    <div class="vd-kpi-value" style="font-size:18px;">${{ number_format($withdrawalStats->pending_amount ?? 0, 2) }}</div>
+                </div>
+            </div>
+            <div class="vd-kpi" style="padding:14px 16px;">
+                <div class="vd-kpi-icon" style="background:rgba(139,92,246,.12);color:#8b5cf6;width:38px;height:38px;font-size:15px;"><i class="fas fa-percentage"></i></div>
+                <div>
+                    <div class="vd-kpi-label">Net Earnings</div>
+                    <div class="vd-kpi-value" style="font-size:18px;">${{ number_format($vendorEarning, 2) }}</div>
+                    <div class="vd-kpi-sub">After {{ $vendor->commission_value ?? 10 }}% comm.</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -250,42 +285,6 @@ $deliveredPct = $orders > 0 ? round($delivered / $orders * 100) : 0;
                     </span>
                 </td></tr>
             </table>
-        </div>
-    </div>
-</div>
-
-{{-- ═══ WALLET + WITHDRAWAL SUMMARY ═══ --}}
-<div class="vd-kpi-row" style="margin-bottom:16px;">
-    <div class="vd-kpi">
-        <div class="vd-kpi-icon" style="background:rgba(16,185,129,.12);color:#10b981;"><i class="fas fa-wallet"></i></div>
-        <div>
-            <div class="vd-kpi-label">Wallet Balance</div>
-            <div class="vd-kpi-value">${{ number_format($wallet->balance ?? 0, 2) }}</div>
-            <div class="vd-kpi-sub">Current ePay balance</div>
-        </div>
-    </div>
-    <div class="vd-kpi">
-        <div class="vd-kpi-icon" style="background:rgba(59,130,246,.12);color:#3b82f6;"><i class="fas fa-money-bill-wave"></i></div>
-        <div>
-            <div class="vd-kpi-label">Total Withdrawn</div>
-            <div class="vd-kpi-value">${{ number_format($withdrawalStats->total_paid ?? 0, 2) }}</div>
-            <div class="vd-kpi-sub">{{ $withdrawalStats->total_requests ?? 0 }} total requests</div>
-        </div>
-    </div>
-    <div class="vd-kpi">
-        <div class="vd-kpi-icon" style="background:rgba(245,158,11,.12);color:#f59e0b;"><i class="fas fa-clock"></i></div>
-        <div>
-            <div class="vd-kpi-label">Pending Withdrawal</div>
-            <div class="vd-kpi-value">${{ number_format($withdrawalStats->pending_amount ?? 0, 2) }}</div>
-            <div class="vd-kpi-sub">Awaiting approval</div>
-        </div>
-    </div>
-    <div class="vd-kpi">
-        <div class="vd-kpi-icon" style="background:rgba(139,92,246,.12);color:#8b5cf6;"><i class="fas fa-percentage"></i></div>
-        <div>
-            <div class="vd-kpi-label">Net Vendor Earnings</div>
-            <div class="vd-kpi-value">${{ number_format($vendorEarning, 2) }}</div>
-            <div class="vd-kpi-sub">After {{ $vendor->commission_value ?? 10 }}% commission</div>
         </div>
     </div>
 </div>
