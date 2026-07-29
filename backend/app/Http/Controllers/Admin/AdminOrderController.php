@@ -235,10 +235,45 @@ class AdminOrderController extends Controller
         // ── Notify nearby drivers when order is confirmed (proximity-based) ──
         if (in_array($request->status, ['confirmed', 'ready_for_pickup']) && !$order->deliveryman_id) {
             try {
-                // Get pickup coordinates from vendor (or district fallback)
+                // Get pickup coordinates — varies by module
                 $order->load('vendor');
-                $pickupLat = (float) ($order->vendor?->latitude ?? 0);
-                $pickupLng = (float) ($order->vendor?->longitude ?? 0);
+                $pickupLat = 0.0;
+                $pickupLng = 0.0;
+
+                $module = $order->module_slug ?? '';
+
+                if (in_array($module, ['efood', 'egrocery', 'eshop', 'elaundry'])) {
+                    // Standard modules: pickup = vendor location
+                    $pickupLat = (float) ($order->vendor?->latitude ?? 0);
+                    $pickupLng = (float) ($order->vendor?->longitude ?? 0);
+                } elseif ($module === 'eparcel') {
+                    // eParcel: pickup = sender district (stored in order.note JSON)
+                    $noteData = is_array($order->note) ? $order->note : json_decode($order->note ?? '{}', true);
+                    $senderDistrictId = $noteData['pickup']['district_id'] ?? null;
+                    if ($senderDistrictId) {
+                        $dist = DB::table('districts')->find($senderDistrictId);
+                        $pickupLat = (float) ($dist->latitude ?? 0);
+                        $pickupLng = (float) ($dist->longitude ?? 0);
+                    }
+                } elseif ($module === 'emoving') {
+                    // eMoving: pickup = from_district
+                    $noteData = is_array($order->note) ? $order->note : json_decode($order->note ?? '{}', true);
+                    $fromDistName = $noteData['from_district'] ?? null;
+                    if ($fromDistName) {
+                        $dist = DB::table('districts')->where('name', $fromDistName)->first();
+                        $pickupLat = (float) ($dist->latitude ?? 0);
+                        $pickupLng = (float) ($dist->longitude ?? 0);
+                    }
+                } else {
+                    // Any other module: try vendor first, then order's district
+                    $pickupLat = (float) ($order->vendor?->latitude ?? 0);
+                    $pickupLng = (float) ($order->vendor?->longitude ?? 0);
+                    if (!$pickupLat) {
+                        $dist = DB::table('districts')->find($order->district_id);
+                        $pickupLat = (float) ($dist->latitude ?? 0);
+                        $pickupLng = (float) ($dist->longitude ?? 0);
+                    }
+                }
 
                 $radiusKm = 2; // notify drivers within 2 km of pickup
 
