@@ -240,7 +240,7 @@ class AdminOrderController extends Controller
                 $pickupLat = (float) ($order->vendor?->latitude ?? 0);
                 $pickupLng = (float) ($order->vendor?->longitude ?? 0);
 
-                $radiusKm = 10; // notify drivers within 10 km of pickup
+                $radiusKm = 2; // notify drivers within 2 km of pickup
 
                 $onlineDrivers = Deliveryman::where('is_approved', true)
                     ->where('is_online', true)
