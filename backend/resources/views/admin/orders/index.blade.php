@@ -5,16 +5,16 @@
 <style>
 .bulk-bar {
     display:none;align-items:center;gap:12px;flex-wrap:wrap;
-    background:var(--navy);color:#fff;
+    background:#07003B;color:#fff;
     padding:10px 20px;border-radius:10px;margin-bottom:16px;
-    box-shadow:0 4px 16px rgba(7,0,59,.25);
+    box-shadow:0 4px 16px rgba(7,0,59,.35);
     position:sticky;top:72px;z-index:50;
     animation:slideDown .2s ease;
 }
 .bulk-bar.visible{display:flex;}
 @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
 .bulk-count{font-weight:700;font-size:13px;white-space:nowrap;}
-.bulk-count span{background:var(--brand);color:#fff;padding:2px 8px;border-radius:20px;margin-right:4px;}
+.bulk-count span{background:#FF8A00;color:#fff;padding:2px 8px;border-radius:20px;margin-right:4px;}
 .bulk-sep{width:1px;height:22px;background:rgba(255,255,255,.15);}
 .bulk-dd{position:relative;user-select:none;}
 .bulk-dd-btn{padding:7px 30px 7px 12px;border-radius:8px;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font-size:13px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:8px;min-width:180px;}
@@ -25,8 +25,8 @@
 .bulk-dd-item:hover{background:rgba(255,255,255,.1);color:#fff;}
 .bulk-dd-item.placeholder{color:rgba(255,255,255,.4);cursor:default;}
 .bulk-dd-item.placeholder:hover{background:none;}
-.btn-bulk-apply{padding:7px 14px;border-radius:8px;border:none;background:var(--brand);color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .15s;}
-.btn-bulk-apply:hover{background:var(--brand-dark);}
+.btn-bulk-apply{padding:7px 14px;border-radius:8px;border:none;background:#FF8A00;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .15s;}
+.btn-bulk-apply:hover{background:#e07500;}
 .btn-bulk-delete{padding:7px 14px;border-radius:8px;border:1.5px solid rgba(239,68,68,.5);background:rgba(239,68,68,.12);color:#fca5a5;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s;}
 .btn-bulk-delete:hover{background:rgba(239,68,68,.25);border-color:rgba(239,68,68,.8);}
 .btn-bulk-cancel{margin-left:auto;padding:5px 12px;border-radius:8px;border:1.5px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.5);font-size:12px;cursor:pointer;transition:all .15s;}
