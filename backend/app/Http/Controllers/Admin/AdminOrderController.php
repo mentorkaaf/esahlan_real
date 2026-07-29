@@ -232,14 +232,43 @@ class AdminOrderController extends Controller
             } catch (\Throwable) {}
         }
 
-        // ── Notify available drivers when order is confirmed (new order available) ──
+        // ── Notify nearby drivers when order is confirmed (proximity-based) ──
         if (in_array($request->status, ['confirmed', 'ready_for_pickup']) && !$order->deliveryman_id) {
             try {
+                // Get pickup coordinates from vendor (or district fallback)
+                $order->load('vendor');
+                $pickupLat = (float) ($order->vendor?->latitude ?? 0);
+                $pickupLng = (float) ($order->vendor?->longitude ?? 0);
+
+                $radiusKm = 10; // notify drivers within 10 km of pickup
+
                 $onlineDrivers = Deliveryman::where('is_approved', true)
                     ->where('is_online', true)
                     ->whereNotNull('fcm_token')
+                    ->whereNotNull('latitude')
+                    ->whereNotNull('longitude')
+                    ->when($pickupLat && $pickupLng, function ($q) use ($pickupLat, $pickupLng, $radiusKm) {
+                        // Haversine distance filter (km) — runs in SQL
+                        $q->whereRaw(
+                            '(6371 * acos(
+                                cos(radians(?)) * cos(radians(latitude))
+                                * cos(radians(longitude) - radians(?))
+                                + sin(radians(?)) * sin(radians(latitude))
+                            )) <= ?',
+                            [$pickupLat, $pickupLng, $pickupLat, $radiusKm]
+                        );
+                    })
                     ->pluck('fcm_token')
                     ->toArray();
+
+                // Fallback: if no nearby drivers have location data, notify all online drivers
+                if (empty($onlineDrivers)) {
+                    $onlineDrivers = Deliveryman::where('is_approved', true)
+                        ->where('is_online', true)
+                        ->whereNotNull('fcm_token')
+                        ->pluck('fcm_token')
+                        ->toArray();
+                }
                 if (!empty($onlineDrivers)) {
                     $tpl = \App\Models\OrderNotificationTemplate::resolve($request->status, $order->module_slug, 'driver');
                     $title = $tpl['title'];
