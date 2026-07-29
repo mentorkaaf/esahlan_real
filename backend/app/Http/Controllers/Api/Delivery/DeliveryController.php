@@ -192,13 +192,16 @@ class DeliveryController extends Controller
         $driverLat = (float) ($dm->latitude ?? 0);
         $driverLng = (float) ($dm->longitude ?? 0);
 
+        // Location must be fresh (within 10 min) to use proximity filter
+        $locationFresh = $dm->last_location_at && \Carbon\Carbon::parse($dm->last_location_at)->gt(now()->subMinutes(10));
+
         $query = Order::whereNull('deliveryman_id')
             ->whereIn('status', ['confirmed', 'preparing', 'ready_for_pickup'])
             ->whereIn('module_slug', $allowedModules)
             ->with(['vendor:id,name,address,latitude,longitude,phone,logo,district_id', 'user:id,name,phone']);
 
         // Proximity filter — only show orders whose pickup is within radius of driver
-        if ($driverLat && $driverLng) {
+        if ($driverLat && $driverLng && $locationFresh) {
             $query->where(function ($q) use ($driverLat, $driverLng, $radiusKm) {
                 // eparcel: pickup district lat/lng stored in note JSON
                 // emoving: from_district in note JSON
@@ -238,9 +241,9 @@ class DeliveryController extends Controller
 
         $orders = $query->latest()->limit(30)->get()
             ->map(fn($o) => $this->formatOrder($o, $dm))
-            ->filter(function ($formatted) use ($driverLat, $driverLng, $radiusKm) {
+            ->filter(function ($formatted) use ($driverLat, $driverLng, $radiusKm, $locationFresh) {
                 // Post-filter: for eParcel/eMoving (no vendor), check pickup distance after format
-                if (!$driverLat || !$driverLng) return true;
+                if (!$driverLat || !$driverLng || !$locationFresh) return true;
                 $pLat = $formatted['pickup']['lat'] ?? 0;
                 $pLng = $formatted['pickup']['lng'] ?? 0;
                 if (!$pLat || !$pLng) return true; // no coords — include

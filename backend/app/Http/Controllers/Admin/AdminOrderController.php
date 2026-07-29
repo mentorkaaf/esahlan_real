@@ -282,14 +282,16 @@ class AdminOrderController extends Controller
                 }
 
                 $radiusKm = (float) \App\Helpers\AppSettings::get('driver_notification_radius_km', 2);
+                // Location is considered fresh if updated within 10 minutes
+                $locationFreshCutoff = now()->subMinutes(10);
 
                 $onlineDrivers = Deliveryman::where('is_approved', true)
                     ->where('is_online', true)
                     ->whereNotNull('fcm_token')
                     ->whereNotNull('latitude')
                     ->whereNotNull('longitude')
+                    ->where('last_location_at', '>=', $locationFreshCutoff)
                     ->when($pickupLat && $pickupLng, function ($q) use ($pickupLat, $pickupLng, $radiusKm) {
-                        // Haversine distance filter (km) — runs in SQL
                         $q->whereRaw(
                             '(6371 * acos(
                                 cos(radians(?)) * cos(radians(latitude))
@@ -302,14 +304,8 @@ class AdminOrderController extends Controller
                     ->pluck('fcm_token')
                     ->toArray();
 
-                // Fallback: if no nearby drivers have location data, notify all online drivers
-                if (empty($onlineDrivers)) {
-                    $onlineDrivers = Deliveryman::where('is_approved', true)
-                        ->where('is_online', true)
-                        ->whereNotNull('fcm_token')
-                        ->pluck('fcm_token')
-                        ->toArray();
-                }
+                // No nearby drivers with fresh location — skip notification
+                // (do NOT fall back to all drivers; stale/unknown location = unreliable proximity)
                 if (!empty($onlineDrivers)) {
                     $tpl = \App\Models\OrderNotificationTemplate::resolve($request->status, $order->module_slug, 'driver');
                     $title = $tpl['title'];
