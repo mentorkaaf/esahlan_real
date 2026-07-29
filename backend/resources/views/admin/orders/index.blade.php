@@ -16,8 +16,15 @@
 .bulk-count{font-weight:700;font-size:13px;white-space:nowrap;}
 .bulk-count span{background:var(--brand);color:#fff;padding:2px 8px;border-radius:20px;margin-right:4px;}
 .bulk-sep{width:1px;height:22px;background:rgba(255,255,255,.15);}
-.bulk-status-sel{padding:7px 12px;border-radius:8px;border:1.5px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:13px;outline:none;cursor:pointer;font-family:inherit;}
-.bulk-status-sel option{background:var(--navy);color:#fff;}
+.bulk-dd{position:relative;user-select:none;}
+.bulk-dd-btn{padding:7px 30px 7px 12px;border-radius:8px;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font-size:13px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:8px;min-width:180px;}
+.bulk-dd-btn::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;opacity:.7;}
+.bulk-dd-menu{display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:100%;background:#1e293b;border:1px solid rgba(255,255,255,.15);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:9999;overflow:hidden;}
+.bulk-dd-menu.open{display:block;}
+.bulk-dd-item{padding:9px 14px;color:#e2e8f0;font-size:13px;cursor:pointer;transition:background .12s;}
+.bulk-dd-item:hover{background:rgba(255,255,255,.1);color:#fff;}
+.bulk-dd-item.placeholder{color:rgba(255,255,255,.4);cursor:default;}
+.bulk-dd-item.placeholder:hover{background:none;}
 .btn-bulk-apply{padding:7px 14px;border-radius:8px;border:none;background:var(--brand);color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .15s;}
 .btn-bulk-apply:hover{background:var(--brand-dark);}
 .btn-bulk-delete{padding:7px 14px;border-radius:8px;border:1.5px solid rgba(239,68,68,.5);background:rgba(239,68,68,.12);color:#fca5a5;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s;}
@@ -150,16 +157,22 @@ document.getElementById('driversMapWrap')?.addEventListener('transitionend', fun
     <div class="bulk-sep"></div>
     <div class="bulk-count"><span id="bulkCount">0</span> selected</div>
     <div class="bulk-sep"></div>
-    <select class="bulk-status-sel" id="bulkStatusSel">
-        <option value="">— Change status to —</option>
-        <option value="pending">Pending</option>
-        <option value="confirmed">Confirmed</option>
-        <option value="preparing">Preparing</option>
-        <option value="ready_for_pickup">Ready for Pickup</option>
-        <option value="out_for_delivery">Out for Delivery</option>
-        <option value="delivered">Delivered</option>
-        <option value="cancelled">Cancelled</option>
-    </select>
+    <div class="bulk-dd" id="bulkDd">
+        <div class="bulk-dd-btn" id="bulkDdBtn" onclick="toggleBulkDd()">
+            <span id="bulkDdLabel">— Change status to —</span>
+        </div>
+        <div class="bulk-dd-menu" id="bulkDdMenu">
+            <div class="bulk-dd-item placeholder" onclick="setBulkStatus('','— Change status to —')">— Change status to —</div>
+            <div class="bulk-dd-item" onclick="setBulkStatus('pending','Pending')">Pending</div>
+            <div class="bulk-dd-item" onclick="setBulkStatus('confirmed','Confirmed')">Confirmed</div>
+            <div class="bulk-dd-item" onclick="setBulkStatus('preparing','Preparing')">Preparing</div>
+            <div class="bulk-dd-item" onclick="setBulkStatus('ready_for_pickup','Ready for Pickup')">Ready for Pickup</div>
+            <div class="bulk-dd-item" onclick="setBulkStatus('out_for_delivery','Out for Delivery')">Out for Delivery</div>
+            <div class="bulk-dd-item" onclick="setBulkStatus('delivered','Delivered')">Delivered</div>
+            <div class="bulk-dd-item" onclick="setBulkStatus('cancelled','Cancelled')">Cancelled</div>
+        </div>
+    </div>
+    <input type="hidden" id="bulkStatusSel" value="">
     <button class="btn-bulk-apply" onclick="bulkApply()"><i class="fas fa-check"></i> Apply</button>
     <div class="bulk-sep"></div>
     <button class="btn-bulk-delete" onclick="bulkDelete()"><i class="fas fa-trash"></i> Delete</button>
@@ -581,6 +594,21 @@ function clearSelection() {
     if (ga) ga.checked = false;
     updateBar();
 }
+let _bulkStatus = '';
+function toggleBulkDd() {
+    document.getElementById('bulkDdMenu').classList.toggle('open');
+}
+function setBulkStatus(val, label) {
+    _bulkStatus = val;
+    document.getElementById('bulkStatusSel').value = val;
+    document.getElementById('bulkDdLabel').textContent = label;
+    document.getElementById('bulkDdMenu').classList.remove('open');
+}
+document.addEventListener('click', function(e) {
+    if (!document.getElementById('bulkDd')?.contains(e.target)) {
+        document.getElementById('bulkDdMenu')?.classList.remove('open');
+    }
+});
 function bulkApply() {
     const status = document.getElementById('bulkStatusSel').value;
     if (!status) { alert('Please select a status.'); return; }
