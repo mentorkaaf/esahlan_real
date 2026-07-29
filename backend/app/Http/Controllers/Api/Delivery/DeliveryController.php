@@ -187,15 +187,69 @@ class DeliveryController extends Controller
         }
 
         $allowedModules = $dm->driver_type === 'truck' ? self::TRUCK_MODULES : self::NORMAL_MODULES;
+        $radiusKm = (float) \App\Helpers\AppSettings::get('driver_notification_radius_km', 2);
 
-        $orders = Order::whereNull('deliveryman_id')
+        $driverLat = (float) ($dm->latitude ?? 0);
+        $driverLng = (float) ($dm->longitude ?? 0);
+
+        $query = Order::whereNull('deliveryman_id')
             ->whereIn('status', ['confirmed', 'preparing', 'ready_for_pickup'])
             ->whereIn('module_slug', $allowedModules)
-            ->with(['vendor:id,name,address,latitude,longitude,phone,logo', 'user:id,name,phone'])
-            ->latest()
-            ->limit(20)
-            ->get()
-            ->map(fn($o) => $this->formatOrder($o, $dm));
+            ->with(['vendor:id,name,address,latitude,longitude,phone,logo,district_id', 'user:id,name,phone']);
+
+        // Proximity filter — only show orders whose pickup is within radius of driver
+        if ($driverLat && $driverLng) {
+            $query->where(function ($q) use ($driverLat, $driverLng, $radiusKm) {
+                // eparcel: pickup district lat/lng stored in note JSON
+                // emoving: from_district in note JSON
+                // standard: vendor lat/lng (or vendor's district)
+                // We filter by vendor lat/lng for standard, and fallback via subquery for parcel/moving
+                $q->where(function ($std) use ($driverLat, $driverLng, $radiusKm) {
+                    // Standard modules with vendor having direct coordinates
+                    $std->whereNotNull('vendor_id')
+                        ->whereHas('vendor', function ($v) use ($driverLat, $driverLng, $radiusKm) {
+                            $v->whereRaw(
+                                '(6371 * acos(cos(radians(?)) * cos(radians(latitude))
+                                    * cos(radians(longitude) - radians(?))
+                                    + sin(radians(?)) * sin(radians(latitude)))) <= ?',
+                                [$driverLat, $driverLng, $driverLat, $radiusKm]
+                            )->whereNotNull('latitude')->whereNotNull('longitude');
+                        });
+                })->orWhere(function ($distFallback) use ($driverLat, $driverLng, $radiusKm) {
+                    // Vendor has no direct coordinates — use vendor's district
+                    $distFallback->whereNotNull('vendor_id')
+                        ->whereHas('vendor', function ($v) {
+                            $v->whereNull('latitude')->orWhereNull('longitude');
+                        })
+                        ->whereHas('vendor.district', function ($d) use ($driverLat, $driverLng, $radiusKm) {
+                            $d->whereRaw(
+                                '(6371 * acos(cos(radians(?)) * cos(radians(latitude))
+                                    * cos(radians(longitude) - radians(?))
+                                    + sin(radians(?)) * sin(radians(latitude)))) <= ?',
+                                [$driverLat, $driverLng, $driverLat, $radiusKm]
+                            );
+                        });
+                })->orWhere(function ($noVendor) {
+                    // eParcel / eMoving — no vendor; always include, distance checked after fetch
+                    $noVendor->whereNull('vendor_id');
+                });
+            });
+        }
+
+        $orders = $query->latest()->limit(30)->get()
+            ->map(fn($o) => $this->formatOrder($o, $dm))
+            ->filter(function ($formatted) use ($driverLat, $driverLng, $radiusKm) {
+                // Post-filter: for eParcel/eMoving (no vendor), check pickup distance after format
+                if (!$driverLat || !$driverLng) return true;
+                $pLat = $formatted['pickup']['lat'] ?? 0;
+                $pLng = $formatted['pickup']['lng'] ?? 0;
+                if (!$pLat || !$pLng) return true; // no coords — include
+                $dist = 6371 * acos(min(1, cos(deg2rad($driverLat)) * cos(deg2rad($pLat))
+                    * cos(deg2rad($pLng) - deg2rad($driverLng))
+                    + sin(deg2rad($driverLat)) * sin(deg2rad($pLat))));
+                return $dist <= $radiusKm;
+            })
+            ->values();
 
         return response()->json(['success' => true, 'data' => $orders]);
     }
