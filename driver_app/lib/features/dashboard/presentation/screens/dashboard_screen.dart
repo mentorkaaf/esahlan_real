@@ -61,10 +61,10 @@ class DashboardScreen extends ConsumerWidget {
                 _OnlineCard(isOnline: d['is_online'] == true, onToggle: () async {
                   await ref.read(authRepoProvider).toggleStatus();
                   ref.invalidate(_dashProvider);
-                  if (d['is_online'] != true) {
+                  // Always keep tracking running — admin map shows driver location
+                  // regardless of online/offline status. Only logout stops tracking.
+                  if (!DriverLocationService.isRunning) {
                     DriverLocationService.startTracking();
-                  } else {
-                    DriverLocationService.stopTracking();
                   }
                 }),
                 const SizedBox(height: 20),
