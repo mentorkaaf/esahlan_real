@@ -133,6 +133,7 @@ class _NewOrderCard extends StatelessWidget {
     final isParcel = module == 'eparcel';
     final isMoving = module == 'emoving';
     final pickupLabel = const {'efood': 'You → Restaurant', 'eparcel': 'You → Sender', 'emoving': 'You → Pickup', 'elaundry': 'You → Laundry'}[module] ?? 'You → Store';
+    final dropoffLabel = const {'eparcel': 'Sender → Receiver', 'emoving': 'Pickup → Dropoff', 'efood': 'Restaurant → Customer'}[module] ?? 'Store → Customer';
 
     final pickupLat = double.tryParse('${pickup['lat'] ?? 0}') ?? 0;
     final pickupLng = double.tryParse('${pickup['lng'] ?? 0}') ?? 0;
@@ -289,7 +290,7 @@ class _NewOrderCard extends StatelessWidget {
               _DistanceStat(
                 icon: Icons.place_rounded,
                 color: DC.success,
-                label: 'Store → Customer',
+                label: dropoffLabel,
                 value: distance != null ? '$distance km' : '—',
               ),
             ]),
