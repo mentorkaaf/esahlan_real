@@ -33,30 +33,30 @@ class AdminVendorController extends Controller
 
         $vid = $vendor->id;
 
-        // Orders stats
+        // Orders stats — subtotal only (excludes delivery_fee; commission is on items, not delivery)
         $orderStats = DB::table('orders')->where('vendor_id', $vid)->selectRaw("
             COUNT(*) as total,
-            SUM(total_amount) as revenue,
-            SUM(CASE WHEN status='delivered' THEN total_amount ELSE 0 END) as delivered_revenue,
+            SUM(subtotal) as revenue,
+            SUM(CASE WHEN status='delivered' THEN subtotal ELSE 0 END) as delivered_revenue,
             SUM(CASE WHEN status='delivered' THEN 1 ELSE 0 END) as delivered,
             SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END) as cancelled,
             SUM(CASE WHEN status='pending'   THEN 1 ELSE 0 END) as pending,
-            AVG(total_amount) as avg_order,
+            AVG(subtotal) as avg_order,
             COUNT(DISTINCT user_id) as unique_customers
         ")->first();
 
-        // This month vs last month
+        // This month vs last month (subtotal only)
         $thisMonth = DB::table('orders')->where('vendor_id', $vid)
             ->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)
-            ->selectRaw('COUNT(*) as orders, SUM(total_amount) as revenue')->first();
+            ->selectRaw('COUNT(*) as orders, SUM(subtotal) as revenue')->first();
         $lastMonth = DB::table('orders')->where('vendor_id', $vid)
             ->whereMonth('created_at', now()->subMonth()->month)->whereYear('created_at', now()->subMonth()->year)
-            ->selectRaw('COUNT(*) as orders, SUM(total_amount) as revenue')->first();
+            ->selectRaw('COUNT(*) as orders, SUM(subtotal) as revenue')->first();
 
-        // Last 30 days daily chart
+        // Last 30 days daily chart (subtotal only)
         $chart = DB::table('orders')->where('vendor_id', $vid)
             ->where('created_at', '>=', now()->subDays(29))
-            ->selectRaw('DATE(created_at) as date, COUNT(*) as orders, SUM(total_amount) as revenue')
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as orders, SUM(subtotal) as revenue')
             ->groupBy(DB::raw('DATE(created_at)'))->orderBy('date')->get();
 
         // Commission — prefer commissions table, fall back to calculating from orders + vendor rate
