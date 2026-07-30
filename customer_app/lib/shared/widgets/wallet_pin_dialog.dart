@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/theme_x.dart';
 import '../../core/api/module_api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/storage/local_storage.dart';
+import '../../features/auth/data/models/user_model.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 
 /// Shows PIN verify dialog (or setup dialog if user has no PIN yet).
@@ -92,6 +94,12 @@ class _WalletPinSetupDialogState extends State<_WalletPinSetupDialog> {
       final svc = ModuleApiService.create();
       final res = await svc.setWalletPin(_pin);
       if (res['success'] == true) {
+        // Update local storage so authStateProvider reads hasWalletPin=true immediately
+        final userJson = await LocalStorage.getString('user_data');
+        if (userJson != null) {
+          final user = UserModel.fromJsonString(userJson);
+          await LocalStorage.saveString('user_data', user.copyWith(hasWalletPin: true).toJsonString());
+        }
         if (mounted) Navigator.of(context).pop(true);
       } else {
         setState(() { _loading = false; _error = res['message'] ?? 'Failed to set PIN'; });
