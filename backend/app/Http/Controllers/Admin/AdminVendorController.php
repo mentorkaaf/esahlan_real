@@ -162,4 +162,15 @@ class AdminVendorController extends Controller
         $vendor->delete();
         return redirect()->route('admin.vendors.index')->with('success', 'Vendor deleted.');
     }
+
+    public function bulkDestroy(Request $request)
+    {
+        $ids = $request->input('ids', []);
+        if (empty($ids)) {
+            return back()->with('error', 'No vendors selected.');
+        }
+        $count = Vendor::whereIn('id', $ids)->count();
+        Vendor::whereIn('id', $ids)->delete();
+        return back()->with('success', "{$count} vendor(s) deleted.");
+    }
 }

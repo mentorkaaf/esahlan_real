@@ -222,6 +222,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
         // Vendors
         Route::prefix('vendors')->name('vendors.')->group(function () {
             Route::get('/', [AdminVendorController::class, 'index'])->name('index');
+            Route::delete('/bulk-destroy', [AdminVendorController::class, 'bulkDestroy'])->name('bulk-destroy');
             Route::get('/{vendor}', [AdminVendorController::class, 'show'])->name('show');
             Route::post('/{vendor}/approve', [AdminVendorController::class, 'approve'])->name('approve');
             Route::post('/{vendor}/reject', [AdminVendorController::class, 'reject'])->name('reject');
