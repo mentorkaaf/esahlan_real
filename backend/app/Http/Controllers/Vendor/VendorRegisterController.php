@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use App\Mail\WelcomeVendorMail;
+use Illuminate\Support\Facades\Mail;
 
 class VendorRegisterController extends Controller
 {
@@ -107,6 +109,12 @@ class VendorRegisterController extends Controller
                 'is_open'          => true,
             ]);
         });
+
+        $vendorEmail = $request->email;
+        $vendorName  = $request->name;
+        if ($vendorEmail) {
+            try { Mail::to($vendorEmail)->send(new WelcomeVendorMail($vendorName)); } catch (\Exception) {}
+        }
 
         return redirect()->route('vendor.login')
             ->with('register_success', true)

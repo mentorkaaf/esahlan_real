@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0f1425; font-family:'Segoe UI',Arial,sans-serif; padding:40px 20px; }
+  .wrap { max-width:520px; margin:0 auto; }
+  .card { background:#1a2035; border-radius:20px; overflow:hidden; border:1px solid rgba(255,255,255,0.07); }
+  .header { background:linear-gradient(135deg,#FF8A00 0%,#e06000 100%); padding:36px 40px; text-align:center; }
+  .logo { font-size:2rem; font-weight:900; color:#fff; letter-spacing:-1px; }
+  .tagline { color:rgba(255,255,255,0.8); font-size:.82rem; margin-top:4px; }
+  .body { padding:40px; }
+  .greeting { color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:10px; }
+  .desc { color:rgba(255,255,255,0.55); font-size:.9rem; line-height:1.7; margin-bottom:30px; }
+  .otp-box { background:#0f1425; border:2px solid rgba(255,138,0,0.3); border-radius:16px; padding:28px; text-align:center; margin-bottom:28px; }
+  .otp-label { color:rgba(255,255,255,0.4); font-size:.72rem; letter-spacing:2px; text-transform:uppercase; margin-bottom:12px; }
+  .otp-code { font-size:2.8rem; font-weight:900; letter-spacing:12px; color:#FF8A00; font-family:'Courier New',monospace; }
+  .otp-expire { color:rgba(255,255,255,0.35); font-size:.78rem; margin-top:12px; }
+  .warning { background:rgba(255,138,0,0.07); border-left:3px solid #FF8A00; border-radius:8px; padding:14px 18px; margin-bottom:28px; }
+  .warning p { color:rgba(255,255,255,0.5); font-size:.82rem; line-height:1.6; }
+  .warning strong { color:rgba(255,138,0,0.9); }
+  .footer { padding:20px 40px 28px; text-align:center; }
+  .footer p { color:rgba(255,255,255,0.2); font-size:.75rem; line-height:1.7; }
+  .footer a { color:#FF8A00; text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="header">
+      <div class="logo">eSahlan</div>
+      <div class="tagline">12 Services · One App · Somalia</div>
+    </div>
+    <div class="body">
+      <p class="greeting">Hello, {{name}}!</p>
+      <p class="desc">Use the verification code below to complete your request.</p>
+      <div class="otp-box">
+        <div class="otp-label">Your verification code</div>
+        <div class="otp-code">{{code}}</div>
+        <div class="otp-expire">⏱ Expires in 10 minutes</div>
+      </div>
+      <div class="warning">
+        <p><strong>Security notice:</strong> Never share this code with anyone. eSahlan staff will never ask for your OTP.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <p>&copy; {{year}} eSahlan — Mogadishu, Somalia<br>
+      <a href="https://esahlan.com">esahlan.com</a> · <a href="mailto:info@esahlan.com">info@esahlan.com</a></p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

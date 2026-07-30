@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /vendor/
+Disallow: /employee/
+Disallow: /api/
+Disallow: /horizon/
+
+Sitemap: https://esahlan.com/sitemap.xml

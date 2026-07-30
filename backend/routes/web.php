@@ -36,6 +36,7 @@ use App\Http\Controllers\Admin\AdminCryptoController;
 use App\Http\Controllers\Admin\AdminELearningController;
 use App\Http\Controllers\Employee\EmployeeAuthController;
 use App\Http\Controllers\Employee\EmployeeController;
+use App\Http\Controllers\Admin\AdminEmailTemplateController;
 
 // ─── Vendor Panel ────────────────────────────────────────────────────────────
 Route::prefix('vendor')->name('vendor.')->group(function () {
@@ -810,6 +811,15 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
         Route::get('/dispatch/orders', [DispatchController::class, 'activeOrders'])->name('dispatch.orders');
         Route::post('/dispatch/assign', [DispatchController::class, 'manualAssign'])->name('dispatch.assign');
         Route::get('/dispatch/deliverymen/available', [DispatchController::class, 'availableDeliverymen'])->name('dispatch.deliverymen');
+
+        // Email Templates
+        Route::prefix('email-templates')->name('email-templates.')->group(function () {
+            Route::get('/', [AdminEmailTemplateController::class, 'index'])->name('index');
+            Route::get('/{emailTemplate}/edit', [AdminEmailTemplateController::class, 'edit'])->name('edit');
+            Route::put('/{emailTemplate}', [AdminEmailTemplateController::class, 'update'])->name('update');
+            Route::get('/{emailTemplate}/preview', [AdminEmailTemplateController::class, 'preview'])->name('preview');
+            Route::post('/{emailTemplate}/send-test', [AdminEmailTemplateController::class, 'sendTest'])->name('send-test');
+        });
 
         // ─── eLearning ────────────────────────────────────────────────────────
         Route::prefix('elearning')->name('elearning.')->group(function () {

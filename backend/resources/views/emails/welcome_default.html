@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0f1425; font-family:'Segoe UI',Arial,sans-serif; padding:40px 20px; }
+  .wrap { max-width:520px; margin:0 auto; }
+  .card { background:#1a2035; border-radius:20px; overflow:hidden; border:1px solid rgba(255,255,255,0.07); }
+  .header { background:linear-gradient(135deg,#FF8A00 0%,#e06000 100%); padding:36px 40px; text-align:center; }
+  .logo { font-size:2rem; font-weight:900; color:#fff; letter-spacing:-1px; }
+  .tagline { color:rgba(255,255,255,0.8); font-size:.82rem; margin-top:4px; }
+  .hero-text { color:rgba(255,255,255,0.95); font-size:1.3rem; font-weight:700; margin-top:14px; }
+  .body { padding:40px; }
+  .greeting { color:#fff; font-size:1.1rem; font-weight:600; margin-bottom:10px; }
+  .desc { color:rgba(255,255,255,0.55); font-size:.9rem; line-height:1.75; margin-bottom:28px; }
+  .services { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:28px; }
+  .svc { background:#0f1425; border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:12px 14px; display:flex; align-items:center; gap:8px; }
+  .svc-dot { width:8px; height:8px; border-radius:50%; background:#FF8A00; flex-shrink:0; }
+  .svc-name { color:rgba(255,255,255,0.6); font-size:.8rem; font-weight:600; }
+  .cta { text-align:center; margin-bottom:28px; }
+  .btn { display:inline-block; background:linear-gradient(135deg,#FF8A00,#e06000); color:#fff; text-decoration:none; padding:14px 36px; border-radius:50px; font-weight:700; font-size:.9rem; }
+  .footer { padding:20px 40px 28px; text-align:center; }
+  .footer p { color:rgba(255,255,255,0.2); font-size:.75rem; line-height:1.7; }
+  .footer a { color:#FF8A00; text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="header">
+      <div class="logo">eSahlan</div>
+      <div class="tagline">12 Services · One App · Somalia</div>
+      <div class="hero-text">Welcome aboard! 🎉</div>
+    </div>
+    <div class="body">
+      <p class="greeting">Hello, {{name}}!</p>
+      <p class="desc">Your eSahlan account is ready. You now have access to Somalia's all-in-one super-app — order food, shop online, send parcels, book health services, and much more.</p>
+      <div class="services">
+        <div class="svc"><div class="svc-dot"></div><span class="svc-name">eFood</span></div>
+        <div class="svc"><div class="svc-dot"></div><span class="svc-name">eGrocery</span></div>
+        <div class="svc"><div class="svc-dot"></div><span class="svc-name">eShop</span></div>
+        <div class="svc"><div class="svc-dot"></div><span class="svc-name">eParcel</span></div>
+        <div class="svc"><div class="svc-dot"></div><span class="svc-name">eHealth</span></div>
+        <div class="svc"><div class="svc-dot"></div><span class="svc-name">eRent</span></div>
+        <div class="svc"><div class="svc-dot"></div><span class="svc-name">eMoving</span></div>
+        <div class="svc"><div class="svc-dot"></div><span class="svc-name">eExchange</span></div>
+      </div>
+      <div class="cta">
+        <a href="https://esahlan.com" class="btn">Open eSahlan App</a>
+      </div>
+    </div>
+    <div class="footer">
+      <p>&copy; {{year}} eSahlan — Mogadishu, Somalia<br>
+      <a href="https://esahlan.com">esahlan.com</a> · <a href="mailto:info@esahlan.com">info@esahlan.com</a></p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

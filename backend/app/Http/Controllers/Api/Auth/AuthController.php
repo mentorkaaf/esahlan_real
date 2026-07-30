@@ -17,6 +17,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use App\Services\AffiliateService;
+use App\Mail\OtpMail;
+use App\Mail\WelcomeMail;
+use Illuminate\Support\Facades\Mail;
 
 class AuthController extends Controller
 {
@@ -94,6 +97,10 @@ class AuthController extends Controller
             ['user_id' => $user->id, 'identifier' => $user->phone]
         ));
 
+        if ($user->email) {
+            try { Mail::to($user->email)->send(new WelcomeMail($user->name)); } catch (\Exception) {}
+        }
+
         $token = $user->createToken('mobile')->plainTextToken;
 
         return response()->json([
@@ -106,7 +113,8 @@ class AuthController extends Controller
     public function sendOtp(Request $request)
     {
         $v = Validator::make($request->all(), [
-            'phone'   => 'required|string',
+            'phone'   => 'required_without:email|string',
+            'email'   => 'required_without:phone|email',
             'purpose' => 'required|in:register,login,reset_password',
         ]);
 
@@ -114,20 +122,28 @@ class AuthController extends Controller
             return response()->json(['success' => false, 'errors' => $v->errors()], 422);
         }
 
+        $identifier = $request->email ?? $request->phone;
+        $isEmail    = $request->filled('email');
+
         $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
-        OtpCode::where('phone', $request->phone)->where('type', $request->purpose)->delete();
+        OtpCode::where('phone', $identifier)->where('type', $request->purpose)->delete();
 
         OtpCode::create([
-            'phone'      => $request->phone,
+            'phone'      => $identifier,
             'code'       => $code,
             'type'       => $request->purpose,
             'expires_at' => now()->addMinutes(10),
         ]);
 
+        if ($isEmail) {
+            $userName = User::where('email', $identifier)->value('name') ?? '';
+            try { Mail::to($identifier)->send(new OtpMail($code, $request->purpose, $userName)); } catch (\Exception) {}
+        }
+
         SecurityAuditService::log('otp.sent', 'info', array_merge(
             SecurityAuditService::fromRequest($request),
-            ['identifier' => $request->phone, 'purpose' => $request->purpose]
+            ['identifier' => $identifier, 'purpose' => $request->purpose]
         ));
 
         $responseData = ['message' => 'OTP sent successfully'];
@@ -141,7 +157,8 @@ class AuthController extends Controller
     public function verifyOtp(Request $request)
     {
         $v = Validator::make($request->all(), [
-            'phone'   => 'required|string',
+            'phone'   => 'required_without:email|string',
+            'email'   => 'required_without:phone|email',
             'code'    => 'required|string|size:6',
             'purpose' => 'required|in:register,login,reset_password',
         ]);
@@ -150,7 +167,9 @@ class AuthController extends Controller
             return response()->json(['success' => false, 'errors' => $v->errors()], 422);
         }
 
-        $otp = OtpCode::where('phone', $request->phone)
+        $identifier = $request->email ?? $request->phone;
+
+        $otp = OtpCode::where('phone', $identifier)
             ->where('code', $request->code)
             ->where('type', $request->purpose)
             ->where('expires_at', '>', now())
@@ -160,7 +179,7 @@ class AuthController extends Controller
         if (!$otp) {
             SecurityAuditService::log('otp.failed', 'warn', array_merge(
                 SecurityAuditService::fromRequest($request),
-                ['identifier' => $request->phone, 'purpose' => $request->purpose]
+                ['identifier' => $identifier, 'purpose' => $request->purpose]
             ));
             return response()->json(['success' => false, 'message' => 'Invalid or expired OTP'], 422);
         }
@@ -168,12 +187,12 @@ class AuthController extends Controller
         $otp->update(['used_at' => now()]);
 
         if ($request->purpose === 'register' || $request->purpose === 'login') {
-            User::where('phone', $request->phone)->update(['phone_verified_at' => now()]);
+            User::where('phone', $identifier)->orWhere('email', $identifier)->update(['phone_verified_at' => now()]);
         }
 
         SecurityAuditService::log('otp.verified', 'ok', array_merge(
             SecurityAuditService::fromRequest($request),
-            ['identifier' => $request->phone, 'purpose' => $request->purpose]
+            ['identifier' => $identifier, 'purpose' => $request->purpose]
         ));
 
         return response()->json(['success' => true, 'message' => 'OTP verified']);
@@ -374,7 +393,10 @@ class AuthController extends Controller
 
     public function forgotPassword(Request $request)
     {
-        $v = Validator::make($request->all(), ['phone' => 'required|string|exists:users,phone']);
+        $v = Validator::make($request->all(), [
+            'phone' => 'required_without:email|string|exists:users,phone',
+            'email' => 'required_without:phone|email|exists:users,email',
+        ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
         $request->merge(['purpose' => 'reset_password']);
@@ -384,13 +406,16 @@ class AuthController extends Controller
     public function resetPassword(Request $request)
     {
         $v = Validator::make($request->all(), [
-            'phone'    => 'required|string|exists:users,phone',
+            'phone'    => 'required_without:email|string|exists:users,phone',
+            'email'    => 'required_without:phone|email|exists:users,email',
             'code'     => 'required|string|size:6',
             'password' => 'required|string|min:8|confirmed',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
-        $otp = OtpCode::where('phone', $request->phone)
+        $identifier = $request->email ?? $request->phone;
+
+        $otp = OtpCode::where('phone', $identifier)
             ->where('code', $request->code)
             ->where('type', 'reset_password')
             ->where('expires_at', '>', now())
@@ -401,7 +426,11 @@ class AuthController extends Controller
             return response()->json(['success' => false, 'message' => 'Invalid or expired OTP. Please verify OTP first.'], 422);
         }
 
-        User::where('phone', $request->phone)->update([
+        $query = $request->filled('email')
+            ? User::where('email', $identifier)
+            : User::where('phone', $identifier);
+
+        $query->update([
             'password'   => Hash::make($request->password),
             'wallet_pin' => Hash::make($request->password),
         ]);
@@ -409,7 +438,7 @@ class AuthController extends Controller
 
         SecurityAuditService::log('password.reset', 'warn', array_merge(
             SecurityAuditService::fromRequest($request),
-            ['identifier' => $request->phone]
+            ['identifier' => $identifier]
         ));
 
         return response()->json(['success' => true, 'message' => 'Password reset successfully']);
