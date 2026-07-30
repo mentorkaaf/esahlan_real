@@ -398,7 +398,10 @@ class WalletController extends Controller
             return response()->json(['success' => false, 'message' => 'PIN must be 4 digits'], 422);
         }
 
-        $request->user()->update(['wallet_pin' => Hash::make($request->pin)]);
+        $request->user()->update([
+            'wallet_pin'     => Hash::make($request->pin),
+            'has_wallet_pin' => true,
+        ]);
         return response()->json(['success' => true, 'message' => 'Wallet PIN set successfully']);
     }
 }
