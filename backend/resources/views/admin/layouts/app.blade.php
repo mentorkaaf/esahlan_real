@@ -734,6 +734,9 @@
         <a href="{{ route('admin.landing.index') }}" class="nav-link {{ request()->routeIs('admin.landing.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-paint-brush"></i></div> Landing Page
         </a>
+        <a href="{{ route('admin.email-templates.index') }}" class="nav-link {{ request()->is('admin/email-templates*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-envelope-open-text"></i></div> Email Templates
+        </a>
         <a href="{{ route('admin.settings.index') }}" class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-cog"></i></div> Settings
         </a>
