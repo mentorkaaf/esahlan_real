@@ -335,14 +335,16 @@ class AdminOrderController extends Controller
         $userEmail = $order->user?->email;
         if ($userEmail) {
             try {
-                $moduleLabel = self::MODULE_GROUPS[$order->module_slug]['label'] ?? 'eSahlan';
+                $moduleLabel = self::MODULE_META[$order->module_slug]['label'] ?? 'eSahlan';
                 Mail::to($userEmail)->send(new OrderStatusMail(
                     $order->user->name,
                     $order->order_number,
                     $request->status,
                     $moduleLabel,
                 ));
-            } catch (\Throwable) {}
+            } catch (\Throwable $e) {
+                \Log::error('[OrderMail] failed: ' . $e->getMessage());
+            }
         }
 
         return back()->with('success', 'Order status updated to ' . $request->status);
