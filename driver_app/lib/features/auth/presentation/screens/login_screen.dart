@@ -40,6 +40,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    final c = context.dc;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final state = ref.watch(loginProvider);
     ref.listen(loginProvider, (_, next) {
       if (next.hasError) {
@@ -49,10 +51,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft, end: Alignment.bottomRight,
-            colors: [Color(0xFF0A1628), Color(0xFF0F1E38), Color(0xFF162A4A)],
+            colors: isDark
+              ? [const Color(0xFF0A1628), const Color(0xFF0F1E38), const Color(0xFF162A4A)]
+              : [c.navyLight, c.navy, const Color(0xFFE0E8F4)],
           ),
         ),
         child: SafeArea(
@@ -85,9 +89,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                   const SizedBox(height: 50),
 
                   // Welcome text
-                  const Text('Welcome Back!', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                  Text('Welcome Back!', style: TextStyle(color: c.text, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
                   const SizedBox(height: 6),
-                  const Text('Login to continue delivering', style: TextStyle(color: DC.textSec, fontSize: 15, height: 1.5)),
+                  Text('Login to continue delivering', style: TextStyle(color: c.textSec, fontSize: 15, height: 1.5)),
                   const SizedBox(height: 36),
 
                   // Phone field
@@ -107,7 +111,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                     obscure: _obscure,
                     icon: Icons.lock_outline_rounded,
                     suffix: IconButton(
-                      icon: Icon(_obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: DC.textMuted, size: 20),
+                      icon: Icon(_obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: c.textMuted, size: 20),
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                   ),
@@ -131,8 +135,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                     icon: const Icon(Icons.sms_outlined, size: 18),
                     label: const Text('Login with OTP'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: DC.textSec,
-                      side: BorderSide(color: DC.border),
+                      foregroundColor: c.textSec,
+                      side: BorderSide(color: c.border),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                   )),
@@ -141,9 +145,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                   // Register link
                   Center(child: GestureDetector(
                     onTap: () => context.go('/register'),
-                    child: RichText(text: const TextSpan(style: TextStyle(fontSize: 14), children: [
-                      TextSpan(text: "Don't have an account? ", style: TextStyle(color: DC.textSec)),
-                      TextSpan(text: 'Register', style: TextStyle(color: DC.orange, fontWeight: FontWeight.w700)),
+                    child: RichText(text: TextSpan(style: const TextStyle(fontSize: 14), children: [
+                      TextSpan(text: "Don't have an account? ", style: TextStyle(color: c.textSec)),
+                      const TextSpan(text: 'Register', style: TextStyle(color: DC.orange, fontWeight: FontWeight.w700)),
                     ])),
                   )),
                   const SizedBox(height: 40),
@@ -156,8 +160,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     );
   }
 }
-
-// ── Reusable premium input field ──────────────────────────────────────────────
 
 class _InputField extends StatelessWidget {
   final TextEditingController controller;
@@ -172,24 +174,25 @@ class _InputField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.dc;
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF162038),
+        color: c.inputFill,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: DC.border),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 4))],
+        border: Border.all(color: c.border),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 4))],
       ),
       child: TextField(
         controller: controller,
         obscureText: obscure,
         keyboardType: keyboardType,
-        style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
+        style: TextStyle(color: c.text, fontSize: 15, fontWeight: FontWeight.w500),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: DC.textMuted.withValues(alpha: 0.7)),
+          hintStyle: TextStyle(color: c.textMuted.withValues(alpha: 0.7)),
           prefixIcon: prefix != null
               ? Padding(padding: const EdgeInsets.only(left: 14, right: 4), child: prefix)
-              : (icon != null ? Icon(icon, color: DC.textMuted, size: 20) : null),
+              : (icon != null ? Icon(icon, color: c.textMuted, size: 20) : null),
           prefixIconConstraints: prefix != null ? const BoxConstraints(minWidth: 48) : null,
           suffixIcon: suffix,
           border: InputBorder.none,
@@ -199,8 +202,6 @@ class _InputField extends StatelessWidget {
     );
   }
 }
-
-// ── Primary action button ─────────────────────────────────────────────────────
 
 class _PrimaryButton extends StatelessWidget {
   final String label;

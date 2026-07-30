@@ -8,14 +8,19 @@ class PendingScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.dc;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-          colors: [Color(0xFF0A1628), Color(0xFF162A4A)])),
+        decoration: BoxDecoration(gradient: LinearGradient(
+          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+          colors: isDark
+            ? [const Color(0xFF0A1628), const Color(0xFF162A4A)]
+            : [c.navyLight, c.navy],
+        )),
         child: SafeArea(child: Center(child: Padding(
           padding: const EdgeInsets.all(36),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            // Animated icon
             TweenAnimationBuilder<double>(
               tween: Tween(begin: 0, end: 1),
               duration: const Duration(milliseconds: 800),
@@ -28,12 +33,12 @@ class PendingScreen extends ConsumerWidget {
                 child: const Icon(Icons.hourglass_top_rounded, color: DC.orange, size: 56)),
             ),
             const SizedBox(height: 32),
-            const Text('Under Review', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
+            Text('Under Review', style: TextStyle(color: c.text, fontSize: 28, fontWeight: FontWeight.w900)),
             const SizedBox(height: 12),
             Text(
               'Your application is being reviewed by our team.\nThis usually takes a few hours.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: DC.textSec, fontSize: 14, height: 1.7),
+              style: TextStyle(color: c.textSec, fontSize: 14, height: 1.7),
             ),
             const SizedBox(height: 12),
             Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
