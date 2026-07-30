@@ -18,6 +18,7 @@ class UserModel {
   final String? districtName;
   final double? districtLat;
   final double? districtLng;
+  final bool hasWalletPin;
 
   const UserModel({
     required this.id,
@@ -37,6 +38,7 @@ class UserModel {
     this.districtName,
     this.districtLat,
     this.districtLng,
+    this.hasWalletPin = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -60,6 +62,7 @@ class UserModel {
       districtName:      district?['name'] as String?,
       districtLat:       (district?['latitude'] as num?)?.toDouble(),
       districtLng:       (district?['longitude'] as num?)?.toDouble(),
+      hasWalletPin:      (json['has_wallet_pin'] as dynamic) == true || json['has_wallet_pin'] == 1,
     );
   }
 
@@ -82,7 +85,7 @@ class UserModel {
     return name.isNotEmpty ? name[0].toUpperCase() : 'U';
   }
 
-  UserModel copyWith({String? name, String? email, String? avatar, String? preferredLanguage}) =>
+  UserModel copyWith({String? name, String? email, String? avatar, String? preferredLanguage, bool? hasWalletPin}) =>
       UserModel(
         id: id, uuid: uuid, phone: phone, status: status,
         name: name ?? this.name,
@@ -93,5 +96,6 @@ class UserModel {
         preferredLanguage: preferredLanguage ?? this.preferredLanguage,
         districtId: districtId, districtName: districtName,
         districtLat: districtLat, districtLng: districtLng,
+        hasWalletPin: hasWalletPin ?? this.hasWalletPin,
       );
 }

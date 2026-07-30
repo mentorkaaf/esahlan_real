@@ -309,6 +309,7 @@ class ModuleApiService {
   Future<dynamic> walletSend(Map<String, dynamic> data) => _post('/wallet/send', data);
   Future<dynamic> walletWithdraw(Map<String, dynamic> data) => _post('/wallet/withdraw', data);
   Future<dynamic> verifyWalletPin(String pin) => _post('/wallet/verify-pin', {'pin': pin});
+  Future<dynamic> setWalletPin(String pin) => _post('/wallet/set-pin', {'pin': pin});
 
   // MOBILE PAY
   // ═══════════════════════════════════════════════════════════════════
