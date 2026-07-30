@@ -7,6 +7,7 @@ use App\Models\Deliveryman;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use App\Models\Wallet;
+use App\Mail\OrderStatusMail;
 use App\Services\FcmService;
 use App\Services\LoyaltyService;
 use App\Services\AffiliateService;
@@ -14,6 +15,7 @@ use App\Services\GamificationService;
 use App\Services\ReferralService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class AdminOrderController extends Controller
 {
@@ -325,6 +327,21 @@ class AdminOrderController extends Controller
                         'radius_km'      => $radiusKm,
                     ]);
                 }
+            } catch (\Throwable) {}
+        }
+
+        // ── Email notification to customer ───────────────────────────────
+        $order->load('user');
+        $userEmail = $order->user?->email;
+        if ($userEmail) {
+            try {
+                $moduleLabel = self::MODULE_GROUPS[$order->module_slug]['label'] ?? 'eSahlan';
+                Mail::to($userEmail)->send(new OrderStatusMail(
+                    $order->user->name,
+                    $order->order_number,
+                    $request->status,
+                    $moduleLabel,
+                ));
             } catch (\Throwable) {}
         }
 

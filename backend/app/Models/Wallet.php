@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use App\Events\WalletTransactionOccurred;
+use App\Mail\WalletTransactionMail;
 use App\Services\FcmService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class Wallet extends Model
@@ -91,10 +93,19 @@ class Wallet extends Model
                 createdAt: (string) $tx->created_at,
             ));
 
-            // FCM push notification
+            // FCM push notification + email
             $user = \App\Models\User::find($this->owner_id);
             if ($user?->fcm_token) {
                 FcmService::sendWalletEvent($user->fcm_token, $tx->type, (float) $tx->amount, (float) $tx->balance_after, $note);
+            }
+            if ($user?->email) {
+                Mail::to($user->email)->send(new WalletTransactionMail(
+                    $user->name,
+                    $tx->type,
+                    (float) $tx->amount,
+                    (float) $tx->balance_after,
+                    $note,
+                ));
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('[Wallet] event dispatch failed: ' . $e->getMessage());

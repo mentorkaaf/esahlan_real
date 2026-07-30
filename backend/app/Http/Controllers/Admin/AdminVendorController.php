@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\VendorApprovedMail;
+use App\Mail\VendorRejectedMail;
 use App\Models\Module;
 use App\Models\Vendor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class AdminVendorController extends Controller
 {
@@ -127,12 +130,24 @@ class AdminVendorController extends Controller
     public function approve(Vendor $vendor)
     {
         $vendor->update(['is_approved' => true, 'is_active' => true, 'status' => 'active']);
+
+        $email = $vendor->email ?? $vendor->user?->email;
+        if ($email) {
+            try { Mail::to($email)->send(new VendorApprovedMail($vendor->name)); } catch (\Throwable) {}
+        }
+
         return back()->with('success', 'Vendor approved successfully.');
     }
 
     public function reject(Request $request, Vendor $vendor)
     {
         $vendor->update(['is_approved' => false, 'is_active' => false, 'status' => 'suspended']);
+
+        $email = $vendor->email ?? $vendor->user?->email;
+        if ($email) {
+            try { Mail::to($email)->send(new VendorRejectedMail($vendor->name, $request->note ?? '')); } catch (\Throwable) {}
+        }
+
         return back()->with('success', 'Vendor rejected.');
     }
 
