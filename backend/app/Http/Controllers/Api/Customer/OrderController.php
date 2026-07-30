@@ -11,8 +11,11 @@ use App\Models\OrderStatusHistory;
 use App\Models\Product;
 use App\Models\Vendor;
 use App\Models\Wallet;
+use App\Mail\NewOrderCustomerMail;
+use App\Mail\NewOrderVendorMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -341,6 +344,34 @@ class OrderController extends Controller
         }
 
         if ($order->vendor_id) \App\Services\FcmService::notifyVendorNewOrder($order->vendor_id, $order, $order->module_slug ?? 'efood');
+
+        // ── New order emails ─────────────────────────────────────────────
+        try {
+            $order->loadMissing(['user', 'vendor']);
+            $moduleLabels = [
+                'efood'     => 'eFood',     'egrocery'  => 'eGrocery',
+                'eshop'     => 'eShop',     'eparcel'   => 'eParcel',
+                'emoving'   => 'eMoving',   'erent'     => 'eRent',
+                'elaundry'  => 'eLaundry',  'eticket'   => 'eTicket',
+                'edata'     => 'eData',     'ehealth'   => 'eHealth',
+                'wholesale' => 'Wholesale', 'eexchange' => 'eExchange',
+            ];
+            $moduleLabel  = $moduleLabels[$order->module_slug] ?? 'eSahlan';
+            $total        = number_format((float) $order->total_amount, 2);
+            $customerName = $order->user?->name ?? 'Customer';
+            $orderNum     = $order->order_number;
+
+            if ($order->user?->email) {
+                Mail::to($order->user->email)->send(new NewOrderCustomerMail($customerName, $orderNum, $moduleLabel, $total));
+            }
+
+            $vendorEmail = $order->vendor?->email ?? $order->vendor?->user?->email;
+            if ($vendorEmail) {
+                Mail::to($vendorEmail)->send(new NewOrderVendorMail($order->vendor->name, $orderNum, $moduleLabel, $total, $customerName));
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[NewOrderMail] ' . $e->getMessage());
+        }
 
         return response()->json([
             'success' => true,
