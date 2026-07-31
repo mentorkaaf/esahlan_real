@@ -1010,383 +1010,458 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 {{-- TAB: AGENTS  (redesigned) --}}
 {{-- ══════════════════════════════════════════════════════════════ --}}
 <div id="tab-agents" class="tab-pane">
-
 <style>
-/* ── Agent tab tokens ──────────────────────────────────────────── */
-:root {
-  --ag-teal:   #0EA5E9;
-  --ag-teal2:  #0369A1;
-  --ag-amber:  #F59E0B;
-  --ag-amber2: #B45309;
-  --ag-green:  #10B981;
-  --ag-red:    #EF4444;
-  --ag-purple: #8B5CF6;
-}
+/* ── Agents tab — premium redesign ─────────────────────────────── */
+.agv2-wrap { padding: 4px 0 24px; }
 
-/* ── Stats row ─────────────────────────────────────────────────── */
-.ag-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:32px; }
-.ag-stat {
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:20px 22px;
-  display:flex; align-items:center; gap:16px;
+/* Stats */
+.agv2-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:28px; }
+.agv2-stat {
+  border-radius:16px; padding:22px 20px 18px;
+  display:flex; flex-direction:column; gap:12px;
   position:relative; overflow:hidden;
-  transition:transform .15s, box-shadow .15s;
+  background:var(--surface); border:1px solid var(--border);
+  transition:transform .18s,box-shadow .18s;
 }
-.ag-stat:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(0,0,0,.08); }
-.ag-stat::before {
-  content:''; position:absolute; inset:0 auto 0 0;
-  width:4px; border-radius:4px 0 0 4px;
-  background:var(--ag-stat-accent, var(--ag-teal));
+.agv2-stat:hover { transform:translateY(-3px); box-shadow:0 12px 36px rgba(0,0,0,.10); }
+.agv2-stat-glow {
+  position:absolute; inset:0; pointer-events:none;
+  background:var(--agv2-glow,rgba(14,165,233,.06));
 }
-.ag-stat-icon {
-  width:48px; height:48px; border-radius:14px; flex-shrink:0;
+.agv2-stat-top { display:flex; align-items:center; justify-content:space-between; }
+.agv2-stat-icon {
+  width:44px; height:44px; border-radius:12px;
   display:flex; align-items:center; justify-content:center;
-  background:var(--ag-stat-bg, rgba(14,165,233,.1));
-  color:var(--ag-stat-accent, var(--ag-teal));
-  font-size:20px;
+  font-size:19px;
+  background:var(--agv2-icon-bg); color:var(--agv2-icon-color);
 }
-.ag-stat-body {}
-.ag-stat-num { font-size:28px; font-weight:900; line-height:1; color:var(--text); letter-spacing:-1px; }
-.ag-stat-lbl { font-size:12px; color:var(--text-muted); font-weight:500; margin-top:2px; }
+.agv2-stat-trend {
+  font-size:11px; font-weight:700; padding:3px 8px;
+  border-radius:99px; background:var(--agv2-trend-bg); color:var(--agv2-trend-color);
+}
+.agv2-stat-num { font-size:34px; font-weight:900; letter-spacing:-1.5px; line-height:1; color:var(--text); }
+.agv2-stat-lbl { font-size:12px; color:var(--text-muted); font-weight:500; }
 
-/* ── Section headers ───────────────────────────────────────────── */
-.ag-section-hd {
-  display:flex; align-items:center; gap:10px;
-  margin:28px 0 14px;
+/* Section label */
+.agv2-section {
+  display:flex; align-items:center; gap:12px; margin:28px 0 16px;
 }
-.ag-section-hd-line {
-  height:1px; flex:1; background:var(--border);
+.agv2-section-bar { height:2px; flex:1; border-radius:2px; background:var(--border); }
+.agv2-section-label {
+  display:flex; align-items:center; gap:8px;
+  font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--agv2-sec-color,#6b7280); white-space:nowrap;
 }
-.ag-section-hd-pill {
-  display:flex; align-items:center; gap:7px;
-  padding:5px 14px; border-radius:99px;
-  font-size:12px; font-weight:700; letter-spacing:.04em;
-  border:1px solid var(--ag-pill-border, var(--border));
-  background:var(--ag-pill-bg, var(--surface));
-  color:var(--ag-pill-color, var(--text-muted));
-  white-space:nowrap;
-}
-.ag-section-hd-pill i { font-size:11px; }
-.ag-count-badge {
+.agv2-section-label i { font-size:12px; }
+.agv2-count-pill {
+  min-width:22px; height:22px; padding:0 7px; border-radius:99px;
   display:inline-flex; align-items:center; justify-content:center;
-  min-width:20px; height:20px; padding:0 6px;
-  border-radius:99px; font-size:11px; font-weight:800;
-  background:var(--ag-pill-accent, #e5e7eb);
-  color:var(--ag-pill-count-color, #6b7280);
+  font-size:11px; font-weight:800;
+  background:var(--agv2-pill-bg,#e5e7eb); color:var(--agv2-pill-color,#374151);
 }
 
-/* ── Agent card ────────────────────────────────────────────────── */
-.ag-card {
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:18px;
-  padding:20px 22px;
-  display:flex; align-items:center; gap:18px;
-  margin-bottom:12px;
-  transition:box-shadow .2s, transform .2s, border-color .2s;
-  position:relative;
-}
-.ag-card:hover {
-  box-shadow:0 10px 32px rgba(0,0,0,.09);
-  transform:translateY(-1px);
-}
-.ag-card.pending { border-color:rgba(245,158,11,.3); background:linear-gradient(135deg,rgba(245,158,11,.03) 0%,var(--surface) 60%); }
-.ag-card.suspended { opacity:.75; }
-
-/* ── Avatar ────────────────────────────────────────────────────── */
-.ag-avatar-wrap { position:relative; flex-shrink:0; }
-.ag-avatar {
-  width:56px; height:56px; border-radius:18px;
-  display:flex; align-items:center; justify-content:center;
-  font-size:18px; font-weight:800; color:#fff; letter-spacing:-.5px;
-  background:var(--ag-avatar-bg, linear-gradient(135deg,#0369A1,#0EA5E9));
-  position:relative;
-}
-.ag-avatar-ring {
-  position:absolute; inset:-4px; border-radius:22px;
-  border:2px solid var(--ag-ring-color, transparent);
-  pointer-events:none;
-}
-.ag-card.pending   .ag-avatar-ring { border-color:var(--ag-amber); border-style:dashed; animation:ring-spin 8s linear infinite; }
-.ag-card.active    .ag-avatar-ring { border-color:var(--ag-teal); }
-.ag-card.suspended .ag-avatar-ring { border-color:#9ca3af; }
-@keyframes ring-spin { to { transform:rotate(360deg); } }
-
-.ag-status-dot {
-  position:absolute; bottom:-2px; right:-2px;
-  width:14px; height:14px; border-radius:50%;
-  border:2.5px solid var(--surface);
-  background:var(--ag-dot-color, #9ca3af);
-}
-.ag-card.pending   .ag-status-dot { background:var(--ag-amber); box-shadow:0 0 0 3px rgba(245,158,11,.2); }
-.ag-card.active    .ag-status-dot { background:var(--ag-green); box-shadow:0 0 0 3px rgba(16,185,129,.2); }
-.ag-card.suspended .ag-status-dot { background:#9ca3af; }
-
-/* ── Info ──────────────────────────────────────────────────────── */
-.ag-info { flex:1; min-width:0; }
-.ag-name { font-size:15px; font-weight:800; color:var(--text); margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.ag-contact { font-size:12px; color:var(--text-muted); margin-bottom:6px; }
-.ag-tags { display:flex; flex-wrap:wrap; gap:6px; }
-.ag-tag {
-  display:inline-flex; align-items:center; gap:4px;
-  padding:3px 9px; border-radius:99px; font-size:11px; font-weight:600;
-}
-.ag-tag-district { background:rgba(14,165,233,.1); color:var(--ag-teal); }
-.ag-tag-props    { background:rgba(139,92,246,.1);  color:var(--ag-purple); }
-.ag-tag-earned   { background:rgba(16,185,129,.1);  color:var(--ag-green); }
-.ag-tag-joined   { background:rgba(0,0,0,.05);      color:var(--text-muted); }
-.ag-tag-pending  { background:rgba(245,158,11,.12); color:var(--ag-amber2); }
-
-/* ── Meta stats (for active cards) ────────────────────────────── */
-.ag-metrics {
-  display:flex; gap:20px; padding:0 20px;
-  border-left:1px solid var(--border);
-  border-right:1px solid var(--border);
-  flex-shrink:0;
-}
-.ag-metric { text-align:center; }
-.ag-metric-val { font-size:18px; font-weight:900; color:var(--text); line-height:1; }
-.ag-metric-lbl { font-size:10px; color:var(--text-muted); font-weight:600; margin-top:2px; text-transform:uppercase; letter-spacing:.05em; }
-
-/* ── Actions ───────────────────────────────────────────────────── */
-.ag-actions { display:flex; flex-direction:column; gap:8px; flex-shrink:0; align-items:flex-end; }
-.ag-btn {
-  display:inline-flex; align-items:center; gap:6px;
-  padding:8px 16px; border-radius:10px; font-size:12px; font-weight:700;
-  border:none; cursor:pointer; transition:all .15s; white-space:nowrap;
-  letter-spacing:.01em;
-}
-.ag-btn-approve {
-  background:linear-gradient(135deg,#059669,#10b981);
-  color:#fff; box-shadow:0 2px 8px rgba(16,185,129,.35);
-}
-.ag-btn-approve:hover { box-shadow:0 4px 14px rgba(16,185,129,.5); transform:translateY(-1px); }
-.ag-btn-reject {
-  background:transparent; color:var(--ag-red);
-  border:1.5px solid rgba(239,68,68,.3);
-}
-.ag-btn-reject:hover { background:rgba(239,68,68,.07); border-color:var(--ag-red); }
-.ag-btn-suspend {
-  background:transparent; color:var(--ag-amber2);
+/* ── PENDING card ─────────────────────────────────────────────── */
+.agv2-pending-card {
+  border-radius:20px; margin-bottom:14px;
   border:1.5px solid rgba(245,158,11,.35);
+  background:linear-gradient(145deg,rgba(254,243,199,.5) 0%,var(--surface) 55%);
+  overflow:hidden; position:relative;
+  box-shadow:0 2px 12px rgba(245,158,11,.08);
+  transition:transform .18s,box-shadow .18s;
 }
-.ag-btn-suspend:hover { background:rgba(245,158,11,.07); border-color:var(--ag-amber); }
-.ag-btn-activate {
-  background:linear-gradient(135deg,#2563eb,#7c3aed);
-  color:#fff; box-shadow:0 2px 8px rgba(99,102,241,.3);
+.agv2-pending-card:hover { transform:translateY(-2px); box-shadow:0 10px 32px rgba(245,158,11,.14); }
+.agv2-pending-card-accent {
+  position:absolute; top:0; left:0; right:0; height:3px;
+  background:linear-gradient(90deg,#F59E0B,#FCD34D,#F59E0B);
+  background-size:200% 100%; animation:shimmer 2.5s linear infinite;
 }
-.ag-btn-activate:hover { box-shadow:0 4px 14px rgba(99,102,241,.45); transform:translateY(-1px); }
-.ag-btn-delete {
-  background:transparent; color:#9ca3af;
-  border:1.5px solid var(--border); font-size:11px;
-  padding:6px 12px;
-}
-.ag-btn-delete:hover { color:var(--ag-red); border-color:rgba(239,68,68,.4); }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
-/* ── Empty state ───────────────────────────────────────────────── */
-.ag-empty {
-  text-align:center; padding:52px 20px;
-  background:var(--surface); border:1px dashed var(--border);
-  border-radius:18px; margin-top:8px;
+.agv2-pending-body {
+  padding:20px 22px 0;
+  display:flex; align-items:flex-start; gap:18px;
 }
-.ag-empty-icon {
-  width:64px; height:64px; border-radius:20px; margin:0 auto 16px;
-  background:linear-gradient(135deg,rgba(14,165,233,.1),rgba(139,92,246,.1));
+.agv2-pend-avatar {
+  width:60px; height:60px; border-radius:18px; flex-shrink:0;
   display:flex; align-items:center; justify-content:center;
-  font-size:26px; color:var(--ag-teal);
+  font-size:22px; font-weight:900; color:#fff; letter-spacing:-.5px;
+  background:var(--agv2-av-bg,linear-gradient(135deg,#B45309,#F59E0B));
+  box-shadow:0 4px 16px rgba(245,158,11,.4);
+  position:relative;
 }
-.ag-empty-title { font-size:15px; font-weight:700; color:var(--text); margin-bottom:5px; }
-.ag-empty-sub   { font-size:13px; color:var(--text-muted); }
+.agv2-pend-avatar::after {
+  content:''; position:absolute; inset:-3px; border-radius:21px;
+  border:2px dashed rgba(245,158,11,.6);
+  animation:ring-spin 6s linear infinite;
+}
+@keyframes ring-spin { to{transform:rotate(360deg)} }
 
-@media(max-width:768px) {
-  .ag-stats { grid-template-columns:1fr; }
-  .ag-metrics { display:none; }
-  .ag-card { flex-wrap:wrap; }
-  .ag-actions { flex-direction:row; width:100%; }
+.agv2-pend-info { flex:1; min-width:0; padding-top:4px; }
+.agv2-pend-name { font-size:17px; font-weight:900; color:var(--text); margin-bottom:4px; }
+.agv2-pend-contact { font-size:13px; color:var(--text-muted); margin-bottom:10px; }
+.agv2-pend-chips { display:flex; flex-wrap:wrap; gap:7px; }
+.agv2-chip {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:4px 11px; border-radius:99px; font-size:11px; font-weight:700;
+}
+.agv2-chip-amber { background:rgba(245,158,11,.14); color:#92400e; border:1px solid rgba(245,158,11,.25); }
+.agv2-chip-sky   { background:rgba(14,165,233,.10);  color:#0369A1; border:1px solid rgba(14,165,233,.2); }
+.agv2-chip-gray  { background:rgba(0,0,0,.05);       color:#6b7280; border:1px solid rgba(0,0,0,.08); }
+
+.agv2-pending-footer {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 22px 16px;
+  border-top:1px solid rgba(245,158,11,.15);
+  margin-top:16px; gap:10px;
+}
+.agv2-status-ribbon {
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:11px; font-weight:800; color:#92400e;
+}
+.agv2-status-ribbon-dot {
+  width:8px; height:8px; border-radius:50%; background:#F59E0B;
+  box-shadow:0 0 0 3px rgba(245,158,11,.25);
+  animation:pulse-dot 1.6s ease-in-out infinite;
+}
+@keyframes pulse-dot { 0%,100%{box-shadow:0 0 0 3px rgba(245,158,11,.25)} 50%{box-shadow:0 0 0 6px rgba(245,158,11,.1)} }
+
+.agv2-pend-actions { display:flex; gap:10px; }
+.agv2-btn-approve {
+  display:inline-flex; align-items:center; gap:7px;
+  padding:10px 22px; border-radius:12px; font-size:13px; font-weight:800;
+  background:linear-gradient(135deg,#059669,#10B981);
+  color:#fff; border:none; cursor:pointer;
+  box-shadow:0 4px 14px rgba(16,185,129,.35);
+  transition:all .15s;
+}
+.agv2-btn-approve:hover { box-shadow:0 6px 20px rgba(16,185,129,.5); transform:translateY(-1px); }
+.agv2-btn-decline {
+  display:inline-flex; align-items:center; gap:7px;
+  padding:10px 18px; border-radius:12px; font-size:13px; font-weight:700;
+  background:transparent; color:#EF4444;
+  border:1.5px solid rgba(239,68,68,.35); cursor:pointer;
+  transition:all .15s;
+}
+.agv2-btn-decline:hover { background:rgba(239,68,68,.06); border-color:#EF4444; }
+
+/* ── ACTIVE card ──────────────────────────────────────────────── */
+.agv2-active-card {
+  border-radius:20px; margin-bottom:14px;
+  border:1px solid var(--border);
+  background:var(--surface);
+  overflow:hidden; position:relative;
+  transition:transform .18s,box-shadow .18s;
+}
+.agv2-active-card:hover { transform:translateY(-2px); box-shadow:0 10px 32px rgba(0,0,0,.09); }
+.agv2-active-card.suspended { opacity:.65; }
+.agv2-active-card-stripe {
+  position:absolute; top:0; left:0; bottom:0; width:4px;
+  background:var(--agv2-stripe,linear-gradient(180deg,#0369A1,#0EA5E9));
+}
+
+.agv2-active-body {
+  padding:18px 20px 18px 26px;
+  display:flex; align-items:center; gap:18px;
+}
+.agv2-act-avatar-wrap { position:relative; flex-shrink:0; }
+.agv2-act-avatar {
+  width:58px; height:58px; border-radius:17px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:21px; font-weight:900; color:#fff; letter-spacing:-.5px;
+  box-shadow:0 4px 18px rgba(0,0,0,.15);
+}
+.agv2-act-badge {
+  position:absolute; bottom:-4px; right:-4px;
+  width:18px; height:18px; border-radius:50%;
+  border:2.5px solid var(--surface);
+  background:var(--agv2-badge-bg,#10B981);
+  box-shadow:0 0 0 3px var(--agv2-badge-glow,rgba(16,185,129,.2));
+}
+
+.agv2-act-info { flex:1; min-width:0; }
+.agv2-act-name-row { display:flex; align-items:center; gap:10px; margin-bottom:5px; }
+.agv2-act-name { font-size:16px; font-weight:900; color:var(--text); }
+.agv2-act-status-pill {
+  font-size:10px; font-weight:800; padding:2px 9px; border-radius:99px;
+  background:var(--agv2-spill-bg); color:var(--agv2-spill-color);
+}
+.agv2-act-contact { font-size:12px; color:var(--text-muted); margin-bottom:9px; }
+.agv2-act-chips { display:flex; flex-wrap:wrap; gap:6px; }
+
+/* Metrics */
+.agv2-metrics-block {
+  display:flex; gap:0; flex-shrink:0;
+  border:1px solid var(--border); border-radius:14px; overflow:hidden;
+}
+.agv2-metric {
+  padding:12px 20px; text-align:center; background:var(--surface);
+  border-right:1px solid var(--border);
+}
+.agv2-metric:last-child { border-right:none; }
+.agv2-metric-val { font-size:20px; font-weight:900; line-height:1; color:var(--text); }
+.agv2-metric-lbl { font-size:10px; font-weight:700; color:var(--text-muted); margin-top:3px; text-transform:uppercase; letter-spacing:.06em; }
+
+/* Actions */
+.agv2-act-actions { display:flex; flex-direction:column; gap:8px; flex-shrink:0; padding-left:16px; border-left:1px solid var(--border); }
+.agv2-act-btn {
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  padding:8px 18px; border-radius:10px; font-size:12px; font-weight:700;
+  cursor:pointer; border:none; transition:all .14s; white-space:nowrap; min-width:110px;
+}
+.agv2-act-btn-suspend {
+  background:rgba(245,158,11,.1); color:#B45309;
+  border:1.5px solid rgba(245,158,11,.3);
+}
+.agv2-act-btn-suspend:hover { background:rgba(245,158,11,.18); border-color:#F59E0B; }
+.agv2-act-btn-reactivate {
+  background:linear-gradient(135deg,#2563EB,#7C3AED);
+  color:#fff; box-shadow:0 3px 10px rgba(99,102,241,.3);
+}
+.agv2-act-btn-reactivate:hover { box-shadow:0 5px 16px rgba(99,102,241,.45); transform:translateY(-1px); }
+.agv2-act-btn-remove {
+  background:transparent; color:#9ca3af;
+  border:1.5px solid var(--border); font-size:11px; padding:7px 14px;
+}
+.agv2-act-btn-remove:hover { color:#EF4444; border-color:rgba(239,68,68,.4); background:rgba(239,68,68,.04); }
+
+/* Empty */
+.agv2-empty {
+  text-align:center; padding:56px 24px;
+  border:1.5px dashed var(--border); border-radius:20px; background:var(--surface);
+}
+.agv2-empty-icon {
+  width:72px; height:72px; border-radius:22px; margin:0 auto 18px;
+  display:flex; align-items:center; justify-content:center; font-size:30px;
+  background:linear-gradient(135deg,rgba(14,165,233,.08),rgba(139,92,246,.08));
+  color:#0EA5E9;
+}
+.agv2-empty-title { font-size:16px; font-weight:800; color:var(--text); margin-bottom:6px; }
+.agv2-empty-sub   { font-size:13px; color:var(--text-muted); }
+
+@media(max-width:800px){
+  .agv2-stats { grid-template-columns:1fr; }
+  .agv2-metrics-block,.agv2-act-actions { display:none; }
+  .agv2-pending-body,.agv2-active-body { flex-wrap:wrap; }
 }
 </style>
 
 @php
-  $pendingAgents = $agents->where('status', 'pending');
-  $activeAgents  = $agents->whereIn('status', ['active', 'inactive']);
+  $pendingAgents = $agents->where('status','pending');
+  $activeAgents  = $agents->whereIn('status',['active','inactive']);
 
-  function agInitials(string $name): string {
-    $parts = array_filter(explode(' ', $name));
-    $i = strtoupper(substr($parts[0] ?? '?', 0, 1));
-    if (count($parts) > 1) $i .= strtoupper(substr(end($parts), 0, 1));
-    return $i;
+  function agv2Initials(string $name): string {
+    $parts = array_values(array_filter(explode(' ',$name)));
+    $s = strtoupper(substr($parts[0] ?? '?', 0, 1));
+    if (count($parts) > 1) $s .= strtoupper(substr(end($parts), 0, 1));
+    return $s;
   }
 
-  $avatarGradients = [
-    ['#0369A1','#0EA5E9'],
-    ['#7C3AED','#A855F7'],
-    ['#059669','#10B981'],
-    ['#B45309','#F59E0B'],
-    ['#DC2626','#F87171'],
-    ['#0F766E','#14B8A6'],
+  $agGrads = [
+    'linear-gradient(135deg,#0369A1,#0EA5E9)',
+    'linear-gradient(135deg,#7C3AED,#A855F7)',
+    'linear-gradient(135deg,#059669,#10B981)',
+    'linear-gradient(135deg,#0F766E,#14B8A6)',
+    'linear-gradient(135deg,#B45309,#F59E0B)',
+    'linear-gradient(135deg,#BE185D,#EC4899)',
   ];
 @endphp
 
-{{-- ── Stats ──────────────────────────────────────────────── --}}
-<div class="ag-stats">
-  <div class="ag-stat" style="--ag-stat-accent:#0EA5E9;--ag-stat-bg:rgba(14,165,233,.1);">
-    <div class="ag-stat-icon"><i class="fas fa-users"></i></div>
-    <div class="ag-stat-body">
-      <div class="ag-stat-num">{{ $agents->count() }}</div>
-      <div class="ag-stat-lbl">Total Agents</div>
+<div class="agv2-wrap">
+
+{{-- ── Stats ─────────────────────────────────────────────── --}}
+<div class="agv2-stats">
+  <div class="agv2-stat" style="--agv2-glow:rgba(14,165,233,.06);">
+    <div class="agv2-stat-glow"></div>
+    <div class="agv2-stat-top">
+      <div class="agv2-stat-icon" style="--agv2-icon-bg:rgba(14,165,233,.12);--agv2-icon-color:#0369A1;"><i class="fas fa-user-tie"></i></div>
+      <span class="agv2-stat-trend" style="--agv2-trend-bg:rgba(14,165,233,.1);--agv2-trend-color:#0369A1;"><i class="fas fa-chart-line"></i> All</span>
+    </div>
+    <div>
+      <div class="agv2-stat-num">{{ $agents->count() }}</div>
+      <div class="agv2-stat-lbl">Total Agents</div>
     </div>
   </div>
-  <div class="ag-stat" style="--ag-stat-accent:#10B981;--ag-stat-bg:rgba(16,185,129,.1);">
-    <div class="ag-stat-icon"><i class="fas fa-check-circle"></i></div>
-    <div class="ag-stat-body">
-      <div class="ag-stat-num">{{ $agents->where('status','active')->count() }}</div>
-      <div class="ag-stat-lbl">Active</div>
+  <div class="agv2-stat" style="--agv2-glow:rgba(16,185,129,.05);">
+    <div class="agv2-stat-glow"></div>
+    <div class="agv2-stat-top">
+      <div class="agv2-stat-icon" style="--agv2-icon-bg:rgba(16,185,129,.12);--agv2-icon-color:#059669;"><i class="fas fa-check-circle"></i></div>
+      <span class="agv2-stat-trend" style="--agv2-trend-bg:rgba(16,185,129,.1);--agv2-trend-color:#065f46;"><i class="fas fa-circle" style="font-size:6px;"></i> Live</span>
+    </div>
+    <div>
+      <div class="agv2-stat-num" style="color:#059669;">{{ $agents->where('status','active')->count() }}</div>
+      <div class="agv2-stat-lbl">Active Agents</div>
     </div>
   </div>
-  <div class="ag-stat" style="--ag-stat-accent:#F59E0B;--ag-stat-bg:rgba(245,158,11,.1);">
-    <div class="ag-stat-icon"><i class="fas fa-hourglass-half"></i></div>
-    <div class="ag-stat-body">
-      <div class="ag-stat-num">{{ $pendingAgents->count() }}</div>
-      <div class="ag-stat-lbl">Pending Review</div>
+  <div class="agv2-stat" style="--agv2-glow:rgba(245,158,11,.05);">
+    <div class="agv2-stat-glow"></div>
+    <div class="agv2-stat-top">
+      <div class="agv2-stat-icon" style="--agv2-icon-bg:rgba(245,158,11,.12);--agv2-icon-color:#B45309;"><i class="fas fa-hourglass-half"></i></div>
+      @if($pendingAgents->count())
+      <span class="agv2-stat-trend" style="--agv2-trend-bg:rgba(245,158,11,.15);--agv2-trend-color:#92400e;"><i class="fas fa-exclamation"></i> Review</span>
+      @endif
+    </div>
+    <div>
+      <div class="agv2-stat-num" style="color:#B45309;">{{ $pendingAgents->count() }}</div>
+      <div class="agv2-stat-lbl">Pending Review</div>
     </div>
   </div>
 </div>
 
-{{-- ── Pending agents ─────────────────────────────────────── --}}
+{{-- ── Pending ────────────────────────────────────────────── --}}
 @if($pendingAgents->count())
-<div class="ag-section-hd">
-  <div class="ag-section-hd-line"></div>
-  <div class="ag-section-hd-pill" style="--ag-pill-border:rgba(245,158,11,.4);--ag-pill-bg:rgba(245,158,11,.06);--ag-pill-color:#B45309;--ag-pill-accent:rgba(245,158,11,.2);--ag-pill-count-color:#92400e;">
-    <i class="fas fa-clock"></i> Awaiting Review
-    <span class="ag-count-badge">{{ $pendingAgents->count() }}</span>
+<div class="agv2-section">
+  <div class="agv2-section-bar" style="background:linear-gradient(90deg,transparent,rgba(245,158,11,.3));"></div>
+  <div class="agv2-section-label" style="--agv2-sec-color:#B45309;">
+    <i class="fas fa-clock"></i> AWAITING REVIEW
+    <span class="agv2-count-pill" style="--agv2-pill-bg:rgba(245,158,11,.15);--agv2-pill-color:#92400e;">{{ $pendingAgents->count() }}</span>
   </div>
-  <div class="ag-section-hd-line"></div>
+  <div class="agv2-section-bar" style="background:linear-gradient(90deg,rgba(245,158,11,.3),transparent);"></div>
 </div>
 
 @foreach($pendingAgents as $i => $agent)
-@php $g = $avatarGradients[$i % count($avatarGradients)]; @endphp
-<div class="ag-card pending">
-  <div class="ag-avatar-wrap">
-    <div class="ag-avatar" style="background:linear-gradient(135deg,{{ $g[0] }},{{ $g[1] }});">
-      {{ agInitials($agent->name) }}
+<div class="agv2-pending-card">
+  <div class="agv2-pending-card-accent"></div>
+  <div class="agv2-pending-body">
+    <div class="agv2-pend-avatar" style="--agv2-av-bg:{{ $agGrads[$i % count($agGrads)] }};">
+      {{ agv2Initials($agent->name) }}
     </div>
-    <div class="ag-avatar-ring"></div>
-    <div class="ag-status-dot"></div>
-  </div>
-
-  <div class="ag-info">
-    <div class="ag-name">{{ $agent->name }}</div>
-    <div class="ag-contact">{{ $agent->phone ?? $agent->email ?? '—' }}</div>
-    <div class="ag-tags">
-      @if($agent->district_name)
-      <span class="ag-tag ag-tag-district"><i class="fas fa-map-marker-alt"></i> {{ $agent->district_name }}</span>
-      @endif
-      <span class="ag-tag ag-tag-joined"><i class="fas fa-calendar-alt"></i> {{ \Carbon\Carbon::parse($agent->created_at)->diffForHumans() }}</span>
-      <span class="ag-tag ag-tag-pending"><i class="fas fa-hourglass-half"></i> Pending approval</span>
+    <div class="agv2-pend-info">
+      <div class="agv2-pend-name">{{ $agent->name }}</div>
+      <div class="agv2-pend-contact">
+        <i class="fas fa-{{ strpos($agent->phone ?? '','@') !== false ? 'envelope' : 'phone' }}" style="margin-right:5px;"></i>
+        {{ $agent->phone ?? $agent->email ?? '—' }}
+      </div>
+      <div class="agv2-pend-chips">
+        <span class="agv2-chip agv2-chip-amber"><i class="fas fa-hourglass-half"></i> Awaiting approval</span>
+        @if($agent->district_name)
+        <span class="agv2-chip agv2-chip-sky"><i class="fas fa-map-marker-alt"></i> {{ $agent->district_name }}</span>
+        @endif
+        <span class="agv2-chip agv2-chip-gray"><i class="fas fa-clock"></i> {{ \Carbon\Carbon::parse($agent->created_at)->diffForHumans() }}</span>
+      </div>
     </div>
   </div>
-
-  <div class="ag-actions">
-    <form method="POST" action="{{ route('admin.module-data.rent.agent.approve', $agent->id) }}">
-      @csrf
-      <button type="submit" class="ag-btn ag-btn-approve" onclick="return confirm('Approve {{ addslashes($agent->name) }} as an eRent agent?')">
-        <i class="fas fa-check"></i> Approve Agent
-      </button>
-    </form>
-    <form method="POST" action="{{ route('admin.module-data.rent.agent.reject', $agent->id) }}">
-      @csrf
-      <button type="submit" class="ag-btn ag-btn-reject" onclick="return confirm('Reject and permanently remove {{ addslashes($agent->name) }}?')">
-        <i class="fas fa-times"></i> Reject
-      </button>
-    </form>
+  <div class="agv2-pending-footer">
+    <div class="agv2-status-ribbon">
+      <div class="agv2-status-ribbon-dot"></div>
+      Application pending review
+    </div>
+    <div class="agv2-pend-actions">
+      <form method="POST" action="{{ route('admin.module-data.rent.agent.reject', $agent->id) }}" style="display:contents;">
+        @csrf
+        <button type="submit" class="agv2-btn-decline" onclick="return confirm('Reject and remove {{ addslashes($agent->name) }}?')">
+          <i class="fas fa-times"></i> Decline
+        </button>
+      </form>
+      <form method="POST" action="{{ route('admin.module-data.rent.agent.approve', $agent->id) }}" style="display:contents;">
+        @csrf
+        <button type="submit" class="agv2-btn-approve" onclick="return confirm('Approve {{ addslashes($agent->name) }} as eRent Agent?')">
+          <i class="fas fa-check"></i> Approve Agent
+        </button>
+      </form>
+    </div>
   </div>
 </div>
 @endforeach
 @endif
 
-{{-- ── Approved agents ────────────────────────────────────── --}}
-<div class="ag-section-hd" style="margin-top:{{ $pendingAgents->count() ? '32px' : '0' }};">
-  <div class="ag-section-hd-line"></div>
-  <div class="ag-section-hd-pill" style="--ag-pill-border:rgba(14,165,233,.3);--ag-pill-bg:rgba(14,165,233,.05);--ag-pill-color:#0369A1;--ag-pill-accent:rgba(14,165,233,.15);--ag-pill-count-color:#0369A1;">
-    <i class="fas fa-user-tie"></i> All Agents
-    <span class="ag-count-badge">{{ $activeAgents->count() }}</span>
+{{-- ── Active / All ───────────────────────────────────────── --}}
+<div class="agv2-section" style="margin-top:{{ $pendingAgents->count() ? '32px' : '4px' }};">
+  <div class="agv2-section-bar" style="background:linear-gradient(90deg,transparent,rgba(14,165,233,.25));"></div>
+  <div class="agv2-section-label" style="--agv2-sec-color:#0369A1;">
+    <i class="fas fa-user-tie"></i> ALL AGENTS
+    <span class="agv2-count-pill" style="--agv2-pill-bg:rgba(14,165,233,.12);--agv2-pill-color:#0369A1;">{{ $activeAgents->count() }}</span>
   </div>
-  <div class="ag-section-hd-line"></div>
+  <div class="agv2-section-bar" style="background:linear-gradient(90deg,rgba(14,165,233,.25),transparent);"></div>
 </div>
 
 @forelse($activeAgents as $i => $agent)
 @php
-  $g         = $avatarGradients[($i + 2) % count($avatarGradients)];
-  $propCount = \Illuminate\Support\Facades\DB::table('properties')->where('agent_user_id', $agent->id)->count();
+  $isActive  = $agent->status === 'active';
+  $grad      = $agGrads[($i + 3) % count($agGrads)];
+  $propCount = \Illuminate\Support\Facades\DB::table('properties')->where('agent_user_id',$agent->id)->count();
   $walletId  = \Illuminate\Support\Facades\DB::table('wallets')->where('owner_type','App\\Models\\User')->where('owner_id',$agent->id)->value('id');
   $earned    = $walletId ? \Illuminate\Support\Facades\DB::table('wallet_transactions')->where('wallet_id',$walletId)->where('type','credit')->sum('amount') : 0;
-  $isActive  = $agent->status === 'active';
 @endphp
-<div class="ag-card {{ $isActive ? 'active' : 'suspended' }}">
-  <div class="ag-avatar-wrap">
-    <div class="ag-avatar" style="background:linear-gradient(135deg,{{ $g[0] }},{{ $g[1] }});{{ $isActive ? '' : 'filter:grayscale(.6);' }}">
-      {{ agInitials($agent->name) }}
+<div class="agv2-active-card {{ $isActive ? '' : 'suspended' }}"
+     style="--agv2-stripe:{{ $isActive ? 'linear-gradient(180deg,#0369A1,#0EA5E9)' : 'linear-gradient(180deg,#9ca3af,#d1d5db)' }};">
+  <div class="agv2-active-card-stripe"></div>
+  <div class="agv2-active-body">
+    {{-- Avatar --}}
+    <div class="agv2-act-avatar-wrap">
+      <div class="agv2-act-avatar" style="background:{{ $isActive ? $grad : 'linear-gradient(135deg,#9ca3af,#d1d5db)' }};">
+        {{ agv2Initials($agent->name) }}
+      </div>
+      <div class="agv2-act-badge"
+           style="--agv2-badge-bg:{{ $isActive ? '#10B981' : '#9ca3af' }};--agv2-badge-glow:{{ $isActive ? 'rgba(16,185,129,.25)' : 'rgba(156,163,175,.2)' }};"></div>
     </div>
-    <div class="ag-avatar-ring"></div>
-    <div class="ag-status-dot"></div>
-  </div>
 
-  <div class="ag-info">
-    <div class="ag-name">{{ $agent->name }}</div>
-    <div class="ag-contact">{{ $agent->phone ?? $agent->email ?? '—' }}</div>
-    <div class="ag-tags">
-      @if($agent->district_name)
-      <span class="ag-tag ag-tag-district"><i class="fas fa-map-marker-alt"></i> {{ $agent->district_name }}</span>
+    {{-- Info --}}
+    <div class="agv2-act-info">
+      <div class="agv2-act-name-row">
+        <span class="agv2-act-name">{{ $agent->name }}</span>
+        <span class="agv2-act-status-pill"
+              style="--agv2-spill-bg:{{ $isActive ? 'rgba(16,185,129,.12)' : 'rgba(156,163,175,.15)' }};--agv2-spill-color:{{ $isActive ? '#065f46' : '#6b7280' }};">
+          {{ $isActive ? 'Active' : 'Suspended' }}
+        </span>
+      </div>
+      <div class="agv2-act-contact">
+        <i class="fas fa-phone" style="margin-right:5px;font-size:10px;"></i>{{ $agent->phone ?? $agent->email ?? '—' }}
+      </div>
+      <div class="agv2-act-chips">
+        @if($agent->district_name)
+        <span class="agv2-chip agv2-chip-sky"><i class="fas fa-map-marker-alt"></i> {{ $agent->district_name }}</span>
+        @endif
+        <span class="agv2-chip agv2-chip-gray"><i class="fas fa-calendar"></i> Joined {{ \Carbon\Carbon::parse($agent->created_at)->format('M Y') }}</span>
+      </div>
+    </div>
+
+    {{-- Metrics --}}
+    <div class="agv2-metrics-block">
+      <div class="agv2-metric">
+        <div class="agv2-metric-val" style="color:#8B5CF6;">{{ $propCount }}</div>
+        <div class="agv2-metric-lbl">Listings</div>
+      </div>
+      <div class="agv2-metric">
+        <div class="agv2-metric-val" style="color:#10B981;">${{ number_format($earned,0) }}</div>
+        <div class="agv2-metric-lbl">Earned</div>
+      </div>
+    </div>
+
+    {{-- Actions --}}
+    <div class="agv2-act-actions">
+      @if($isActive)
+      <form method="POST" action="{{ route('admin.module-data.rent.agent.toggle', $agent->id) }}">
+        @csrf
+        <button type="submit" class="agv2-act-btn agv2-act-btn-suspend" onclick="return confirm('Suspend {{ addslashes($agent->name) }}?')">
+          <i class="fas fa-pause-circle"></i> Suspend
+        </button>
+      </form>
+      @else
+      <form method="POST" action="{{ route('admin.module-data.rent.agent.toggle', $agent->id) }}">
+        @csrf
+        <button type="submit" class="agv2-act-btn agv2-act-btn-reactivate" onclick="return confirm('Reactivate {{ addslashes($agent->name) }}?')">
+          <i class="fas fa-play-circle"></i> Reactivate
+        </button>
+      </form>
       @endif
-      <span class="ag-tag ag-tag-joined"><i class="fas fa-calendar-alt"></i> Joined {{ \Carbon\Carbon::parse($agent->created_at)->format('M Y') }}</span>
+      <form method="POST" action="{{ route('admin.module-data.rent.agent.reject', $agent->id) }}">
+        @csrf
+        <button type="submit" class="agv2-act-btn agv2-act-btn-remove" onclick="return confirm('Permanently delete {{ addslashes($agent->name) }}? This cannot be undone.')">
+          <i class="fas fa-trash-alt"></i> Remove
+        </button>
+      </form>
     </div>
-  </div>
-
-  <div class="ag-metrics">
-    <div class="ag-metric">
-      <div class="ag-metric-val" style="color:var(--ag-purple);">{{ $propCount }}</div>
-      <div class="ag-metric-lbl">Listings</div>
-    </div>
-    <div class="ag-metric">
-      <div class="ag-metric-val" style="color:var(--ag-green);">${{ number_format($earned,0) }}</div>
-      <div class="ag-metric-lbl">Earned</div>
-    </div>
-  </div>
-
-  <div class="ag-actions">
-    @if($isActive)
-    <form method="POST" action="{{ route('admin.module-data.rent.agent.toggle', $agent->id) }}">
-      @csrf
-      <button type="submit" class="ag-btn ag-btn-suspend" onclick="return confirm('Suspend {{ addslashes($agent->name) }}?')">
-        <i class="fas fa-pause-circle"></i> Suspend
-      </button>
-    </form>
-    @else
-    <form method="POST" action="{{ route('admin.module-data.rent.agent.toggle', $agent->id) }}">
-      @csrf
-      <button type="submit" class="ag-btn ag-btn-activate" onclick="return confirm('Reactivate {{ addslashes($agent->name) }}?')">
-        <i class="fas fa-play-circle"></i> Reactivate
-      </button>
-    </form>
-    @endif
-    <form method="POST" action="{{ route('admin.module-data.rent.agent.reject', $agent->id) }}">
-      @csrf
-      <button type="submit" class="ag-btn ag-btn-delete" onclick="return confirm('Permanently delete {{ addslashes($agent->name) }}? This cannot be undone.')">
-        <i class="fas fa-trash-alt"></i> Remove
-      </button>
-    </form>
   </div>
 </div>
 @empty
-<div class="ag-empty">
-  <div class="ag-empty-icon"><i class="fas fa-user-tie"></i></div>
-  <div class="ag-empty-title">No approved agents yet</div>
-  <div class="ag-empty-sub">Approved agents will appear here. Pending applications are shown above.</div>
+<div class="agv2-empty">
+  <div class="agv2-empty-icon"><i class="fas fa-user-tie"></i></div>
+  <div class="agv2-empty-title">No approved agents yet</div>
+  <div class="agv2-empty-sub">Agents you approve will appear here. Pending applications are shown above.</div>
 </div>
 @endforelse
 
+</div>{{-- /agv2-wrap --}}
 </div>{{-- /tab-agents --}}
 
 @endsection
