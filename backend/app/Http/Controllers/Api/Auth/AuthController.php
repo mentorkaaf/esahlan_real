@@ -237,6 +237,10 @@ class AuthController extends Controller
             return response()->json(['success' => false, 'message' => 'Your account has been banned'], 403);
         }
 
+        if ($user->status === 'pending') {
+            return response()->json(['success' => false, 'message' => 'Your account is pending admin approval. You will be notified once approved.'], 403);
+        }
+
         LoginAttempt::create([
             'identifier'   => $identifier,
             'ip_address'   => $ip,

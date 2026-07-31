@@ -233,6 +233,7 @@
     <button class="module-tab" onclick="switchTab('bookings',this)"><i class="fas fa-calendar-check"></i> Bookings</button>
     <button class="module-tab" onclick="switchTab('add-property',this)"><i class="fas fa-plus-circle"></i> Add Property</button>
     <button class="module-tab" onclick="switchTab('districts',this)"><i class="fas fa-map-marker-alt"></i> Districts</button>
+    <button class="module-tab" onclick="switchTab('agents',this)"><i class="fas fa-user-tie"></i> Agents <span id="pending-badge" style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;">{{ $agents->where('status', 'pending')->count() }}</span></button>
 </div>
 
 {{-- ══════════════════════════════════════════════════════════════ --}}
@@ -1004,5 +1005,160 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
     m.addEventListener('click', function(e){ if(e.target === this) this.classList.remove('open'); });
 });
 </script>
+
+{{-- ══════════════════════════════════════════════════════════════ --}}
+{{-- TAB: AGENTS --}}
+{{-- ══════════════════════════════════════════════════════════════ --}}
+<div id="tab-agents" class="tab-pane" style="display:none">
+
+<style>
+.agent-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+    transition: box-shadow .15s;
+}
+.agent-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.07); }
+.agent-avatar {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: linear-gradient(135deg, #0369A1, #0EA5E9);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 20px; flex-shrink: 0;
+}
+.agent-info { flex: 1; min-width: 0; }
+.agent-name { font-weight: 700; font-size: 15px; color: var(--text); margin-bottom: 3px; }
+.agent-meta { font-size: 12px; color: var(--text-muted); }
+.agent-district { display:inline-block; background: rgba(14,165,233,.1); color:#0EA5E9; border-radius:8px; padding:2px 9px; font-size:11px; font-weight:600; margin-top:4px; }
+.agent-status-badge { display:inline-block; padding:3px 10px; border-radius:10px; font-size:11px; font-weight:700; margin-bottom:6px; }
+.badge-pending  { background:#fef3c7; color:#92400e; }
+.badge-active   { background:#d1fae5; color:#065f46; }
+.badge-inactive { background:#fee2e2; color:#991b1b; }
+.agent-actions { display:flex; gap:8px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; }
+.btn-approve { background:#10b981; color:#fff; border:none; border-radius:8px; padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer; }
+.btn-approve:hover { background:#059669; }
+.btn-reject  { background:#ef4444; color:#fff; border:none; border-radius:8px; padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer; }
+.btn-reject:hover { background:#dc2626; }
+.btn-toggle-on  { background:#f59e0b; color:#fff; border:none; border-radius:8px; padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer; }
+.btn-toggle-off { background:#6366f1; color:#fff; border:none; border-radius:8px; padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer; }
+.agents-section-title { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin: 20px 0 10px; }
+.agent-stats-bar { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:24px; }
+.agent-stat { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 20px; flex:1; min-width:120px; }
+.agent-stat-num { font-size:24px; font-weight:900; color:var(--brand); line-height:1; }
+.agent-stat-lbl { font-size:12px; color:var(--text-muted); margin-top:3px; }
+</style>
+
+@php
+    $pendingAgents  = $agents->where('status', 'pending');
+    $activeAgents   = $agents->whereIn('status', ['active', 'inactive']);
+@endphp
+
+{{-- Stats --}}
+<div class="agent-stats-bar">
+    <div class="agent-stat">
+        <div class="agent-stat-num">{{ $agents->count() }}</div>
+        <div class="agent-stat-lbl">Total Agents</div>
+    </div>
+    <div class="agent-stat" style="border-color:#10b981;">
+        <div class="agent-stat-num" style="color:#10b981;">{{ $activeAgents->count() }}</div>
+        <div class="agent-stat-lbl">Active</div>
+    </div>
+    <div class="agent-stat" style="border-color:#f59e0b;">
+        <div class="agent-stat-num" style="color:#f59e0b;">{{ $pendingAgents->count() }}</div>
+        <div class="agent-stat-lbl">Pending Approval</div>
+    </div>
+</div>
+
+{{-- Pending --}}
+@if($pendingAgents->count())
+<div class="agents-section-title" style="color:#92400e;"><i class="fas fa-clock" style="margin-right:6px;"></i>Pending Approval ({{ $pendingAgents->count() }})</div>
+@foreach($pendingAgents as $agent)
+<div class="agent-card" style="border-color:#fde68a;">
+    <div class="agent-avatar"><i class="fas fa-user-tie"></i></div>
+    <div class="agent-info">
+        <div class="agent-name">{{ $agent->name }}</div>
+        <div class="agent-meta">
+            {{ $agent->phone ?? $agent->email ?? '—' }}
+            &nbsp;·&nbsp; Registered {{ \Carbon\Carbon::parse($agent->created_at)->diffForHumans() }}
+        </div>
+        @if($agent->district_name)
+        <span class="agent-district"><i class="fas fa-map-marker-alt" style="font-size:10px;"></i> {{ $agent->district_name }}</span>
+        @endif
+        <div style="margin-top:6px;"><span class="agent-status-badge badge-pending">Pending</span></div>
+    </div>
+    <div class="agent-actions">
+        <form method="POST" action="{{ route('admin.module-data.rent.agent.approve', $agent->id) }}" style="display:inline;">
+            @csrf
+            <button type="submit" class="btn-approve" onclick="return confirm('Approve {{ addslashes($agent->name) }}?')">
+                <i class="fas fa-check"></i> Approve
+            </button>
+        </form>
+        <form method="POST" action="{{ route('admin.module-data.rent.agent.reject', $agent->id) }}" style="display:inline;">
+            @csrf
+            <button type="submit" class="btn-reject" onclick="return confirm('Reject and remove {{ addslashes($agent->name) }}?')">
+                <i class="fas fa-times"></i> Reject
+            </button>
+        </form>
+    </div>
+</div>
+@endforeach
+@endif
+
+{{-- Active / Inactive --}}
+<div class="agents-section-title"><i class="fas fa-users" style="margin-right:6px;"></i>All Approved Agents ({{ $activeAgents->count() }})</div>
+@forelse($activeAgents as $agent)
+@php
+    $propCount = \Illuminate\Support\Facades\DB::table('properties')->where('agent_user_id', $agent->id)->count();
+    $earned    = \Illuminate\Support\Facades\DB::table('wallet_transactions')
+        ->where('walletable_type', 'App\\Models\\User')
+        ->where('walletable_id', $agent->id)
+        ->where('type', 'credit')->sum('amount');
+@endphp
+<div class="agent-card">
+    <div class="agent-avatar"><i class="fas fa-user-tie"></i></div>
+    <div class="agent-info">
+        <div class="agent-name">{{ $agent->name }}</div>
+        <div class="agent-meta">
+            {{ $agent->phone ?? $agent->email ?? '—' }}
+            &nbsp;·&nbsp; {{ $propCount }} propert{{ $propCount==1?'y':'ies' }}
+            &nbsp;·&nbsp; ${{ number_format($earned, 2) }} earned
+        </div>
+        @if($agent->district_name)
+        <span class="agent-district"><i class="fas fa-map-marker-alt" style="font-size:10px;"></i> {{ $agent->district_name }}</span>
+        @endif
+        <div style="margin-top:6px;">
+            <span class="agent-status-badge {{ $agent->status === 'active' ? 'badge-active' : 'badge-inactive' }}">
+                {{ $agent->status === 'active' ? 'Active' : 'Suspended' }}
+            </span>
+        </div>
+    </div>
+    <div class="agent-actions">
+        <form method="POST" action="{{ route('admin.module-data.rent.agent.toggle', $agent->id) }}" style="display:inline;">
+            @csrf
+            <button type="submit" class="{{ $agent->status === 'active' ? 'btn-toggle-on' : 'btn-toggle-off' }}" onclick="return confirm('{{ $agent->status === 'active' ? 'Suspend' : 'Reactivate' }} this agent?')">
+                <i class="fas fa-{{ $agent->status === 'active' ? 'ban' : 'check-circle' }}"></i>
+                {{ $agent->status === 'active' ? 'Suspend' : 'Reactivate' }}
+            </button>
+        </form>
+        <form method="POST" action="{{ route('admin.module-data.rent.agent.reject', $agent->id) }}" style="display:inline;">
+            @csrf
+            <button type="submit" class="btn-reject" onclick="return confirm('Permanently delete {{ addslashes($agent->name) }}?')">
+                <i class="fas fa-trash"></i>
+            </button>
+        </form>
+    </div>
+</div>
+@empty
+<div style="text-align:center;padding:40px;color:var(--text-muted);">
+    <i class="fas fa-user-tie" style="font-size:40px;opacity:.3;margin-bottom:12px;display:block;"></i>
+    No approved agents yet.
+</div>
+@endforelse
+
+</div>{{-- /tab-agents --}}
 
 @endsection

@@ -90,6 +90,7 @@ class VendorApiRegisterController extends Controller
                 'phone'    => $phone,
                 'password' => Hash::make($request->password),
                 'role_id'  => $roleId,
+                'status'   => 'pending',
             ]);
 
             if (!$isAgent) {

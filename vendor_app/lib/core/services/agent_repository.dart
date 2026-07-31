@@ -11,7 +11,7 @@ class AgentRepository {
       _api.get('/agent/dashboard');
 
   Future<Map<String, dynamic>> districts() =>
-      _api.get('/agent/districts');
+      _api.get('/districts');
 
   Future<Map<String, dynamic>> properties({String? status, int page = 1}) =>
       _api.get('/agent/properties', queryParameters: {

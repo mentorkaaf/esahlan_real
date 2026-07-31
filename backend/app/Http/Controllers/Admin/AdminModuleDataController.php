@@ -700,7 +700,9 @@ class AdminModuleDataController extends Controller
     {
         $properties = DB::table('properties')
             ->join('districts', 'properties.district_id', '=', 'districts.id')
-            ->select('properties.*', 'districts.name as district_name')
+            ->leftJoin('users as agent_users', 'properties.agent_user_id', '=', 'agent_users.id')
+            ->select('properties.*', 'districts.name as district_name',
+                     'agent_users.name as agent_name', 'agent_users.phone as agent_phone')
             ->orderByDesc('properties.id')->paginate(25);
         $propCounts = DB::table('properties')->select('district_id', DB::raw('COUNT(*) as cnt'))->groupBy('district_id')->pluck('cnt', 'district_id');
         $districts  = DB::table('districts')->where('status', 'active')->orderBy('sort_order')->get()->each(function($d) use ($propCounts) {
@@ -714,7 +716,41 @@ class AdminModuleDataController extends Controller
                      'users.name as tenant_name', 'users.phone as tenant_phone',
                      'orders.order_number', 'orders.payment_status')
             ->orderByDesc('property_bookings.id')->limit(50)->get();
-        return view('admin.module-data.rent', compact('properties', 'districts', 'bookings'));
+
+        $rentAgentRoleId = DB::table('roles')->where('slug', 'rent_agent')->value('id');
+        $agents = DB::table('users')
+            ->leftJoin('districts', 'users.district_id', '=', 'districts.id')
+            ->where('users.role_id', $rentAgentRoleId)
+            ->whereNull('users.deleted_at')
+            ->select('users.*', 'districts.name as district_name')
+            ->orderByDesc('users.id')->get();
+
+        return view('admin.module-data.rent', compact('properties', 'districts', 'bookings', 'agents'));
+    }
+
+    public function agentApprove(Request $request, $id)
+    {
+        DB::table('users')->where('id', $id)->update([
+            'status'     => 'active',
+            'updated_at' => now(),
+        ]);
+        return back()->with('success', 'Agent approved successfully.');
+    }
+
+    public function agentReject(Request $request, $id)
+    {
+        DB::table('users')->where('id', $id)->delete();
+        return back()->with('success', 'Agent rejected and removed.');
+    }
+
+    public function agentToggle(Request $request, $id)
+    {
+        $current = DB::table('users')->where('id', $id)->value('status');
+        DB::table('users')->where('id', $id)->update([
+            'status'     => $current === 'active' ? 'inactive' : 'active',
+            'updated_at' => now(),
+        ]);
+        return back()->with('success', 'Agent status updated.');
     }
 
     public function propertyStore(Request $request)
