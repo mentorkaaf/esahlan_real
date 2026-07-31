@@ -2575,22 +2575,38 @@ class _FindAgentTab extends ConsumerStatefulWidget {
 }
 
 class _FindAgentTabState extends ConsumerState<_FindAgentTab> {
-  final _descCtl = TextEditingController();
+  // Wizard state
+  int     _step      = 0; // 0=purpose&type  1=location&details  2=date&notes
+  String  _purpose   = 'rent';
   String? _type;
   int?    _bedrooms;
   int?    _districtId;
   double  _budgetMin = 0;
   double  _budgetMax = 1000;
-  List<Map> _districts = [];
-  bool _loading = false;
-  bool _submitted = false;
+  DateTime? _moveIn;
+  final _descCtl = TextEditingController();
 
-  static const _types = ['apartment', 'house', 'villa', 'room', 'office', 'shop'];
+  // Data
+  List<Map> _districts   = [];
+  bool      _loading     = false;
+  String?   _sentRef;  // after success: ERQ-xxx
+
+  // My requests
+  List<Map<String, dynamic>> _myRequests = [];
+  bool _myRequestsLoading = false;
+
+  static const _types    = ['apartment', 'house', 'villa', 'room', 'office', 'studio'];
+  static const _purposes = [
+    ('rent',  'Renting',  Icons.vpn_key_rounded),
+    ('buy',   'Buying',   Icons.shopping_bag_rounded),
+    ('lease', 'Leasing',  Icons.assignment_rounded),
+  ];
 
   @override
   void initState() {
     super.initState();
     _loadDistricts();
+    _loadMyRequests();
   }
 
   @override
@@ -2603,18 +2619,38 @@ class _FindAgentTabState extends ConsumerState<_FindAgentTab> {
     } catch (_) {}
   }
 
+  Future<void> _loadMyRequests() async {
+    setState(() => _myRequestsLoading = true);
+    try {
+      final res = await _svc.myHouseRequests();
+      if (mounted) setState(() {
+        _myRequests = List<Map<String, dynamic>>.from(
+          (res['data'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)));
+        _myRequestsLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _myRequestsLoading = false);
+    }
+  }
+
   Future<void> _submit() async {
     setState(() => _loading = true);
     try {
-      await _svc.submitHouseRequest({
+      final res = await _svc.submitHouseRequest({
+        'purpose': _purpose,
         if (_districtId != null) 'district_id': _districtId,
         if (_type != null) 'type': _type,
         if (_bedrooms != null) 'bedrooms': _bedrooms,
         'budget_min': _budgetMin.round(),
         'budget_max': _budgetMax.round(),
+        if (_moveIn != null) 'move_in_date': _moveIn!.toIso8601String().split('T')[0],
         if (_descCtl.text.trim().isNotEmpty) 'description': _descCtl.text.trim(),
       });
-      if (mounted) setState(() { _submitted = true; _loading = false; });
+      final ref = (res['data'] as Map?)?['request_ref'] as String?;
+      if (mounted) {
+        setState(() { _sentRef = ref ?? 'Sent'; _loading = false; _step = 0; });
+        _loadMyRequests();
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
@@ -2624,145 +2660,394 @@ class _FindAgentTabState extends ConsumerState<_FindAgentTab> {
     }
   }
 
+  void _reset() => setState(() {
+    _step = 0; _purpose = 'rent'; _type = null; _bedrooms = null;
+    _districtId = null; _budgetMin = 0; _budgetMax = 1000;
+    _moveIn = null; _sentRef = null; _descCtl.clear();
+  });
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    if (_submitted) {
-      return Center(child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Container(width: 80, height: 80, decoration: BoxDecoration(color: const Color(0xFF0EA5E9).withValues(alpha: 0.1), shape: BoxShape.circle),
-            child: const Icon(Icons.check_circle_rounded, color: Color(0xFF0EA5E9), size: 48)),
-          const SizedBox(height: 20),
-          Text('Request Sent!', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: colors.navyText)),
-          const SizedBox(height: 10),
-          const Text('Agents in your area have been notified. They will contact you shortly.',
-            textAlign: TextAlign.center, style: TextStyle(color: _kMuted, fontSize: 14)),
-          const SizedBox(height: 28),
-          ElevatedButton(
-            onPressed: () => setState(() => _submitted = false),
-            style: ElevatedButton.styleFrom(backgroundColor: _kOrange, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-            child: const Text('Send Another Request', style: TextStyle(fontWeight: FontWeight.w800)),
-          ),
-        ]),
-      ));
-    }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Header
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [const Color(0xFF0369A1), const Color(0xFF0EA5E9)]),
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Row(children: [
-            const Icon(Icons.person_search_rounded, color: Colors.white, size: 36),
-            const SizedBox(width: 14),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Find an Agent', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 4),
-              const Text('Tell us what you need — agents in your area will contact you directly.',
-                style: TextStyle(color: Colors.white70, fontSize: 12)),
-            ])),
-          ]),
-        ),
-        const SizedBox(height: 24),
+    return RefreshIndicator(
+      onRefresh: () async { await _loadMyRequests(); },
+      color: _kOrange,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-        // District
-        _SectionLabel('Preferred District (optional)'),
-        DropdownButtonFormField<int>(
-          value: _districtId,
-          decoration: InputDecoration(hintText: 'Any district', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
-          items: [
-            const DropdownMenuItem<int>(value: null, child: Text('Any district')),
-            ..._districts.map((d) => DropdownMenuItem<int>(value: d['id'] as int, child: Text(d['name'] ?? ''))),
+          // ── My Requests (if any) ──
+          if (_myRequests.isNotEmpty || _myRequestsLoading) ...[
+            Row(children: [
+              Text('My Requests', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: colors.navyText)),
+              const Spacer(),
+              if (_myRequestsLoading) const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: _kOrange)),
+            ]),
+            const SizedBox(height: 10),
+            ..._myRequests.take(3).map((r) => _MyRequestCard(req: r, colors: colors)),
+            if (_myRequests.length > 3) Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text('+${_myRequests.length - 3} more requests',
+                style: const TextStyle(color: _kMuted, fontSize: 12)),
+            ),
+            const SizedBox(height: 20),
+            Divider(color: colors.navyText.withValues(alpha: 0.08)),
+            const SizedBox(height: 20),
           ],
-          onChanged: (v) => setState(() => _districtId = v),
-        ),
-        const SizedBox(height: 18),
 
-        // Type
-        _SectionLabel('Property Type (optional)'),
-        Wrap(spacing: 8, runSpacing: 8, children: _types.map((t) {
-          final sel = _type == t;
-          return GestureDetector(
-            onTap: () => setState(() => _type = sel ? null : t),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: sel ? _kOrange : colors.cardBg,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: sel ? _kOrange : Colors.black12),
-              ),
-              child: Text(t.capitalize(), style: TextStyle(color: sel ? Colors.white : colors.navyText, fontWeight: FontWeight.w700, fontSize: 13)),
+          // ── Success state ──
+          if (_sentRef != null) ...[
+            _SuccessBanner(ref: _sentRef!, onNew: _reset),
+            const SizedBox(height: 24),
+          ],
+
+          // ── Header ──
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFFFF6B35), Color(0xFFFF9500)]),
+              borderRadius: BorderRadius.circular(18),
             ),
-          );
-        }).toList()),
-        const SizedBox(height: 18),
-
-        // Bedrooms
-        _SectionLabel('Min Bedrooms (optional)'),
-        Wrap(spacing: 8, children: [1, 2, 3, 4, 5].map((n) {
-          final sel = _bedrooms == n;
-          return GestureDetector(
-            onTap: () => setState(() => _bedrooms = sel ? null : n),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: sel ? _kOrange : colors.cardBg,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: sel ? _kOrange : Colors.black12),
+            child: Row(children: [
+              const Icon(Icons.person_search_rounded, color: Colors.white, size: 34),
+              const SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Find an Agent', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 3),
+                Text(_stepSubtitle(), style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ])),
+              // Step indicator
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(99)),
+                child: Text('${_step + 1}/3', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13)),
               ),
-              child: Center(child: Text('$n', style: TextStyle(color: sel ? Colors.white : colors.navyText, fontWeight: FontWeight.w800))),
+            ]),
+          ),
+          const SizedBox(height: 6),
+
+          // ── Step progress bar ──
+          Row(children: List.generate(3, (i) => Expanded(child: Container(
+            height: 4,
+            margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
+            decoration: BoxDecoration(
+              color: i <= _step ? _kOrange : colors.navyText.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(99),
             ),
-          );
-        }).toList()),
-        const SizedBox(height: 18),
+          )))),
+          const SizedBox(height: 22),
 
-        // Budget
-        _SectionLabel('Budget Range: \$${_budgetMin.round()}–\$${_budgetMax.round()}/mo'),
-        RangeSlider(
-          values: RangeValues(_budgetMin, _budgetMax),
-          min: 0, max: 2000, divisions: 40,
-          activeColor: _kOrange,
-          onChanged: (v) => setState(() { _budgetMin = v.start; _budgetMax = v.end; }),
-        ),
-        const SizedBox(height: 18),
+          // ── Step content ──
+          if (_step == 0) _buildStep1(colors),
+          if (_step == 1) _buildStep2(colors),
+          if (_step == 2) _buildStep3(colors),
 
-        // Description
-        _SectionLabel('Additional notes (optional)'),
-        TextFormField(
-          controller: _descCtl,
-          maxLines: 3,
-          decoration: InputDecoration(
-            hintText: 'e.g. Need a quiet neighborhood, close to schools...',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        const SizedBox(height: 28),
+          const SizedBox(height: 24),
 
-        SizedBox(width: double.infinity, child: ElevatedButton(
-          onPressed: _loading ? null : _submit,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _kOrange, foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          ),
-          child: _loading
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Text('Send to Agents', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-        )),
-        const SizedBox(height: 8),
-        const Center(child: Text('Agents will contact you directly via phone or in-app message.',
-          style: TextStyle(color: _kMuted, fontSize: 12), textAlign: TextAlign.center)),
-      ]),
+          // ── Navigation buttons ──
+          Row(children: [
+            if (_step > 0)
+              Expanded(flex: 1, child: OutlinedButton(
+                onPressed: () => setState(() => _step--),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: colors.navyText,
+                  side: BorderSide(color: colors.navyText.withValues(alpha: 0.2)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: const Text('Back', style: TextStyle(fontWeight: FontWeight.w700)),
+              )),
+            if (_step > 0) const SizedBox(width: 12),
+            Expanded(flex: 2, child: ElevatedButton(
+              onPressed: _loading ? null : _onNext,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kOrange, foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              child: _loading
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Text(_step < 2 ? 'Next →' : 'Send to Agents',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+            )),
+          ]),
+          const SizedBox(height: 10),
+          const Center(child: Text('Agents will contact you directly when they accept.',
+            style: TextStyle(color: _kMuted, fontSize: 12), textAlign: TextAlign.center)),
+        ]),
+      ),
     );
   }
+
+  String _stepSubtitle() {
+    switch (_step) {
+      case 0: return 'What are you looking for?';
+      case 1: return 'Where and how many rooms?';
+      default: return 'When and any special notes?';
+    }
+  }
+
+  void _onNext() {
+    if (_step < 2) { setState(() => _step++); return; }
+    _submit();
+  }
+
+  // ── Step 1: Purpose + Type ──
+  Widget _buildStep1(dynamic colors) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    _SectionLabel('I am looking to…'),
+    Row(children: _purposes.map(((String val, String label, IconData icon) p) {
+      final sel = _purpose == p.$1;
+      return Expanded(child: GestureDetector(
+        onTap: () => setState(() => _purpose = p.$1),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: sel ? _kOrange : colors.cardBg,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: sel ? _kOrange : Colors.black12, width: sel ? 2 : 1),
+          ),
+          child: Column(children: [
+            Icon(p.$3, color: sel ? Colors.white : colors.navyText, size: 22),
+            const SizedBox(height: 5),
+            Text(p.$2, style: TextStyle(color: sel ? Colors.white : colors.navyText,
+              fontWeight: FontWeight.w800, fontSize: 12)),
+          ]),
+        ),
+      ));
+    }).toList()),
+    const SizedBox(height: 20),
+    _SectionLabel('Property Type (optional)'),
+    Wrap(spacing: 8, runSpacing: 8, children: _types.map((t) {
+      final sel = _type == t;
+      return GestureDetector(
+        onTap: () => setState(() => _type = sel ? null : t),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: sel ? _kOrange : colors.cardBg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: sel ? _kOrange : Colors.black12),
+          ),
+          child: Text(t.capitalize(), style: TextStyle(
+            color: sel ? Colors.white : colors.navyText, fontWeight: FontWeight.w700, fontSize: 13)),
+        ),
+      );
+    }).toList()),
+  ]);
+
+  // ── Step 2: Location + Bedrooms + Budget ──
+  Widget _buildStep2(dynamic colors) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    _SectionLabel('Preferred District (optional)'),
+    DropdownButtonFormField<int>(
+      value: _districtId,
+      decoration: InputDecoration(hintText: 'Any district', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+      items: [
+        const DropdownMenuItem<int>(value: null, child: Text('Any district')),
+        ..._districts.map((d) => DropdownMenuItem<int>(value: d['id'] as int, child: Text(d['name'] ?? ''))),
+      ],
+      onChanged: (v) => setState(() => _districtId = v),
+    ),
+    const SizedBox(height: 18),
+    _SectionLabel('Min Bedrooms (optional)'),
+    Wrap(spacing: 8, children: [0, 1, 2, 3, 4, 5].map((n) {
+      final sel = _bedrooms == n;
+      return GestureDetector(
+        onTap: () => setState(() => _bedrooms = sel ? null : n),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 44, height: 44,
+          decoration: BoxDecoration(
+            color: sel ? _kOrange : colors.cardBg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: sel ? _kOrange : Colors.black12),
+          ),
+          child: Center(child: Text(n == 0 ? 'Any' : '$n',
+            style: TextStyle(color: sel ? Colors.white : colors.navyText,
+              fontWeight: FontWeight.w800, fontSize: n == 0 ? 10 : 14))),
+        ),
+      );
+    }).toList()),
+    const SizedBox(height: 18),
+    _SectionLabel('Budget: \$${_budgetMin.round()}–\$${_budgetMax.round()}/mo'),
+    RangeSlider(
+      values: RangeValues(_budgetMin, _budgetMax),
+      min: 0, max: 2000, divisions: 40,
+      activeColor: _kOrange,
+      onChanged: (v) => setState(() { _budgetMin = v.start; _budgetMax = v.end; }),
+    ),
+  ]);
+
+  // ── Step 3: Move-in date + Notes ──
+  Widget _buildStep3(dynamic colors) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    _SectionLabel('Move-in Date (optional)'),
+    GestureDetector(
+      onTap: () async {
+        final d = await showDatePicker(
+          context: context,
+          initialDate: DateTime.now().add(const Duration(days: 7)),
+          firstDate: DateTime.now(),
+          lastDate: DateTime.now().add(const Duration(days: 365)),
+        );
+        if (d != null) setState(() => _moveIn = d);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: colors.cardBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _moveIn != null ? _kOrange : Colors.black12,
+            width: _moveIn != null ? 1.5 : 1),
+        ),
+        child: Row(children: [
+          Icon(Icons.calendar_today_rounded, size: 18,
+            color: _moveIn != null ? _kOrange : colors.navyText),
+          const SizedBox(width: 10),
+          Text(
+            _moveIn != null
+                ? '${_moveIn!.day}/${_moveIn!.month}/${_moveIn!.year}'
+                : 'Pick a date (optional)',
+            style: TextStyle(
+              color: _moveIn != null ? _kOrange : _kMuted,
+              fontWeight: _moveIn != null ? FontWeight.w700 : FontWeight.normal,
+            ),
+          ),
+          const Spacer(),
+          if (_moveIn != null)
+            GestureDetector(
+              onTap: () => setState(() => _moveIn = null),
+              child: const Icon(Icons.clear_rounded, size: 16, color: _kMuted),
+            ),
+        ]),
+      ),
+    ),
+    const SizedBox(height: 18),
+    _SectionLabel('Additional Notes (optional)'),
+    TextFormField(
+      controller: _descCtl,
+      maxLines: 4,
+      decoration: InputDecoration(
+        hintText: 'e.g. Ground floor preferred, close to schools, quiet area...',
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+  ]);
+}
+
+// ── Success Banner ─────────────────────────────────────────────────────────────
+
+class _SuccessBanner extends StatelessWidget {
+  final String ref;
+  final VoidCallback onNew;
+  const _SuccessBanner({required this.ref, required this.onNew});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(colors: [Color(0xFF059669), Color(0xFF10B981)]),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Row(children: [
+      const Icon(Icons.check_circle_rounded, color: Colors.white, size: 36),
+      const SizedBox(width: 14),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Request Sent!', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 3),
+        Text('Ref: $ref', style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 2),
+        const Text('Agents have been notified. You\'ll see status updates above.',
+          style: TextStyle(color: Colors.white70, fontSize: 11)),
+      ])),
+      TextButton(
+        onPressed: onNew,
+        child: const Text('New', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+      ),
+    ]),
+  );
+}
+
+// ── My Request Card ───────────────────────────────────────────────────────────
+
+class _MyRequestCard extends StatelessWidget {
+  final Map<String, dynamic> req;
+  final dynamic colors;
+  const _MyRequestCard({required this.req, required this.colors});
+
+  Color get _statusColor {
+    switch (req['status']) {
+      case 'assigned':  return const Color(0xFF0EA5E9);
+      case 'searching': return const Color(0xFF8B5CF6);
+      case 'matched':   return const Color(0xFF10B981);
+      case 'completed': return const Color(0xFF6B7280);
+      case 'cancelled': return const Color(0xFFEF4444);
+      default:          return _kOrange;
+    }
+  }
+
+  String get _statusLabel {
+    switch (req['status']) {
+      case 'open':      return 'Waiting for agent';
+      case 'assigned':  return 'Agent accepted';
+      case 'searching': return 'Searching...';
+      case 'matched':   return 'Match found!';
+      case 'completed': return 'Completed';
+      case 'cancelled': return 'Cancelled';
+      default:          return req['status'] ?? '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    decoration: BoxDecoration(
+      color: colors.cardBg,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: _statusColor.withValues(alpha: 0.25)),
+    ),
+    child: Row(children: [
+      Container(width: 6, height: 40,
+        decoration: BoxDecoration(color: _statusColor, borderRadius: BorderRadius.circular(99))),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          if (req['request_ref'] != null)
+            Text(req['request_ref'] as String,
+              style: const TextStyle(color: _kOrange, fontWeight: FontWeight.w800, fontSize: 12)),
+          if (req['purpose'] != null) ...[
+            const Text(' · ', style: TextStyle(color: _kMuted, fontSize: 11)),
+            Text((req['purpose'] as String).capitalize(),
+              style: TextStyle(color: colors.navyText, fontSize: 11, fontWeight: FontWeight.w600)),
+          ],
+          if (req['type'] != null) ...[
+            const Text(' · ', style: TextStyle(color: _kMuted, fontSize: 11)),
+            Text((req['type'] as String).capitalize(),
+              style: const TextStyle(color: _kMuted, fontSize: 11)),
+          ],
+        ]),
+        const SizedBox(height: 3),
+        if (req['agent_name'] != null)
+          Text('Agent: ${req['agent_name']}',
+            style: const TextStyle(color: Color(0xFF0EA5E9), fontSize: 11, fontWeight: FontWeight.w700))
+        else
+          const Text('No agent yet', style: TextStyle(color: _kMuted, fontSize: 11)),
+      ])),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: _statusColor.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(99),
+        ),
+        child: Text(_statusLabel,
+          style: TextStyle(color: _statusColor, fontSize: 10, fontWeight: FontWeight.w800)),
+      ),
+    ]),
+  );
 }
 
 class _SectionLabel extends StatelessWidget {

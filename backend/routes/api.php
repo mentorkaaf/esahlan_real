@@ -669,9 +669,11 @@ Route::prefix('v1')->group(function () {
             Route::post('properties/{id}/available', [AgentController::class, 'markAvailable']);
             Route::delete('properties/{id}',         [AgentController::class, 'destroy']);
             Route::get('wallet',                     [AgentController::class, 'wallet']);
-            Route::get('house-requests',               [AgentController::class, 'houseRequests']);
-            Route::post('house-requests/{id}/contact', [AgentController::class, 'contactRequest']);
-            Route::post('house-requests/{id}/close',   [AgentController::class, 'closeRequest']);
+            Route::get('house-requests',                    [AgentController::class, 'houseRequests']);
+            Route::post('house-requests/{id}/assign',       [AgentController::class, 'assignRequest']);
+            Route::post('house-requests/{id}/update-status',[AgentController::class, 'updateRequestStatus']);
+            Route::post('house-requests/{id}/contact',      [AgentController::class, 'contactRequest']);
+            Route::post('house-requests/{id}/close',        [AgentController::class, 'closeRequest']);
         });
 
         // ─── DELIVERYMAN ──────────────────────────────────────────

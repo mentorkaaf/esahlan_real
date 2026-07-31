@@ -470,24 +470,37 @@ class ERentController extends Controller
     public function storeHouseRequest(Request $request)
     {
         $v = Validator::make($request->all(), [
+            'purpose'      => 'nullable|in:rent,buy,lease',
             'district_id'  => 'nullable|exists:districts,id',
-            'type'         => 'nullable|in:apartment,house,villa,room,office,shop',
+            'type'         => 'nullable|in:apartment,house,villa,room,office,shop,studio',
             'bedrooms'     => 'nullable|integer|min:0|max:20',
             'budget_min'   => 'nullable|numeric|min:0',
             'budget_max'   => 'nullable|numeric|min:0',
+            'move_in_date' => 'nullable|date|after_or_equal:today',
             'description'  => 'nullable|string|max:500',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
         $user = $request->user();
 
+        // Generate ERQ-YYYY-XXXXXX reference
+        $year    = date('Y');
+        $lastRef = DB::table('house_requests')
+            ->where('request_ref', 'like', "ERQ-{$year}-%")
+            ->orderByDesc('id')->value('request_ref');
+        $nextNum = $lastRef ? ((int) substr($lastRef, -6)) + 1 : 1;
+        $ref     = 'ERQ-' . $year . '-' . str_pad($nextNum, 6, '0', STR_PAD_LEFT);
+
         $id = DB::table('house_requests')->insertGetId([
+            'request_ref'      => $ref,
             'customer_user_id' => $user->id,
+            'purpose'          => $request->purpose ?? 'rent',
             'district_id'      => $request->district_id,
             'type'             => $request->type,
             'bedrooms'         => $request->bedrooms,
             'budget_min'       => $request->budget_min,
             'budget_max'       => $request->budget_max,
+            'move_in_date'     => $request->move_in_date,
             'description'      => $request->description,
             'status'           => 'open',
             'created_at'       => now(),
@@ -519,16 +532,25 @@ class ERentController extends Controller
             \Log::warning('[HouseRequest FCM] ' . $e->getMessage());
         }
 
-        return response()->json(['success' => true, 'message' => 'Your request has been sent to agents in that area!', 'data' => ['id' => $id]]);
+        return response()->json(['success' => true, 'message' => 'Your request has been sent to agents in that area!', 'data' => ['id' => $id, 'request_ref' => $ref]]);
     }
 
     // GET /erent/house-requests/mine (auth)
     public function myHouseRequests(Request $request)
     {
         $requests = DB::table('house_requests')
-            ->where('customer_user_id', $request->user()->id)
+            ->where('house_requests.customer_user_id', $request->user()->id)
             ->leftJoin('districts', 'house_requests.district_id', '=', 'districts.id')
-            ->select('house_requests.*', 'districts.name as district_name')
+            ->leftJoin('users as agents', 'house_requests.agent_user_id', '=', 'agents.id')
+            ->select([
+                'house_requests.id', 'house_requests.request_ref',
+                'house_requests.purpose', 'house_requests.type', 'house_requests.bedrooms',
+                'house_requests.budget_min', 'house_requests.budget_max',
+                'house_requests.move_in_date', 'house_requests.description',
+                'house_requests.status', 'house_requests.created_at',
+                'districts.name as district_name',
+                'agents.name as agent_name', 'agents.phone as agent_phone',
+            ])
             ->orderByDesc('house_requests.id')
             ->get();
 

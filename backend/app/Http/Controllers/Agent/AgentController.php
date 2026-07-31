@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Agent;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Services\FcmService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -307,22 +308,31 @@ class AgentController extends Controller
 
     public function houseRequests(Request $request)
     {
+        $agentId         = $request->user()->id;
         $agentDistrictId = $request->user()->district_id;
 
         $query = DB::table('house_requests')
             ->join('users as customers', 'house_requests.customer_user_id', '=', 'customers.id')
             ->leftJoin('districts', 'house_requests.district_id', '=', 'districts.id')
-            ->where('house_requests.status', 'open')
+            // Show open requests + requests assigned to this agent
+            ->where(function ($q) use ($agentId) {
+                $q->where('house_requests.status', 'open')
+                  ->orWhere('house_requests.agent_user_id', $agentId);
+            })
+            ->whereNotIn('house_requests.status', ['completed', 'cancelled'])
             ->select([
-                'house_requests.id', 'house_requests.type', 'house_requests.bedrooms',
+                'house_requests.id', 'house_requests.request_ref',
+                'house_requests.purpose', 'house_requests.type', 'house_requests.bedrooms',
                 'house_requests.budget_min', 'house_requests.budget_max',
-                'house_requests.description', 'house_requests.status',
-                'house_requests.created_at',
+                'house_requests.move_in_date', 'house_requests.description',
+                'house_requests.status', 'house_requests.agent_user_id',
+                'house_requests.assigned_at', 'house_requests.created_at',
                 'customers.name as customer_name', 'customers.phone as customer_phone',
                 'districts.name as district_name',
             ]);
 
-        // Show requests in agent's district first, then others
+        // My assigned requests first, then district requests, then others
+        $query->orderByRaw('CASE WHEN house_requests.agent_user_id = ? THEN 0 ELSE 1 END', [$agentId]);
         if ($agentDistrictId) {
             $query->orderByRaw('CASE WHEN house_requests.district_id = ? THEN 0 ELSE 1 END', [$agentDistrictId]);
         }
@@ -336,27 +346,98 @@ class AgentController extends Controller
         ]);
     }
 
-    public function contactRequest(Request $request, $id)
+    public function assignRequest(Request $request, $id)
     {
+        $agentId = $request->user()->id;
         $updated = DB::table('house_requests')
             ->where('id', $id)
             ->where('status', 'open')
-            ->update(['status' => 'contacted', 'updated_at' => now()]);
+            ->whereNull('agent_user_id')
+            ->update([
+                'status'        => 'assigned',
+                'agent_user_id' => $agentId,
+                'assigned_at'   => now(),
+                'updated_at'    => now(),
+            ]);
 
-        return response()->json([
-            'success' => $updated > 0,
-            'message' => $updated > 0 ? 'Marked as contacted' : 'Already handled',
+        if (!$updated) {
+            return response()->json(['success' => false, 'message' => 'Request already taken or not available'], 422);
+        }
+
+        try {
+            $req      = DB::table('house_requests')->where('id', $id)->first();
+            $customer = DB::table('users')->where('id', $req->customer_user_id)->first();
+            $agent    = $request->user();
+            if ($customer?->fcm_token) {
+                FcmService::send($customer->fcm_token, 'Agent Found! 🎉',
+                    "Agent {$agent->name} has accepted your request {$req->request_ref}",
+                    ['type' => 'house_request', 'id' => (string) $id]);
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('[HouseRequest Assign FCM] ' . $e->getMessage());
+        }
+
+        return response()->json(['success' => true, 'message' => 'Request assigned to you']);
+    }
+
+    public function updateRequestStatus(Request $request, $id)
+    {
+        $v = Validator::make($request->all(), [
+            'status' => 'required|in:searching,matched,completed,cancelled',
         ]);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $agentId = $request->user()->id;
+        $req     = DB::table('house_requests')->where('id', $id)->first();
+
+        if (!$req) {
+            return response()->json(['success' => false, 'message' => 'Not found'], 404);
+        }
+        if ($req->agent_user_id != $agentId) {
+            return response()->json(['success' => false, 'message' => 'Not your request'], 403);
+        }
+
+        DB::table('house_requests')->where('id', $id)->update([
+            'status'     => $request->status,
+            'updated_at' => now(),
+        ]);
+
+        try {
+            $customer = DB::table('users')->where('id', $req->customer_user_id)->first();
+            $msgs     = [
+                'searching' => ['Searching...', "Your agent is actively searching ({$req->request_ref})"],
+                'matched'   => ['Match Found! 🏠', "Great news! Your agent found a match for {$req->request_ref}"],
+                'completed' => ['Request Completed ✓', "Your request {$req->request_ref} has been completed!"],
+                'cancelled' => ['Request Cancelled', "Your request {$req->request_ref} was cancelled by the agent."],
+            ];
+            if ($customer?->fcm_token && isset($msgs[$request->status])) {
+                [$title, $body] = $msgs[$request->status];
+                FcmService::send($customer->fcm_token, $title, $body, ['type' => 'house_request', 'id' => (string) $id]);
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('[HouseRequest Status FCM] ' . $e->getMessage());
+        }
+
+        return response()->json(['success' => true, 'message' => 'Status updated']);
+    }
+
+    // Kept for backward compatibility
+    public function contactRequest(Request $request, $id)
+    {
+        return $this->assignRequest($request, $id);
     }
 
     public function closeRequest(Request $request, $id)
     {
+        $agentId = $request->user()->id;
         DB::table('house_requests')
             ->where('id', $id)
-            ->whereIn('status', ['open', 'contacted'])
-            ->update(['status' => 'closed', 'updated_at' => now()]);
+            ->where(function ($q) use ($agentId) {
+                $q->where('agent_user_id', $agentId)->orWhere('status', 'open');
+            })
+            ->update(['status' => 'cancelled', 'updated_at' => now()]);
 
-        return response()->json(['success' => true, 'message' => 'Request closed']);
+        return response()->json(['success' => true, 'message' => 'Request cancelled']);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
