@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/services/agent_repository.dart';
@@ -115,7 +116,22 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
       }
     } catch (e) {
       setState(() => _loading = false);
-      _showError('Failed: ${e.toString().substring(0, 80)}');
+      String msg = 'Failed to list property';
+      if (e is DioException) {
+        final body = e.response?.data;
+        if (body is Map && body['message'] != null) {
+          msg = body['message'].toString();
+          if (body['errors'] != null) {
+            final errs = (body['errors'] as Map).values.expand((v) => v is List ? v : [v]).take(2).join(', ');
+            msg = '$msg: $errs';
+          }
+        } else {
+          msg = 'Server error ${e.response?.statusCode ?? 'unknown'}';
+        }
+      } else {
+        msg = e.toString();
+      }
+      _showError(msg);
     }
   }
 

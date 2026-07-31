@@ -20,11 +20,13 @@ class AgentRepository {
       });
 
   Future<Map<String, dynamic>> createProperty(Map<String, dynamic> data, List<File> images) async {
-    final formData = FormData.fromMap({
-      ...data,
-      'images': await Future.wait(images.map((f) async =>
-          await MultipartFile.fromFile(f.path, filename: f.path.split('/').last))),
-    });
+    final formData = FormData.fromMap(data);
+    for (final img in images) {
+      formData.files.add(MapEntry(
+        'images[]',
+        await MultipartFile.fromFile(img.path, filename: img.path.split('/').last),
+      ));
+    }
     return _api.postForm('/agent/properties', formData);
   }
 
