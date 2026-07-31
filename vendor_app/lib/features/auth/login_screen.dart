@@ -5,6 +5,7 @@ import '../../core/services/fcm_service.dart';
 import '../../core/theme/vc.dart';
 import '../shell/main_shell.dart';
 import '../agent/agent_shell.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -111,7 +112,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   : const Text('Sign In', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+            Center(
+              child: GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                child: RichText(text: TextSpan(children: [
+                  TextSpan(text: "Don't have an account? ", style: TextStyle(color: context.vcTextMute, fontSize: 13)),
+                  const TextSpan(text: 'Register', style: TextStyle(color: VC.orange, fontSize: 13, fontWeight: FontWeight.w800)),
+                ])),
+              ),
+            ),
+            const SizedBox(height: 16),
             Center(child: Text('eSahlan Vendor Portal v1.0', style: TextStyle(color: context.vcTextMute, fontSize: 12))),
           ]),
         ),

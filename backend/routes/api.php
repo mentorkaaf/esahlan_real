@@ -170,6 +170,12 @@ Route::prefix('v1')->group(function () {
         Route::post('delivery/auth/login',    [DeliveryController::class, 'login'])->middleware('brute_force');
     });
 
+    // Vendor / Agent self-registration (public)
+    Route::middleware('throttle:auth')->group(function () {
+        Route::get('vendor/register/districts',  [\App\Http\Controllers\Vendor\VendorApiRegisterController::class, 'districts']);
+        Route::post('vendor/register',           [\App\Http\Controllers\Vendor\VendorApiRegisterController::class, 'register']);
+    });
+
     // Public info
     Route::get('ads',                   [AdController::class, 'index']);         // ?type=popup|banner|card &module=efood
     Route::post('ads/{id}/track',       [AdController::class, 'track']);         // body: {action: impression|click}
