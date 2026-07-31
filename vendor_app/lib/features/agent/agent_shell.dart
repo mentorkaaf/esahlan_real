@@ -37,7 +37,7 @@ class _AgentShellState extends ConsumerState<AgentShell> with WidgetsBindingObse
   }
 
   void _checkPendingRoute() {
-    final route = FcmService.consumePendingRoute();
+    final route = VendorFcmService.consumePendingRoute();
     if (route == '/agent/requests' && mounted) {
       setState(() => _index = 2);
     }
