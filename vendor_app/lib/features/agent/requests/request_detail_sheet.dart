@@ -122,7 +122,7 @@ class _RecommendTabState extends State<_RecommendTab> {
 
   Future<void> _load() async {
     try {
-      final res  = await AgentRepository.instance.properties(status: 'available');
+      final res  = await AgentRepository.instance.properties(status: 'active');
       final recs = await AgentRepository.instance.getRecommendations(widget.request['id'] as int);
       if (mounted) setState(() {
         _properties = List<Map<String, dynamic>>.from(
@@ -324,7 +324,7 @@ class _ViewingTabState extends State<_ViewingTab> {
 
   Future<void> _loadProperties() async {
     try {
-      final res = await AgentRepository.instance.properties(status: 'available');
+      final res = await AgentRepository.instance.properties(status: 'active');
       if (mounted) setState(() {
         _properties = List<Map<String, dynamic>>.from(
           (res['data'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)));
