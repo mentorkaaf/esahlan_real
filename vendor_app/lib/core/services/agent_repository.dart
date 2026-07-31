@@ -46,10 +46,11 @@ class AgentRepository {
       _api.get('/agent/wallet');
 
   // ── Phase 2+3 ──
-  Future<Map<String, dynamic>> recommendProperty(int requestId, int propertyId, String? message) =>
+  Future<Map<String, dynamic>> recommendProperty(int requestId, int propertyId, String? message, {double? offeredPrice}) =>
       _api.post('/agent/house-requests/$requestId/recommend', data: {
         'property_id': propertyId,
         if (message != null && message.isNotEmpty) 'message': message,
+        if (offeredPrice != null) 'offered_price': offeredPrice,
       });
 
   Future<Map<String, dynamic>> getRecommendations(int requestId) =>

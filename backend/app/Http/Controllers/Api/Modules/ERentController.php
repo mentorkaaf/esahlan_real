@@ -566,6 +566,7 @@ class ERentController extends Controller
             ->where('customer_user_id', $request->user()->id)->first();
         if (!$req) return response()->json(['success' => false, 'message' => 'Not found'], 404);
 
+        // Agent recommendations
         $recs = DB::table('request_recommendations')
             ->where('request_id', $id)
             ->leftJoin('properties', 'request_recommendations.property_id', '=', 'properties.id')
@@ -574,6 +575,8 @@ class ERentController extends Controller
             ->select([
                 'request_recommendations.id', 'request_recommendations.message',
                 'request_recommendations.status', 'request_recommendations.created_at',
+                'request_recommendations.offered_price', 'request_recommendations.counter_price',
+                'request_recommendations.counter_message',
                 'properties.id as property_id', 'properties.title', 'properties.type',
                 'properties.monthly_rent', 'properties.bedrooms', 'properties.images',
                 'districts.name as district_name',
@@ -584,46 +587,126 @@ class ERentController extends Controller
             ->map(function ($r) {
                 $imgs = is_string($r->images) ? (json_decode($r->images, true) ?? []) : [];
                 return [
-                    'id'            => $r->id,
-                    'message'       => $r->message,
-                    'status'        => $r->status,
-                    'created_at'    => $r->created_at,
-                    'agent_name'    => $r->agent_name,
-                    'property_id'   => $r->property_id,
-                    'property_title'=> $r->title,
-                    'property_type' => $r->type,
-                    'bedrooms'      => $r->bedrooms,
-                    'monthly_rent'  => $r->monthly_rent,
-                    'district_name' => $r->district_name,
-                    'thumbnail'     => !empty($imgs) ? url('/api/v1/media?f=properties/' . basename($imgs[0])) : null,
+                    'id'              => $r->id,
+                    'source'          => 'agent',
+                    'message'         => $r->message,
+                    'status'          => $r->status,
+                    'created_at'      => $r->created_at,
+                    'agent_name'      => $r->agent_name,
+                    'offered_price'   => $r->offered_price,
+                    'counter_price'   => $r->counter_price,
+                    'counter_message' => $r->counter_message,
+                    'property_id'     => $r->property_id,
+                    'property_title'  => $r->title,
+                    'property_type'   => $r->type,
+                    'bedrooms'        => $r->bedrooms,
+                    'monthly_rent'    => $r->monthly_rent,
+                    'district_name'   => $r->district_name,
+                    'thumbnail'       => !empty($imgs) ? url('/api/v1/media?f=properties/' . basename($imgs[0])) : null,
                 ];
             });
 
-        return response()->json(['success' => true, 'data' => $recs]);
+        // Auto-matching engine (Phase 4)
+        $autoMatches = $this->autoMatchProperties($req);
+
+        return response()->json(['success' => true, 'data' => $recs, 'auto_matches' => $autoMatches]);
+    }
+
+    // Phase 4: Auto-matching engine
+    private function autoMatchProperties($req): array
+    {
+        $query = DB::table('properties')
+            ->join('districts', 'properties.district_id', '=', 'districts.id')
+            ->leftJoin('users as agents', 'properties.agent_user_id', '=', 'agents.id')
+            ->where('properties.is_available', true)
+            ->where('properties.is_booked', false)
+            ->select([
+                'properties.id', 'properties.title', 'properties.type',
+                'properties.monthly_rent', 'properties.bedrooms', 'properties.district_id', 'properties.images',
+                'districts.name as district_name',
+                'agents.name as agent_name',
+            ]);
+
+        // Soft filters (not strict — score-based)
+        if ($req->budget_max) {
+            $query->where('properties.monthly_rent', '<=', $req->budget_max * 1.2); // 20% tolerance
+        }
+
+        $props = $query->limit(50)->get();
+
+        return $props->map(function ($p) use ($req) {
+            $score = 0;
+            // District: 40 pts
+            if ($req->district_id && $p->district_id == $req->district_id) $score += 40;
+            // Type: 25 pts
+            if ($req->type && $p->type == $req->type) $score += 25;
+            // Bedrooms: 20 pts
+            if ($req->bedrooms && $p->bedrooms >= $req->bedrooms) $score += 20;
+            elseif ($req->bedrooms && $p->bedrooms == $req->bedrooms - 1) $score += 10;
+            // Budget: 15 pts
+            if ($req->budget_max && $p->monthly_rent <= $req->budget_max) {
+                $ratio = $req->budget_min ? $p->monthly_rent / $req->budget_min : 1;
+                $score += min(15, (int)(15 * min(1, $ratio)));
+            }
+            return ['score' => $score, 'prop' => $p];
+        })
+        ->filter(fn($item) => $item['score'] >= 25) // min 25% match
+        ->sortByDesc(fn($item) => $item['score'])
+        ->take(5)
+        ->values()
+        ->map(function ($item) {
+            $p    = $item['prop'];
+            $imgs = is_string($p->images) ? (json_decode($p->images, true) ?? []) : [];
+            return [
+                'source'         => 'auto_match',
+                'match_score'    => $item['score'],
+                'property_id'    => $p->id,
+                'property_title' => $p->title,
+                'property_type'  => $p->type,
+                'bedrooms'       => $p->bedrooms,
+                'monthly_rent'   => $p->monthly_rent,
+                'district_name'  => $p->district_name,
+                'agent_name'     => $p->agent_name,
+                'thumbnail'      => !empty($imgs) ? url('/api/v1/media?f=properties/' . basename($imgs[0])) : null,
+            ];
+        })->all();
     }
 
     // POST /erent/house-requests/{id}/recommendations/{recId}/respond
     public function respondRecommendation(Request $request, $id, $recId)
     {
-        $v = Validator::make($request->all(), ['action' => 'required|in:accept,reject']);
+        $v = Validator::make($request->all(), [
+            'action'          => 'required|in:accept,reject,counter',
+            'counter_price'   => 'required_if:action,counter|nullable|numeric|min:0',
+            'counter_message' => 'nullable|string|max:300',
+        ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
         $rec = DB::table('request_recommendations')
             ->where('id', $recId)->where('request_id', $id)->first();
         if (!$rec) return response()->json(['success' => false, 'message' => 'Not found'], 404);
 
-        $status = $request->action === 'accept' ? 'accepted' : 'rejected';
-        DB::table('request_recommendations')->where('id', $recId)->update(['status' => $status, 'updated_at' => now()]);
+        $statusMap = ['accept' => 'accepted', 'reject' => 'rejected', 'counter' => 'countered'];
+        $status    = $statusMap[$request->action];
+        $update    = ['status' => $status, 'updated_at' => now()];
+        if ($status === 'countered') {
+            $update['counter_price']   = $request->counter_price;
+            $update['counter_message'] = $request->counter_message;
+        }
+        DB::table('request_recommendations')->where('id', $recId)->update($update);
 
         // Notify agent
         try {
             $agent = DB::table('users')->where('id', $rec->agent_user_id)->first();
             if ($agent?->fcm_token) {
                 $reqRow = DB::table('house_requests')->where('id', $id)->first();
-                $msg = $status === 'accepted'
-                    ? "Customer accepted your property recommendation for {$reqRow->request_ref}! 🎉"
-                    : "Customer declined your recommendation for {$reqRow->request_ref}.";
-                FcmService::send($agent->fcm_token, $status === 'accepted' ? 'Recommendation Accepted! ✓' : 'Recommendation Declined', $msg, ['type' => 'recommendation', 'id' => (string) $recId]);
+                $titles = ['accepted' => 'Offer Accepted! 🎉', 'rejected' => 'Offer Declined', 'countered' => 'Counter-Offer Received 💬'];
+                $msgs   = [
+                    'accepted'  => "Customer accepted your recommendation for {$reqRow->request_ref}!",
+                    'rejected'  => "Customer declined your recommendation for {$reqRow->request_ref}.",
+                    'countered' => "Customer sent a counter-offer of \${$request->counter_price} for {$reqRow->request_ref}.",
+                ];
+                FcmService::send($agent->fcm_token, $titles[$status] ?? 'Update', $msgs[$status] ?? '', ['type' => 'recommendation', 'id' => (string) $recId]);
             }
         } catch (\Throwable $e) {}
 

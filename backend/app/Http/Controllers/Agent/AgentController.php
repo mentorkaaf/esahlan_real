@@ -60,20 +60,56 @@ class AgentController extends Controller
             ->limit(5)
             ->get();
 
+        // Phase 4: Request analytics
+        $requestsTotal      = DB::table('house_requests')->where('agent_user_id', $agentId)->count();
+        $requestsActive     = DB::table('house_requests')->where('agent_user_id', $agentId)
+            ->whereNotIn('status', ['completed', 'cancelled'])->count();
+        $requestsCompleted  = DB::table('house_requests')->where('agent_user_id', $agentId)
+            ->where('status', 'completed')->count();
+        $recsTotal          = DB::table('request_recommendations')->where('agent_user_id', $agentId)->count();
+        $recsAccepted       = DB::table('request_recommendations')->where('agent_user_id', $agentId)
+            ->where('status', 'accepted')->count();
+        $conversionRate     = $recsTotal > 0 ? round(($recsAccepted / $recsTotal) * 100, 1) : 0;
+        $viewingsTotal      = DB::table('request_viewings')->where('agent_user_id', $agentId)->count();
+        $viewingsConfirmed  = DB::table('request_viewings')->where('agent_user_id', $agentId)
+            ->where('status', 'confirmed')->count();
+
+        // Recent requests assigned to this agent
+        $recentRequests = DB::table('house_requests')
+            ->where('house_requests.agent_user_id', $agentId)
+            ->leftJoin('users as cust', 'house_requests.customer_user_id', '=', 'cust.id')
+            ->leftJoin('districts', 'house_requests.district_id', '=', 'districts.id')
+            ->select([
+                'house_requests.id', 'house_requests.request_ref', 'house_requests.purpose',
+                'house_requests.type', 'house_requests.status', 'house_requests.created_at',
+                'cust.name as customer_name', 'districts.name as district_name',
+            ])
+            ->orderByDesc('house_requests.id')->limit(5)->get();
+
         return response()->json([
             'success' => true,
             'data'    => [
                 'stats' => [
-                    'total_listings'   => $total,
-                    'active_listings'  => $active,
-                    'rented'           => $rented,
-                    'booked'           => $booked,
-                    'total_earned'     => (float)$totalEarned,
-                    'month_earned'     => (float)$monthEarned,
-                    'wallet_balance'   => (float)$wallet->balance,
+                    'total_listings'      => $total,
+                    'active_listings'     => $active,
+                    'rented'              => $rented,
+                    'booked'              => $booked,
+                    'total_earned'        => (float)$totalEarned,
+                    'month_earned'        => (float)$monthEarned,
+                    'wallet_balance'      => (float)$wallet->balance,
+                    // Phase 4 request stats
+                    'requests_total'      => $requestsTotal,
+                    'requests_active'     => $requestsActive,
+                    'requests_completed'  => $requestsCompleted,
+                    'recs_total'          => $recsTotal,
+                    'recs_accepted'       => $recsAccepted,
+                    'conversion_rate'     => $conversionRate,
+                    'viewings_total'      => $viewingsTotal,
+                    'viewings_confirmed'  => $viewingsConfirmed,
                 ],
                 'recent_properties'   => $recent,
                 'recent_commissions'  => $recentCommissions,
+                'recent_requests'     => $recentRequests,
             ],
         ]);
     }
@@ -445,8 +481,9 @@ class AgentController extends Controller
     public function recommendProperty(Request $request, $id)
     {
         $v = Validator::make($request->all(), [
-            'property_id' => 'required|exists:properties,id',
-            'message'     => 'nullable|string|max:500',
+            'property_id'   => 'required|exists:properties,id',
+            'message'       => 'nullable|string|max:500',
+            'offered_price' => 'nullable|numeric|min:0',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
@@ -463,6 +500,7 @@ class AgentController extends Controller
             'agent_user_id' => $agentId,
             'property_id'   => $request->property_id,
             'message'       => $request->message,
+            'offered_price' => $request->offered_price,
             'status'        => 'pending',
             'created_at'    => now(),
             'updated_at'    => now(),

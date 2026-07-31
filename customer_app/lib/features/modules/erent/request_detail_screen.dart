@@ -224,9 +224,10 @@ class _RecommendationsTabState extends State<_RecommendationsTab> {
     } catch (_) { if (mounted) setState(() => _loading = false); }
   }
 
-  Future<void> _respond(int recId, String action) async {
+  Future<void> _respond(int recId, String action, {double? counterPrice, String? counterMessage}) async {
     try {
-      await widget.svc.respondRecommendation(widget.request['id'] as int, recId, action);
+      await widget.svc.respondRecommendation(widget.request['id'] as int, recId, action,
+        counterPrice: counterPrice, counterMessage: counterMessage);
       _load();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -295,21 +296,73 @@ class _RecCard extends StatelessWidget {
   final Map<String, dynamic> rec;
   final bool isDark;
   final Color txt;
-  final Future<void> Function(int recId, String action) onRespond;
+  final Future<void> Function(int recId, String action, {double? counterPrice, String? counterMessage}) onRespond;
   const _RecCard({required this.rec, required this.isDark, required this.txt, required this.onRespond});
 
   Color get _col {
     switch (rec['status']) {
-      case 'accepted': return const Color(0xFF10B981);
-      case 'rejected': return const Color(0xFFEF4444);
-      default:         return _kOrange;
+      case 'accepted':  return const Color(0xFF10B981);
+      case 'rejected':  return const Color(0xFFEF4444);
+      case 'countered': return const Color(0xFF8B5CF6);
+      default:          return _kOrange;
+    }
+  }
+
+  Future<void> _showCounterDialog(BuildContext context) async {
+    final priceCtl = TextEditingController();
+    final msgCtl   = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Counter Offer', style: TextStyle(fontWeight: FontWeight.w800)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Propose a different price to your agent:', style: TextStyle(fontSize: 13)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: priceCtl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Your price (e.g. 400)',
+              prefixIcon: const Icon(Icons.attach_money_rounded, color: _kOrange),
+              suffixText: '/mo',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: msgCtl,
+            maxLines: 2,
+            decoration: InputDecoration(
+              labelText: 'Note (optional)',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kOrange, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Send Counter'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      final price = double.tryParse(priceCtl.text.trim());
+      final note  = msgCtl.text.trim();
+      await onRespond(rec['id'] as int, 'counter',
+        counterPrice: price, counterMessage: note.isNotEmpty ? note : null);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final surf = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final isPending = rec['status'] == 'pending';
+    final surf       = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final isPending  = rec['status'] == 'pending';
+    final isCountered= rec['status'] == 'countered';
+    final offeredPrice = rec['offered_price'];
+    final counterPrice = rec['counter_price'];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -319,7 +372,6 @@ class _RecCard extends StatelessWidget {
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Property image
         if (rec['thumbnail'] != null)
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -328,7 +380,6 @@ class _RecCard extends StatelessWidget {
                 child: const Icon(Icons.home_rounded, size: 48, color: _kOrange))),
           ),
         Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Status badge
           Row(children: [
             Expanded(child: Text(rec['property_title'] ?? 'Property',
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: txt))),
@@ -346,17 +397,55 @@ class _RecCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text('From agent: ${rec['agent_name']}', style: const TextStyle(color: _kTeal, fontSize: 11, fontWeight: FontWeight.w600)),
           ],
+
+          // Offered price banner
+          if (offeredPrice != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.local_offer_rounded, size: 14, color: Color(0xFF10B981)),
+                const SizedBox(width: 6),
+                Text("Agent's offer: \$$offeredPrice/mo",
+                  style: const TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          ],
+
+          // Counter price (if customer countered)
+          if (counterPrice != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(children: [
+                const Icon(Icons.swap_horiz_rounded, size: 14, color: Color(0xFF8B5CF6)),
+                const SizedBox(width: 6),
+                Text("Your counter: \$$counterPrice/mo",
+                  style: const TextStyle(color: Color(0xFF8B5CF6), fontSize: 12, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          ],
+
           if (rec['message'] != null && (rec['message'] as String).isNotEmpty) ...[
             const SizedBox(height: 10),
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
+              width: double.infinity, padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: _kOrange.withValues(alpha: 0.07), borderRadius: BorderRadius.circular(10)),
               child: Text('"${rec['message']}"',
                 style: const TextStyle(color: _kOrange, fontSize: 12, fontStyle: FontStyle.italic)),
             ),
           ],
+
           if (isPending) ...[
             const SizedBox(height: 12),
             Row(children: [
@@ -368,7 +457,19 @@ class _RecCard extends StatelessWidget {
                 ),
                 child: const Text('Accept', style: TextStyle(fontWeight: FontWeight.w800)),
               )),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
+              if (offeredPrice != null) ...[
+                Expanded(child: OutlinedButton(
+                  onPressed: () => _showCounterDialog(context),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF8B5CF6),
+                    side: const BorderSide(color: Color(0xFF8B5CF6)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Counter', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                )),
+                const SizedBox(width: 6),
+              ],
               Expanded(child: OutlinedButton(
                 onPressed: () => onRespond(rec['id'] as int, 'reject'),
                 style: OutlinedButton.styleFrom(
@@ -376,9 +477,15 @@ class _RecCard extends StatelessWidget {
                   side: const BorderSide(color: Color(0xFFEF4444)),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                child: const Text('Not Interested', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                child: const Text('Reject', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
               )),
             ]),
+          ],
+
+          if (isCountered) ...[
+            const SizedBox(height: 10),
+            const Text('Waiting for agent to respond to your counter offer…',
+              style: TextStyle(color: _kMuted, fontSize: 11, fontStyle: FontStyle.italic)),
           ],
         ])),
       ]),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/agent_repository.dart';
 import '../../../core/theme/vc.dart';
-import '../properties/agent_properties_screen.dart';
 
 const _kTeal   = Color(0xFF0EA5E9);
 const _kOrange = Color(0xFFFF6B35);
@@ -111,15 +110,15 @@ class _RecommendTabState extends State<_RecommendTab> {
   List<Map<String, dynamic>> _properties = [];
   List<Map<String, dynamic>> _recs       = [];
   int?    _selectedPropertyId;
-  String? _selectedPropertyTitle;
   final _msgCtl = TextEditingController();
+  final _priceCtl = TextEditingController();
   bool _loading     = true;
   bool _submitting  = false;
 
   @override
   void initState() { super.initState(); _load(); }
   @override
-  void dispose() { _msgCtl.dispose(); super.dispose(); }
+  void dispose() { _msgCtl.dispose(); _priceCtl.dispose(); super.dispose(); }
 
   Future<void> _load() async {
     try {
@@ -144,8 +143,9 @@ class _RecommendTabState extends State<_RecommendTab> {
     }
     setState(() => _submitting = true);
     try {
+      final price = double.tryParse(_priceCtl.text.trim());
       await AgentRepository.instance.recommendProperty(
-        widget.request['id'] as int, _selectedPropertyId!, _msgCtl.text.trim());
+        widget.request['id'] as int, _selectedPropertyId!, _msgCtl.text.trim(), offeredPrice: price);
       widget.onDone();
     } catch (e) {
       if (mounted) {
@@ -188,8 +188,7 @@ class _RecommendTabState extends State<_RecommendTab> {
           final sel = _selectedPropertyId == id;
           return GestureDetector(
             onTap: () => setState(() {
-              _selectedPropertyId    = sel ? null : id;
-              _selectedPropertyTitle = sel ? null : (p['title'] as String?);
+              _selectedPropertyId = sel ? null : id;
             }),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
@@ -222,6 +221,19 @@ class _RecommendTabState extends State<_RecommendTab> {
             ),
           );
         }),
+        const SizedBox(height: 12),
+        // Offered price (optional)
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _priceCtl,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            hintText: 'Offer price (optional, e.g. 450)',
+            prefixIcon: const Icon(Icons.attach_money_rounded, color: _kTeal),
+            suffixText: '/mo',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _msgCtl,
