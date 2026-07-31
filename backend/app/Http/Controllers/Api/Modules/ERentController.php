@@ -299,6 +299,23 @@ class ERentController extends Controller
             }
         } catch (\Throwable) {}
 
+        // ── Agent commission: 10% of brokerage_fee credited to agent ─────
+        try {
+            $brokerageFee = (float)($property->brokerage_fee ?? 0);
+            if ($brokerageFee > 0 && !empty($property->agent_user_id)) {
+                $commission = round($brokerageFee * 0.10, 2);
+                $agentWallet = Wallet::getOrCreateFor('App\\Models\\User', $property->agent_user_id);
+                $agentWallet->credit(
+                    $commission,
+                    "Agent commission 10%: {$property->title} (#{$order->order_number})",
+                    'App\\Models\\Order',
+                    $order->id
+                );
+            }
+        } catch (\Throwable $e) {
+            \Log::error('[AgentCommission] failed: ' . $e->getMessage());
+        }
+
         $message = $request->booking_type === 'carbuun'
             ? 'Carbuun successful! Property reserved. Remaining: $' . number_format($remaining, 2)
             : 'Booking submitted! Agent will contact you shortly.';

@@ -6,6 +6,7 @@ import 'core/services/fcm_service.dart';
 import 'core/theme/vc.dart';
 import 'features/auth/login_screen.dart';
 import 'features/shell/main_shell.dart';
+import 'features/agent/agent_shell.dart';
 
 final _navigatorKey = GlobalKey<NavigatorState>();
 
@@ -63,8 +64,15 @@ class _AuthGateState extends State<_AuthGate> {
     _check();
   }
 
+  bool _isAgent = false;
+
   Future<void> _check() async {
     final ok = await AuthService.instance.isLoggedIn();
+    if (ok) {
+      final user = await AuthService.instance.getUser();
+      final role = (user?['role']?['slug'] ?? user?['role_slug'] ?? '') as String;
+      _isAgent = role == 'rent_agent';
+    }
     if (mounted) setState(() { _loggedIn = ok; _checked = true; });
   }
 
@@ -86,6 +94,7 @@ class _AuthGateState extends State<_AuthGate> {
         ),
       );
     }
-    return _loggedIn ? const MainShell() : const LoginScreen();
+    if (!_loggedIn) return const LoginScreen();
+    return _isAgent ? const AgentShell() : const MainShell();
   }
 }

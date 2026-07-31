@@ -88,6 +88,7 @@ use App\Http\Controllers\Api\Modules\EFoodController;
 use App\Http\Controllers\Api\Modules\ELaundryController;
 use App\Http\Controllers\Api\Modules\EHealthController;
 use App\Http\Controllers\Api\Modules\ERentController;
+use App\Http\Controllers\Agent\AgentController;
 use App\Http\Controllers\Api\Modules\EShopController;
 use App\Http\Controllers\Api\Modules\EWholesaleController;
 use App\Http\Controllers\Api\Modules\EGroceryController;
@@ -637,6 +638,19 @@ Route::prefix('v1')->group(function () {
             Route::post('erent/bookings/{id}/cancel',          [ERentController::class, 'cancelBooking']);
             Route::post('erent/bookings/{id}/pay-remaining',   [ERentController::class, 'payRemaining']);
             Route::post('erent/bookings/{id}/request-refund',  [ERentController::class, 'requestRefund']);
+
+            // ── Agent routes (rent_agent role) ─────────────────────────────
+            Route::middleware('role:rent_agent')->prefix('agent')->name('agent.')->group(function () {
+                Route::get('dashboard',                  [AgentController::class, 'dashboard']);
+                Route::get('districts',                  [AgentController::class, 'districts']);
+                Route::get('properties',                 [AgentController::class, 'properties']);
+                Route::post('properties',                [AgentController::class, 'store']);
+                Route::put('properties/{id}',            [AgentController::class, 'update']);
+                Route::post('properties/{id}/rented',    [AgentController::class, 'markRented']);
+                Route::post('properties/{id}/available', [AgentController::class, 'markAvailable']);
+                Route::delete('properties/{id}',         [AgentController::class, 'destroy']);
+                Route::get('wallet',                     [AgentController::class, 'wallet']);
+            });
             Route::get('eshop/delivery-fee',        [EShopController::class, 'deliveryFee']);
             Route::post('eshop/order',              [EShopController::class, 'createOrder']);
             Route::post('eshop/coupon/validate',    [EShopController::class, 'validateCoupon']);

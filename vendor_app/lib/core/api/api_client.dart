@@ -27,8 +27,8 @@ class ApiClient {
     ));
   }
 
-  Future<Map<String, dynamic>> get(String path, {Map<String, dynamic>? params}) async {
-    final res = await _dio.get(path, queryParameters: params);
+  Future<Map<String, dynamic>> get(String path, {Map<String, dynamic>? params, Map<String, dynamic>? queryParameters}) async {
+    final res = await _dio.get(path, queryParameters: queryParameters ?? params);
     return res.data as Map<String, dynamic>;
   }
 
@@ -37,6 +37,11 @@ class ApiClient {
       data: isMultipart ? data : data,
       options: isMultipart ? Options(contentType: 'multipart/form-data') : null,
     );
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> put(String path, {dynamic data}) async {
+    final res = await _dio.put(path, data: data);
     return res.data as Map<String, dynamic>;
   }
 
@@ -49,4 +54,11 @@ class ApiClient {
     final res = await _dio.delete(path);
     return res.data as Map<String, dynamic>;
   }
+
+  Future<Map<String, dynamic>> postForm(String path, FormData formData) async {
+    final res = await _dio.post(path, data: formData,
+      options: Options(contentType: 'multipart/form-data'));
+    return res.data as Map<String, dynamic>;
+  }
+
 }

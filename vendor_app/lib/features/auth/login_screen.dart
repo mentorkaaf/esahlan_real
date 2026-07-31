@@ -4,6 +4,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/fcm_service.dart';
 import '../../core/theme/vc.dart';
 import '../shell/main_shell.dart';
+import '../agent/agent_shell.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -32,13 +33,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (res['success'] == true) {
         final user = res['data']['user'] as Map<String, dynamic>;
         final role = (user['role']?['slug'] ?? '') as String;
-        if (!['vendor_owner', 'vendor_employee'].contains(role)) {
+        const allowedRoles = ['vendor_owner', 'vendor_employee', 'rent_agent'];
+        if (!allowedRoles.contains(role)) {
           await AuthService.instance.logout();
-          setState(() { _error = 'This account is not a vendor account'; _loading = false; });
+          setState(() { _error = 'This account does not have vendor or agent access'; _loading = false; });
           return;
         }
         VendorFcmService.forceRegisterToken().catchError((_) {});
-        Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const MainShell()), (_) => false);
+        final isAgent = role == 'rent_agent';
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => isAgent ? const AgentShell() : const MainShell()),
+          (_) => false,
+        );
       } else {
         setState(() { _error = res['message'] ?? 'Login failed'; _loading = false; });
       }
