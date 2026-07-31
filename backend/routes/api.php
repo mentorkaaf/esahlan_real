@@ -639,6 +639,8 @@ Route::prefix('v1')->group(function () {
             Route::post('elaundry/order',       [ELaundryController::class, 'createOrder']);
             Route::post('ehealth/ambulance',    [EHealthController::class, 'requestAmbulance']);
             Route::post('ehealth/book',         [EHealthController::class, 'bookAppointment']);
+            Route::post('erent/house-requests',                [ERentController::class, 'storeHouseRequest']);
+            Route::get('erent/house-requests/mine',            [ERentController::class, 'myHouseRequests']);
             Route::post('erent/book',                          [ERentController::class, 'book']);
             Route::get('erent/my-bookings',                    [ERentController::class, 'myBookings']);
             Route::post('erent/bookings/{id}/cancel',          [ERentController::class, 'cancelBooking']);
@@ -667,6 +669,9 @@ Route::prefix('v1')->group(function () {
             Route::post('properties/{id}/available', [AgentController::class, 'markAvailable']);
             Route::delete('properties/{id}',         [AgentController::class, 'destroy']);
             Route::get('wallet',                     [AgentController::class, 'wallet']);
+            Route::get('house-requests',               [AgentController::class, 'houseRequests']);
+            Route::post('house-requests/{id}/contact', [AgentController::class, 'contactRequest']);
+            Route::post('house-requests/{id}/close',   [AgentController::class, 'closeRequest']);
         });
 
         // ─── DELIVERYMAN ──────────────────────────────────────────

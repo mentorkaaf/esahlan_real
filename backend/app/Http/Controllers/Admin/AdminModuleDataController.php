@@ -725,7 +725,15 @@ class AdminModuleDataController extends Controller
             ->select('users.*', 'districts.name as district_name')
             ->orderByDesc('users.id')->get();
 
-        return view('admin.module-data.rent', compact('properties', 'districts', 'bookings', 'agents'));
+        $commissionPct = \App\Models\Setting::get('erent_commission_pct', 10);
+
+        $houseRequests = DB::table('house_requests')
+            ->join('users as cust', 'house_requests.customer_user_id', '=', 'cust.id')
+            ->leftJoin('districts', 'house_requests.district_id', '=', 'districts.id')
+            ->select('house_requests.*', 'cust.name as customer_name', 'districts.name as district_name')
+            ->orderByDesc('house_requests.id')->limit(100)->get();
+
+        return view('admin.module-data.rent', compact('properties', 'districts', 'bookings', 'agents', 'commissionPct', 'houseRequests'));
     }
 
     public function agentApprove(Request $request, $id)
@@ -751,6 +759,13 @@ class AdminModuleDataController extends Controller
             'updated_at' => now(),
         ]);
         return back()->with('success', 'Agent status updated.');
+    }
+
+    public function saveRentCommission(Request $request)
+    {
+        $request->validate(['commission_pct' => 'required|numeric|min:0|max:100']);
+        \App\Models\Setting::set('erent_commission_pct', $request->commission_pct);
+        return back()->with('success', "Commission updated to {$request->commission_pct}%");
     }
 
     public function propertyStore(Request $request)

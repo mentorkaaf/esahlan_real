@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use App\Models\Setting;
+use App\Services\FcmService;
 use App\Services\LoyaltyService;
 
 class ERentController extends Controller
@@ -41,6 +43,7 @@ class ERentController extends Controller
         $query = DB::table('properties')
             ->where('properties.is_available', true)
             ->join('districts', 'properties.district_id', '=', 'districts.id')
+            ->leftJoin('users as agents', 'properties.agent_user_id', '=', 'agents.id')
             ->select([
                 'properties.id', 'properties.title', 'properties.type',
                 'properties.bedrooms', 'properties.bathrooms', 'properties.kitchens', 'properties.living_rooms',
@@ -48,7 +51,9 @@ class ERentController extends Controller
                 'properties.monthly_rent', 'properties.deposit', 'properties.brokerage_fee',
                 'properties.images', 'properties.reels', 'properties.amenities', 'properties.description',
                 'properties.address', 'properties.is_available', 'properties.is_booked',
+                'properties.agent_user_id',
                 'districts.name as district_name',
+                'agents.name as agent_name',
             ]);
 
         if ($request->filled('district_id')) $query->where('properties.district_id', $request->district_id);
@@ -74,7 +79,8 @@ class ERentController extends Controller
         $property = DB::table('properties')
             ->where('properties.id', $id)
             ->join('districts', 'properties.district_id', '=', 'districts.id')
-            ->select(['properties.*', 'districts.name as district_name'])
+            ->leftJoin('users as agents', 'properties.agent_user_id', '=', 'agents.id')
+            ->select(['properties.*', 'districts.name as district_name', 'agents.name as agent_name'])
             ->first();
 
         if (!$property) {
@@ -112,6 +118,7 @@ class ERentController extends Controller
             'amenities'    => is_array($amenities) ? $amenities : [],
             'is_available' => (bool)($p->is_available ?? true),
             'is_booked'    => (bool)($p->is_booked ?? false),
+            'agent_name'   => $p->agent_name ?? null,
             // Booking type totals
             'full_rent_total'  => (float)$p->monthly_rent + (float)($p->deposit ?? 0) + (float)($p->brokerage_fee ?? 0),
             'carbuun_total'    => round(((float)$p->monthly_rent + (float)($p->deposit ?? 0) + (float)($p->brokerage_fee ?? 0)) * 0.30, 2),
@@ -299,11 +306,12 @@ class ERentController extends Controller
             }
         } catch (\Throwable) {}
 
-        // ── Agent commission: 10% of brokerage_fee credited to agent ─────
+        // ── Agent commission: dynamic % of brokerage_fee ─────────────────
         try {
             $brokerageFee = (float)($property->brokerage_fee ?? 0);
             if ($brokerageFee > 0 && !empty($property->agent_user_id)) {
-                $commission = round($brokerageFee * 0.10, 2);
+                $pct        = (float) Setting::get('erent_commission_pct', 10);
+                $commission = round($brokerageFee * ($pct / 100), 2);
                 $agentWallet = Wallet::getOrCreateFor('App\\Models\\User', $property->agent_user_id);
                 $agentWallet->credit(
                     $commission,
@@ -456,6 +464,75 @@ class ERentController extends Controller
         });
 
         return response()->json(['success' => true, 'message' => 'Full rental confirmed! 🏠 Welcome to your new home.']);
+    }
+
+    // POST /erent/house-requests (auth, customer) — customer submits a search request
+    public function storeHouseRequest(Request $request)
+    {
+        $v = Validator::make($request->all(), [
+            'district_id'  => 'nullable|exists:districts,id',
+            'type'         => 'nullable|in:apartment,house,villa,room,office,shop',
+            'bedrooms'     => 'nullable|integer|min:0|max:20',
+            'budget_min'   => 'nullable|numeric|min:0',
+            'budget_max'   => 'nullable|numeric|min:0',
+            'description'  => 'nullable|string|max:500',
+        ]);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $user = $request->user();
+
+        $id = DB::table('house_requests')->insertGetId([
+            'customer_user_id' => $user->id,
+            'district_id'      => $request->district_id,
+            'type'             => $request->type,
+            'bedrooms'         => $request->bedrooms,
+            'budget_min'       => $request->budget_min,
+            'budget_max'       => $request->budget_max,
+            'description'      => $request->description,
+            'status'           => 'open',
+            'created_at'       => now(),
+            'updated_at'       => now(),
+        ]);
+
+        // Notify all active agents in the district (or all if no district)
+        try {
+            $agentRoleId = DB::table('roles')->where('slug', 'rent_agent')->value('id');
+            $agentsQ = DB::table('users')
+                ->where('role_id', $agentRoleId)
+                ->where('status', 'active')
+                ->whereNotNull('fcm_token');
+
+            if ($request->district_id) {
+                $agentsQ->where('district_id', $request->district_id);
+            }
+
+            $tokens = $agentsQ->pluck('fcm_token')->toArray();
+
+            $districtName = $request->district_id
+                ? DB::table('districts')->where('id', $request->district_id)->value('name')
+                : 'All areas';
+
+            foreach ($tokens as $token) {
+                FcmService::send($token, 'New House Request 🏠', "Customer looking for a ".($request->type ?? 'property')." in {$districtName}", ['type' => 'house_request', 'id' => (string)$id]);
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('[HouseRequest FCM] ' . $e->getMessage());
+        }
+
+        return response()->json(['success' => true, 'message' => 'Your request has been sent to agents in that area!', 'data' => ['id' => $id]]);
+    }
+
+    // GET /erent/house-requests/mine (auth)
+    public function myHouseRequests(Request $request)
+    {
+        $requests = DB::table('house_requests')
+            ->where('customer_user_id', $request->user()->id)
+            ->leftJoin('districts', 'house_requests.district_id', '=', 'districts.id')
+            ->select('house_requests.*', 'districts.name as district_name')
+            ->orderByDesc('house_requests.id')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $requests]);
     }
 
     // POST /erent/bookings/{id}/request-refund (auth)

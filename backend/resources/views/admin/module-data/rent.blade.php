@@ -234,6 +234,8 @@
     <button class="module-tab" onclick="switchTab('add-property',this)"><i class="fas fa-plus-circle"></i> Add Property</button>
     <button class="module-tab" onclick="switchTab('districts',this)"><i class="fas fa-map-marker-alt"></i> Districts</button>
     <button class="module-tab" onclick="switchTab('agents',this)"><i class="fas fa-user-tie"></i> Agents <span id="pending-badge" style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;">{{ $agents->where('status', 'pending')->count() }}</span></button>
+    <button class="module-tab" onclick="switchTab('house-requests',this)"><i class="fas fa-home"></i> House Requests <span style="background:#0EA5E9;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;">{{ $houseRequests->where('status','open')->count() }}</span></button>
+    <button class="module-tab" onclick="switchTab('settings',this)"><i class="fas fa-cog"></i> Settings</button>
 </div>
 
 {{-- ══════════════════════════════════════════════════════════════ --}}
@@ -1463,5 +1465,113 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 
 </div>{{-- /agv2-wrap --}}
 </div>{{-- /tab-agents --}}
+
+{{-- ══════════════════════════════════════════════════════════════ --}}
+{{-- TAB: HOUSE REQUESTS --}}
+{{-- ══════════════════════════════════════════════════════════════ --}}
+<div id="tab-house-requests" class="tab-pane">
+<style>
+.hr-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:18px 20px; margin-bottom:12px; display:flex; align-items:flex-start; gap:16px; }
+.hr-card:hover { box-shadow:0 6px 24px rgba(0,0,0,.08); }
+.hr-avatar { width:48px; height:48px; border-radius:14px; background:linear-gradient(135deg,#0369A1,#0EA5E9); color:#fff; font-size:18px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.hr-body { flex:1; min-width:0; }
+.hr-name { font-size:15px; font-weight:800; color:var(--text); }
+.hr-meta { font-size:12px; color:var(--text-muted); margin:3px 0 8px; }
+.hr-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.hr-chip { padding:3px 10px; border-radius:99px; font-size:11px; font-weight:700; }
+.hr-chip-sky    { background:rgba(14,165,233,.1);  color:#0369A1; }
+.hr-chip-purple { background:rgba(139,92,246,.1);  color:#7C3AED; }
+.hr-chip-green  { background:rgba(16,185,129,.1);  color:#059669; }
+.hr-chip-gray   { background:rgba(0,0,0,.06);      color:#6b7280; }
+.hr-status { padding:3px 10px; border-radius:99px; font-size:11px; font-weight:800; }
+.hr-status-open      { background:rgba(14,165,233,.12); color:#0369A1; }
+.hr-status-contacted { background:rgba(245,158,11,.12); color:#B45309; }
+.hr-status-closed    { background:rgba(156,163,175,.15); color:#6b7280; }
+</style>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+  <div>
+    <div style="font-size:18px;font-weight:900;color:var(--text);">Customer House Requests</div>
+    <div style="font-size:13px;color:var(--text-muted);">Customers looking for properties — agents are notified automatically</div>
+  </div>
+  <div style="display:flex;gap:10px;">
+    <span class="hr-chip hr-chip-sky">{{ $houseRequests->where('status','open')->count() }} Open</span>
+    <span class="hr-chip hr-chip-purple">{{ $houseRequests->where('status','contacted')->count() }} Contacted</span>
+    <span class="hr-chip hr-chip-gray">{{ $houseRequests->where('status','closed')->count() }} Closed</span>
+  </div>
+</div>
+
+@forelse($houseRequests as $hr)
+<div class="hr-card">
+  <div class="hr-avatar">{{ strtoupper(substr($hr->customer_name ?? '?', 0, 1)) }}</div>
+  <div class="hr-body">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;">
+      <span class="hr-name">{{ $hr->customer_name }}</span>
+      <span class="hr-status hr-status-{{ $hr->status }}">{{ ucfirst($hr->status) }}</span>
+    </div>
+    <div class="hr-meta"><i class="fas fa-clock" style="margin-right:4px;"></i>{{ \Carbon\Carbon::parse($hr->created_at)->diffForHumans() }}</div>
+    <div class="hr-chips">
+      @if($hr->district_name) <span class="hr-chip hr-chip-sky"><i class="fas fa-map-marker-alt"></i> {{ $hr->district_name }}</span> @endif
+      @if($hr->type)          <span class="hr-chip hr-chip-purple"><i class="fas fa-home"></i> {{ ucfirst($hr->type) }}</span> @endif
+      @if($hr->bedrooms)      <span class="hr-chip hr-chip-gray"><i class="fas fa-bed"></i> {{ $hr->bedrooms }} bed</span> @endif
+      @if($hr->budget_min || $hr->budget_max)
+        <span class="hr-chip hr-chip-green"><i class="fas fa-dollar-sign"></i>
+          @if($hr->budget_min && $hr->budget_max) ${{ number_format($hr->budget_min) }}–${{ number_format($hr->budget_max) }}/mo
+          @elseif($hr->budget_max) Up to ${{ number_format($hr->budget_max) }}/mo
+          @else From ${{ number_format($hr->budget_min) }}/mo @endif
+        </span>
+      @endif
+    </div>
+    @if($hr->description)
+    <div style="margin-top:8px;font-size:12px;color:var(--text-muted);font-style:italic;">"{{ Str::limit($hr->description, 120) }}"</div>
+    @endif
+  </div>
+</div>
+@empty
+<div style="text-align:center;padding:48px 20px;border:1.5px dashed var(--border);border-radius:16px;color:var(--text-muted);">
+  <i class="fas fa-home" style="font-size:32px;margin-bottom:12px;display:block;opacity:.3;"></i>
+  No house requests yet. Customers will submit them from the app.
+</div>
+@endforelse
+</div>{{-- /tab-house-requests --}}
+
+{{-- ══════════════════════════════════════════════════════════════ --}}
+{{-- TAB: SETTINGS --}}
+{{-- ══════════════════════════════════════════════════════════════ --}}
+<div id="tab-settings" class="tab-pane">
+<div style="max-width:480px;">
+  <div style="font-size:18px;font-weight:900;color:var(--text);margin-bottom:6px;">eRent Settings</div>
+  <div style="font-size:13px;color:var(--text-muted);margin-bottom:24px;">Changes take effect immediately for all future bookings.</div>
+
+  {{-- Commission setting --}}
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <div style="width:44px;height:44px;border-radius:12px;background:rgba(16,185,129,.12);color:#059669;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">
+        <i class="fas fa-percentage"></i>
+      </div>
+      <div>
+        <div style="font-size:15px;font-weight:800;color:var(--text);">Agent Commission</div>
+        <div style="font-size:12px;color:var(--text-muted);">% of brokerage fee credited to agent on each booking</div>
+      </div>
+    </div>
+    <form method="POST" action="{{ route('admin.module-data.rent.commission.save') }}">
+      @csrf
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="position:relative;flex:1;">
+          <input type="number" name="commission_pct" value="{{ $commissionPct }}" min="0" max="100" step="0.5"
+            style="width:100%;padding:12px 40px 12px 16px;border:1.5px solid var(--border);border-radius:12px;background:var(--bg);color:var(--text);font-size:18px;font-weight:800;">
+          <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:16px;font-weight:700;">%</span>
+        </div>
+        <button type="submit" style="padding:12px 24px;background:linear-gradient(135deg,#059669,#10B981);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;white-space:nowrap;">
+          <i class="fas fa-save"></i> Save
+        </button>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:var(--text-muted);">
+        Current: <strong style="color:#059669;">{{ $commissionPct }}%</strong> of brokerage fee per booking.
+        Example: $400 brokerage fee → agent earns ${{ number_format($commissionPct * 4, 0) }}.
+      </div>
+    </form>
+  </div>
+</div>
+</div>{{-- /tab-settings --}}
 
 @endsection

@@ -303,6 +303,62 @@ class AgentController extends Controller
         ]);
     }
 
+    // ── House Requests ────────────────────────────────────────────────────────
+
+    public function houseRequests(Request $request)
+    {
+        $agentDistrictId = $request->user()->district_id;
+
+        $query = DB::table('house_requests')
+            ->join('users as customers', 'house_requests.customer_user_id', '=', 'customers.id')
+            ->leftJoin('districts', 'house_requests.district_id', '=', 'districts.id')
+            ->where('house_requests.status', 'open')
+            ->select([
+                'house_requests.id', 'house_requests.type', 'house_requests.bedrooms',
+                'house_requests.budget_min', 'house_requests.budget_max',
+                'house_requests.description', 'house_requests.status',
+                'house_requests.created_at',
+                'customers.name as customer_name', 'customers.phone as customer_phone',
+                'districts.name as district_name',
+            ]);
+
+        // Show requests in agent's district first, then others
+        if ($agentDistrictId) {
+            $query->orderByRaw('CASE WHEN house_requests.district_id = ? THEN 0 ELSE 1 END', [$agentDistrictId]);
+        }
+
+        $results = $query->orderByDesc('house_requests.id')->paginate(30);
+
+        return response()->json([
+            'success' => true,
+            'data'    => $results->items(),
+            'meta'    => ['total' => $results->total(), 'last_page' => $results->lastPage()],
+        ]);
+    }
+
+    public function contactRequest(Request $request, $id)
+    {
+        $updated = DB::table('house_requests')
+            ->where('id', $id)
+            ->where('status', 'open')
+            ->update(['status' => 'contacted', 'updated_at' => now()]);
+
+        return response()->json([
+            'success' => $updated > 0,
+            'message' => $updated > 0 ? 'Marked as contacted' : 'Already handled',
+        ]);
+    }
+
+    public function closeRequest(Request $request, $id)
+    {
+        DB::table('house_requests')
+            ->where('id', $id)
+            ->whereIn('status', ['open', 'contacted'])
+            ->update(['status' => 'closed', 'updated_at' => now()]);
+
+        return response()->json(['success' => true, 'message' => 'Request closed']);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private function formatMini($p): array

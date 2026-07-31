@@ -573,9 +573,10 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/rent/districts',          [$ctrl, 'districtStore'])->name('rent.district.store');
             Route::patch('/rent/districts/{id}',    [$ctrl, 'districtUpdate'])->name('rent.district.update');
             Route::delete('/rent/districts/{id}',   [$ctrl, 'districtDestroy'])->name('rent.district.destroy');
-            Route::post('/rent/agents/{id}/approve', [$ctrl, 'agentApprove'])->name('rent.agent.approve');
-            Route::post('/rent/agents/{id}/reject',  [$ctrl, 'agentReject'])->name('rent.agent.reject');
-            Route::post('/rent/agents/{id}/toggle',  [$ctrl, 'agentToggle'])->name('rent.agent.toggle');
+            Route::post('/rent/agents/{id}/approve',  [$ctrl, 'agentApprove'])->name('rent.agent.approve');
+            Route::post('/rent/agents/{id}/reject',   [$ctrl, 'agentReject'])->name('rent.agent.reject');
+            Route::post('/rent/agents/{id}/toggle',   [$ctrl, 'agentToggle'])->name('rent.agent.toggle');
+            Route::post('/rent/commission',           [$ctrl, 'saveRentCommission'])->name('rent.commission.save');
 
             // eFood — full management
             Route::prefix('efood')->name('efood.')->group(function () {
