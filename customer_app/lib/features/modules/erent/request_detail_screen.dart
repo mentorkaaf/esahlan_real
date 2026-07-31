@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../core/api/module_api_service.dart';
-import '../../../core/theme/app_colors.dart';
 
 const _kOrange = Color(0xFFFF6B35);
 const _kTeal   = Color(0xFF0EA5E9);
@@ -20,7 +19,7 @@ class RequestDetailScreen extends StatefulWidget {
 class _RequestDetailScreenState extends State<RequestDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
-  final _svc = ModuleApiService();
+  final _svc = ModuleApiService.create();
 
   @override
   void initState() {
@@ -251,7 +250,7 @@ class _RecommendationsTabState extends State<_RecommendationsTab> {
 
     if (_recs.isEmpty && _viewings.isEmpty) {
       return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.home_search_rounded, size: 64, color: _kOrange.withValues(alpha: 0.3)),
+        Icon(Icons.search_rounded, size: 64, color: _kOrange.withValues(alpha: 0.3)),
         const SizedBox(height: 16),
         Text('No recommendations yet', style: TextStyle(color: widget.txt, fontWeight: FontWeight.w700, fontSize: 15)),
         const SizedBox(height: 6),
