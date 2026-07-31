@@ -1007,157 +1007,383 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 </script>
 
 {{-- ══════════════════════════════════════════════════════════════ --}}
-{{-- TAB: AGENTS --}}
+{{-- TAB: AGENTS  (redesigned) --}}
 {{-- ══════════════════════════════════════════════════════════════ --}}
 <div id="tab-agents" class="tab-pane">
 
 <style>
-.agent-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 18px 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 12px;
-    transition: box-shadow .15s;
+/* ── Agent tab tokens ──────────────────────────────────────────── */
+:root {
+  --ag-teal:   #0EA5E9;
+  --ag-teal2:  #0369A1;
+  --ag-amber:  #F59E0B;
+  --ag-amber2: #B45309;
+  --ag-green:  #10B981;
+  --ag-red:    #EF4444;
+  --ag-purple: #8B5CF6;
 }
-.agent-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.07); }
-.agent-avatar {
-    width: 48px; height: 48px; border-radius: 50%;
-    background: linear-gradient(135deg, #0369A1, #0EA5E9);
-    display: flex; align-items: center; justify-content: center;
-    color: #fff; font-size: 20px; flex-shrink: 0;
+
+/* ── Stats row ─────────────────────────────────────────────────── */
+.ag-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:32px; }
+.ag-stat {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:20px 22px;
+  display:flex; align-items:center; gap:16px;
+  position:relative; overflow:hidden;
+  transition:transform .15s, box-shadow .15s;
 }
-.agent-info { flex: 1; min-width: 0; }
-.agent-name { font-weight: 700; font-size: 15px; color: var(--text); margin-bottom: 3px; }
-.agent-meta { font-size: 12px; color: var(--text-muted); }
-.agent-district { display:inline-block; background: rgba(14,165,233,.1); color:#0EA5E9; border-radius:8px; padding:2px 9px; font-size:11px; font-weight:600; margin-top:4px; }
-.agent-status-badge { display:inline-block; padding:3px 10px; border-radius:10px; font-size:11px; font-weight:700; margin-bottom:6px; }
-.badge-pending  { background:#fef3c7; color:#92400e; }
-.badge-active   { background:#d1fae5; color:#065f46; }
-.badge-inactive { background:#fee2e2; color:#991b1b; }
-.agent-actions { display:flex; gap:8px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; }
-.btn-approve { background:#10b981; color:#fff; border:none; border-radius:8px; padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer; }
-.btn-approve:hover { background:#059669; }
-.btn-reject  { background:#ef4444; color:#fff; border:none; border-radius:8px; padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer; }
-.btn-reject:hover { background:#dc2626; }
-.btn-toggle-on  { background:#f59e0b; color:#fff; border:none; border-radius:8px; padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer; }
-.btn-toggle-off { background:#6366f1; color:#fff; border:none; border-radius:8px; padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer; }
-.agents-section-title { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin: 20px 0 10px; }
-.agent-stats-bar { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:24px; }
-.agent-stat { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 20px; flex:1; min-width:120px; }
-.agent-stat-num { font-size:24px; font-weight:900; color:var(--brand); line-height:1; }
-.agent-stat-lbl { font-size:12px; color:var(--text-muted); margin-top:3px; }
+.ag-stat:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(0,0,0,.08); }
+.ag-stat::before {
+  content:''; position:absolute; inset:0 auto 0 0;
+  width:4px; border-radius:4px 0 0 4px;
+  background:var(--ag-stat-accent, var(--ag-teal));
+}
+.ag-stat-icon {
+  width:48px; height:48px; border-radius:14px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--ag-stat-bg, rgba(14,165,233,.1));
+  color:var(--ag-stat-accent, var(--ag-teal));
+  font-size:20px;
+}
+.ag-stat-body {}
+.ag-stat-num { font-size:28px; font-weight:900; line-height:1; color:var(--text); letter-spacing:-1px; }
+.ag-stat-lbl { font-size:12px; color:var(--text-muted); font-weight:500; margin-top:2px; }
+
+/* ── Section headers ───────────────────────────────────────────── */
+.ag-section-hd {
+  display:flex; align-items:center; gap:10px;
+  margin:28px 0 14px;
+}
+.ag-section-hd-line {
+  height:1px; flex:1; background:var(--border);
+}
+.ag-section-hd-pill {
+  display:flex; align-items:center; gap:7px;
+  padding:5px 14px; border-radius:99px;
+  font-size:12px; font-weight:700; letter-spacing:.04em;
+  border:1px solid var(--ag-pill-border, var(--border));
+  background:var(--ag-pill-bg, var(--surface));
+  color:var(--ag-pill-color, var(--text-muted));
+  white-space:nowrap;
+}
+.ag-section-hd-pill i { font-size:11px; }
+.ag-count-badge {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:20px; height:20px; padding:0 6px;
+  border-radius:99px; font-size:11px; font-weight:800;
+  background:var(--ag-pill-accent, #e5e7eb);
+  color:var(--ag-pill-count-color, #6b7280);
+}
+
+/* ── Agent card ────────────────────────────────────────────────── */
+.ag-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:20px 22px;
+  display:flex; align-items:center; gap:18px;
+  margin-bottom:12px;
+  transition:box-shadow .2s, transform .2s, border-color .2s;
+  position:relative;
+}
+.ag-card:hover {
+  box-shadow:0 10px 32px rgba(0,0,0,.09);
+  transform:translateY(-1px);
+}
+.ag-card.pending { border-color:rgba(245,158,11,.3); background:linear-gradient(135deg,rgba(245,158,11,.03) 0%,var(--surface) 60%); }
+.ag-card.suspended { opacity:.75; }
+
+/* ── Avatar ────────────────────────────────────────────────────── */
+.ag-avatar-wrap { position:relative; flex-shrink:0; }
+.ag-avatar {
+  width:56px; height:56px; border-radius:18px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; font-weight:800; color:#fff; letter-spacing:-.5px;
+  background:var(--ag-avatar-bg, linear-gradient(135deg,#0369A1,#0EA5E9));
+  position:relative;
+}
+.ag-avatar-ring {
+  position:absolute; inset:-4px; border-radius:22px;
+  border:2px solid var(--ag-ring-color, transparent);
+  pointer-events:none;
+}
+.ag-card.pending   .ag-avatar-ring { border-color:var(--ag-amber); border-style:dashed; animation:ring-spin 8s linear infinite; }
+.ag-card.active    .ag-avatar-ring { border-color:var(--ag-teal); }
+.ag-card.suspended .ag-avatar-ring { border-color:#9ca3af; }
+@keyframes ring-spin { to { transform:rotate(360deg); } }
+
+.ag-status-dot {
+  position:absolute; bottom:-2px; right:-2px;
+  width:14px; height:14px; border-radius:50%;
+  border:2.5px solid var(--surface);
+  background:var(--ag-dot-color, #9ca3af);
+}
+.ag-card.pending   .ag-status-dot { background:var(--ag-amber); box-shadow:0 0 0 3px rgba(245,158,11,.2); }
+.ag-card.active    .ag-status-dot { background:var(--ag-green); box-shadow:0 0 0 3px rgba(16,185,129,.2); }
+.ag-card.suspended .ag-status-dot { background:#9ca3af; }
+
+/* ── Info ──────────────────────────────────────────────────────── */
+.ag-info { flex:1; min-width:0; }
+.ag-name { font-size:15px; font-weight:800; color:var(--text); margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ag-contact { font-size:12px; color:var(--text-muted); margin-bottom:6px; }
+.ag-tags { display:flex; flex-wrap:wrap; gap:6px; }
+.ag-tag {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 9px; border-radius:99px; font-size:11px; font-weight:600;
+}
+.ag-tag-district { background:rgba(14,165,233,.1); color:var(--ag-teal); }
+.ag-tag-props    { background:rgba(139,92,246,.1);  color:var(--ag-purple); }
+.ag-tag-earned   { background:rgba(16,185,129,.1);  color:var(--ag-green); }
+.ag-tag-joined   { background:rgba(0,0,0,.05);      color:var(--text-muted); }
+.ag-tag-pending  { background:rgba(245,158,11,.12); color:var(--ag-amber2); }
+
+/* ── Meta stats (for active cards) ────────────────────────────── */
+.ag-metrics {
+  display:flex; gap:20px; padding:0 20px;
+  border-left:1px solid var(--border);
+  border-right:1px solid var(--border);
+  flex-shrink:0;
+}
+.ag-metric { text-align:center; }
+.ag-metric-val { font-size:18px; font-weight:900; color:var(--text); line-height:1; }
+.ag-metric-lbl { font-size:10px; color:var(--text-muted); font-weight:600; margin-top:2px; text-transform:uppercase; letter-spacing:.05em; }
+
+/* ── Actions ───────────────────────────────────────────────────── */
+.ag-actions { display:flex; flex-direction:column; gap:8px; flex-shrink:0; align-items:flex-end; }
+.ag-btn {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 16px; border-radius:10px; font-size:12px; font-weight:700;
+  border:none; cursor:pointer; transition:all .15s; white-space:nowrap;
+  letter-spacing:.01em;
+}
+.ag-btn-approve {
+  background:linear-gradient(135deg,#059669,#10b981);
+  color:#fff; box-shadow:0 2px 8px rgba(16,185,129,.35);
+}
+.ag-btn-approve:hover { box-shadow:0 4px 14px rgba(16,185,129,.5); transform:translateY(-1px); }
+.ag-btn-reject {
+  background:transparent; color:var(--ag-red);
+  border:1.5px solid rgba(239,68,68,.3);
+}
+.ag-btn-reject:hover { background:rgba(239,68,68,.07); border-color:var(--ag-red); }
+.ag-btn-suspend {
+  background:transparent; color:var(--ag-amber2);
+  border:1.5px solid rgba(245,158,11,.35);
+}
+.ag-btn-suspend:hover { background:rgba(245,158,11,.07); border-color:var(--ag-amber); }
+.ag-btn-activate {
+  background:linear-gradient(135deg,#2563eb,#7c3aed);
+  color:#fff; box-shadow:0 2px 8px rgba(99,102,241,.3);
+}
+.ag-btn-activate:hover { box-shadow:0 4px 14px rgba(99,102,241,.45); transform:translateY(-1px); }
+.ag-btn-delete {
+  background:transparent; color:#9ca3af;
+  border:1.5px solid var(--border); font-size:11px;
+  padding:6px 12px;
+}
+.ag-btn-delete:hover { color:var(--ag-red); border-color:rgba(239,68,68,.4); }
+
+/* ── Empty state ───────────────────────────────────────────────── */
+.ag-empty {
+  text-align:center; padding:52px 20px;
+  background:var(--surface); border:1px dashed var(--border);
+  border-radius:18px; margin-top:8px;
+}
+.ag-empty-icon {
+  width:64px; height:64px; border-radius:20px; margin:0 auto 16px;
+  background:linear-gradient(135deg,rgba(14,165,233,.1),rgba(139,92,246,.1));
+  display:flex; align-items:center; justify-content:center;
+  font-size:26px; color:var(--ag-teal);
+}
+.ag-empty-title { font-size:15px; font-weight:700; color:var(--text); margin-bottom:5px; }
+.ag-empty-sub   { font-size:13px; color:var(--text-muted); }
+
+@media(max-width:768px) {
+  .ag-stats { grid-template-columns:1fr; }
+  .ag-metrics { display:none; }
+  .ag-card { flex-wrap:wrap; }
+  .ag-actions { flex-direction:row; width:100%; }
+}
 </style>
 
 @php
-    $pendingAgents  = $agents->where('status', 'pending');
-    $activeAgents   = $agents->whereIn('status', ['active', 'inactive']);
+  $pendingAgents = $agents->where('status', 'pending');
+  $activeAgents  = $agents->whereIn('status', ['active', 'inactive']);
+
+  function agInitials(string $name): string {
+    $parts = array_filter(explode(' ', $name));
+    $i = strtoupper(substr($parts[0] ?? '?', 0, 1));
+    if (count($parts) > 1) $i .= strtoupper(substr(end($parts), 0, 1));
+    return $i;
+  }
+
+  $avatarGradients = [
+    ['#0369A1','#0EA5E9'],
+    ['#7C3AED','#A855F7'],
+    ['#059669','#10B981'],
+    ['#B45309','#F59E0B'],
+    ['#DC2626','#F87171'],
+    ['#0F766E','#14B8A6'],
+  ];
 @endphp
 
-{{-- Stats --}}
-<div class="agent-stats-bar">
-    <div class="agent-stat">
-        <div class="agent-stat-num">{{ $agents->count() }}</div>
-        <div class="agent-stat-lbl">Total Agents</div>
+{{-- ── Stats ──────────────────────────────────────────────── --}}
+<div class="ag-stats">
+  <div class="ag-stat" style="--ag-stat-accent:#0EA5E9;--ag-stat-bg:rgba(14,165,233,.1);">
+    <div class="ag-stat-icon"><i class="fas fa-users"></i></div>
+    <div class="ag-stat-body">
+      <div class="ag-stat-num">{{ $agents->count() }}</div>
+      <div class="ag-stat-lbl">Total Agents</div>
     </div>
-    <div class="agent-stat" style="border-color:#10b981;">
-        <div class="agent-stat-num" style="color:#10b981;">{{ $activeAgents->count() }}</div>
-        <div class="agent-stat-lbl">Active</div>
+  </div>
+  <div class="ag-stat" style="--ag-stat-accent:#10B981;--ag-stat-bg:rgba(16,185,129,.1);">
+    <div class="ag-stat-icon"><i class="fas fa-check-circle"></i></div>
+    <div class="ag-stat-body">
+      <div class="ag-stat-num">{{ $agents->where('status','active')->count() }}</div>
+      <div class="ag-stat-lbl">Active</div>
     </div>
-    <div class="agent-stat" style="border-color:#f59e0b;">
-        <div class="agent-stat-num" style="color:#f59e0b;">{{ $pendingAgents->count() }}</div>
-        <div class="agent-stat-lbl">Pending Approval</div>
+  </div>
+  <div class="ag-stat" style="--ag-stat-accent:#F59E0B;--ag-stat-bg:rgba(245,158,11,.1);">
+    <div class="ag-stat-icon"><i class="fas fa-hourglass-half"></i></div>
+    <div class="ag-stat-body">
+      <div class="ag-stat-num">{{ $pendingAgents->count() }}</div>
+      <div class="ag-stat-lbl">Pending Review</div>
     </div>
+  </div>
 </div>
 
-{{-- Pending --}}
+{{-- ── Pending agents ─────────────────────────────────────── --}}
 @if($pendingAgents->count())
-<div class="agents-section-title" style="color:#92400e;"><i class="fas fa-clock" style="margin-right:6px;"></i>Pending Approval ({{ $pendingAgents->count() }})</div>
-@foreach($pendingAgents as $agent)
-<div class="agent-card" style="border-color:#fde68a;">
-    <div class="agent-avatar"><i class="fas fa-user-tie"></i></div>
-    <div class="agent-info">
-        <div class="agent-name">{{ $agent->name }}</div>
-        <div class="agent-meta">
-            {{ $agent->phone ?? $agent->email ?? '—' }}
-            &nbsp;·&nbsp; Registered {{ \Carbon\Carbon::parse($agent->created_at)->diffForHumans() }}
-        </div>
-        @if($agent->district_name)
-        <span class="agent-district"><i class="fas fa-map-marker-alt" style="font-size:10px;"></i> {{ $agent->district_name }}</span>
-        @endif
-        <div style="margin-top:6px;"><span class="agent-status-badge badge-pending">Pending</span></div>
+<div class="ag-section-hd">
+  <div class="ag-section-hd-line"></div>
+  <div class="ag-section-hd-pill" style="--ag-pill-border:rgba(245,158,11,.4);--ag-pill-bg:rgba(245,158,11,.06);--ag-pill-color:#B45309;--ag-pill-accent:rgba(245,158,11,.2);--ag-pill-count-color:#92400e;">
+    <i class="fas fa-clock"></i> Awaiting Review
+    <span class="ag-count-badge">{{ $pendingAgents->count() }}</span>
+  </div>
+  <div class="ag-section-hd-line"></div>
+</div>
+
+@foreach($pendingAgents as $i => $agent)
+@php $g = $avatarGradients[$i % count($avatarGradients)]; @endphp
+<div class="ag-card pending">
+  <div class="ag-avatar-wrap">
+    <div class="ag-avatar" style="background:linear-gradient(135deg,{{ $g[0] }},{{ $g[1] }});">
+      {{ agInitials($agent->name) }}
     </div>
-    <div class="agent-actions">
-        <form method="POST" action="{{ route('admin.module-data.rent.agent.approve', $agent->id) }}" style="display:inline;">
-            @csrf
-            <button type="submit" class="btn-approve" onclick="return confirm('Approve {{ addslashes($agent->name) }}?')">
-                <i class="fas fa-check"></i> Approve
-            </button>
-        </form>
-        <form method="POST" action="{{ route('admin.module-data.rent.agent.reject', $agent->id) }}" style="display:inline;">
-            @csrf
-            <button type="submit" class="btn-reject" onclick="return confirm('Reject and remove {{ addslashes($agent->name) }}?')">
-                <i class="fas fa-times"></i> Reject
-            </button>
-        </form>
+    <div class="ag-avatar-ring"></div>
+    <div class="ag-status-dot"></div>
+  </div>
+
+  <div class="ag-info">
+    <div class="ag-name">{{ $agent->name }}</div>
+    <div class="ag-contact">{{ $agent->phone ?? $agent->email ?? '—' }}</div>
+    <div class="ag-tags">
+      @if($agent->district_name)
+      <span class="ag-tag ag-tag-district"><i class="fas fa-map-marker-alt"></i> {{ $agent->district_name }}</span>
+      @endif
+      <span class="ag-tag ag-tag-joined"><i class="fas fa-calendar-alt"></i> {{ \Carbon\Carbon::parse($agent->created_at)->diffForHumans() }}</span>
+      <span class="ag-tag ag-tag-pending"><i class="fas fa-hourglass-half"></i> Pending approval</span>
     </div>
+  </div>
+
+  <div class="ag-actions">
+    <form method="POST" action="{{ route('admin.module-data.rent.agent.approve', $agent->id) }}">
+      @csrf
+      <button type="submit" class="ag-btn ag-btn-approve" onclick="return confirm('Approve {{ addslashes($agent->name) }} as an eRent agent?')">
+        <i class="fas fa-check"></i> Approve Agent
+      </button>
+    </form>
+    <form method="POST" action="{{ route('admin.module-data.rent.agent.reject', $agent->id) }}">
+      @csrf
+      <button type="submit" class="ag-btn ag-btn-reject" onclick="return confirm('Reject and permanently remove {{ addslashes($agent->name) }}?')">
+        <i class="fas fa-times"></i> Reject
+      </button>
+    </form>
+  </div>
 </div>
 @endforeach
 @endif
 
-{{-- Active / Inactive --}}
-<div class="agents-section-title"><i class="fas fa-users" style="margin-right:6px;"></i>All Approved Agents ({{ $activeAgents->count() }})</div>
-@forelse($activeAgents as $agent)
+{{-- ── Approved agents ────────────────────────────────────── --}}
+<div class="ag-section-hd" style="margin-top:{{ $pendingAgents->count() ? '32px' : '0' }};">
+  <div class="ag-section-hd-line"></div>
+  <div class="ag-section-hd-pill" style="--ag-pill-border:rgba(14,165,233,.3);--ag-pill-bg:rgba(14,165,233,.05);--ag-pill-color:#0369A1;--ag-pill-accent:rgba(14,165,233,.15);--ag-pill-count-color:#0369A1;">
+    <i class="fas fa-user-tie"></i> All Agents
+    <span class="ag-count-badge">{{ $activeAgents->count() }}</span>
+  </div>
+  <div class="ag-section-hd-line"></div>
+</div>
+
+@forelse($activeAgents as $i => $agent)
 @php
-    $propCount = \Illuminate\Support\Facades\DB::table('properties')->where('agent_user_id', $agent->id)->count();
-    $walletId  = \Illuminate\Support\Facades\DB::table('wallets')
-        ->where('owner_type', 'App\\Models\\User')->where('owner_id', $agent->id)->value('id');
-    $earned    = $walletId
-        ? \Illuminate\Support\Facades\DB::table('wallet_transactions')
-            ->where('wallet_id', $walletId)->where('type', 'credit')->sum('amount')
-        : 0;
+  $g         = $avatarGradients[($i + 2) % count($avatarGradients)];
+  $propCount = \Illuminate\Support\Facades\DB::table('properties')->where('agent_user_id', $agent->id)->count();
+  $walletId  = \Illuminate\Support\Facades\DB::table('wallets')->where('owner_type','App\\Models\\User')->where('owner_id',$agent->id)->value('id');
+  $earned    = $walletId ? \Illuminate\Support\Facades\DB::table('wallet_transactions')->where('wallet_id',$walletId)->where('type','credit')->sum('amount') : 0;
+  $isActive  = $agent->status === 'active';
 @endphp
-<div class="agent-card">
-    <div class="agent-avatar"><i class="fas fa-user-tie"></i></div>
-    <div class="agent-info">
-        <div class="agent-name">{{ $agent->name }}</div>
-        <div class="agent-meta">
-            {{ $agent->phone ?? $agent->email ?? '—' }}
-            &nbsp;·&nbsp; {{ $propCount }} propert{{ $propCount==1?'y':'ies' }}
-            &nbsp;·&nbsp; ${{ number_format($earned, 2) }} earned
-        </div>
-        @if($agent->district_name)
-        <span class="agent-district"><i class="fas fa-map-marker-alt" style="font-size:10px;"></i> {{ $agent->district_name }}</span>
-        @endif
-        <div style="margin-top:6px;">
-            <span class="agent-status-badge {{ $agent->status === 'active' ? 'badge-active' : 'badge-inactive' }}">
-                {{ $agent->status === 'active' ? 'Active' : 'Suspended' }}
-            </span>
-        </div>
+<div class="ag-card {{ $isActive ? 'active' : 'suspended' }}">
+  <div class="ag-avatar-wrap">
+    <div class="ag-avatar" style="background:linear-gradient(135deg,{{ $g[0] }},{{ $g[1] }});{{ $isActive ? '' : 'filter:grayscale(.6);' }}">
+      {{ agInitials($agent->name) }}
     </div>
-    <div class="agent-actions">
-        <form method="POST" action="{{ route('admin.module-data.rent.agent.toggle', $agent->id) }}" style="display:inline;">
-            @csrf
-            <button type="submit" class="{{ $agent->status === 'active' ? 'btn-toggle-on' : 'btn-toggle-off' }}" onclick="return confirm('{{ $agent->status === 'active' ? 'Suspend' : 'Reactivate' }} this agent?')">
-                <i class="fas fa-{{ $agent->status === 'active' ? 'ban' : 'check-circle' }}"></i>
-                {{ $agent->status === 'active' ? 'Suspend' : 'Reactivate' }}
-            </button>
-        </form>
-        <form method="POST" action="{{ route('admin.module-data.rent.agent.reject', $agent->id) }}" style="display:inline;">
-            @csrf
-            <button type="submit" class="btn-reject" onclick="return confirm('Permanently delete {{ addslashes($agent->name) }}?')">
-                <i class="fas fa-trash"></i>
-            </button>
-        </form>
+    <div class="ag-avatar-ring"></div>
+    <div class="ag-status-dot"></div>
+  </div>
+
+  <div class="ag-info">
+    <div class="ag-name">{{ $agent->name }}</div>
+    <div class="ag-contact">{{ $agent->phone ?? $agent->email ?? '—' }}</div>
+    <div class="ag-tags">
+      @if($agent->district_name)
+      <span class="ag-tag ag-tag-district"><i class="fas fa-map-marker-alt"></i> {{ $agent->district_name }}</span>
+      @endif
+      <span class="ag-tag ag-tag-joined"><i class="fas fa-calendar-alt"></i> Joined {{ \Carbon\Carbon::parse($agent->created_at)->format('M Y') }}</span>
     </div>
+  </div>
+
+  <div class="ag-metrics">
+    <div class="ag-metric">
+      <div class="ag-metric-val" style="color:var(--ag-purple);">{{ $propCount }}</div>
+      <div class="ag-metric-lbl">Listings</div>
+    </div>
+    <div class="ag-metric">
+      <div class="ag-metric-val" style="color:var(--ag-green);">${{ number_format($earned,0) }}</div>
+      <div class="ag-metric-lbl">Earned</div>
+    </div>
+  </div>
+
+  <div class="ag-actions">
+    @if($isActive)
+    <form method="POST" action="{{ route('admin.module-data.rent.agent.toggle', $agent->id) }}">
+      @csrf
+      <button type="submit" class="ag-btn ag-btn-suspend" onclick="return confirm('Suspend {{ addslashes($agent->name) }}?')">
+        <i class="fas fa-pause-circle"></i> Suspend
+      </button>
+    </form>
+    @else
+    <form method="POST" action="{{ route('admin.module-data.rent.agent.toggle', $agent->id) }}">
+      @csrf
+      <button type="submit" class="ag-btn ag-btn-activate" onclick="return confirm('Reactivate {{ addslashes($agent->name) }}?')">
+        <i class="fas fa-play-circle"></i> Reactivate
+      </button>
+    </form>
+    @endif
+    <form method="POST" action="{{ route('admin.module-data.rent.agent.reject', $agent->id) }}">
+      @csrf
+      <button type="submit" class="ag-btn ag-btn-delete" onclick="return confirm('Permanently delete {{ addslashes($agent->name) }}? This cannot be undone.')">
+        <i class="fas fa-trash-alt"></i> Remove
+      </button>
+    </form>
+  </div>
 </div>
 @empty
-<div style="text-align:center;padding:40px;color:var(--text-muted);">
-    <i class="fas fa-user-tie" style="font-size:40px;opacity:.3;margin-bottom:12px;display:block;"></i>
-    No approved agents yet.
+<div class="ag-empty">
+  <div class="ag-empty-icon"><i class="fas fa-user-tie"></i></div>
+  <div class="ag-empty-title">No approved agents yet</div>
+  <div class="ag-empty-sub">Approved agents will appear here. Pending applications are shown above.</div>
 </div>
 @endforelse
 
