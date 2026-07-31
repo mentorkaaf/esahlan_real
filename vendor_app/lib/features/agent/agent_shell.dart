@@ -6,6 +6,7 @@ import 'properties/agent_properties_screen.dart';
 import 'properties/add_property_screen.dart';
 import 'wallet/agent_wallet_screen.dart';
 import 'profile/agent_profile_screen.dart';
+import 'requests/house_requests_screen.dart';
 
 class AgentShell extends ConsumerStatefulWidget {
   const AgentShell({super.key});
@@ -19,6 +20,7 @@ class _AgentShellState extends ConsumerState<AgentShell> {
   static const _screens = [
     AgentDashboardScreen(),
     AgentPropertiesScreen(),
+    HouseRequestsScreen(),
     AgentWalletScreen(),
     AgentProfileScreen(),
   ];
@@ -60,10 +62,11 @@ class _AgentShellState extends ConsumerState<AgentShell> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _AgentNavItem(icon: Icons.dashboard_rounded,       label: 'Dashboard',  index: 0, selected: _index, onTap: () => setState(() => _index = 0)),
-                _AgentNavItem(icon: Icons.apartment_rounded,       label: 'Properties', index: 1, selected: _index, onTap: () => setState(() => _index = 1)),
-                _AgentNavItem(icon: Icons.account_balance_wallet_rounded, label: 'Wallet', index: 2, selected: _index, onTap: () => setState(() => _index = 2)),
-                _AgentNavItem(icon: Icons.person_rounded,          label: 'Profile',    index: 3, selected: _index, onTap: () => setState(() => _index = 3)),
+                _AgentNavItem(icon: Icons.dashboard_rounded,              label: 'Dashboard',  index: 0, selected: _index, onTap: () => setState(() => _index = 0)),
+                _AgentNavItem(icon: Icons.apartment_rounded,              label: 'Properties', index: 1, selected: _index, onTap: () => setState(() => _index = 1)),
+                _AgentNavItem(icon: Icons.inbox_rounded,                  label: 'Requests',   index: 2, selected: _index, onTap: () => setState(() => _index = 2)),
+                _AgentNavItem(icon: Icons.account_balance_wallet_rounded, label: 'Wallet',     index: 3, selected: _index, onTap: () => setState(() => _index = 3)),
+                _AgentNavItem(icon: Icons.person_rounded,                 label: 'Profile',    index: 4, selected: _index, onTap: () => setState(() => _index = 4)),
               ],
             ),
           ),

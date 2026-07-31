@@ -154,6 +154,8 @@ class ModuleApiService {
   Future<dynamic> cancelRentBooking(int id, {String? reason}) => _post('/erent/bookings/$id/cancel', {'reason': reason ?? ''});
   Future<dynamic> payRemainingRent(int id, String paymentMethod) => _post('/erent/bookings/$id/pay-remaining', {'payment_method': paymentMethod});
   Future<dynamic> requestRentRefund(int id, String reason) => _post('/erent/bookings/$id/request-refund', {'reason': reason});
+  Future<dynamic> submitHouseRequest(Map<String, dynamic> data) => _post('/erent/house-requests', data);
+  Future<dynamic> myHouseRequests() => _get('/erent/house-requests/mine');
 
   // ═══════════════════════════════════════════════════════════════════
   // eSHOP

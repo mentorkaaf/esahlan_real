@@ -44,4 +44,13 @@ class AgentRepository {
 
   Future<Map<String, dynamic>> wallet() =>
       _api.get('/agent/wallet');
+
+  Future<Map<String, dynamic>> houseRequests({int page = 1}) =>
+      _api.get('/agent/house-requests', queryParameters: {'page': page});
+
+  Future<Map<String, dynamic>> contactRequest(int id) =>
+      _api.post('/agent/house-requests/$id/contact', data: {});
+
+  Future<Map<String, dynamic>> closeRequest(int id) =>
+      _api.post('/agent/house-requests/$id/close', data: {});
 }

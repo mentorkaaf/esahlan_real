@@ -68,7 +68,7 @@ class _ERentScreenState extends ConsumerState<ERentScreen>
 
   @override
   void initState() { super.initState();
-    AdService.instance.triggerModulePopups(context, 'erent'); _tab = TabController(length: 2, vsync: this); }
+    AdService.instance.triggerModulePopups(context, 'erent'); _tab = TabController(length: 3, vsync: this); }
 
   @override
   void dispose() { _tab.dispose(); super.dispose(); }
@@ -95,7 +95,7 @@ class _ERentScreenState extends ConsumerState<ERentScreen>
                   indicatorColor: _kOrange, indicatorWeight: 3,
                   labelColor: _kOrange, unselectedLabelColor: Colors.white60,
                   labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                  tabs: const [Tab(text: 'Browse'), Tab(text: 'My Bookings')],
+                  tabs: const [Tab(text: 'Browse'), Tab(text: 'My Bookings'), Tab(text: 'Find Agent')],
                 ),
               ),
             ),
@@ -103,7 +103,7 @@ class _ERentScreenState extends ConsumerState<ERentScreen>
         ],
         body: TabBarView(
           controller: _tab,
-          children: [_BrowseTab(), _MyBookingsTab()],
+          children: [_BrowseTab(), _MyBookingsTab(), _FindAgentTab()],
         ),
       ),
     );
@@ -893,6 +893,25 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                       Text('${p['district_name'] ?? ''} · ${p['address'] ?? ''}',
                           style: const TextStyle(color: _kMuted, fontSize: 13)),
                     ]),
+                    if ((p['agent_name'] as String?) != null && (p['agent_name'] as String).isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFF0EA5E9).withValues(alpha: 0.2)),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.person_rounded, size: 13, color: Color(0xFF0369A1)),
+                            const SizedBox(width: 5),
+                            Text('Agent: ${p['agent_name']}',
+                              style: const TextStyle(color: Color(0xFF0369A1), fontSize: 12, fontWeight: FontWeight.w700)),
+                          ]),
+                        ),
+                      ]),
+                    ],
 
                     SizedBox(height: 20),
 
@@ -2545,5 +2564,214 @@ class _ReelInfoChip extends StatelessWidget {
 
 extension _StringExt on String {
   String capitalize() => isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FIND AGENT TAB — customer submits house search request
+// ─────────────────────────────────────────────────────────────────────────────
+class _FindAgentTab extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_FindAgentTab> createState() => _FindAgentTabState();
+}
+
+class _FindAgentTabState extends ConsumerState<_FindAgentTab> {
+  final _descCtl = TextEditingController();
+  String? _type;
+  int?    _bedrooms;
+  int?    _districtId;
+  double  _budgetMin = 0;
+  double  _budgetMax = 1000;
+  List<Map> _districts = [];
+  bool _loading = false;
+  bool _submitted = false;
+
+  static const _types = ['apartment', 'house', 'villa', 'room', 'office', 'shop'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDistricts();
+  }
+
+  @override
+  void dispose() { _descCtl.dispose(); super.dispose(); }
+
+  Future<void> _loadDistricts() async {
+    try {
+      final res = await _svc.getRentDistricts();
+      if (mounted) setState(() => _districts = List<Map>.from((res['data'] as List? ?? [])));
+    } catch (_) {}
+  }
+
+  Future<void> _submit() async {
+    setState(() => _loading = true);
+    try {
+      await _svc.submitHouseRequest({
+        if (_districtId != null) 'district_id': _districtId,
+        if (_type != null) 'type': _type,
+        if (_bedrooms != null) 'bedrooms': _bedrooms,
+        'budget_min': _budgetMin.round(),
+        'budget_max': _budgetMax.round(),
+        if (_descCtl.text.trim().isNotEmpty) 'description': _descCtl.text.trim(),
+      });
+      if (mounted) setState(() { _submitted = true; _loading = false; });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    if (_submitted) {
+      return Center(child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Container(width: 80, height: 80, decoration: BoxDecoration(color: const Color(0xFF0EA5E9).withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.check_circle_rounded, color: Color(0xFF0EA5E9), size: 48)),
+          const SizedBox(height: 20),
+          Text('Request Sent!', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: colors.navyText)),
+          const SizedBox(height: 10),
+          const Text('Agents in your area have been notified. They will contact you shortly.',
+            textAlign: TextAlign.center, style: TextStyle(color: _kMuted, fontSize: 14)),
+          const SizedBox(height: 28),
+          ElevatedButton(
+            onPressed: () => setState(() => _submitted = false),
+            style: ElevatedButton.styleFrom(backgroundColor: _kOrange, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+            child: const Text('Send Another Request', style: TextStyle(fontWeight: FontWeight.w800)),
+          ),
+        ]),
+      ));
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Header
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [const Color(0xFF0369A1), const Color(0xFF0EA5E9)]),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(children: [
+            const Icon(Icons.person_search_rounded, color: Colors.white, size: 36),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Find an Agent', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 4),
+              const Text('Tell us what you need — agents in your area will contact you directly.',
+                style: TextStyle(color: Colors.white70, fontSize: 12)),
+            ])),
+          ]),
+        ),
+        const SizedBox(height: 24),
+
+        // District
+        _SectionLabel('Preferred District (optional)'),
+        DropdownButtonFormField<int>(
+          value: _districtId,
+          decoration: InputDecoration(hintText: 'Any district', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+          items: [
+            const DropdownMenuItem<int>(value: null, child: Text('Any district')),
+            ..._districts.map((d) => DropdownMenuItem<int>(value: d['id'] as int, child: Text(d['name'] ?? ''))),
+          ],
+          onChanged: (v) => setState(() => _districtId = v),
+        ),
+        const SizedBox(height: 18),
+
+        // Type
+        _SectionLabel('Property Type (optional)'),
+        Wrap(spacing: 8, runSpacing: 8, children: _types.map((t) {
+          final sel = _type == t;
+          return GestureDetector(
+            onTap: () => setState(() => _type = sel ? null : t),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: sel ? _kOrange : colors.cardBg,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: sel ? _kOrange : colors.cardBorder),
+              ),
+              child: Text(t.capitalize(), style: TextStyle(color: sel ? Colors.white : colors.navyText, fontWeight: FontWeight.w700, fontSize: 13)),
+            ),
+          );
+        }).toList()),
+        const SizedBox(height: 18),
+
+        // Bedrooms
+        _SectionLabel('Min Bedrooms (optional)'),
+        Wrap(spacing: 8, children: [1, 2, 3, 4, 5].map((n) {
+          final sel = _bedrooms == n;
+          return GestureDetector(
+            onTap: () => setState(() => _bedrooms = sel ? null : n),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: sel ? _kOrange : colors.cardBg,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: sel ? _kOrange : colors.cardBorder),
+              ),
+              child: Center(child: Text('$n', style: TextStyle(color: sel ? Colors.white : colors.navyText, fontWeight: FontWeight.w800))),
+            ),
+          );
+        }).toList()),
+        const SizedBox(height: 18),
+
+        // Budget
+        _SectionLabel('Budget Range: \$${_budgetMin.round()}–\$${_budgetMax.round()}/mo'),
+        RangeSlider(
+          values: RangeValues(_budgetMin, _budgetMax),
+          min: 0, max: 2000, divisions: 40,
+          activeColor: _kOrange,
+          onChanged: (v) => setState(() { _budgetMin = v.start; _budgetMax = v.end; }),
+        ),
+        const SizedBox(height: 18),
+
+        // Description
+        _SectionLabel('Additional notes (optional)'),
+        TextFormField(
+          controller: _descCtl,
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText: 'e.g. Need a quiet neighborhood, close to schools...',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        const SizedBox(height: 28),
+
+        SizedBox(width: double.infinity, child: ElevatedButton(
+          onPressed: _loading ? null : _submit,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _kOrange, foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+          child: _loading
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              : const Text('Send to Agents', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        )),
+        const SizedBox(height: 8),
+        const Center(child: Text('Agents will contact you directly via phone or in-app message.',
+          style: TextStyle(color: _kMuted, fontSize: 12), textAlign: TextAlign.center)),
+      ]),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText)),
+  );
 }
 
