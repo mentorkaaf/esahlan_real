@@ -76,14 +76,18 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
     if (_districtId == null) {
       _showError('Please select a district');
       return;
     }
+    final rent = double.tryParse(_rentCtl.text.trim());
+    if (rent == null || rent <= 0) {
+      _showError('Enter a valid monthly rent');
+      return;
+    }
     setState(() => _loading = true);
     try {
-      await AgentRepository.instance.createProperty({
+      final data = {
         'title':        _titleCtl.text.trim(),
         'description':  _descCtl.text.trim(),
         'type':         _type,
@@ -94,12 +98,15 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
         'kitchens':     _kitchens,
         'living_rooms': _livingRooms,
         'furnishing':   _furnishing,
-        'area_sqm':     _areaCtl.text.isNotEmpty ? double.tryParse(_areaCtl.text) : null,
-        'monthly_rent': double.parse(_rentCtl.text),
-        'deposit':      _depCtl.text.isNotEmpty ? double.tryParse(_depCtl.text) : 0,
-        'brokerage_fee':_feeCtl.text.isNotEmpty ? double.tryParse(_feeCtl.text) : 0,
-        'amenities':    _amenities,
-      }, _images);
+        'monthly_rent': rent,
+        'deposit':      double.tryParse(_depCtl.text.trim()) ?? 0,
+        'brokerage_fee':double.tryParse(_feeCtl.text.trim()) ?? 0,
+        if (_areaCtl.text.trim().isNotEmpty)
+          'area_sqm': double.tryParse(_areaCtl.text.trim()) ?? 0,
+        // amenities sent as JSON string to avoid FormData array encoding issues
+        'amenities_json': _amenities.join(','),
+      };
+      await AgentRepository.instance.createProperty(data, _images);
 
       if (mounted) {
         Navigator.of(context).pop(true);
@@ -108,7 +115,7 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
       }
     } catch (e) {
       setState(() => _loading = false);
-      _showError('Failed to list property. Please try again.');
+      _showError('Failed: ${e.toString().substring(0, 80)}');
     }
   }
 

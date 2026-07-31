@@ -123,8 +123,9 @@ class AgentController extends Controller
             'monthly_rent' => 'required|numeric|min:0',
             'deposit'      => 'nullable|numeric|min:0',
             'brokerage_fee'=> 'nullable|numeric|min:0',
-            'amenities'    => 'nullable|array',
-            'images.*'     => 'nullable|image|max:5120',
+            'amenities'      => 'nullable|array',
+            'amenities_json' => 'nullable|string',
+            'images.*'       => 'nullable|image|max:5120',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
@@ -153,7 +154,12 @@ class AgentController extends Controller
             'monthly_rent'  => $request->monthly_rent,
             'deposit'       => $request->deposit ?? 0,
             'brokerage_fee' => $request->brokerage_fee ?? 0,
-            'amenities'     => json_encode($request->amenities ?? []),
+            'amenities'     => json_encode(
+                $request->amenities
+                    ?? ($request->amenities_json
+                        ? array_filter(explode(',', $request->amenities_json))
+                        : [])
+            ),
             'images'        => json_encode($images),
             'is_available'  => true,
             'is_booked'     => false,
