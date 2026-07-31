@@ -16,11 +16,10 @@ return new class extends Migration {
 
         // Add rent_agent role
         DB::table('roles')->insertOrIgnore([
-            'name'        => 'Rent Agent',
-            'slug'        => 'rent_agent',
-            'description' => 'Property rental agent — lists and manages properties',
-            'created_at'  => now(),
-            'updated_at'  => now(),
+            'name'       => 'Rent Agent',
+            'slug'       => 'rent_agent',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
     }
 
