@@ -158,7 +158,7 @@ class _RequestCard extends StatelessWidget {
           Row(children: [
             // Avatar
             Container(
-              width: 44, height: 44, border: null,
+              width: 44, height: 44,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(colors: [Color(0xFF0369A1), Color(0xFF0EA5E9)]),
                 borderRadius: BorderRadius.circular(12),

@@ -2696,7 +2696,7 @@ class _FindAgentTabState extends ConsumerState<_FindAgentTab> {
               decoration: BoxDecoration(
                 color: sel ? _kOrange : colors.cardBg,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: sel ? _kOrange : colors.cardBorder),
+                border: Border.all(color: sel ? _kOrange : Colors.black12),
               ),
               child: Text(t.capitalize(), style: TextStyle(color: sel ? Colors.white : colors.navyText, fontWeight: FontWeight.w700, fontSize: 13)),
             ),
@@ -2716,7 +2716,7 @@ class _FindAgentTabState extends ConsumerState<_FindAgentTab> {
               decoration: BoxDecoration(
                 color: sel ? _kOrange : colors.cardBg,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: sel ? _kOrange : colors.cardBorder),
+                border: Border.all(color: sel ? _kOrange : Colors.black12),
               ),
               child: Center(child: Text('$n', style: TextStyle(color: sel ? Colors.white : colors.navyText, fontWeight: FontWeight.w800))),
             ),
