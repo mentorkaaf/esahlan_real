@@ -526,12 +526,15 @@ class AgentController extends Controller
     {
         $agentId = $request->user()->id;
         $recs    = DB::table('request_recommendations')
-            ->where('request_id', $id)->where('agent_user_id', $agentId)
+            ->where('request_recommendations.request_id', $id)
+            ->where('request_recommendations.agent_user_id', $agentId)
             ->leftJoin('properties', 'request_recommendations.property_id', '=', 'properties.id')
             ->leftJoin('districts', 'properties.district_id', '=', 'districts.id')
             ->select([
                 'request_recommendations.id', 'request_recommendations.message',
-                'request_recommendations.status', 'request_recommendations.created_at',
+                'request_recommendations.status', 'request_recommendations.offered_price',
+                'request_recommendations.counter_price', 'request_recommendations.counter_message',
+                'request_recommendations.created_at',
                 'properties.title', 'properties.monthly_rent', 'properties.bedrooms',
                 'properties.type as property_type', 'properties.images',
                 'districts.name as district_name',

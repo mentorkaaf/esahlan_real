@@ -646,8 +646,7 @@ class ERentController extends Controller
             elseif ($req->bedrooms && $p->bedrooms == $req->bedrooms - 1) $score += 10;
             // Budget: 15 pts
             if ($req->budget_max && $p->monthly_rent <= $req->budget_max) {
-                $ratio = $req->budget_min ? $p->monthly_rent / $req->budget_min : 1;
-                $score += min(15, (int)(15 * min(1, $ratio)));
+                $score += 15;
             }
             return ['score' => $score, 'prop' => $p];
         })
