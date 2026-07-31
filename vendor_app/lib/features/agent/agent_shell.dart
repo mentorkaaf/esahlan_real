@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/services/fcm_service.dart';
 import '../../core/theme/vc.dart';
 import 'dashboard/agent_dashboard_screen.dart';
 import 'properties/agent_properties_screen.dart';
@@ -14,8 +15,33 @@ class AgentShell extends ConsumerStatefulWidget {
   ConsumerState<AgentShell> createState() => _AgentShellState();
 }
 
-class _AgentShellState extends ConsumerState<AgentShell> {
+class _AgentShellState extends ConsumerState<AgentShell> with WidgetsBindingObserver {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingRoute());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkPendingRoute();
+  }
+
+  void _checkPendingRoute() {
+    final route = FcmService.consumePendingRoute();
+    if (route == '/agent/requests' && mounted) {
+      setState(() => _index = 2);
+    }
+  }
 
   static const _screens = [
     AgentDashboardScreen(),

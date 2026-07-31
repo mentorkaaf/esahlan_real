@@ -178,10 +178,22 @@ class VendorFcmService {
       'wallet_credit'       => '/wallet',
       'withdrawal_approved' => '/wallet',
       'withdrawal_rejected' => '/wallet',
+      // House request notifications → agent requests tab
+      'house_request_assigned'    => '/agent/requests',
+      'offer_accepted'            => '/agent/requests',
+      'offer_rejected'            => '/agent/requests',
+      'offer_countered'           => '/agent/requests',
+      'viewing_confirmed'         => '/agent/requests',
+      'viewing_cancelled'         => '/agent/requests',
+      'request_message_agent'     => '/agent/requests',
       _ => data['deep_link'] as String? ?? '/orders',
     };
     _pendingRoute = route;
-    navigatorKey?.currentState?.pushNamed(route);
+    // For agent shell tab routes, just store — shell will pick it up on resume.
+    // For stack routes (wallet, orders), push normally.
+    if (!route.startsWith('/agent/')) {
+      navigatorKey?.currentState?.pushNamed(route);
+    }
   }
 
   static String? _pendingRoute;

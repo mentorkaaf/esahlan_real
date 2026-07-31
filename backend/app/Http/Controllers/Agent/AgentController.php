@@ -407,7 +407,7 @@ class AgentController extends Controller
             if ($customer?->fcm_token) {
                 FcmService::send($customer->fcm_token, 'Agent Found! 🎉',
                     "Agent {$agent->name} has accepted your request {$req->request_ref}",
-                    ['type' => 'house_request', 'id' => (string) $id]);
+                    ['type' => 'house_request', 'id' => (string) $id, 'deep_link' => '/erent']);
             }
         } catch (\Throwable $e) {
             \Log::warning('[HouseRequest Assign FCM] ' . $e->getMessage());
@@ -448,7 +448,7 @@ class AgentController extends Controller
             ];
             if ($customer?->fcm_token && isset($msgs[$request->status])) {
                 [$title, $body] = $msgs[$request->status];
-                FcmService::send($customer->fcm_token, $title, $body, ['type' => 'house_request', 'id' => (string) $id]);
+                FcmService::send($customer->fcm_token, $title, $body, ['type' => 'house_request', 'id' => (string) $id, 'deep_link' => '/erent']);
             }
         } catch (\Throwable $e) {
             \Log::warning('[HouseRequest Status FCM] ' . $e->getMessage());
@@ -515,7 +515,7 @@ class AgentController extends Controller
             if ($customer?->fcm_token) {
                 FcmService::send($customer->fcm_token, 'Property Found! 🏠',
                     "Your agent found a great match for {$req->request_ref} — {$prop->title}",
-                    ['type' => 'recommendation', 'request_id' => (string) $id]);
+                    ['type' => 'recommendation', 'request_id' => (string) $id, 'deep_link' => '/erent']);
             }
         } catch (\Throwable $e) {}
 
@@ -584,7 +584,7 @@ class AgentController extends Controller
                 $dt = \Carbon\Carbon::parse($request->proposed_at)->format('D, d M Y H:i');
                 FcmService::send($customer->fcm_token, 'Viewing Scheduled 📅',
                     "Your agent scheduled a property viewing on {$dt}. Please confirm!",
-                    ['type' => 'viewing', 'request_id' => (string) $id]);
+                    ['type' => 'viewing', 'request_id' => (string) $id, 'deep_link' => '/erent']);
             }
         } catch (\Throwable $e) {}
 
@@ -653,7 +653,7 @@ class AgentController extends Controller
             if ($customer?->fcm_token) {
                 FcmService::send($customer->fcm_token, "Message from Agent {$agent->name}",
                     $request->message,
-                    ['type' => 'request_message', 'request_id' => (string) $id]);
+                    ['type' => 'request_message', 'request_id' => (string) $id, 'deep_link' => '/erent']);
             }
         } catch (\Throwable $e) {}
 

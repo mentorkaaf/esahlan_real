@@ -548,6 +548,7 @@ class ERentController extends Controller
                 'house_requests.budget_min', 'house_requests.budget_max',
                 'house_requests.move_in_date', 'house_requests.description',
                 'house_requests.status', 'house_requests.created_at',
+                'house_requests.agent_user_id',
                 'districts.name as district_name',
                 'agents.name as agent_name', 'agents.phone as agent_phone',
             ])
@@ -706,7 +707,8 @@ class ERentController extends Controller
                     'rejected'  => "Customer declined your recommendation for {$reqRow->request_ref}.",
                     'countered' => "Customer sent a counter-offer of \${$request->counter_price} for {$reqRow->request_ref}.",
                 ];
-                FcmService::send($agent->fcm_token, $titles[$status] ?? 'Update', $msgs[$status] ?? '', ['type' => 'recommendation', 'id' => (string) $recId]);
+                $agentType = match($status) { 'accepted' => 'offer_accepted', 'rejected' => 'offer_rejected', default => 'offer_countered' };
+                FcmService::send($agent->fcm_token, $titles[$status] ?? 'Update', $msgs[$status] ?? '', ['type' => $agentType, 'id' => (string) $recId, 'deep_link' => '/agent/requests']);
             }
         } catch (\Throwable $e) {}
 
@@ -757,7 +759,8 @@ class ERentController extends Controller
                 $msg = $status === 'confirmed'
                     ? 'Customer confirmed the viewing! Please be on time.'
                     : 'Customer cancelled the viewing.';
-                FcmService::send($agent->fcm_token, $status === 'confirmed' ? 'Viewing Confirmed! 📅' : 'Viewing Cancelled', $msg, ['type' => 'viewing', 'id' => (string) $viewId]);
+                $agentType = $status === 'confirmed' ? 'viewing_confirmed' : 'viewing_cancelled';
+                FcmService::send($agent->fcm_token, $status === 'confirmed' ? 'Viewing Confirmed! 📅' : 'Viewing Cancelled', $msg, ['type' => $agentType, 'id' => (string) $viewId, 'deep_link' => '/agent/requests']);
             }
         } catch (\Throwable $e) {}
 
@@ -816,7 +819,7 @@ class ERentController extends Controller
                 if ($agent?->fcm_token) {
                     FcmService::send($agent->fcm_token, "Message from {$user->name}",
                         $request->message,
-                        ['type' => 'request_message', 'request_id' => (string) $id]);
+                        ['type' => 'request_message_agent', 'request_id' => (string) $id, 'deep_link' => '/agent/requests']);
                 }
             }
         } catch (\Throwable $e) {}
