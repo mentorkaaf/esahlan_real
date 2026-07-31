@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'api_client.dart';
+import '../api/api_client.dart';
 
 class AgentRepository {
   AgentRepository._();
