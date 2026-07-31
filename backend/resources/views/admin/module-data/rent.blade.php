@@ -1113,10 +1113,12 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 @forelse($activeAgents as $agent)
 @php
     $propCount = \Illuminate\Support\Facades\DB::table('properties')->where('agent_user_id', $agent->id)->count();
-    $earned    = \Illuminate\Support\Facades\DB::table('wallet_transactions')
-        ->where('walletable_type', 'App\\Models\\User')
-        ->where('walletable_id', $agent->id)
-        ->where('type', 'credit')->sum('amount');
+    $walletId  = \Illuminate\Support\Facades\DB::table('wallets')
+        ->where('owner_type', 'App\\Models\\User')->where('owner_id', $agent->id)->value('id');
+    $earned    = $walletId
+        ? \Illuminate\Support\Facades\DB::table('wallet_transactions')
+            ->where('wallet_id', $walletId)->where('type', 'credit')->sum('amount')
+        : 0;
 @endphp
 <div class="agent-card">
     <div class="agent-avatar"><i class="fas fa-user-tie"></i></div>
