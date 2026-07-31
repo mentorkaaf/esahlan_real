@@ -1009,7 +1009,7 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 {{-- ══════════════════════════════════════════════════════════════ --}}
 {{-- TAB: AGENTS --}}
 {{-- ══════════════════════════════════════════════════════════════ --}}
-<div id="tab-agents" class="tab-pane" style="display:none">
+<div id="tab-agents" class="tab-pane">
 
 <style>
 .agent-card {
