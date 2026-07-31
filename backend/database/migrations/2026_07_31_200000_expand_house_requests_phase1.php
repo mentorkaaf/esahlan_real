@@ -23,7 +23,7 @@ return new class extends Migration
         DB::statement("UPDATE house_requests SET status = 'cancelled' WHERE status = 'closed'");
 
         // Expand status enum
-        DB::statement("ALTER TABLE house_requests MODIFY COLUMN status ENUM('open','assigned','searching','matched','completed','cancelled') NOT NULL DEFAULT 'open'");
+        DB::statement("ALTER TABLE house_requests MODIFY COLUMN status ENUM('open','assigned','searching','matched','viewing_scheduled','completed','cancelled') NOT NULL DEFAULT 'open'");
 
         // Generate request_ref for existing rows
         $rows = DB::table('house_requests')->whereNull('request_ref')->orderBy('id')->get();

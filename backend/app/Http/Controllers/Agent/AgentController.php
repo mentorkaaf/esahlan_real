@@ -440,6 +440,188 @@ class AgentController extends Controller
         return response()->json(['success' => true, 'message' => 'Request cancelled']);
     }
 
+    // ── Phase 2: Recommendations ─────────────────────────────────────────────
+
+    public function recommendProperty(Request $request, $id)
+    {
+        $v = Validator::make($request->all(), [
+            'property_id' => 'required|exists:properties,id',
+            'message'     => 'nullable|string|max:500',
+        ]);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $agentId = $request->user()->id;
+        $req     = DB::table('house_requests')->where('id', $id)->where('agent_user_id', $agentId)->first();
+        if (!$req) return response()->json(['success' => false, 'message' => 'Not your request'], 403);
+
+        // Verify property belongs to this agent
+        $prop = DB::table('properties')->where('id', $request->property_id)->where('agent_user_id', $agentId)->first();
+        if (!$prop) return response()->json(['success' => false, 'message' => 'Property not yours'], 403);
+
+        $recId = DB::table('request_recommendations')->insertGetId([
+            'request_id'    => $id,
+            'agent_user_id' => $agentId,
+            'property_id'   => $request->property_id,
+            'message'       => $request->message,
+            'status'        => 'pending',
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
+
+        // Update request status to 'matched'
+        DB::table('house_requests')->where('id', $id)->update(['status' => 'matched', 'updated_at' => now()]);
+
+        // Notify customer
+        try {
+            $customer = DB::table('users')->where('id', $req->customer_user_id)->first();
+            if ($customer?->fcm_token) {
+                FcmService::send($customer->fcm_token, 'Property Found! 🏠',
+                    "Your agent found a great match for {$req->request_ref} — {$prop->title}",
+                    ['type' => 'recommendation', 'request_id' => (string) $id]);
+            }
+        } catch (\Throwable $e) {}
+
+        return response()->json(['success' => true, 'message' => 'Recommendation sent', 'data' => ['id' => $recId]]);
+    }
+
+    public function getRecommendations(Request $request, $id)
+    {
+        $agentId = $request->user()->id;
+        $recs    = DB::table('request_recommendations')
+            ->where('request_id', $id)->where('agent_user_id', $agentId)
+            ->leftJoin('properties', 'request_recommendations.property_id', '=', 'properties.id')
+            ->leftJoin('districts', 'properties.district_id', '=', 'districts.id')
+            ->select([
+                'request_recommendations.id', 'request_recommendations.message',
+                'request_recommendations.status', 'request_recommendations.created_at',
+                'properties.title', 'properties.monthly_rent', 'properties.bedrooms',
+                'properties.type as property_type', 'properties.images',
+                'districts.name as district_name',
+            ])
+            ->orderByDesc('request_recommendations.id')
+            ->get()
+            ->map(function ($r) {
+                $imgs = is_string($r->images) ? (json_decode($r->images, true) ?? []) : [];
+                return array_merge((array) $r, [
+                    'thumbnail' => !empty($imgs) ? url('/api/v1/media?f=properties/' . basename($imgs[0])) : null,
+                ]);
+            });
+
+        return response()->json(['success' => true, 'data' => $recs]);
+    }
+
+    // ── Phase 2: Viewings ────────────────────────────────────────────────────
+
+    public function scheduleViewing(Request $request, $id)
+    {
+        $v = Validator::make($request->all(), [
+            'property_id'       => 'required|exists:properties,id',
+            'proposed_at'       => 'required|date|after:now',
+            'recommendation_id' => 'nullable|exists:request_recommendations,id',
+            'notes'             => 'nullable|string|max:300',
+        ]);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $agentId = $request->user()->id;
+        $req     = DB::table('house_requests')->where('id', $id)->where('agent_user_id', $agentId)->first();
+        if (!$req) return response()->json(['success' => false, 'message' => 'Not your request'], 403);
+
+        $viewId = DB::table('request_viewings')->insertGetId([
+            'request_id'        => $id,
+            'recommendation_id' => $request->recommendation_id,
+            'agent_user_id'     => $agentId,
+            'property_id'       => $request->property_id,
+            'proposed_at'       => $request->proposed_at,
+            'status'            => 'proposed',
+            'notes'             => $request->notes,
+            'created_at'        => now(),
+            'updated_at'        => now(),
+        ]);
+
+        DB::table('house_requests')->where('id', $id)->update(['status' => 'viewing_scheduled', 'updated_at' => now()]);
+
+        try {
+            $customer = DB::table('users')->where('id', $req->customer_user_id)->first();
+            if ($customer?->fcm_token) {
+                $dt = \Carbon\Carbon::parse($request->proposed_at)->format('D, d M Y H:i');
+                FcmService::send($customer->fcm_token, 'Viewing Scheduled 📅',
+                    "Your agent scheduled a property viewing on {$dt}. Please confirm!",
+                    ['type' => 'viewing', 'request_id' => (string) $id]);
+            }
+        } catch (\Throwable $e) {}
+
+        return response()->json(['success' => true, 'message' => 'Viewing scheduled', 'data' => ['id' => $viewId]]);
+    }
+
+    public function updateViewingStatus(Request $request, $viewId)
+    {
+        $v = Validator::make($request->all(), ['status' => 'required|in:cancelled,completed']);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $agentId = $request->user()->id;
+        $viewing = DB::table('request_viewings')->where('id', $viewId)->where('agent_user_id', $agentId)->first();
+        if (!$viewing) return response()->json(['success' => false, 'message' => 'Not found'], 404);
+
+        DB::table('request_viewings')->where('id', $viewId)->update(['status' => $request->status, 'updated_at' => now()]);
+
+        return response()->json(['success' => true, 'message' => 'Viewing updated']);
+    }
+
+    // ── Phase 3: Chat ────────────────────────────────────────────────────────
+
+    public function getMessagesAgent(Request $request, $id)
+    {
+        $agentId = $request->user()->id;
+        $req     = DB::table('house_requests')->where('id', $id)->where('agent_user_id', $agentId)->first();
+        if (!$req) return response()->json(['success' => false, 'message' => 'Not your request'], 403);
+
+        // Mark customer messages as read
+        DB::table('request_messages')
+            ->where('request_id', $id)->where('sender_role', 'customer')->where('is_read', false)
+            ->update(['is_read' => true]);
+
+        $messages = DB::table('request_messages')
+            ->where('request_id', $id)
+            ->join('users', 'request_messages.sender_id', '=', 'users.id')
+            ->select('request_messages.*', 'users.name as sender_name')
+            ->orderBy('request_messages.id')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $messages]);
+    }
+
+    public function sendMessageAgent(Request $request, $id)
+    {
+        $v = Validator::make($request->all(), ['message' => 'required|string|max:1000']);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $agentId = $request->user()->id;
+        $req     = DB::table('house_requests')->where('id', $id)->where('agent_user_id', $agentId)->first();
+        if (!$req) return response()->json(['success' => false, 'message' => 'Not your request'], 403);
+
+        $agent = $request->user();
+        $msgId = DB::table('request_messages')->insertGetId([
+            'request_id'  => $id,
+            'sender_id'   => $agentId,
+            'sender_role' => 'agent',
+            'message'     => $request->message,
+            'is_read'     => false,
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ]);
+
+        try {
+            $customer = DB::table('users')->where('id', $req->customer_user_id)->first();
+            if ($customer?->fcm_token) {
+                FcmService::send($customer->fcm_token, "Message from Agent {$agent->name}",
+                    $request->message,
+                    ['type' => 'request_message', 'request_id' => (string) $id]);
+            }
+        } catch (\Throwable $e) {}
+
+        return response()->json(['success' => true, 'data' => ['id' => $msgId]]);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private function formatMini($p): array

@@ -730,8 +730,12 @@ class AdminModuleDataController extends Controller
         $houseRequests = DB::table('house_requests')
             ->join('users as cust', 'house_requests.customer_user_id', '=', 'cust.id')
             ->leftJoin('districts', 'house_requests.district_id', '=', 'districts.id')
-            ->select('house_requests.*', 'cust.name as customer_name', 'districts.name as district_name')
-            ->orderByDesc('house_requests.id')->limit(100)->get();
+            ->leftJoin('users as agnt', 'house_requests.agent_user_id', '=', 'agnt.id')
+            ->select('house_requests.*',
+                     'cust.name as customer_name', 'cust.phone as customer_phone',
+                     'districts.name as district_name',
+                     'agnt.name as agent_name', 'agnt.phone as agent_phone')
+            ->orderByDesc('house_requests.id')->limit(200)->get();
 
         return view('admin.module-data.rent', compact('properties', 'districts', 'bookings', 'agents', 'commissionPct', 'houseRequests'));
     }

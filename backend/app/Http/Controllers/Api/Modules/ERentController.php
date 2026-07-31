@@ -557,6 +557,190 @@ class ERentController extends Controller
         return response()->json(['success' => true, 'data' => $requests]);
     }
 
+    // ── Phase 2: Recommendations (customer) ──────────────────────────────────
+
+    // GET /erent/house-requests/{id}/recommendations
+    public function requestRecommendations(Request $request, $id)
+    {
+        $req = DB::table('house_requests')->where('id', $id)
+            ->where('customer_user_id', $request->user()->id)->first();
+        if (!$req) return response()->json(['success' => false, 'message' => 'Not found'], 404);
+
+        $recs = DB::table('request_recommendations')
+            ->where('request_id', $id)
+            ->leftJoin('properties', 'request_recommendations.property_id', '=', 'properties.id')
+            ->leftJoin('districts', 'properties.district_id', '=', 'districts.id')
+            ->leftJoin('users as agents', 'request_recommendations.agent_user_id', '=', 'agents.id')
+            ->select([
+                'request_recommendations.id', 'request_recommendations.message',
+                'request_recommendations.status', 'request_recommendations.created_at',
+                'properties.id as property_id', 'properties.title', 'properties.type',
+                'properties.monthly_rent', 'properties.bedrooms', 'properties.images',
+                'districts.name as district_name',
+                'agents.name as agent_name',
+            ])
+            ->orderByDesc('request_recommendations.id')
+            ->get()
+            ->map(function ($r) {
+                $imgs = is_string($r->images) ? (json_decode($r->images, true) ?? []) : [];
+                return [
+                    'id'            => $r->id,
+                    'message'       => $r->message,
+                    'status'        => $r->status,
+                    'created_at'    => $r->created_at,
+                    'agent_name'    => $r->agent_name,
+                    'property_id'   => $r->property_id,
+                    'property_title'=> $r->title,
+                    'property_type' => $r->type,
+                    'bedrooms'      => $r->bedrooms,
+                    'monthly_rent'  => $r->monthly_rent,
+                    'district_name' => $r->district_name,
+                    'thumbnail'     => !empty($imgs) ? url('/api/v1/media?f=properties/' . basename($imgs[0])) : null,
+                ];
+            });
+
+        return response()->json(['success' => true, 'data' => $recs]);
+    }
+
+    // POST /erent/house-requests/{id}/recommendations/{recId}/respond
+    public function respondRecommendation(Request $request, $id, $recId)
+    {
+        $v = Validator::make($request->all(), ['action' => 'required|in:accept,reject']);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $rec = DB::table('request_recommendations')
+            ->where('id', $recId)->where('request_id', $id)->first();
+        if (!$rec) return response()->json(['success' => false, 'message' => 'Not found'], 404);
+
+        $status = $request->action === 'accept' ? 'accepted' : 'rejected';
+        DB::table('request_recommendations')->where('id', $recId)->update(['status' => $status, 'updated_at' => now()]);
+
+        // Notify agent
+        try {
+            $agent = DB::table('users')->where('id', $rec->agent_user_id)->first();
+            if ($agent?->fcm_token) {
+                $reqRow = DB::table('house_requests')->where('id', $id)->first();
+                $msg = $status === 'accepted'
+                    ? "Customer accepted your property recommendation for {$reqRow->request_ref}! 🎉"
+                    : "Customer declined your recommendation for {$reqRow->request_ref}.";
+                FcmService::send($agent->fcm_token, $status === 'accepted' ? 'Recommendation Accepted! ✓' : 'Recommendation Declined', $msg, ['type' => 'recommendation', 'id' => (string) $recId]);
+            }
+        } catch (\Throwable $e) {}
+
+        return response()->json(['success' => true, 'message' => 'Response sent']);
+    }
+
+    // ── Phase 2: Viewings (customer) ─────────────────────────────────────────
+
+    // GET /erent/house-requests/{id}/viewings
+    public function requestViewings(Request $request, $id)
+    {
+        DB::table('house_requests')->where('id', $id)
+            ->where('customer_user_id', $request->user()->id)->firstOrFail();
+
+        $viewings = DB::table('request_viewings')
+            ->where('request_id', $id)
+            ->leftJoin('properties', 'request_viewings.property_id', '=', 'properties.id')
+            ->leftJoin('districts', 'properties.district_id', '=', 'districts.id')
+            ->leftJoin('users as agents', 'request_viewings.agent_user_id', '=', 'agents.id')
+            ->select([
+                'request_viewings.*',
+                'properties.title as property_title', 'properties.type as property_type',
+                'districts.name as district_name',
+                'agents.name as agent_name', 'agents.phone as agent_phone',
+            ])
+            ->orderByDesc('request_viewings.id')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $viewings]);
+    }
+
+    // POST /erent/house-requests/{id}/viewings/{viewId}/confirm
+    public function confirmViewing(Request $request, $id, $viewId)
+    {
+        $v = Validator::make($request->all(), ['action' => 'required|in:confirm,cancel']);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $viewing = DB::table('request_viewings')
+            ->where('id', $viewId)->where('request_id', $id)->where('status', 'proposed')->first();
+        if (!$viewing) return response()->json(['success' => false, 'message' => 'Viewing not found or already responded'], 422);
+
+        $status = $request->action === 'confirm' ? 'confirmed' : 'cancelled';
+        DB::table('request_viewings')->where('id', $viewId)->update(['status' => $status, 'updated_at' => now()]);
+
+        try {
+            $agent = DB::table('users')->where('id', $viewing->agent_user_id)->first();
+            if ($agent?->fcm_token) {
+                $msg = $status === 'confirmed'
+                    ? 'Customer confirmed the viewing! Please be on time.'
+                    : 'Customer cancelled the viewing.';
+                FcmService::send($agent->fcm_token, $status === 'confirmed' ? 'Viewing Confirmed! 📅' : 'Viewing Cancelled', $msg, ['type' => 'viewing', 'id' => (string) $viewId]);
+            }
+        } catch (\Throwable $e) {}
+
+        return response()->json(['success' => true, 'message' => $status === 'confirmed' ? 'Viewing confirmed!' : 'Viewing cancelled']);
+    }
+
+    // ── Phase 3: Chat (customer) ──────────────────────────────────────────────
+
+    // GET /erent/house-requests/{id}/messages
+    public function getMessages(Request $request, $id)
+    {
+        $req = DB::table('house_requests')->where('id', $id)
+            ->where('customer_user_id', $request->user()->id)->first();
+        if (!$req) return response()->json(['success' => false, 'message' => 'Not found'], 404);
+
+        // Mark agent messages as read
+        DB::table('request_messages')
+            ->where('request_id', $id)->where('sender_role', 'agent')->where('is_read', false)
+            ->update(['is_read' => true]);
+
+        $messages = DB::table('request_messages')
+            ->where('request_id', $id)
+            ->join('users', 'request_messages.sender_id', '=', 'users.id')
+            ->select('request_messages.*', 'users.name as sender_name')
+            ->orderBy('request_messages.id')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $messages]);
+    }
+
+    // POST /erent/house-requests/{id}/messages
+    public function sendMessage(Request $request, $id)
+    {
+        $v = Validator::make($request->all(), ['message' => 'required|string|max:1000']);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $req = DB::table('house_requests')->where('id', $id)
+            ->where('customer_user_id', $request->user()->id)->first();
+        if (!$req) return response()->json(['success' => false, 'message' => 'Not found'], 404);
+
+        $user = $request->user();
+        $msgId = DB::table('request_messages')->insertGetId([
+            'request_id'  => $id,
+            'sender_id'   => $user->id,
+            'sender_role' => 'customer',
+            'message'     => $request->message,
+            'is_read'     => false,
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ]);
+
+        // Notify agent
+        try {
+            if ($req->agent_user_id) {
+                $agent = DB::table('users')->where('id', $req->agent_user_id)->first();
+                if ($agent?->fcm_token) {
+                    FcmService::send($agent->fcm_token, "Message from {$user->name}",
+                        $request->message,
+                        ['type' => 'request_message', 'request_id' => (string) $id]);
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        return response()->json(['success' => true, 'data' => ['id' => $msgId]]);
+    }
+
     // POST /erent/bookings/{id}/request-refund (auth)
     public function requestRefund(Request $request, $id)
     {

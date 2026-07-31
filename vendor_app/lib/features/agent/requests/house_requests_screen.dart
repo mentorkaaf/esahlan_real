@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/agent_repository.dart';
 import '../../../core/theme/vc.dart';
+import 'request_detail_sheet.dart';
 
 const _kTeal   = Color(0xFF0EA5E9);
 const _kOrange = Color(0xFFFF6B35);
@@ -154,11 +155,17 @@ class _RequestList extends StatelessWidget {
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: requests.length,
-        itemBuilder: (_, i) => _RequestCard(
-          request: requests[i],
-          isDark: isDark, txt: txt,
-          onAssign: () => onAssign(requests[i]['id'] as int),
-          onUpdateStatus: (s) => onUpdateStatus(requests[i]['id'] as int, s),
+        itemBuilder: (_, i) => GestureDetector(
+          onTap: requests[i]['status'] != 'open'
+              ? () => RequestDetailSheet.show(context, requests[i], onRefresh)
+              : null,
+          onLongPress: () => RequestDetailSheet.show(context, requests[i], onRefresh),
+          child: _RequestCard(
+            request: requests[i],
+            isDark: isDark, txt: txt,
+            onAssign: () => onAssign(requests[i]['id'] as int),
+            onUpdateStatus: (s) => onUpdateStatus(requests[i]['id'] as int, s),
+          ),
         ),
       ),
     );

@@ -1493,22 +1493,67 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
     <div style="font-size:18px;font-weight:900;color:var(--text);">Customer House Requests</div>
     <div style="font-size:13px;color:var(--text-muted);">Customers looking for properties — agents are notified automatically</div>
   </div>
-  <div style="display:flex;gap:10px;">
-    <span class="hr-chip hr-chip-sky">{{ $houseRequests->where('status','open')->count() }} Open</span>
-    <span class="hr-chip hr-chip-purple">{{ $houseRequests->where('status','contacted')->count() }} Contacted</span>
-    <span class="hr-chip hr-chip-gray">{{ $houseRequests->where('status','closed')->count() }} Closed</span>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    @php
+      $statusCounts = $houseRequests->groupBy('status')->map->count();
+    @endphp
+    @foreach(['open'=>'#0EA5E9','assigned'=>'#0EA5E9','searching'=>'#8B5CF6','matched'=>'#10B981','viewing_scheduled'=>'#6366F1','completed'=>'#6B7280','cancelled'=>'#EF4444'] as $s=>$c)
+      @if(($statusCounts[$s] ?? 0) > 0)
+        <span style="background:{{ $c }}20;color:{{ $c }};border:1px solid {{ $c }}40;border-radius:99px;padding:3px 10px;font-size:11px;font-weight:800;">
+          {{ $statusCounts[$s] }} {{ ucfirst(str_replace('_',' ',$s)) }}
+        </span>
+      @endif
+    @endforeach
   </div>
 </div>
 
+{{-- Filter bar --}}
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+  <button onclick="filterHR('all',this)" class="hr-filter-btn hr-filter-active">All ({{ $houseRequests->count() }})</button>
+  <button onclick="filterHR('open',this)" class="hr-filter-btn">Open</button>
+  <button onclick="filterHR('assigned',this)" class="hr-filter-btn">Assigned</button>
+  <button onclick="filterHR('matched',this)" class="hr-filter-btn">Matched</button>
+  <button onclick="filterHR('completed',this)" class="hr-filter-btn">Completed</button>
+  <button onclick="filterHR('cancelled',this)" class="hr-filter-btn">Cancelled</button>
+</div>
+<style>
+.hr-filter-btn{padding:5px 14px;border:1.5px solid var(--border);border-radius:99px;background:var(--surface);color:var(--text-muted);font-size:12px;font-weight:700;cursor:pointer;}
+.hr-filter-active{border-color:#FF6B35;color:#FF6B35;background:rgba(255,107,53,.08);}
+</style>
+<script>
+function filterHR(status, btn) {
+  document.querySelectorAll('.hr-filter-btn').forEach(b => b.classList.remove('hr-filter-active'));
+  btn.classList.add('hr-filter-active');
+  document.querySelectorAll('.hr-row').forEach(row => {
+    row.style.display = (status === 'all' || row.dataset.status === status) ? '' : 'none';
+  });
+}
+</script>
+
 @forelse($houseRequests as $hr)
-<div class="hr-card">
-  <div class="hr-avatar">{{ strtoupper(substr($hr->customer_name ?? '?', 0, 1)) }}</div>
-  <div class="hr-body">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;">
+@php
+  $statusColors = ['open'=>'#FF6B35','assigned'=>'#0EA5E9','searching'=>'#8B5CF6','matched'=>'#10B981','viewing_scheduled'=>'#6366F1','completed'=>'#6B7280','cancelled'=>'#EF4444'];
+  $sc = $statusColors[$hr->status] ?? '#94A3B8';
+@endphp
+<div class="hr-card hr-row" data-status="{{ $hr->status }}">
+  <div class="hr-avatar" style="background:linear-gradient(135deg,#FF6B35,#FF9500);">{{ strtoupper(substr($hr->customer_name ?? '?', 0, 1)) }}</div>
+  <div class="hr-body" style="flex:1;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap;">
+      @if($hr->request_ref)
+        <span style="font-size:11px;font-weight:800;color:#FF6B35;">{{ $hr->request_ref }}</span>
+        <span style="color:var(--text-muted);font-size:11px;">·</span>
+      @endif
       <span class="hr-name">{{ $hr->customer_name }}</span>
-      <span class="hr-status hr-status-{{ $hr->status }}">{{ ucfirst($hr->status) }}</span>
+      @if($hr->customer_phone) <span style="font-size:11px;color:var(--text-muted);">{{ $hr->customer_phone }}</span> @endif
+      <span style="background:{{ $sc }}20;color:{{ $sc }};border:1px solid {{ $sc }}40;border-radius:99px;padding:2px 9px;font-size:10px;font-weight:800;">
+        {{ strtoupper(str_replace('_',' ',$hr->status)) }}
+      </span>
     </div>
-    <div class="hr-meta"><i class="fas fa-clock" style="margin-right:4px;"></i>{{ \Carbon\Carbon::parse($hr->created_at)->diffForHumans() }}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+      @if($hr->purpose)<span style="font-size:11px;font-weight:700;color:#6366F1;">{{ ucfirst($hr->purpose) }}</span>@endif
+      <span style="font-size:11px;color:var(--text-muted);"><i class="fas fa-clock" style="margin-right:3px;"></i>{{ \Carbon\Carbon::parse($hr->created_at)->diffForHumans() }}</span>
+      @if($hr->move_in_date)<span style="font-size:11px;color:var(--text-muted);"><i class="fas fa-calendar" style="margin-right:3px;"></i>Move-in: {{ \Carbon\Carbon::parse($hr->move_in_date)->format('d M Y') }}</span>@endif
+    </div>
     <div class="hr-chips">
       @if($hr->district_name) <span class="hr-chip hr-chip-sky"><i class="fas fa-map-marker-alt"></i> {{ $hr->district_name }}</span> @endif
       @if($hr->type)          <span class="hr-chip hr-chip-purple"><i class="fas fa-home"></i> {{ ucfirst($hr->type) }}</span> @endif
@@ -1521,8 +1566,17 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
         </span>
       @endif
     </div>
+    @if($hr->agent_name)
+    <div style="margin-top:8px;display:flex;align-items:center;gap:6px;">
+      <i class="fas fa-user-tie" style="color:#0EA5E9;font-size:11px;"></i>
+      <span style="font-size:12px;color:#0EA5E9;font-weight:700;">Agent: {{ $hr->agent_name }}</span>
+      @if($hr->agent_phone)<span style="font-size:11px;color:var(--text-muted);">{{ $hr->agent_phone }}</span>@endif
+    </div>
+    @else
+    <div style="margin-top:6px;font-size:11px;color:var(--text-muted);">No agent assigned yet</div>
+    @endif
     @if($hr->description)
-    <div style="margin-top:8px;font-size:12px;color:var(--text-muted);font-style:italic;">"{{ Str::limit($hr->description, 120) }}"</div>
+    <div style="margin-top:6px;font-size:12px;color:var(--text-muted);font-style:italic;">"{{ Str::limit($hr->description, 120) }}"</div>
     @endif
   </div>
 </div>

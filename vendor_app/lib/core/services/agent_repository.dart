@@ -45,6 +45,29 @@ class AgentRepository {
   Future<Map<String, dynamic>> wallet() =>
       _api.get('/agent/wallet');
 
+  // ── Phase 2+3 ──
+  Future<Map<String, dynamic>> recommendProperty(int requestId, int propertyId, String? message) =>
+      _api.post('/agent/house-requests/$requestId/recommend', data: {
+        'property_id': propertyId,
+        if (message != null && message.isNotEmpty) 'message': message,
+      });
+
+  Future<Map<String, dynamic>> getRecommendations(int requestId) =>
+      _api.get('/agent/house-requests/$requestId/recommendations');
+
+  Future<Map<String, dynamic>> scheduleViewing(int requestId, Map<String, dynamic> data) =>
+      _api.post('/agent/house-requests/$requestId/viewings', data: data);
+
+  Future<Map<String, dynamic>> updateViewingStatus(int viewId, String status) =>
+      _api.post('/agent/house-requests/viewings/$viewId/status', data: {'status': status});
+
+  Future<Map<String, dynamic>> getMessages(int requestId) =>
+      _api.get('/agent/house-requests/$requestId/messages');
+
+  Future<Map<String, dynamic>> sendMessage(int requestId, String message) =>
+      _api.post('/agent/house-requests/$requestId/messages', data: {'message': message});
+
+  // ── House Requests (original) ──
   Future<Map<String, dynamic>> houseRequests({int page = 1}) =>
       _api.get('/agent/house-requests', queryParameters: {'page': page});
 

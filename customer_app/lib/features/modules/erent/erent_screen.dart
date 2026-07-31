@@ -19,6 +19,7 @@ import '../../payment/payment_method_section.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
+import 'request_detail_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -2686,7 +2687,7 @@ class _FindAgentTabState extends ConsumerState<_FindAgentTab> {
               if (_myRequestsLoading) const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: _kOrange)),
             ]),
             const SizedBox(height: 10),
-            ..._myRequests.take(3).map((r) => _MyRequestCard(req: r, colors: colors)),
+            ..._myRequests.take(3).map((r) => _MyRequestCard(req: r, colors: colors, onRefresh: _loadMyRequests)),
             if (_myRequests.length > 3) Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: Text('+${_myRequests.length - 3} more requests',
@@ -2976,7 +2977,8 @@ class _SuccessBanner extends StatelessWidget {
 class _MyRequestCard extends StatelessWidget {
   final Map<String, dynamic> req;
   final dynamic colors;
-  const _MyRequestCard({required this.req, required this.colors});
+  final VoidCallback? onRefresh;
+  const _MyRequestCard({required this.req, required this.colors, this.onRefresh});
 
   Color get _statusColor {
     switch (req['status']) {
@@ -3002,7 +3004,12 @@ class _MyRequestCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: () async {
+      await RequestDetailScreen.push(context, req);
+      onRefresh?.call();
+    },
+    child: Container(
     margin: const EdgeInsets.only(bottom: 8),
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     decoration: BoxDecoration(
@@ -3046,8 +3053,10 @@ class _MyRequestCard extends StatelessWidget {
         child: Text(_statusLabel,
           style: TextStyle(color: _statusColor, fontSize: 10, fontWeight: FontWeight.w800)),
       ),
+      const SizedBox(width: 4),
+      const Icon(Icons.chevron_right_rounded, size: 16, color: _kMuted),
     ]),
-  );
+  ));
 }
 
 class _SectionLabel extends StatelessWidget {

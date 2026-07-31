@@ -639,8 +639,15 @@ Route::prefix('v1')->group(function () {
             Route::post('elaundry/order',       [ELaundryController::class, 'createOrder']);
             Route::post('ehealth/ambulance',    [EHealthController::class, 'requestAmbulance']);
             Route::post('ehealth/book',         [EHealthController::class, 'bookAppointment']);
-            Route::post('erent/house-requests',                [ERentController::class, 'storeHouseRequest']);
-            Route::get('erent/house-requests/mine',            [ERentController::class, 'myHouseRequests']);
+            Route::post('erent/house-requests',                                       [ERentController::class, 'storeHouseRequest']);
+            Route::get('erent/house-requests/mine',                               [ERentController::class, 'myHouseRequests']);
+            // Phase 2+3: Recommendations, Viewings, Chat (customer)
+            Route::get('erent/house-requests/{id}/recommendations',               [ERentController::class, 'requestRecommendations']);
+            Route::post('erent/house-requests/{id}/recommendations/{recId}/respond', [ERentController::class, 'respondRecommendation']);
+            Route::get('erent/house-requests/{id}/viewings',                      [ERentController::class, 'requestViewings']);
+            Route::post('erent/house-requests/{id}/viewings/{viewId}/confirm',    [ERentController::class, 'confirmViewing']);
+            Route::get('erent/house-requests/{id}/messages',                      [ERentController::class, 'getMessages']);
+            Route::post('erent/house-requests/{id}/messages',                     [ERentController::class, 'sendMessage']);
             Route::post('erent/book',                          [ERentController::class, 'book']);
             Route::get('erent/my-bookings',                    [ERentController::class, 'myBookings']);
             Route::post('erent/bookings/{id}/cancel',          [ERentController::class, 'cancelBooking']);
@@ -669,11 +676,19 @@ Route::prefix('v1')->group(function () {
             Route::post('properties/{id}/available', [AgentController::class, 'markAvailable']);
             Route::delete('properties/{id}',         [AgentController::class, 'destroy']);
             Route::get('wallet',                     [AgentController::class, 'wallet']);
-            Route::get('house-requests',                    [AgentController::class, 'houseRequests']);
-            Route::post('house-requests/{id}/assign',       [AgentController::class, 'assignRequest']);
-            Route::post('house-requests/{id}/update-status',[AgentController::class, 'updateRequestStatus']);
-            Route::post('house-requests/{id}/contact',      [AgentController::class, 'contactRequest']);
-            Route::post('house-requests/{id}/close',        [AgentController::class, 'closeRequest']);
+            Route::get('house-requests',                          [AgentController::class, 'houseRequests']);
+            Route::post('house-requests/{id}/assign',             [AgentController::class, 'assignRequest']);
+            Route::post('house-requests/{id}/update-status',      [AgentController::class, 'updateRequestStatus']);
+            Route::post('house-requests/{id}/contact',            [AgentController::class, 'contactRequest']);
+            Route::post('house-requests/{id}/close',              [AgentController::class, 'closeRequest']);
+            // Phase 2: Recommendations + Viewings
+            Route::post('house-requests/{id}/recommend',          [AgentController::class, 'recommendProperty']);
+            Route::get('house-requests/{id}/recommendations',     [AgentController::class, 'getRecommendations']);
+            Route::post('house-requests/{id}/viewings',           [AgentController::class, 'scheduleViewing']);
+            Route::post('house-requests/viewings/{viewId}/status',[AgentController::class, 'updateViewingStatus']);
+            // Phase 3: Chat
+            Route::get('house-requests/{id}/messages',            [AgentController::class, 'getMessagesAgent']);
+            Route::post('house-requests/{id}/messages',           [AgentController::class, 'sendMessageAgent']);
         });
 
         // ─── DELIVERYMAN ──────────────────────────────────────────

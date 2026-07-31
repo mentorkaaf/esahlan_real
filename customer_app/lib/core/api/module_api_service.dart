@@ -156,6 +156,15 @@ class ModuleApiService {
   Future<dynamic> requestRentRefund(int id, String reason) => _post('/erent/bookings/$id/request-refund', {'reason': reason});
   Future<dynamic> submitHouseRequest(Map<String, dynamic> data) => _post('/erent/house-requests', data);
   Future<dynamic> myHouseRequests() => _get('/erent/house-requests/mine');
+  Future<dynamic> getRequestRecommendations(int requestId) => _get('/erent/house-requests/$requestId/recommendations');
+  Future<dynamic> respondRecommendation(int requestId, int recId, String action) =>
+      _post('/erent/house-requests/$requestId/recommendations/$recId/respond', {'action': action});
+  Future<dynamic> getRequestViewings(int requestId) => _get('/erent/house-requests/$requestId/viewings');
+  Future<dynamic> confirmViewing(int requestId, int viewId, String action) =>
+      _post('/erent/house-requests/$requestId/viewings/$viewId/confirm', {'action': action});
+  Future<dynamic> getRequestMessages(int requestId) => _get('/erent/house-requests/$requestId/messages');
+  Future<dynamic> sendRequestMessage(int requestId, String message) =>
+      _post('/erent/house-requests/$requestId/messages', {'message': message});
 
   // ═══════════════════════════════════════════════════════════════════
   // eSHOP
