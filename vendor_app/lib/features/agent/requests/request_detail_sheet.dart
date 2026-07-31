@@ -129,6 +129,10 @@ class _RecommendTabState extends State<_RecommendTab> {
           (res['data'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)));
         _recs = List<Map<String, dynamic>>.from(
           (recs['data'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)));
+        // Auto-select the only property (or first one if just one exists)
+        if (_properties.length == 1) {
+          _selectedPropertyId = _properties.first['id'] as int;
+        }
         _loading = false;
       });
     } catch (e) {
@@ -138,7 +142,11 @@ class _RecommendTabState extends State<_RecommendTab> {
 
   Future<void> _submit() async {
     if (_selectedPropertyId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a property')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('⚠️ Property doorasho — property card-ka taabso'),
+        backgroundColor: Color(0xFFEF4444),
+        duration: Duration(seconds: 3),
+      ));
       return;
     }
     setState(() => _submitting = true);
