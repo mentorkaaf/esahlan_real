@@ -384,6 +384,182 @@
         .py-3 { padding-top: 12px; padding-bottom: 12px; }
     </style>
     @stack('styles')
+
+    {{-- ═══ DARK MODE — must come LAST so it wins over every page's @push('styles') ═══ --}}
+    <style id="admin-dark-mode">
+    /* ─── Light/Dark tokens (default = light) ─────────────────────────────── */
+    :root {
+      --dm-bg-page   : #f1f5f9;
+      --dm-bg-card   : #ffffff;
+      --dm-bg-subtle : #fafbff;
+      --dm-bg-input  : #ffffff;
+      --dm-border    : #e8edf5;
+      --dm-border-sub: #f1f5f9;
+      --dm-text-1    : #111827;
+      --dm-text-2    : #374151;
+      --dm-text-3    : #9ca3af;
+      --dm-topbar-bg : #ffffff;
+      --dm-topbar-bdr: #eef0f6;
+      --dm-modal-bg  : #ffffff;
+      --dm-filter-bg : #fafbff;
+      --dm-scrollbar : #c7cce0;
+    }
+
+    /* ─── Dark tokens ─────────────────────────────────────────────────────── */
+    body.dark-mode {
+      --dm-bg-page   : #0f1117;
+      --dm-bg-card   : #1a1d2e;
+      --dm-bg-subtle : #1e2235;
+      --dm-bg-input  : #252836;
+      --dm-border    : #2a2d3e;
+      --dm-border-sub: #252836;
+      --dm-text-1    : #e2e8f0;
+      --dm-text-2    : #94a3b8;
+      --dm-text-3    : #566073;
+      --dm-topbar-bg : #13162a;
+      --dm-topbar-bdr: #1e2235;
+      --dm-modal-bg  : #1a1d2e;
+      --dm-filter-bg : #13162a;
+      --dm-scrollbar : #2a2d3e;
+    }
+
+    /* ─── Global surface tokens applied ──────────────────────────────────── */
+    body            { background:var(--dm-bg-page) !important; color:var(--dm-text-1); }
+    ::-webkit-scrollbar-thumb { background:var(--dm-scrollbar) !important; }
+
+    /* ─── Topbar ─────────────────────────────────────────────────────────── */
+    body.dark-mode .topbar            { background:var(--dm-topbar-bg); border-color:var(--dm-topbar-bdr); box-shadow:0 2px 12px rgba(0,0,0,.3); }
+    body.dark-mode .topbar-title      { color:var(--dm-text-1); }
+    body.dark-mode .topbar-user-name  { color:var(--dm-text-1); }
+    body.dark-mode .topbar-user-role  { color:var(--dm-text-3); }
+    body.dark-mode .topbar-divider    { background:var(--dm-border); }
+    body.dark-mode .topbar-search     { background:var(--dm-bg-subtle); border-color:var(--dm-border); }
+    body.dark-mode .topbar-search:focus-within { background:var(--dm-bg-card); }
+    body.dark-mode .topbar-search input  { color:var(--dm-text-1); }
+    body.dark-mode .topbar-btn        { border-color:var(--dm-border); color:var(--dm-text-3); }
+    body.dark-mode .topbar-btn:hover  { background:var(--dm-bg-subtle); color:#FF8A00; border-color:rgba(255,138,0,.3); }
+    body.dark-mode .sb-toggle-btn     { border-color:var(--dm-border); color:var(--dm-text-3); }
+    body.dark-mode .sb-toggle-btn:hover { background:var(--dm-bg-subtle); color:var(--dm-text-1); }
+    body.dark-mode .topbar-logout     { background:var(--dm-bg-subtle); border-color:#3f1a1a; color:#f87171; }
+    body.dark-mode .topbar-logout:hover { background:#2d1a1a; }
+    body.dark-mode .notif-dot         { border-color:var(--dm-topbar-bg); }
+
+    /* ─── Page structure ──────────────────────────────────────────────────── */
+    body.dark-mode .page-title        { color:var(--dm-text-1); }
+    body.dark-mode .breadcrumb        { color:var(--dm-text-3); }
+    body.dark-mode .breadcrumb li::after { color:var(--dm-border); }
+
+    /* ─── Cards (global + page-specific patterns) ────────────────────────── */
+    body.dark-mode .card,
+    body.dark-mode .card-header,
+    body.dark-mode .stat-card,
+    body.dark-mode .modal-box,
+    /* community / posts / emarry / etc page cards */
+    body.dark-mode [class*="cm-card"],
+    body.dark-mode [class*="-section"]:not(.nav-section-label),
+    body.dark-mode [class*="-table-wrap"],
+    body.dark-mode [class*="-box"]:not(.brand-icon):not(.stat-icon-wrap):not(.card-header-icon),
+    body.dark-mode [class*="ps-stat"],
+    body.dark-mode [class*="em-stat"],
+    body.dark-mode [class*="em-table-wrap"],
+    body.dark-mode [class*="em-modal"] > div,
+    body.dark-mode [class*="ec-card"],
+    body.dark-mode [class*="ls-card"],
+    body.dark-mode [class*="ts-card"],
+    body.dark-mode [class*="ag-card"],
+    body.dark-mode [class*="sec-notif-panel"],
+    body.dark-mode [class*="-panel"]:not(.sec-notif-list) { background:#1a1d2e !important; border-color:#2a2d3e !important; }
+
+    body.dark-mode .card-footer,
+    body.dark-mode [class*="-filter"],
+    body.dark-mode [class*="filter-bar"],
+    body.dark-mode [class*="-page"]:not(body):not(.em-page) { background:#13162a !important; }
+
+    body.dark-mode .card-header-title { color:var(--dm-text-1); }
+    body.dark-mode .stat-value        { color:var(--dm-text-1) !important; }
+    body.dark-mode .stat-label        { color:var(--dm-text-3) !important; }
+    body.dark-mode .stat-sub          { opacity:.85; }
+
+    /* ─── Tables ──────────────────────────────────────────────────────────── */
+    body.dark-mode thead th,
+    body.dark-mode [class*="-table"] thead th { background:#13162a !important; color:var(--dm-text-3) !important; border-color:var(--dm-border) !important; }
+    body.dark-mode tbody td,
+    body.dark-mode [class*="-table"] tbody td { color:var(--dm-text-1) !important; border-color:var(--dm-border-sub) !important; }
+    body.dark-mode tbody tr:hover td,
+    body.dark-mode [class*="-table"] tbody tr:hover { background:#1e2235 !important; }
+
+    /* ─── Forms ───────────────────────────────────────────────────────────── */
+    body.dark-mode .form-control,
+    body.dark-mode .filter-input,
+    body.dark-mode .filter-select,
+    body.dark-mode [class*="-input"],
+    body.dark-mode [class*="form-control"] { background:var(--dm-bg-input) !important; border-color:var(--dm-border) !important; color:var(--dm-text-1) !important; }
+    body.dark-mode .form-label         { color:var(--dm-text-2) !important; }
+    body.dark-mode .form-hint          { color:var(--dm-text-3); }
+    body.dark-mode select.form-control { background-color:var(--dm-bg-input) !important; }
+    body.dark-mode textarea            { background:var(--dm-bg-input) !important; border-color:var(--dm-border) !important; color:var(--dm-text-1) !important; }
+
+    /* ─── Modals ──────────────────────────────────────────────────────────── */
+    body.dark-mode .modal-overlay      { background:rgba(0,0,0,.65); }
+    body.dark-mode .modal-box          { background:#1a1d2e !important; border-color:#2a2d3e; }
+    body.dark-mode .modal-header       { border-color:#2a2d3e; }
+    body.dark-mode .modal-title        { color:var(--dm-text-1); }
+    body.dark-mode .modal-close        { background:#252836; color:#64748b; }
+    body.dark-mode .modal-close:hover  { background:#3f1a1a; color:#f87171; }
+    body.dark-mode .modal-footer       { border-color:#2a2d3e; background:#13162a; }
+
+    /* ─── Buttons ─────────────────────────────────────────────────────────── */
+    body.dark-mode .btn-outline        { border-color:#2a2d3e; color:#94a3b8; background:transparent; }
+    body.dark-mode .btn-outline:hover  { background:#252836; border-color:#374151; color:#e2e8f0; }
+    body.dark-mode .btn-ghost          { color:#64748b; }
+    body.dark-mode .btn-ghost:hover    { background:#252836; color:#94a3b8; }
+
+    /* ─── Alerts ──────────────────────────────────────────────────────────── */
+    body.dark-mode .alert-success { background:rgba(16,185,129,.12); color:#6ee7b7; border-color:#065f46; }
+    body.dark-mode .alert-danger  { background:rgba(239,68,68,.12);  color:#fca5a5; border-color:#7f1d1d; }
+    body.dark-mode .alert-warning { background:rgba(245,158,11,.12); color:#fcd34d; border-color:#78350f; }
+    body.dark-mode .alert-info    { background:rgba(59,130,246,.12); color:#93c5fd; border-color:#1e3a5f; }
+
+    /* ─── Badges ──────────────────────────────────────────────────────────── */
+    body.dark-mode .badge-secondary,
+    body.dark-mode .badge-neutral  { background:#252836; color:#94a3b8; }
+    body.dark-mode .badge-dark     { background:rgba(255,255,255,.06); color:#94a3b8; }
+
+    /* ─── Info table ──────────────────────────────────────────────────────── */
+    body.dark-mode .info-table tr              { border-color:#2a2d3e; }
+    body.dark-mode .info-table tr td:first-child { color:#566073; }
+    body.dark-mode .info-table tr td:last-child  { color:#e2e8f0; }
+
+    /* ─── Pagination ──────────────────────────────────────────────────────── */
+    body.dark-mode .pagination li a,
+    body.dark-mode .pagination li span,
+    body.dark-mode nav .flex a,
+    body.dark-mode nav .flex button { background:#1e2235 !important; border-color:#2a2d3e !important; color:#64748b !important; }
+    body.dark-mode .pagination li.active span,
+    body.dark-mode nav .flex span[aria-current="page"] span { background:#FF8A00 !important; color:#fff !important; border-color:#FF8A00 !important; }
+
+    /* ─── Toggle switch ───────────────────────────────────────────────────── */
+    body.dark-mode .toggle-slider { background:#2a2d3e; }
+
+    /* ─── Misc text nodes that use hardcoded colors ───────────────────────── */
+    body.dark-mode .text-muted   { color:#566073 !important; }
+    body.dark-mode .empty-state h3 { color:#e2e8f0; }
+    body.dark-mode .empty-state   { color:#566073; }
+
+    /* ─── Security notification panel ────────────────────────────────────── */
+    body.dark-mode #secNotifPanel { background:#1a1d2e; border-color:#2a2d3e; }
+    body.dark-mode .sec-panel-head { border-color:#2a2d3e; }
+    body.dark-mode .sec-panel-title { color:#e2e8f0; }
+    body.dark-mode .sec-notif-item  { border-color:#1e2235; }
+    body.dark-mode .sec-notif-item:hover { background:#1e2235; }
+    body.dark-mode .sec-notif-list::-webkit-scrollbar-thumb { background:#2a2d3e; }
+
+    /* ─── Dark mode toggle button in topbar ───────────────────────────────── */
+    #adminThemeToggle { position:relative; }
+    #adminThemeToggle .theme-icon { transition:transform .3s, opacity .2s; }
+    body.dark-mode #adminThemeToggle { color:#fcd34d !important; border-color:rgba(252,211,77,.25) !important; }
+    body.dark-mode #adminThemeToggle:hover { background:rgba(252,211,77,.1) !important; }
+    </style>
 </head>
 <body>
 
@@ -786,6 +962,9 @@
             <a href="{{ route('admin.notifications.index') }}" class="topbar-btn" title="Notifications">
                 <i class="fas fa-bell"></i>
             </a>
+            <button id="adminThemeToggle" class="topbar-btn" title="Toggle dark mode" style="border:1.5px solid #eef0f6;">
+                <i class="fas fa-moon theme-icon"></i>
+            </button>
             <div class="topbar-divider"></div>
             <div class="topbar-user">
                 <div class="topbar-avatar">{{ strtoupper(substr(auth()->user()->name ?? 'A',0,1)) }}</div>
@@ -819,6 +998,24 @@
 </div>
 
 <script>
+/* ── Dark mode ── */
+const THEME_KEY = 'admin_theme';
+function applyTheme(dark) {
+    document.body.classList.toggle('dark-mode', dark);
+    const btn  = document.getElementById('adminThemeToggle');
+    const icon = btn?.querySelector('.theme-icon');
+    if (icon) { icon.className = dark ? 'fas fa-sun theme-icon' : 'fas fa-moon theme-icon'; }
+    if (btn)  { btn.title = dark ? 'Switch to light mode' : 'Switch to dark mode'; }
+}
+// Apply immediately (before paint) to avoid flash
+(function(){ applyTheme(localStorage.getItem(THEME_KEY) === 'dark'); })();
+document.getElementById('adminThemeToggle')?.addEventListener('click', function() {
+    const dark = !document.body.classList.contains('dark-mode');
+    applyTheme(dark);
+    localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
+});
+
+/* ── Sidebar ── */
 const SB_KEY = 'sb_collapsed';
 function applySidebar(collapsed) { document.body.classList.toggle('sb-collapsed', collapsed); }
 applySidebar(localStorage.getItem(SB_KEY) === '1');
