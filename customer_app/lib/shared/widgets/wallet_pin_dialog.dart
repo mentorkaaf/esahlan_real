@@ -11,10 +11,10 @@ import '../../features/auth/presentation/providers/auth_provider.dart';
 /// Shows PIN verify dialog (or setup dialog if user has no PIN yet).
 /// Returns true if PIN verified/set successfully, false if cancelled.
 Future<bool> showWalletPinDialog(BuildContext context) async {
-  // Read auth state from ProviderScope
-  final container = ProviderScope.containerOf(context, listen: false);
-  final userAsync = container.read(authStateProvider);
-  final user = userAsync.valueOrNull;
+  // Read directly from local storage — always up-to-date regardless of
+  // provider async state (avoids AsyncLoading→valueOrNull==null false negative).
+  final userJson = await LocalStorage.getString('user_data');
+  final user = userJson != null ? UserModel.fromJsonString(userJson) : null;
   final hasPin = user?.hasWalletPin ?? false;
 
   if (!hasPin) {
@@ -27,8 +27,10 @@ Future<bool> showWalletPinDialog(BuildContext context) async {
 
     if (!created) return false;
 
-    // Refresh user in provider so hasWalletPin updates
-    container.invalidate(authStateProvider);
+    // Refresh provider so other widgets (profile, etc.) see the updated state
+    if (context.mounted) {
+      ProviderScope.containerOf(context, listen: false).invalidate(authStateProvider);
+    }
     return true;
   }
 
