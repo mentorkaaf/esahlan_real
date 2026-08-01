@@ -407,7 +407,7 @@ class AgentController extends Controller
             if ($customer?->fcm_token) {
                 FcmService::send($customer->fcm_token, 'Agent Found! 🎉',
                     "Agent {$agent->name} has accepted your request {$req->request_ref}",
-                    ['type' => 'house_request', 'id' => (string) $id, 'deep_link' => '/erent']);
+                    ['type' => 'house_request', 'id' => (string) $id, 'deep_link' => "/erent/request/{$id}"]);
             }
         } catch (\Throwable $e) {
             \Log::warning('[HouseRequest Assign FCM] ' . $e->getMessage());
@@ -448,7 +448,7 @@ class AgentController extends Controller
             ];
             if ($customer?->fcm_token && isset($msgs[$request->status])) {
                 [$title, $body] = $msgs[$request->status];
-                FcmService::send($customer->fcm_token, $title, $body, ['type' => 'house_request', 'id' => (string) $id, 'deep_link' => '/erent']);
+                FcmService::send($customer->fcm_token, $title, $body, ['type' => 'house_request', 'id' => (string) $id, 'deep_link' => "/erent/request/{$id}"]);
             }
         } catch (\Throwable $e) {
             \Log::warning('[HouseRequest Status FCM] ' . $e->getMessage());
@@ -515,7 +515,7 @@ class AgentController extends Controller
             if ($customer?->fcm_token) {
                 FcmService::send($customer->fcm_token, 'Property Found! 🏠',
                     "Your agent found a great match for {$req->request_ref} — {$prop->title}",
-                    ['type' => 'recommendation', 'request_id' => (string) $id, 'deep_link' => '/erent']);
+                    ['type' => 'recommendation', 'request_id' => (string) $id, 'deep_link' => "/erent/request/{$id}?tab=recommendations"]);
             }
         } catch (\Throwable $e) {}
 
@@ -656,7 +656,7 @@ class AgentController extends Controller
             if ($customer?->fcm_token) {
                 FcmService::send($customer->fcm_token, "Message from Agent {$agent->name}",
                     $request->message,
-                    ['type' => 'request_message', 'request_id' => (string) $id, 'deep_link' => '/erent']);
+                    ['type' => 'request_message', 'request_id' => (string) $id, 'deep_link' => "/erent/request/{$id}?tab=chat"]);
             }
         } catch (\Throwable $e) {}
 

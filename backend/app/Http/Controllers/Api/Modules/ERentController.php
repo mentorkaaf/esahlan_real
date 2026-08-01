@@ -558,6 +558,31 @@ class ERentController extends Controller
         return response()->json(['success' => true, 'data' => $requests]);
     }
 
+    // GET /erent/house-requests/{id}
+    public function getHouseRequest(Request $request, $id)
+    {
+        $req = DB::table('house_requests')
+            ->where('house_requests.id', $id)
+            ->where('house_requests.customer_user_id', $request->user()->id)
+            ->leftJoin('districts', 'house_requests.district_id', '=', 'districts.id')
+            ->leftJoin('users as agents', 'house_requests.agent_user_id', '=', 'agents.id')
+            ->select([
+                'house_requests.id', 'house_requests.request_ref',
+                'house_requests.purpose', 'house_requests.type', 'house_requests.bedrooms',
+                'house_requests.budget_min', 'house_requests.budget_max',
+                'house_requests.move_in_date', 'house_requests.description',
+                'house_requests.status', 'house_requests.created_at',
+                'house_requests.agent_user_id',
+                'districts.name as district_name',
+                'agents.name as agent_name', 'agents.phone as agent_phone',
+            ])
+            ->first();
+
+        if (!$req) return response()->json(['success' => false, 'message' => 'Not found'], 404);
+
+        return response()->json(['success' => true, 'data' => $req]);
+    }
+
     // ── Phase 2: Recommendations (customer) ──────────────────────────────────
 
     // GET /erent/house-requests/{id}/recommendations
@@ -707,7 +732,7 @@ class ERentController extends Controller
                     'countered' => "Customer sent a counter-offer of \${$request->counter_price} for {$reqRow->request_ref}.",
                 ];
                 $agentType = match($status) { 'accepted' => 'offer_accepted', 'rejected' => 'offer_rejected', default => 'offer_countered' };
-                FcmService::send($agent->fcm_token, $titles[$status] ?? 'Update', $msgs[$status] ?? '', ['type' => $agentType, 'id' => (string) $recId, 'deep_link' => '/agent/requests']);
+                FcmService::send($agent->fcm_token, $titles[$status] ?? 'Update', $msgs[$status] ?? '', ['type' => $agentType, 'request_id' => (string) $id, 'deep_link' => "/agent/requests/{$id}"]);
             }
         } catch (\Throwable $e) {}
 
@@ -818,7 +843,7 @@ class ERentController extends Controller
                 if ($agent?->fcm_token) {
                     FcmService::send($agent->fcm_token, "Message from {$user->name}",
                         $request->message,
-                        ['type' => 'request_message_agent', 'request_id' => (string) $id, 'deep_link' => '/agent/requests']);
+                        ['type' => 'request_message_agent', 'request_id' => (string) $id, 'deep_link' => "/agent/requests/{$id}?tab=chat"]);
                 }
             }
         } catch (\Throwable $e) {}

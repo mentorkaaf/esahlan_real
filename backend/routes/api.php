@@ -641,6 +641,7 @@ Route::prefix('v1')->group(function () {
             Route::post('ehealth/book',         [EHealthController::class, 'bookAppointment']);
             Route::post('erent/house-requests',                                       [ERentController::class, 'storeHouseRequest']);
             Route::get('erent/house-requests/mine',                               [ERentController::class, 'myHouseRequests']);
+            Route::get('erent/house-requests/{id}',                                [ERentController::class, 'getHouseRequest']);
             // Phase 2+3: Recommendations, Viewings, Chat (customer)
             Route::get('erent/house-requests/{id}/recommendations',               [ERentController::class, 'requestRecommendations']);
             Route::post('erent/house-requests/{id}/recommendations/{recId}/respond', [ERentController::class, 'respondRecommendation']);
