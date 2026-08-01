@@ -516,7 +516,11 @@ class ERentController extends Controller
                 ->whereNotNull('fcm_token');
 
             if ($request->district_id) {
-                $agentsQ->where('district_id', $request->district_id);
+                // Match agents in the same district OR agents with no district (available everywhere)
+                $agentsQ->where(function ($q) use ($request) {
+                    $q->where('district_id', $request->district_id)
+                      ->orWhereNull('district_id');
+                });
             }
 
             $tokens = $agentsQ->pluck('fcm_token')->toArray();

@@ -94,14 +94,14 @@ class VendorFcmService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('vendor_fcm_token'); // clear cache → force re-upload
       await prefs.setString('vendor_fcm_token', token);
-      await ApiClient().post('/vendor/fcm-token', data: {'fcm_token': token});
+      await ApiClient().post('/auth/fcm-token', data: {'fcm_token': token});
     } catch (_) {}
   }
 
   // ── Called on logout ───────────────────────────────────────────────────────
   static Future<void> clearToken() async {
     try {
-      await ApiClient().post('/vendor/fcm-token', data: {'fcm_token': null});
+      await ApiClient().post('/auth/fcm-token', data: {'fcm_token': null});
     } catch (_) {}
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -128,7 +128,7 @@ class VendorFcmService {
       final prefs = await SharedPreferences.getInstance();
       if (prefs.getString('vendor_fcm_token') == token) return;
       await prefs.setString('vendor_fcm_token', token);
-      await ApiClient().post('/vendor/fcm-token', data: {'fcm_token': token});
+      await ApiClient().post('/auth/fcm-token', data: {'fcm_token': token});
     } catch (_) {}
   }
 
