@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import '../../core/api/module_api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/storage/local_storage.dart';
 import '../../features/auth/data/models/user_model.dart';
+import '../../features/auth/data/repositories/auth_repository.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 
 /// Shows PIN verify dialog (or setup dialog if user has no PIN yet).
@@ -14,7 +16,19 @@ Future<bool> showWalletPinDialog(BuildContext context) async {
   // Read directly from local storage — always up-to-date regardless of
   // provider async state (avoids AsyncLoading→valueOrNull==null false negative).
   final userJson = await LocalStorage.getString('user_data');
-  final user = userJson != null ? UserModel.fromJsonString(userJson) : null;
+  UserModel? user = userJson != null ? UserModel.fromJsonString(userJson) : null;
+
+  // If cached JSON is missing has_wallet_pin (old app version), fetch fresh from server.
+  // This handles users who installed the new APK with an existing login session.
+  if (user != null && userJson != null) {
+    final decoded = jsonDecode(userJson) as Map<String, dynamic>;
+    if (!decoded.containsKey('has_wallet_pin')) {
+      try {
+        user = await AuthRepository().getMe();
+      } catch (_) {}
+    }
+  }
+
   final hasPin = user?.hasWalletPin ?? false;
 
   if (!hasPin) {
