@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:convert';
 import '../../../../core/api/api_client.dart';
+import '../../../../core/services/realtime_client.dart';
+import '../../../../core/storage/local_storage.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/widgets/network_image_widget.dart' show NetImage;
@@ -9,7 +12,8 @@ import '../../../../core/widgets/network_image_widget.dart' show NetImage;
 
 final _emarryProfilesProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   final res = await ApiClient.instance.get('/emarry/profiles');
-  return Map<String, dynamic>.from(res.data as Map);
+  // res.data = {'success': true, 'data': {'data': [...], 'my_profile': ...}}
+  return Map<String, dynamic>.from(res.data['data'] as Map);
 });
 
 final _myEmarryProfileProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
@@ -35,15 +39,63 @@ class EMarryScreen extends ConsumerStatefulWidget {
 class _EMarryScreenState extends ConsumerState<EMarryScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
+  String? _userChannel;
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 3, vsync: this);
+    _subscribeRealtime();
+  }
+
+  Future<void> _subscribeRealtime() async {
+    final userJson = await LocalStorage.getString('user_data');
+    if (userJson == null) return;
+    try {
+      final map = jsonDecode(userJson) as Map<String, dynamic>;
+      final userId = map['id'];
+      if (userId == null) return;
+      _userChannel = 'private-user.$userId';
+      RealtimeClient.instance.listen(_userChannel!, 'emarry.interest', _onInterest);
+      RealtimeClient.instance.listen(_userChannel!, 'emarry.interest.accepted', _onInterestAccepted);
+    } catch (_) {}
+  }
+
+  void _onInterest(dynamic _) {
+    if (!mounted) return;
+    ref.invalidate(_receivedInterestsProvider);
+    // Switch to Interests tab with a badge-style flash
+    if (_tab.index != 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('💍 New interest received! Check your Interests tab.'),
+          backgroundColor: AppColors.primary,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  void _onInterestAccepted(dynamic _) {
+    if (!mounted) return;
+    ref.invalidate(_emarryProfilesProvider);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('💍 Your interest was accepted!'),
+        backgroundColor: Color(0xFF16A34A),
+        duration: Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
   void dispose() {
+    // Only remove our eMarry listeners — don't unsubscribe the whole private-user channel
+    // since chat and notifications also use it.
+    if (_userChannel != null) {
+      RealtimeClient.instance.removeListener(_userChannel!, 'emarry.interest', _onInterest);
+      RealtimeClient.instance.removeListener(_userChannel!, 'emarry.interest.accepted', _onInterestAccepted);
+    }
     _tab.dispose();
     super.dispose();
   }

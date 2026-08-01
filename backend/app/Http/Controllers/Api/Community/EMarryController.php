@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\Community;
 
+use App\Events\EMarryInterestAccepted;
+use App\Events\EMarryInterestSent;
 use App\Http\Controllers\Controller;
 use App\Services\FcmService;
 use Illuminate\Http\Request;
@@ -175,7 +177,10 @@ class EMarryController extends Controller
             'updated_at'  => now(),
         ]);
 
-        // Notify receiver
+        // Realtime + FCM notify receiver
+        try {
+            broadcast(new EMarryInterestSent($userId, $sender->name, $sender->id));
+        } catch (\Throwable) {}
         try {
             $receiverUser = DB::table('users')->where('id', $userId)->first();
             if ($receiverUser?->fcm_token) {
@@ -210,6 +215,10 @@ class EMarryController extends Controller
         if (!$updated) return response()->json(['success' => false, 'message' => 'Interest not found'], 404);
 
         if ($request->action === 'accept') {
+            // Realtime + FCM notify original sender
+            try {
+                broadcast(new EMarryInterestAccepted($senderId, $user->name, $user->id));
+            } catch (\Throwable) {}
             try {
                 $senderUser = DB::table('users')->where('id', $senderId)->first();
                 if ($senderUser?->fcm_token) {

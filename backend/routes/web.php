@@ -374,6 +374,16 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::delete('/packages/{id}',    'destroyPackage')->name('packages.destroy');
         });
 
+        Route::prefix('emarry')->name('emarry.')->group(function () {
+            $em = \App\Http\Controllers\Admin\AdminEMarryController::class;
+            Route::get('/',                    [$em, 'index'])->name('index');
+            Route::post('/{id}/approve',       [$em, 'approve'])->name('approve');
+            Route::post('/{id}/reject',        [$em, 'reject'])->name('reject');
+            Route::delete('/{id}',             [$em, 'delete'])->name('delete');
+            Route::get('/{id}/detail',         [$em, 'detail'])->name('detail');
+            Route::get('/all/interests',       [$em, 'interests'])->name('interests');
+        });
+
         Route::prefix('community')->name('community.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'index'])->name('index');
             Route::post('/toggle-enabled', [\App\Http\Controllers\Admin\AdminCommunityController::class, 'toggleEnabled'])->name('toggle-enabled');

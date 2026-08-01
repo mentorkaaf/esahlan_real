@@ -605,6 +605,13 @@
             <a href="{{ route('admin.podcast.index') }}" class="nav-link {{ request()->routeIs('admin.podcast.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-podcast"></i></div> Podcasts
             </a>
+            <a href="{{ route('admin.emarry.index') }}" class="nav-link {{ request()->routeIs('admin.emarry.*') ? 'active' : '' }}">
+                <div class="nav-icon">💍</div> eMarry
+                @php $emPending = \Illuminate\Support\Facades\DB::table('emarry_profiles')->where('status','pending')->count(); @endphp
+                @if($emPending > 0)
+                  <span style="margin-left:auto;background:#E11D48;color:#fff;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:800;">{{ $emPending }}</span>
+                @endif
+            </a>
         </div>
 
         {{-- Live Management --}}
