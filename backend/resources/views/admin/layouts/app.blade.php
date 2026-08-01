@@ -449,11 +449,32 @@
     body.dark-mode .breadcrumb        { color:var(--dm-text-3); }
     body.dark-mode .breadcrumb li::after { color:var(--dm-border); }
 
+    /* ─── Page wrappers ──────────────────────────────────────────────────── */
+    body.dark-mode .main-content           { background:var(--dm-bg-page) !important; }
+    body.dark-mode [class*="-page"]:not(body) { background:var(--dm-bg-page) !important; }
+
     /* ─── Cards (global + page-specific patterns) ────────────────────────── */
     body.dark-mode .card,
     body.dark-mode .card-header,
     body.dark-mode .stat-card,
     body.dark-mode .modal-box,
+    /* dashboard cards */
+    body.dark-mode .kpi-card,
+    body.dark-mode .kpi,
+    body.dark-mode .kpi-mini,
+    body.dark-mode .dash-card,
+    /* wallet / ep-pay cards */
+    body.dark-mode .ep-card,
+    body.dark-mode .ep-modal-box,
+    /* dispatch / map */
+    body.dark-mode .map-stat,
+    body.dark-mode .driver-panel,
+    body.dark-mode .dp-item,
+    /* inbox / chat / support */
+    body.dark-mode .chat-wrap,
+    body.dark-mode .chat-input-row,
+    body.dark-mode .st-card,
+    body.dark-mode .st-link-card,
     /* community / posts / emarry / etc page cards */
     body.dark-mode [class*="cm-card"],
     body.dark-mode [class*="-section"]:not(.nav-section-label),
@@ -473,7 +494,30 @@
     body.dark-mode .card-footer,
     body.dark-mode [class*="-filter"],
     body.dark-mode [class*="filter-bar"],
-    body.dark-mode [class*="-page"]:not(body):not(.em-page) { background:#13162a !important; }
+    body.dark-mode .chat-sidebar,
+    body.dark-mode .chat-messages         { background:#13162a !important; }
+
+    /* ─── Dashboard text ──────────────────────────────────────────────────── */
+    body.dark-mode .kpi-val,
+    body.dark-mode .kpi-label,
+    body.dark-mode .kpi-sub,
+    body.dark-mode .dash-card-title,
+    body.dark-mode .comm-stat-val,
+    body.dark-mode .comm-stat-label,
+    body.dark-mode .vendor-rank            { color:var(--dm-text-1) !important; }
+    body.dark-mode .dash-card-header       { border-color:#2a2d3e !important; }
+
+    /* ─── EP (wallet) buttons / tabs ──────────────────────────────────────── */
+    body.dark-mode .ep-btn,
+    body.dark-mode .ep-btn-outline         { background:#1e2235 !important; border-color:#2a2d3e !important; color:var(--dm-text-2) !important; }
+    body.dark-mode .ep-tab.active          { background:#1a1d2e !important; color:var(--dm-text-1) !important; box-shadow:0 1px 3px rgba(0,0,0,.4); }
+
+    /* ─── Chat / Inbox ────────────────────────────────────────────────────── */
+    body.dark-mode .msg-bubble.user        { background:#1e2235 !important; color:var(--dm-text-1) !important; }
+    body.dark-mode .typing-dots            { background:#1e2235 !important; }
+    body.dark-mode .sb-select             { background:var(--dm-bg-input) !important; border-color:#2a2d3e !important; color:var(--dm-text-1) !important; }
+    body.dark-mode .chat-sidebar           { border-color:#2a2d3e !important; }
+    body.dark-mode .chat-wrap              { border-color:#2a2d3e !important; }
 
     body.dark-mode .card-header-title { color:var(--dm-text-1); }
     body.dark-mode .stat-value        { color:var(--dm-text-1) !important; }
@@ -1000,6 +1044,28 @@
 <script>
 /* ── Dark mode ── */
 const THEME_KEY = 'admin_theme';
+
+/* Override any element that has an inline light background via style="" attribute */
+const LIGHT_BG_RE = /(?:^|;)\s*background(?:-color)?\s*:\s*(?:#fff(?:fff)?|white|#f(?:[0-9a-f]{5}|[0-9a-f]{2})|rgba?\(\s*25[0-9]\s*,\s*25[0-9]\s*,\s*25[0-9])/i;
+function applyDarkInlineStyles() {
+    document.querySelectorAll('.main-content [style]').forEach(function(el) {
+        var s = el.getAttribute('style') || '';
+        if (LIGHT_BG_RE.test(s)) {
+            if (!el._dmOrigStyle) el._dmOrigStyle = s;
+            el.style.setProperty('background-color', '#1a1d2e', 'important');
+            el.style.setProperty('border-color', '#2a2d3e', 'important');
+        }
+    });
+}
+function removeDarkInlineStyles() {
+    document.querySelectorAll('.main-content [style]').forEach(function(el) {
+        if (el._dmOrigStyle !== undefined) {
+            el.setAttribute('style', el._dmOrigStyle);
+            delete el._dmOrigStyle;
+        }
+    });
+}
+
 function applyTheme(dark) {
     document.body.classList.toggle('dark-mode', dark);
     const btn  = document.getElementById('adminThemeToggle');
@@ -1009,10 +1075,15 @@ function applyTheme(dark) {
 }
 // Apply immediately (before paint) to avoid flash
 (function(){ applyTheme(localStorage.getItem(THEME_KEY) === 'dark'); })();
+// After DOM ready: handle inline styles
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.body.classList.contains('dark-mode')) applyDarkInlineStyles();
+});
 document.getElementById('adminThemeToggle')?.addEventListener('click', function() {
     const dark = !document.body.classList.contains('dark-mode');
     applyTheme(dark);
     localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
+    if (dark) applyDarkInlineStyles(); else removeDarkInlineStyles();
 });
 
 /* ── Sidebar ── */
