@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/agent_repository.dart';
+import '../../../core/services/fcm_service.dart';
 import '../../../core/theme/vc.dart';
 import 'request_detail_sheet.dart';
 
 const _kTeal   = Color(0xFF0EA5E9);
 const _kOrange = Color(0xFFFF6B35);
 
+// Global key so agent_shell can trigger auto-open after FCM deep link
+final houseRequestsScreenKey = GlobalKey<HouseRequestsScreenState>();
+
 class HouseRequestsScreen extends StatefulWidget {
   const HouseRequestsScreen({super.key});
   @override
-  State<HouseRequestsScreen> createState() => _HouseRequestsScreenState();
+  State<HouseRequestsScreen> createState() => HouseRequestsScreenState();
 }
 
-class _HouseRequestsScreenState extends State<HouseRequestsScreen>
+class HouseRequestsScreenState extends State<HouseRequestsScreen>
     with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> _all = [];
   bool _loading = true;
@@ -38,6 +42,25 @@ class _HouseRequestsScreenState extends State<HouseRequestsScreen>
       if (mounted) setState(() { _all = items; _loading = false; });
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  /// Called by agent_shell after FCM deep link switches to requests tab.
+  Future<void> openPendingRequest() async {
+    final pending = VendorFcmService.consumePendingRequest();
+    if (pending == null || !mounted) return;
+
+    // Reload to ensure data is fresh
+    await _load();
+    if (!mounted) return;
+
+    final requestId = int.tryParse(pending.id);
+    final match = _all.cast<Map<String, dynamic>?>().firstWhere(
+      (r) => r?['id'] == requestId,
+      orElse: () => null,
+    );
+    if (match != null && mounted) {
+      await RequestDetailSheet.show(context, match, _load, initialTab: pending.tab);
     }
   }
 

@@ -40,15 +40,19 @@ class _AgentShellState extends ConsumerState<AgentShell> with WidgetsBindingObse
     final route = VendorFcmService.consumePendingRoute();
     if (route == '/agent/requests' && mounted) {
       setState(() => _index = 2);
+      // After switching tab, open specific request if pending
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        houseRequestsScreenKey.currentState?.openPendingRequest();
+      });
     }
   }
 
-  static const _screens = [
-    AgentDashboardScreen(),
-    AgentPropertiesScreen(),
-    HouseRequestsScreen(),
-    AgentWalletScreen(),
-    AgentProfileScreen(),
+  static final _screens = [
+    const AgentDashboardScreen(),
+    const AgentPropertiesScreen(),
+    HouseRequestsScreen(key: houseRequestsScreenKey),
+    const AgentWalletScreen(),
+    const AgentProfileScreen(),
   ];
 
   @override

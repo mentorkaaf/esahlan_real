@@ -156,6 +156,7 @@ class ModuleApiService {
   Future<dynamic> requestRentRefund(int id, String reason) => _post('/erent/bookings/$id/request-refund', {'reason': reason});
   Future<dynamic> submitHouseRequest(Map<String, dynamic> data) => _post('/erent/house-requests', data);
   Future<dynamic> myHouseRequests() => _get('/erent/house-requests/mine');
+  Future<dynamic> getHouseRequest(int id) => _get('/erent/house-requests/$id');
   Future<dynamic> getRequestRecommendations(int requestId) => _get('/erent/house-requests/$requestId/recommendations');
   Future<dynamic> respondRecommendation(int requestId, int recId, String action, {double? counterPrice, String? counterMessage}) =>
       _post('/erent/house-requests/$requestId/recommendations/$recId/respond', {

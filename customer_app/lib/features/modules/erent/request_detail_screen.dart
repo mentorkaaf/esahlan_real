@@ -7,10 +7,11 @@ const _kMuted  = Color(0xFF94A3B8);
 
 class RequestDetailScreen extends StatefulWidget {
   final Map<String, dynamic> request;
-  const RequestDetailScreen({super.key, required this.request});
+  final String? initialTab;
+  const RequestDetailScreen({super.key, required this.request, this.initialTab});
 
-  static Future<void> push(BuildContext context, Map<String, dynamic> request) =>
-      Navigator.push(context, MaterialPageRoute(builder: (_) => RequestDetailScreen(request: request)));
+  static Future<void> push(BuildContext context, Map<String, dynamic> request, {String? initialTab}) =>
+      Navigator.push(context, MaterialPageRoute(builder: (_) => RequestDetailScreen(request: request, initialTab: initialTab)));
 
   @override
   State<RequestDetailScreen> createState() => _RequestDetailScreenState();
@@ -24,7 +25,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 3, vsync: this);
+    final tabIndex = widget.initialTab == 'chat' ? 2 : widget.initialTab == 'recommendations' ? 1 : 0;
+    _tab = TabController(length: 3, vsync: this, initialIndex: tabIndex);
   }
 
   @override

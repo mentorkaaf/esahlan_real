@@ -69,6 +69,8 @@ import '../../features/inbox/data/inbox_repository.dart';
 import '../../features/modules/efood/efood_screen.dart';
 import '../../features/modules/eparcel/eparcel_screen.dart';
 import '../../features/modules/erent/erent_screen.dart';
+import '../../features/modules/erent/request_detail_screen.dart';
+import '../../features/modules/erent/erent_request_deep_link_screen.dart';
 import '../../features/modules/emoving/emoving_screen.dart';
 import '../../features/modules/edata/edata_screen.dart';
 import '../../features/modules/eexchange/eexchange_screen.dart';
@@ -201,6 +203,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           // Modules with bottom nav
           GoRoute(path: '/eparcel',    builder: (_, __) => const EParcelScreen()),
           GoRoute(path: '/erent',      builder: (_, __) => const ERentScreen()),
+          GoRoute(
+            path: '/erent/request/:id',
+            builder: (_, state) => ERentRequestDeepLinkScreen(
+              requestId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+              initialTab: state.uri.queryParameters['tab'],
+            ),
+          ),
           GoRoute(path: '/emoving',    builder: (_, __) => const EMovingScreen()),
           GoRoute(path: '/edata',      builder: (_, __) => const EDataScreen()),
           GoRoute(path: '/eexchange',  builder: (_, __) => const EExchangeScreen()),

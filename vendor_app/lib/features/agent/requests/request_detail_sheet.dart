@@ -8,14 +8,15 @@ const _kOrange = Color(0xFFFF6B35);
 class RequestDetailSheet extends StatefulWidget {
   final Map<String, dynamic> request;
   final VoidCallback onRefresh;
-  const RequestDetailSheet({super.key, required this.request, required this.onRefresh});
+  final String? initialTab;
+  const RequestDetailSheet({super.key, required this.request, required this.onRefresh, this.initialTab});
 
-  static Future<void> show(BuildContext context, Map<String, dynamic> request, VoidCallback onRefresh) =>
+  static Future<void> show(BuildContext context, Map<String, dynamic> request, VoidCallback onRefresh, {String? initialTab}) =>
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        builder: (_) => RequestDetailSheet(request: request, onRefresh: onRefresh),
+        builder: (_) => RequestDetailSheet(request: request, onRefresh: onRefresh, initialTab: initialTab),
       );
 
   @override
@@ -29,7 +30,8 @@ class _RequestDetailSheetState extends State<RequestDetailSheet>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 3, vsync: this);
+    final tabIndex = widget.initialTab == 'chat' ? 2 : widget.initialTab == 'recommend' ? 1 : 0;
+    _tab = TabController(length: 3, vsync: this, initialIndex: tabIndex);
   }
 
   @override

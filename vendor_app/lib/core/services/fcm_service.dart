@@ -171,6 +171,10 @@ class VendorFcmService {
 
   static void _routeFromData(Map<String, dynamic> data) {
     final type = data['type'] as String? ?? '';
+    final requestId = data['request_id'] as String? ?? data['id'] as String?;
+    final deepLink = data['deep_link'] as String? ?? '';
+    final tab = Uri.tryParse(deepLink)?.queryParameters['tab'];
+
     final route = switch (type) {
       'vendor_new_order'    => '/orders',
       'order_confirmed'     => '/orders',
@@ -179,6 +183,7 @@ class VendorFcmService {
       'withdrawal_approved' => '/wallet',
       'withdrawal_rejected' => '/wallet',
       // House request notifications → agent requests tab
+      'house_request'             => '/agent/requests',
       'house_request_assigned'    => '/agent/requests',
       'offer_accepted'            => '/agent/requests',
       'offer_rejected'            => '/agent/requests',
@@ -188,7 +193,13 @@ class VendorFcmService {
       'request_message_agent'     => '/agent/requests',
       _ => data['deep_link'] as String? ?? '/orders',
     };
+
     _pendingRoute = route;
+    if (requestId != null) {
+      _pendingRequestId = requestId;
+      _pendingRequestTab = tab;
+    }
+
     // For agent shell tab routes, just store — shell will pick it up on resume.
     // For stack routes (wallet, orders), push normally.
     if (!route.startsWith('/agent/')) {
@@ -197,9 +208,21 @@ class VendorFcmService {
   }
 
   static String? _pendingRoute;
+  static String? _pendingRequestId;
+  static String? _pendingRequestTab;
+
   static String? consumePendingRoute() {
     final r = _pendingRoute;
     _pendingRoute = null;
     return r;
+  }
+
+  static ({String id, String? tab})? consumePendingRequest() {
+    final id = _pendingRequestId;
+    final tab = _pendingRequestTab;
+    _pendingRequestId = null;
+    _pendingRequestTab = null;
+    if (id == null) return null;
+    return (id: id, tab: tab);
   }
 }
