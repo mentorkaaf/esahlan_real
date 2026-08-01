@@ -453,29 +453,87 @@
     body.dark-mode .main-content           { background:var(--dm-bg-page) !important; }
     body.dark-mode [class*="-page"]:not(body) { background:var(--dm-bg-page) !important; }
 
-    /* ─── Cards (global + page-specific patterns) ────────────────────────── */
+    /* ─── Cards: ALL page-specific card/stat/section classes ─────────────── */
     body.dark-mode .card,
     body.dark-mode .card-header,
     body.dark-mode .stat-card,
     body.dark-mode .modal-box,
-    /* dashboard cards */
+    body.dark-mode .section-card,
+    body.dark-mode .status-card,
+    body.dark-mode .modal-head,
+    /* dashboard */
     body.dark-mode .kpi-card,
     body.dark-mode .kpi,
     body.dark-mode .kpi-mini,
     body.dark-mode .dash-card,
-    /* wallet / ep-pay cards */
+    /* wallet / ep-pay */
     body.dark-mode .ep-card,
     body.dark-mode .ep-modal-box,
     /* dispatch / map */
     body.dark-mode .map-stat,
     body.dark-mode .driver-panel,
     body.dark-mode .dp-item,
+    body.dark-mode .dp-header,
     /* inbox / chat / support */
     body.dark-mode .chat-wrap,
     body.dark-mode .chat-input-row,
     body.dark-mode .st-card,
     body.dark-mode .st-link-card,
-    /* community / posts / emarry / etc page cards */
+    body.dark-mode .conv-table-wrap,
+    /* notifications */
+    body.dark-mode .nf-card,
+    body.dark-mode .nf-stat,
+    body.dark-mode .new-msg-banner,
+    /* broadcasts/campaigns */
+    body.dark-mode .bc-item,
+    body.dark-mode .bc-form-card,
+    body.dark-mode .bc-bulk-bar,
+    body.dark-mode .empty-bc,
+    body.dark-mode .bs-card,
+    body.dark-mode .bp-card,
+    body.dark-mode .bp-bottom,
+    /* mobile pay */
+    body.dark-mode .mp-card,
+    /* crypto exchange */
+    body.dark-mode .cx-card,
+    /* payment settings */
+    body.dark-mode .pm-config,
+    body.dark-mode .pm-method-card,
+    body.dark-mode .pm-page-header,
+    /* eshop stats */
+    body.dark-mode .es-stat,
+    body.dark-mode .od-card,
+    body.dark-mode .od-page-header,
+    /* eticket */
+    body.dark-mode .etkt-pax-card,
+    body.dark-mode .etkt-price-card,
+    /* elearning */
+    body.dark-mode .lv-card,
+    body.dark-mode .lv-section,
+    body.dark-mode .fd-card,
+    /* vendor detail */
+    body.dark-mode .vd-card,
+    body.dark-mode .vd-kpi,
+    /* modals / product */
+    body.dark-mode .pd-modal,
+    body.dark-mode .pd-modal-head,
+    body.dark-mode .mod-card,
+    /* rewards / points / q */
+    body.dark-mode .q-card,
+    body.dark-mode .sp-card,
+    body.dark-mode .sp-sb,
+    /* deliverymen / earnings */
+    body.dark-mode .dt-card,
+    body.dark-mode .ts-kpi,
+    /* moving */
+    body.dark-mode .mv-card,
+    body.dark-mode .mv-bottom,
+    /* user search results */
+    body.dark-mode .user-results,
+    body.dark-mode .user-search-results,
+    /* save/action bars */
+    body.dark-mode .save-bar,
+    /* community / posts / emarry / etc */
     body.dark-mode [class*="cm-card"],
     body.dark-mode [class*="-section"]:not(.nav-section-label),
     body.dark-mode [class*="-table-wrap"],
@@ -1045,16 +1103,16 @@
 /* ── Dark mode ── */
 const THEME_KEY = 'admin_theme';
 
-/* Override any element that has an inline light background via style="" attribute */
-const LIGHT_BG_RE = /(?:^|;)\s*background(?:-color)?\s*:\s*(?:#fff(?:fff)?|white|#f(?:[0-9a-f]{5}|[0-9a-f]{2})|rgba?\(\s*25[0-9]\s*,\s*25[0-9]\s*,\s*25[0-9])/i;
+/* Override inline style="" elements with light backgrounds — direct attribute replacement */
+var LIGHT_BG_RE = /background(?:-color)?\s*:\s*(?:#(?:fff(?:fff)?|f[0-9a-f]{5}|f[0-9a-f]{2})|white|rgba?\(\s*2[2-5]\d\s*,\s*2[2-5]\d\s*,\s*2[2-5]\d)/i;
 function applyDarkInlineStyles() {
     document.querySelectorAll('.main-content [style]').forEach(function(el) {
         var s = el.getAttribute('style') || '';
-        if (LIGHT_BG_RE.test(s)) {
-            if (!el._dmOrigStyle) el._dmOrigStyle = s;
-            el.style.setProperty('background-color', '#1a1d2e', 'important');
-            el.style.setProperty('border-color', '#2a2d3e', 'important');
-        }
+        if (!LIGHT_BG_RE.test(s)) return;
+        if (el._dmOrigStyle === undefined) el._dmOrigStyle = s;
+        /* Replace background value directly in the style string */
+        var replaced = s.replace(/background(?:-color)?\s*:[^;]*/gi, 'background-color:#1a1d2e');
+        el.setAttribute('style', replaced + ';border-color:#2a2d3e');
     });
 }
 function removeDarkInlineStyles() {
