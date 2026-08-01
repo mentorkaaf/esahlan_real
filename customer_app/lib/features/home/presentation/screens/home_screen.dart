@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/api/module_api_service.dart';
 import '../../../../core/widgets/network_image_widget.dart';
-import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/providers/app_settings_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/home_provider.dart';
 import '../../data/models/home_models.dart';
@@ -156,23 +156,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     ]),
                   ),
                   const Spacer(),
-                  // ── Dark/light mode toggle ──────────────────────────────
-                  IconButton(
-                    icon: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      transitionBuilder: (child, anim) =>
-                          RotationTransition(turns: anim, child: child),
-                      child: Icon(
-                        isDark ? Icons.wb_sunny_rounded : Icons.nightlight_round,
-                        key: ValueKey(isDark),
-                        color: isDark ? const Color(0xFFFFD54F) : cs.onSurface,
-                        size: 22,
-                      ),
-                    ),
-                    onPressed: () =>
-                        ref.read(themeModeProvider.notifier).toggle(),
-                    tooltip: isDark ? 'Light mode' : 'Dark mode',
-                  ),
+                  // ── Theme cycle toggle (system → light → dark) ─────────
+                  const _ThemeCycleButton(),
                   _NotifBell(cs: cs),
                 ],
               ),
@@ -780,6 +765,52 @@ class _NotifBell extends ConsumerWidget {
           ),
         ),
     ]);
+  }
+}
+
+// ─── Theme cycle button (system → light → dark → system) ─────────────────────
+
+class _ThemeCycleButton extends ConsumerWidget {
+  const _ThemeCycleButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(appSettingsProvider).themeMode;
+    final cs   = Theme.of(context).colorScheme;
+
+    final (icon, color, next, tip) = switch (mode) {
+      ThemeMode.system => (
+        Icons.brightness_auto_rounded,
+        cs.onSurface.withValues(alpha: 0.7),
+        'light',
+        'Auto (system)',
+      ),
+      ThemeMode.light => (
+        Icons.wb_sunny_rounded,
+        const Color(0xFFFFB300),
+        'dark',
+        'Light mode',
+      ),
+      ThemeMode.dark => (
+        Icons.nightlight_round,
+        const Color(0xFF90CAF9),
+        'system',
+        'Dark mode',
+      ),
+    };
+
+    return IconButton(
+      tooltip: tip,
+      onPressed: () => ref.read(appSettingsProvider.notifier).setTheme(next),
+      icon: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 280),
+        transitionBuilder: (child, anim) => ScaleTransition(
+          scale: anim,
+          child: FadeTransition(opacity: anim, child: child),
+        ),
+        child: Icon(icon, key: ValueKey(mode), color: color, size: 22),
+      ),
+    );
   }
 }
 
