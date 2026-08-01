@@ -3,7 +3,7 @@ import '../../../core/api/module_api_service.dart';
 import 'request_detail_screen.dart';
 
 /// Fetches a single house request by ID (from FCM deep link) and
-/// pushes RequestDetailScreen, then pops itself.
+/// opens RequestDetailScreen.
 class ERentRequestDeepLinkScreen extends StatefulWidget {
   final int requestId;
   final String? initialTab;
@@ -36,19 +36,10 @@ class _ERentRequestDeepLinkScreenState extends State<ERentRequestDeepLinkScreen>
       final request = Map<String, dynamic>.from(data as Map);
       if (!mounted) return;
 
-      // Replace this screen with RequestDetailScreen
-      await Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => RequestDetailScreen(
-            request: request,
-            initialTab: widget.initialTab,
-          ),
-        ),
-      );
+      await RequestDetailScreen.push(context, request, initialTab: widget.initialTab);
+      if (mounted) Navigator.of(context).pop();
     } catch (_) {
-      if (!mounted) return;
-      Navigator.pop(context);
+      if (mounted) Navigator.of(context).pop();
     }
   }
 
