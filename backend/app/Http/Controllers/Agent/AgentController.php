@@ -405,7 +405,7 @@ class AgentController extends Controller
             $customer = DB::table('users')->where('id', $req->customer_user_id)->first();
             $agent    = $request->user();
             if ($customer?->fcm_token) {
-                FcmService::send($customer->fcm_token, 'Agent Found! 🎉',
+                FcmService::sendToToken($customer->fcm_token, 'Agent Found! 🎉',
                     "Agent {$agent->name} has accepted your request {$req->request_ref}",
                     ['type' => 'house_request', 'id' => (string) $id, 'deep_link' => "/erent/request/{$id}"]);
             }
@@ -448,7 +448,7 @@ class AgentController extends Controller
             ];
             if ($customer?->fcm_token && isset($msgs[$request->status])) {
                 [$title, $body] = $msgs[$request->status];
-                FcmService::send($customer->fcm_token, $title, $body, ['type' => 'house_request', 'id' => (string) $id, 'deep_link' => "/erent/request/{$id}"]);
+                FcmService::sendToToken($customer->fcm_token, $title, $body, ['type' => 'house_request', 'id' => (string) $id, 'deep_link' => "/erent/request/{$id}"]);
             }
         } catch (\Throwable $e) {
             \Log::warning('[HouseRequest Status FCM] ' . $e->getMessage());
@@ -513,7 +513,7 @@ class AgentController extends Controller
         try {
             $customer = DB::table('users')->where('id', $req->customer_user_id)->first();
             if ($customer?->fcm_token) {
-                FcmService::send($customer->fcm_token, 'Property Found! 🏠',
+                FcmService::sendToToken($customer->fcm_token, 'Property Found! 🏠',
                     "Your agent found a great match for {$req->request_ref} — {$prop->title}",
                     ['type' => 'recommendation', 'request_id' => (string) $id, 'deep_link' => "/erent/request/{$id}?tab=recommendations"]);
             }
@@ -585,7 +585,7 @@ class AgentController extends Controller
             $customer = DB::table('users')->where('id', $req->customer_user_id)->first();
             if ($customer?->fcm_token) {
                 $dt = \Carbon\Carbon::parse($request->proposed_at)->format('D, d M Y H:i');
-                FcmService::send($customer->fcm_token, 'Viewing Scheduled 📅',
+                FcmService::sendToToken($customer->fcm_token, 'Viewing Scheduled 📅',
                     "Your agent scheduled a property viewing on {$dt}. Please confirm!",
                     ['type' => 'viewing', 'request_id' => (string) $id, 'deep_link' => '/erent']);
             }
@@ -654,7 +654,7 @@ class AgentController extends Controller
         try {
             $customer = DB::table('users')->where('id', $req->customer_user_id)->first();
             if ($customer?->fcm_token) {
-                FcmService::send($customer->fcm_token, "Message from Agent {$agent->name}",
+                FcmService::sendToToken($customer->fcm_token, "Message from Agent {$agent->name}",
                     $request->message,
                     ['type' => 'request_message', 'request_id' => (string) $id, 'deep_link' => "/erent/request/{$id}?tab=chat"]);
             }

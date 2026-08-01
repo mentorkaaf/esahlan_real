@@ -76,7 +76,7 @@ class GamificationService
             try {
                 $user = DB::table('users')->where('id', $userId)->first();
                 if ($user?->fcm_token) {
-                    \App\Services\FcmService::send(
+                    \App\Services\FcmService::sendToToken(
                         $user->fcm_token,
                         "🔥 {$newStreak}-Day Streak!",
                         "You earned {$bonusPts} bonus pts for your {$newStreak}-day ordering streak!",
@@ -183,7 +183,7 @@ class GamificationService
         try {
             $user = DB::table('users')->where('id', $userId)->first();
             if ($user?->fcm_token) {
-                \App\Services\FcmService::send(
+                \App\Services\FcmService::sendToToken(
                     $user->fcm_token,
                     "{$badge->icon} Badge Earned: {$badge->name}!",
                     $badge->description . ($badge->pts_reward > 0 ? " (+{$badge->pts_reward} pts)" : ''),

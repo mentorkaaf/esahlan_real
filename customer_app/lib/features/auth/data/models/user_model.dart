@@ -72,6 +72,7 @@ class UserModel {
     'referral_code': referralCode, 'points_balance': loyaltyPoints, 'tier': tier,
     'preferred_language': preferredLanguage,
     'district_id': districtId,
+    'has_wallet_pin': hasWalletPin,
     'role': roleSlug != null ? {'slug': roleSlug, 'name': roleName} : null,
     if (districtName != null) 'district': {'name': districtName, 'latitude': districtLat, 'longitude': districtLng},
   };

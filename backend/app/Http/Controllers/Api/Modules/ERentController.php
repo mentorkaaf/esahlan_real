@@ -530,7 +530,7 @@ class ERentController extends Controller
                 : 'All areas';
 
             foreach ($tokens as $token) {
-                FcmService::send($token, 'New House Request 🏠', "Customer looking for a ".($request->type ?? 'property')." in {$districtName}", ['type' => 'house_request', 'id' => (string)$id]);
+                FcmService::sendToToken($token, 'New House Request 🏠', "Customer looking for a ".($request->type ?? 'property')." in {$districtName}", ['type' => 'house_request', 'id' => (string)$id]);
             }
         } catch (\Throwable $e) {
             \Log::warning('[HouseRequest FCM] ' . $e->getMessage());
@@ -736,7 +736,7 @@ class ERentController extends Controller
                     'countered' => "Customer sent a counter-offer of \${$request->counter_price} for {$reqRow->request_ref}.",
                 ];
                 $agentType = match($status) { 'accepted' => 'offer_accepted', 'rejected' => 'offer_rejected', default => 'offer_countered' };
-                FcmService::send($agent->fcm_token, $titles[$status] ?? 'Update', $msgs[$status] ?? '', ['type' => $agentType, 'request_id' => (string) $id, 'deep_link' => "/agent/requests/{$id}"]);
+                FcmService::sendToToken($agent->fcm_token, $titles[$status] ?? 'Update', $msgs[$status] ?? '', ['type' => $agentType, 'request_id' => (string) $id, 'deep_link' => "/agent/requests/{$id}"]);
             }
         } catch (\Throwable $e) {}
 
@@ -788,7 +788,7 @@ class ERentController extends Controller
                     ? 'Customer confirmed the viewing! Please be on time.'
                     : 'Customer cancelled the viewing.';
                 $agentType = $status === 'confirmed' ? 'viewing_confirmed' : 'viewing_cancelled';
-                FcmService::send($agent->fcm_token, $status === 'confirmed' ? 'Viewing Confirmed! 📅' : 'Viewing Cancelled', $msg, ['type' => $agentType, 'id' => (string) $viewId, 'deep_link' => '/agent/requests']);
+                FcmService::sendToToken($agent->fcm_token, $status === 'confirmed' ? 'Viewing Confirmed! 📅' : 'Viewing Cancelled', $msg, ['type' => $agentType, 'id' => (string) $viewId, 'deep_link' => '/agent/requests']);
             }
         } catch (\Throwable $e) {}
 
@@ -845,7 +845,7 @@ class ERentController extends Controller
             if ($req->agent_user_id) {
                 $agent = DB::table('users')->where('id', $req->agent_user_id)->first();
                 if ($agent?->fcm_token) {
-                    FcmService::send($agent->fcm_token, "Message from {$user->name}",
+                    FcmService::sendToToken($agent->fcm_token, "Message from {$user->name}",
                         $request->message,
                         ['type' => 'request_message_agent', 'request_id' => (string) $id, 'deep_link' => "/agent/requests/{$id}?tab=chat"]);
                 }
