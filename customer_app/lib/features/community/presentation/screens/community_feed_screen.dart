@@ -36,6 +36,7 @@ import '../../../podcast/data/models/podcast_models.dart' show PodcastEpisode;
 import '../../../podcast/data/repositories/podcast_repository.dart' show PodcastRepository;
 import '../../../podcast/presentation/services/podcast_audio_service.dart' show PodcastAudioService;
 import '../../../podcast/presentation/screens/episode_player_screen.dart' show EpisodePlayerScreen;
+import 'emarry_screen.dart';
 
 // ── Timeago cache ─────────────────────────────────────────────────────────────
 // timeago.format() is called for every visible post card on every build.
@@ -77,7 +78,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 4, vsync: this);
+    _tabCtrl = TabController(length: 5, vsync: this);
     _scrollCtrl.addListener(() {
       if (_scrollCtrl.offset < 100 && _hasNewPosts) {
         setState(() => _hasNewPosts = false);
@@ -209,6 +210,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
                 Tab(icon: Icon(Icons.podcasts_rounded, size: 20), text: 'Podcast'),
                 Tab(icon: Icon(Icons.people_rounded, size: 20), text: 'People'),
                 Tab(icon: Icon(Icons.store_rounded, size: 20), text: 'Business'),
+                Tab(icon: Icon(Icons.favorite_rounded, size: 20), text: 'eMarry'),
               ],
             ),
           ),
@@ -220,6 +222,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
             PodcastHomeScreen(),
             _PeopleTab(),
             _BusinessesTab(),
+            EMarryScreen(),
           ],
         ),
       ),

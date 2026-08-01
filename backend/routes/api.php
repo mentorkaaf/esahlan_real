@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\Api\Community\CommunityFeedController;
+use App\Http\Controllers\Api\Community\EMarryController;
 use App\Http\Controllers\Api\Community\CommunityPostController;
 use App\Http\Controllers\Api\Community\CommunityCommentController;
 use App\Http\Controllers\Api\Community\CommunityProfileController;
@@ -470,6 +471,17 @@ Route::prefix('v1')->group(function () {
         // Settings
         Route::get('community/settings',                              [UserSettingsController::class, 'index']);
         Route::put('community/settings',                              [UserSettingsController::class, 'update']);
+
+        // ── eMarry ────────────────────────────────────────────────────────────
+        Route::prefix('emarry')->group(function () {
+            Route::get('profiles',                    [EMarryController::class, 'index']);
+            Route::get('profile/me',                  [EMarryController::class, 'myProfile']);
+            Route::post('profile',                    [EMarryController::class, 'saveProfile']);
+            Route::post('photo',                      [EMarryController::class, 'uploadPhoto']);
+            Route::post('interest/{userId}',          [EMarryController::class, 'sendInterest']);
+            Route::post('interest/{senderId}/respond',[EMarryController::class, 'respondInterest']);
+            Route::get('interests/received',          [EMarryController::class, 'receivedInterests']);
+        });
         Route::get('community/settings/blocked-users',                [UserSettingsController::class, 'blockedUsers']);
         Route::delete('community/settings/blocked-users/{id}',        [UserSettingsController::class, 'unblock']);
         Route::get('community/settings/muted-users',                  [UserSettingsController::class, 'mutedUsers']);
