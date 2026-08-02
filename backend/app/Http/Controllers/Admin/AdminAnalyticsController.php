@@ -193,6 +193,36 @@ class AdminAnalyticsController extends Controller
             $totalBadges    = DB::table('user_badges')->count();
             $totalReferrals = DB::table('referrals')->count();
 
+            // ── All 13 E-Commerce Modules — single join query ─────────────────
+            $moduleStats = DB::table('modules')
+                ->leftJoin('orders', 'orders.module_slug', '=', 'modules.slug')
+                ->leftJoin('vendors', function ($j) {
+                    $j->on('vendors.module_slug', '=', 'modules.slug')
+                      ->whereNull('vendors.deleted_at')
+                      ->where('vendors.is_approved', 1);
+                })
+                ->selectRaw('
+                    modules.id, modules.name, modules.slug,
+                    COUNT(DISTINCT orders.id)                                              AS total_orders,
+                    COALESCE(SUM(orders.total_amount), 0)                                  AS revenue,
+                    COALESCE(SUM(CASE WHEN orders.status="delivered" THEN orders.total_amount ELSE 0 END), 0) AS delivered_revenue,
+                    COUNT(DISTINCT CASE WHEN orders.status="delivered" THEN orders.id END) AS delivered_orders,
+                    COUNT(DISTINCT vendors.id)                                             AS vendor_count
+                ')
+                ->groupBy('modules.id', 'modules.name', 'modules.slug')
+                ->orderBy('modules.id')
+                ->get();
+
+            // Product counts per module slug
+            $productsByModule = DB::table('products')
+                ->join('vendors', 'products.vendor_id', '=', 'vendors.id')
+                ->whereNull('vendors.deleted_at')
+                ->whereNull('products.deleted_at')
+                ->where('products.is_available', 1)
+                ->selectRaw('vendors.module_slug AS slug, COUNT(*) AS cnt')
+                ->groupBy('vendors.module_slug')
+                ->pluck('cnt', 'slug');
+
             return compact(
                 'totalUsers', 'newLast7', 'newLast30', 'newLast90',
                 'totalVendors', 'totalDrivers',
@@ -211,7 +241,8 @@ class AdminAnalyticsController extends Controller
                 'cryptoOrders', 'p2pAds',
                 'walletTxns', 'walletVolume',
                 'houseRequests', 'rentAgents',
-                'totalBadges', 'totalReferrals'
+                'totalBadges', 'totalReferrals',
+                'moduleStats', 'productsByModule'
             );
         });
 
