@@ -10,6 +10,7 @@ import '../../../../core/widgets/network_image_widget.dart';
 import '../providers/community_provider.dart';
 import 'community_chat_screen.dart';
 import 'community_shell.dart' show kOrange;
+import 'emarry_payment_screen.dart';
 
 // ─── Providers ────────────────────────────────────────────────────────────────
 
@@ -233,9 +234,21 @@ class _DiscoverTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(_discoverProvider);
 
-    return Stack(children: [
+    final statusAsync = ref.watch(emarryStatusProvider);
+    final emarryStatus = statusAsync.valueOrNull;
+    final swipesLeft = emarryStatus?.swipesRemaining;
+    final limitReached = swipesLeft != null && swipesLeft <= 0;
+
+    return Column(children: [
+      // Swipe limit banner for free users
+      if (emarryStatus != null && !emarryStatus.isPremium && swipesLeft != null)
+        _SwipeLimitBanner(remaining: swipesLeft, total: emarryStatus.freeDailySwipes),
+
+      Expanded(child: Stack(children: [
       // Card stack
-      if (state.loading && state.cards.isEmpty)
+      if (limitReached)
+        _LimitReachedView(onUpgrade: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EMarryPaymentScreen())))
+      else if (state.loading && state.cards.isEmpty)
         const Center(child: CircularProgressIndicator(color: kOrange))
       else if (state.hasError && state.cards.isEmpty)
         _ErrorDiscover(onRetry: () => ref.refresh(_discoverProvider))
@@ -253,7 +266,8 @@ class _DiscoverTab extends ConsumerWidget {
             ref.invalidate(_matchesProvider);
           },
         ),
-    ]);
+    ])),  // Stack + Expanded
+    ]);   // Column
   }
 }
 
@@ -580,6 +594,71 @@ class _CardChip extends StatelessWidget {
     ),
     child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
   );
+}
+
+// ─── Swipe Limit Banner ───────────────────────────────────────────────────────
+
+class _SwipeLimitBanner extends StatelessWidget {
+  final int remaining, total;
+  const _SwipeLimitBanner({required this.remaining, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = remaining / total;
+    final color = remaining <= 2 ? const Color(0xFFEF4444) : kOrange;
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+      child: Row(children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          ClipRRect(borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(value: pct.clamp(0.0, 1.0),
+                backgroundColor: const Color(0xFFE5E7EB), color: color, minHeight: 4)),
+          const SizedBox(height: 3),
+          Text('$remaining swipes left today', style: TextStyle(fontSize: 10.5, color: color, fontWeight: FontWeight.w600)),
+        ])),
+        const SizedBox(width: 10),
+        GestureDetector(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EMarryPaymentScreen())),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(20)),
+            child: const Text('Upgrade', style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700)),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ─── Limit Reached ───────────────────────────────────────────────────────────
+
+class _LimitReachedView extends StatelessWidget {
+  final VoidCallback onUpgrade;
+  const _LimitReachedView({required this.onUpgrade});
+  @override
+  Widget build(BuildContext context) => Center(child: Padding(
+    padding: const EdgeInsets.all(32),
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(width: 80, height: 80, decoration: BoxDecoration(color: const Color(0xFFFFF7ED), shape: BoxShape.circle),
+        child: const Center(child: Text('💍', style: TextStyle(fontSize: 36)))),
+      const SizedBox(height: 20),
+      const Text("You've used all your\nfree swipes today!", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)), textAlign: TextAlign.center),
+      const SizedBox(height: 8),
+      const Text('Upgrade to Premium for unlimited swipes\nand find your match faster.',
+          style: TextStyle(color: Color(0xFF6B7280), fontSize: 13, height: 1.5), textAlign: TextAlign.center),
+      const SizedBox(height: 24),
+      SizedBox(width: double.infinity, child: ElevatedButton(
+        onPressed: onUpgrade,
+        style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(vertical: 14)),
+        child: const Text('Get Premium — \$4.99/mo', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+      )),
+      const SizedBox(height: 8),
+      const Text('Resets tomorrow at midnight', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+    ]),
+  ));
 }
 
 // ─── Error Discover ───────────────────────────────────────────────────────────
@@ -1157,6 +1236,58 @@ class _ProfileView extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
           )),
+        const SizedBox(height: 10),
+        // Premium upgrade card
+        Consumer(builder: (ctx, cref, _) {
+          final statusAsync = cref.watch(emarryStatusProvider);
+          return statusAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (s) => s.isPremium
+              ? Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Color(0xFFFF8A00), Color(0xFFF59E0B)]),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('${s.plan?.toUpperCase() ?? 'PREMIUM'} Active',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
+                      Text('${s.credits} credits  ·  Expires ${s.planExpiresAt?.split('T').first ?? ''}',
+                          style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                    ])),
+                    TextButton(
+                      onPressed: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => const EMarryPaymentScreen())),
+                      child: const Text('Manage', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                    ),
+                  ]),
+                )
+              : GestureDetector(
+                  onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => const EMarryPaymentScreen())),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: kOrange),
+                      borderRadius: BorderRadius.circular(14),
+                      color: const Color(0xFFFFF7ED),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.workspace_premium_rounded, color: kOrange, size: 22),
+                      const SizedBox(width: 10),
+                      const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Upgrade to Premium', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF0F172A))),
+                        Text('Unlimited swipes · Chat · Credits from \$4.99/mo', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                      ])),
+                      const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: kOrange),
+                    ]),
+                  ),
+                ),
+          );
+        }),
+        const SizedBox(height: 40),
       ]),
     );
   }

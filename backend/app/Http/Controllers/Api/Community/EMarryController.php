@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Community;
 
 use App\Events\EMarryInterestAccepted;
 use App\Events\EMarryInterestSent;
+use App\Http\Controllers\Api\Community\EMarryPaymentController;
 use App\Http\Controllers\Controller;
 use App\Services\FcmService;
 use Illuminate\Http\Request;
@@ -205,7 +206,11 @@ class EMarryController extends Controller
     public function passProfile(Request $request, int $userId)
     {
         $user = $request->user();
-        // Record pass so we don't show this profile again (24h)
+
+        if ($limit = EMarryPaymentController::checkSwipeLimitOrFail($user->id)) {
+            return response()->json(['success' => false] + $limit, 402);
+        }
+
         DB::table('emarry_passes')->updateOrInsert(
             ['user_id' => $user->id, 'passed_user_id' => $userId],
             ['created_at' => now()]
@@ -222,6 +227,10 @@ class EMarryController extends Controller
         $sender   = $request->user();
         if ($sender->id === $userId) {
             return response()->json(['success' => false, 'message' => 'Cannot send interest to yourself'], 422);
+        }
+
+        if ($limit = EMarryPaymentController::checkSwipeLimitOrFail($sender->id)) {
+            return response()->json(['success' => false] + $limit, 402);
         }
 
         // Check receiver has approved profile

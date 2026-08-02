@@ -1,6 +1,7 @@
 <?php
 use App\Http\Controllers\Api\Community\CommunityFeedController;
 use App\Http\Controllers\Api\Community\EMarryController;
+use App\Http\Controllers\Api\Community\EMarryPaymentController;
 use App\Http\Controllers\Api\Community\CommunityPostController;
 use App\Http\Controllers\Api\Community\CommunityCommentController;
 use App\Http\Controllers\Api\Community\CommunityProfileController;
@@ -484,6 +485,15 @@ Route::prefix('v1')->group(function () {
             Route::get('interests/sent',              [EMarryController::class, 'sentInterests']);
             Route::get('matches',                     [EMarryController::class, 'matches']);
             Route::post('pass/{userId}',              [EMarryController::class, 'passProfile']);
+
+            // Payment & monetization
+            Route::get ('payment/plans',                        [EMarryPaymentController::class, 'plans']);
+            Route::get ('payment/status',                       [EMarryPaymentController::class, 'status']);
+            Route::get ('payment/poll/{ref}',                   [EMarryPaymentController::class, 'poll']);
+            Route::post('payment/subscribe',                    [EMarryPaymentController::class, 'subscribe']);
+            Route::post('payment/credits/buy',                  [EMarryPaymentController::class, 'buyCredits']);
+            Route::post('payment/mobile-pay/screenshot',        [EMarryPaymentController::class, 'uploadMobilePayScreenshot']);
+            Route::post('credits/use',                          [EMarryPaymentController::class, 'useCredit']);
         });
         Route::get('community/settings/blocked-users',                [UserSettingsController::class, 'blockedUsers']);
         Route::delete('community/settings/blocked-users/{id}',        [UserSettingsController::class, 'unblock']);
