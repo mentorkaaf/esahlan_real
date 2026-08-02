@@ -237,6 +237,8 @@ class _DiscoverTab extends ConsumerWidget {
       // Card stack
       if (state.loading && state.cards.isEmpty)
         const Center(child: CircularProgressIndicator(color: kOrange))
+      else if (state.hasError && state.cards.isEmpty)
+        _ErrorDiscover(onRetry: () => ref.refresh(_discoverProvider))
       else if (!state.loading && state.cards.isEmpty)
         _EmptyDiscover(onRefresh: () => ref.refresh(_discoverProvider))
       else
@@ -578,6 +580,30 @@ class _CardChip extends StatelessWidget {
     ),
     child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
   );
+}
+
+// ─── Error Discover ───────────────────────────────────────────────────────────
+
+class _ErrorDiscover extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _ErrorDiscover({required this.onRetry});
+  @override
+  Widget build(BuildContext context) => Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+    const Icon(Icons.wifi_off_rounded, size: 72, color: Color(0xFFE5E7EB)),
+    const SizedBox(height: 16),
+    const Text('Something went wrong', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF374151))),
+    const SizedBox(height: 8),
+    const Text('Check your connection and try again', style: TextStyle(color: Color(0xFF9CA3AF))),
+    const SizedBox(height: 24),
+    ElevatedButton.icon(
+      onPressed: onRetry,
+      icon: const Icon(Icons.refresh_rounded, size: 18),
+      label: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.w700)),
+      style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+    ),
+  ]));
 }
 
 // ─── Empty Discover ───────────────────────────────────────────────────────────
