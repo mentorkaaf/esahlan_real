@@ -172,7 +172,7 @@ class AdminAnalyticsController extends Controller
 
             // ── eRent ────────────────────────────────────────────────────────
             $houseRequests = DB::table('house_requests')->count();
-            $rentAgents    = DB::table('users')->where('role', 'agent')->count();
+            $rentAgents    = DB::table('users')->where('role_id', 12)->count();
 
             // ── Gamification ─────────────────────────────────────────────────
             $totalBadges    = DB::table('user_badges')->count();
