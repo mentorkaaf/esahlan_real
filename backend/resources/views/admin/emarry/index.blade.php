@@ -98,9 +98,18 @@
 
   <div class="em-header">
     <div class="em-title"><span>💍</span> eMarry Management</div>
-    <a href="{{ route('admin.emarry.interests') }}" class="btn-view">
-      <i class="fas fa-heart"></i> View All Interests
-    </a>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="{{ route('admin.emarry.interests') }}" class="btn-view">
+        <i class="fas fa-heart"></i> View All Interests
+      </a>
+      <a href="{{ route('admin.emarry.monetization') }}" class="btn-view" style="background:linear-gradient(135deg,#FF8A00,#ff6b00);color:#fff;border-color:transparent">
+        <i class="fas fa-dollar-sign"></i> 💰 Monetization
+        @php $pendingMp = \Illuminate\Support\Facades\DB::table('emarry_mobile_pay_requests')->where('status','pending')->count(); @endphp
+        @if($pendingMp > 0)
+        <span style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">{{ $pendingMp }}</span>
+        @endif
+      </a>
+    </div>
   </div>
 
   {{-- Alerts --}}

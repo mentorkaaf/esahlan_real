@@ -886,13 +886,29 @@
             <a href="{{ route('admin.podcast.index') }}" class="nav-link {{ request()->routeIs('admin.podcast.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-podcast"></i></div> Podcasts
             </a>
-            <a href="{{ route('admin.emarry.index') }}" class="nav-link {{ request()->routeIs('admin.emarry.*') ? 'active' : '' }}">
+            <div class="nav-link nav-toggle-btn {{ request()->routeIs('admin.emarry.*') ? 'open active' : '' }}"
+                 onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
                 <div class="nav-icon">💍</div> eMarry
-                @php $emPending = \Illuminate\Support\Facades\DB::table('emarry_profiles')->where('status','pending')->count(); @endphp
+                @php $emPending = \Illuminate\Support\Facades\DB::table('emarry_profiles')->where('status','pending')->count(); $emMpPending = \Illuminate\Support\Facades\DB::table('emarry_mobile_pay_requests')->where('status','pending')->count(); @endphp
                 @if($emPending > 0)
                   <span style="margin-left:auto;background:#E11D48;color:#fff;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:800;">{{ $emPending }}</span>
                 @endif
-            </a>
+                <i class="fas fa-chevron-right toggle-arrow"></i>
+            </div>
+            <div class="nav-sub {{ request()->routeIs('admin.emarry.*') ? 'open' : '' }}">
+                <a href="{{ route('admin.emarry.index') }}" class="nav-link nav-sub-link {{ request()->routeIs('admin.emarry.index') ? 'active' : '' }}">
+                    👥 Profiles
+                </a>
+                <a href="{{ route('admin.emarry.interests') }}" class="nav-link nav-sub-link {{ request()->routeIs('admin.emarry.interests') ? 'active' : '' }}">
+                    💞 Interests
+                </a>
+                <a href="{{ route('admin.emarry.monetization') }}" class="nav-link nav-sub-link {{ request()->routeIs('admin.emarry.monetization*') ? 'active' : '' }}">
+                    💰 Monetization
+                    @if($emMpPending > 0)
+                    <span style="margin-left:auto;background:#E11D48;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:800;">{{ $emMpPending }}</span>
+                    @endif
+                </a>
+            </div>
         </div>
 
         {{-- Live Management --}}

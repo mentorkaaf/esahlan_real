@@ -383,7 +383,13 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/{id}/reject',        [$em, 'reject'])->name('reject');
             Route::delete('/{id}',             [$em, 'delete'])->name('delete');
             Route::get('/{id}/detail',         [$em, 'detail'])->name('detail');
-            Route::get('/all/interests',       [$em, 'interests'])->name('interests');
+            Route::get('/all/interests',                [$em, 'interests'])->name('interests');
+            // Monetization management
+            Route::get('/monetization',                 [$em, 'monetization'])->name('monetization');
+            Route::post('/monetization/mobile-pay/{id}/approve', [$em, 'approveMobilePay'])->name('monetization.mobile-pay.approve');
+            Route::post('/monetization/mobile-pay/{id}/reject',  [$em, 'rejectMobilePay'])->name('monetization.mobile-pay.reject');
+            Route::post('/monetization/subscription/{id}/cancel',[$em, 'cancelSubscription'])->name('monetization.subscription.cancel');
+            Route::post('/monetization/credits/grant',           [$em, 'grantCredits'])->name('monetization.credits.grant');
         });
 
         Route::prefix('community')->name('community.')->group(function () {
