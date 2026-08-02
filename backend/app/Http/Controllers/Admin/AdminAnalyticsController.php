@@ -27,7 +27,7 @@ class AdminAnalyticsController extends Controller
         $liveRoomsToday = DB::table('live_rooms')->whereDate('created_at', today())->count();
         $liveOnline     = DB::table('live_rooms')->where('status', 'live')->count();
 
-        $cached = Cache::remember('admin:analytics:v2', 300, function () {
+        $cached = Cache::remember('admin:analytics:v3', 300, function () {
             $now        = now();
             $startToday = today();
             $start7d    = $now->copy()->subDays(7);
@@ -45,8 +45,9 @@ class AdminAnalyticsController extends Controller
             $newLast90    = User::where('created_at', '>=', $start90d)->count();
             $wau          = User::where('updated_at', '>=', $start7d)->count();
             $mau          = User::where('updated_at', '>=', $start30d)->count();
-            $totalVendors = DB::table('vendors')->count();
-            $totalDrivers = DB::table('deliverymen')->count();
+            // Exclude soft-deleted rows; only count active+approved vendors
+            $totalVendors = DB::table('vendors')->whereNull('deleted_at')->where('is_approved', 1)->count();
+            $totalDrivers = DB::table('deliverymen')->whereNull('deleted_at')->count();
 
             // ── Revenue — single scan with CASE WHEN ─────────────────────────
             $rev = DB::table('orders')
