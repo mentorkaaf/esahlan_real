@@ -202,7 +202,8 @@
             @endif
             <span class="chip">⏱ {{ now()->format('H:i') }} UTC+3</span>
             <span class="chip">👤 {{ number_format($dau) }} active today</span>
-            <span class="chip">📦 {{ number_format($orderFunnel->get('pending',0)) }} orders pending</span>
+            <span class="chip">📦 {{ number_format($pendingOrders) }} orders pending</span>
+            <span class="chip" id="last-updated">🔄 Just loaded</span>
         </div>
     </div>
     <button class="btn-refresh" onclick="location.reload()"><i class="fas fa-sync-alt"></i> Refresh</button>
@@ -222,9 +223,9 @@
         <div class="kpi">
             <div class="kpi-icon" style="background:var(--g-soft);color:var(--green)">📅</div>
             <div class="kpi-body">
-                <div class="kpi-val">{{ number_format($dau) }}</div>
-                <div class="kpi-lbl">DAU</div>
-                <div class="kpi-delta delta-nt">{{ $totalUsers>0?round($dau/$totalUsers*100,1):0 }}% of total</div>
+                <div class="kpi-val" id="kpi-dau">{{ number_format($dau) }}</div>
+                <div class="kpi-lbl">DAU · Today</div>
+                <div class="kpi-delta delta-nt">{{ number_format($wau) }} WAU · {{ number_format($mau) }} MAU</div>
             </div>
         </div>
         <div class="kpi">
@@ -786,5 +787,43 @@ const ca=@json($communityActivity);
         options:{...base}
     });
 });
+
+// ── "Last updated" timer ───────────────────────────────────────────────────
+const loadedAt = Date.now();
+const chip = document.getElementById('last-updated');
+setInterval(() => {
+    const s = Math.floor((Date.now() - loadedAt) / 1000);
+    if (s < 60) chip.textContent = '🔄 ' + s + 's ago';
+    else chip.textContent = '🔄 ' + Math.floor(s/60) + 'm ago';
+}, 5000);
+
+// ── Auto-refresh every 90 seconds (live data: DAU, orders, live rooms) ─────
+// Only refreshes the /analytics/api endpoint and patches live numbers
+const LIVE_FIELDS = ['dau','wau','mau','liveOnline','liveRoomsToday','pendingOrders'];
+setInterval(async () => {
+    try {
+        const r = await fetch('/admin/analytics/api');
+        if (!r.ok) return;
+        const {data} = await r.json();
+
+        // Patch KPI strip values
+        const patches = {
+            'kpi-dau':    data.dau + ' / ' + data.wau + 'W / ' + data.mau + 'M',
+            'kpi-live':   data.liveOnline + ' active',
+            'kpi-pending': data.pendingOrders + ' pending',
+        };
+        Object.entries(patches).forEach(([id, val]) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        });
+
+        // Patch header chip
+        document.getElementById('last-updated').textContent = '🔄 Just now';
+        setTimeout(() => {
+            const s = Math.floor((Date.now() - loadedAt) / 1000);
+            chip.textContent = '🔄 ' + Math.floor(s/60) + 'm ago';
+        }, 3000);
+    } catch(e) {}
+}, 90000);
 </script>
 @endpush

@@ -22,12 +22,28 @@ class AdminAnalyticsController extends Controller
 
     private function getData(): array
     {
-        // Live metrics excluded from cache (change every minute)
-        $dau            = User::whereDate('updated_at', today())->count();
+        // ── LIVE metrics — never cached, recomputed every request ─────────────
+        // DAU: unique users who made an API call today (last_used_at on token)
+        $dau = DB::table('personal_access_tokens')
+            ->whereDate('last_used_at', today())
+            ->distinct('tokenable_id')
+            ->count('tokenable_id');
+
         $liveRoomsToday = DB::table('live_rooms')->whereDate('created_at', today())->count();
         $liveOnline     = DB::table('live_rooms')->where('status', 'live')->count();
 
-        $cached = Cache::remember('admin:analytics:v3', 300, function () {
+        // WAU/MAU also live — change as users log in throughout the day
+        $wau = DB::table('personal_access_tokens')
+            ->where('last_used_at', '>=', now()->subDays(7))
+            ->distinct('tokenable_id')->count('tokenable_id');
+        $mau = DB::table('personal_access_tokens')
+            ->where('last_used_at', '>=', now()->subDays(30))
+            ->distinct('tokenable_id')->count('tokenable_id');
+
+        // Pending orders — show exactly what's waiting right now
+        $pendingOrders = DB::table('orders')->where('status', 'pending')->count();
+
+        $cached = Cache::remember('admin:analytics:v4', 120, function () {
             $now        = now();
             $startToday = today();
             $start7d    = $now->copy()->subDays(7);
@@ -43,9 +59,7 @@ class AdminAnalyticsController extends Controller
             $newLast7     = User::where('created_at', '>=', $start7d)->count();
             $newLast30    = User::where('created_at', '>=', $start30d)->count();
             $newLast90    = User::where('created_at', '>=', $start90d)->count();
-            $wau          = User::where('updated_at', '>=', $start7d)->count();
-            $mau          = User::where('updated_at', '>=', $start30d)->count();
-            // Exclude soft-deleted rows; only count active+approved vendors
+            // Exclude soft-deleted; only active+approved vendors
             $totalVendors = DB::table('vendors')->whereNull('deleted_at')->where('is_approved', 1)->count();
             $totalDrivers = DB::table('deliverymen')->whereNull('deleted_at')->count();
 
@@ -181,7 +195,7 @@ class AdminAnalyticsController extends Controller
 
             return compact(
                 'totalUsers', 'newLast7', 'newLast30', 'newLast90',
-                'wau', 'mau', 'totalVendors', 'totalDrivers',
+                'totalVendors', 'totalDrivers',
                 'revenueToday', 'revenueWeek', 'revenueMonth', 'revenueTotal',
                 'commissionMonth', 'commissionTotal',
                 'revenueByModule', 'dailyRevenue', 'monthlyRevenue', 'userGrowth',
@@ -201,6 +215,6 @@ class AdminAnalyticsController extends Controller
             );
         });
 
-        return array_merge($cached, compact('dau', 'liveRoomsToday', 'liveOnline'));
+        return array_merge($cached, compact('dau', 'wau', 'mau', 'liveRoomsToday', 'liveOnline', 'pendingOrders'));
     }
 }
