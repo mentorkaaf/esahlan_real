@@ -95,60 +95,73 @@ class CommunityFeedController extends Controller
     // ─── Cold start feed for new users with no interaction history ──────
     private function coldStartFeed(int $userId, int $page): \Illuminate\Http\JsonResponse
     {
+        $perPage      = 30;
         $followingIds = CommunityFollow::where('follower_id', $userId)->pluck('following_id');
-        $blockedIds = DB::table('community_blocks')
+        $blockedIds   = DB::table('community_blocks')
             ->where('blocker_id', $userId)->pluck('blocked_id')->toArray();
+
+        // Score: following posts rank higher, then by engagement × recency
+        $followInClause = $followingIds->isNotEmpty()
+            ? implode(',', $followingIds->map(fn ($id) => (int) $id)->toArray())
+            : '0';
 
         $query = CommunityPost::with(['user.communityProfile', 'media', 'userReaction', 'page'])
             ->whereNull('group_id')
             ->where('privacy', '!=', 'private')
-            ->where(fn ($q) => $q->where('video_ready', true)->orWhere('user_id', $userId));
+            ->where('created_at', '>', now()->subDays(14))
+            ->where(fn ($q) => $q->where('video_ready', true)->orWhere('user_id', $userId))
+            ->orderByRaw("
+                (CASE WHEN user_id IN ({$followInClause}) THEN 3.0 ELSE 1.0 END)
+                * (likes_count + comments_count * 2 + shares_count * 3 + 1)
+                * (1.0 / GREATEST(1, TIMESTAMPDIFF(HOUR, created_at, NOW())))
+                DESC
+            ");
 
         if (!empty($blockedIds)) {
             $query->whereNotIn('user_id', $blockedIds);
         }
 
-        if ($followingIds->isNotEmpty()) {
-            // Mix: 70% following, 30% popular
-            $followingPosts = (clone $query)
-                ->whereIn('user_id', $followingIds)
-                ->latest()
-                ->limit(10)
-                ->get();
+        $paginated       = $query->paginate($perPage, ['*'], 'page', $page);
+        $posts           = $paginated->getCollection();
+        $postIds         = $posts->pluck('id')->toArray();
+        $followingIdsArr = $followingIds->toArray();
 
-            $popularPosts = (clone $query)
-                ->whereNotIn('user_id', $followingIds)
-                ->where('created_at', '>', now()->subDays(7))
-                ->orderByRaw('(likes_count + comments_count * 2 + shares_count * 3) DESC')
-                ->limit(5)
-                ->get();
+        $savedPostIds = DB::table('community_saved_posts')
+            ->where('user_id', $userId)
+            ->whereIn('post_id', $postIds)
+            ->pluck('post_id')
+            ->toArray();
 
-            $merged = $followingPosts->concat($popularPosts)->unique('id');
-        } else {
-            // No follows: show popular + recent
-            $merged = $query
-                ->where('created_at', '>', now()->subDays(7))
-                ->orderByRaw('(likes_count + comments_count * 2 + shares_count * 3 + 1) * (1.0 / GREATEST(1, TIMESTAMPDIFF(HOUR, created_at, NOW()))) DESC')
-                ->limit(15)
+        // Reaction counts (same as ranked path — avoids zero-count display bug)
+        $reactionCounts = [];
+        if (!empty($postIds)) {
+            $rows = DB::table('community_reactions')
+                ->whereIn('post_id', $postIds)
+                ->select('post_id', 'reaction', DB::raw('COUNT(*) as cnt'))
+                ->groupBy('post_id', 'reaction')
                 ->get();
+            foreach ($rows as $r) {
+                $reactionCounts[$r->post_id][$r->reaction] = $r->cnt;
+            }
         }
 
-        $postIds = $merged->pluck('id')->toArray();
-        $followingIdsArr = $followingIds->toArray();
-        $savedPostIds = \DB::table('community_saved_posts')
-            ->where('user_id', $userId)->whereIn('post_id', $postIds)->pluck('post_id')->toArray();
+        $transformed = $posts->map(
+            fn ($p) => $this->transformPost($p, $userId, $followingIdsArr, $savedPostIds, $reactionCounts[$p->id] ?? [])
+        )->toArray();
 
-        $transformed = $merged->map(fn ($p) => $this->transformPost($p, $userId, $followingIdsArr, $savedPostIds))->toArray();
         $transformed = $this->injectFeedAds($transformed, $userId);
         $transformed = $this->injectPodcastCards($transformed, $userId);
 
-        InteractionTracker::trackImpressions($userId, $merged->pluck('id')->toArray());
+        InteractionTracker::trackImpressions($userId, $postIds);
 
-        $total = $merged->count();
         return response()->json([
             'status' => 'success',
             'data'   => $transformed,
-            'meta'   => ['current_page' => $page, 'last_page' => 1, 'total' => $total],
+            'meta'   => [
+                'current_page' => $paginated->currentPage(),
+                'last_page'    => $paginated->lastPage(),
+                'total'        => $paginated->total(),
+            ],
         ]);
     }
 
