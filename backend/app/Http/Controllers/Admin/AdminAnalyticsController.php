@@ -23,11 +23,11 @@ class AdminAnalyticsController extends Controller
     private function getData(): array
     {
         // Live metrics excluded from cache (change every minute)
-        $dau           = User::whereDate('updated_at', today())->count();
+        $dau            = User::whereDate('updated_at', today())->count();
         $liveRoomsToday = DB::table('live_rooms')->whereDate('created_at', today())->count();
+        $liveOnline     = DB::table('live_rooms')->where('status', 'live')->count();
 
-        $cached = Cache::remember('admin:analytics:v1', 300, function () {
-            // Pre-compute date boundaries once — no repeated copy() allocations
+        $cached = Cache::remember('admin:analytics:v2', 300, function () {
             $now        = now();
             $startToday = today();
             $start7d    = $now->copy()->subDays(7);
@@ -39,12 +39,14 @@ class AdminAnalyticsController extends Controller
             $start13d   = $now->copy()->subDays(13);
 
             // ── User Metrics ─────────────────────────────────────────────────
-            $totalUsers = User::count();
-            $newLast7   = User::where('created_at', '>=', $start7d)->count();
-            $newLast30  = User::where('created_at', '>=', $start30d)->count();
-            $newLast90  = User::where('created_at', '>=', $start90d)->count();
-            $wau        = User::where('updated_at', '>=', $start7d)->count();
-            $mau        = User::where('updated_at', '>=', $start30d)->count();
+            $totalUsers   = User::count();
+            $newLast7     = User::where('created_at', '>=', $start7d)->count();
+            $newLast30    = User::where('created_at', '>=', $start30d)->count();
+            $newLast90    = User::where('created_at', '>=', $start90d)->count();
+            $wau          = User::where('updated_at', '>=', $start7d)->count();
+            $mau          = User::where('updated_at', '>=', $start30d)->count();
+            $totalVendors = DB::table('vendors')->count();
+            $totalDrivers = DB::table('deliverymen')->count();
 
             // ── Revenue — single scan with CASE WHEN ─────────────────────────
             $rev = DB::table('orders')
@@ -94,18 +96,19 @@ class AdminAnalyticsController extends Controller
                 ->groupBy('date')->orderBy('date')->get()
                 ->map(fn($r) => ['date' => $r->date, 'new_users' => (int)$r->new_users]);
 
-            // ── Community — two community_posts counts in one query ───────────
+            // ── Community ────────────────────────────────────────────────────
             $postStats = DB::table('community_posts')
                 ->selectRaw('COUNT(*) as total, SUM(created_at >= ?) as this_week', [$start7d])
                 ->first();
             $totalPosts    = (int) ($postStats->total ?? 0);
             $postsThisWeek = (int) ($postStats->this_week ?? 0);
 
-            $totalStories  = DB::table('community_stories')->count();
-            $totalChats    = DB::table('community_chats')->count();
-            $totalMessages = DB::table('community_messages')->count();
-            $totalFollows  = DB::table('community_follows')->count();
-            $totalReactions= DB::table('community_post_reactions')->count();
+            $totalStories   = DB::table('community_stories')->count();
+            $totalChats     = DB::table('community_chats')->count();
+            $totalMessages  = DB::table('community_messages')->count();
+            $totalFollows   = DB::table('community_follows')->count();
+            $totalReactions = DB::table('community_post_reactions')->count();
+            $totalComments  = DB::table('community_comments')->count();
 
             $communityActivity = DB::table('community_posts')
                 ->where('created_at', '>=', $start13d)
@@ -117,6 +120,8 @@ class AdminAnalyticsController extends Controller
             $orderFunnel = Order::selectRaw('status, COUNT(*) as count')
                 ->groupBy('status')->pluck('count', 'status');
 
+            $totalOrders = Order::count();
+
             // ── Top vendors ──────────────────────────────────────────────────
             $topVendors = DB::table('vendors')
                 ->join('orders', fn($j) => $j->on('orders.vendor_id', '=', 'vendors.id')->where('orders.status', 'delivered'))
@@ -124,33 +129,77 @@ class AdminAnalyticsController extends Controller
                 ->groupBy('vendors.id', 'vendors.name')
                 ->orderByDesc('revenue')->limit(8)->get();
 
-            // ── Retention — COUNT in DB, zero rows to PHP ────────────────────
+            // ── Retention ────────────────────────────────────────────────────
             $repeatCustomers    = DB::table(DB::raw('(SELECT user_id FROM orders GROUP BY user_id HAVING COUNT(*) > 1) t'))->count();
             $totalOrderingUsers = Order::distinct('user_id')->count('user_id');
             $retentionRate      = $totalOrderingUsers > 0 ? round($repeatCustomers / $totalOrderingUsers * 100, 1) : 0;
 
             // ── eMarry ───────────────────────────────────────────────────────
-            $emarryProfiles = DB::table('emarry_profiles')->count();
+            $emarryStats = DB::table('emarry_profiles')
+                ->selectRaw('COUNT(*) as total, SUM(status="approved") as approved, SUM(status="pending") as pending')
+                ->first();
+            $emarryProfiles = (int) ($emarryStats->total ?? 0);
+            $emarryApproved = (int) ($emarryStats->approved ?? 0);
+            $emarryPending  = (int) ($emarryStats->pending ?? 0);
             $emarryMatches  = DB::table('emarry_interests')->where('status', 'accepted')->count();
+            $emarryLikes    = DB::table('emarry_interests')->count();
 
             // ── Live ─────────────────────────────────────────────────────────
-            $liveRoomsTotal = DB::table('live_rooms')->count();
+            $liveRoomsTotal   = DB::table('live_rooms')->count();
+            $liveViewersTotal = DB::table('live_room_viewers')->count();
+            $giftsSent        = DB::table('gift_transactions')->count();
+            $coinsIssued      = DB::table('user_coins')->sum('balance');
+
+            // ── eLearning ────────────────────────────────────────────────────
+            $elCourses      = DB::table('el_courses')->count();
+            $elEnrollments  = DB::table('el_enrollments')->count();
+            $elInstructors  = DB::table('el_instructors')->count();
+            $elCertificates = DB::table('el_certificates')->count();
+
+            // ── Podcast ──────────────────────────────────────────────────────
+            $podcastShows    = DB::table('podcasts')->count();
+            $podcastEpisodes = DB::table('podcast_episodes')->count();
+            $podcastPlays    = DB::table('podcast_episode_plays')->count();
+            $podcastFollows  = DB::table('podcast_follows')->count();
+
+            // ── Crypto / Exchange ─────────────────────────────────────────────
+            $cryptoOrders = DB::table('crypto_orders')->count();
+            $p2pAds       = DB::table('p2p_ads')->count();
+
+            // ── Wallet ───────────────────────────────────────────────────────
+            $walletTxns   = DB::table('wallet_transactions')->count();
+            $walletVolume = (float) DB::table('wallet_transactions')->where('type', 'credit')->sum('amount');
+
+            // ── eRent ────────────────────────────────────────────────────────
+            $houseRequests = DB::table('house_requests')->count();
+            $rentAgents    = DB::table('users')->where('role', 'agent')->count();
+
+            // ── Gamification ─────────────────────────────────────────────────
+            $totalBadges    = DB::table('user_badges')->count();
+            $totalReferrals = DB::table('referrals')->count();
 
             return compact(
                 'totalUsers', 'newLast7', 'newLast30', 'newLast90',
-                'wau', 'mau',
+                'wau', 'mau', 'totalVendors', 'totalDrivers',
                 'revenueToday', 'revenueWeek', 'revenueMonth', 'revenueTotal',
                 'commissionMonth', 'commissionTotal',
                 'revenueByModule', 'dailyRevenue', 'monthlyRevenue', 'userGrowth',
                 'totalPosts', 'postsThisWeek', 'totalStories', 'totalChats',
-                'totalMessages', 'totalFollows', 'totalReactions', 'communityActivity',
-                'orderFunnel', 'topVendors',
+                'totalMessages', 'totalFollows', 'totalReactions', 'totalComments',
+                'communityActivity',
+                'orderFunnel', 'totalOrders', 'topVendors',
                 'repeatCustomers', 'totalOrderingUsers', 'retentionRate',
-                'emarryProfiles', 'emarryMatches',
-                'liveRoomsTotal'
+                'emarryProfiles', 'emarryApproved', 'emarryPending', 'emarryMatches', 'emarryLikes',
+                'liveRoomsTotal', 'liveViewersTotal', 'giftsSent', 'coinsIssued',
+                'elCourses', 'elEnrollments', 'elInstructors', 'elCertificates',
+                'podcastShows', 'podcastEpisodes', 'podcastPlays', 'podcastFollows',
+                'cryptoOrders', 'p2pAds',
+                'walletTxns', 'walletVolume',
+                'houseRequests', 'rentAgents',
+                'totalBadges', 'totalReferrals'
             );
         });
 
-        return array_merge($cached, compact('dau', 'liveRoomsToday'));
+        return array_merge($cached, compact('dau', 'liveRoomsToday', 'liveOnline'));
     }
 }
