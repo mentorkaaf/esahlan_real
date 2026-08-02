@@ -1,12 +1,15 @@
 import 'dart:math' as math;
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:dio/dio.dart';
 import '../../../../core/api/api_client.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/theme/theme_extensions.dart';
-import '../../../../core/widgets/net_image.dart';
+import '../../../../core/theme/theme_x.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 import '../providers/community_provider.dart';
 import 'community_chat_screen.dart';
+import 'community_shell.dart' show kOrange;
 
 // ─── Providers ────────────────────────────────────────────────────────────────
 
@@ -28,10 +31,11 @@ class _DiscoverState {
   final List<Map<String, dynamic>> cards;
   final bool loading;
   final bool exhausted;
+  final bool hasError;
   final Map<String, dynamic>? matchProfile;
-  const _DiscoverState({this.cards = const [], this.loading = false, this.exhausted = false, this.matchProfile});
-  _DiscoverState copyWith({List<Map<String, dynamic>>? cards, bool? loading, bool? exhausted, Map<String, dynamic>? matchProfile}) =>
-      _DiscoverState(cards: cards ?? this.cards, loading: loading ?? this.loading, exhausted: exhausted ?? this.exhausted, matchProfile: matchProfile ?? this.matchProfile);
+  const _DiscoverState({this.cards = const [], this.loading = false, this.exhausted = false, this.hasError = false, this.matchProfile});
+  _DiscoverState copyWith({List<Map<String, dynamic>>? cards, bool? loading, bool? exhausted, bool? hasError, Map<String, dynamic>? matchProfile}) =>
+      _DiscoverState(cards: cards ?? this.cards, loading: loading ?? this.loading, exhausted: exhausted ?? this.exhausted, hasError: hasError ?? this.hasError, matchProfile: matchProfile ?? this.matchProfile);
 }
 
 class _DiscoverNotifier extends StateNotifier<_DiscoverState> {
@@ -43,7 +47,7 @@ class _DiscoverNotifier extends StateNotifier<_DiscoverState> {
 
   Future<void> _load() async {
     if (state.loading || state.exhausted) return;
-    state = state.copyWith(loading: true);
+    state = state.copyWith(loading: true, hasError: false);
     try {
       final res = await ApiClient.instance.get('/emarry/profiles', queryParameters: {
         'page': _page,
@@ -60,7 +64,7 @@ class _DiscoverNotifier extends StateNotifier<_DiscoverState> {
         exhausted: items.isEmpty,
       );
     } catch (_) {
-      state = state.copyWith(loading: false);
+      state = state.copyWith(loading: false, hasError: true);
     }
   }
 
@@ -148,22 +152,19 @@ class _EMarryScreenState extends ConsumerState<EMarryScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Column(children: [
-        _TopBar(tab: _tab),
-        Expanded(child: TabBarView(
-          controller: _tab,
-          physics: const NeverScrollableScrollPhysics(),
-          children: const [
-            _DiscoverTab(),
-            _MatchesTab(),
-            _LikesTab(),
-            _MyProfileTab(),
-          ],
-        )),
-      ]),
-    );
+    return Column(children: [
+      _TopBar(tab: _tab),
+      Expanded(child: TabBarView(
+        controller: _tab,
+        physics: const NeverScrollableScrollPhysics(),
+        children: const [
+          _DiscoverTab(),
+          _MatchesTab(),
+          _LikesTab(),
+          _MyProfileTab(),
+        ],
+      )),
+    ]);
   }
 }
 
@@ -189,7 +190,7 @@ class _TopBar extends StatelessWidget {
           child: Column(children: [
             Row(children: [
               RichText(text: const TextSpan(children: [
-                TextSpan(text: 'e', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w900, fontSize: 22)),
+                TextSpan(text: 'e', style: TextStyle(color: kOrange, fontWeight: FontWeight.w900, fontSize: 22)),
                 TextSpan(text: 'Marry', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w900, fontSize: 22)),
               ])),
               const Spacer(),
@@ -205,14 +206,14 @@ class _TopBar extends StatelessWidget {
               return Expanded(child: GestureDetector(
                 onTap: () => tab.animateTo(i),
                 child: Column(children: [
-                  Icon(icons[i], color: sel ? AppColors.primary : const Color(0xFF9CA3AF), size: 22),
+                  Icon(icons[i], color: sel ? kOrange : const Color(0xFF9CA3AF), size: 22),
                   const SizedBox(height: 4),
                   Text(labels[i], style: TextStyle(
                     fontSize: 11, fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
-                    color: sel ? AppColors.primary : const Color(0xFF9CA3AF),
+                    color: sel ? kOrange : const Color(0xFF9CA3AF),
                   )),
                   const SizedBox(height: 6),
-                  Container(height: 2, color: sel ? AppColors.primary : Colors.transparent),
+                  Container(height: 2, color: sel ? kOrange : Colors.transparent),
                 ]),
               ));
             })),
@@ -235,11 +236,9 @@ class _DiscoverTab extends ConsumerWidget {
     return Stack(children: [
       // Card stack
       if (state.loading && state.cards.isEmpty)
-        const Center(child: CircularProgressIndicator(color: AppColors.primary))
-      else if (state.exhausted && state.cards.isEmpty)
+        const Center(child: CircularProgressIndicator(color: kOrange))
+      else if (!state.loading && state.cards.isEmpty)
         _EmptyDiscover(onRefresh: () => ref.refresh(_discoverProvider))
-      else if (state.cards.isEmpty)
-        const Center(child: CircularProgressIndicator(color: AppColors.primary))
       else
         _SwipeStack(profiles: state.cards),
 
@@ -315,7 +314,7 @@ class _SwipeStackState extends ConsumerState<_SwipeStack> {
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
           _ActionButton(icon: Icons.close_rounded, color: const Color(0xFFEF4444), size: 56, onTap: _triggerPass),
           _ActionButton(icon: Icons.info_outline_rounded, color: const Color(0xFF64748B), size: 44, onTap: _triggerInfo),
-          _ActionButton(icon: Icons.favorite_rounded, color: AppColors.primary, size: 56, onTap: _triggerLike),
+          _ActionButton(icon: Icons.favorite_rounded, color: kOrange, size: 56, onTap: _triggerLike),
         ]),
       ),
     ]);
@@ -427,7 +426,7 @@ class _SwipeCardState extends State<_SwipeCard> with SingleTickerProviderStateMi
                     )
                   : Container(
                       decoration: BoxDecoration(gradient: LinearGradient(
-                        colors: [AppColors.primary.withValues(alpha: 0.3), AppColors.primary.withValues(alpha: 0.6)],
+                        colors: [kOrange.withValues(alpha: 0.3), kOrange.withValues(alpha: 0.6)],
                         begin: Alignment.topLeft, end: Alignment.bottomRight,
                       )),
                       child: const Center(child: Icon(Icons.person_rounded, size: 80, color: Colors.white70)),
@@ -596,7 +595,7 @@ class _EmptyDiscover extends StatelessWidget {
     const SizedBox(height: 24),
     ElevatedButton(
       onPressed: onRefresh,
-      style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white,
+      style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12)),
       child: const Text('Refresh', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -643,8 +642,8 @@ class _MatchCelebrationState extends State<_MatchCelebration> with SingleTickerP
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text("💍 It's a Match!", style: TextStyle(
-              color: AppColors.primary, fontSize: 36, fontWeight: FontWeight.w900,
-              shadows: [Shadow(color: AppColors.primary, blurRadius: 20)],
+              color: kOrange, fontSize: 36, fontWeight: FontWeight.w900,
+              shadows: [Shadow(color: kOrange, blurRadius: 20)],
             )),
             const SizedBox(height: 8),
             Text("You and $name liked each other", style: const TextStyle(color: Colors.white70, fontSize: 16)),
@@ -653,11 +652,11 @@ class _MatchCelebrationState extends State<_MatchCelebration> with SingleTickerP
             SizedBox(height: 140, child: Stack(alignment: Alignment.center, children: [
               Positioned(left: 60, child: _MatchAvatar(url: photos.isNotEmpty ? photos.first : null)),
               Positioned(right: 60, child: Container(width: 110, height: 110,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.primary.withValues(alpha: 0.3),
-                  border: Border.all(color: AppColors.primary, width: 3)),
+                decoration: BoxDecoration(shape: BoxShape.circle, color: kOrange.withValues(alpha: 0.3),
+                  border: Border.all(color: kOrange, width: 3)),
                 child: const Icon(Icons.person_rounded, size: 60, color: Colors.white54))),
               Container(width: 44, height: 44, decoration: const BoxDecoration(
-                  color: AppColors.primary, shape: BoxShape.circle),
+                  color: kOrange, shape: BoxShape.circle),
                 child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 24)),
             ])),
             const SizedBox(height: 40),
@@ -674,7 +673,7 @@ class _MatchCelebrationState extends State<_MatchCelebration> with SingleTickerP
                         }
                       } catch (_) {}
                     },
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white,
+                    style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       padding: const EdgeInsets.symmetric(vertical: 16)),
                     child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -723,7 +722,7 @@ class _MatchesTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(_matchesProvider);
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
       error: (_, __) => _ErrorState(onRetry: () => ref.invalidate(_matchesProvider)),
       data: (matches) {
         if (matches.isEmpty) return _EmptyState(icon: Icons.favorite_rounded,
@@ -782,7 +781,7 @@ class _MatchCard extends ConsumerWidget {
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(20)),
+                decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(20)),
                 child: const Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 10),
                   SizedBox(width: 4),
@@ -794,7 +793,7 @@ class _MatchCard extends ConsumerWidget {
           // Match badge
           Positioned(top: 8, right: 8, child: Container(
             padding: const EdgeInsets.all(4),
-            decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+            decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
             child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 12),
           )),
         ]),
@@ -824,8 +823,8 @@ class _LikesTabState extends ConsumerState<_LikesTab> with SingleTickerProviderS
     return Column(children: [
       Container(color: Colors.white,
         child: TabBar(controller: _tab,
-          labelColor: AppColors.primary, unselectedLabelColor: const Color(0xFF9CA3AF),
-          indicatorColor: AppColors.primary, indicatorSize: TabBarIndicatorSize.tab,
+          labelColor: kOrange, unselectedLabelColor: const Color(0xFF9CA3AF),
+          indicatorColor: kOrange, indicatorSize: TabBarIndicatorSize.tab,
           tabs: const [Tab(text: 'Received'), Tab(text: 'Sent')],
         )),
       Expanded(child: TabBarView(controller: _tab, children: [
@@ -841,7 +840,7 @@ class _ReceivedTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(_receivedProvider);
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
       error: (_, __) => _ErrorState(onRetry: () => ref.invalidate(_receivedProvider)),
       data: (items) {
         if (items.isEmpty) return _EmptyState(icon: Icons.favorite_border_rounded,
@@ -865,7 +864,7 @@ class _SentTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(_sentProvider);
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
       error: (_, __) => _ErrorState(onRetry: () => ref.invalidate(_sentProvider)),
       data: (items) {
         if (items.isEmpty) return _EmptyState(icon: Icons.send_rounded,
@@ -934,7 +933,7 @@ class _InterestCard extends ConsumerWidget {
             if (isReceived && status == 'pending') ...[
               const SizedBox(height: 8),
               Row(children: [
-                _SmallBtn(label: 'Accept', color: AppColors.primary, onTap: () async {
+                _SmallBtn(label: 'Accept', color: kOrange, onTap: () async {
                   final senderId = item['user_id'];
                   final sId = senderId is int ? senderId : int.tryParse(senderId?.toString() ?? '');
                   if (sId == null) return;
@@ -958,7 +957,7 @@ class _InterestCard extends ConsumerWidget {
             ],
             if (status == 'accepted' && userId != null) ...[
               const SizedBox(height: 8),
-              _SmallBtn(label: 'Message', color: AppColors.primary, icon: Icons.chat_bubble_rounded, onTap: () async {
+              _SmallBtn(label: 'Message', color: kOrange, icon: Icons.chat_bubble_rounded, onTap: () async {
                 try {
                   final chat = await ref.read(communityChatsProvider.notifier).startOrGetChat(userId);
                   if (context.mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityChatScreen(chat: chat)));
@@ -1007,7 +1006,7 @@ class _MyProfileTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(_myEmarryProfileProvider);
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      loading: () => const Center(child: CircularProgressIndicator(color: kOrange)),
       error: (_, __) => _EmptyState(icon: Icons.person_add_rounded,
           title: 'Create your profile', sub: 'Set up your eMarry profile to start matching'),
       data: (profile) => profile == null
@@ -1017,7 +1016,7 @@ class _MyProfileTab extends ConsumerWidget {
               sub: 'Set up your eMarry profile to start matching',
               action: ElevatedButton(
                 onPressed: () => _ProfileFormSheet.show(context, ref, null),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white,
+                style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
                 child: const Text('Create Profile', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -1098,7 +1097,7 @@ class _ProfileView extends StatelessWidget {
           Wrap(spacing: 8, runSpacing: 8, children: [
             if (edu.isNotEmpty)     _Tag(edu, Icons.school_rounded),
             if (occ.isNotEmpty)     _Tag(occ, Icons.work_rounded),
-            if (marital.isNotEmpty) _Tag(marital, Icons.ring_buoy_rounded),
+            if (marital.isNotEmpty) _Tag(marital, Icons.favorite_border_rounded),
             _Tag(kids ? 'Has children' : 'No children', Icons.child_care_rounded),
           ]),
         ]),
@@ -1117,6 +1116,9 @@ class _ProfileView extends StatelessWidget {
                 ),
               )),
           ]),
+        const SizedBox(height: 12),
+        // Photo upload section
+        _PhotoUploadSection(photos: photos, profileRef: ref),
         const SizedBox(height: 20),
         SizedBox(width: double.infinity,
           child: ElevatedButton.icon(
@@ -1124,11 +1126,125 @@ class _ProfileView extends StatelessWidget {
             icon: const Icon(Icons.edit_rounded, size: 18),
             label: const Text('Edit Profile', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary, foregroundColor: Colors.white,
+              backgroundColor: kOrange, foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
           )),
+      ]),
+    );
+  }
+}
+
+class _PhotoUploadSection extends StatefulWidget {
+  final List<String> photos;
+  final WidgetRef profileRef;
+  const _PhotoUploadSection({required this.photos, required this.profileRef});
+  @override
+  State<_PhotoUploadSection> createState() => _PhotoUploadSectionState();
+}
+
+class _PhotoUploadSectionState extends State<_PhotoUploadSection> {
+  bool _uploading = false;
+
+  Future<void> _pickAndUpload() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 1200);
+    if (picked == null || !mounted) return;
+    setState(() => _uploading = true);
+    try {
+      final file = File(picked.path);
+      final formData = FormData.fromMap({
+        'photo': await MultipartFile.fromFile(file.path, filename: 'photo.jpg'),
+      });
+      final res = await ApiClient.instance.post('/emarry/photo', data: formData);
+      if (res.data['success'] == true) {
+        final newUrl = res.data['url']?.toString() ?? '';
+        if (newUrl.isNotEmpty) {
+          final updatedPhotos = [...widget.photos, newUrl];
+          await ApiClient.instance.post('/emarry/profile', data: {'photos': updatedPhotos});
+          widget.profileRef.invalidate(_myEmarryProfileProvider);
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Photo upload failed. Try again.'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  Future<void> _deletePhoto(int index) async {
+    final updated = [...widget.photos]..removeAt(index);
+    try {
+      await ApiClient.instance.post('/emarry/profile', data: {'photos': updated});
+      widget.profileRef.invalidate(_myEmarryProfileProvider);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final photos = widget.photos;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('My Photos', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 110,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              // Existing photos
+              for (int i = 0; i < photos.length; i++)
+                Stack(children: [
+                  Container(
+                    width: 90, height: 110, margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: NetImage(url: photos[i], fit: BoxFit.cover),
+                    ),
+                  ),
+                  Positioned(top: 4, right: 12,
+                    child: GestureDetector(
+                      onTap: () => _deletePhoto(i),
+                      child: Container(
+                        width: 22, height: 22,
+                        decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                        child: const Icon(Icons.close, color: Colors.white, size: 14),
+                      ),
+                    )),
+                ]),
+              // Add photo button
+              if (photos.length < 4)
+                GestureDetector(
+                  onTap: _uploading ? null : _pickAndUpload,
+                  child: Container(
+                    width: 90, height: 110,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: kOrange, width: 2, style: BorderStyle.solid),
+                      color: kOrange.withValues(alpha: 0.05),
+                    ),
+                    child: _uploading
+                        ? const Center(child: SizedBox(width: 24, height: 24,
+                            child: CircularProgressIndicator(color: kOrange, strokeWidth: 2)))
+                        : const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Icon(Icons.add_photo_alternate_rounded, color: kOrange, size: 32),
+                            SizedBox(height: 4),
+                            Text('Add Photo', style: TextStyle(color: kOrange, fontSize: 11, fontWeight: FontWeight.w600)),
+                          ]),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text('${photos.length}/4 photos • Tap + to add, × to remove',
+          style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
       ]),
     );
   }
@@ -1159,13 +1275,13 @@ class _Tag extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
     decoration: BoxDecoration(
-      color: AppColors.primary.withValues(alpha: 0.08),
+      color: kOrange.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(20),
     ),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, size: 13, color: AppColors.primary),
+      Icon(icon, size: 13, color: kOrange),
       const SizedBox(width: 5),
-      Text(label, style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600)),
+      Text(label, style: const TextStyle(fontSize: 12, color: kOrange, fontWeight: FontWeight.w600)),
     ]),
   );
 }
@@ -1234,7 +1350,7 @@ class _ProfileDetailSheet extends ConsumerWidget {
             ],
             const SizedBox(height: 12),
             Wrap(spacing: 8, runSpacing: 8, children: [
-              if (marital.isNotEmpty) _Tag(marital, Icons.ring_buoy_rounded),
+              if (marital.isNotEmpty) _Tag(marital, Icons.favorite_border_rounded),
               if (edu.isNotEmpty) _Tag(edu, Icons.school_rounded),
               if (occ.isNotEmpty) _Tag(occ, Icons.work_rounded),
               _Tag(hasKids ? 'Has children' : 'No children', Icons.child_care_rounded),
@@ -1272,7 +1388,7 @@ class _ProfileDetailSheet extends ConsumerWidget {
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
+                      decoration: BoxDecoration(color: kOrange, borderRadius: BorderRadius.circular(10)),
                       child: const Text('Message', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                     ),
                   ),
@@ -1345,7 +1461,7 @@ class _ProfileFormSheetState extends ConsumerState<_ProfileFormSheet> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Profile submitted for review ✓'),
-          backgroundColor: AppColors.primary,
+          backgroundColor: kOrange,
         ));
       }
     } catch (_) {
@@ -1445,7 +1561,7 @@ class _ProfileFormSheetState extends ConsumerState<_ProfileFormSheet> {
                 title: const Text('Has children', style: TextStyle(fontWeight: FontWeight.w600)),
                 value: _hasChildren,
                 onChanged: (v) => setState(() => _hasChildren = v),
-                activeColor: AppColors.primary,
+                activeColor: kOrange,
               ),
             ),
             const SizedBox(height: 16),
@@ -1464,7 +1580,7 @@ class _ProfileFormSheetState extends ConsumerState<_ProfileFormSheet> {
               child: ElevatedButton(
                 onPressed: _loading ? null : _save,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary, foregroundColor: Colors.white,
+                  backgroundColor: kOrange, foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   padding: const EdgeInsets.symmetric(vertical: 16)),
                 child: _loading
@@ -1482,7 +1598,7 @@ class _ProfileFormSheetState extends ConsumerState<_ProfileFormSheet> {
     filled: true, fillColor: const Color(0xFFF8FAFC),
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
     enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kOrange, width: 1.5)),
   );
 }
 
@@ -1512,9 +1628,9 @@ class _ChoiceRow extends StatelessWidget {
         margin: EdgeInsets.only(right: i < options.length - 1 ? 8 : 0),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: sel ? AppColors.primary : const Color(0xFFF8FAFC),
+          color: sel ? kOrange : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: sel ? AppColors.primary : const Color(0xFFE2E8F0)),
+          border: Border.all(color: sel ? kOrange : const Color(0xFFE2E8F0)),
         ),
         child: Center(child: Text(labels[i], style: TextStyle(
           fontWeight: FontWeight.w700, color: sel ? Colors.white : const Color(0xFF374151)))),
@@ -1537,7 +1653,7 @@ class _DropdownField extends StatelessWidget {
       filled: true, fillColor: const Color(0xFFF8FAFC),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kOrange, width: 1.5)),
     ),
     items: List.generate(items.length, (i) => DropdownMenuItem(value: items[i], child: Text(labels[i]))),
     onChanged: onChanged,
@@ -1586,12 +1702,12 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
         const Text('Age Range', style: TextStyle(fontWeight: FontWeight.w700)),
         const Spacer(),
         Text('${_minAge.round()} – ${_maxAge.round()}',
-          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+          style: const TextStyle(color: kOrange, fontWeight: FontWeight.w700)),
       ]),
       RangeSlider(
         values: RangeValues(_minAge, _maxAge),
         min: 18, max: 80,
-        activeColor: AppColors.primary,
+        activeColor: kOrange,
         inactiveColor: const Color(0xFFE2E8F0),
         onChanged: (v) => setState(() { _minAge = v.start; _maxAge = v.end; }),
       ),
@@ -1605,7 +1721,7 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
             Navigator.pop(context);
           },
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary, foregroundColor: Colors.white,
+            backgroundColor: kOrange, foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             padding: const EdgeInsets.symmetric(vertical: 14)),
           child: const Text('Apply Filters', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
@@ -1646,6 +1762,6 @@ class _ErrorState extends StatelessWidget {
     const SizedBox(height: 12),
     const Text('Something went wrong', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF374151))),
     const SizedBox(height: 12),
-    TextButton(onPressed: onRetry, child: const Text('Retry', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700))),
+    TextButton(onPressed: onRetry, child: const Text('Retry', style: TextStyle(color: kOrange, fontWeight: FontWeight.w700))),
   ]));
 }

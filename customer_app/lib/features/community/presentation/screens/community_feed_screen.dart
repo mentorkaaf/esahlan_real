@@ -3099,9 +3099,22 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     });
     // Re-check immediately in case videoParams already fired before subscribe.
     if (!_hasFrame.value && (ctrl.player.state.width ?? 0) > 0) _hasFrame.value = true;
-    // Fallback: reveal after 600ms if videoParams never fires (codec quirk).
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (mounted && _ready && !_hasFrame.value) _hasFrame.value = true;
+    // Fallback: reveal surface after first buffer is ready (no black flash).
+    // If not buffering at 800ms → first frame decoded, safe to show.
+    // If still buffering → wait for buffer to finish (max 4s), then show.
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (!mounted || !_ready || _hasFrame.value) return;
+      void reveal() { if (mounted && _ready && !_hasFrame.value) _hasFrame.value = true; }
+      if (!_isBuffering.value) {
+        reveal();
+      } else {
+        ctrl.player.stream.buffering
+            .where((b) => !b)
+            .first
+            .timeout(const Duration(seconds: 4))
+            .then((_) => reveal())
+            .catchError((_) => reveal());
+      }
     });
   }
 
