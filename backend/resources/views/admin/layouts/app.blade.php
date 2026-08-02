@@ -682,6 +682,9 @@
         <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-chart-pie"></i></div> Dashboard
         </a>
+        <a href="{{ route('admin.analytics') }}" class="nav-link {{ request()->routeIs('admin.analytics*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-chart-line"></i></div> Analytics
+        </a>
 
         @if($u->isFullAdmin())
         <div class="nav-section-label">People</div>

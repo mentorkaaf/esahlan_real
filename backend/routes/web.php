@@ -208,6 +208,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
     Route::middleware(['auth', 'role:super_admin,admin,operations_manager,finance_manager,marketing_manager,customer_support,employee', 'admin.gate'])->group(function () {
         Route::post('/logout', [AdminAuthController::class, 'logout'])->name('logout');
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/analytics', [\App\Http\Controllers\Admin\AdminAnalyticsController::class, 'index'])->name('analytics');
+        Route::get('/analytics/api', [\App\Http\Controllers\Admin\AdminAnalyticsController::class, 'api'])->name('analytics.api');
 
         // Users
         Route::prefix('users')->name('users.')->group(function () {
