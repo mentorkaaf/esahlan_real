@@ -278,121 +278,164 @@
     </div>
 </div>
 
-{{-- ══ CHARTS ROW ══ --}}
+{{-- ══ REVENUE KPIs — labelled by exact period ══ --}}
 <div class="sec">
-    <div class="sec-title"><span class="ico">📈</span> Revenue & Growth Trends</div>
-    <div style="display:grid;grid-template-columns:2fr 1.2fr 1fr;gap:12px">
-
-        {{-- Daily Revenue ──────────────────── --}}
-        <div class="cc">
-            <div class="cc-top">
-                <div>
-                    <div class="cc-title">Daily Revenue</div>
-                    <div class="cc-sub">Last 30 days · delivered orders</div>
-                </div>
-                <span class="cc-badge" style="background:var(--b-soft);color:var(--brand)">${{ number_format($revenueMonth,0) }} MTD</span>
-            </div>
-            <div class="canvas-wrap" style="height:150px"><canvas id="cDailyRev"></canvas></div>
+    <div class="sec-title"><span class="ico">💰</span> Revenue Breakdown</div>
+    @php
+        $avgOrderVal = $orderFunnel->get('delivered',0) > 0
+            ? round($revenueTotal / $orderFunnel->get('delivered',0), 2) : 0;
+        $monthLabel = now()->format('M Y');
+    @endphp
+    <div class="g5" style="margin-bottom:12px">
+        <div class="sc"><div class="sc-accent" style="background:var(--brand)"></div>
+            <div class="sc-icon" style="background:var(--b-soft);color:var(--brand)">📅</div>
+            <div class="sc-val">${{ number_format($revenueToday,0) }}</div>
+            <div class="sc-lbl">Today · {{ now()->format('d M') }}</div>
         </div>
-
-        {{-- User Growth ────────────────────── --}}
-        <div class="cc">
-            <div class="cc-top">
-                <div>
-                    <div class="cc-title">User Signups</div>
-                    <div class="cc-sub">Last 30 days</div>
-                </div>
-                <span class="cc-badge" style="background:var(--g-soft);color:var(--green)">+{{ number_format($newLast30) }}</span>
-            </div>
-            <div class="canvas-wrap" style="height:150px"><canvas id="cUserGrowth"></canvas></div>
+        <div class="sc"><div class="sc-accent" style="background:var(--blue)"></div>
+            <div class="sc-icon" style="background:var(--bl-soft);color:var(--blue)">📊</div>
+            <div class="sc-val">${{ number_format($revenueWeek,0) }}</div>
+            <div class="sc-lbl">Rolling 7 Days</div>
+            <div class="sc-sub delta-nt">{{ now()->subDays(7)->format('d M') }} → {{ now()->format('d M') }}</div>
         </div>
-
-        {{-- Module Revenue ──────────────────── --}}
-        <div class="cc">
-            <div class="cc-top">
-                <div>
-                    <div class="cc-title">Revenue by Module</div>
-                    <div class="cc-sub">All-time breakdown</div>
-                </div>
-            </div>
-            @php $maxRev = $revenueByModule->max('revenue') ?: 1; @endphp
-            <div class="mbar-list">
-                @forelse($revenueByModule as $mod)
-                <div class="mbar-row">
-                    <div class="mbar-top">
-                        <span class="mbar-name">{{ $mod['module'] }}</span>
-                        <span class="mbar-val">${{ number_format($mod['revenue'],0) }}</span>
-                    </div>
-                    <div class="mbar-track">
-                        <div class="mbar-fill" style="width:{{ round($mod['revenue']/$maxRev*100) }}%"></div>
-                    </div>
-                </div>
-                @empty
-                <p style="font-size:11px;color:var(--muted);text-align:center;padding:20px">No data yet</p>
-                @endforelse
-            </div>
+        <div class="sc"><div class="sc-accent" style="background:var(--green)"></div>
+            <div class="sc-icon" style="background:var(--g-soft);color:var(--green)">🗓️</div>
+            <div class="sc-val">${{ number_format($revenueMonth,0) }}</div>
+            <div class="sc-lbl">{{ $monthLabel }} (MTD)</div>
+            <div class="sc-sub delta-nt">Commission: ${{ number_format($commissionMonth,0) }}</div>
+        </div>
+        <div class="sc"><div class="sc-accent" style="background:var(--purple)"></div>
+            <div class="sc-icon" style="background:var(--p-soft);color:var(--purple)">🏆</div>
+            <div class="sc-val">${{ number_format($revenueTotal,0) }}</div>
+            <div class="sc-lbl">All-Time Revenue</div>
+            <div class="sc-sub delta-up">Commission: ${{ number_format($commissionTotal,0) }}</div>
+        </div>
+        <div class="sc"><div class="sc-accent" style="background:var(--teal)"></div>
+            <div class="sc-icon" style="background:var(--t-soft);color:var(--teal)">🧮</div>
+            <div class="sc-val">${{ number_format($avgOrderVal,2) }}</div>
+            <div class="sc-lbl">Avg Order Value</div>
+            <div class="sc-sub delta-nt">per delivered order</div>
         </div>
     </div>
 </div>
 
-{{-- ══ MONTHLY + ORDERS ══ --}}
+{{-- ══ CHARTS ROW — equal height 3 columns ══ --}}
 <div class="sec">
-    <div class="sec-title"><span class="ico">📅</span> Monthly Performance & Orders</div>
-    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px">
-
-        {{-- Monthly Revenue Chart ────────── --}}
-        <div class="cc">
+    <div class="sec-title"><span class="ico">📈</span> Revenue & Growth Trends</div>
+    <div class="g3" style="margin-bottom:12px">
+        <div class="cc" style="display:flex;flex-direction:column">
             <div class="cc-top">
-                <div>
-                    <div class="cc-title">Monthly Revenue & Orders — Last 12 Months</div>
-                    <div class="cc-sub">Delivered orders only</div>
-                </div>
+                <div><div class="cc-title">Daily Revenue</div><div class="cc-sub">Last 30 days · delivered orders</div></div>
+                <span class="cc-badge" style="background:var(--b-soft);color:var(--brand)">${{ number_format($revenueMonth,0) }} {{ now()->format('M') }}</span>
             </div>
-            <div class="canvas-wrap" style="height:165px"><canvas id="cMonthly"></canvas></div>
+            <div class="canvas-wrap" style="height:140px;flex:1"><canvas id="cDailyRev"></canvas></div>
         </div>
+        <div class="cc" style="display:flex;flex-direction:column">
+            <div class="cc-top">
+                <div><div class="cc-title">New User Signups</div><div class="cc-sub">Last 30 days · registrations</div></div>
+                <span class="cc-badge" style="background:var(--g-soft);color:var(--green)">+{{ number_format($newLast30) }}</span>
+            </div>
+            <div class="canvas-wrap" style="height:140px;flex:1"><canvas id="cUserGrowth"></canvas></div>
+        </div>
+        <div class="cc" style="display:flex;flex-direction:column">
+            <div class="cc-top">
+                <div><div class="cc-title">Revenue by Module</div><div class="cc-sub">All-time · Chart.js horizontal</div></div>
+            </div>
+            <div class="canvas-wrap" style="flex:1;min-height:140px"><canvas id="cModuleRev"></canvas></div>
+        </div>
+    </div>
+
+    {{-- Monthly full-width ── --}}
+    <div class="cc">
+        <div class="cc-top">
+            <div><div class="cc-title">Monthly Revenue & Orders — Last 12 Months</div><div class="cc-sub">Delivered orders only</div></div>
+        </div>
+        <div class="canvas-wrap" style="height:170px"><canvas id="cMonthly"></canvas></div>
+    </div>
+</div>
+
+{{-- ══ ORDERS ══ --}}
+<div class="sec">
+    <div class="sec-title"><span class="ico">📦</span> Orders & Vendors</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1.6fr;gap:12px">
 
         {{-- Order Funnel ─────────────────── --}}
         <div class="cc">
             <div class="cc-top">
-                <div>
-                    <div class="cc-title">Order Funnel</div>
-                    <div class="cc-sub">All-time by status</div>
-                </div>
+                <div><div class="cc-title">Order Status Funnel</div><div class="cc-sub">All-time distribution</div></div>
                 <span class="cc-badge" style="background:var(--b-soft);color:var(--brand)">{{ number_format($totalOrders) }} total</span>
             </div>
             <div class="fl">
                 @foreach($orderFunnel as $status => $count)
                 <div class="fl-row">
                     <span class="fl-status s-{{ $status }}">{{ ucfirst(str_replace('_',' ',$status)) }}</span>
-                    <span class="fl-count">{{ number_format($count) }}</span>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <div style="width:60px;height:4px;background:var(--bg);border-radius:99px;overflow:hidden">
+                            <div style="width:{{ $totalOrders>0?round($count/$totalOrders*100):0 }}%;height:100%;background:currentColor;border-radius:99px"></div>
+                        </div>
+                        <span class="fl-count">{{ number_format($count) }}</span>
+                    </div>
                 </div>
                 @endforeach
                 @if($orderFunnel->isEmpty())
-                <p style="font-size:11px;color:var(--muted);text-align:center;padding:12px">No orders</p>
+                <p style="font-size:11px;color:var(--muted);text-align:center;padding:12px">No orders yet</p>
                 @endif
+            </div>
+        </div>
+
+        {{-- Order Stats ──────────────────── --}}
+        <div class="cc">
+            <div class="cc-top">
+                <div><div class="cc-title">Order Performance</div><div class="cc-sub">All-time metrics</div></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--g-soft);border-radius:8px">
+                    <span style="font-size:11px;font-weight:700;color:var(--green)">✅ Delivered</span>
+                    <span style="font-size:14px;font-weight:900;color:var(--green);font-variant-numeric:tabular-nums">{{ number_format($orderFunnel->get('delivered',0)) }}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--a-soft);border-radius:8px">
+                    <span style="font-size:11px;font-weight:700;color:var(--amber)">⏳ Pending</span>
+                    <span style="font-size:14px;font-weight:900;color:var(--amber);font-variant-numeric:tabular-nums">{{ number_format($orderFunnel->get('pending',0)) }}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--r-soft);border-radius:8px">
+                    <span style="font-size:11px;font-weight:700;color:var(--red)">❌ Cancelled</span>
+                    <span style="font-size:14px;font-weight:900;color:var(--red);font-variant-numeric:tabular-nums">{{ number_format($orderFunnel->get('cancelled',0)) }}</span>
+                </div>
+                <hr class="div" style="margin:4px 0">
+                <div style="display:flex;justify-content:space-between">
+                    <span style="font-size:11px;color:var(--muted)">Delivery Rate</span>
+                    <span style="font-size:13px;font-weight:900;color:var(--text)">{{ $totalOrders>0?round($orderFunnel->get('delivered',0)/$totalOrders*100,1):0 }}%</span>
+                </div>
+                <div style="display:flex;justify-content:space-between">
+                    <span style="font-size:11px;color:var(--muted)">Avg Order Value</span>
+                    <span style="font-size:13px;font-weight:900;color:var(--text)">${{ number_format($avgOrderVal,2) }}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between">
+                    <span style="font-size:11px;color:var(--muted)">Orders / User</span>
+                    <span style="font-size:13px;font-weight:900;color:var(--text)">{{ $totalOrderingUsers>0?round($totalOrders/$totalOrderingUsers,1):0 }}x</span>
+                </div>
             </div>
         </div>
 
         {{-- Top Vendors ──────────────────── --}}
         <div class="cc">
             <div class="cc-top">
-                <div>
-                    <div class="cc-title">Top Vendors</div>
-                    <div class="cc-sub">By all-time revenue</div>
-                </div>
+                <div><div class="cc-title">Top Vendors by Revenue</div><div class="cc-sub">All-time · delivered orders</div></div>
             </div>
             <div class="overx">
             <table class="vtbl">
-                <thead><tr><th>#</th><th>Vendor</th><th>Rev</th></tr></thead>
+                <thead><tr><th>#</th><th>Vendor</th><th>Orders</th><th>Revenue</th><th>Share</th></tr></thead>
                 <tbody>
                     @forelse($topVendors as $i => $v)
                     <tr>
                         <td><span class="vrank {{ $i==0?'g':($i==1?'s':($i==2?'b':'n')) }}">{{ $i+1 }}</span></td>
                         <td style="font-weight:700;font-size:11px">{{ $v->name }}</td>
+                        <td style="font-size:11px;color:var(--muted)">{{ number_format($v->orders) }}</td>
                         <td style="font-weight:800;font-size:11px">${{ number_format($v->revenue,0) }}</td>
+                        <td style="font-size:10px;color:var(--muted)">{{ $revenueTotal>0?round($v->revenue/$revenueTotal*100,1):0 }}%</td>
                     </tr>
                     @empty
-                    <tr><td colspan="3" style="text-align:center;color:var(--muted);padding:14px;font-size:11px">No data</td></tr>
+                    <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px;font-size:11px">No vendor data yet</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -663,6 +706,31 @@ const base={
     plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{}}},
     scales:{x:{grid:{color:grid},ticks:{maxTicksLimit:8}},y:{grid:{color:grid},beginAtZero:true}}
 };
+
+// Module Revenue — horizontal bar
+const modData=@json($revenueByModule);
+if(document.getElementById('cModuleRev')&&modData.length){
+    new Chart(document.getElementById('cModuleRev'),{
+        type:'bar',
+        data:{
+            labels:modData.map(d=>d.module),
+            datasets:[{
+                data:modData.map(d=>d.revenue),
+                backgroundColor:[BR,BL,GR,PR,'#14b8a6','#f59e0b','#ec4899','#06b6d4'].slice(0,modData.length),
+                borderRadius:4,borderSkipped:false
+            }]
+        },
+        options:{
+            responsive:true,maintainAspectRatio:false,
+            indexAxis:'y',
+            plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'$'+ctx.raw.toLocaleString()}}},
+            scales:{
+                x:{grid:{color:grid},beginAtZero:true,ticks:{callback:v=>'$'+v.toLocaleString()}},
+                y:{grid:{display:false}}
+            }
+        }
+    });
+}
 
 // Daily Revenue
 const dr=@json($dailyRevenue);
