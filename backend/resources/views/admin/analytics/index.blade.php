@@ -618,63 +618,163 @@
 <div class="sec">
     <div class="sec-title"><span class="ico">🏪</span> E-Commerce Modules</div>
     @php
-    $moduleIcons = [
-        'efood'      => ['🍔','#FF8A00','rgba(255,138,0,.12)'],
-        'egrocery'   => ['🛒','#10b981','rgba(16,185,129,.12)'],
-        'eshop'      => ['🛍️','#3b82f6','rgba(59,130,246,.12)'],
-        'eparcel'    => ['📦','#8b5cf6','rgba(139,92,246,.12)'],
-        'emoving'    => ['🚚','#f59e0b','rgba(245,158,11,.12)'],
-        'elearning'  => ['📚','#14b8a6','rgba(20,184,166,.12)'],
-        'eexchange'  => ['🔄','#ec4899','rgba(236,72,153,.12)'],
-        'erent'      => ['🏠','#06b6d4','rgba(6,182,212,.12)'],
-        'elaundry'   => ['👕','#6366f1','rgba(99,102,241,.12)'],
-        'ewholesale' => ['🏭','#84cc16','rgba(132,204,22,.12)'],
-        'edata'      => ['📊','#ef4444','rgba(239,68,68,.12)'],
-        'eticket'    => ['🎟️','#f97316','rgba(249,115,22,.12)'],
-        'ehealth'    => ['❤️','#10b981','rgba(16,185,129,.12)'],
+    // icon, accent color, soft bg, type
+    $modMeta = [
+        'efood'      => ['🍔','#FF8A00','rgba(255,138,0,.12)',     'marketplace'],
+        'eshop'      => ['🛍️','#3b82f6','rgba(59,130,246,.12)',    'marketplace'],
+        'egrocery'   => ['🛒','#10b981','rgba(16,185,129,.12)',    'marketplace'],
+        'ewholesale' => ['🏭','#84cc16','rgba(132,204,22,.12)',    'marketplace'],
+        'elaundry'   => ['👕','#6366f1','rgba(99,102,241,.12)',    'marketplace'],
+        'eparcel'    => ['📦','#8b5cf6','rgba(139,92,246,.12)',    'logistics'],
+        'emoving'    => ['🚚','#f59e0b','rgba(245,158,11,.12)',    'logistics'],
+        'eticket'    => ['🎟️','#f97316','rgba(249,115,22,.12)',    'service'],
+        'ehealth'    => ['❤️','#ef4444','rgba(239,68,68,.12)',     'service'],
+        'edata'      => ['📶','#06b6d4','rgba(6,182,212,.12)',     'service'],
+        'erent'      => ['🏠','#06b6d4','rgba(6,182,212,.12)',     'rent'],
+        'elearning'  => ['📚','#14b8a6','rgba(20,184,166,.12)',    'learning'],
+        'eexchange'  => ['🔄','#ec4899','rgba(236,72,153,.12)',    'exchange'],
     ];
     @endphp
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">
-        @foreach($moduleStats as $mod)
-        @php
-        $icon = $moduleIcons[$mod->slug] ?? ['📦','#6b7280','rgba(107,114,128,.12)'];
-        $prodCount = $productsByModule[$mod->slug] ?? 0;
-        $deliveryRate = $mod->total_orders > 0 ? round($mod->delivered_orders / $mod->total_orders * 100) : 0;
-        @endphp
-        <div class="cc" style="position:relative;overflow:hidden;padding:14px 16px">
-            <div style="position:absolute;top:-10px;right:-10px;width:70px;height:70px;border-radius:50%;background:{{ $icon[2] }};opacity:.6"></div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-                <div style="width:34px;height:34px;border-radius:8px;background:{{ $icon[2] }};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">{{ $icon[0] }}</div>
-                <div>
-                    <div style="font-size:12.5px;font-weight:800;color:var(--text)">{{ $mod->name }}</div>
-                    <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">{{ $mod->slug }}</div>
-                </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">
+    @foreach($moduleStats as $mod)
+    @php
+        $meta = $modMeta[$mod->slug] ?? ['📦','#6b7280','rgba(107,114,128,.12)','service'];
+        [$mIco, $mClr, $mSoft, $mType] = $meta;
+        $prodCount   = $productsByModule[$mod->slug] ?? 0;
+        $delRate     = $mod->total_orders > 0 ? round($mod->delivered_orders / $mod->total_orders * 100) : 0;
+    @endphp
+    <div class="cc" style="position:relative;overflow:hidden;padding:14px 16px">
+        {{-- decorative blob --}}
+        <div style="position:absolute;top:-12px;right:-12px;width:72px;height:72px;border-radius:50%;background:{{ $mSoft }};pointer-events:none"></div>
+        {{-- header --}}
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:11px">
+            <div style="width:36px;height:36px;border-radius:9px;background:{{ $mSoft }};display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;border:1px solid {{ $mClr }}33">{{ $mIco }}</div>
+            <div>
+                <div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.2">{{ $mod->name }}</div>
+                <div style="font-size:9.5px;color:{{ $mClr }};font-weight:700;text-transform:uppercase;letter-spacing:.6px">{{ strtoupper($mType) }}</div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-                <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
-                    <div style="font-size:14px;font-weight:800;color:{{ $icon[1] }};font-variant-numeric:tabular-nums">{{ number_format($mod->total_orders) }}</div>
-                    <div style="font-size:9.5px;color:var(--muted)">Orders</div>
-                </div>
-                <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
-                    <div style="font-size:14px;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums">{{ number_format($mod->delivered_revenue, 0) }}</div>
-                    <div style="font-size:9.5px;color:var(--muted)">Revenue</div>
-                </div>
-                <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
-                    <div style="font-size:14px;font-weight:800;color:var(--blue);font-variant-numeric:tabular-nums">{{ number_format($mod->vendor_count) }}</div>
-                    <div style="font-size:9.5px;color:var(--muted)">Vendors</div>
-                </div>
-                <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
-                    <div style="font-size:14px;font-weight:800;color:var(--purple);font-variant-numeric:tabular-nums">{{ $deliveryRate }}%</div>
-                    <div style="font-size:9.5px;color:var(--muted)">Delivery Rate</div>
-                </div>
-            </div>
-            @if($prodCount > 0)
-            <div style="margin-top:8px;font-size:10px;color:var(--muted)">
-                <span style="color:{{ $icon[1] }};font-weight:700">{{ number_format($prodCount) }}</span> active products
-            </div>
-            @endif
         </div>
-        @endforeach
+        {{-- stats grid — differs by module type --}}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+
+        @if($mType === 'marketplace')
+            {{-- eFood, eShop, eGrocery, eWholesale, eLaundry --}}
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:{{ $mClr }};font-variant-numeric:tabular-nums">{{ number_format($mod->total_orders) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Orders</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#10b981;font-variant-numeric:tabular-nums">${{ number_format($mod->delivered_revenue,0) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Revenue</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#3b82f6;font-variant-numeric:tabular-nums">{{ number_format($mod->vendor_count) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Vendors</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums">{{ number_format($prodCount) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Products</div>
+            </div>
+
+        @elseif($mType === 'logistics')
+            {{-- eParcel, eMoving — no vendors/products, delivery is the core metric --}}
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:{{ $mClr }};font-variant-numeric:tabular-nums">{{ number_format($mod->total_orders) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">{{ $mod->slug==='eparcel'?'Parcels':'Requests' }}</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#10b981;font-variant-numeric:tabular-nums">${{ number_format($mod->delivered_revenue,0) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Revenue</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#3b82f6;font-variant-numeric:tabular-nums">{{ number_format($mod->delivered_orders) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Delivered</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:{{ $delRate>=70?'#10b981':($delRate>=40?'#f59e0b':'#ef4444') }};font-variant-numeric:tabular-nums">{{ $delRate }}%</div>
+                <div style="font-size:9.5px;color:var(--muted)">Success Rate</div>
+            </div>
+
+        @elseif($mType === 'service')
+            {{-- eTicket, eHealth, eData — service-based, completion is key --}}
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:{{ $mClr }};font-variant-numeric:tabular-nums">{{ number_format($mod->total_orders) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">{{ $mod->slug==='eticket'?'Tickets':($mod->slug==='ehealth'?'Bookings':'Orders') }}</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#10b981;font-variant-numeric:tabular-nums">${{ number_format($mod->delivered_revenue,0) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Revenue</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#3b82f6;font-variant-numeric:tabular-nums">{{ number_format($mod->delivered_orders) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Completed</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:{{ $delRate>=70?'#10b981':($delRate>=40?'#f59e0b':'#ef4444') }};font-variant-numeric:tabular-nums">{{ $delRate }}%</div>
+                <div style="font-size:9.5px;color:var(--muted)">Completion</div>
+            </div>
+
+        @elseif($mType === 'rent')
+            {{-- eRent — house listings, agents, booking requests --}}
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:{{ $mClr }};font-variant-numeric:tabular-nums">{{ number_format($houseRequests) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Inquiries</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#10b981;font-variant-numeric:tabular-nums">{{ number_format($rentAgents) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Agents</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#3b82f6;font-variant-numeric:tabular-nums">{{ number_format($mod->total_orders) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Bookings</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums">${{ number_format($mod->delivered_revenue,0) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Revenue</div>
+            </div>
+
+        @elseif($mType === 'learning')
+            {{-- eLearning — courses, enrollments, instructors, certificates --}}
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:{{ $mClr }};font-variant-numeric:tabular-nums">{{ number_format($elCourses) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Courses</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#10b981;font-variant-numeric:tabular-nums">{{ number_format($elEnrollments) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Enrollments</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#3b82f6;font-variant-numeric:tabular-nums">{{ number_format($elInstructors) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Instructors</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums">{{ number_format($elCertificates) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Certificates</div>
+            </div>
+
+        @elseif($mType === 'exchange')
+            {{-- eExchange — crypto orders, P2P ads, wallet volume --}}
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:{{ $mClr }};font-variant-numeric:tabular-nums">{{ number_format($cryptoOrders) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Crypto Orders</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#10b981;font-variant-numeric:tabular-nums">{{ number_format($p2pAds) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">P2P Ads</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#3b82f6;font-variant-numeric:tabular-nums">{{ number_format($walletTxns) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Wallet Txns</div>
+            </div>
+            <div style="background:var(--card-bg2);border-radius:6px;padding:6px 8px">
+                <div style="font-size:15px;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums">${{ number_format($walletVolume,0) }}</div>
+                <div style="font-size:9.5px;color:var(--muted)">Wallet Volume</div>
+            </div>
+        @endif
+
+        </div>{{-- /grid --}}
+    </div>{{-- /cc --}}
+    @endforeach
     </div>
 </div>
 
