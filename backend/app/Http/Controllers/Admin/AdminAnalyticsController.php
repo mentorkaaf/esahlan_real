@@ -43,7 +43,7 @@ class AdminAnalyticsController extends Controller
         // Pending orders — show exactly what's waiting right now
         $pendingOrders = DB::table('orders')->where('status', 'pending')->count();
 
-        $cached = Cache::remember('admin:analytics:v4', 120, function () {
+        $cached = Cache::remember('admin:analytics:v5', 120, function () {
             $now        = now();
             $startToday = today();
             $start7d    = $now->copy()->subDays(7);
