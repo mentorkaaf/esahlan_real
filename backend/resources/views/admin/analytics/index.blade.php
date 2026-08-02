@@ -38,7 +38,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 
 /* ── Wrap ── */
-.an{padding:18px 22px;max-width:1500px;font-family:'Segoe UI',system-ui,sans-serif}
+.an{padding:18px 22px;width:100%;font-family:'Segoe UI',system-ui,sans-serif}
 
 /* ── Header ── */
 .an-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap}
