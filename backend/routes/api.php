@@ -481,6 +481,9 @@ Route::prefix('v1')->group(function () {
             Route::post('interest/{userId}',          [EMarryController::class, 'sendInterest']);
             Route::post('interest/{senderId}/respond',[EMarryController::class, 'respondInterest']);
             Route::get('interests/received',          [EMarryController::class, 'receivedInterests']);
+            Route::get('interests/sent',              [EMarryController::class, 'sentInterests']);
+            Route::get('matches',                     [EMarryController::class, 'matches']);
+            Route::post('pass/{userId}',              [EMarryController::class, 'passProfile']);
         });
         Route::get('community/settings/blocked-users',                [UserSettingsController::class, 'blockedUsers']);
         Route::delete('community/settings/blocked-users/{id}',        [UserSettingsController::class, 'unblock']);

@@ -40,6 +40,18 @@ class EMarryController extends Controller
         if ($request->min_age) $query->where('p.age', '>=', $request->min_age);
         if ($request->max_age) $query->where('p.age', '<=', $request->max_age);
 
+        // Exclude profiles I already swiped on (liked or passed in last 7 days)
+        $alreadySwiped = DB::table('emarry_interests')
+            ->where('sender_id', $user->id)->pluck('receiver_id');
+        $alreadyPassed = DB::table('emarry_passes')
+            ->where('user_id', $user->id)
+            ->where('created_at', '>=', now()->subDays(7))
+            ->pluck('passed_user_id');
+        $exclude = $alreadySwiped->merge($alreadyPassed)->unique();
+        if ($exclude->isNotEmpty()) {
+            $query->whereNotIn('p.user_id', $exclude);
+        }
+
         $profiles = $query->select(
             'p.id', 'p.user_id', 'p.gender', 'p.age', 'p.city',
             'p.nationality', 'p.education', 'p.occupation',
@@ -138,6 +150,69 @@ class EMarryController extends Controller
         return response()->json(['success' => true, 'message' => 'Profile submitted for review.']);
     }
 
+    // ── GET /emarry/matches  ─────────────────────────────────────────────────
+    // Returns profiles where both users sent/accepted interest to each other
+    public function matches(Request $request)
+    {
+        $user = $request->user();
+
+        // Matches: I sent interest AND they sent interest back (mutual swipe right)
+        $sentByMe = DB::table('emarry_interests')
+            ->where('sender_id', $user->id)
+            ->pluck('receiver_id');
+
+        $sentToMe = DB::table('emarry_interests')
+            ->where('receiver_id', $user->id)
+            ->whereIn('sender_id', $sentByMe)
+            ->pluck('sender_id');
+
+        $matches = DB::table('emarry_profiles as p')
+            ->join('users as u', 'u.id', '=', 'p.user_id')
+            ->whereIn('p.user_id', $sentToMe)
+            ->select('p.user_id', 'p.age', 'p.city', 'p.gender', 'p.bio', 'p.photos',
+                     'u.name', 'u.avatar')
+            ->get()
+            ->map(function ($p) {
+                $p->photos = json_decode($p->photos ?? '[]');
+                return $p;
+            });
+
+        return response()->json(['success' => true, 'data' => $matches]);
+    }
+
+    // ── GET /emarry/interests/sent  ──────────────────────────────────────────
+    public function sentInterests(Request $request)
+    {
+        $user = $request->user();
+        $interests = DB::table('emarry_interests as i')
+            ->join('users as u', 'u.id', '=', 'i.receiver_id')
+            ->join('emarry_profiles as p', 'p.user_id', '=', 'i.receiver_id')
+            ->where('i.sender_id', $user->id)
+            ->select('i.id', 'i.status', 'i.created_at',
+                     'u.id as user_id', 'u.name', 'u.avatar',
+                     'p.age', 'p.city', 'p.gender', 'p.photos')
+            ->orderByDesc('i.created_at')
+            ->get()
+            ->map(function ($r) {
+                $r->photos = json_decode($r->photos ?? '[]');
+                return $r;
+            });
+
+        return response()->json(['success' => true, 'data' => $interests]);
+    }
+
+    // ── POST /emarry/pass/{userId}  ──────────────────────────────────────────
+    public function passProfile(Request $request, int $userId)
+    {
+        $user = $request->user();
+        // Record pass so we don't show this profile again (24h)
+        DB::table('emarry_passes')->updateOrInsert(
+            ['user_id' => $user->id, 'passed_user_id' => $userId],
+            ['created_at' => now()]
+        );
+        return response()->json(['success' => true]);
+    }
+
     // ── POST /emarry/interest/{userId}  ──────────────────────────────────────
     public function sendInterest(Request $request, int $userId)
     {
@@ -168,14 +243,28 @@ class EMarryController extends Controller
             return response()->json(['success' => false, 'message' => 'Interest already sent'], 422);
         }
 
+        // Check if receiver already swiped right on me → mutual match!
+        $theyLikedMe = DB::table('emarry_interests')
+            ->where('sender_id', $userId)
+            ->where('receiver_id', $sender->id)
+            ->exists();
+
         DB::table('emarry_interests')->insert([
             'sender_id'   => $sender->id,
             'receiver_id' => $userId,
-            'status'      => 'pending',
+            'status'      => $theyLikedMe ? 'accepted' : 'pending',
             'message'     => $request->message,
             'created_at'  => now(),
             'updated_at'  => now(),
         ]);
+
+        // If mutual, also mark their interest as accepted
+        if ($theyLikedMe) {
+            DB::table('emarry_interests')
+                ->where('sender_id', $userId)
+                ->where('receiver_id', $sender->id)
+                ->update(['status' => 'accepted', 'updated_at' => now()]);
+        }
 
         // Realtime + FCM notify receiver
         try {
@@ -186,14 +275,18 @@ class EMarryController extends Controller
             if ($receiverUser?->fcm_token) {
                 FcmService::sendToToken(
                     $receiverUser->fcm_token,
-                    '💍 New Interest!',
-                    "{$sender->name} is interested in you",
-                    ['type' => 'emarry_interest', 'deep_link' => '/community?tab=emarry']
+                    $theyLikedMe ? '💍 It\'s a Match!' : '💍 New Interest!',
+                    $theyLikedMe ? "You and {$sender->name} matched!" : "{$sender->name} is interested in you",
+                    ['type' => $theyLikedMe ? 'emarry_match' : 'emarry_interest', 'deep_link' => '/community?tab=emarry']
                 );
             }
         } catch (\Throwable) {}
 
-        return response()->json(['success' => true, 'message' => 'Interest sent!']);
+        return response()->json([
+            'success'  => true,
+            'message'  => $theyLikedMe ? 'It\'s a match!' : 'Interest sent!',
+            'is_match' => $theyLikedMe,
+        ]);
     }
 
     // ── POST /emarry/interest/{senderId}/respond  ─────────────────────────────
