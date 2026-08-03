@@ -77,8 +77,7 @@ Schedule::call(fn () => FeedRankingService::cleanupOldInteractions())
 Schedule::job(new \App\Jobs\ComputeUserSimilaritiesJob)
     ->weekly()
     ->name('feed:collab-similarities')
-    ->withoutOverlapping()
-    ->runInBackground();
+    ->withoutOverlapping();
 
 // Cart abandonment notifications: every 15 minutes
 Schedule::command('cart:notify-abandoned')
