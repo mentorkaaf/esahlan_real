@@ -147,7 +147,8 @@ class FeedRankingService
     private array $sessionNegative;
     private array $sessionPositive;
     private array $notInterestedSignals;
-    private array $collaborativePostIds;
+    private array  $collaborativePostIds;
+    private ?array $userEmbedding; // averaged vector of recent liked/saved posts
 
     public function __construct(int $userId)
     {
@@ -162,6 +163,15 @@ class FeedRankingService
         $this->sessionPositive      = $this->getSessionData('positive');
         $this->notInterestedSignals = $this->getNotInterestedSignals();
         $this->collaborativePostIds = $this->getCollaborativePostIds();
+        $this->userEmbedding        = $this->loadUserEmbedding();
+    }
+
+    // Loads user interest vector from cache (60 min TTL) or computes fresh.
+    private function loadUserEmbedding(): ?array
+    {
+        return Cache::remember("user:{$this->userId}:embedding", 3600, function () {
+            return \App\Services\EmbeddingService::getUserInterestVector($this->userId);
+        });
     }
 
     // ─── Public API ───────────────────────────────────────────────────────────
@@ -223,7 +233,7 @@ class FeedRankingService
 
         $cols = ['id', 'user_id', 'type', 'content', 'location',
                  'views_count', 'likes_count', 'comments_count',
-                 'shares_count', 'saves_count', 'created_at'];
+                 'shares_count', 'saves_count', 'created_at', 'embedding'];
 
         // Pool 1: Following (no distribution cap — followers always see their feed)
         $followingPosts = (clone $base)
@@ -534,6 +544,18 @@ class FeedRankingService
         // ── P. Collaborative filtering boost ──────────────────────────────────
         if (!empty($this->collaborativePostIds) && in_array($post->id, $this->collaborativePostIds)) {
             $score *= 1.25;
+        }
+
+        // ── Q. Semantic similarity (OpenAI embeddings) ────────────────────────
+        // Only applies when both the user has interacted enough (has an embedding)
+        // and the post has been embedded. Adds up to ×2.0 for a perfect match.
+        if ($this->userEmbedding !== null && !empty($post->embedding)) {
+            $postVec = is_array($post->embedding) ? $post->embedding : json_decode($post->embedding, true);
+            if (!empty($postVec)) {
+                $sim = \App\Services\EmbeddingService::cosineSimilarity($this->userEmbedding, $postVec);
+                // sim ∈ [0,1]. Boost: 0.5 sim → ×1.5, 0.8 sim → ×1.8, 1.0 → ×2.0
+                $score *= (1.0 + $sim);
+            }
         }
 
         return max(0.001, $score);

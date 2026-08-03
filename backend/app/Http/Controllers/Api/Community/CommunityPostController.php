@@ -13,6 +13,7 @@ use App\Services\InteractionTracker;
 use App\Services\FcmService;
 use App\Services\RealtimeService;
 use App\Jobs\TranscodeVideoJob;
+use App\Jobs\EmbedPostJob;
 use App\Jobs\ScorePostRiskJob;
 use App\Models\CommunityFollow;
 use App\Services\AutoRestrictService;
@@ -161,6 +162,9 @@ class CommunityPostController extends Controller
                 'author_name' => $userName,
             ]);
         }
+
+        // Embedding for semantic feed matching (non-blocking, low priority)
+        EmbedPostJob::dispatch($post->id)->onQueue('default')->delay(now()->addSeconds(5));
 
         // AI risk scoring in background (non-blocking)
         ScorePostRiskJob::dispatch(
