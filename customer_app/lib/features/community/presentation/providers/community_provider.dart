@@ -41,35 +41,50 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<CommunityPost>>> {
   int _page = 1;
   bool _hasMore = true;
   bool _loading = false;
+  String? _nextCursor; // cursor-based pagination for main feed
+
+  // New posts banner
+  int _newPostCount = 0;
+  int get newPostCount => _newPostCount;
+  void incrementNewPosts() { _newPostCount++; }
+  void clearNewPosts()    { _newPostCount = 0; }
 
   Future<void> load({bool refresh = false}) async {
     if (_loading) return;
     if (refresh) {
       _page = 1;
       _hasMore = true;
+      _nextCursor = null;
+      _newPostCount = 0;
       state = const AsyncValue.loading();
     }
     if (!_hasMore) return;
     _loading = true;
     try {
-      final posts = await _fetchPage(_page);
-      if (posts.isEmpty) {
-        if (_feedType == 'reels') {
-          _page = 1; // Cycle back to page 1 for endless reels
-        } else {
-          _hasMore = false;
+      List<CommunityPost> posts;
+      if (_feedType == 'feed') {
+        final raw = await _repo.getFeedRaw(page: _page, cursor: _nextCursor);
+        posts = _repo.parsePosts(raw['data']);
+        final meta = raw['meta'] as Map<String, dynamic>? ?? {};
+        _nextCursor = meta['next_cursor'] as String?;
+        _hasMore = (meta['has_more'] as bool?) ?? posts.isNotEmpty;
+      } else {
+        posts = await _fetchPage(_page);
+        if (posts.isEmpty) {
+          if (_feedType == 'reels') {
+            _page = 1;
+          } else {
+            _hasMore = false;
+          }
         }
       }
+
       final current = refresh ? <CommunityPost>[] : (state.valueOrNull ?? []);
-      // Dedup real posts by id — the ranking algorithm can occasionally
-      // resurface a post across adjacent pages (scores shift between
-      // requests). Ads are excluded from this check: their id comes from a
-      // separate community_ads sequence that can collide with a real post's
-      // id, so comparing them as the same "id space" would wrongly drop one.
       final existingIds = current.where((p) => !p.isAd).map((p) => p.id).toSet();
       final newPosts = posts.where((p) => p.isAd || !existingIds.contains(p.id)).toList();
       state = AsyncValue.data([...current, ...newPosts]);
-      if (posts.isNotEmpty) _page++;
+      if (posts.isNotEmpty && _feedType != 'feed') _page++;
+      if (posts.isNotEmpty && _feedType == 'feed') _page++;
     } catch (e, s) {
       if (!refresh) state = AsyncValue.error(e, s);
     } finally {
@@ -95,8 +110,8 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<CommunityPost>>> {
   Future<List<CommunityPost>> _fetchPage(int page) {
     switch (_feedType) {
       case 'explore': return _repo.getExploreFeed(page: page);
-      case 'reels': return _repo.getReels(page: page);
-      default: return _repo.getFeed(page: page);
+      case 'reels':   return _repo.getReels(page: page);
+      default:        return _repo.getFeed(page: page);
     }
   }
 

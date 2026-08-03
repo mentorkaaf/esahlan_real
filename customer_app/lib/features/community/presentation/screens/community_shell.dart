@@ -10,6 +10,7 @@ import 'community_chat_list_screen.dart';
 import 'community_profile_screen.dart';
 import 'create_post_screen.dart';
 import 'community_onboarding_screen.dart';
+import 'onboarding_interests_screen.dart';
 import '../../data/repositories/community_repository.dart';
 import '../../data/models/community_models.dart';
 import '../widgets/upload_progress_banner.dart';
@@ -48,6 +49,7 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
   static const _kCachedFeedUrls = 'feed_engine_cached_urls_v1';
 
   bool? _onboardingDone;
+  bool _interestsDone = true; // default true, set false for new users
   DateTime? _backgroundedAt;
   void Function(dynamic)? _inboxListener;
   void Function(dynamic)? _typingListener;
@@ -201,17 +203,28 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
     // navigates away from and back to the community tab.
     final cached = ref.read(_communityOnboardingCacheProvider);
     if (cached != null) {
-      setState(() => _onboardingDone = cached);
+      // Still need to check interests pref from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final interestsDone = prefs.getBool('community_interests_done') ?? false;
+      if (mounted) setState(() { _onboardingDone = cached; _interestsDone = interestsDone || !cached; });
       return;
     }
     try {
       final done = await ref.read(communityRepoProvider).checkOnboarding();
       ref.read(_communityOnboardingCacheProvider.notifier).state = done;
-      if (mounted) setState(() => _onboardingDone = done);
+      final prefs = await SharedPreferences.getInstance();
+      final interestsDone = prefs.getBool('community_interests_done') ?? false;
+      if (mounted) setState(() { _onboardingDone = done; _interestsDone = interestsDone || !done; });
     } catch (_) {
       ref.read(_communityOnboardingCacheProvider.notifier).state = true;
-      if (mounted) setState(() => _onboardingDone = true);
+      if (mounted) setState(() { _onboardingDone = true; _interestsDone = true; });
     }
+  }
+
+  Future<void> _completeInterests() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('community_interests_done', true);
+    if (mounted) setState(() => _interestsDone = true);
   }
 
   @override
@@ -219,7 +232,15 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
     if (_onboardingDone == null) return const Scaffold(body: Center(child: CircularProgressIndicator(color: kOrange)));
 
     if (_onboardingDone == false) {
-      return CommunityOnboardingScreen(onComplete: () => setState(() => _onboardingDone = true));
+      return CommunityOnboardingScreen(onComplete: () async {
+        ref.read(_communityOnboardingCacheProvider.notifier).state = true;
+        if (mounted) setState(() => _onboardingDone = true);
+      });
+    }
+
+    // After profile onboarding: show interest selection once for new users
+    if (!_interestsDone) {
+      return OnboardingInterestsScreen(onDone: _completeInterests);
     }
 
     final idx = ref.watch(communityNavIndexProvider);

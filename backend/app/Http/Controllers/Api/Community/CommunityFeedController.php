@@ -30,7 +30,8 @@ class CommunityFeedController extends Controller
     {
         $this->trackActiveFeedUser();
         $userId = auth()->id();
-        $page = (int) $request->get('page', 1);
+        $page   = (int) $request->get('page', 1);
+        $cursor = $request->get('cursor'); // cursor-based pagination
 
         // Get blocked user IDs to exclude from feed
         $blockedIds = DB::table('community_blocks')
@@ -38,10 +39,9 @@ class CommunityFeedController extends Controller
 
         // Build personalized feed using ranking algorithm
         $ranker = new FeedRankingService($userId);
-        $ranked = $ranker->buildFeed($page, 30);
+        $ranked = $ranker->buildFeed($page, 30, $cursor);
 
         if (empty($ranked)) {
-            // Fallback: if no ranked results (new user / cold start), use chronological
             return $this->coldStartFeed($userId, $page);
         }
 
@@ -54,7 +54,6 @@ class CommunityFeedController extends Controller
         }
         $posts = $query->get()->keyBy('id');
 
-        // Batch-load follow + saved state once to avoid N+1 (one query each)
         $followingIds = \DB::table('community_follows')
             ->where('follower_id', $userId)->pluck('following_id')->toArray();
         $savedPostIds = \DB::table('community_saved_posts')
@@ -68,18 +67,19 @@ class CommunityFeedController extends Controller
             }
         }
 
-        // Track impressions for these posts
         InteractionTracker::trackImpressions($userId, $rankedIds);
 
-        // Inject ads
         $transformed = $this->injectFeedAds($transformed, $userId);
-        // Inject podcast episode cards (1 every 6 posts)
         $transformed = $this->injectPodcastCards($transformed, $userId);
 
         $total = CommunityPost::whereNull('group_id')
             ->where('privacy', '!=', 'private')
             ->where('created_at', '>', now()->subDays(90))
             ->count();
+
+        // Build next cursor from the last real post id
+        $lastRealPost = collect($transformed)->last(fn ($p) => !($p['is_ad'] ?? false) && !($p['is_podcast'] ?? false));
+        $nextCursor   = $lastRealPost ? base64_encode((string) $lastRealPost['id']) : null;
 
         return response()->json([
             'status' => 'success',
@@ -88,6 +88,8 @@ class CommunityFeedController extends Controller
                 'current_page' => $page,
                 'last_page'    => max(1, ceil($total / 30)),
                 'total'        => $total,
+                'next_cursor'  => $nextCursor,
+                'has_more'     => count($transformed) >= 30,
             ],
         ]);
     }
@@ -359,7 +361,7 @@ class CommunityFeedController extends Controller
     {
         $request->validate([
             'post_id'     => 'required|integer',
-            'type'        => 'required|in:view,like,comment,share,save,watch,click,skip',
+            'type'        => 'required|in:view,like,comment,share,save,watch,click,skip,not_interested',
             'duration_ms' => 'nullable|integer',
         ]);
 
@@ -371,6 +373,34 @@ class CommunityFeedController extends Controller
         );
 
         return response()->json(['status' => 'success']);
+    }
+
+    // ─── Onboarding: save initial interest selections ─────────────────
+    public function saveOnboardingInterests(Request $request)
+    {
+        $request->validate(['topics' => 'required|array|min:1|max:20', 'topics.*' => 'string|max:50']);
+        $userId = auth()->id();
+
+        DB::transaction(function () use ($userId, $request) {
+            // Remove old onboarding interests, keep organically learned ones
+            DB::table('user_interests')->where('user_id', $userId)->where('from_onboarding', true)->delete();
+
+            $now = now();
+            $rows = array_map(fn ($topic) => [
+                'user_id'         => $userId,
+                'topic'           => $topic,
+                'score'           => 5.0, // strong seed score
+                'from_onboarding' => true,
+                'last_updated'    => $now,
+            ], $request->topics);
+
+            DB::table('user_interests')->insert($rows);
+        });
+
+        // Invalidate feed cache so next load uses new interests
+        \Cache::forget("user:{$userId}:interests");
+
+        return response()->json(['success' => true]);
     }
 
     // ─── Feed presence: heartbeat (POST) and leave (DELETE) ───────────

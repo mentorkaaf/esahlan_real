@@ -341,6 +341,7 @@ Route::prefix('v1')->group(function () {
         Route::post('feed/impressions', [CommunityFeedController::class, 'trackImpressions']);
         Route::post('feed/heartbeat', [CommunityFeedController::class, 'heartbeat']);
         Route::delete('feed/heartbeat', [CommunityFeedController::class, 'leave']);
+        Route::post('feed/onboarding-interests', [CommunityFeedController::class, 'saveOnboardingInterests']);
 
         // Posts (upload-creating routes get stricter limit)
         Route::post('posts', [CommunityPostController::class, 'store'])->middleware('throttle:upload');

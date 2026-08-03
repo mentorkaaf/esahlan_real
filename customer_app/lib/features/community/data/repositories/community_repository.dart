@@ -7,9 +7,32 @@ class CommunityRepository {
   static Dio get dioInstance => ApiClient.instance;
 
   // ── Feed ───────────────────────────────────────────────────────────────────
-  Future<List<CommunityPost>> getFeed({int page = 1}) async {
-    final r = await _dio.get('/community/feed', queryParameters: {'page': page});
-    return _parsePosts(r.data['data']);
+  Future<Map<String, dynamic>> getFeedRaw({int page = 1, String? cursor}) async {
+    final params = <String, dynamic>{'page': page};
+    if (cursor != null) params['cursor'] = cursor;
+    final r = await _dio.get('/community/feed', queryParameters: params);
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<List<CommunityPost>> getFeed({int page = 1, String? cursor}) async {
+    final raw = await getFeedRaw(page: page, cursor: cursor);
+    return _parsePosts(raw['data']);
+  }
+
+  Future<void> markNotInterested(int postId) async {
+    try {
+      await _dio.post('/community/feed/track', data: {'post_id': postId, 'type': 'not_interested'});
+    } catch (_) {}
+  }
+
+  Future<void> sendDwell(int postId, int durationMs) async {
+    try {
+      await trackInteraction(postId, 'view', durationMs: durationMs);
+    } catch (_) {}
+  }
+
+  Future<void> saveOnboardingInterests(List<String> topics) async {
+    await _dio.post('/community/feed/onboarding-interests', data: {'topics': topics});
   }
 
   // ── Feed interaction tracking ──────────────────────────────────────────
@@ -728,6 +751,8 @@ class CommunityRepository {
   }
 
   // ── Helper ─────────────────────────────────────────────────────────────────
+  List<CommunityPost> parsePosts(dynamic data) => _parsePosts(data);
+
   List<CommunityPost> _parsePosts(dynamic data) {
     List raw;
     if (data is List) {

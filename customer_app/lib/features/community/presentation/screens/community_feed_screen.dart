@@ -326,10 +326,30 @@ class _FeedTab extends ConsumerStatefulWidget {
 
 class _FeedTabState extends ConsumerState<_FeedTab> {
   int _lastLoadMs = 0;
-  // Slot plan: recomputed only when posts list identity changes.
-  // Stores cheap ints/markers — actual Widget objects are built lazily by the delegate.
   List<_FeedSlot> _slots = const [];
   List<CommunityPost>? _lastPosts;
+
+  // New posts banner
+  int _newPostCount = 0;
+  void Function(dynamic)? _newPostListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _newPostListener = (data) {
+      if (!mounted) return;
+      setState(() => _newPostCount++);
+    };
+    RealtimeClient.instance.listen('community.feed', 'feed.new_post', _newPostListener!);
+  }
+
+  @override
+  void dispose() {
+    if (_newPostListener != null) {
+      RealtimeClient.instance.removeListener('community.feed', 'feed.new_post', _newPostListener!);
+    }
+    super.dispose();
+  }
 
   List<_FeedSlot> _buildSlots(List<CommunityPost> posts, bool hasMore) {
     final s = <_FeedSlot>[];
@@ -384,6 +404,34 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
               ))),
               const SliverToBoxAdapter(child: _CreatePostBar()),
               const SliverToBoxAdapter(child: SizedBox(height: 4)),
+
+              // New posts banner
+              if (_newPostCount > 0)
+                SliverToBoxAdapter(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() => _newPostCount = 0);
+                      ref.read(communityFeedProvider.notifier).refresh();
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: kOrange,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [BoxShadow(color: kOrange.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))],
+                      ),
+                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          '$_newPostCount new post${_newPostCount > 1 ? 's' : ''}',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                        ),
+                      ]),
+                    ),
+                  ),
+                ),
 
               ...feedState.when<List<Widget>>(
                 data: (posts) {
@@ -1394,6 +1442,23 @@ class _PostCardState extends ConsumerState<_PostCard> {
   final Map<String, void Function(dynamic)> _realtimeListeners = {};
   late final ValueNotifier<_PostCounters> _counters;
 
+  // Dwell time tracking for non-video posts
+  DateTime? _dwellStart;
+
+  void _onVisibility(VisibilityInfo info) {
+    if (widget.post.isAd || widget.post.isVideo) return; // video handles its own
+    final visible = info.visibleFraction > 0.5;
+    if (visible && _dwellStart == null) {
+      _dwellStart = DateTime.now();
+    } else if (!visible && _dwellStart != null) {
+      final ms = DateTime.now().difference(_dwellStart!).inMilliseconds;
+      _dwellStart = null;
+      if (ms > 800 && widget.post.id > 0) {
+        ref.read(communityRepoProvider).sendDwell(widget.post.id, ms);
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1503,7 +1568,10 @@ class _PostCardState extends ConsumerState<_PostCard> {
     if (p.isPodcast) return _PodcastFeedCard(post: p);
 
     final c = context.colors;
-    return Container(
+    return VisibilityDetector(
+      key: Key('dwell_${p.id}'),
+      onVisibilityChanged: _onVisibility,
+      child: Container(
       margin: EdgeInsets.fromLTRB(12, 0, 12, 12),
       decoration: BoxDecoration(
         color: c.cardBg,
@@ -1709,7 +1777,8 @@ class _PostCardState extends ConsumerState<_PostCard> {
 
         _PostActionBar(post: p, onShare: _showShareDialog),
       ]),
-    );
+      ), // Container
+    ); // VisibilityDetector
   }
 
   void _showReactionsList(String initialType) {
@@ -2025,8 +2094,10 @@ class _PostCardState extends ConsumerState<_PostCard> {
             subtitle: Text('See fewer posts like this', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
             onTap: () {
               Navigator.pop(context);
-              ref.read(communityRepoProvider).trackInteraction(widget.post.id, 'skip');
+              ref.read(communityRepoProvider).markNotInterested(widget.post.id);
               ref.read(communityFeedProvider.notifier).removePost(widget.post.id);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: const Text('Got it — you\'ll see less of this'), duration: const Duration(seconds: 2)));
             },
           ),
           ListTile(

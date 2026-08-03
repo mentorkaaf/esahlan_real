@@ -144,45 +144,56 @@ class FeedRankingService
     private array $seenPostIds;
     private array $interactionHistory;
     private array $negativeSignals;
-    private array $sessionSignals;
+    private array $sessionNegative;
+    private array $sessionPositive;
+    private array $notInterestedSignals;
+    private array $collaborativePostIds;
 
     public function __construct(int $userId)
     {
-        $this->userId             = $userId;
-        $this->followingIds       = $this->getFollowingIds();
-        $this->blockedUserIds     = $this->getBlockedUserIds();
-        $this->userInterests      = $this->getUserInterests();
-        $this->seenPostIds        = $this->getRecentSeenPosts();
-        $this->interactionHistory = $this->getRecentInteractions();
-        $this->negativeSignals    = $this->getNegativeSignals();
-        $this->sessionSignals     = $this->getSessionSignals();
+        $this->userId               = $userId;
+        $this->followingIds         = $this->getFollowingIds();
+        $this->blockedUserIds       = $this->getBlockedUserIds();
+        $this->userInterests        = $this->getUserInterests();
+        $this->seenPostIds          = $this->getRecentSeenPosts();
+        $this->interactionHistory   = $this->getRecentInteractions();
+        $this->negativeSignals      = $this->getNegativeSignals();
+        $this->sessionNegative      = $this->getSessionData('negative');
+        $this->sessionPositive      = $this->getSessionData('positive');
+        $this->notInterestedSignals = $this->getNotInterestedSignals();
+        $this->collaborativePostIds = $this->getCollaborativePostIds();
     }
 
     // ─── Public API ───────────────────────────────────────────────────────────
 
-    public function buildFeed(int $page = 1, int $perPage = 15): array
+    public function buildFeed(int $page = 1, int $perPage = 15, ?string $cursor = null): array
     {
+        // Cursor-based: skip cache when cursor provided (real-time pagination)
         $cacheKey = "feed:v4:{$this->userId}:p{$page}";
-        $cached = Cache::get($cacheKey);
-        if ($cached && $page > 1) return $cached;
+        if (!$cursor) {
+            $cached = Cache::get($cacheKey);
+            if ($cached && $page > 1) return $cached;
+        }
 
-        $candidates  = $this->gatherCandidates($page, $perPage);
+        $candidates  = $this->gatherCandidates($page, $perPage, $cursor);
         $scored      = $this->scorePostsBatch($candidates);
         $diversified = $this->applyDiversity($scored, $perPage);
         $result      = array_slice($diversified, 0, $perPage);
 
         $this->markSeen(array_column($result, 'post_id'));
-        Cache::put($cacheKey, $result, 120);
+        if (!$cursor) Cache::put($cacheKey, $result, 120);
 
         return $result;
     }
 
     // ─── Candidate Gathering ──────────────────────────────────────────────────
 
-    private function gatherCandidates(int $page, int $perPage): Collection
+    private function gatherCandidates(int $page, int $perPage, ?string $cursor = null): Collection
     {
         $candidateCount = $perPage * 5;
-        $offset         = ($page - 1) * $perPage;
+        // Cursor: extract last seen post id to exclude posts already delivered
+        $cursorId = $cursor ? (int) base64_decode($cursor) : null;
+        $offset   = ($page - 1) * $perPage;
 
         $hasFollowing    = !empty($this->followingIds);
         $hasInteractions = !empty($this->getInteractedCreators());
@@ -195,7 +206,8 @@ class FeedRankingService
             ->where('community_posts.moderation_status', 'approved')
             ->where('community_posts.created_at', '>', now()->subDays(90))
             ->where(fn ($q) => $q->where('community_posts.video_ready', true)->orWhere('community_posts.user_id', $this->userId))
-            ->when(!empty($this->blockedUserIds), fn ($q) => $q->whereNotIn('community_posts.user_id', $this->blockedUserIds));
+            ->when(!empty($this->blockedUserIds), fn ($q) => $q->whereNotIn('community_posts.user_id', $this->blockedUserIds))
+            ->when($cursorId, fn ($q) => $q->where('community_posts.id', '<', $cursorId));
 
         if (!empty($this->seenPostIds)) {
             $recentSeen      = DB::table('feed_seen_posts')
@@ -276,8 +288,18 @@ class FeedRankingService
             ->limit((int) round($candidateCount * 0.05 * $discoveryBoost))
             ->get($cols);
 
+        // Pool 6: Collaborative filtering — posts liked by similar users
+        $collaborativePosts = collect();
+        if (!empty($this->collaborativePostIds)) {
+            $collaborativePosts = (clone $base)
+                ->whereIn('community_posts.id', $this->collaborativePostIds)
+                ->whereNotIn('community_posts.user_id', $this->followingIds)
+                ->limit((int) round($candidateCount * 0.15))
+                ->get($cols);
+        }
+
         return $followingPosts->concat($recommendedPosts)->concat($trendingPosts)
-            ->concat($newCreatorPosts)->concat($randomPosts)->unique('id');
+            ->concat($newCreatorPosts)->concat($randomPosts)->concat($collaborativePosts)->unique('id');
     }
 
     // ─── Scoring ──────────────────────────────────────────────────────────────
@@ -470,14 +492,48 @@ class FeedRankingService
             if ($penalty > 0) $score *= 1 / (1 + $penalty * 0.3);
         }
 
-        // ── L. Session-scoped signals (heavy, short-lived) ────────────────────
-        if (!empty($this->sessionSignals)) {
-            $sp  = (int) ($this->sessionSignals["creator:{$post->user_id}"] ?? 0) * 1.0;
-            $sp += (int) ($this->sessionSignals["type:{$post->type}"]       ?? 0) * 0.5;
+        // ── L. Not-interested (strong permanent penalty) ───────────────────────
+        if (!empty($this->notInterestedSignals)) {
+            $niPenalty  = ($this->notInterestedSignals["creator:{$post->user_id}"] ?? 0) * 5.0;
+            $niPenalty += ($this->notInterestedSignals["type:{$post->type}"]       ?? 0) * 2.0;
+            if ($niPenalty > 0) $score *= 1 / (1 + $niPenalty * 0.5);
+        }
+
+        // ── M. Session negative signals ────────────────────────────────────────
+        if (!empty($this->sessionNegative)) {
+            $sn  = (int) ($this->sessionNegative["creator:{$post->user_id}"] ?? 0) * 1.0;
+            $sn += (int) ($this->sessionNegative["type:{$post->type}"]       ?? 0) * 0.5;
             foreach ($tags as $tag) {
-                $sp += (int) ($this->sessionSignals["hashtag:{$tag}"] ?? 0) * 0.8;
+                $sn += (int) ($this->sessionNegative["hashtag:{$tag}"] ?? 0) * 0.8;
             }
-            if ($sp > 0) $score *= 1 / (1 + $sp * 0.6);
+            if ($sn > 0) $score *= 1 / (1 + $sn * 0.6);
+        }
+
+        // ── N. Session positive signals (in-session boost) ────────────────────
+        if (!empty($this->sessionPositive)) {
+            $sp  = (int) ($this->sessionPositive["creator:{$post->user_id}"] ?? 0) * 1.2;
+            $sp += (int) ($this->sessionPositive["type:{$post->type}"]       ?? 0) * 0.8;
+            foreach ($tags as $tag) {
+                $sp += (int) ($this->sessionPositive["hashtag:{$tag}"] ?? 0) * 1.0;
+            }
+            if ($sp > 0) $score *= (1 + min($sp * 0.3, 2.0)); // cap at 3× boost
+        }
+
+        // ── O. Creator momentum boost ──────────────────────────────────────────
+        $hoursOld = max(1, now()->diffInHours($post->created_at));
+        if ($hoursOld < 6) {
+            // Creator just posted — boost their other recent posts too
+            $recentPostCount = DB::table('community_posts')
+                ->where('user_id', $post->user_id)
+                ->where('created_at', '>', now()->subDays(7))
+                ->where('moderation_status', 'approved')
+                ->count();
+            if ($recentPostCount >= 3) $score *= 1.20; // active poster boost
+        }
+
+        // ── P. Collaborative filtering boost ──────────────────────────────────
+        if (!empty($this->collaborativePostIds) && in_array($post->id, $this->collaborativePostIds)) {
+            $score *= 1.25;
         }
 
         return max(0.001, $score);
@@ -750,15 +806,53 @@ class FeedRankingService
         });
     }
 
-    private function getSessionSignals(): array
+    private function getSessionData(string $dir): array
     {
         try {
-            $raw = Redis::hgetall("session:{$this->userId}:negative");
+            $raw = Redis::hgetall("session:{$this->userId}:{$dir}");
             return is_array($raw) ? $raw : [];
         } catch (\Throwable $e) {
-            Log::warning('Session signal read failed (non-fatal): ' . $e->getMessage());
+            Log::warning("Session {$dir} signal read failed (non-fatal): " . $e->getMessage());
             return [];
         }
+    }
+
+    private function getNotInterestedSignals(): array
+    {
+        try {
+            $raw = Redis::hgetall("user:{$this->userId}:not_interested");
+            return is_array($raw) ? $raw : [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    private function getCollaborativePostIds(): array
+    {
+        return Cache::remember("user:{$this->userId}:collab_posts", 600, function () {
+            // Find top-3 similar users from pre-computed table
+            $similarUsers = DB::table('user_similarities')
+                ->where('user_a', $this->userId)
+                ->orderByDesc('score')
+                ->limit(3)
+                ->pluck('user_b')
+                ->toArray();
+
+            if (empty($similarUsers)) return [];
+
+            // Return post IDs that similar users engaged with (liked/saved) but this user hasn't seen
+            return DB::table('feed_interactions')
+                ->whereIn('user_id', $similarUsers)
+                ->whereIn('type', ['like', 'save', 'comment'])
+                ->whereNotIn('post_id', $this->seenPostIds)
+                ->where('created_at', '>', now()->subDays(7))
+                ->selectRaw('post_id, COUNT(*) as cnt')
+                ->groupBy('post_id')
+                ->orderByDesc('cnt')
+                ->limit(20)
+                ->pluck('post_id')
+                ->toArray();
+        });
     }
 
     private function markSeen(array $postIds): void

@@ -46,42 +46,56 @@ class InteractionTracker
             UpdateUserInterestsJob::dispatch($userId);
         }
 
-        // Update short-term session signals for skip/hide actions only —
-        // this is what makes the feed adapt within a single scroll session
-        // (e.g. skip 3 cooking videos, see fewer for the next 30 min) without
-        // waiting for the persisted-interest decay/recompute cycle.
-        if ($type === 'skip') {
-            self::recordSessionSkip($userId, $postId);
+        // Session signals: negative for skip/not_interested, positive for strong engagement
+        if (in_array($type, ['skip', 'not_interested'])) {
+            self::recordSessionSignal($userId, $postId, 'negative', $type === 'not_interested' ? 3 : 1);
+        } elseif (in_array($type, ['like', 'save', 'share', 'comment'])) {
+            self::recordSessionSignal($userId, $postId, 'positive', 1);
+        } elseif ($type === 'watch' && isset($meta['duration_ms']) && $meta['duration_ms'] > 10000) {
+            // Long watch (>10s) = positive signal
+            self::recordSessionSignal($userId, $postId, 'positive', 1);
+        }
+
+        // not_interested = permanent penalty (stronger than skip)
+        if ($type === 'not_interested') {
+            self::recordPermanentNotInterested($userId, $postId);
         }
     }
 
-    /**
-     * Record a within-session negative signal in Redis. Best-effort: if Redis
-     * is unreachable for any reason, this silently no-ops rather than
-     * breaking the interaction-tracking request — session learning is a
-     * nice-to-have layered on top, not a dependency the rest of the app needs.
-     */
-    private static function recordSessionSkip(int $userId, int $postId): void
+    private static function recordSessionSignal(int $userId, int $postId, string $dir, int $weight = 1): void
     {
         try {
             $post = DB::table('community_posts')->where('id', $postId)->first(['user_id', 'type']);
             if (!$post) return;
 
-            $key = "session:{$userId}:negative";
-            Redis::hincrby($key, "creator:{$post->user_id}", 1);
-            Redis::hincrby($key, "type:{$post->type}", 1);
+            $key = "session:{$userId}:{$dir}";
+            Redis::hincrby($key, "creator:{$post->user_id}", $weight);
+            Redis::hincrby($key, "type:{$post->type}", $weight);
 
             $tags = DB::table('community_post_hashtags')
                 ->join('community_hashtags', 'community_hashtags.id', '=', 'community_post_hashtags.hashtag_id')
-                ->where('post_id', $postId)
-                ->pluck('community_hashtags.name');
+                ->where('post_id', $postId)->pluck('community_hashtags.name');
             foreach ($tags as $tag) {
-                Redis::hincrby($key, "hashtag:{$tag}", 1);
+                Redis::hincrby($key, "hashtag:{$tag}", $weight);
             }
-
             Redis::expire($key, self::SESSION_TTL_SECONDS);
         } catch (\Throwable $e) {
-            Log::warning('Session skip tracking failed (non-fatal): ' . $e->getMessage());
+            Log::warning("Session {$dir} signal failed (non-fatal): " . $e->getMessage());
+        }
+    }
+
+    private static function recordPermanentNotInterested(int $userId, int $postId): void
+    {
+        try {
+            $post = DB::table('community_posts')->where('id', $postId)->first(['user_id', 'type']);
+            if (!$post) return;
+
+            $key = "user:{$userId}:not_interested";
+            Redis::hincrby($key, "creator:{$post->user_id}", 5);
+            Redis::hincrby($key, "type:{$post->type}", 2);
+            Redis::expire($key, 86400 * 30); // 30 days
+        } catch (\Throwable $e) {
+            Log::warning('Permanent not-interested signal failed (non-fatal): ' . $e->getMessage());
         }
     }
 
