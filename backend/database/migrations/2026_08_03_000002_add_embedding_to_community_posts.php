@@ -9,8 +9,8 @@ return new class extends Migration {
     {
         Schema::table('community_posts', function (Blueprint $table) {
             // JSON array of 1536 floats (text-embedding-3-small output)
-            $table->json('embedding')->nullable()->after('viral_score');
-            $table->timestamp('embedding_updated_at')->nullable()->after('embedding');
+            $table->json('embedding')->nullable();
+            $table->timestamp('embedding_updated_at')->nullable();
         });
 
         // Index so we can find un-embedded posts quickly
