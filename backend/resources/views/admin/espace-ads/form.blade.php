@@ -64,7 +64,7 @@ $moduleIcons  = ['efood'=>'🍕','egrocery'=>'🛒','eshop'=>'🛍️','eparcel'
         @foreach($modules as $key => $m)
         <label class="module-opt">
             <input type="radio" name="module" value="{{ $key }}"
-                {{ ($isEdit && $ad->module === $key) || (!$isEdit && old('module') === $key) ? 'checked' : '' }}
+                {{ ($isEdit && $ad?->module === $key) || (!$isEdit && old('module') === $key) ? 'checked' : '' }}
                 onchange="updatePreview()">
             <div class="card" style="--mc:{{ $m['color'] }}">
                 <div class="emoji">{{ ['efood'=>'🍕','egrocery'=>'🛒','eshop'=>'🛍️','eparcel'=>'📦','emoving'=>'🚛','elearning'=>'🎓','eexchange'=>'💱','erent'=>'🏠'][$key] }}</div>
@@ -81,23 +81,23 @@ $moduleIcons  = ['efood'=>'🍕','egrocery'=>'🛒','eshop'=>'🛍️','eparcel'
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
         <div class="form-group" style="grid-column:1/-1;">
             <label>Title *</label>
-            <input type="text" name="title" class="form-control" maxlength="100" placeholder="e.g. Order Delicious Food" value="{{ old('title', $ad->title ?? '') }}" oninput="updatePreview()" required>
+            <input type="text" name="title" class="form-control" maxlength="100" placeholder="e.g. Order Delicious Food" value="{{ old('title', $ad?->title ?? '') }}" oninput="updatePreview()" required>
         </div>
         <div class="form-group" style="grid-column:1/-1;">
             <label>Subtitle</label>
-            <input type="text" name="subtitle" class="form-control" maxlength="200" placeholder="e.g. 50+ restaurants in your city" value="{{ old('subtitle', $ad->subtitle ?? '') }}" oninput="updatePreview()">
+            <input type="text" name="subtitle" class="form-control" maxlength="200" placeholder="e.g. 50+ restaurants in your city" value="{{ old('subtitle', $ad?->subtitle ?? '') }}" oninput="updatePreview()">
         </div>
         <div class="form-group" style="grid-column:1/-1;">
             <label>Description <span style="color:#8A8A9A;font-weight:400;">(optional — shown below card)</span></label>
-            <textarea name="description" class="form-control" rows="2" maxlength="500" placeholder="Short promo text">{{ old('description', $ad->description ?? '') }}</textarea>
+            <textarea name="description" class="form-control" rows="2" maxlength="500" placeholder="Short promo text">{{ old('description', $ad?->description ?? '') }}</textarea>
         </div>
         <div class="form-group">
             <label>CTA Button Text *</label>
-            <input type="text" name="cta_text" class="form-control" maxlength="50" placeholder="Order Now" value="{{ old('cta_text', $ad->cta_text ?? 'Explore Now') }}" oninput="updatePreview()" required>
+            <input type="text" name="cta_text" class="form-control" maxlength="50" placeholder="Order Now" value="{{ old('cta_text', $ad?->cta_text ?? 'Explore Now') }}" oninput="updatePreview()" required>
         </div>
         <div class="form-group">
             <label>Deep Link *</label>
-            <input type="text" name="deep_link" class="form-control" maxlength="100" placeholder="/efood" value="{{ old('deep_link', $ad->deep_link ?? '') }}" required>
+            <input type="text" name="deep_link" class="form-control" maxlength="100" placeholder="/efood" value="{{ old('deep_link', $ad?->deep_link ?? '') }}" required>
             <small style="color:#8A8A9A;font-size:11px;">App route to open on click</small>
         </div>
     </div>
@@ -106,8 +106,8 @@ $moduleIcons  = ['efood'=>'🍕','egrocery'=>'🛒','eshop'=>'🛍️','eparcel'
 {{-- Image --}}
 <div class="form-card">
     <h6><i class="fas fa-image"></i> Ad Image <span style="font-weight:400;color:#8A8A9A;">(optional — auto-uses module gradient if empty)</span></h6>
-    @if($isEdit && $ad->image_url)
-        <img src="{{ $ad->image_url }}" style="height:80px;border-radius:10px;margin-bottom:10px;object-fit:cover;">
+    @if($isEdit && $ad?->image_url)
+        <img src="{{ $ad?->image_url }}" style="height:80px;border-radius:10px;margin-bottom:10px;object-fit:cover;">
         <div style="font-size:11px;color:#8A8A9A;margin-bottom:8px;">Upload new to replace</div>
     @endif
     <input type="file" name="image" class="form-control" accept="image/*" onchange="previewImage(this)">
@@ -122,7 +122,7 @@ $moduleIcons  = ['efood'=>'🍕','egrocery'=>'🛒','eshop'=>'🛍️','eparcel'
         @php $icons = ['feed'=>'📰','reels'=>'🎬','comments'=>'💬','podcast'=>'🎙️']; @endphp
         <label class="placement-opt">
             <input type="checkbox" name="placement[]" value="{{ $p }}"
-                {{ ($isEdit && str_contains($ad->placement, $p)) || (!$isEdit && in_array($p, (array)old('placement', ['feed']))) ? 'checked' : '' }}>
+                {{ ($isEdit && str_contains($ad?->placement ?? '', $p)) || (!$isEdit && in_array($p, (array)old('placement', ['feed']))) ? 'checked' : '' }}>
             <div class="lbl">{{ $icons[$p] }} {{ ucfirst($p) }}</div>
         </label>
         @endforeach
@@ -130,9 +130,9 @@ $moduleIcons  = ['efood'=>'🍕','egrocery'=>'🛒','eshop'=>'🛍️','eparcel'
 
     <div style="margin-top:20px;">
         <label style="display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:8px;">
-            Priority: <span id="priVal">{{ old('priority', $ad->priority ?? 5) }}</span>/10
+            Priority: <span id="priVal">{{ old('priority', $ad?->priority ?? 5) }}</span>/10
         </label>
-        <input type="range" name="priority" class="priority-slider" min="1" max="10" value="{{ old('priority', $ad->priority ?? 5) }}" style="width:100%"
+        <input type="range" name="priority" class="priority-slider" min="1" max="10" value="{{ old('priority', $ad?->priority ?? 5) }}" style="width:100%"
             oninput="document.getElementById('priVal').textContent=this.value">
         <div style="display:flex;justify-content:space-between;font-size:10px;color:#8A8A9A;margin-top:2px;"><span>Low</span><span>High</span></div>
     </div>
@@ -140,18 +140,18 @@ $moduleIcons  = ['efood'=>'🍕','egrocery'=>'🛒','eshop'=>'🛍️','eparcel'
     <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div class="form-group">
             <label>Start Date</label>
-            <input type="datetime-local" name="starts_at" class="form-control" value="{{ old('starts_at', $ad->starts_at?->format('Y-m-d\TH:i') ?? '') }}">
+            <input type="datetime-local" name="starts_at" class="form-control" value="{{ old('starts_at', $ad?->starts_at?->format('Y-m-d\TH:i') ?? '') }}">
         </div>
         <div class="form-group">
             <label>End Date</label>
-            <input type="datetime-local" name="ends_at" class="form-control" value="{{ old('ends_at', $ad->ends_at?->format('Y-m-d\TH:i') ?? '') }}">
+            <input type="datetime-local" name="ends_at" class="form-control" value="{{ old('ends_at', $ad?->ends_at?->format('Y-m-d\TH:i') ?? '') }}">
         </div>
     </div>
 
     <div style="margin-top:8px;display:flex;align-items:center;gap:10px;">
         <input type="hidden" name="is_active" value="0">
         <input type="checkbox" name="is_active" value="1" id="isActive"
-            {{ old('is_active', $ad->is_active ?? true) ? 'checked' : '' }}
+            {{ old('is_active', $ad?->is_active ?? true) ? 'checked' : '' }}
             style="width:16px;height:16px;accent-color:#FF8A00;">
         <label for="isActive" style="font-size:13px;font-weight:600;cursor:pointer;margin:0;">Active (show to users immediately)</label>
     </div>

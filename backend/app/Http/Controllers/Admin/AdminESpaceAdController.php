@@ -37,7 +37,8 @@ class AdminESpaceAdController extends Controller
     {
         $modules    = ESpaceAd::MODULES;
         $placements = ['feed', 'reels', 'comments', 'podcast'];
-        return view('admin.espace-ads.form', compact('modules', 'placements'));
+        $ad         = null;
+        return view('admin.espace-ads.form', compact('modules', 'placements', 'ad'));
     }
 
     public function store(Request $request)
