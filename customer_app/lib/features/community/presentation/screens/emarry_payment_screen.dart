@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/api/api_client.dart';
 import 'community_shell.dart' show kOrange;
 
@@ -134,15 +137,17 @@ class _EMarryPaymentScreenState extends ConsumerState<EMarryPaymentScreen>
           final plans = (data['plans'] as List).map((p) => _Plan.fromJson(p as Map)).toList();
           final pkgs  = (data['credit_packages'] as List).map((p) => _CreditPkg.fromJson(p as Map)).toList();
           final status = statusAsync.valueOrNull;
+          final enabledMethods = List<String>.from(data['enabled_methods'] as List? ?? ['waafi_pay', 'epay', 'mobile_pay']);
+          final mpAccounts = (data['mobile_pay_accounts'] as List? ?? [])
+              .map((a) => Map<String, dynamic>.from(a as Map)).toList();
 
           return Column(children: [
-            // Status banner
             if (status != null) _StatusBanner(status: status),
             Expanded(child: TabBarView(
               controller: _tab,
               children: [
-                _PlansTab(plans: plans, status: status),
-                _CreditsTab(pkgs: pkgs, status: status),
+                _PlansTab(plans: plans, status: status, enabledMethods: enabledMethods, mpAccounts: mpAccounts),
+                _CreditsTab(pkgs: pkgs, status: status, enabledMethods: enabledMethods, mpAccounts: mpAccounts),
               ],
             )),
           ]);
@@ -220,7 +225,9 @@ class _StatusBanner extends StatelessWidget {
 class _PlansTab extends StatelessWidget {
   final List<_Plan> plans;
   final _EMarryStatus? status;
-  const _PlansTab({required this.plans, this.status});
+  final List<String> enabledMethods;
+  final List<Map<String, dynamic>> mpAccounts;
+  const _PlansTab({required this.plans, this.status, required this.enabledMethods, required this.mpAccounts});
 
   @override
   Widget build(BuildContext context) {
@@ -229,7 +236,8 @@ class _PlansTab extends StatelessWidget {
       const SizedBox(height: 4),
       const Text('Unlimited swipes. Real connections.', style: TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
       const SizedBox(height: 16),
-      ...plans.map((p) => _PlanCard(plan: p, isActive: status?.plan == p.key && status?.isPremium == true)),
+      ...plans.map((p) => _PlanCard(plan: p, isActive: status?.plan == p.key && status?.isPremium == true,
+          enabledMethods: enabledMethods, mpAccounts: mpAccounts)),
       const SizedBox(height: 8),
       const Center(child: Text('Cancel anytime. No hidden fees.', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)))),
       const SizedBox(height: 40),
@@ -240,7 +248,9 @@ class _PlansTab extends StatelessWidget {
 class _PlanCard extends StatelessWidget {
   final _Plan plan;
   final bool isActive;
-  const _PlanCard({required this.plan, required this.isActive});
+  final List<String> enabledMethods;
+  final List<Map<String, dynamic>> mpAccounts;
+  const _PlanCard({required this.plan, required this.isActive, required this.enabledMethods, required this.mpAccounts});
 
   Color get _color => plan.key == 'gold' ? const Color(0xFFF59E0B) : kOrange;
 
@@ -304,7 +314,8 @@ class _PlanCard extends StatelessWidget {
                 : SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => _PaymentSheet.show(context, type: 'subscription', planKey: plan.key, amount: plan.price),
+                      onPressed: () => _PaymentSheet.show(context, type: 'subscription', planKey: plan.key, amount: plan.price,
+                          enabledMethods: enabledMethods, mpAccounts: mpAccounts),
                       style: ElevatedButton.styleFrom(backgroundColor: _color, foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           padding: const EdgeInsets.symmetric(vertical: 13)),
@@ -323,7 +334,9 @@ class _PlanCard extends StatelessWidget {
 class _CreditsTab extends StatelessWidget {
   final List<_CreditPkg> pkgs;
   final _EMarryStatus? status;
-  const _CreditsTab({required this.pkgs, this.status});
+  final List<String> enabledMethods;
+  final List<Map<String, dynamic>> mpAccounts;
+  const _CreditsTab({required this.pkgs, this.status, required this.enabledMethods, required this.mpAccounts});
 
   @override
   Widget build(BuildContext context) {
@@ -355,7 +368,7 @@ class _CreditsTab extends StatelessWidget {
       const SizedBox(height: 16),
       const Text('Buy Credits', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
       const SizedBox(height: 10),
-      Row(children: pkgs.map((p) => Expanded(child: _CreditCard(pkg: p))).toList()),
+      Row(children: pkgs.map((p) => Expanded(child: _CreditCard(pkg: p, enabledMethods: enabledMethods, mpAccounts: mpAccounts))).toList()),
       const SizedBox(height: 16),
       Container(
         padding: const EdgeInsets.all(14),
@@ -389,12 +402,15 @@ class _CreditAction extends StatelessWidget {
 
 class _CreditCard extends StatelessWidget {
   final _CreditPkg pkg;
-  const _CreditCard({required this.pkg});
+  final List<String> enabledMethods;
+  final List<Map<String, dynamic>> mpAccounts;
+  const _CreditCard({required this.pkg, required this.enabledMethods, required this.mpAccounts});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _PaymentSheet.show(context, type: 'credits', pkgKey: pkg.key, amount: pkg.price),
+      onTap: () => _PaymentSheet.show(context, type: 'credits', pkgKey: pkg.key, amount: pkg.price,
+          enabledMethods: enabledMethods, mpAccounts: mpAccounts),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
@@ -445,19 +461,30 @@ class _InfoRow extends StatelessWidget {
 // ─── Payment Bottom Sheet ─────────────────────────────────────────────────────
 
 class _PaymentSheet extends ConsumerStatefulWidget {
-  final String type;           // 'subscription' or 'credits'
+  final String type;
   final String? planKey;
   final String? pkgKey;
   final double amount;
+  final List<String> enabledMethods;
+  final List<Map<String, dynamic>> mpAccounts;
 
-  const _PaymentSheet({required this.type, this.planKey, this.pkgKey, required this.amount});
+  const _PaymentSheet({
+    required this.type, this.planKey, this.pkgKey, required this.amount,
+    required this.enabledMethods, required this.mpAccounts,
+  });
 
-  static void show(BuildContext ctx, {required String type, String? planKey, String? pkgKey, required double amount}) {
+  static void show(BuildContext ctx, {
+    required String type, String? planKey, String? pkgKey, required double amount,
+    required List<String> enabledMethods, required List<Map<String, dynamic>> mpAccounts,
+  }) {
     showModalBottomSheet(
       context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _PaymentSheet(type: type, planKey: planKey, pkgKey: pkgKey, amount: amount),
+      builder: (_) => _PaymentSheet(
+        type: type, planKey: planKey, pkgKey: pkgKey, amount: amount,
+        enabledMethods: enabledMethods, mpAccounts: mpAccounts,
+      ),
     );
   }
 
@@ -466,8 +493,17 @@ class _PaymentSheet extends ConsumerStatefulWidget {
 }
 
 class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
-  String _method = 'waafi_pay';
+  late String _method;
   final _phoneCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Default to first enabled method
+    final methods = widget.enabledMethods;
+    _method = methods.contains('waafi_pay') ? 'waafi_pay'
+            : methods.isNotEmpty ? methods.first : 'waafi_pay';
+  }
   bool _loading = false;
   String? _error;
 
@@ -589,6 +625,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
                     phoneCtrl: _phoneCtrl,
                     error: _error,
                     loading: _loading,
+                    enabledMethods: widget.enabledMethods,
                     onMethodChange: (m) => setState(() => _method = m),
                     onSubmit: _submit,
                   ),
@@ -606,10 +643,12 @@ class _PaymentForm extends ConsumerWidget {
   final TextEditingController phoneCtrl;
   final String? error;
   final bool loading;
+  final List<String> enabledMethods;
   final ValueChanged<String> onMethodChange;
   final VoidCallback onSubmit;
   const _PaymentForm({required this.amount, required this.type, required this.method,
-    required this.phoneCtrl, this.error, required this.loading, required this.onMethodChange, required this.onSubmit});
+    required this.phoneCtrl, this.error, required this.loading,
+    required this.enabledMethods, required this.onMethodChange, required this.onSubmit});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -618,11 +657,9 @@ class _PaymentForm extends ConsumerWidget {
     final enoughEPay  = epayBalance >= amount;
 
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // Handle
       Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(2)))),
       const SizedBox(height: 16),
 
-      // Amount header
       Row(children: [
         const Text('Total', style: TextStyle(color: Color(0xFF6B7280), fontSize: 14)),
         const Spacer(),
@@ -634,33 +671,39 @@ class _PaymentForm extends ConsumerWidget {
       const Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF374151))),
       const SizedBox(height: 10),
 
-      // WaafiPay
-      _MethodTile(
-        value: 'waafi_pay', groupValue: method,
-        icon: '💳', title: 'WaafiPay', subtitle: 'Pay via WaafiPay mobile wallet',
-        onChanged: onMethodChange,
-      ),
+      if (enabledMethods.contains('waafi_pay'))
+        _MethodTile(
+          value: 'waafi_pay', groupValue: method,
+          icon: '💳', title: 'WaafiPay', subtitle: 'Pay via WaafiPay mobile wallet',
+          onChanged: onMethodChange,
+        ),
 
-      // ePay
-      _MethodTile(
-        value: 'epay', groupValue: method,
-        icon: '🏦', title: 'ePay Wallet',
-        subtitle: 'Balance: \$${epayBalance.toStringAsFixed(2)}${!enoughEPay ? '  (insufficient)' : ''}',
-        onChanged: enoughEPay ? onMethodChange : null,
-        disabled: !enoughEPay,
-      ),
+      if (enabledMethods.contains('epay'))
+        _MethodTile(
+          value: 'epay', groupValue: method,
+          icon: '🏦', title: 'ePay Wallet',
+          subtitle: 'Balance: \$${epayBalance.toStringAsFixed(2)}${!enoughEPay ? '  (insufficient)' : ''}',
+          onChanged: enoughEPay ? onMethodChange : null,
+          disabled: !enoughEPay,
+        ),
 
-      // Mobile Pay
-      _MethodTile(
-        value: 'mobile_pay', groupValue: method,
-        icon: '📱', title: 'Mobile Pay', subtitle: 'Pay via USSD · Admin verifies',
-        onChanged: onMethodChange,
-      ),
+      if (enabledMethods.contains('mobile_pay'))
+        _MethodTile(
+          value: 'mobile_pay', groupValue: method,
+          icon: '📱', title: 'Mobile Pay', subtitle: 'Pay via USSD · Admin verifies',
+          onChanged: onMethodChange,
+        ),
+
+      if (enabledMethods.isEmpty)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Center(child: Text('No payment methods available.\nContact support.', textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13))),
+        ),
 
       const SizedBox(height: 14),
 
-      // WaafiPay phone input
-      if (method == 'waafi_pay') ...[
+      if (method == 'waafi_pay' && enabledMethods.contains('waafi_pay')) ...[
         TextField(
           controller: phoneCtrl,
           keyboardType: TextInputType.phone,
@@ -678,7 +721,7 @@ class _PaymentForm extends ConsumerWidget {
         const SizedBox(height: 14),
       ],
 
-      if (method == 'mobile_pay') ...[
+      if (method == 'mobile_pay' && enabledMethods.contains('mobile_pay')) ...[
         const Text('You will receive USSD instructions to send payment.\nUpload screenshot for admin verification.',
             style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
         const SizedBox(height: 14),
@@ -689,19 +732,20 @@ class _PaymentForm extends ConsumerWidget {
             decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
             child: Text(error!, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12))),
 
-      SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: loading ? null : onSubmit,
-          style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              padding: const EdgeInsets.symmetric(vertical: 14)),
-          child: loading
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : Text('Pay \$${amount.toStringAsFixed(2)}',
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+      if (enabledMethods.isNotEmpty)
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: loading ? null : onSubmit,
+            style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 14)),
+            child: loading
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : Text('Pay \$${amount.toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          ),
         ),
-      ),
     ]);
   }
 }
@@ -778,11 +822,41 @@ class _MobilePayInstructions extends StatefulWidget {
 
 class _MobilePayInstructionsState extends State<_MobilePayInstructions> {
   bool _uploading = false;
+  String? _error;
+  File? _pickedFile;
 
-  Future<void> _uploadScreenshot() async {
-    // TODO: Image picker integration
-    // For now, just mark as done (screenshot picker to be added)
-    widget.onDone();
+  Future<void> _pickAndUpload() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (picked == null) return;
+
+    setState(() { _uploading = true; _error = null; _pickedFile = File(picked.path); });
+
+    try {
+      if (widget.requestId == null) {
+        // No request ID — just done (shouldn't happen)
+        widget.onDone();
+        return;
+      }
+
+      final formData = FormData.fromMap({
+        'request_id': widget.requestId,
+        'screenshot': await MultipartFile.fromFile(picked.path, filename: 'proof.jpg'),
+      });
+
+      final res = await ApiClient.instance.post(
+        '/emarry/payment/mobile-pay/screenshot',
+        data: formData,
+      );
+
+      if (res.data['success'] == true) {
+        widget.onDone();
+      } else {
+        setState(() { _uploading = false; _error = res.data['message'] ?? 'Upload failed'; });
+      }
+    } catch (e) {
+      setState(() { _uploading = false; _error = 'Upload failed. Try again.'; });
+    }
   }
 
   @override
@@ -802,7 +876,11 @@ class _MobilePayInstructionsState extends State<_MobilePayInstructions> {
             border: Border.all(color: const Color(0xFFE5E7EB))),
         child: Row(children: [
           Expanded(child: Text(info['ussd'] ?? '', style: const TextStyle(fontFamily: 'monospace', fontSize: 14, fontWeight: FontWeight.w700))),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.copy_rounded, size: 16, color: kOrange), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.copy_rounded, size: 16, color: kOrange),
+            padding: EdgeInsets.zero, constraints: const BoxConstraints(),
+          ),
         ]),
       ),
 
@@ -815,7 +893,7 @@ class _MobilePayInstructionsState extends State<_MobilePayInstructions> {
       _InstructionStep(num: '4', text: 'Upload screenshot below for admin verification'),
       const SizedBox(height: 16),
 
-      if (info['instructions'] != null)
+      if (info['instructions'] != null && (info['instructions'] as String).isNotEmpty)
         Container(
           padding: const EdgeInsets.all(10),
           margin: const EdgeInsets.only(bottom: 14),
@@ -823,12 +901,30 @@ class _MobilePayInstructionsState extends State<_MobilePayInstructions> {
           child: Text(info['instructions'] as String, style: const TextStyle(fontSize: 12, color: Color(0xFF92400E))),
         ),
 
+      // Preview picked image
+      if (_pickedFile != null)
+        Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          height: 120,
+          width: double.infinity,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFE5E7EB))),
+          child: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.file(_pickedFile!, fit: BoxFit.cover)),
+        ),
+
+      if (_error != null)
+        Container(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
+            child: Text(_error!, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12))),
+
       SizedBox(
         width: double.infinity,
         child: ElevatedButton.icon(
-          onPressed: _uploading ? null : _uploadScreenshot,
-          icon: const Icon(Icons.upload_rounded, size: 18),
-          label: const Text('Upload Screenshot', style: TextStyle(fontWeight: FontWeight.w700)),
+          onPressed: _uploading ? null : _pickAndUpload,
+          icon: _uploading
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              : const Icon(Icons.upload_rounded, size: 18),
+          label: Text(_uploading ? 'Uploading…' : 'Upload Screenshot',
+              style: const TextStyle(fontWeight: FontWeight.w700)),
           style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               padding: const EdgeInsets.symmetric(vertical: 13)),

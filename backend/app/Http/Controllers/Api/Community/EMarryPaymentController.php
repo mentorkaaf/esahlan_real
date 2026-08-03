@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Community;
 
+use App\Http\Controllers\Admin\AdminPaymentSettingsController;
 use App\Http\Controllers\Controller;
 use App\Models\Wallet;
 use App\Services\WaafiPayService;
@@ -63,17 +64,33 @@ class EMarryPaymentController extends Controller
     // ── GET /emarry/payment/plans ─────────────────────────────────────────────
     public function plans(Request $request)
     {
-        $user   = $request->user();
-        $status = $this->_userStatus($user->id);
+        $user    = $request->user();
+        $status  = $this->_userStatus($user->id);
+        $enabled = AdminPaymentSettingsController::enabledMethods();
+
+        // eMarry only supports these 3 — filter by what admin has enabled
+        $emarryMethods = array_values(array_filter(
+            ['waafi_pay', 'epay', 'mobile_pay'],
+            fn($m) => in_array($m, $enabled)
+        ));
+
+        // Mobile Pay accounts (for Flutter to show real account info)
+        $mpAccounts = DB::table('mobile_pay_accounts')
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get(['id', 'name', 'account_number', 'ussd_template', 'instructions', 'icon'])
+            ->toArray();
 
         return response()->json([
-            'success'          => true,
-            'data'             => [
-                'plans'          => array_values(self::PLANS),
-                'credit_packages'=> array_values(self::CREDIT_PACKAGES),
-                'credit_actions' => self::CREDIT_ACTIONS,
-                'free_daily_swipes' => self::FREE_DAILY_SWIPES,
-                'my_status'      => $status,
+            'success' => true,
+            'data'    => [
+                'plans'              => array_values(self::PLANS),
+                'credit_packages'    => array_values(self::CREDIT_PACKAGES),
+                'credit_actions'     => self::CREDIT_ACTIONS,
+                'free_daily_swipes'  => self::FREE_DAILY_SWIPES,
+                'my_status'          => $status,
+                'enabled_methods'    => $emarryMethods,
+                'mobile_pay_accounts'=> $mpAccounts,
             ],
         ]);
     }
@@ -97,6 +114,11 @@ class EMarryPaymentController extends Controller
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
+        $enabled = AdminPaymentSettingsController::enabledMethods();
+        if (!in_array($request->payment_method, $enabled)) {
+            return response()->json(['success' => false, 'message' => 'This payment method is currently unavailable.'], 422);
+        }
+
         $user   = $request->user();
         $plan   = self::PLANS[$request->plan];
         $amount = $plan['price'];
@@ -118,6 +140,11 @@ class EMarryPaymentController extends Controller
             'phone'          => 'required_if:payment_method,waafi_pay|nullable|string|min:9',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $enabled = AdminPaymentSettingsController::enabledMethods();
+        if (!in_array($request->payment_method, $enabled)) {
+            return response()->json(['success' => false, 'message' => 'This payment method is currently unavailable.'], 422);
+        }
 
         $user    = $request->user();
         $pkg     = self::CREDIT_PACKAGES[$request->package];
