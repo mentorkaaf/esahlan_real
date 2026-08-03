@@ -31,10 +31,11 @@ class EmbedExistingPosts extends Command
             return;
         }
 
-        foreach ($ids as $id) {
-            EmbedPostJob::dispatch($id)->onQueue('default');
+        // Stagger jobs 2 seconds apart to avoid OpenAI rate limits
+        foreach ($ids as $i => $id) {
+            EmbedPostJob::dispatch($id)->onQueue('default')->delay(now()->addSeconds($i * 2));
         }
 
-        $this->info("Dispatched {$ids->count()} EmbedPostJob(s). Monitor with: php artisan queue:work");
+        $this->info("Dispatched {$ids->count()} EmbedPostJob(s) (staggered 2s apart). Monitor with: php artisan queue:work");
     }
 }

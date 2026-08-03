@@ -18,8 +18,9 @@ class EmbedPostJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries   = 2;
+    public int $tries   = 3;
     public int $timeout = 30;
+    public int $backoff = 60; // retry after 60s on rate limit
 
     public function __construct(private readonly int $postId) {}
 
