@@ -107,10 +107,10 @@ class VideoPool {
   Timer?       _rebuildDebounce;
   Timer?       _dominantDebounce;
 
-  static const _maxSlotsWifi     = 8;   // WiFi: more players pre-loaded
-  static const _maxSlotsCellular = 5;   // Cellular: fewer to save RAM/bandwidth
+  static const _maxSlotsWifi     = 6;   // WiFi: enough slots without competing with scroll CPU
+  static const _maxSlotsCellular = 4;   // Cellular: fewer to save RAM/bandwidth
   static const _evictDist        = 8;   // keep videos in memory a bit longer
-  static const _preloadAheadWifi = 6;   // WiFi: aggressively preload ahead
+  static const _preloadAheadWifi = 4;   // WiFi: 4 ahead balances smoothness vs CPU during scroll
   static const _preloadAheadCell = 2;   // Cellular: only 2 ahead (save bandwidth)
   static const _dominant         = 0.5;
 
@@ -160,7 +160,7 @@ class VideoPool {
       if (_windowIndex == idx) return;
       // Debounce rapid calls during fast scroll — only rebuild once scroll settles.
       _rebuildDebounce?.cancel();
-      _rebuildDebounce = Timer(const Duration(milliseconds: 80), () => _rebuild(idx));
+      _rebuildDebounce = Timer(const Duration(milliseconds: 120), () => _rebuild(idx));
     } else if (!isReady(url) && !isLoading(url)) {
       _preload(url);
     }
@@ -172,7 +172,7 @@ class VideoPool {
     // Batch simultaneous setFraction calls (VisibilityDetector fires all visible
     // items at once) into one _updateDominant call to reduce JNI player ops.
     _dominantDebounce?.cancel();
-    _dominantDebounce = Timer(const Duration(milliseconds: 50), _updateDominant);
+    _dominantDebounce = Timer(const Duration(milliseconds: 100), _updateDominant);
   }
 
   Future<VideoController?> preload(String url) => _preload(url);

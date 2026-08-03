@@ -265,21 +265,23 @@ class FeedRankingService
             });
         };
 
-        // Pool 3: Trending
+        // Pool 3: Trending — extended to 30 days so posts outside the 3-day
+        // window still surface when the platform is early and content volume is low.
+        // Engagement threshold lowered to 3 for the same reason.
         $trendingPosts = (clone $base)
             ->whereNotIn('user_id', $this->followingIds)
-            ->where('community_posts.created_at', '>', now()->subDays(3))
-            ->whereRaw('(likes_count + comments_count * 2 + shares_count * 3) > ?', [10])
+            ->where('community_posts.created_at', '>', now()->subDays(30))
+            ->whereRaw('(likes_count + comments_count * 2 + shares_count * 3) > ?', [3])
             ->tap($distributionFilter)
             ->orderByRaw('(likes_count + comments_count * 2 + shares_count * 3) / GREATEST(1, TIMESTAMPDIFF(HOUR, community_posts.created_at, NOW())) DESC')
             ->limit((int) round($candidateCount * 0.2 * $discoveryBoost))
             ->offset(round($offset * 0.2))
             ->get($cols);
 
-        // Pool 4: New creators
+        // Pool 4: New creators — extended to 14 days (was 2 days)
         $newCreatorPosts = (clone $base)
             ->whereNotIn('user_id', $this->followingIds)
-            ->where('community_posts.created_at', '>', now()->subDays(2))
+            ->where('community_posts.created_at', '>', now()->subDays(14))
             ->where(function ($q) {
                 $q->whereHas('user.communityProfile', fn ($p) => $p->where('followers_count', '<', 100))
                   ->orWhereDoesntHave('user.communityProfile');
@@ -289,10 +291,10 @@ class FeedRankingService
             ->limit((int) round($candidateCount * 0.1 * $discoveryBoost))
             ->get($cols);
 
-        // Pool 5: Random discovery
+        // Pool 5: Random discovery — extended to 60 days (was 7 days)
         $randomPosts = (clone $base)
             ->whereNotIn('user_id', $this->followingIds)
-            ->where('community_posts.created_at', '>', now()->subDays(7))
+            ->where('community_posts.created_at', '>', now()->subDays(60))
             ->tap($distributionFilter)
             ->inRandomOrder()
             ->limit((int) round($candidateCount * 0.05 * $discoveryBoost))

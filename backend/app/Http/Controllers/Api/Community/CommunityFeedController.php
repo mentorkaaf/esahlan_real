@@ -89,7 +89,11 @@ class CommunityFeedController extends Controller
                 'last_page'    => max(1, ceil($total / 30)),
                 'total'        => $total,
                 'next_cursor'  => $nextCursor,
-                'has_more'     => count($transformed) >= 30,
+                // has_more: true when a full page was returned OR when more posts
+                // exist in the DB than what this page covered — avoids cutting off
+                // pagination early when the ranking algo returns < 30 but more
+                // unseen posts remain.
+                'has_more'     => count($transformed) >= 25 || $total > ($page * 30),
             ],
         ]);
     }

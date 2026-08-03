@@ -92,7 +92,9 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     _heartbeatTimer = Timer.periodic(AppConstants.feedHeartbeatInterval, (_) => CommunityRepository().feedHeartbeat());
     _subscribeNewPostFeed();
     // Throttle VisibilityDetector callbacks — reduces native calls during fast scroll.
-    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 200);
+    // 350ms: tight enough for dwell tracking and video play/pause, loose enough to not
+    // fire excessive callbacks that compete with scroll rendering on the UI thread.
+    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 350);
   }
 
   Future<void> _subscribeNewPostFeed() async {
@@ -394,8 +396,9 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
           color: kOrange,
           onRefresh: () => ref.read(communityFeedProvider.notifier).refresh(),
           child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            cacheExtent: 800,
+            // BouncingScrollPhysics: smoother deceleration on Android vs default ClampingScrollPhysics.
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            cacheExtent: 1200,
             slivers: [
               SliverToBoxAdapter(child: RepaintBoundary(child: storiesState.when(
                 data: (groups) => StoriesBar(groups: groups),
@@ -3289,6 +3292,10 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
 
   void _onVisibilityChanged(VisibilityInfo info) {
     final fraction = info.visibleFraction;
+    // Skip tiny fraction jitter during fast scroll — avoids redundant player
+    // ops (setFraction → _updateDominant → _pauseOthers JNI calls) for changes
+    // less than 8% visibility, which have no meaningful effect on play/pause.
+    if ((fraction - _lastFraction).abs() < 0.08 && fraction > 0.0 && fraction < 1.0) return;
     _lastFraction = fraction;
 
     // ── Stale-controller guard ─────────────────────────────────────────────
@@ -3321,7 +3328,9 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     // ── Report fraction to pool — pool plays the most-visible URL ──────────
     if (_isVideo && _previewUrl.isNotEmpty && !_paused) {
       _pool.setFraction(_previewUrl, fraction);
-      if (fraction > 0.4) _pool.setActiveUrl(_previewUrl);
+      // 0.6: only set active when card is more than half-visible — avoids triggering
+      // pool _rebuild + _preloadNearby for cards that are just entering the viewport.
+      if (fraction > 0.6) _pool.setActiveUrl(_previewUrl);
       if (_ready && _controller != null && fraction > 0.5) {
         final want = _globalMuted ? 0.0 : 100.0;
         if ((_controller!.player.state.volume - want).abs() > 1.0) {
