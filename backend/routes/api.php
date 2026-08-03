@@ -438,8 +438,8 @@ Route::prefix('v1')->group(function () {
 
         // eSpace internal module ads
         Route::get('espace-ads', [ESpaceAdController::class, 'index']);
-        Route::post('espace-ads/{espaceAd}/impression', [ESpaceAdController::class, 'impression']);
-        Route::post('espace-ads/{espaceAd}/click', [ESpaceAdController::class, 'click']);
+        Route::post('espace-ads/{ad}/impression', [ESpaceAdController::class, 'impression']);
+        Route::post('espace-ads/{ad}/click', [ESpaceAdController::class, 'click']);
 
         // Ads
         Route::get('ads/pricing', [CommunityAdController::class, 'pricing']);
