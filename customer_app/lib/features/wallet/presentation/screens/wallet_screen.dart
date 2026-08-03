@@ -241,8 +241,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
   // ─── Stats row ────────────────────────────────────────────────────────────
 
   Widget _buildStats(WalletData wallet) {
-    final credits = wallet.transactions.where((t) => t['type'] == 'credit').fold(0.0, (s, t) => s + ((t['amount'] as num?)?.toDouble() ?? 0));
-    final debits  = wallet.transactions.where((t) => t['type'] == 'debit').fold(0.0,  (s, t) => s + ((t['amount'] as num?)?.toDouble() ?? 0));
+    // Use server-computed totals: totalDeposited = real top-ups only (refunds excluded)
+    // totalSpent = net purchases after refunds (total_withdrawn reduced on refund)
+    final deposited = wallet.totalDeposited;
+    final spent     = wallet.totalSpent;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -253,11 +255,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
       ),
       child: Row(
         children: [
-          Expanded(child: _StatItem(label: 'Total In',  value: '+\$${credits.toStringAsFixed(2)}', color: Colors.green.shade600, icon: Icons.trending_up_rounded)),
+          Expanded(child: _StatItem(label: 'Deposited',  value: '+\$${deposited.toStringAsFixed(2)}', color: Colors.green.shade600, icon: Icons.trending_up_rounded)),
           Container(width: 1, height: 36, color: Colors.grey.shade200),
-          Expanded(child: _StatItem(label: 'Total Out', value: '-\$${debits.toStringAsFixed(2)}',  color: Colors.red.shade600,   icon: Icons.trending_down_rounded)),
+          Expanded(child: _StatItem(label: 'Net Spent',  value: '-\$${spent.toStringAsFixed(2)}',     color: Colors.red.shade600,   icon: Icons.trending_down_rounded)),
           Container(width: 1, height: 36, color: Colors.grey.shade200),
-          Expanded(child: _StatItem(label: 'Transactions', value: '${wallet.transactions.length}', color: AppColors.primary,     icon: Icons.receipt_long_rounded)),
+          Expanded(child: _StatItem(label: 'Transactions', value: '${wallet.transactions.length}',    color: AppColors.primary,     icon: Icons.receipt_long_rounded)),
         ],
       ),
     );
@@ -285,7 +287,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
 
   Widget _buildTransactionList(WalletData wallet) {
     final filtered = wallet.transactions.where((t) {
-      if (_tab == 1) return t['type'] == 'credit';
+      // "In" tab = real deposits (excludes refunds)
+      if (_tab == 1) return t['type'] == 'credit' && t['payment_method'] != 'refund';
+      // "Out" tab = purchases/withdrawals only (debits)
       if (_tab == 2) return t['type'] == 'debit';
       return true;
     }).toList();
@@ -876,28 +880,33 @@ class _ActionBtn extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
-  final VoidCallback onTap;
-  const _ActionBtn({required this.icon, required this.label, required this.color, required this.onTap});
+  final VoidCallback? onTap;
+  const _ActionBtn({required this.icon, required this.label, required this.color, this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final disabled = onTap == null;
+    final effectiveColor = disabled ? const Color(0xFFCBD5E1) : color;
     return SizedBox(
       width: 72,
       child: GestureDetector(
         onTap: onTap,
-        child: Column(children: [
+        child: Opacity(
+          opacity: disabled ? 0.5 : 1.0,
+          child: Column(children: [
           Container(
             width: 52, height: 52,
             decoration: BoxDecoration(
-              color: color,
+              color: effectiveColor,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(icon, color: Colors.white, size: 24),
           ),
           const SizedBox(height: 6),
           Text(label, textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.isDark ? AppColors.primary : color)),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.isDark ? AppColors.primary : effectiveColor)),
         ]),
+        ),
       ),
     );
   }

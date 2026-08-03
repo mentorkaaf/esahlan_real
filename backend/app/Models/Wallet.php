@@ -79,6 +79,39 @@ class Wallet extends Model
         return $tx;
     }
 
+    /**
+     * Refund: credit balance + reduce total_withdrawn (NOT total_earned).
+     * This keeps Total In (total_earned) = real deposits only.
+     * Total Out (total_withdrawn) = net purchases after refunds.
+     */
+    public function refund(float $amount, string $note = '', ?string $refType = null, ?int $refId = null): Transaction
+    {
+        $tx = DB::transaction(function () use ($amount, $note, $refType, $refId) {
+            $wallet = self::lockForUpdate()->find($this->id);
+            $before = $wallet->balance;
+            $after  = $before + $amount;
+            $wallet->update([
+                'balance'         => $after,
+                'total_withdrawn' => max(0, $wallet->total_withdrawn - $amount),
+            ]);
+            return $wallet->transactions()->create([
+                'uuid'           => (string) Str::uuid(),
+                'type'           => 'credit',
+                'amount'         => $amount,
+                'balance_before' => $before,
+                'balance_after'  => $after,
+                'note'           => $note,
+                'reference_type' => $refType,
+                'reference_id'   => $refId,
+                'payment_method' => 'refund',
+                'status'         => 'completed',
+            ]);
+        });
+
+        $this->_dispatchWalletEvent($tx, $note, 'refund');
+        return $tx;
+    }
+
     private function _dispatchWalletEvent(Transaction $tx, string $note, string $method): void
     {
         if ($this->owner_type !== 'App\\Models\\User') return;

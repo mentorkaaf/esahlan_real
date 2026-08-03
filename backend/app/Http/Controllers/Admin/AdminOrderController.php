@@ -175,9 +175,9 @@ class AdminOrderController extends Controller
             if ($request->status === 'cancelled' && $order->payment_method === 'wallet' && $order->payment_status === 'paid') {
                 try {
                     $userWallet = Wallet::getOrCreateFor('App\\Models\\User', $order->user_id);
-                    $userWallet->credit((float)$order->total_amount,
+                    $userWallet->refund((float)$order->total_amount,
                         "Refund: cancelled Order #{$order->order_number}",
-                        'App\\Models\\Order', $order->id, 'refund');
+                        'App\\Models\\Order', $order->id);
                     $order->update(['payment_status' => 'refunded']);
                 } catch (\Throwable $e) {
                     \Log::error('[Wallet] Admin cancel refund failed: '.$e->getMessage());

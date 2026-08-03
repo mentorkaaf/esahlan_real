@@ -42,8 +42,10 @@ class WalletController extends Controller
                 'currency'       => $wallet?->currency ?? 'USD',
                 'loyalty_points' => (int) ($user->points_balance ?? $user->loyalty_points ?? 0),
                 'has_wallet'     => (bool) $wallet,
-                'is_frozen'      => (bool) ($wallet?->is_frozen ?? false),
-                'pending_topup'  => $pendingTopup,
+                'is_frozen'       => (bool) ($wallet?->is_frozen ?? false),
+                'pending_topup'   => $pendingTopup,
+                'total_deposited' => (float) ($wallet?->total_earned    ?? 0),
+                'total_spent'     => (float) ($wallet?->total_withdrawn  ?? 0),
             ],
         ]);
     }

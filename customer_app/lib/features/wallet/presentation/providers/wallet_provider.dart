@@ -12,6 +12,8 @@ class WalletData {
   final bool hasWallet;
   final bool isFrozen;
   final Map<String, dynamic>? pendingTopup;
+  final double totalDeposited; // real top-ups only (excludes refunds)
+  final double totalSpent;     // net purchases (purchases - refunds)
   final List<Map<String, dynamic>> transactions;
 
   const WalletData({
@@ -20,6 +22,8 @@ class WalletData {
     required this.hasWallet,
     this.isFrozen = false,
     this.pendingTopup,
+    this.totalDeposited = 0,
+    this.totalSpent = 0,
     required this.transactions,
   });
 
@@ -30,6 +34,8 @@ class WalletData {
     bool? isFrozen,
     Map<String, dynamic>? pendingTopup,
     bool clearPendingTopup = false,
+    double? totalDeposited,
+    double? totalSpent,
     List<Map<String, dynamic>>? transactions,
   }) =>
       WalletData(
@@ -38,6 +44,8 @@ class WalletData {
         hasWallet: hasWallet ?? this.hasWallet,
         isFrozen: isFrozen ?? this.isFrozen,
         pendingTopup: clearPendingTopup ? null : (pendingTopup ?? this.pendingTopup),
+        totalDeposited: totalDeposited ?? this.totalDeposited,
+        totalSpent: totalSpent ?? this.totalSpent,
         transactions: transactions ?? this.transactions,
       );
 }
@@ -91,6 +99,8 @@ class WalletNotifier extends StateNotifier<AsyncValue<WalletData>> {
         hasWallet: data['has_wallet'] == true,
         isFrozen: data['is_frozen'] == true,
         pendingTopup: pendingTopupRaw is Map ? Map<String, dynamic>.from(pendingTopupRaw) : null,
+        totalDeposited: (data['total_deposited'] as num?)?.toDouble() ?? 0,
+        totalSpent: (data['total_spent'] as num?)?.toDouble() ?? 0,
         transactions: txList.whereType<Map<String, dynamic>>().toList(),
       ));
     } on DioException catch (e) {
