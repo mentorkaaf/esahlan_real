@@ -3,16 +3,34 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../../../core/providers/app_settings_provider.dart';
 
-// ── Video disk cache (max 30 videos, 7 days) ─────────────────────────────────
+// ── Video disk cache (max 40 videos, 7 days) ─────────────────────────────────
 final _videoCache = CacheManager(
   Config(
     'esahlan_video_cache',
-    maxNrOfCacheObjects: 30,
+    maxNrOfCacheObjects: 40,
     stalePeriod: const Duration(days: 7),
   ),
 );
+
+// ── Connectivity helper ───────────────────────────────────────────────────────
+// Cached so every preload decision doesn't await a platform call.
+bool _isWifi = true; // optimistic default
+StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+
+void _initConnectivity() {
+  _connectivitySub ??= Connectivity().onConnectivityChanged.listen((results) {
+    _isWifi = results.contains(ConnectivityResult.wifi) ||
+              results.contains(ConnectivityResult.ethernet);
+  });
+  // Kick off an immediate check so _isWifi is correct before first preload.
+  Connectivity().checkConnectivity().then((results) {
+    _isWifi = results.contains(ConnectivityResult.wifi) ||
+              results.contains(ConnectivityResult.ethernet);
+  });
+}
 
 /// Checks disk cache only — no download.
 /// Returns local file path on hit, null on miss (non-blocking, 150ms timeout).
@@ -29,10 +47,14 @@ Future<String?> _getCachedPath(String url) async {
   return null;
 }
 
-/// Disabled: was triggering background video downloads on every scroll eviction,
-/// competing for bandwidth with active streaming and causing network jank.
-/// Re-enable only with WiFi detection + idle guard.
-void _cacheAfterEvict(String url) {}
+/// Cache video to disk after eviction — WiFi only so cellular bandwidth stays
+/// reserved for active streaming. Called after player.dispose() so no contention.
+void _cacheAfterEvict(String url) {
+  if (!_isWifi) return;
+  if (!url.startsWith('http')) return;
+  // Fire-and-forget background download into disk cache.
+  _videoCache.downloadFile(url).catchError((_) {});
+}
 
 // ── VideoPool ─────────────────────────────────────────────────────────────────
 //
@@ -47,6 +69,10 @@ class VideoPool {
 
   static final feed  = VideoPool._(id: 'feed',  loop: true);
   static final reels = VideoPool._(id: 'reels', loop: false);
+
+  /// Call once at app startup (main.dart or community shell) to start
+  /// tracking connectivity so WiFi/cellular preload decisions are accurate.
+  static void initConnectivity() => _initConnectivity();
 
   final bool _loop;
 
@@ -65,10 +91,15 @@ class VideoPool {
   Timer?       _rebuildDebounce;
   Timer?       _dominantDebounce;
 
-  static const _maxSlots     = 6;   // more pre-loaded players
-  static const _evictDist    = 7;   // keep further videos in memory longer
-  static const _preloadAhead = 4;   // preload 4 ahead
-  static const _dominant     = 0.5;
+  static const _maxSlotsWifi     = 8;   // WiFi: more players pre-loaded
+  static const _maxSlotsCellular = 5;   // Cellular: fewer to save RAM/bandwidth
+  static const _evictDist        = 8;   // keep videos in memory a bit longer
+  static const _preloadAheadWifi = 6;   // WiFi: aggressively preload ahead
+  static const _preloadAheadCell = 2;   // Cellular: only 2 ahead (save bandwidth)
+  static const _dominant         = 0.5;
+
+  int get _maxSlots     => _isWifi ? _maxSlotsWifi     : _maxSlotsCellular;
+  int get _preloadAhead => _isWifi ? _preloadAheadWifi : _preloadAheadCell;
 
   // ── Public API ────────────────────────────────────────────────────────────
 
@@ -198,9 +229,16 @@ class VideoPool {
 
   void _preloadNearby(int pivot) {
     if (_urls.isEmpty) return;
-    final from = (pivot - 1          ).clamp(0, _urls.length - 1);
-    final to   = (pivot + _preloadAhead).clamp(0, _urls.length - 1);
-    for (var i = from; i <= to; i++) {
+    final ahead = _preloadAhead;
+    // Prioritize: pivot first, then 1 ahead, then spread outward.
+    // This ensures the current video starts ASAP, not after ahead videos init.
+    final priorities = [
+      pivot,
+      ...List.generate(ahead, (i) => pivot + i + 1),
+      pivot - 1, // one behind (going back)
+    ];
+    for (final i in priorities) {
+      if (i < 0 || i >= _urls.length) continue;
       final url = _urls[i];
       if (url.isEmpty || isReady(url) || isLoading(url)) continue;
       _preload(url);
@@ -232,12 +270,11 @@ class VideoPool {
 
       final source = cachedPath ?? url;
 
+      // WiFi: 16 MB buffer → first frame decoded faster, fewer re-buffering events.
+      // Cellular: 6 MB buffer → less memory pressure, start streaming sooner.
+      final bufSize = _isWifi ? 16 * 1024 * 1024 : 6 * 1024 * 1024;
       final player = Player(
-        configuration: const PlayerConfiguration(
-          // 8 MB buffer — sufficient for smooth playback on mobile networks.
-          // 6 players × 8MB = 48MB peak vs prior 192MB, reducing GC pressure.
-          bufferSize: 8 * 1024 * 1024,
-        ),
+        configuration: PlayerConfiguration(bufferSize: bufSize),
       );
       final controller = VideoController(player);
 
@@ -274,7 +311,8 @@ class VideoPool {
   // ── Private — eviction ────────────────────────────────────────────────────
 
   void _makeRoom({String? protect}) {
-    if (liveCount < _maxSlots) return;
+    final limit = _maxSlots;
+    if (liveCount < limit) return;
     String? victim;
     int maxDist = -1;
     for (final url in _controllers.keys) {

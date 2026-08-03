@@ -60,6 +60,7 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
   @override
   void initState() {
     super.initState();
+    VideoPool.initConnectivity();
     _checkOnboarding();
     _subscribeInbox();
     WidgetsBinding.instance.addObserver(this);

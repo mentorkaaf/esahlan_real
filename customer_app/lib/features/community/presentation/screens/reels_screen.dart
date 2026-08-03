@@ -406,6 +406,7 @@ class _CommunityReelCard extends ConsumerStatefulWidget {
 class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   VideoController? _videoCtrl;
   StreamSubscription<bool>? _completedSub;
+  StreamSubscription<bool>? _bufferingSub;
   StreamSubscription<dynamic>? _videoParamsSub;
   bool _videoReady = false;
   bool _hasFrame = false;
@@ -416,6 +417,7 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   bool _showHeart = false;
   int _likesCount = 0;
   final _pool = VideoPool.reels;
+  final _isBuffering = ValueNotifier<bool>(false);
   String _videoUrl = '';
   String get _postChannel => 'community.post.${widget.reel.id}';
   final Map<String, void Function(dynamic)> _realtimeListeners = {};
@@ -526,10 +528,15 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
 
   void _attachCompletedListener(VideoController ctrl) {
     _completedSub?.cancel();
+    _bufferingSub?.cancel();
     _videoParamsSub?.cancel();
     _completedSub = ctrl.player.stream.completed.listen((completed) {
       if (completed && mounted) widget.onVideoEnd?.call();
     });
+    _bufferingSub = ctrl.player.stream.buffering.listen((v) {
+      _isBuffering.value = v;
+    });
+    _isBuffering.value = ctrl.player.state.buffering;
     _videoParamsSub = ctrl.player.stream.videoParams.listen((vp) {
       if (!_hasFrame && (vp.w ?? 0) > 0 && mounted) {
         setState(() => _hasFrame = true);
@@ -539,8 +546,10 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     if (!_hasFrame && (ctrl.player.state.width ?? 0) > 0 && mounted) {
       setState(() => _hasFrame = true);
     }
-    // Fallback: reveal video within 500 ms even if videoParams never fires.
-    Future.delayed(const Duration(milliseconds: 500), () {
+    // Fallback reveal: WiFi = 800ms, Cellular = 2500ms.
+    // Ensures thumbnail never gets stuck on slow connections.
+    final fallbackMs = _isWifi ? 800 : 2500;
+    Future.delayed(Duration(milliseconds: fallbackMs), () {
       if (mounted && _videoReady && !_hasFrame) setState(() => _hasFrame = true);
     });
   }
@@ -570,7 +579,9 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
   @override
   void dispose() {
     _completedSub?.cancel();
+    _bufferingSub?.cancel();
     _videoParamsSub?.cancel();
+    _isBuffering.dispose();
     for (final entry in _realtimeListeners.entries) {
       RealtimeClient.instance.removeListener(_postChannel, entry.key, entry.value);
     }
@@ -690,12 +701,17 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
           ),
         ),
 
-        // Tiny corner spinner only while the video is actively re-buffering
-        // (not during initial load — thumbnail is clear enough)
-        if (_videoReady && _videoCtrl != null && _videoCtrl!.player.state.buffering)
+        // Tiny corner spinner while video is re-buffering — ValueListenableBuilder
+        // so only this widget rebuilds on buffering state changes.
+        if (_videoReady && _videoCtrl != null)
           Positioned(bottom: 120, right: 14,
-            child: SizedBox(width: 20, height: 20,
-              child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2))),
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _isBuffering,
+              builder: (_, buffering, __) => buffering
+                ? SizedBox(width: 20, height: 20,
+                    child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2))
+                : const SizedBox.shrink(),
+            )),
 
         // Pause overlay
         if (_paused && _videoReady)
