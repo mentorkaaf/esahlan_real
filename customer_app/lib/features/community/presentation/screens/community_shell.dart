@@ -107,7 +107,7 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
         .where((m) => m.type == 'video')
         .map((m) => m.mp4DirectUrl)
         .where((u) => u.isNotEmpty)
-        .take(6)
+        .take(8)
         .toList();
     if (urls.isEmpty) return;
     for (final u in urls.take(2)) VideoPool.feed.preload(u);
@@ -120,7 +120,7 @@ class _CommunityShellState extends ConsumerState<CommunityShell> with WidgetsBin
     final urls = reels
         .map((r) => r.media.isNotEmpty ? r.media.first.mp4DirectUrl : '')
         .where((u) => u.isNotEmpty)
-        .take(6)
+        .take(8)
         .toList();
     if (urls.isEmpty) return;
     VideoPool.reels.setWindow(urls, 0);

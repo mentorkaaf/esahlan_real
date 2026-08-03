@@ -47,14 +47,9 @@ Future<String?> _getCachedPath(String url) async {
   return null;
 }
 
-/// Cache video to disk after eviction — WiFi only so cellular bandwidth stays
-/// reserved for active streaming. Called after player.dispose() so no contention.
-void _cacheAfterEvict(String url) {
-  if (!_isWifi) return;
-  if (!url.startsWith('http')) return;
-  // Fire-and-forget background download into disk cache.
-  _videoCache.downloadFile(url).catchError((_) {});
-}
+/// Background cache disabled — competes with active streaming bandwidth.
+/// Videos are cached naturally by flutter_cache_manager during normal streaming.
+void _cacheAfterEvict(String url) {}
 
 // ── VideoPool ─────────────────────────────────────────────────────────────────
 //
@@ -73,6 +68,27 @@ class VideoPool {
   /// Call once at app startup (main.dart or community shell) to start
   /// tracking connectivity so WiFi/cellular preload decisions are accurate.
   static void initConnectivity() => _initConnectivity();
+
+  /// Pick the best video URL for the current network condition.
+  ///
+  /// WiFi   → MP4 direct (1 RTT to first frame, Range-request, CDN-cacheable).
+  /// Cellular → HLS (adaptive bitrate: starts at 360p in <1s, upgrades when
+  ///            bandwidth allows; better than waiting for MP4 moov atom on slow net).
+  ///
+  /// Falls back to mp4Url if hlsUrl is null or empty.
+  static String selectVideoUrl(String mp4Url, String? hlsUrl) {
+    if (!_isWifi && hlsUrl != null && hlsUrl.isNotEmpty) return hlsUrl;
+    return mp4Url;
+  }
+
+  /// Preload BOTH mp4 and hls urls for a video so whichever is selected
+  /// by selectVideoUrl() is already in the pool. Call on WiFi when idle.
+  Future<void> preloadBoth(String mp4Url, String? hlsUrl) async {
+    await _preload(mp4Url);
+    if (hlsUrl != null && hlsUrl.isNotEmpty && hlsUrl != mp4Url) {
+      await _preload(hlsUrl);
+    }
+  }
 
   final bool _loop;
 
@@ -108,6 +124,7 @@ class VideoPool {
 
   bool isReady  (String url) => _controllers.containsKey(url) && !_loading.containsKey(url);
   bool isLoading(String url) => _loading.containsKey(url);
+  bool get isWifi => _isWifi;
   int  get windowIndex => _windowIndex;
   int  get liveCount   => _controllers.length + _loading.length;
 
@@ -270,11 +287,9 @@ class VideoPool {
 
       final source = cachedPath ?? url;
 
-      // WiFi: 16 MB buffer → first frame decoded faster, fewer re-buffering events.
-      // Cellular: 6 MB buffer → less memory pressure, start streaming sooner.
-      final bufSize = _isWifi ? 16 * 1024 * 1024 : 6 * 1024 * 1024;
+      // 8 MB buffer — enough for smooth playback, small enough to start fast.
       final player = Player(
-        configuration: PlayerConfiguration(bufferSize: bufSize),
+        configuration: const PlayerConfiguration(bufferSize: 8 * 1024 * 1024),
       );
       final controller = VideoController(player);
 

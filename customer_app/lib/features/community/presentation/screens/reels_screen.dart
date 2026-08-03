@@ -479,11 +479,9 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
         (widget.reel.media.isNotEmpty ? widget.reel.media.first : null);
     if (media == null || media.type != 'video') return;
 
-    // Prefer direct nginx MP4 (1 RTT, faststart). Fall back to HLS if MP4 fails.
     final mp4Url = media.mp4DirectUrl;
     final hlsFallback = media.hlsUrl;
 
-    // Default to mp4Url — overridden below if HLS is what the pool has loaded.
     _videoUrl = mp4Url;
 
     // Fast path: pool already has this controller (preloaded by parent)
@@ -548,7 +546,9 @@ class _CommunityReelCardState extends ConsumerState<_CommunityReelCard> {
     }
     // Fallback reveal: WiFi = 800ms, Cellular = 2500ms.
     // Ensures thumbnail never gets stuck on slow connections.
-    final fallbackMs = _isWifi ? 800 : 2500;
+    // _isWifi is a module-level variable in video_pool.dart, imported indirectly.
+    // Re-check via VideoPool which already tracks connectivity.
+    final fallbackMs = _pool.isWifi ? 800 : 2500;
     Future.delayed(Duration(milliseconds: fallbackMs), () {
       if (mounted && _videoReady && !_hasFrame) setState(() => _hasFrame = true);
     });

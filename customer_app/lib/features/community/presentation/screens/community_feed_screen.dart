@@ -3228,7 +3228,7 @@ class _MediaItemState extends ConsumerState<_MediaItem> with WidgetsBindingObser
     }
   }
 
-  // Feed always uses the direct nginx MP4 (preview.mp4 / optimized.mp4).
+  // Always use direct MP4 — 1 RTT, nginx sendfile, Range-request aware.
   String get _previewUrl => widget.m.mp4DirectUrl;
 
   Future<void> _initVideo() async {
