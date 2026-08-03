@@ -68,9 +68,9 @@ class EMarryPaymentController extends Controller
         $status  = $this->_userStatus($user->id);
         $enabled = AdminPaymentSettingsController::enabledMethods();
 
-        // eMarry only supports these 3 — filter by what admin has enabled
+        // eMarry supports waafi_pay + mobile_pay only (no ePay wallet for eMarry)
         $emarryMethods = array_values(array_filter(
-            ['waafi_pay', 'epay', 'mobile_pay'],
+            ['waafi_pay', 'mobile_pay'],
             fn($m) => in_array($m, $enabled)
         ));
 
@@ -109,8 +109,10 @@ class EMarryPaymentController extends Controller
     {
         $v = Validator::make($request->all(), [
             'plan'           => 'required|in:premium,gold',
-            'payment_method' => 'required|in:waafi_pay,epay,mobile_pay',
+            'payment_method' => 'required|in:waafi_pay,mobile_pay',
             'phone'          => 'required_if:payment_method,waafi_pay|nullable|string|min:9',
+            'proof_token'    => 'required_if:payment_method,mobile_pay|nullable|string',
+            'sender_phone'   => 'nullable|string|max:30',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
@@ -126,8 +128,7 @@ class EMarryPaymentController extends Controller
 
         return match ($request->payment_method) {
             'waafi_pay'  => $this->_subscribeWaafi($user, $plan, $amount, $ref, $request->phone),
-            'epay'       => $this->_subscribeEPay($user, $plan, $amount, $ref),
-            'mobile_pay' => $this->_subscribeMobilePay($user, $plan, $amount, $ref, $request->sender_phone ?? null),
+            'mobile_pay' => $this->_subscribeMobilePay($user, $plan, $amount, $ref, $request->proof_token, $request->sender_phone),
         };
     }
 
@@ -136,8 +137,10 @@ class EMarryPaymentController extends Controller
     {
         $v = Validator::make($request->all(), [
             'package'        => 'required|in:starter,popular,bundle',
-            'payment_method' => 'required|in:waafi_pay,epay,mobile_pay',
+            'payment_method' => 'required|in:waafi_pay,mobile_pay',
             'phone'          => 'required_if:payment_method,waafi_pay|nullable|string|min:9',
+            'proof_token'    => 'required_if:payment_method,mobile_pay|nullable|string',
+            'sender_phone'   => 'nullable|string|max:30',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
@@ -153,8 +156,7 @@ class EMarryPaymentController extends Controller
 
         return match ($request->payment_method) {
             'waafi_pay'  => $this->_creditsWaafi($user, $pkg, $amount, $ref, $request->phone),
-            'epay'       => $this->_creditsEPay($user, $pkg, $amount, $ref),
-            'mobile_pay' => $this->_creditsMobilePay($user, $pkg, $amount, $ref, $request->sender_phone ?? null),
+            'mobile_pay' => $this->_creditsMobilePay($user, $pkg, $amount, $ref, $request->proof_token, $request->sender_phone),
         };
     }
 
@@ -367,36 +369,34 @@ class EMarryPaymentController extends Controller
         ]);
     }
 
-    private function _subscribeMobilePay($user, array $plan, float $amount, string $ref, ?string $senderPhone)
+    private function _subscribeMobilePay($user, array $plan, float $amount, string $ref, ?string $proofToken, ?string $senderPhone)
     {
-        $mpAccount = DB::table('mobile_pay_accounts')->where('is_active', true)->orderBy('sort_order')->first();
-        if (!$mpAccount) {
-            return response()->json(['success' => false, 'message' => 'Mobile Pay not available'], 503);
+        if (!$proofToken) {
+            return response()->json(['success' => false, 'message' => 'Payment proof is required.'], 422);
         }
 
-        $requestId = DB::table('emarry_mobile_pay_requests')->insertGetId([
-            'user_id'      => $user->id,
-            'item_type'    => 'subscription',
-            'item_key'     => $plan['key'],
-            'amount'       => $amount,
-            'sender_phone' => $senderPhone ?? '',
-            'status'       => 'pending',
-            'created_at'   => now(),
-            'updated_at'   => now(),
+        // Resolve screenshot URL from existing proof cache (uploaded by mobile_pay_sheet)
+        $proof = \Illuminate\Support\Facades\Cache::get("mobile_pay_proof:{$proofToken}");
+        if (!$proof) {
+            return response()->json(['success' => false, 'message' => 'Proof expired or invalid. Please upload screenshot again.'], 422);
+        }
+
+        DB::table('emarry_mobile_pay_requests')->insertGetId([
+            'user_id'         => $user->id,
+            'item_type'       => 'subscription',
+            'item_key'        => $plan['key'],
+            'amount'          => $amount,
+            'sender_phone'    => $senderPhone ?? $proof['phone'] ?? '',
+            'screenshot_url'  => $proof['image_url'] ?? null,
+            'status'          => 'pending',
+            'created_at'      => now(),
+            'updated_at'      => now(),
         ]);
 
         return response()->json([
-            'success'    => true,
-            'status'     => 'pending_manual',
-            'request_id' => $requestId,
-            'message'    => 'Send payment via Mobile Pay then upload screenshot.',
-            'mobile_pay' => [
-                'account_name'   => $mpAccount->name,
-                'account_number' => $mpAccount->account_number,
-                'amount'         => $amount,
-                'ussd'           => (new \App\Models\MobilePayAccount)->fill((array)$mpAccount)->buildUssd($amount),
-                'instructions'   => $mpAccount->instructions,
-            ],
+            'success' => true,
+            'status'  => 'pending_manual',
+            'message' => 'Payment submitted. Admin will verify and activate your plan within 30 minutes.',
         ]);
     }
 
@@ -470,36 +470,33 @@ class EMarryPaymentController extends Controller
         ]);
     }
 
-    private function _creditsMobilePay($user, array $pkg, float $amount, string $ref, ?string $senderPhone)
+    private function _creditsMobilePay($user, array $pkg, float $amount, string $ref, ?string $proofToken, ?string $senderPhone)
     {
-        $mpAccount = DB::table('mobile_pay_accounts')->where('is_active', true)->orderBy('sort_order')->first();
-        if (!$mpAccount) {
-            return response()->json(['success' => false, 'message' => 'Mobile Pay not available'], 503);
+        if (!$proofToken) {
+            return response()->json(['success' => false, 'message' => 'Payment proof is required.'], 422);
         }
 
-        $requestId = DB::table('emarry_mobile_pay_requests')->insertGetId([
-            'user_id'      => $user->id,
-            'item_type'    => 'credits',
-            'item_key'     => $pkg['key'],
-            'amount'       => $amount,
-            'sender_phone' => $senderPhone ?? '',
-            'status'       => 'pending',
-            'created_at'   => now(),
-            'updated_at'   => now(),
+        $proof = \Illuminate\Support\Facades\Cache::get("mobile_pay_proof:{$proofToken}");
+        if (!$proof) {
+            return response()->json(['success' => false, 'message' => 'Proof expired or invalid. Please upload screenshot again.'], 422);
+        }
+
+        DB::table('emarry_mobile_pay_requests')->insertGetId([
+            'user_id'        => $user->id,
+            'item_type'      => 'credits',
+            'item_key'       => $pkg['key'],
+            'amount'         => $amount,
+            'sender_phone'   => $senderPhone ?? $proof['phone'] ?? '',
+            'screenshot_url' => $proof['image_url'] ?? null,
+            'status'         => 'pending',
+            'created_at'     => now(),
+            'updated_at'     => now(),
         ]);
 
         return response()->json([
-            'success'    => true,
-            'status'     => 'pending_manual',
-            'request_id' => $requestId,
-            'message'    => 'Send payment then upload screenshot for confirmation.',
-            'mobile_pay' => [
-                'account_name'   => $mpAccount->name,
-                'account_number' => $mpAccount->account_number,
-                'amount'         => $amount,
-                'ussd'           => (new \App\Models\MobilePayAccount)->fill((array)$mpAccount)->buildUssd($amount),
-                'instructions'   => $mpAccount->instructions,
-            ],
+            'success' => true,
+            'status'  => 'pending_manual',
+            'message' => 'Payment submitted. Admin will verify and add credits within 30 minutes.',
         ]);
     }
 
