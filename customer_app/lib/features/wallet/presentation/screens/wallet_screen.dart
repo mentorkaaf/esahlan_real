@@ -159,6 +159,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               _buildSliverAppBar(wallet),
+              if (wallet.isFrozen)
+                SliverToBoxAdapter(child: _FrozenBanner()),
+              if (wallet.pendingTopup != null)
+                SliverToBoxAdapter(child: _PendingTopupBanner(topup: wallet.pendingTopup!)),
               SliverToBoxAdapter(child: _buildActions(context, wallet)),
               SliverToBoxAdapter(child: _buildStats(wallet)),
               SliverToBoxAdapter(child: _buildTabBar()),
@@ -219,12 +223,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with RouteAware {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _ActionBtn(icon: Icons.add_circle_rounded,        label: 'Top Up',      color: AppColors.primary,       onTap: () => _showTopUp(context)),
-          _ActionBtn(icon: Icons.send_rounded,              label: 'Send',        color: const Color(0xFF7B1FA2), onTap: () async {
+          _ActionBtn(icon: Icons.add_circle_rounded,        label: 'Top Up',      color: AppColors.primary,       onTap: wallet.isFrozen ? null : () => _showTopUp(context)),
+          _ActionBtn(icon: Icons.send_rounded,              label: 'Send',        color: const Color(0xFF7B1FA2), onTap: wallet.isFrozen ? null : () async {
             final ok = await showWalletPinDialog(context);
             if (ok && mounted) _showSend(context, wallet.balance);
           }),
-          _ActionBtn(icon: Icons.arrow_circle_up_rounded,  label: 'Withdraw',    color: const Color(0xFFC62828), onTap: () async {
+          _ActionBtn(icon: Icons.arrow_circle_up_rounded,  label: 'Withdraw',    color: const Color(0xFFC62828), onTap: wallet.isFrozen ? null : () async {
             final ok = await showWalletPinDialog(context);
             if (ok && mounted) _showWithdraw(context, wallet.balance);
           }),
@@ -1059,6 +1063,68 @@ class _TopUpMethodTile extends StatelessWidget {
           Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: selected ? color : AppColors.textGrey)),
         ]),
       ),
+    );
+  }
+}
+
+// ─── Frozen Wallet Banner ─────────────────────────────────────────────────────
+
+class _FrozenBanner extends StatelessWidget {
+  const _FrozenBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
+        border: Border.all(color: const Color(0xFFFECACA)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Row(children: [
+        Icon(Icons.lock_rounded, color: Color(0xFFDC2626), size: 20),
+        SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Wallet Frozen', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFFDC2626))),
+          SizedBox(height: 2),
+          Text('Your wallet has been frozen by admin. Top-up, transfers and withdrawals are disabled. Contact support to resolve.',
+              style: TextStyle(fontSize: 11.5, color: Color(0xFFB91C1C), height: 1.4)),
+        ])),
+      ]),
+    );
+  }
+}
+
+// ─── Pending Top-up Banner ────────────────────────────────────────────────────
+
+class _PendingTopupBanner extends StatelessWidget {
+  final Map<String, dynamic> topup;
+  const _PendingTopupBanner({required this.topup});
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = (topup['amount'] as num?)?.toDouble() ?? 0;
+    final date = (topup['created_at'] as String? ?? '').substring(0, 10);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        border: Border.all(color: const Color(0xFFFDE68A)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(children: [
+        const Icon(Icons.access_time_rounded, color: Color(0xFFD97706), size: 20),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Top-up Pending: \$${amount.toStringAsFixed(2)}',
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFFB45309))),
+          const SizedBox(height: 2),
+          Text('Submitted $date · Admin is reviewing your Mobile Pay proof. Your balance will be credited once approved.',
+              style: const TextStyle(fontSize: 11.5, color: Color(0xFF92400E), height: 1.4)),
+        ])),
+      ]),
     );
   }
 }

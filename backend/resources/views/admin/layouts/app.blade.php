@@ -705,8 +705,13 @@
             @php try { $__pOrd = \App\Models\Order::where('status','pending')->count(); } catch(\Exception $e){ $__pOrd=0; } @endphp
             @if($__pOrd > 0)<span class="nav-badge">{{ $__pOrd }}</span>@endif
         </a>
-        <a href="{{ route('admin.wallet.index') }}" class="nav-link {{ request()->routeIs('admin.wallet.*') ? 'active' : '' }}">
+        <a href="{{ route('admin.wallet.index') }}" class="nav-link {{ request()->routeIs('admin.wallet.index') || request()->routeIs('admin.wallet.show') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-wallet"></i></div> ePay
+        </a>
+        <a href="{{ route('admin.wallet.topup-requests') }}" class="nav-link {{ request()->routeIs('admin.wallet.topup-requests*') ? 'active' : '' }}" style="padding-left:36px">
+            <div class="nav-icon"><i class="fas fa-clock"></i></div> Top-up Requests
+            @php try { $__pendingTopup = \Illuminate\Support\Facades\DB::table('wallet_topup_requests')->where('status','pending')->count(); } catch(\Exception $e){ $__pendingTopup=0; } @endphp
+            @if($__pendingTopup > 0)<span class="nav-badge">{{ $__pendingTopup }}</span>@endif
         </a>
         <a href="{{ route('admin.mobile-pay.index') }}" class="nav-link {{ request()->routeIs('admin.mobile-pay.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-mobile-alt"></i></div> Mobile Pay

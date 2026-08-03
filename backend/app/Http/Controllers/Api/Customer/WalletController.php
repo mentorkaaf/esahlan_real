@@ -22,6 +22,19 @@ class WalletController extends Controller
         $user   = $request->user();
         $wallet = $user->wallet;
 
+        // Check for pending mobile pay top-up request
+        $pendingTopup = null;
+        if ($wallet) {
+            $pr = DB::table('wallet_topup_requests')
+                ->where('user_id', $user->id)
+                ->where('status', 'pending')
+                ->orderByDesc('created_at')
+                ->first(['id', 'amount', 'created_at']);
+            if ($pr) {
+                $pendingTopup = ['id' => $pr->id, 'amount' => (float)$pr->amount, 'created_at' => $pr->created_at];
+            }
+        }
+
         return response()->json([
             'success' => true,
             'data'    => [
@@ -29,6 +42,8 @@ class WalletController extends Controller
                 'currency'       => $wallet?->currency ?? 'USD',
                 'loyalty_points' => (int) ($user->points_balance ?? $user->loyalty_points ?? 0),
                 'has_wallet'     => (bool) $wallet,
+                'is_frozen'      => (bool) ($wallet?->is_frozen ?? false),
+                'pending_topup'  => $pendingTopup,
             ],
         ]);
     }

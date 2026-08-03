@@ -68,9 +68,8 @@ class EMarryPaymentController extends Controller
         $status  = $this->_userStatus($user->id);
         $enabled = AdminPaymentSettingsController::enabledMethods();
 
-        // eMarry supports waafi_pay + mobile_pay only (no ePay wallet for eMarry)
         $emarryMethods = array_values(array_filter(
-            ['waafi_pay', 'mobile_pay'],
+            ['waafi_pay', 'epay', 'mobile_pay'],
             fn($m) => in_array($m, $enabled)
         ));
 
@@ -109,7 +108,7 @@ class EMarryPaymentController extends Controller
     {
         $v = Validator::make($request->all(), [
             'plan'           => 'required|in:premium,gold',
-            'payment_method' => 'required|in:waafi_pay,mobile_pay',
+            'payment_method' => 'required|in:waafi_pay,epay,mobile_pay',
             'phone'          => 'required_if:payment_method,waafi_pay|nullable|string|min:9',
             'proof_token'    => 'required_if:payment_method,mobile_pay|nullable|string',
             'sender_phone'   => 'nullable|string|max:30',
@@ -128,6 +127,7 @@ class EMarryPaymentController extends Controller
 
         return match ($request->payment_method) {
             'waafi_pay'  => $this->_subscribeWaafi($user, $plan, $amount, $ref, $request->phone),
+            'epay'       => $this->_subscribeEPay($user, $plan, $amount, $ref),
             'mobile_pay' => $this->_subscribeMobilePay($user, $plan, $amount, $ref, $request->proof_token, $request->sender_phone),
         };
     }
@@ -137,7 +137,7 @@ class EMarryPaymentController extends Controller
     {
         $v = Validator::make($request->all(), [
             'package'        => 'required|in:starter,popular,bundle',
-            'payment_method' => 'required|in:waafi_pay,mobile_pay',
+            'payment_method' => 'required|in:waafi_pay,epay,mobile_pay',
             'phone'          => 'required_if:payment_method,waafi_pay|nullable|string|min:9',
             'proof_token'    => 'required_if:payment_method,mobile_pay|nullable|string',
             'sender_phone'   => 'nullable|string|max:30',
@@ -156,6 +156,7 @@ class EMarryPaymentController extends Controller
 
         return match ($request->payment_method) {
             'waafi_pay'  => $this->_creditsWaafi($user, $pkg, $amount, $ref, $request->phone),
+            'epay'       => $this->_creditsEPay($user, $pkg, $amount, $ref),
             'mobile_pay' => $this->_creditsMobilePay($user, $pkg, $amount, $ref, $request->proof_token, $request->sender_phone),
         };
     }
@@ -350,6 +351,9 @@ class EMarryPaymentController extends Controller
     {
         $wallet = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
 
+        if ($wallet->is_frozen) {
+            return response()->json(['success' => false, 'message' => 'Your ePay wallet is frozen. Contact support.'], 403);
+        }
         if ((float)$wallet->balance < $amount) {
             return response()->json([
                 'success' => false,
@@ -451,6 +455,9 @@ class EMarryPaymentController extends Controller
     {
         $wallet = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
 
+        if ($wallet->is_frozen) {
+            return response()->json(['success' => false, 'message' => 'Your ePay wallet is frozen. Contact support.'], 403);
+        }
         if ((float)$wallet->balance < $amount) {
             return response()->json([
                 'success' => false,

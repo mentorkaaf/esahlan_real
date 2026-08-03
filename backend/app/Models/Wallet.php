@@ -14,12 +14,13 @@ class Wallet extends Model
 {
     protected $fillable = [
         'owner_type','owner_id','balance','pending_balance',
-        'total_earned','total_withdrawn','currency','is_active',
+        'total_earned','total_withdrawn','currency','is_active','is_frozen',
     ];
 
     protected $casts = [
         'balance'=>'float','pending_balance'=>'float',
-        'total_earned'=>'float','total_withdrawn'=>'float','is_active'=>'boolean',
+        'total_earned'=>'float','total_withdrawn'=>'float',
+        'is_active'=>'boolean','is_frozen'=>'boolean',
     ];
 
     public function transactions() { return $this->hasMany(Transaction::class); }
@@ -55,6 +56,7 @@ class Wallet extends Model
     {
         $tx = DB::transaction(function () use ($amount, $note, $refType, $refId, $method) {
             $wallet = self::lockForUpdate()->find($this->id);
+            if ($wallet->is_frozen) throw new \Exception('Wallet is frozen. Contact support.');
             if ($wallet->balance < $amount) throw new \Exception('Insufficient wallet balance');
             $before = $wallet->balance;
             $after  = $before - $amount;

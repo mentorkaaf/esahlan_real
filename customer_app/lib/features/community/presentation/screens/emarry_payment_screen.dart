@@ -527,6 +527,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
       setState(() => _error = 'Enter your WaafiPay phone number');
       return;
     }
+    // epay: POST directly, response is instant
     setState(() { _loading = true; _error = null; });
 
     try {
@@ -624,6 +625,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final epayBalance = ref.watch(emarryStatusProvider).valueOrNull?.epayBalance ?? 0.0;
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -643,6 +645,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
                     phoneCtrl: _phoneCtrl,
                     error: _error,
                     loading: _loading,
+                    epayBalance: epayBalance,
                     enabledMethods: widget.enabledMethods,
                     onMethodChange: (m) => setState(() => _method = m),
                     onSubmit: _submit,
@@ -661,11 +664,12 @@ class _PaymentForm extends StatelessWidget {
   final TextEditingController phoneCtrl;
   final String? error;
   final bool loading;
+  final double epayBalance;
   final List<String> enabledMethods;
   final ValueChanged<String> onMethodChange;
   final VoidCallback onSubmit;
   const _PaymentForm({required this.amount, required this.type, required this.method,
-    required this.phoneCtrl, this.error, required this.loading,
+    required this.phoneCtrl, this.error, required this.loading, this.epayBalance = 0,
     required this.enabledMethods, required this.onMethodChange, required this.onSubmit});
 
   @override
@@ -691,6 +695,18 @@ class _PaymentForm extends StatelessWidget {
           icon: '💳', title: 'WaafiPay', subtitle: 'Pay via WaafiPay mobile wallet',
           onChanged: onMethodChange,
         ),
+
+      if (enabledMethods.contains('epay')) ...[
+        _MethodTile(
+          value: 'epay', groupValue: method,
+          icon: '👛', title: 'ePay Wallet',
+          subtitle: epayBalance < amount
+              ? 'Balance: \$${epayBalance.toStringAsFixed(2)} · Insufficient'
+              : 'Balance: \$${epayBalance.toStringAsFixed(2)} · Instant',
+          onChanged: epayBalance >= amount ? onMethodChange : null,
+          disabled: epayBalance < amount,
+        ),
+      ],
 
       if (enabledMethods.contains('mobile_pay'))
         _MethodTile(
@@ -724,6 +740,20 @@ class _PaymentForm extends StatelessWidget {
         const Text('You will receive a confirmation prompt on your phone.',
             style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
         const SizedBox(height: 14),
+      ],
+
+      if (method == 'epay') ...[
+        Container(
+          padding: const EdgeInsets.all(10),
+          margin: const EdgeInsets.only(bottom: 14),
+          decoration: BoxDecoration(color: const Color(0xFFF0F9FF), borderRadius: BorderRadius.circular(8)),
+          child: const Row(children: [
+            Icon(Icons.bolt_rounded, size: 15, color: Color(0xFF0369A1)),
+            SizedBox(width: 8),
+            Expanded(child: Text('Instant debit from your ePay wallet. No waiting required.',
+                style: TextStyle(fontSize: 11, color: Color(0xFF0369A1), height: 1.4))),
+          ]),
+        ),
       ],
 
       if (method == 'mobile_pay') ...[

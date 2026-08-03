@@ -10,12 +10,16 @@ class WalletData {
   final double balance;
   final int points;
   final bool hasWallet;
+  final bool isFrozen;
+  final Map<String, dynamic>? pendingTopup;
   final List<Map<String, dynamic>> transactions;
 
   const WalletData({
     required this.balance,
     required this.points,
     required this.hasWallet,
+    this.isFrozen = false,
+    this.pendingTopup,
     required this.transactions,
   });
 
@@ -23,12 +27,17 @@ class WalletData {
     double? balance,
     int? points,
     bool? hasWallet,
+    bool? isFrozen,
+    Map<String, dynamic>? pendingTopup,
+    bool clearPendingTopup = false,
     List<Map<String, dynamic>>? transactions,
   }) =>
       WalletData(
         balance: balance ?? this.balance,
         points: points ?? this.points,
         hasWallet: hasWallet ?? this.hasWallet,
+        isFrozen: isFrozen ?? this.isFrozen,
+        pendingTopup: clearPendingTopup ? null : (pendingTopup ?? this.pendingTopup),
         transactions: transactions ?? this.transactions,
       );
 }
@@ -75,10 +84,13 @@ class WalletNotifier extends StateNotifier<AsyncValue<WalletData>> {
           ? txRaw
           : (txRaw is Map ? (txRaw['data'] as List? ?? []) : []);
 
+      final pendingTopupRaw = data['pending_topup'];
       state = AsyncValue.data(WalletData(
         balance: (data['balance'] as num?)?.toDouble() ?? 0,
         points: (data['loyalty_points'] as num? ?? data['points'] as num?)?.toInt() ?? 0,
         hasWallet: data['has_wallet'] == true,
+        isFrozen: data['is_frozen'] == true,
+        pendingTopup: pendingTopupRaw is Map ? Map<String, dynamic>.from(pendingTopupRaw) : null,
         transactions: txList.whereType<Map<String, dynamic>>().toList(),
       ));
     } on DioException catch (e) {
