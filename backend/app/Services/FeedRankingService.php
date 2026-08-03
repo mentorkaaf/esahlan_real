@@ -193,7 +193,7 @@ class FeedRankingService
             ->where('community_posts.privacy', '!=', 'private')
             ->whereNull('community_posts.deleted_at')
             ->where('community_posts.moderation_status', 'approved')
-            ->where('community_posts.created_at', '>', now()->subDays(14))
+            ->where('community_posts.created_at', '>', now()->subDays(90))
             ->where(fn ($q) => $q->where('community_posts.video_ready', true)->orWhere('community_posts.user_id', $this->userId))
             ->when(!empty($this->blockedUserIds), fn ($q) => $q->whereNotIn('community_posts.user_id', $this->blockedUserIds));
 
@@ -798,7 +798,7 @@ class FeedRankingService
      */
     public static function recomputePostScores(): void
     {
-        $posts = CommunityPost::where('created_at', '>', now()->subDays(14))
+        $posts = CommunityPost::where('created_at', '>', now()->subDays(90))
             ->whereNull('deleted_at')
             ->where('moderation_status', 'approved')
             ->get(['id', 'user_id', 'type', 'views_count', 'likes_count',

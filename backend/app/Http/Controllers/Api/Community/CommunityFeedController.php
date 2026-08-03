@@ -108,7 +108,7 @@ class CommunityFeedController extends Controller
         $query = CommunityPost::with(['user.communityProfile', 'media', 'userReaction', 'page'])
             ->whereNull('group_id')
             ->where('privacy', '!=', 'private')
-            ->where('created_at', '>', now()->subDays(14))
+            ->where('created_at', '>', now()->subDays(90))
             ->where(fn ($q) => $q->where('video_ready', true)->orWhere('user_id', $userId))
             ->orderByRaw("
                 (CASE WHEN user_id IN ({$followInClause}) THEN 3.0 ELSE 1.0 END)
