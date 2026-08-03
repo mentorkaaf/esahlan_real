@@ -15,7 +15,7 @@ return new class extends Migration {
 
         // Index so we can find un-embedded posts quickly
         Schema::table('community_posts', function (Blueprint $table) {
-            $table->index(['embedding_updated_at', 'status'], 'idx_posts_needs_embedding');
+            $table->index(['embedding_updated_at', 'moderation_status'], 'idx_posts_needs_embedding');
         });
     }
 
