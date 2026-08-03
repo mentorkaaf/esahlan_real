@@ -888,6 +888,9 @@
             <a href="{{ route('admin.community-ads.index') }}" class="nav-link {{ request()->routeIs('admin.community-ads.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-bullhorn"></i></div> Ads & Pages
             </a>
+            <a href="{{ route('admin.espace-ads.index') }}" class="nav-link {{ request()->routeIs('admin.espace-ads.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-rocket"></i></div> eSpace Ads
+            </a>
             <a href="{{ route('admin.podcast.index') }}" class="nav-link {{ request()->routeIs('admin.podcast.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-podcast"></i></div> Podcasts
             </a>

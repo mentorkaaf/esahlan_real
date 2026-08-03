@@ -33,6 +33,7 @@ import 'business_page_detail_screen.dart';
 import 'community_search_screen.dart';
 import '../../../podcast/presentation/screens/podcast_home_screen.dart' show PodcastHomeScreen;
 import '../../../podcast/data/models/podcast_models.dart' show PodcastEpisode;
+import '../widgets/espace_ad_card.dart';
 import '../../../podcast/data/repositories/podcast_repository.dart' show PodcastRepository;
 import '../../../podcast/presentation/services/podcast_audio_service.dart' show PodcastAudioService;
 import '../../../podcast/presentation/screens/episode_player_screen.dart' show EpisodePlayerScreen;
@@ -311,10 +312,11 @@ class _AppBarBtn extends StatelessWidget {
 
 // Slot-plan entries — cheap value objects, no Widget allocation until delegate fires.
 sealed class _FeedSlot { const _FeedSlot(); }
-class _PostSlot  extends _FeedSlot { final int postIdx; const _PostSlot(this.postIdx); }
-class _SuggSlot  extends _FeedSlot { final int offset;  const _SuggSlot(this.offset); }
-class _ReelSlot  extends _FeedSlot { final int offset;  const _ReelSlot(this.offset); }
-class _LoadSlot  extends _FeedSlot { const _LoadSlot(); }
+class _PostSlot      extends _FeedSlot { final int postIdx; const _PostSlot(this.postIdx); }
+class _SuggSlot      extends _FeedSlot { final int offset;  const _SuggSlot(this.offset); }
+class _ReelSlot      extends _FeedSlot { final int offset;  const _ReelSlot(this.offset); }
+class _ESpaceAdSlot  extends _FeedSlot { final int adIdx;   const _ESpaceAdSlot(this.adIdx); }
+class _LoadSlot      extends _FeedSlot { const _LoadSlot(); }
 
 class _FeedTab extends ConsumerStatefulWidget {
   // No parameters — const allows Flutter to skip element.update() when parent rebuilds
@@ -330,6 +332,7 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
   int _lastLoadMs = 0;
   List<_FeedSlot> _slots = const [];
   List<CommunityPost>? _lastPosts;
+  List<ESpaceAd> _eSpaceAds = const [];
 
   // New posts banner
   int _newPostCount = 0;
@@ -343,6 +346,17 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
       setState(() => _newPostCount++);
     };
     RealtimeClient.instance.listen('community.feed', 'feed.new_post', _newPostListener!);
+    _loadESpaceAds();
+  }
+
+  Future<void> _loadESpaceAds() async {
+    final ads = await ref.read(communityRepoProvider).getESpaceAds(placement: 'feed');
+    if (mounted && ads.isNotEmpty) {
+      setState(() {
+        _eSpaceAds = ads;
+        _lastPosts = null; // force slot rebuild
+      });
+    }
   }
 
   @override
@@ -356,15 +370,25 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
   List<_FeedSlot> _buildSlots(List<CommunityPost> posts, bool hasMore) {
     final s = <_FeedSlot>[];
     int postsSinceLastAd = 999;
+    int regularPostCount = 0; // counts non-community-ad posts for eSpace injection
+    int eSpaceAdIndex = 0;
     for (var i = 0; i < posts.length; i++) {
       final post = posts[i];
       if (post.isAd && postsSinceLastAd < 3) continue;
       if (post.isAd) { postsSinceLastAd = 0; } else { postsSinceLastAd++; }
       s.add(_PostSlot(i));
+      if (!post.isAd) regularPostCount++;
+
       if (i == 4)  s.add(const _SuggSlot(0));
       if (i == 8)  s.add(const _ReelSlot(0));
       if (i > 12 && (i - 12) % 10 == 0) s.add(_SuggSlot(((i - 12) ~/ 10) * 5));
       if (i > 16 && (i - 16) % 12 == 0) s.add(_ReelSlot(((i - 16) ~/ 12) * 4));
+
+      // Inject eSpace Ad every 7 regular posts (starting after post 6)
+      if (_eSpaceAds.isNotEmpty && regularPostCount > 0 && regularPostCount % 7 == 0) {
+        s.add(_ESpaceAdSlot(eSpaceAdIndex % _eSpaceAds.length));
+        eSpaceAdIndex++;
+      }
     }
     s.add(const _LoadSlot());
     return s;
@@ -491,6 +515,13 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
                           }
                           if (slot is _ReelSlot) {
                             return RepaintBoundary(child: _ReelsSlot(batchOffset: slot.offset));
+                          }
+                          if (slot is _ESpaceAdSlot && slot.adIdx < _eSpaceAds.length) {
+                            final ad = _eSpaceAds[slot.adIdx];
+                            return RepaintBoundary(
+                              key: ValueKey('espace_ad_${ad.id}_${slot.adIdx}'),
+                              child: ESpaceAdCard(ad: ad),
+                            );
                           }
                           return _FeedLoadMore(hasMore: hasMore);
                         },

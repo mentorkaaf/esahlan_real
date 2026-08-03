@@ -658,3 +658,66 @@ class CommunityNotification {
         createdAt: DateTime.tryParse(j['created_at'] as String? ?? '') ?? DateTime.now(),
       );
 }
+
+// ── eSpace Ads ──────────────────────────────────────────────────────────────
+
+class ESpaceAd {
+  final int id;
+  final String module;
+  final String title;
+  final String? subtitle;
+  final String? description;
+  final String? imageUrl;
+  final String ctaText;
+  final String deepLink;
+  final String moduleColor;
+  final String moduleLabel;
+  final String moduleEmoji;
+
+  const ESpaceAd({
+    required this.id,
+    required this.module,
+    required this.title,
+    this.subtitle,
+    this.description,
+    this.imageUrl,
+    required this.ctaText,
+    required this.deepLink,
+    required this.moduleColor,
+    required this.moduleLabel,
+    required this.moduleEmoji,
+  });
+
+  static const _colors = {
+    'efood': '#FF6B35', 'egrocery': '#22C55E', 'eshop': '#8B5CF6',
+    'eparcel': '#F59E0B', 'emoving': '#3B82F6', 'elearning': '#06B6D4',
+    'eexchange': '#EC4899', 'erent': '#14B8A6',
+  };
+  static const _labels = {
+    'efood': 'eFood', 'egrocery': 'eGrocery', 'eshop': 'eShop',
+    'eparcel': 'eParcel', 'emoving': 'eMoving', 'elearning': 'eLearning',
+    'eexchange': 'eExchange', 'erent': 'eRent',
+  };
+  static const _emojis = {
+    'efood': '🍕', 'egrocery': '🛒', 'eshop': '🛍️',
+    'eparcel': '📦', 'emoving': '🚛', 'elearning': '🎓',
+    'eexchange': '💱', 'erent': '🏠',
+  };
+
+  factory ESpaceAd.fromJson(Map<String, dynamic> j) {
+    final mod = j['module'] as String? ?? 'efood';
+    return ESpaceAd(
+      id: j['id'] as int,
+      module: mod,
+      title: j['title'] as String? ?? '',
+      subtitle: j['subtitle'] as String?,
+      description: j['description'] as String?,
+      imageUrl: j['image_url'] as String?,
+      ctaText: j['cta_text'] as String? ?? 'Explore Now',
+      deepLink: j['deep_link'] as String? ?? '/$mod',
+      moduleColor: j['module_color'] as String? ?? _colors[mod] ?? '#FF8A00',
+      moduleLabel: j['module_label'] as String? ?? _labels[mod] ?? mod,
+      moduleEmoji: _emojis[mod] ?? '📢',
+    );
+  }
+}

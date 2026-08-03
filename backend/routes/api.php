@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\Community\UserSettingsController;
 use App\Http\Controllers\Api\Community\CommunityHighlightController;
 use App\Http\Controllers\Api\Community\CommunityBusinessPageController;
 use App\Http\Controllers\Api\Community\CommunityAdController;
+use App\Http\Controllers\Api\Community\ESpaceAdController;
 use App\Http\Controllers\Api\Community\CommunityBlockController;
 use App\Http\Controllers\Api\Podcast\PodcastFeedController;
 use App\Http\Controllers\Api\Podcast\PodcastCategoryController;
@@ -434,6 +435,11 @@ Route::prefix('v1')->group(function () {
         Route::put('pages/{id}', [CommunityBusinessPageController::class, 'update']);
         Route::post('pages/{id}/follow', [CommunityBusinessPageController::class, 'toggleFollow']);
         Route::get('pages/{id}/posts', [CommunityBusinessPageController::class, 'posts']);
+
+        // eSpace internal module ads
+        Route::get('espace-ads', [ESpaceAdController::class, 'index']);
+        Route::post('espace-ads/{espaceAd}/impression', [ESpaceAdController::class, 'impression']);
+        Route::post('espace-ads/{espaceAd}/click', [ESpaceAdController::class, 'click']);
 
         // Ads
         Route::get('ads/pricing', [CommunityAdController::class, 'pricing']);

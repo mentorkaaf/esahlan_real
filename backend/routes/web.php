@@ -466,6 +466,17 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/counter/{id}/resolve',    [$cc, 'resolveCounter'])->name('counter.resolve');
         });
 
+        // eSpace Internal Module Ads
+        Route::prefix('espace-ads')->name('espace-ads.')->group(function () {
+            Route::get('/',                        [\App\Http\Controllers\Admin\AdminESpaceAdController::class, 'index'])->name('index');
+            Route::get('/create',                  [\App\Http\Controllers\Admin\AdminESpaceAdController::class, 'create'])->name('create');
+            Route::post('/',                       [\App\Http\Controllers\Admin\AdminESpaceAdController::class, 'store'])->name('store');
+            Route::get('/{espaceAd}/edit',         [\App\Http\Controllers\Admin\AdminESpaceAdController::class, 'edit'])->name('edit');
+            Route::put('/{espaceAd}',              [\App\Http\Controllers\Admin\AdminESpaceAdController::class, 'update'])->name('update');
+            Route::delete('/{espaceAd}',           [\App\Http\Controllers\Admin\AdminESpaceAdController::class, 'destroy'])->name('destroy');
+            Route::post('/{espaceAd}/toggle',      [\App\Http\Controllers\Admin\AdminESpaceAdController::class, 'toggle'])->name('toggle');
+        });
+
         // Community Ads & Business Pages
         Route::prefix('community-ads')->name('community-ads.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AdminCommunityAdsController::class, 'index'])->name('index');
