@@ -20,7 +20,7 @@ class EmbedExistingPosts extends Command
         $limit = (int) $this->option('limit');
 
         $ids = DB::table('community_posts')
-            ->where('status', 'approved')
+            ->where('moderation_status', 'approved')
             ->whereNull('embedding')
             ->orderByDesc('id')
             ->limit($limit)
