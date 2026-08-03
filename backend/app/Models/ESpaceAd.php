@@ -9,6 +9,8 @@ class ESpaceAd extends Model
 {
     use HasFactory;
 
+    protected $table = 'espace_ads';
+
     protected $fillable = [
         'module', 'title', 'subtitle', 'description', 'image_url',
         'cta_text', 'deep_link', 'placement', 'priority', 'is_active',
