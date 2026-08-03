@@ -479,6 +479,7 @@ Route::prefix('v1')->group(function () {
             Route::get('profile/me',                  [EMarryController::class, 'myProfile']);
             Route::post('profile',                    [EMarryController::class, 'saveProfile']);
             Route::post('photo',                      [EMarryController::class, 'uploadPhoto']);
+            Route::post('photo/delete',               [EMarryController::class, 'deletePhoto']);
             Route::post('interest/{userId}',          [EMarryController::class, 'sendInterest']);
             Route::post('interest/{senderId}/respond',[EMarryController::class, 'respondInterest']);
             Route::get('interests/received',          [EMarryController::class, 'receivedInterests']);

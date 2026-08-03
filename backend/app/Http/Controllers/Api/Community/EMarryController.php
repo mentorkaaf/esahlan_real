@@ -364,10 +364,39 @@ class EMarryController extends Controller
         $v = Validator::make($request->all(), ['photo' => 'required|image|max:4096']);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
+        $user = $request->user();
         $path = $request->file('photo')->store('emarry/photos', 'public');
         $url  = Storage::url($path);
 
+        // Append to existing photos on the profile (max 4)
+        $profile = DB::table('emarry_profiles')->where('user_id', $user->id)->first();
+        if ($profile) {
+            $photos = json_decode($profile->photos ?? '[]', true);
+            if (count($photos) < 4) {
+                $photos[] = $url;
+                DB::table('emarry_profiles')->where('user_id', $user->id)->update([
+                    'photos'     => json_encode(array_values($photos)),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
+
         return response()->json(['success' => true, 'url' => $url]);
+    }
+
+    // ── POST /emarry/photo/delete  ────────────────────────────────────────────
+    public function deletePhoto(Request $request)
+    {
+        $v = Validator::make($request->all(), ['photos' => 'required|array|max:4', 'photos.*' => 'string']);
+        if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+
+        $user = $request->user();
+        DB::table('emarry_profiles')->where('user_id', $user->id)->update([
+            'photos'     => json_encode(array_values($request->photos)),
+            'updated_at' => now(),
+        ]);
+
+        return response()->json(['success' => true]);
     }
 
     private function _formatProfile(object $p): array

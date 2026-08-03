@@ -1316,12 +1316,7 @@ class _PhotoUploadSectionState extends State<_PhotoUploadSection> {
       });
       final res = await ApiClient.instance.post('/emarry/photo', data: formData);
       if (res.data['success'] == true) {
-        final newUrl = res.data['url']?.toString() ?? '';
-        if (newUrl.isNotEmpty) {
-          final updatedPhotos = [...widget.photos, newUrl];
-          await ApiClient.instance.post('/emarry/profile', data: {'photos': updatedPhotos});
-          widget.profileRef.invalidate(_myEmarryProfileProvider);
-        }
+        widget.profileRef.invalidate(_myEmarryProfileProvider);
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -1334,7 +1329,7 @@ class _PhotoUploadSectionState extends State<_PhotoUploadSection> {
   Future<void> _deletePhoto(int index) async {
     final updated = [...widget.photos]..removeAt(index);
     try {
-      await ApiClient.instance.post('/emarry/profile', data: {'photos': updated});
+      await ApiClient.instance.post('/emarry/photo/delete', data: {'photos': updated});
       widget.profileRef.invalidate(_myEmarryProfileProvider);
     } catch (_) {}
   }

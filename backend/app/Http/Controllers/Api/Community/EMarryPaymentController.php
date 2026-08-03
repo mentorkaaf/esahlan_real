@@ -117,7 +117,9 @@ class EMarryPaymentController extends Controller
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
         $enabled = AdminPaymentSettingsController::enabledMethods();
-        if (!in_array($request->payment_method, $enabled)) {
+        // 'wallet' in enabledMethods maps to 'epay' in eMarry — check accordingly
+        $enabledForCheck = collect($enabled)->map(fn($m) => $m === 'wallet' ? 'epay' : $m)->toArray();
+        if (!in_array($request->payment_method, $enabledForCheck)) {
             return response()->json(['success' => false, 'message' => 'This payment method is currently unavailable.'], 422);
         }
 
@@ -146,7 +148,8 @@ class EMarryPaymentController extends Controller
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
         $enabled = AdminPaymentSettingsController::enabledMethods();
-        if (!in_array($request->payment_method, $enabled)) {
+        $enabledForCheck = collect($enabled)->map(fn($m) => $m === 'wallet' ? 'epay' : $m)->toArray();
+        if (!in_array($request->payment_method, $enabledForCheck)) {
             return response()->json(['success' => false, 'message' => 'This payment method is currently unavailable.'], 422);
         }
 
