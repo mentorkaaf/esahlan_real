@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\Customer\WalletController;
 use App\Models\Wallet;
 use App\Models\User;
 use App\Services\FcmService;
@@ -593,5 +594,80 @@ class AdminWalletController extends Controller
             if ($request->has($key)) AppSettings::set($key, $request->input($key));
         }
         return back()->with('success', 'Settings saved successfully.');
+    }
+
+    // ─── Mobile Pay Top-up Requests ──────────────────────────────────────────
+
+    public function topupRequests(Request $request)
+    {
+        $status = $request->get('status', 'pending');
+
+        $requests = DB::table('wallet_topup_requests as r')
+            ->join('users as u', 'u.id', '=', 'r.user_id')
+            ->leftJoin('users as admin', 'admin.id', '=', 'r.reviewed_by')
+            ->select('r.*', 'u.name', 'u.email', 'u.phone', 'admin.name as admin_name')
+            ->when($status !== 'all', fn($q) => $q->where('r.status', $status))
+            ->orderByDesc('r.created_at')
+            ->paginate(25)->withQueryString();
+
+        $stats = [
+            'pending'  => DB::table('wallet_topup_requests')->where('status', 'pending')->count(),
+            'approved' => DB::table('wallet_topup_requests')->where('status', 'approved')->count(),
+            'rejected' => DB::table('wallet_topup_requests')->where('status', 'rejected')->count(),
+            'total_approved_amount' => (float) DB::table('wallet_topup_requests')->where('status', 'approved')->sum('amount'),
+        ];
+
+        return view('admin.wallet.topup_requests', compact('requests', 'stats', 'status'));
+    }
+
+    public function approveTopupRequest(Request $request, int $id)
+    {
+        $result = WalletController::approveTopup($id, auth()->id(), $request->admin_note);
+
+        if (!$result['success']) {
+            return back()->with('error', $result['message']);
+        }
+
+        // FCM notify user
+        try {
+            $req  = DB::table('wallet_topup_requests')->where('id', $id)->first();
+            $user = DB::table('users')->where('id', $req->user_id)->first();
+            if ($user?->fcm_token) {
+                FcmService::sendToToken($user->fcm_token,
+                    '✅ Top-up Approved',
+                    "\${$req->amount} has been added to your ePay wallet.",
+                    ['type' => 'wallet_topup', 'deep_link' => '/wallet']
+                );
+            }
+        } catch (\Throwable) {}
+
+        return back()->with('success', 'Top-up approved and wallet credited.');
+    }
+
+    public function rejectTopupRequest(Request $request, int $id)
+    {
+        $req = DB::table('wallet_topup_requests')->where('id', $id)->where('status', 'pending')->first();
+        if (!$req) return back()->with('error', 'Request not found or already processed.');
+
+        DB::table('wallet_topup_requests')->where('id', $id)->update([
+            'status'      => 'rejected',
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => now(),
+            'admin_note'  => $request->admin_note,
+            'updated_at'  => now(),
+        ]);
+
+        try {
+            $user = DB::table('users')->where('id', $req->user_id)->first();
+            if ($user?->fcm_token) {
+                FcmService::sendToToken($user->fcm_token,
+                    '❌ Top-up Rejected',
+                    'Your Mobile Pay top-up could not be verified. Please try again.',
+                    ['type' => 'wallet_topup_rejected']
+                );
+            }
+        } catch (\Throwable) {}
+
+        return back()->with('success', 'Top-up request rejected.');
     }
 }

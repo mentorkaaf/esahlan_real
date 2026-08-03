@@ -779,6 +779,10 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/reset-pin/{userId}',            [$wc, 'resetUserPin'])->name('reset-pin');
             Route::get('/settings',                       [$wc, 'settings'])->name('settings');
             Route::post('/settings',                      [$wc, 'saveSettings'])->name('settings.save');
+            // Mobile Pay top-up requests (manual verification)
+            Route::get('/topup-requests',                 [$wc, 'topupRequests'])->name('topup-requests');
+            Route::post('/topup-requests/{id}/approve',   [$wc, 'approveTopupRequest'])->name('topup-requests.approve');
+            Route::post('/topup-requests/{id}/reject',    [$wc, 'rejectTopupRequest'])->name('topup-requests.reject');
         });
 
         // ── Crypto Exchange Admin ─────────────────────────────────────────────
