@@ -17,9 +17,9 @@ class AdminWalletController extends Controller
 {
     // ─── Dashboard ────────────────────────────────────────────────────────────
 
-    public function index()
+    public function index(Request $request)
     {
-        $users = DB::table('users')
+        $q = DB::table('users')
             ->leftJoin('wallets', function ($j) {
                 $j->on('wallets.owner_id', '=', 'users.id')
                   ->where('wallets.owner_type', 'App\\Models\\User');
@@ -27,13 +27,26 @@ class AdminWalletController extends Controller
             ->whereNull('users.deleted_at')
             ->select('users.id', 'users.name', 'users.email', 'users.phone',
                      'wallets.id as wallet_id', 'wallets.balance', 'wallets.total_earned',
-                     'wallets.total_withdrawn', 'wallets.is_frozen', 'wallets.frozen_reason')
-            ->orderByDesc('wallets.balance')
-            ->paginate(30);
+                     'wallets.total_withdrawn', 'wallets.is_frozen', 'wallets.frozen_reason');
+
+        if ($s = trim($request->search ?? '')) {
+            $q->where(function ($qq) use ($s) {
+                $qq->where('users.name',  'like', "%$s%")
+                   ->orWhere('users.email', 'like', "%$s%")
+                   ->orWhere('users.phone', 'like', "%$s%");
+            });
+        }
+
+        if ($request->filter === 'frozen') $q->where('wallets.is_frozen', true);
+        if ($request->filter === 'no_wallet') $q->whereNull('wallets.id');
+
+        $q->orderByDesc('wallets.balance');
+        $users = $q->paginate(30)->withQueryString();
 
         $stats = $this->_dashboardStats();
+        $search = $s ?? '';
 
-        return view('admin.wallet.index', compact('users', 'stats'));
+        return view('admin.wallet.index', compact('users', 'stats', 'search'));
     }
 
     private function _dashboardStats(): array
@@ -270,6 +283,12 @@ class AdminWalletController extends Controller
             'frozen_by'    => auth()->id(),
             'frozen_at'    => now(),
         ]);
+        $u = User::find($userId);
+        if ($u?->fcm_token) {
+            FcmService::sendToToken($u->fcm_token, '🔒 Wallet Frozen',
+                'Your ePay wallet has been frozen. Reason: ' . $request->reason . '. Contact support.',
+                ['type' => 'wallet_frozen', 'deep_link' => '/wallet']);
+        }
         return back()->with('success', 'Wallet frozen successfully.');
     }
 
@@ -278,6 +297,12 @@ class AdminWalletController extends Controller
         $wallet = Wallet::where('owner_type', 'App\\Models\\User')->where('owner_id', $userId)->first();
         if (!$wallet) return back()->with('error', 'Wallet not found.');
         $wallet->update(['is_frozen' => false, 'frozen_reason' => null, 'frozen_by' => null, 'frozen_at' => null]);
+        $u = User::find($userId);
+        if ($u?->fcm_token) {
+            FcmService::sendToToken($u->fcm_token, '✅ Wallet Unfrozen',
+                'Your ePay wallet has been unfrozen. You can now use it freely.',
+                ['type' => 'wallet_unfrozen', 'deep_link' => '/wallet']);
+        }
         return back()->with('success', 'Wallet unfrozen successfully.');
     }
 

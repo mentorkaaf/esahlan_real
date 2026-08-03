@@ -267,6 +267,16 @@ class WalletController extends Controller
             'updated_at'     => now(),
         ]);
 
+        // FCM: tell user request is pending review
+        if ($user->fcm_token) {
+            \App\Services\FcmService::sendToToken(
+                $user->fcm_token,
+                '⏳ Top-up Under Review',
+                '$' . number_format($amount, 2) . ' top-up submitted. Admin will verify and credit your wallet within 30 minutes.',
+                ['type' => 'topup_pending', 'amount' => (string)$amount, 'deep_link' => '/wallet']
+            );
+        }
+
         return response()->json([
             'success' => true,
             'status'  => 'pending',

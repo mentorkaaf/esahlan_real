@@ -403,19 +403,10 @@ class OrderController extends Controller
 
             // Refund wallet if paid via wallet
             if ($order->payment_method === 'wallet' && $order->payment_status === 'paid') {
-                $wallet = $request->user()->wallet;
-                $wallet->increment('balance', $order->total_amount);
-
-                DB::table('wallet_transactions')->insert([
-                    'wallet_id'   => $wallet->id,
-                    'type'        => 'credit',
-                    'amount'      => $order->total_amount,
-                    'description' => "Refund for cancelled Order #{$order->order_number}",
-                    'reference_id'=> $order->id,
-                    'created_at'  => now(),
-                    'updated_at'  => now(),
-                ]);
-
+                $wallet = \App\Models\Wallet::getOrCreateFor('App\\Models\\User', $request->user()->id);
+                $wallet->credit((float)$order->total_amount,
+                    "Refund: cancelled Order #{$order->order_number}",
+                    'App\\Models\\Order', $order->id, 'refund');
                 $order->update(['payment_status' => 'refunded']);
             }
         });

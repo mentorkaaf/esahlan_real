@@ -309,12 +309,31 @@
 
 {{-- ══ ACCOUNTS TABLE ══ --}}
 <div class="ep-card" style="margin-bottom:20px">
-  <div class="ep-card-hdr">
+  <div class="ep-card-hdr" style="flex-wrap:wrap;gap:10px">
     <div>
       <div class="ep-card-title">ePay Accounts</div>
-      <div class="ep-card-sub">{{ $users->total() }} users · ordered by balance</div>
+      <div class="ep-card-sub">{{ $users->total() }} users found · ordered by balance</div>
     </div>
-    <div style="display:flex;gap:8px">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      {{-- Search form --}}
+      <form method="GET" action="{{ route('admin.wallet.index') }}" style="display:flex;gap:6px;align-items:center">
+        <div style="position:relative">
+          <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94A3B8;font-size:12px"></i>
+          <input type="text" name="search" value="{{ $search }}"
+                 placeholder="Name, phone or email…"
+                 style="padding:8px 12px 8px 30px;border:1.5px solid #E2E8F0;border-radius:9px;font-size:13px;width:220px;outline:none"
+                 onfocus="this.style.borderColor='#3B82F6'" onblur="this.style.borderColor='#E2E8F0'">
+        </div>
+        <select name="filter" style="padding:8px 10px;border:1.5px solid #E2E8F0;border-radius:9px;font-size:12px;color:#374151">
+          <option value="">All Users</option>
+          <option value="frozen" {{ request('filter')==='frozen'?'selected':'' }}>Frozen Only</option>
+          <option value="no_wallet" {{ request('filter')==='no_wallet'?'selected':'' }}>No Wallet</option>
+        </select>
+        <button type="submit" class="ep-btn ep-btn-primary ep-btn-sm"><i class="fas fa-search"></i> Search</button>
+        @if($search || request('filter'))
+        <a href="{{ route('admin.wallet.index') }}" class="ep-btn ep-btn-outline ep-btn-sm"><i class="fas fa-times"></i> Clear</a>
+        @endif
+      </form>
       <button onclick="document.getElementById('bulkResetModal').style.display='flex'" class="ep-btn ep-btn-danger ep-btn-sm"><i class="fas fa-undo"></i> Reset All</button>
     </div>
   </div>

@@ -68,10 +68,11 @@ class EMarryPaymentController extends Controller
         $status  = $this->_userStatus($user->id);
         $enabled = AdminPaymentSettingsController::enabledMethods();
 
-        $emarryMethods = array_values(array_filter(
-            ['waafi_pay', 'epay', 'mobile_pay'],
-            fn($m) => in_array($m, $enabled)
-        ));
+        // enabledMethods() uses 'wallet' for ePay — map it to 'epay' for eMarry
+        $emarryMethods = [];
+        if (in_array('waafi_pay',  $enabled)) $emarryMethods[] = 'waafi_pay';
+        if (in_array('wallet',     $enabled)) $emarryMethods[] = 'epay';
+        if (in_array('mobile_pay', $enabled)) $emarryMethods[] = 'mobile_pay';
 
         // Mobile Pay accounts (for Flutter to show real account info)
         $mpAccounts = DB::table('mobile_pay_accounts')

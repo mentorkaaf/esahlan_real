@@ -171,6 +171,19 @@ class AdminOrderController extends Controller
                 });
             }
 
+            // Refund wallet if admin cancels a wallet-paid order
+            if ($request->status === 'cancelled' && $order->payment_method === 'wallet' && $order->payment_status === 'paid') {
+                try {
+                    $userWallet = Wallet::getOrCreateFor('App\\Models\\User', $order->user_id);
+                    $userWallet->credit((float)$order->total_amount,
+                        "Refund: cancelled Order #{$order->order_number}",
+                        'App\\Models\\Order', $order->id, 'refund');
+                    $order->update(['payment_status' => 'refunded']);
+                } catch (\Throwable $e) {
+                    \Log::error('[Wallet] Admin cancel refund failed: '.$e->getMessage());
+                }
+            }
+
             // Credit vendor wallet + settle commission on delivery
             if ($request->status === 'delivered') {
                 $commissionRow = DB::table('commissions')
