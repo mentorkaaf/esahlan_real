@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'dart:io';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 import '../../../../core/api/api_client.dart';
+import '../../../payment/mobile_pay_sheet.dart';
 import 'community_shell.dart' show kOrange;
 
 // ─── Models ──────────────────────────────────────────────────────────────────
@@ -512,9 +510,6 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
   Timer? _pollTimer;
   String _pollStatus = '';
 
-  // Mobile Pay
-  Map<String, dynamic>? _mobilePayInfo;
-  int? _mobilePayRequestId;
 
   @override
   void dispose() {
@@ -524,6 +519,10 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
   }
 
   Future<void> _submit() async {
+    if (_method == 'mobile_pay') {
+      await _handleMobilePay();
+      return;
+    }
     if (_method == 'waafi_pay' && _phoneCtrl.text.trim().isEmpty) {
       setState(() => _error = 'Enter your WaafiPay phone number');
       return;
@@ -544,25 +543,51 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
         return;
       }
 
-      if (_method == 'waafi_pay') {
-        if (data['status'] == 'success') {
-          _onSuccess();
-        } else {
-          // Start polling
-          setState(() { _pollRef = data['reference']; _pollStatus = 'Waiting for confirmation on your phone…'; });
-          _startPolling(data['reference'] as String);
-        }
-      } else if (_method == 'epay') {
+      if (data['status'] == 'success') {
         _onSuccess();
-      } else if (_method == 'mobile_pay') {
-        setState(() {
-          _loading = false;
-          _mobilePayInfo = Map<String, dynamic>.from(data['mobile_pay'] as Map);
-          _mobilePayRequestId = data['request_id'] as int?;
-        });
+      } else {
+        setState(() { _pollRef = data['reference']; _pollStatus = 'Waiting for confirmation on your phone…'; });
+        _startPolling(data['reference'] as String);
       }
     } catch (e) {
       setState(() { _loading = false; _error = 'Something went wrong. Try again.'; });
+    }
+  }
+
+  Future<void> _handleMobilePay() async {
+    if (!mounted) return;
+    // Step 1: use existing MobilePaySheet — USSD dial + screenshot upload
+    final result = await showMobilePaySheet(
+      context,
+      amount: widget.amount,
+      description: widget.type == 'subscription' ? '${widget.planKey} Plan' : '${widget.pkgKey} Credits',
+    );
+    if (result == null || !result.success || result.proofToken == null) return;
+    if (!mounted) return;
+
+    // Step 2: submit to eMarry backend with proof_token
+    setState(() { _loading = true; _error = null; });
+    try {
+      final endpoint = widget.type == 'subscription' ? '/emarry/payment/subscribe' : '/emarry/payment/credits/buy';
+      final body = widget.type == 'subscription'
+          ? {'plan': widget.planKey, 'payment_method': 'mobile_pay', 'proof_token': result.proofToken}
+          : {'package': widget.pkgKey, 'payment_method': 'mobile_pay', 'proof_token': result.proofToken};
+
+      final res = await ApiClient.instance.post(endpoint, data: body);
+      if (!mounted) return;
+
+      if (res.data['success'] == true) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Payment submitted! Admin will verify within 30 minutes.'),
+          backgroundColor: Color(0xFF3B82F6),
+          duration: Duration(seconds: 4),
+        ));
+      } else {
+        setState(() { _loading = false; _error = res.data['message'] ?? 'Submission failed'; });
+      }
+    } catch (_) {
+      if (mounted) setState(() { _loading = false; _error = 'Something went wrong. Try again.'; });
     }
   }
 
@@ -609,14 +634,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
         top: false,
         child: SingleChildScrollView(child: Padding(
           padding: const EdgeInsets.all(20),
-          child: _mobilePayInfo != null
-              ? _MobilePayInstructions(
-                  info: _mobilePayInfo!,
-                  requestId: _mobilePayRequestId,
-                  onDone: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Screenshot submitted. Admin will verify shortly.'), backgroundColor: Color(0xFF3B82F6))); },
-                )
-              : _pollRef != null
+          child: _pollRef != null
                 ? _PollingView(message: _pollStatus)
                 : _PaymentForm(
                     amount: widget.amount,
@@ -637,7 +655,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
 
 // ─── Payment Form ─────────────────────────────────────────────────────────────
 
-class _PaymentForm extends ConsumerWidget {
+class _PaymentForm extends StatelessWidget {
   final double amount;
   final String type, method;
   final TextEditingController phoneCtrl;
@@ -651,11 +669,7 @@ class _PaymentForm extends ConsumerWidget {
     required this.enabledMethods, required this.onMethodChange, required this.onSubmit});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final statusAsync = ref.watch(emarryStatusProvider);
-    final epayBalance = statusAsync.valueOrNull?.epayBalance ?? 0.0;
-    final enoughEPay  = epayBalance >= amount;
-
+  Widget build(BuildContext context) {
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
       Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(2)))),
       const SizedBox(height: 16),
@@ -676,15 +690,6 @@ class _PaymentForm extends ConsumerWidget {
           value: 'waafi_pay', groupValue: method,
           icon: '💳', title: 'WaafiPay', subtitle: 'Pay via WaafiPay mobile wallet',
           onChanged: onMethodChange,
-        ),
-
-      if (enabledMethods.contains('epay'))
-        _MethodTile(
-          value: 'epay', groupValue: method,
-          icon: '🏦', title: 'ePay Wallet',
-          subtitle: 'Balance: \$${epayBalance.toStringAsFixed(2)}${!enoughEPay ? '  (insufficient)' : ''}',
-          onChanged: enoughEPay ? onMethodChange : null,
-          disabled: !enoughEPay,
         ),
 
       if (enabledMethods.contains('mobile_pay'))
@@ -721,10 +726,18 @@ class _PaymentForm extends ConsumerWidget {
         const SizedBox(height: 14),
       ],
 
-      if (method == 'mobile_pay' && enabledMethods.contains('mobile_pay')) ...[
-        const Text('You will receive USSD instructions to send payment.\nUpload screenshot for admin verification.',
-            style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-        const SizedBox(height: 14),
+      if (method == 'mobile_pay') ...[
+        Container(
+          padding: const EdgeInsets.all(10),
+          margin: const EdgeInsets.only(bottom: 14),
+          decoration: BoxDecoration(color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(8)),
+          child: const Row(children: [
+            Icon(Icons.info_outline_rounded, size: 15, color: Color(0xFF16A34A)),
+            SizedBox(width: 8),
+            Expanded(child: Text('A payment sheet will open. Dial USSD, send payment, then upload screenshot.',
+                style: TextStyle(fontSize: 11, color: Color(0xFF16A34A), height: 1.4))),
+          ]),
+        ),
       ],
 
       if (error != null)
@@ -809,145 +822,3 @@ class _PollingView extends StatelessWidget {
   );
 }
 
-// ─── Mobile Pay Instructions ──────────────────────────────────────────────────
-
-class _MobilePayInstructions extends StatefulWidget {
-  final Map<String, dynamic> info;
-  final int? requestId;
-  final VoidCallback onDone;
-  const _MobilePayInstructions({required this.info, this.requestId, required this.onDone});
-  @override
-  State<_MobilePayInstructions> createState() => _MobilePayInstructionsState();
-}
-
-class _MobilePayInstructionsState extends State<_MobilePayInstructions> {
-  bool _uploading = false;
-  String? _error;
-  File? _pickedFile;
-
-  Future<void> _pickAndUpload() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-    if (picked == null) return;
-
-    setState(() { _uploading = true; _error = null; _pickedFile = File(picked.path); });
-
-    try {
-      if (widget.requestId == null) {
-        // No request ID — just done (shouldn't happen)
-        widget.onDone();
-        return;
-      }
-
-      final formData = FormData.fromMap({
-        'request_id': widget.requestId,
-        'screenshot': await MultipartFile.fromFile(picked.path, filename: 'proof.jpg'),
-      });
-
-      final res = await ApiClient.instance.post(
-        '/emarry/payment/mobile-pay/screenshot',
-        data: formData,
-      );
-
-      if (res.data['success'] == true) {
-        widget.onDone();
-      } else {
-        setState(() { _uploading = false; _error = res.data['message'] ?? 'Upload failed'; });
-      }
-    } catch (e) {
-      setState(() { _uploading = false; _error = 'Upload failed. Try again.'; });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final info = widget.info;
-    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(2)))),
-      const SizedBox(height: 16),
-      const Text('Mobile Pay Instructions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-      const SizedBox(height: 14),
-
-      _InstructionStep(num: '1', text: 'Dial the USSD code below on your phone'),
-      Container(
-        margin: const EdgeInsets.fromLTRB(8, 4, 0, 12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFE5E7EB))),
-        child: Row(children: [
-          Expanded(child: Text(info['ussd'] ?? '', style: const TextStyle(fontFamily: 'monospace', fontSize: 14, fontWeight: FontWeight.w700))),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.copy_rounded, size: 16, color: kOrange),
-            padding: EdgeInsets.zero, constraints: const BoxConstraints(),
-          ),
-        ]),
-      ),
-
-      _InstructionStep(num: '2', text: 'Send \$${(info['amount'] as num).toStringAsFixed(2)} to ${info['account_name']} (${info['account_number']})'),
-      const SizedBox(height: 8),
-
-      _InstructionStep(num: '3', text: 'Take a screenshot of the confirmation message'),
-      const SizedBox(height: 8),
-
-      _InstructionStep(num: '4', text: 'Upload screenshot below for admin verification'),
-      const SizedBox(height: 16),
-
-      if (info['instructions'] != null && (info['instructions'] as String).isNotEmpty)
-        Container(
-          padding: const EdgeInsets.all(10),
-          margin: const EdgeInsets.only(bottom: 14),
-          decoration: BoxDecoration(color: const Color(0xFFFFF7ED), borderRadius: BorderRadius.circular(8)),
-          child: Text(info['instructions'] as String, style: const TextStyle(fontSize: 12, color: Color(0xFF92400E))),
-        ),
-
-      // Preview picked image
-      if (_pickedFile != null)
-        Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          height: 120,
-          width: double.infinity,
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFE5E7EB))),
-          child: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.file(_pickedFile!, fit: BoxFit.cover)),
-        ),
-
-      if (_error != null)
-        Container(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
-            child: Text(_error!, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12))),
-
-      SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          onPressed: _uploading ? null : _pickAndUpload,
-          icon: _uploading
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Icon(Icons.upload_rounded, size: 18),
-          label: Text(_uploading ? 'Uploading…' : 'Upload Screenshot',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
-          style: ElevatedButton.styleFrom(backgroundColor: kOrange, foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              padding: const EdgeInsets.symmetric(vertical: 13)),
-        ),
-      ),
-      const SizedBox(height: 8),
-      const Center(child: Text('Admin typically verifies within 30 minutes.',
-          style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)))),
-    ]);
-  }
-}
-
-class _InstructionStep extends StatelessWidget {
-  final String num, text;
-  const _InstructionStep({required this.num, required this.text});
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(width: 22, height: 22, margin: const EdgeInsets.only(right: 8, top: 1),
-          decoration: const BoxDecoration(color: kOrange, shape: BoxShape.circle),
-          child: Center(child: Text(num, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)))),
-      Expanded(child: Text(text, style: const TextStyle(fontSize: 13, color: Color(0xFF374151)))),
-    ]),
-  );
-}
