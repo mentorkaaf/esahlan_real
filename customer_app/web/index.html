@@ -8,11 +8,8 @@
   <meta name="description" content="Everything You Need, Simplified — Somalia's Super App">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
-  <!-- PWA: Android -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#07003B">
-
-  <!-- PWA: iOS (Add to Home Screen) -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="eSahlan">
@@ -20,10 +17,7 @@
   <link rel="apple-touch-icon" sizes="152x152" href="icons/Icon-192.png">
   <link rel="apple-touch-icon" sizes="167x167" href="icons/Icon-192.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
-
   <title>eSahlan</title>
   <link rel="manifest" href="manifest.json">
 
@@ -52,21 +46,15 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    /* Shared banner row (icon + text) */
     .banner-row {
       display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
     }
     .banner-row img {
       width: 58px; height: 58px; border-radius: 14px; flex-shrink: 0;
     }
-    .banner-row strong {
-      display: block; font-size: 18px; font-weight: 800; letter-spacing: -0.3px;
-    }
-    .banner-row span {
-      display: block; font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 3px;
-    }
+    .banner-row strong { display: block; font-size: 18px; font-weight: 800; }
+    .banner-row span   { display: block; font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 3px; }
 
-    /* Shared install button style */
     .install-btn {
       display: block; width: 100%;
       background: #F5A623; color: #07003B;
@@ -75,47 +63,62 @@
       cursor: pointer; box-sizing: border-box;
     }
 
-    /* iOS: small hint shown below button after tap (share sheet reminder) */
-    #ios-hint {
-      display: none;
-      margin-top: 14px;
-      background: rgba(255,255,255,0.08);
-      border-radius: 12px;
-      padding: 12px 14px;
-      font-size: 13px;
-      color: rgba(255,255,255,0.75);
-      line-height: 1.5;
+    /* iOS Safari after-share hint */
+    .share-hint {
+      margin-top: 12px;
       text-align: center;
+      font-size: 13px;
+      color: rgba(255,255,255,0.65);
     }
-    #ios-hint b { color: #F5A623; }
+    .share-hint b { color: #F5A623; }
+
+    /* iOS non-Safari: steps to open in Safari */
+    .safari-guide {
+      background: rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .safari-guide .guide-title {
+      font-size: 13px; font-weight: 800; color: #F5A623; margin-bottom: 14px;
+    }
+    .safari-guide .step {
+      display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px;
+    }
+    .safari-guide .step:last-child { margin-bottom: 0; }
+    .safari-guide .num {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: #F5A623; color: #07003B;
+      font-size: 11px; font-weight: 900;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .safari-guide .txt { font-size: 14px; line-height: 1.5; color: rgba(255,255,255,0.85); }
+    .safari-guide .txt b { color: #F5A623; }
+
+    .copy-confirm {
+      display: none; text-align: center;
+      color: #4CAF50; font-size: 13px;
+      font-weight: 700; margin-top: 12px;
+    }
 
     /* Dim overlay */
     #pwa-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 999998;
-      background: rgba(0,0,0,0.6);
+      display: none; position: fixed; inset: 0;
+      z-index: 999998; background: rgba(0,0,0,0.6);
     }
 
-    /* Post-install full-screen */
+    /* Post-install screen */
     #installed-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 9999999;
-      background: #07003B;
-      color: #fff;
+      display: none; position: fixed; inset: 0;
+      z-index: 9999999; background: #07003B; color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 40px 24px;
+      flex-direction: column; align-items: center;
+      justify-content: center; text-align: center; padding: 40px 24px;
     }
     #installed-overlay img {
-      width: 90px; height: 90px; border-radius: 22px; margin-bottom: 28px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      width: 90px; height: 90px; border-radius: 22px;
+      margin-bottom: 28px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
     }
     #installed-overlay h2 { font-size: 24px; font-weight: 800; margin: 0 0 14px; }
     #installed-overlay p  { font-size: 15px; color: rgba(255,255,255,0.7); line-height: 1.7; margin: 0; }
@@ -132,7 +135,6 @@
 
   <div id="pwa-overlay"></div>
 
-  <!-- Post-install screen -->
   <div id="installed-overlay">
     <img src="icons/Icon-192.png" alt="eSahlan">
     <h2>eSahlan Installed! 🎉</h2>
@@ -152,7 +154,7 @@
     <button id="android-install-btn" class="install-btn">⬇️ &nbsp; Install App</button>
   </div>
 
-  <!-- iOS banner — same design, button triggers native share sheet -->
+  <!-- iOS banner — content set by JS based on browser type -->
   <div id="ios-banner" class="pwa-sheet">
     <div class="banner-row">
       <img src="icons/Icon-192.png" alt="eSahlan">
@@ -161,9 +163,34 @@
         <span>Somalia's Super App — Order food,<br>shop, parcel &amp; more.</span>
       </div>
     </div>
-    <button id="ios-install-btn" class="install-btn">⬇️ &nbsp; Add to Home Screen</button>
-    <div id="ios-hint">
-      Share sheet-ka ku furmi doona — <b>"Add to Home Screen"</b> taabo
+
+    <!-- Safari: share button opens native share sheet which has Add to Home Screen -->
+    <div id="ios-safari-ui">
+      <button id="ios-share-btn" class="install-btn">⬇️ &nbsp; Add to Home Screen</button>
+      <p id="ios-share-hint" class="share-hint" style="display:none">
+        Share menu-ka → <b>"Add to Home Screen"</b> dooro
+      </p>
+    </div>
+
+    <!-- Chrome / Firefox on iOS: must use Safari -->
+    <div id="ios-other-ui" style="display:none">
+      <div class="safari-guide">
+        <div class="guide-title">📱 Safari ku install garee:</div>
+        <div class="step">
+          <div class="num">1</div>
+          <div class="txt">Hoose <b>"Copy Link"</b> ku dhufo — link-ka copy garee</div>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <div class="txt"><b>Safari</b> ka fur, address bar-ka paste garee oo gal</div>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <div class="txt">Share <b>⬆️</b> taabo → <b>"Add to Home Screen"</b> dooro</div>
+        </div>
+      </div>
+      <button id="ios-copy-btn" class="install-btn">📋 &nbsp; Copy Link</button>
+      <p id="ios-copied" class="copy-confirm">✓ Link copied! Fur Safari oo paste garee.</p>
     </div>
   </div>
 
@@ -177,22 +204,26 @@
     function isIOS() {
       return /iphone|ipad|ipod/i.test(navigator.userAgent);
     }
+    // Safari on iOS: has "Safari" in UA but NOT CriOS (Chrome) or FxiOS (Firefox)
+    function isSafariIOS() {
+      var ua = navigator.userAgent;
+      return isIOS() && /Safari/i.test(ua) && !/CriOS/i.test(ua) && !/FxiOS/i.test(ua);
+    }
+
     function showOverlay() {
       document.getElementById('pwa-overlay').style.display = 'block';
     }
 
     if (isMobile() && !isStandalone) {
 
-      // ── Android Chrome ──────────────────────────────────────────────────
+      // ── Android Chrome ──────────────────────────────────────────
       var deferredPrompt = null;
-
       window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
         deferredPrompt = e;
         showOverlay();
         document.getElementById('android-banner').style.display = 'block';
       });
-
       document.getElementById('android-install-btn').addEventListener('click', function() {
         if (!deferredPrompt) return;
         deferredPrompt.prompt();
@@ -205,31 +236,64 @@
         });
       });
 
-      // ── iOS — button opens native share sheet ───────────────────────────
+      // ── iOS ──────────────────────────────────────────────────────
       if (isIOS()) {
         showOverlay();
         document.getElementById('ios-banner').style.display = 'block';
 
-        document.getElementById('ios-install-btn').addEventListener('click', function() {
-          // Try Web Share API — opens native iOS share sheet
-          if (navigator.share) {
-            navigator.share({
-              title: 'eSahlan',
-              text: "Somalia's Super App",
-              url: window.location.href,
-            }).catch(function() {
-              // User cancelled or share failed — show text hint
-              document.getElementById('ios-hint').style.display = 'block';
-            });
-          } else {
-            // Older iOS without Web Share — show hint
-            document.getElementById('ios-hint').style.display = 'block';
-          }
-        });
+        if (isSafariIOS()) {
+          // Safari: share button → native share sheet → Add to Home Screen
+          document.getElementById('ios-safari-ui').style.display = 'block';
+          document.getElementById('ios-other-ui').style.display = 'none';
+
+          document.getElementById('ios-share-btn').addEventListener('click', function() {
+            document.getElementById('ios-share-hint').style.display = 'block';
+            if (navigator.share) {
+              navigator.share({
+                title: 'eSahlan',
+                text: "Somalia's Super App",
+                url: 'https://app.esahlan.com',
+              }).catch(function() {});
+            }
+          });
+
+        } else {
+          // Chrome / Firefox on iOS — share sheet has no Add to Home Screen
+          // Guide user to open in Safari instead
+          document.getElementById('ios-safari-ui').style.display = 'none';
+          document.getElementById('ios-other-ui').style.display = 'block';
+
+          document.getElementById('ios-copy-btn').addEventListener('click', function() {
+            var url = 'https://app.esahlan.com';
+            var btn = this;
+            var confirm = document.getElementById('ios-copied');
+            function done() {
+              btn.style.display = 'none';
+              confirm.style.display = 'block';
+            }
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(url).then(done).catch(function() {
+                fallbackCopy(url); done();
+              });
+            } else {
+              fallbackCopy(url); done();
+            }
+          });
+        }
       }
     }
 
-    // After Android install — block browser, force home screen
+    function fallbackCopy(text) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try { document.execCommand('copy'); } catch(e) {}
+      document.body.removeChild(ta);
+    }
+
     window.addEventListener('appinstalled', function() {
       document.getElementById('android-banner').style.display = 'none';
       document.getElementById('pwa-overlay').style.display = 'none';
