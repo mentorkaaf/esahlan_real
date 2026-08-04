@@ -137,6 +137,7 @@ class _MobilePaySheetState extends State<_MobilePaySheet> {
 
   // Proof confirmation state (shown after USSD is dialed)
   MobilePayAccount? _dialedAccount;
+  String? _dialedUssd;
   bool _showProof = false;
 
   @override
@@ -163,6 +164,19 @@ class _MobilePaySheetState extends State<_MobilePaySheet> {
   Future<void> _onSelect(MobilePayAccount acc) async {
     final ussd = acc.buildUssd(widget.amount);
 
+    if (kIsWeb) {
+      // Web: show USSD code + instructions without launching tel: (which exits the app)
+      final proceed = await _showWebUssdDialog(ussd, acc);
+      if (proceed != true || !mounted) return;
+      setState(() {
+        _dialedAccount = acc;
+        _dialedUssd = ussd;
+        _showProof = true;
+      });
+      return;
+    }
+
+    // ── Native mobile flow ────────────────────────────────────────────────────
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -227,8 +241,97 @@ class _MobilePaySheetState extends State<_MobilePaySheet> {
 
     setState(() {
       _dialedAccount = acc;
+      _dialedUssd = ussd;
       _showProof = true;
     });
+  }
+
+  Future<bool?> _showWebUssdDialog(String ussd, MobilePayAccount acc) {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(builder: (ctx2, setSt) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(children: [
+            Text(acc.icon ?? '📱', style: const TextStyle(fontSize: 22)),
+            const SizedBox(width: 8),
+            Expanded(child: Text('${acc.name} Payment', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
+          ]),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Amount
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(10)),
+              child: Row(children: [
+                const Icon(Icons.payments_rounded, color: _kGreen, size: 18),
+                const SizedBox(width: 8),
+                Text('Amount: \$${widget.amount.toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.w800, color: _kGreen, fontSize: 13)),
+              ]),
+            ),
+            const SizedBox(height: 12),
+            // USSD code with copy button
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFDDDDDD)),
+              ),
+              child: Row(children: [
+                Expanded(child: Text(ussd, style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w800, fontSize: 15))),
+                IconButton(
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: ussd));
+                    if (ctx2.mounted) {
+                      ScaffoldMessenger.of(ctx2).showSnackBar(
+                        const SnackBar(content: Text('Code copied!'), duration: Duration(seconds: 2), behavior: SnackBarBehavior.floating),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.copy_rounded, size: 18, color: _kGreen),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Copy code',
+                ),
+              ]),
+            ),
+            const SizedBox(height: 12),
+            // Instructions
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: const Color(0xFFFFF8E1), borderRadius: BorderRadius.circular(10)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('How to pay:', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFFE65100))),
+                const SizedBox(height: 6),
+                const Text(
+                  '1. Copy the USSD code above\n'
+                  '2. Open your Phone / Dialer app\n'
+                  '3. Dial the code and complete payment\n'
+                  '4. Come back here and upload screenshot',
+                  style: TextStyle(fontSize: 12, height: 1.6, color: Color(0xFFBF360C)),
+                ),
+              ]),
+            ),
+          ]),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.textGrey)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kGreen, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text("I've Dialed It", style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ],
+        );
+      }),
+    );
   }
 
   @override
@@ -247,6 +350,7 @@ class _MobilePaySheetState extends State<_MobilePaySheet> {
               account: _dialedAccount!,
               amount: widget.amount,
               svc: _svc,
+              ussdCode: _dialedUssd,
               onSuccess: (token) {
                 Navigator.of(context).pop(MobilePayResult(
                   success: true,
@@ -343,11 +447,13 @@ class _ProofStep extends StatefulWidget {
   final MobilePayAccount account;
   final double amount;
   final ModuleApiService svc;
+  final String? ussdCode;
   final void Function(String proofToken) onSuccess;
   final VoidCallback onCancel;
 
   const _ProofStep({
     required this.account, required this.amount, required this.svc,
+    this.ussdCode,
     required this.onSuccess, required this.onCancel,
   });
 
@@ -405,6 +511,33 @@ class _ProofStepState extends State<_ProofStep> {
   Widget build(BuildContext context) {
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
       Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+
+      // Web: show USSD code at top for reference
+      if (kIsWeb && widget.ussdCode != null) ...[
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0FDF4),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _kGreenLight.withValues(alpha: 0.4)),
+          ),
+          child: Row(children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('USSD Code', style: TextStyle(fontSize: 11, color: AppColors.textGrey, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 3),
+              Text(widget.ussdCode!, style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w800, fontSize: 14, color: _kGreen)),
+            ])),
+            IconButton(
+              onPressed: () => Clipboard.setData(ClipboardData(text: widget.ussdCode!)),
+              icon: const Icon(Icons.copy_rounded, size: 18, color: _kGreen),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              tooltip: 'Copy',
+            ),
+          ]),
+        ),
+      ],
 
       // Header
       Row(children: [

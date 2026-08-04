@@ -169,23 +169,25 @@ class LocationService {
     _postLocation();
     _timer = Timer.periodic(const Duration(minutes: 5), (_) => _postLocation());
 
-    Workmanager().registerPeriodicTask(
-      _bgTaskName,
-      _bgTaskName,
-      tag: _bgTaskTag,
-      frequency: const Duration(minutes: 15),
-      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
-      constraints: Constraints(networkType: NetworkType.connected),
-      backoffPolicy: BackoffPolicy.linear,
-      backoffPolicyDelay: const Duration(minutes: 5),
-    );
+    if (!kIsWeb) {
+      Workmanager().registerPeriodicTask(
+        _bgTaskName,
+        _bgTaskName,
+        tag: _bgTaskTag,
+        frequency: const Duration(minutes: 15),
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+        constraints: Constraints(networkType: NetworkType.connected),
+        backoffPolicy: BackoffPolicy.linear,
+        backoffPolicyDelay: const Duration(minutes: 5),
+      );
+    }
   }
 
   static void stopTracking() {
     _running = false;
     _timer?.cancel();
     _timer = null;
-    Workmanager().cancelByTag(_bgTaskTag);
+    if (!kIsWeb) Workmanager().cancelByTag(_bgTaskTag);
   }
 
   static void onResume() => _postLocation();
