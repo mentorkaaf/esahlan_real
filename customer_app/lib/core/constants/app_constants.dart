@@ -47,7 +47,7 @@ class AppConstants {
 
   // Web Push VAPID key — get from Firebase Console → Project Settings →
   // Cloud Messaging → Web configuration → Generate key pair (starts with "B")
-  static const String webVapidKey = '';
+  static const String webVapidKey = 'BLiDrmgVP0i1y1b9MjCEGsEV4vqqbQC6nJu0d9YL_SBB_Ppq7HUAuR09vDMCeEHlgSLNmk2VEDMhP4oYdYHLoGw';
 
   // ── Delivery Fees ────────────────────────────────────────────────────────
   static const double eshopDeliveryFee   = 2.00;
