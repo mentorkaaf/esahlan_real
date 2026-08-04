@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/services/firebase_service.dart';
 import '../../../../core/services/realtime_client.dart';
@@ -25,7 +26,7 @@ class AuthRepository {
       final token = data['token'] as String;
       await LocalStorage.saveToken(token);
       final user = await getMe();
-      FirebaseService().registerTokenAfterLogin();
+      if (!kIsWeb) FirebaseService().registerTokenAfterLogin();
       RealtimeClient.instance.connect();
       MessagesNotifier.setMyId(user.id);
       return (user: user, token: token);
@@ -56,7 +57,7 @@ class AuthRepository {
       final token = data['token'] as String;
       await LocalStorage.saveToken(token);
       final user = await getMe();
-      FirebaseService().registerTokenAfterLogin();
+      if (!kIsWeb) FirebaseService().registerTokenAfterLogin();
       RealtimeClient.instance.connect();
       MessagesNotifier.setMyId(user.id);
       return (user: user, token: token);
@@ -116,11 +117,12 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
-    try {
-      await _dio.post('/auth/logout');
-    } catch (_) {}
-    await FirebaseService().deleteToken();
-    await RealtimeClient.instance.disconnect();
+    // Fire API + cleanup in background — don't block local state clear
+    _dio.post('/auth/logout').catchError((_) {});
+    if (!kIsWeb) {
+      FirebaseService().deleteToken().catchError((_) {});
+    }
+    RealtimeClient.instance.disconnect().catchError((_) {});
     await LocalStorage.clear();
   }
 

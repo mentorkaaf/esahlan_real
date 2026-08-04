@@ -26,8 +26,201 @@
 
   <title>eSahlan</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+    @keyframes bounce {
+      0%,100% { transform: translateY(0); }
+      50%     { transform: translateY(6px); }
+    }
+
+    .pwa-sheet {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 999999;
+      background: #07003B;
+      color: #fff;
+      border-radius: 20px 20px 0 0;
+      box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      animation: slideUp 0.38s cubic-bezier(0.32,0.72,0,1);
+      padding: 24px 20px 40px;
+    }
+
+    /* overlay so user can't scroll/tap the app behind */
+    #pwa-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 999998;
+      background: rgba(0,0,0,0.55);
+    }
+
+    /* Android banner */
+    #android-banner .row {
+      display: flex; align-items: center; gap: 14px;
+    }
+    #android-banner img {
+      width: 58px; height: 58px; border-radius: 14px; flex-shrink: 0;
+    }
+    #android-banner .info { flex: 1; }
+    #android-banner .info strong {
+      display: block; font-size: 18px; font-weight: 800; letter-spacing: -0.3px;
+    }
+    #android-banner .info span {
+      display: block; font-size: 13px; color: rgba(255,255,255,0.6);
+      margin-top: 3px; line-height: 1.4;
+    }
+    #android-install-btn {
+      display: block; width: 100%; margin-top: 18px;
+      background: #F5A623; color: #07003B;
+      border: none; border-radius: 14px;
+      padding: 15px; font-size: 16px; font-weight: 800;
+      cursor: pointer; letter-spacing: -0.2px;
+    }
+    #android-banner .note {
+      text-align: center; margin-top: 10px;
+      font-size: 11.5px; color: rgba(255,255,255,0.35);
+    }
+
+    /* iOS banner */
+    #ios-banner .top {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
+    }
+    #ios-banner .top img {
+      width: 58px; height: 58px; border-radius: 14px; flex-shrink: 0;
+    }
+    #ios-banner .top strong { display: block; font-size: 18px; font-weight: 800; }
+    #ios-banner .top span  { font-size: 13px; color: rgba(255,255,255,0.55); margin-top: 2px; display:block; }
+    #ios-banner .steps {
+      background: rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    #ios-banner .step {
+      display: flex; align-items: flex-start; gap: 12px;
+      margin-bottom: 14px;
+    }
+    #ios-banner .step:last-child { margin-bottom: 0; }
+    #ios-banner .step-num {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: #F5A623; color: #07003B;
+      font-size: 13px; font-weight: 900;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    #ios-banner .step-text {
+      font-size: 14px; line-height: 1.5; color: rgba(255,255,255,0.85);
+    }
+    #ios-banner .step-text b { color: #F5A623; }
+    #ios-banner .arrow {
+      display: block; text-align: center;
+      font-size: 26px; margin-top: 14px;
+      animation: bounce 1.3s ease-in-out infinite;
+    }
+    #ios-banner .note {
+      text-align: center; margin-top: 12px;
+      font-size: 11.5px; color: rgba(255,255,255,0.3);
+    }
+  </style>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
+
+  <!-- Overlay (blocks interaction with app) -->
+  <div id="pwa-overlay"></div>
+
+  <!-- Android Chrome install banner -->
+  <div id="android-banner" class="pwa-sheet">
+    <div class="row">
+      <img src="icons/Icon-192.png" alt="eSahlan">
+      <div class="info">
+        <strong>eSahlan</strong>
+        <span>Somalia's Super App — Order food,<br>shop, parcel &amp; more.</span>
+      </div>
+    </div>
+    <button id="android-install-btn">⬇️ &nbsp; Install App</button>
+    <div class="note">Free · No App Store required</div>
+  </div>
+
+  <!-- iOS hint banner (Safari + Chrome on iOS) -->
+  <div id="ios-banner" class="pwa-sheet">
+    <div class="top">
+      <img src="icons/Icon-192.png" alt="eSahlan">
+      <div>
+        <strong>Install eSahlan</strong>
+        <span>Somalia's Super App</span>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          Tap the <b>Share</b> button <b>⬆️</b> at the bottom of your browser
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          Scroll down and tap <b>"Add to Home Screen"</b>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          Tap <b>"Add"</b> — eSahlan will appear on your home screen!
+        </div>
+      </div>
+    </div>
+    <span class="arrow">⬇️</span>
+    <div class="note">Free · Works like a native app · No App Store needed</div>
+  </div>
+
+  <script>
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true;
+
+    function isIOS() {
+      return /iphone|ipad|ipod/i.test(navigator.userAgent);
+    }
+
+    function showOverlay() {
+      document.getElementById('pwa-overlay').style.display = 'block';
+    }
+
+    // Android Chrome
+    var deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', function(e) {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (!isStandalone) {
+        showOverlay();
+        document.getElementById('android-banner').style.display = 'block';
+      }
+    });
+
+    document.getElementById('android-install-btn').addEventListener('click', function() {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function(r) {
+        deferredPrompt = null;
+        if (r.outcome === 'accepted') {
+          document.getElementById('android-banner').style.display = 'none';
+          document.getElementById('pwa-overlay').style.display = 'none';
+        }
+        // if dismissed, keep showing — required
+      });
+    });
+
+    // iOS (Safari + Chrome on iOS) — show immediately
+    if (isIOS() && !isStandalone) {
+      showOverlay();
+      document.getElementById('ios-banner').style.display = 'block';
+    }
+  </script>
 </body>
 </html>
