@@ -106,17 +106,20 @@ class LocationService {
           SizedBox(width: 10),
           Text('Location Required', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
         ]),
-        content: const Text(
-          'eSahlan needs your location to deliver orders to you. Please enable location services to continue.',
-          style: TextStyle(fontSize: 13, height: 1.5),
+        content: Text(
+          kIsWeb
+              ? 'eSahlan needs your location to deliver orders. Please allow location access in your browser and try again.'
+              : 'eSahlan needs your location to deliver orders to you. Please enable location services to continue.',
+          style: const TextStyle(fontSize: 13, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () async {
-              await Geolocator.openLocationSettings();
+              if (!kIsWeb) await Geolocator.openLocationSettings();
               if (ctx.mounted) Navigator.pop(ctx);
             },
-            child: const Text('Open Settings', style: TextStyle(fontWeight: FontWeight.w700)),
+            child: Text(kIsWeb ? 'OK' : 'Open Settings',
+                style: const TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -134,17 +137,25 @@ class LocationService {
           SizedBox(width: 10),
           Text('Permission Denied', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
         ]),
-        content: const Text(
-          'Location permission was permanently denied. Please go to app settings and enable location access for eSahlan.',
-          style: TextStyle(fontSize: 13, height: 1.5),
+        content: Text(
+          kIsWeb
+              ? 'Location access is blocked in your browser. On Safari: go to Settings → Safari → Location → Allow. Then reload the page.'
+              : 'Location permission was permanently denied. Please go to app settings and enable location access for eSahlan.',
+          style: const TextStyle(fontSize: 13, height: 1.5),
         ),
         actions: [
+          if (!kIsWeb)
+            TextButton(
+              onPressed: () async {
+                await Geolocator.openAppSettings();
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('Open App Settings',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
           TextButton(
-            onPressed: () async {
-              await Geolocator.openAppSettings();
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Open App Settings', style: TextStyle(fontWeight: FontWeight.w700)),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
