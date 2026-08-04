@@ -33,7 +33,6 @@
       to   { transform: translateY(0);    opacity: 1; }
     }
 
-    /* Shared sheet base */
     .pwa-sheet {
       display: none;
       position: fixed;
@@ -46,7 +45,6 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       animation: slideUp 0.38s cubic-bezier(0.32,0.72,0,1);
       padding: 24px 20px;
-      /* safe area — calc works everywhere; env() adds home indicator height on iPhone */
       padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
       max-height: 85vh;
       overflow-y: auto;
@@ -54,7 +52,44 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    /* Dim overlay — blocks app interaction until installed */
+    /* Shared banner row (icon + text) */
+    .banner-row {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
+    }
+    .banner-row img {
+      width: 58px; height: 58px; border-radius: 14px; flex-shrink: 0;
+    }
+    .banner-row strong {
+      display: block; font-size: 18px; font-weight: 800; letter-spacing: -0.3px;
+    }
+    .banner-row span {
+      display: block; font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 3px;
+    }
+
+    /* Shared install button style */
+    .install-btn {
+      display: block; width: 100%;
+      background: #F5A623; color: #07003B;
+      border: none; border-radius: 14px;
+      padding: 16px; font-size: 16px; font-weight: 800;
+      cursor: pointer; box-sizing: border-box;
+    }
+
+    /* iOS: small hint shown below button after tap (share sheet reminder) */
+    #ios-hint {
+      display: none;
+      margin-top: 14px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.75);
+      line-height: 1.5;
+      text-align: center;
+    }
+    #ios-hint b { color: #F5A623; }
+
+    /* Dim overlay */
     #pwa-overlay {
       display: none;
       position: fixed;
@@ -63,7 +98,7 @@
       background: rgba(0,0,0,0.6);
     }
 
-    /* Full-screen shown after install — forces user back to home screen icon */
+    /* Post-install full-screen */
     #installed-overlay {
       display: none;
       position: fixed;
@@ -90,67 +125,14 @@
       border-radius: 30px; padding: 10px 24px;
       font-size: 14px; font-weight: 800;
     }
-
-    /* ── Android banner ─────────────────────────────────────── */
-    #android-banner .row {
-      display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
-    }
-    #android-banner img {
-      width: 58px; height: 58px; border-radius: 14px; flex-shrink: 0;
-    }
-    #android-banner .info strong {
-      display: block; font-size: 18px; font-weight: 800; letter-spacing: -0.3px;
-    }
-    #android-banner .info span {
-      display: block; font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 3px;
-    }
-    #android-install-btn {
-      display: block; width: 100%;
-      background: #F5A623; color: #07003B;
-      border: none; border-radius: 14px;
-      padding: 16px; font-size: 16px; font-weight: 800;
-      cursor: pointer; box-sizing: border-box;
-    }
-
-    /* ── iOS banner ─────────────────────────────────────────── */
-    #ios-banner .top {
-      display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
-    }
-    #ios-banner .top img {
-      width: 58px; height: 58px; border-radius: 14px; flex-shrink: 0;
-    }
-    #ios-banner .top strong { display: block; font-size: 18px; font-weight: 800; }
-    #ios-banner .top span  {
-      font-size: 13px; color: rgba(255,255,255,0.55); margin-top: 2px; display: block;
-    }
-    #ios-banner .steps {
-      background: rgba(255,255,255,0.07);
-      border-radius: 14px; padding: 16px;
-    }
-    #ios-banner .step {
-      display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px;
-    }
-    #ios-banner .step:last-child { margin-bottom: 0; }
-    #ios-banner .step-num {
-      width: 26px; height: 26px; border-radius: 50%;
-      background: #F5A623; color: #07003B;
-      font-size: 13px; font-weight: 900;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; margin-top: 2px;
-    }
-    #ios-banner .step-text {
-      font-size: 14px; line-height: 1.5; color: rgba(255,255,255,0.85);
-    }
-    #ios-banner .step-text b { color: #F5A623; }
   </style>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
 
-  <!-- Dim overlay — shown while install prompt is active -->
   <div id="pwa-overlay"></div>
 
-  <!-- Post-install screen — replaces the app after Android install accepted -->
+  <!-- Post-install screen -->
   <div id="installed-overlay">
     <img src="icons/Icon-192.png" alt="eSahlan">
     <h2>eSahlan Installed! 🎉</h2>
@@ -160,38 +142,28 @@
 
   <!-- Android Chrome install banner -->
   <div id="android-banner" class="pwa-sheet">
-    <div class="row">
+    <div class="banner-row">
       <img src="icons/Icon-192.png" alt="eSahlan">
-      <div class="info">
+      <div>
         <strong>eSahlan</strong>
         <span>Somalia's Super App — Order food,<br>shop, parcel &amp; more.</span>
       </div>
     </div>
-    <button id="android-install-btn">⬇️ &nbsp; Install App</button>
+    <button id="android-install-btn" class="install-btn">⬇️ &nbsp; Install App</button>
   </div>
 
-  <!-- iOS hint banner (Safari + Chrome on iOS) — no dismiss -->
+  <!-- iOS banner — same design, button triggers native share sheet -->
   <div id="ios-banner" class="pwa-sheet">
-    <div class="top">
+    <div class="banner-row">
       <img src="icons/Icon-192.png" alt="eSahlan">
       <div>
-        <strong>Install eSahlan</strong>
-        <span>Somalia's Super App</span>
+        <strong>eSahlan</strong>
+        <span>Somalia's Super App — Order food,<br>shop, parcel &amp; more.</span>
       </div>
     </div>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-text">Tap the <b>Share</b> button <b>⬆️</b> at the bottom of your browser</div>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-text">Scroll down and tap <b>"Add to Home Screen"</b></div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-text">Tap <b>"Add"</b> — eSahlan will appear on your home screen</div>
-      </div>
+    <button id="ios-install-btn" class="install-btn">⬇️ &nbsp; Add to Home Screen</button>
+    <div id="ios-hint">
+      Share sheet-ka ku furmi doona — <b>"Add to Home Screen"</b> taabo
     </div>
   </div>
 
@@ -199,21 +171,19 @@
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches
                     || window.navigator.standalone === true;
 
-    // Only show banners on mobile phones — never on desktop/laptop
     function isMobile() {
       return /android|iphone|ipad|ipod/i.test(navigator.userAgent);
     }
-
     function isIOS() {
       return /iphone|ipad|ipod/i.test(navigator.userAgent);
     }
-
     function showOverlay() {
       document.getElementById('pwa-overlay').style.display = 'block';
     }
 
     if (isMobile() && !isStandalone) {
-      // ── Android Chrome ────────────────────────────────────────────────────
+
+      // ── Android Chrome ──────────────────────────────────────────────────
       var deferredPrompt = null;
 
       window.addEventListener('beforeinstallprompt', function(e) {
@@ -232,18 +202,34 @@
             document.getElementById('android-banner').style.display = 'none';
             document.getElementById('pwa-overlay').style.display = 'none';
           }
-          // If dismissed, keep showing — no localStorage dismiss allowed
         });
       });
 
-      // ── iOS Safari / Chrome ───────────────────────────────────────────────
+      // ── iOS — button opens native share sheet ───────────────────────────
       if (isIOS()) {
         showOverlay();
         document.getElementById('ios-banner').style.display = 'block';
+
+        document.getElementById('ios-install-btn').addEventListener('click', function() {
+          // Try Web Share API — opens native iOS share sheet
+          if (navigator.share) {
+            navigator.share({
+              title: 'eSahlan',
+              text: "Somalia's Super App",
+              url: window.location.href,
+            }).catch(function() {
+              // User cancelled or share failed — show text hint
+              document.getElementById('ios-hint').style.display = 'block';
+            });
+          } else {
+            // Older iOS without Web Share — show hint
+            document.getElementById('ios-hint').style.display = 'block';
+          }
+        });
       }
     }
 
-    // After Android install completes — block browser, force home screen
+    // After Android install — block browser, force home screen
     window.addEventListener('appinstalled', function() {
       document.getElementById('android-banner').style.display = 'none';
       document.getElementById('pwa-overlay').style.display = 'none';
