@@ -102,6 +102,12 @@ class _AuthChangeNotifier extends ChangeNotifier {
 final routerProvider = Provider<GoRouter>((ref) {
   final authNotifier = ref.read(authChangeNotifierProvider);
 
+  // On web: notify GoRouter whenever authStateProvider resolves so that
+  // the redirect re-evaluates after a page refresh (avoids always-go-home).
+  ref.listen(authStateProvider, (_, __) {
+    try { authNotifier.notify(); } catch (_) {}
+  });
+
   final router = GoRouter(
     initialLocation: '/splash',
     refreshListenable: authNotifier,
@@ -110,11 +116,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       // GoRouter.refresh() triggers this callback instead.
       final authState = ref.read(authStateProvider);
       final isLoggedIn   = authState.valueOrNull != null;
+      final isLoading    = authState.isLoading;
       final isAuthRoute  = state.matchedLocation.startsWith('/auth');
       final isSplash     = state.matchedLocation == '/splash';
       final isOnboarding = state.matchedLocation == '/onboarding';
 
       if (isSplash || isOnboarding) return null;
+      // While auth is still loading, stay on the current route.
+      // The ref.listen above will notify GoRouter once it resolves.
+      if (isLoading) return null;
       if (!isLoggedIn && !isAuthRoute) return '/auth/login';
       if (isLoggedIn  && isAuthRoute)  return '/home';
       return null;
@@ -245,6 +255,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(path: '/eshop/popular',  builder: (_, __) => const EShopPopularScreen()),
 
+          // eFood — moved inside shell so desktop sidebar stays visible
+          GoRoute(path: '/efood', builder: (_, __) => const EFoodScreen()),
+
           // eLearning routes (inside shell for bottom nav)
           GoRoute(path: '/elearning', builder: (_, __) => const ELearningScreen()),
           GoRoute(
@@ -277,9 +290,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-
-      // eFood — full-screen, no bottom nav
-      GoRoute(path: '/efood', builder: (_, __) => const EFoodScreen()),
 
       // Calls — full-screen overlays, no bottom nav
       GoRoute(
