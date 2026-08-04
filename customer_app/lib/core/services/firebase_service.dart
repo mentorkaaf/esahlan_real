@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' show File, Directory;
 
 import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
@@ -91,6 +92,12 @@ class FirebaseService {
     if (_initialized) return;
 
     try {
+      if (kIsWeb) {
+        await _initWeb();
+        return;
+      }
+
+      // ── Native (Android / iOS) ────────────────────────────────────────────
       // 1. Create Android notification channel (plugin bound after runApp)
       await _localNotif
           .resolvePlatformSpecificImplementation<
@@ -128,6 +135,38 @@ class FirebaseService {
     }
   }
 
+  Future<void> _initWeb() async {
+    try {
+      // 1. Subscribe to foreground messages (shown as browser notification)
+      await _fgSubscription?.cancel();
+      _fgSubscription = FirebaseMessaging.onMessage.listen(
+        _handleWebForegroundMessage,
+        onError: (e) => debugPrint('[FCM:Web] onMessage error: $e'),
+      );
+
+      // 2. Register FCM token (needs VAPID key for web push)
+      await _registerToken();
+      _fcm.onTokenRefresh.listen(_uploadToken);
+
+      _initialized = true;
+      debugPrint('[FCM:Web] Initialized ✓');
+    } catch (e, st) {
+      debugPrint('[FCM:Web] Init error: $e\n$st');
+    }
+  }
+
+  Future<void> _handleWebForegroundMessage(RemoteMessage message) async {
+    final title = message.notification?.title ?? message.data['title'] as String? ?? AppConstants.appName;
+    final body  = message.notification?.body  ?? message.data['body']  as String? ?? '';
+    debugPrint('[FCM:Web:FG] $title — $body');
+    if (title.isEmpty && body.isEmpty) return;
+
+    // Show browser notification if permission is granted
+    try {
+      await _fcm.requestPermission(alert: true, badge: true, sound: true);
+    } catch (_) {}
+  }
+
   // ── Android notification channel ──────────────────────────────────────────
   static const AndroidNotificationChannel _notifChannel =
       AndroidNotificationChannel(
@@ -157,8 +196,9 @@ class FirebaseService {
     }
   }
 
-  // ── Foreground message handler ────────────────────────────────────────────
+  // ── Foreground message handler (native only) ─────────────────────────────
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
+    if (kIsWeb) return; // web uses _handleWebForegroundMessage
     debugPrint('[FCM:FG] Received: ${message.messageId}');
     debugPrint('[FCM:FG] Title: ${message.notification?.title} | Body: ${message.notification?.body}');
     debugPrint('[FCM:FG] Data: ${message.data}');
@@ -254,11 +294,11 @@ class FirebaseService {
     }
   }
 
-  // ── Download image to temp dir ────────────────────────────────────────────
+  // ── Download image to temp dir (native only) ─────────────────────────────
   Future<File?> _downloadImage(String url) async {
+    if (kIsWeb) return null;
     try {
       final dir = await getTemporaryDirectory();
-      // Use URL hash as filename to reuse cached downloads
       final filename = 'fcm_img_${url.hashCode.abs()}.jpg';
       final file = File('${dir.path}/$filename');
       if (await file.exists()) {
@@ -285,22 +325,23 @@ class FirebaseService {
   /// On Android <13  there is no runtime permission — notifications are always allowed.
   /// On iOS          Firebase shows its own dialog.
   Future<bool> requestPermissionIfNeeded() async {
-    // iOS / macOS — Firebase handles the dialog
+    // Request permission — works on iOS, Android 13+, and web (browser dialog)
     await _fcm.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
 
-    // Android 13+ (API 33+) — flutter_local_notifications shows the system dialog.
-    // Safe to call every launch: if permission is already granted the OS does nothing.
-    try {
-      await _localNotif
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission();
-    } catch (e) {
-      debugPrint('[FCM] Android permission request error: $e');
+    if (!kIsWeb) {
+      // Android 13+ system notification permission dialog
+      try {
+        await _localNotif
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
+            ?.requestNotificationsPermission();
+      } catch (e) {
+        debugPrint('[FCM] Android permission request error: $e');
+      }
     }
 
     final settings = await _fcm.getNotificationSettings();
@@ -313,7 +354,16 @@ class FirebaseService {
   // ── Token management ──────────────────────────────────────────────────────
   Future<void> _registerToken() async {
     try {
-      final token = await _fcm.getToken();
+      String? token;
+      if (kIsWeb) {
+        if (AppConstants.webVapidKey.isEmpty) {
+          debugPrint('[FCM:Web] VAPID key not set — skipping web token registration');
+          return;
+        }
+        token = await _fcm.getToken(vapidKey: AppConstants.webVapidKey);
+      } else {
+        token = await _fcm.getToken();
+      }
       if (token == null) {
         debugPrint('[FCM] getToken() returned null');
         return;

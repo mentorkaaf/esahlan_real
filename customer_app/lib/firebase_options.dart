@@ -1,4 +1,5 @@
-// Generated Firebase options for eSahlan — project: esahlan-817dc
+// Generated Firebase options for eSahlan
+// Web: esahlan-19f40 | Android/iOS: esahlan-817dc
 // To regenerate: flutterfire configure
 
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
@@ -22,12 +23,12 @@ class DefaultFirebaseOptions {
 
   // ── Web ──────────────────────────────────────────────────────────────────
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey:            'AIzaSyCI7zqtvEj8kFhgZ-HJZCODI2kBpAGaMCI',
-    appId:             '1:30724696826:web:a64152c216a177ba0d7743',
-    messagingSenderId: '30724696826',
-    projectId:         'esahlan-817dc',
-    authDomain:        'esahlan-817dc.firebaseapp.com',
-    storageBucket:     'esahlan-817dc.firebasestorage.app',
+    apiKey:            'AIzaSyDxrEp_w7lmy2vLRmOmL55yYkcOErp3-V0',
+    appId:             '1:855727793462:web:475eb2f5d77db9380cbf97',
+    messagingSenderId: '855727793462',
+    projectId:         'esahlan-19f40',
+    authDomain:        'esahlan-19f40.firebaseapp.com',
+    storageBucket:     'esahlan-19f40.firebasestorage.app',
   );
 
   // ── Android ──────────────────────────────────────────────────────────────

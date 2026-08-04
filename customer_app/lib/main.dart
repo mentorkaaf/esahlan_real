@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
@@ -32,34 +33,40 @@ void main() async {
   MediaKit.ensureInitialized();
   PodcastAudioService.instance.init();
 
+  // Firebase init — web + native
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    await FirebaseService.setupBeforeRunApp();
-
-    // Cold-start: app was killed, user tapped a regular notification
-    final initial = await FirebaseMessaging.instance.getInitialMessage();
-    if (initial != null && initial.data['type'] != 'incoming_call') {
-      _coldStartDeepLink = initial.data['deep_link'] as String?;
-      debugPrint('[FCM] Cold-start deep link: $_coldStartDeepLink');
-    }
-    // Capture callkit accept for cold-start (app was killed, callkit fired before State is ready)
-    FlutterCallkitIncoming.onEvent.listen((CallEvent? event) {
-      if (event?.event == Event.actionCallAccept && _pendingCallkitCallId == null) {
-        _pendingCallkitCallId = event?.body?['extra']?['call_id']?.toString();
-        debugPrint('[CallKit:pre] Cold-start capture: $_pendingCallkitCallId');
+    if (!kIsWeb) {
+      await FirebaseService.setupBeforeRunApp();
+      // Cold-start: app was killed, user tapped a regular notification
+      final initial = await FirebaseMessaging.instance.getInitialMessage();
+      if (initial != null && initial.data['type'] != 'incoming_call') {
+        _coldStartDeepLink = initial.data['deep_link'] as String?;
+        debugPrint('[FCM] Cold-start deep link: $_coldStartDeepLink');
       }
-    });
+      // Capture callkit accept for cold-start
+      FlutterCallkitIncoming.onEvent.listen((CallEvent? event) {
+        if (event?.event == Event.actionCallAccept && _pendingCallkitCallId == null) {
+          _pendingCallkitCallId = event?.body?['extra']?['call_id']?.toString();
+          debugPrint('[CallKit:pre] Cold-start capture: $_pendingCallkitCallId');
+        }
+      });
+    }
   } catch (e) {
     debugPrint('[Firebase] Pre-runApp error: $e');
   }
 
-  await LocationService.initBackground();
+  if (!kIsWeb) await LocationService.initBackground();
 
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+  if (!kIsWeb) SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  if (!kIsWeb) SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
   ));
+
+  // Limit image cache so old phones don't OOM and GC-stutter during scroll.
+  PaintingBinding.instance.imageCache.maximumSize = 150;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 80 << 20; // 80 MB
 
   runApp(const ProviderScope(child: eSahlanApp()));
 }
@@ -84,8 +91,9 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Callkit listener lives at State level — always active, even during background→foreground
-    _callkitSub = FlutterCallkitIncoming.onEvent.listen(_onCallkitEvent);
+    if (!kIsWeb) {
+      _callkitSub = FlutterCallkitIncoming.onEvent.listen(_onCallkitEvent);
+    }
 
     // Initialize early so the community tab hide/show is ready before first render
     ref.read(communityFeatureProvider);
@@ -98,7 +106,7 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
       });
 
       // Handle cold-start callkit accept captured before runApp
-      if (_pendingCallkitCallId != null) {
+      if (!kIsWeb && _pendingCallkitCallId != null) {
         final id = _pendingCallkitCallId!;
         _pendingCallkitCallId = null;
         Future.delayed(const Duration(milliseconds: 1000), () {
@@ -162,7 +170,7 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
     if (state == AppLifecycleState.resumed) {
       FirebaseService().refreshTokenIfNeeded();
       // If a callkit accept arrived while we were backgrounded, handle it now
-      if (_pendingAcceptId != null) {
+      if (!kIsWeb && _pendingAcceptId != null) {
         final id = _pendingAcceptId!;
         _pendingAcceptId = null;
         Future.delayed(const Duration(milliseconds: 400), () {

@@ -45,6 +45,10 @@ class AppConstants {
   static const String fcmChannelName = 'eSahlan Notifications';
   static const String fcmChannelDesc = 'Order updates, promotions and delivery notifications';
 
+  // Web Push VAPID key — get from Firebase Console → Project Settings →
+  // Cloud Messaging → Web configuration → Generate key pair (starts with "B")
+  static const String webVapidKey = '';
+
   // ── Delivery Fees ────────────────────────────────────────────────────────
   static const double eshopDeliveryFee   = 2.00;
   static const double groceryDeliveryFee = 1.50;

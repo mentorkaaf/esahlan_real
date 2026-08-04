@@ -26,7 +26,7 @@ class AuthRepository {
       final token = data['token'] as String;
       await LocalStorage.saveToken(token);
       final user = await getMe();
-      if (!kIsWeb) FirebaseService().registerTokenAfterLogin();
+      FirebaseService().registerTokenAfterLogin();
       RealtimeClient.instance.connect();
       MessagesNotifier.setMyId(user.id);
       return (user: user, token: token);
@@ -57,7 +57,7 @@ class AuthRepository {
       final token = data['token'] as String;
       await LocalStorage.saveToken(token);
       final user = await getMe();
-      if (!kIsWeb) FirebaseService().registerTokenAfterLogin();
+      FirebaseService().registerTokenAfterLogin();
       RealtimeClient.instance.connect();
       MessagesNotifier.setMyId(user.id);
       return (user: user, token: token);
