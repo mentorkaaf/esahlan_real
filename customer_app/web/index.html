@@ -6,7 +6,7 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Everything You Need, Simplified — Somalia's Super App">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
   <!-- PWA: Android -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -48,43 +48,38 @@
       box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       animation: slideUp 0.38s cubic-bezier(0.32,0.72,0,1);
-      padding: 24px 20px 40px;
+      padding: 24px 20px 0;
+      /* safe area for iOS home indicator */
+      padding-bottom: max(32px, env(safe-area-inset-bottom, 32px));
     }
 
-    /* overlay so user can't scroll/tap the app behind */
     #pwa-overlay {
       display: none;
       position: fixed;
       inset: 0;
       z-index: 999998;
-      background: rgba(0,0,0,0.55);
+      background: rgba(0,0,0,0.6);
     }
 
     /* Android banner */
     #android-banner .row {
-      display: flex; align-items: center; gap: 14px;
+      display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
     }
     #android-banner img {
       width: 58px; height: 58px; border-radius: 14px; flex-shrink: 0;
     }
-    #android-banner .info { flex: 1; }
     #android-banner .info strong {
       display: block; font-size: 18px; font-weight: 800; letter-spacing: -0.3px;
     }
     #android-banner .info span {
-      display: block; font-size: 13px; color: rgba(255,255,255,0.6);
-      margin-top: 3px; line-height: 1.4;
+      display: block; font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 3px;
     }
     #android-install-btn {
-      display: block; width: 100%; margin-top: 18px;
+      display: block; width: 100%;
       background: #F5A623; color: #07003B;
       border: none; border-radius: 14px;
-      padding: 15px; font-size: 16px; font-weight: 800;
-      cursor: pointer; letter-spacing: -0.2px;
-    }
-    #android-banner .note {
-      text-align: center; margin-top: 10px;
-      font-size: 11.5px; color: rgba(255,255,255,0.35);
+      padding: 16px; font-size: 16px; font-weight: 800;
+      cursor: pointer;
     }
 
     /* iOS banner */
@@ -98,12 +93,10 @@
     #ios-banner .top span  { font-size: 13px; color: rgba(255,255,255,0.55); margin-top: 2px; display:block; }
     #ios-banner .steps {
       background: rgba(255,255,255,0.07);
-      border-radius: 14px;
-      padding: 16px;
+      border-radius: 14px; padding: 16px;
     }
     #ios-banner .step {
-      display: flex; align-items: flex-start; gap: 12px;
-      margin-bottom: 14px;
+      display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px;
     }
     #ios-banner .step:last-child { margin-bottom: 0; }
     #ios-banner .step-num {
@@ -122,16 +115,11 @@
       font-size: 26px; margin-top: 14px;
       animation: bounce 1.3s ease-in-out infinite;
     }
-    #ios-banner .note {
-      text-align: center; margin-top: 12px;
-      font-size: 11.5px; color: rgba(255,255,255,0.3);
-    }
   </style>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
 
-  <!-- Overlay (blocks interaction with app) -->
   <div id="pwa-overlay"></div>
 
   <!-- Android Chrome install banner -->
@@ -144,7 +132,6 @@
       </div>
     </div>
     <button id="android-install-btn">⬇️ &nbsp; Install App</button>
-    <div class="note">Free · No App Store required</div>
   </div>
 
   <!-- iOS hint banner (Safari + Chrome on iOS) -->
@@ -159,25 +146,18 @@
     <div class="steps">
       <div class="step">
         <div class="step-num">1</div>
-        <div class="step-text">
-          Tap the <b>Share</b> button <b>⬆️</b> at the bottom of your browser
-        </div>
+        <div class="step-text">Tap the <b>Share</b> button <b>⬆️</b> at the bottom of your browser</div>
       </div>
       <div class="step">
         <div class="step-num">2</div>
-        <div class="step-text">
-          Scroll down and tap <b>"Add to Home Screen"</b>
-        </div>
+        <div class="step-text">Scroll down and tap <b>"Add to Home Screen"</b></div>
       </div>
       <div class="step">
         <div class="step-num">3</div>
-        <div class="step-text">
-          Tap <b>"Add"</b> — eSahlan will appear on your home screen!
-        </div>
+        <div class="step-text">Tap <b>"Add"</b> — eSahlan will appear on your home screen!</div>
       </div>
     </div>
     <span class="arrow">⬇️</span>
-    <div class="note">Free · Works like a native app · No App Store needed</div>
   </div>
 
   <script>
@@ -208,15 +188,15 @@
       deferredPrompt.prompt();
       deferredPrompt.userChoice.then(function(r) {
         deferredPrompt = null;
+        // Only hide if user accepted — if dismissed keep showing
         if (r.outcome === 'accepted') {
           document.getElementById('android-banner').style.display = 'none';
           document.getElementById('pwa-overlay').style.display = 'none';
         }
-        // if dismissed, keep showing — required
       });
     });
 
-    // iOS (Safari + Chrome on iOS) — show immediately
+    // iOS (Safari + Chrome on iOS) — show immediately, no dismiss
     if (isIOS() && !isStandalone) {
       showOverlay();
       document.getElementById('ios-banner').style.display = 'block';

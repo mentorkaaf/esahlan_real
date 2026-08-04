@@ -1,4 +1,6 @@
-import 'dart:io';
+import 'dart:io' show Platform;
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -12,10 +14,13 @@ import '../../core/theme/theme_x.dart';
 const _ussdChannel = MethodChannel('com.esahlan.app/ussd');
 
 Future<_UssdResult> _dialUssdInApp(String code) async {
-  if (Platform.isIOS) {
-    final encoded = code.replaceAll('#', '%23');
+  final encoded = code.replaceAll('#', '%23');
+  final uri = Uri.parse('tel:$encoded');
+
+  // Web and iOS: use tel: URL scheme — browser/OS opens the dialer
+  if (kIsWeb || Platform.isIOS) {
     try {
-      await launchUrl(Uri.parse('tel:$encoded'), mode: LaunchMode.externalApplication);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
       return _UssdResult(launched: true, response: null);
     } catch (_) {
       return _UssdResult(launched: false, response: null);
@@ -30,9 +35,8 @@ Future<_UssdResult> _dialUssdInApp(String code) async {
     if (e.code == 'PERMISSION_DENIED') {
       return _UssdResult(launched: false, response: 'Call permission denied');
     }
-    final encoded = code.replaceAll('#', '%23');
     try {
-      await launchUrl(Uri.parse('tel:$encoded'), mode: LaunchMode.externalApplication);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
       return _UssdResult(launched: true, response: null);
     } catch (_) {}
     return _UssdResult(launched: false, response: e.message);
@@ -353,7 +357,8 @@ class _ProofStep extends StatefulWidget {
 
 class _ProofStepState extends State<_ProofStep> {
   final _phoneCtrl = TextEditingController();
-  File? _screenshotFile;
+  XFile? _screenshotFile;
+  Uint8List? _screenshotBytes;
   bool _uploading = false;
   String? _error;
 
@@ -361,7 +366,8 @@ class _ProofStepState extends State<_ProofStep> {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (picked != null && mounted) {
-      setState(() { _screenshotFile = File(picked.path); _error = null; });
+      final bytes = await picked.readAsBytes();
+      setState(() { _screenshotFile = picked; _screenshotBytes = bytes; _error = null; });
     }
   }
 
@@ -371,7 +377,7 @@ class _ProofStepState extends State<_ProofStep> {
       setState(() => _error = 'Please enter the phone number you paid from');
       return;
     }
-    if (_screenshotFile == null) {
+    if (_screenshotFile == null || _screenshotBytes == null) {
       setState(() => _error = 'Please upload a screenshot of the payment');
       return;
     }
@@ -381,7 +387,7 @@ class _ProofStepState extends State<_ProofStep> {
         phone: phone,
         accountId: widget.account.id,
         amount: widget.amount,
-        imagePath: _screenshotFile!.path,
+        imageBytes: _screenshotBytes!,
       );
       widget.onSuccess(token);
     } catch (e) {
@@ -452,7 +458,7 @@ class _ProofStepState extends State<_ProofStep> {
               ? Stack(children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(11),
-                    child: Image.file(_screenshotFile!, width: double.infinity, height: 200, fit: BoxFit.cover),
+                    child: Image.memory(_screenshotBytes!, width: double.infinity, height: 200, fit: BoxFit.cover),
                   ),
                   Positioned(top: 8, right: 8, child: GestureDetector(
                     onTap: () => setState(() => _screenshotFile = null),

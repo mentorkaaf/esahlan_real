@@ -335,14 +335,14 @@ class ModuleApiService {
     required String phone,
     required int accountId,
     required double amount,
-    required String imagePath,
+    required List<int> imageBytes,
   }) async {
     try {
       final formData = FormData.fromMap({
         'phone':      phone,
         'account_id': accountId,
         'amount':     amount,
-        'image':      await MultipartFile.fromFile(imagePath, filename: 'proof.jpg'),
+        'image':      MultipartFile.fromBytes(imageBytes, filename: 'proof.jpg'),
       });
       final r = await _dio.post('/mobile-pay/submit-proof', data: formData);
       return r.data['proof_token'] as String;
