@@ -1049,6 +1049,9 @@
         <a href="{{ route('admin.email-templates.index') }}" class="nav-link {{ request()->is('admin/email-templates*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-envelope-open-text"></i></div> Email Templates
         </a>
+        <a href="{{ route('admin.legal-pages.index') }}" class="nav-link {{ request()->routeIs('admin.legal-pages.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-file-contract"></i></div> Legal Pages
+        </a>
         <a href="{{ route('admin.settings.index') }}" class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-cog"></i></div> Settings
         </a>

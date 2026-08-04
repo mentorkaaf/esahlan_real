@@ -1060,3 +1060,6 @@ Route::prefix('v1/admin/inbox')->middleware(['auth:sanctum', 'role:super_admin,a
         Route::post('engagement/generate', [\App\Http\Controllers\Api\Admin\EngagementGeneratorController::class, 'generateAll']);
         Route::get('engagement/bots', [\App\Http\Controllers\Api\Admin\EngagementGeneratorController::class, 'botUsers']);
     });
+
+// Legal pages (public)
+Route::get('/pages/{slug}', [\App\Http\Controllers\Api\LegalPageController::class, 'show']);

@@ -13,6 +13,7 @@ import '../../../wallet/presentation/screens/referral_screen.dart';
 import '../../../../core/api/module_api_service.dart';
 import '../../../affiliate/affiliate_screen.dart';
 import '../../../gamification/gamification_screen.dart';
+import 'legal_page_screen.dart';
 import '../../../rewards/tier_widgets.dart';
 import '../../../rewards/rewards_provider.dart';
 
@@ -904,9 +905,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _SectionHeaderPad('Support & Legal'),
         _NavRow(icon: Icons.headset_mic_rounded,   iconColor: _kPurple,            label: 'Help & Support',   isDark: isDark, onTap: () => context.push('/chat')),
         _kDivider,
-        _NavRow(icon: Icons.privacy_tip_outlined,   iconColor: const Color(0xFF0EA5E9), label: 'Privacy Policy',   isDark: isDark, onTap: () {}),
+        _NavRow(icon: Icons.privacy_tip_outlined,   iconColor: const Color(0xFF0EA5E9), label: 'Privacy Policy',   isDark: isDark, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalPageScreen(slug: 'privacy-policy', title: 'Privacy Policy')))),
         _kDivider,
-        _NavRow(icon: Icons.description_outlined,   iconColor: const Color(0xFF6C63FF), label: 'Terms of Service', isDark: isDark, onTap: () {}),
+        _NavRow(icon: Icons.description_outlined,   iconColor: const Color(0xFF6C63FF), label: 'Terms of Service', isDark: isDark, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalPageScreen(slug: 'terms', title: 'Terms of Service')))),
+        _kDivider,
+        _NavRow(icon: Icons.info_outline_rounded,   iconColor: const Color(0xFF10B981), label: 'About eSahlan',    isDark: isDark, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalPageScreen(slug: 'about', title: 'About eSahlan')))),
         _kDivider,
         _NavRow(icon: Icons.star_rate_rounded,      iconColor: const Color(0xFFF59E0B), label: 'Rate eSahlan',     isDark: isDark, onTap: () {}),
         const SizedBox(height: 4),

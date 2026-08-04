@@ -886,5 +886,17 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::put('settings', [AdminELearningController::class, 'updateSettings'])->name('settings.update');
             Route::get('reports', [AdminELearningController::class, 'reports'])->name('reports');
         });
+
+        // ─── Legal Pages ──────────────────────────────────────────────────────────
+        Route::prefix('legal-pages')->name('legal-pages.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\AdminLegalPagesController::class, 'index'])->name('index');
+            Route::get('/{page}/edit', [\App\Http\Controllers\Admin\AdminLegalPagesController::class, 'edit'])->name('edit');
+            Route::put('/{page}', [\App\Http\Controllers\Admin\AdminLegalPagesController::class, 'update'])->name('update');
+        });
     });
 });
+
+// ─── Public Legal Pages ───────────────────────────────────────────────────────
+Route::get('/privacy-policy', [\App\Http\Controllers\LegalPageWebController::class, 'show'])->defaults('slug', 'privacy-policy');
+Route::get('/terms',          [\App\Http\Controllers\LegalPageWebController::class, 'show'])->defaults('slug', 'terms');
+Route::get('/about',          [\App\Http\Controllers\LegalPageWebController::class, 'show'])->defaults('slug', 'about');
