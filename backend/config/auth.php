@@ -3,7 +3,7 @@
 return [
 
     'defaults' => [
-        'guard'     => 'sanctum',
+        'guard'     => 'web',   // web guard for admin session auth (supports attempt())
         'passwords' => 'users',
     ],
 
@@ -12,10 +12,7 @@ return [
             'driver'   => 'session',
             'provider' => 'users',
         ],
-        'sanctum' => [
-            'driver'   => 'sanctum',
-            'provider' => 'users',
-        ],
+        // 'sanctum' guard is registered automatically by Sanctum — do NOT add here
         'global_users' => [
             'driver'   => 'sanctum',
             'provider' => 'global_users',
