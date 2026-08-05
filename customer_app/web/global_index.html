@@ -177,19 +177,11 @@
       if (s) { s.classList.add('hidden'); setTimeout(function(){s.remove();}, 500); }
     });
 
-    // ── IP-based redirect: Somalia IPs → app.esahlan.com ──────────────────────
-    // (Only runs on global.esahlan.com — skip on localhost/app.esahlan.com)
-    if (location.hostname === 'global.esahlan.com') {
-      fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3000) })
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-          // Redirect Somalia users to main app
-          if (d.country_code === 'SO') {
-            location.href = 'https://app.esahlan.com';
-          }
-        })
-        .catch(function() { /* silently ignore — show global store */ });
-    }
+    // ── IP-based redirect: disabled ───────────────────────────────────────────
+    // global.esahlan.com is the explicit global store URL — anyone who navigates
+    // here intentionally should see the global store regardless of their country.
+    // IP redirect is NOT used here. The Somalia redirect only applies when users
+    // open the main Flutter app (app.esahlan.com) and are auto-detected there.
 
     // ── PWA install prompts ───────────────────────────────────────────────────
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches
