@@ -1,11 +1,11 @@
 {{flutter_js}}
 {{flutter_build_config}}
 
-_flutter.loader.load({
+// Use loadEntrypoint() (not load()) to skip CanvasKit preloading.
+// load() triggers a 8-10MB CanvasKit download even when HTML renderer is used.
+// loadEntrypoint() loads only main.dart.js then lets us pick the renderer.
+_flutter.loader.loadEntrypoint({
   onEntrypointLoaded: async function(engineInitializer) {
-    // Use HTML renderer: avoids CanvasKit's fetch() CORS requirement.
-    // CanvasKit uses WebAssembly + fetch() for images which needs CORS preflight.
-    // HTML renderer uses <img> tags — cross-origin images load without CORS.
     const appRunner = await engineInitializer.initializeEngine({
       renderer: "html",
     });

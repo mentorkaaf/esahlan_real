@@ -2,6 +2,7 @@
 import '../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/web_nav.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
@@ -209,7 +210,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
         ),
         child: AppButton(
           label: 'Proceed to Checkout  •  \$${total.toStringAsFixed(2)}',
-          onPressed: () => context.push('/eshop/checkout'),
+          onPressed: () => context.webPush('/eshop/checkout'),
         ),
       ) : null,
     );
@@ -252,3 +253,4 @@ class _QtyControl extends StatelessWidget {
     ),
   );
 }
+

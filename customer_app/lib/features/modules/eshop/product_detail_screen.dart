@@ -3,6 +3,7 @@ import '../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/web_nav.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -374,7 +375,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     : null);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: const Text('Added to cart'), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating,
-                  action: SnackBarAction(label: 'View Cart', textColor: Colors.white, onPressed: () => context.push('/eshop/cart')),
+                  action: SnackBarAction(label: 'View Cart', textColor: Colors.white, onPressed: () => context.webPush('/eshop/cart')),
                 ),
               );
             },
@@ -384,7 +385,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             label: 'Buy Now',
             onPressed: () {
               cartNotifier.addItem(async.value!, qty: _qty, variantId: _selectedVariantId);
-              context.push('/eshop/checkout');
+              context.webPush('/eshop/checkout');
             },
           )),
         ]),
@@ -425,7 +426,7 @@ class _VendorCard extends StatelessWidget {
     final salesCount = int.tryParse(product['sales_count']?.toString() ?? '0') ?? 0;
 
     return GestureDetector(
-      onTap: vendorId > 0 ? () => context.push('/eshop/stores/$vendorId') : null,
+      onTap: vendorId > 0 ? () => context.webPush('/eshop/stores/$vendorId') : null,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Container(
@@ -516,3 +517,4 @@ class _VendorCard extends StatelessWidget {
     );
   }
 }
+

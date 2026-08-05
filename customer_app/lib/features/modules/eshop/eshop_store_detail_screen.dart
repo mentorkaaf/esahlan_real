@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/web_nav.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import 'eshop_providers.dart';
@@ -66,7 +67,7 @@ class _State extends ConsumerState<EShopStoreDetailScreen> with SingleTickerProv
   Widget _buildScreen(BuildContext context, Map<String, dynamic> store) {
     final vendor = _asMap(store['store']);
     final categories = _asList(store['categories']);
-    // products is a paginated object → extract 'data' key
+    // products is a paginated object â†’ extract 'data' key
     final productsRaw = store['products'];
     final products = productsRaw is Map
         ? _asList((productsRaw as Map)['data'])
@@ -162,7 +163,7 @@ class _State extends ConsumerState<EShopStoreDetailScreen> with SingleTickerProv
                                 ),
                                 if (deliveryTime != null) ...[
                                   const SizedBox(width: 10),
-                                  Text('· $deliveryTime',
+                                  Text('Â· $deliveryTime',
                                       style: const TextStyle(color: Colors.white70, fontSize: 12)),
                                 ],
                               ]),
@@ -321,7 +322,7 @@ class _ProductCard extends ConsumerWidget {
     final inCart = cart.any((c) => c.productId == id);
 
     return GestureDetector(
-      onTap: () => context.push('/eshop/products/$id'),
+      onTap: () => context.webPush('/eshop/products/$id'),
       child: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
@@ -532,3 +533,4 @@ class _ReviewCard extends StatelessWidget {
     );
   }
 }
+

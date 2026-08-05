@@ -753,19 +753,19 @@ class CommunityRepository {
   // ── eSpace Ads ─────────────────────────────────────────────────────────────
   Future<List<ESpaceAd>> getESpaceAds({String placement = 'feed'}) async {
     try {
-      final r = await _dio.get('/espace-ads', queryParameters: {'placement': placement});
+      final r = await _dio.get('/community/espace-ads', queryParameters: {'placement': placement});
       final list = r.data['data'] as List? ?? [];
       return list.map((e) => ESpaceAd.fromJson(Map<String, dynamic>.from(e as Map))).toList();
     } catch (_) { return []; }
   }
 
   Future<void> recordESpaceAdImpression(int adId) async {
-    try { await _dio.post('/espace-ads/$adId/impression'); } catch (_) {}
+    try { await _dio.post('/community/espace-ads/$adId/impression'); } catch (_) {}
   }
 
   Future<String?> recordESpaceAdClick(int adId) async {
     try {
-      final r = await _dio.post('/espace-ads/$adId/click');
+      final r = await _dio.post('/community/espace-ads/$adId/click');
       return r.data['deep_link'] as String?;
     } catch (_) { return null; }
   }

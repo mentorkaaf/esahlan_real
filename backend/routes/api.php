@@ -1063,3 +1063,40 @@ Route::prefix('v1/admin/inbox')->middleware(['auth:sanctum', 'role:super_admin,a
 
 // Legal pages (public)
 Route::get('/pages/{slug}', [\App\Http\Controllers\Api\LegalPageController::class, 'show']);
+
+// ── Global eCommerce API ───────────────────────────────────────────────────────
+Route::prefix('v1/global')->group(function () {
+    // Public endpoints
+    Route::post('/auth/register',          [\App\Http\Controllers\Api\Global\GlobalAuthController::class, 'register']);
+    Route::post('/auth/login',             [\App\Http\Controllers\Api\Global\GlobalAuthController::class, 'login']);
+    Route::get('/products',                [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'index']);
+    Route::get('/products/featured',       [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'featured']);
+    Route::get('/products/flash',          [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'flash']);
+    Route::get('/products/{id}',           [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'show']);
+    Route::get('/categories',              [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'categories']);
+
+    // Stripe/PayPal webhooks (public, no auth)
+    Route::post('/checkout/stripe/webhook',  [\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'stripeWebhook']);
+    Route::post('/checkout/paypal/webhook',  [\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'paypalWebhook']);
+
+    // Authenticated endpoints
+    Route::middleware('auth:global_users')->group(function () {
+        Route::post('/auth/logout',            [\App\Http\Controllers\Api\Global\GlobalAuthController::class, 'logout']);
+        Route::get('/auth/me',                 [\App\Http\Controllers\Api\Global\GlobalAuthController::class, 'me']);
+        Route::put('/auth/profile',            [\App\Http\Controllers\Api\Global\GlobalAuthController::class, 'updateProfile']);
+        Route::post('/auth/addresses',         [\App\Http\Controllers\Api\Global\GlobalAuthController::class, 'addAddress']);
+
+        Route::get('/cart',                    [\App\Http\Controllers\Api\Global\GlobalCartController::class, 'index']);
+        Route::post('/cart',                   [\App\Http\Controllers\Api\Global\GlobalCartController::class, 'add']);
+        Route::put('/cart/{id}',               [\App\Http\Controllers\Api\Global\GlobalCartController::class, 'update']);
+        Route::delete('/cart/{id}',            [\App\Http\Controllers\Api\Global\GlobalCartController::class, 'remove']);
+        Route::delete('/cart',                 [\App\Http\Controllers\Api\Global\GlobalCartController::class, 'clear']);
+
+        Route::get('/checkout/summary',        [\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'summary']);
+        Route::post('/checkout/stripe',        [\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'stripe']);
+        Route::post('/checkout/paypal',        [\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'paypal']);
+
+        Route::get('/orders',                  [\App\Http\Controllers\Api\Global\GlobalOrdersController::class, 'index']);
+        Route::get('/orders/{id}',             [\App\Http\Controllers\Api\Global\GlobalOrdersController::class, 'show']);
+    });
+});

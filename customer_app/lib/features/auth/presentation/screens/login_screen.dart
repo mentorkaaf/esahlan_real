@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/constants/app_assets.dart';
@@ -82,7 +83,99 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(loginProvider).isLoading;
+    final isDesktop = kIsWeb && MediaQuery.sizeOf(context).width >= 900;
 
+    if (isDesktop) return _buildDesktop(context, isLoading);
+    return _buildMobile(context, isLoading);
+  }
+
+  Widget _buildDesktop(BuildContext context, bool isLoading) {
+    return Scaffold(
+      body: Row(children: [
+        const SizedBox(width: 400, child: _AuthLeftPanel()),
+        Expanded(
+          child: Container(
+            color: context.colors.elevatedBg,
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 48),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 460),
+                  child: FadeTransition(
+                    opacity: _fadeAnim,
+                    child: _desktopForm(context, isLoading),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Column _desktopForm(BuildContext context, bool isLoading) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Welcome back 👋', style: TextStyle(
+        fontSize: 32, fontWeight: FontWeight.w900,
+        color: context.colors.navyText, letterSpacing: -0.5)),
+      const SizedBox(height: 6),
+      Text('Sign in to your eSahlan account',
+        style: TextStyle(fontSize: 15, color: context.colors.mutedText, fontWeight: FontWeight.w500)),
+      const SizedBox(height: 36),
+      _ModeToggle(selected: _mode, onChanged: (v) => setState(() => _mode = v)),
+      const SizedBox(height: 28),
+      if (_mode == 0) ...[
+        const _Label('Phone Number'),
+        const SizedBox(height: 8),
+        PhoneInputField(controller: _phoneCtrl, onCountryChanged: (c) => setState(() => _country = c)),
+        const SizedBox(height: 24),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          const _Label('PIN Code'),
+          Text('4 digits', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
+        ]),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(4, (i) => _PinBox(
+            controller: _pinCtrls[i], focusNode: _pinFocus[i],
+            onChanged: (v) {
+              if (v.isNotEmpty && i < 3) FocusScope.of(context).requestFocus(_pinFocus[i + 1]);
+              else if (v.isEmpty && i > 0) FocusScope.of(context).requestFocus(_pinFocus[i - 1]);
+            },
+            onSubmit: i == 3 ? (_) => _login() : null,
+          )),
+        ),
+      ],
+      if (_mode == 1) ...[
+        const _Label('Email Address'),
+        const SizedBox(height: 8),
+        _InputField(ctrl: _emailCtrl, hint: 'you@example.com',
+            icon: Icons.email_outlined, type: TextInputType.emailAddress),
+        const SizedBox(height: 20),
+        const _Label('Password'),
+        const SizedBox(height: 8),
+        _PasswordField(ctrl: _passwordCtrl, show: _showPassword,
+            onToggle: () => setState(() => _showPassword = !_showPassword),
+            onSubmit: (_) => _login()),
+      ],
+      const SizedBox(height: 32),
+      _ActionButton(label: 'Sign In', icon: Icons.arrow_forward_rounded,
+          isLoading: isLoading, onTap: isLoading ? null : _login),
+      const SizedBox(height: 24),
+      Center(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Text("Don't have an account? ",
+          style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
+        GestureDetector(
+          onTap: () => context.go('/auth/register'),
+          child: Text('Sign Up', style: TextStyle(
+            color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 14)),
+        ),
+      ])),
+    ]);
+  }
+
+  Widget _buildMobile(BuildContext context, bool isLoading) {
     return Scaffold(
       backgroundColor: const Color(0xFF07003B),
       body: Stack(
@@ -130,22 +223,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-                            // ── Mode toggle ────────────────────────────────
-                            _ModeToggle(
-                              selected: _mode,
-                              onChanged: (v) => setState(() => _mode = v),
-                            ),
+                            _ModeToggle(selected: _mode, onChanged: (v) => setState(() => _mode = v)),
                             const SizedBox(height: 28),
-
-                            // ── Phone + PIN mode ───────────────────────────
                             if (_mode == 0) ...[
                               const _Label('Phone Number'),
                               const SizedBox(height: 8),
-                              PhoneInputField(
-                                controller: _phoneCtrl,
-                                onCountryChanged: (c) => setState(() => _country = c),
-                              ),
+                              PhoneInputField(controller: _phoneCtrl,
+                                  onCountryChanged: (c) => setState(() => _country = c)),
                               const SizedBox(height: 24),
                               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                                 const _Label('PIN Code'),
@@ -156,8 +240,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: List.generate(4, (i) => _PinBox(
-                                  controller: _pinCtrls[i],
-                                  focusNode: _pinFocus[i],
+                                  controller: _pinCtrls[i], focusNode: _pinFocus[i],
                                   onChanged: (v) {
                                     if (v.isNotEmpty && i < 3) FocusScope.of(context).requestFocus(_pinFocus[i + 1]);
                                     else if (v.isEmpty && i > 0) FocusScope.of(context).requestFocus(_pinFocus[i - 1]);
@@ -166,35 +249,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 )),
                               ),
                             ],
-
-                            // ── Email + Password mode ──────────────────────
                             if (_mode == 1) ...[
                               const _Label('Email Address'),
                               const SizedBox(height: 8),
-                              _InputField(
-                                ctrl: _emailCtrl,
-                                hint: 'you@example.com',
-                                icon: Icons.email_outlined,
-                                type: TextInputType.emailAddress,
-                              ),
+                              _InputField(ctrl: _emailCtrl, hint: 'you@example.com',
+                                  icon: Icons.email_outlined, type: TextInputType.emailAddress),
                               const SizedBox(height: 20),
                               const _Label('Password'),
                               const SizedBox(height: 8),
-                              _PasswordField(
-                                ctrl: _passwordCtrl,
-                                show: _showPassword,
-                                onToggle: () => setState(() => _showPassword = !_showPassword),
-                                onSubmit: (_) => _login(),
-                              ),
+                              _PasswordField(ctrl: _passwordCtrl, show: _showPassword,
+                                  onToggle: () => setState(() => _showPassword = !_showPassword),
+                                  onSubmit: (_) => _login()),
                             ],
-
                             const SizedBox(height: 32),
-                            _ActionButton(
-                              label: 'Sign In',
-                              icon: Icons.arrow_forward_rounded,
-                              isLoading: isLoading,
-                              onTap: isLoading ? null : _login,
-                            ),
+                            _ActionButton(label: 'Sign In', icon: Icons.arrow_forward_rounded,
+                                isLoading: isLoading, onTap: isLoading ? null : _login),
                             const SizedBox(height: 24),
                             Center(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                               Text("Don't have an account? ",
@@ -218,6 +287,95 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       ),
     );
   }
+}
+
+// ─── Desktop Left Branding Panel ─────────────────────────────────────────────
+
+class _AuthLeftPanel extends StatelessWidget {
+  const _AuthLeftPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(color: Color(0xFF07003B)),
+      child: Stack(children: [
+        Positioned(top: -80, right: -60,   child: _Blob(size: 300, opacity: 0.13)),
+        Positioned(bottom: -80, left: -60, child: _Blob(size: 260, opacity: 0.06, white: true)),
+        Positioned(top: 240, left: -50,    child: _Blob(size: 180, opacity: 0.07)),
+        SafeArea(
+          child: Column(children: [
+            const SizedBox(height: 52),
+            Image.asset(AppAssets.appLogo, height: 52, fit: BoxFit.contain),
+            const SizedBox(height: 10),
+            Text('Everything You Need', style: TextStyle(
+              color: Colors.white.withOpacity(0.45),
+              fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 2.5,
+            )),
+            const Spacer(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 36),
+              child: Wrap(
+                spacing: 10, runSpacing: 10,
+                alignment: WrapAlignment.center,
+                children: const [
+                  _ServiceChip(icon: Icons.restaurant_rounded,       label: 'eFood'),
+                  _ServiceChip(icon: Icons.local_grocery_store_rounded, label: 'eGrocery'),
+                  _ServiceChip(icon: Icons.shopping_bag_rounded,     label: 'eShop'),
+                  _ServiceChip(icon: Icons.local_shipping_rounded,   label: 'eParcel'),
+                  _ServiceChip(icon: Icons.school_rounded,           label: 'eLearning'),
+                  _ServiceChip(icon: Icons.home_rounded,             label: 'eRent'),
+                  _ServiceChip(icon: Icons.sim_card_rounded,         label: 'eData'),
+                  _ServiceChip(icon: Icons.confirmation_num_rounded, label: 'eTicket'),
+                ],
+              ),
+            ),
+            const Spacer(),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 40),
+              child: Column(children: [
+                Text("Somalia's Super App", style: TextStyle(
+                  color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900,
+                  letterSpacing: -0.4,
+                )),
+                SizedBox(height: 10),
+                Text(
+                  'Order food, shop online, send parcels,\nlearn new skills — all in one place.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white54, fontSize: 13, height: 1.7),
+                ),
+              ]),
+            ),
+            const Spacer(),
+            Text('© 2025 eSahlan · All rights reserved.',
+              style: TextStyle(color: Colors.white.withOpacity(0.22), fontSize: 11)),
+            const SizedBox(height: 36),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+class _ServiceChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _ServiceChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.07),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: Colors.white.withOpacity(0.13)),
+    ),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 14, color: AppColors.primary),
+      const SizedBox(width: 7),
+      Text(label, style: const TextStyle(
+        color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+    ]),
+  );
 }
 
 // ─── Mode Toggle ──────────────────────────────────────────────────────────────

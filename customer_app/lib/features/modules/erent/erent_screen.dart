@@ -168,7 +168,7 @@ class _BrowseTabState extends ConsumerState<_BrowseTab> {
                       (d) => d['id'].toString() == _districtId.toString(),
                       orElse: () => {'id': null, 'name': 'All Districts'})
                   : {'id': null, 'name': 'All Districts'};
-              Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+              Navigator.of(context, rootNavigator: !kIsWeb).push(MaterialPageRoute(
                 builder: (_) => _PropertyListScreen(
                   district: district,
                   initialType: _type,
@@ -518,7 +518,7 @@ class _DistrictCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = district['name'] ?? '';
     return GestureDetector(
-      onTap: () => Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+      onTap: () => Navigator.of(context, rootNavigator: !kIsWeb).push(MaterialPageRoute(
         builder: (_) => _PropertyListScreen(district: district))),
       child: Container(
         decoration: BoxDecoration(color: context.colors.cardBg,
@@ -667,7 +667,7 @@ class _PropertyListScreenState extends ConsumerState<_PropertyListScreen> {
             itemCount: props.length,
             itemBuilder: (_, i) => _PropertyGridCard(
               property: props[i],
-              onTap: () => Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+              onTap: () => Navigator.of(context, rootNavigator: !kIsWeb).push(MaterialPageRoute(
                 builder: (_) => PropertyDetailScreen(propertyId: int.parse(props[i]['id'].toString())))),
             ),
           );
@@ -950,7 +950,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                             Text('🎬 Reels',
                                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: context.colors.navyText)),
                             GestureDetector(
-                              onTap: () => Navigator.of(context, rootNavigator: true).push(
+                              onTap: () => Navigator.of(context, rootNavigator: !kIsWeb).push(
                                 MaterialPageRoute(builder: (_) => _ReelPlayerScreen(
                                   reels: reels, initialIndex: 0, property: p))),
                               child: const Text('View All',
@@ -1085,7 +1085,7 @@ class PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
   }
 
   void _showBookSheet(BuildContext context, Map property, bool isFullRent) {
-    Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+    Navigator.of(context, rootNavigator: !kIsWeb).push(MaterialPageRoute(
       builder: (_) => _BookingScreen(
         property: property,
         bookingType: isFullRent ? 'full_rent' : 'carbuun',
@@ -1636,7 +1636,7 @@ class _BookingCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(child: ElevatedButton.icon(
-                  onPressed: () => Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+                  onPressed: () => Navigator.of(context, rootNavigator: !kIsWeb).push(MaterialPageRoute(
                     builder: (_) => _PayRemainingScreen(booking: booking))),
                   icon: Icon(Icons.payment_rounded, size: 16),
                   label: Text('Pay Remaining'),
@@ -2000,7 +2000,7 @@ class _ReelsRow extends StatelessWidget {
             url: reels[i],
             index: i,
             total: reels.length,
-            onTap: () => Navigator.of(context, rootNavigator: true).push(
+            onTap: () => Navigator.of(context, rootNavigator: !kIsWeb).push(
               MaterialPageRoute(
                 builder: (_) => _ReelPlayerScreen(
                   reels: reels,

@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/web_nav.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import 'eshop_providers.dart';
@@ -105,7 +106,7 @@ class _SearchBar extends StatelessWidget {
               controller: ctrl,
               onChanged: onChanged,
               decoration: InputDecoration(
-                hintText: 'Search stores…',
+                hintText: 'Search storesâ€¦',
                 prefixIcon: const Icon(Icons.search, size: 20),
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -157,7 +158,7 @@ class _StoreCard extends StatelessWidget {
     final deliveryFee = _toD(store['delivery_fee']);
 
     return GestureDetector(
-      onTap: () => context.push('/eshop/stores/$id'),
+      onTap: () => context.webPush('/eshop/stores/$id'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
@@ -297,3 +298,4 @@ class _StoreCard extends StatelessWidget {
     );
   }
 }
+

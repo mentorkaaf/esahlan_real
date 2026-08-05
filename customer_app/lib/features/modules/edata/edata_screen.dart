@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
@@ -232,7 +233,7 @@ class _ProviderCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => showGeneralDialog(
         context: context,
-        useRootNavigator: true,
+        useRootNavigator: !kIsWeb,
         barrierDismissible: false,
         barrierColor: Colors.black54,
         transitionDuration: const Duration(milliseconds: 300),

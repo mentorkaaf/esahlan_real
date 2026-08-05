@@ -1,5 +1,6 @@
 ﻿import 'dart:async';
 import '../../../../core/theme/theme_x.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -120,6 +121,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     final appBarBg = Theme.of(context).appBarTheme.backgroundColor ?? Colors.white;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = ref.watch(authStateProvider).valueOrNull;
+    final isDesktop = kIsWeb && MediaQuery.sizeOf(context).width >= 900;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -137,26 +139,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  RichText(
-                    text: TextSpan(children: [
-                      const TextSpan(
-                        text: 'e-',
-                        style: TextStyle(
-                          color: AppColors.primary, fontSize: 22,
-                          fontWeight: FontWeight.w900, fontFamily: 'Cairo',
+                  // Hide logo on desktop — sidebar already shows it
+                  if (!isDesktop)
+                    RichText(
+                      text: TextSpan(children: [
+                        const TextSpan(
+                          text: 'e-',
+                          style: TextStyle(
+                            color: AppColors.primary, fontSize: 22,
+                            fontWeight: FontWeight.w900, fontFamily: 'Cairo',
+                          ),
                         ),
-                      ),
-                      TextSpan(
-                        text: 'Sahlan',
-                        style: TextStyle(
-                          color: cs.onSurface, fontSize: 22,
-                          fontWeight: FontWeight.w900, fontFamily: 'Cairo',
+                        TextSpan(
+                          text: 'Sahlan',
+                          style: TextStyle(
+                            color: cs.onSurface, fontSize: 22,
+                            fontWeight: FontWeight.w900, fontFamily: 'Cairo',
+                          ),
                         ),
-                      ),
-                    ]),
-                  ),
+                      ]),
+                    ),
                   const Spacer(),
-                  // ── Theme cycle toggle (system → light → dark) ─────────
                   const _ThemeCycleButton(),
                   _NotifBell(cs: cs),
                 ],
@@ -227,6 +230,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 const SizedBox(height: 8),
                 const _DynamicBannerSlider(),
                 const SizedBox(height: 12),
+                // ── Global Store entry ──────────────────────────────────────
+                const _GlobalStoreBanner(),
+                const SizedBox(height: 8),
                 // ── Promotional banner ads (global / home targeted) ─────────
                 const BannerAdStrip(),
                 const _ServicesSectionHeader(),
@@ -300,25 +306,32 @@ class _ApiDrivenServicesGrid extends ConsumerWidget {
       error: (_, __) => const SizedBox.shrink(),
       data: (modules) {
         if (modules.isEmpty) return const SizedBox.shrink();
-        final count = modules.length;
-        final cols = count == 1 ? 1 : count == 2 ? 2 : count == 3 ? 3 : 4;
-        final ratio = count == 1 ? 3.2 : count == 2 ? 1.6 : count == 3 ? 1.1 : 0.95;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: EdgeInsets.zero,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: cols,
-              childAspectRatio: ratio,
-              crossAxisSpacing: 6,
-              mainAxisSpacing: 6,
+        return LayoutBuilder(builder: (context, constraints) {
+          final count = modules.length;
+          final isWide = kIsWeb && constraints.maxWidth > 600;
+          final cols = isWide
+              ? (count >= 6 ? 6 : count >= 4 ? 5 : count >= 3 ? 4 : count)
+              : (count == 1 ? 1 : count == 2 ? 2 : count == 3 ? 3 : 4);
+          final ratio = isWide ? 1.05 : (count == 1 ? 3.2 : count == 2 ? 1.6 : count == 3 ? 1.1 : 0.95);
+          final hPad = isWide ? 20.0 : 14.0;
+          final spacing = isWide ? 12.0 : 6.0;
+          return Padding(
+            padding: EdgeInsets.symmetric(horizontal: hPad),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: cols,
+                childAspectRatio: ratio,
+                crossAxisSpacing: spacing,
+                mainAxisSpacing: spacing,
+              ),
+              itemCount: count,
+              itemBuilder: (_, i) => _PremiumServiceCard(module: modules[i]),
             ),
-            itemCount: count,
-            itemBuilder: (_, i) => _PremiumServiceCard(module: modules[i]),
-          ),
-        );
+          );
+        });
       },
     );
   }
@@ -418,7 +431,13 @@ class _PremiumServiceCardState extends ConsumerState<_PremiumServiceCard>
   void _onUp(_) {
     setState(() => _pressed = false);
     _ctrl.reverse();
-    context.push('/${widget.module.slug}');
+    // Web: go() stays inside the shell (sidebar visible)
+    // Mobile: push() keeps native back gesture working
+    if (kIsWeb) {
+      context.go('/${widget.module.slug}');
+    } else {
+      context.push('/${widget.module.slug}');
+    }
   }
 
   void _onCancel() {
@@ -528,23 +547,22 @@ class _DynamicBannerSliderState extends ConsumerState<_DynamicBannerSlider> {
     final bannersAsync = ref.watch(homeBannersProvider);
 
     return bannersAsync.when(
-      loading: () => _FallbackHeroBanner(),
+      loading: () => _FallbackHeroBanner(height: (kIsWeb && MediaQuery.sizeOf(context).width >= 900) ? 240 : 170),
       error: (err, _) {
-        // Show error in debug mode so developer can see what went wrong
         debugPrint('❌ homeBannersProvider error: $err');
-        return _FallbackHeroBanner();
+        return _FallbackHeroBanner(height: (kIsWeb && MediaQuery.sizeOf(context).width >= 900) ? 240 : 170);
       },
       data: (banners) {
+        final bannerH = (kIsWeb && MediaQuery.sizeOf(context).width >= 900) ? 240.0 : 170.0;
         final real = banners
             .where((b) => b.imageUrl != null && b.imageUrl!.isNotEmpty)
             .toList();
         debugPrint('🖼 Banners loaded: ${real.length}');
-        if (real.isEmpty) return _FallbackHeroBanner();
-
+        if (real.isEmpty) return _FallbackHeroBanner(height: bannerH);
         return Column(
           children: [
             SizedBox(
-              height: 170,
+              height: bannerH,
               child: PageView.builder(
                 controller: _ctrl,
                 itemCount: real.length,
@@ -619,11 +637,14 @@ class _BannerCard extends StatelessWidget {
 }
 
 class _FallbackHeroBanner extends StatelessWidget {
+  final double height;
+  const _FallbackHeroBanner({this.height = 170});
+
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      height: 170,
+      height: height,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF07003B), Color(0xFF1A0066)],
@@ -809,6 +830,63 @@ class _ThemeCycleButton extends ConsumerWidget {
           child: FadeTransition(opacity: anim, child: child),
         ),
         child: Icon(icon, key: ValueKey(mode), color: color, size: 22),
+      ),
+    );
+  }
+}
+
+// ── Global Store Entry Banner ─────────────────────────────────────────────────
+
+class _GlobalStoreBanner extends StatelessWidget {
+  const _GlobalStoreBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/global'),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(14, 4, 14, 4),
+        height: 64,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
+          ),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(children: [
+          const Text('🌍', style: TextStyle(fontSize: 28)),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('Global Store',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14)),
+                Text('Shop USA & Europe · Ship worldwide',
+                    style: TextStyle(
+                        color: Colors.white60, fontSize: 11)),
+              ],
+            ),
+          ),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF59E0B),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Text('Shop →',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1A1A2E))),
+          ),
+        ]),
       ),
     );
   }

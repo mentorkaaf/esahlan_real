@@ -18,7 +18,7 @@ class AppSettings {
   final bool pipEnabled;
 
   const AppSettings({
-    this.themeMode      = ThemeMode.system,
+    this.themeMode      = ThemeMode.light,
     this.language       = 'en',
     this.fontSize       = 'medium',
     this.reduceMotion   = false,
@@ -74,7 +74,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettings> {
   Future<void> _load() async {
     final p = await SharedPreferences.getInstance();
     state = AppSettings(
-      themeMode:       _theme(p.getString('app_theme') ?? 'system'),
+      themeMode:       _theme(p.getString('app_theme') ?? 'light'),
       language:        p.getString('app_language') ?? 'en',
       fontSize:        p.getString('app_font_size') ?? 'medium',
       reduceMotion:    p.getBool('app_reduce_motion') ?? false,

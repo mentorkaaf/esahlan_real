@@ -11,8 +11,8 @@ class CommunityFeatureNotifier extends StateNotifier<bool> {
     receiveTimeout: const Duration(seconds: 10),
   ));
 
-  CommunityFeatureNotifier() : super(true) {
-    _init();
+  CommunityFeatureNotifier() : super(!kIsWeb) {
+    if (!kIsWeb) _init();
   }
 
   Future<void> _init() async {

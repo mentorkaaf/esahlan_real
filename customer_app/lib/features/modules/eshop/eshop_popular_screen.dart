@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/web_nav.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import 'eshop_providers.dart';
@@ -76,7 +77,7 @@ class _PopularCard extends ConsumerWidget {
     final inCart = cart.any((c) => c.productId == id);
 
     return GestureDetector(
-      onTap: () => context.push('/eshop/products/$id'),
+      onTap: () => context.webPush('/eshop/products/$id'),
       child: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
@@ -192,3 +193,4 @@ class _PopularCard extends ConsumerWidget {
     );
   }
 }
+

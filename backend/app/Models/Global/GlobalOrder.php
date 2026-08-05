@@ -14,11 +14,13 @@ class GlobalOrder extends Model
         'ship_first_name','ship_last_name','ship_phone',
         'ship_address_line1','ship_address_line2','ship_city',
         'ship_state','ship_zip','ship_country_code','ship_country_name',
+        // Convenience aliases added in 2026_08_05_120000
+        'shipping_name','shipping_address1','shipping_city','shipping_zip','shipping_country',
         'subtotal','shipping_cost','tax','discount','total','currency',
         'status','payment_status','fulfillment_status',
         'payment_method','payment_intent_id','paypal_order_id',
         'tracking_number','shipping_carrier','tracking_url',
-        'estimated_delivery_at','shipped_at','delivered_at',
+        'estimated_delivery_at','shipped_at','delivered_at','paid_at',
         'notes','admin_notes',
     ];
 
@@ -33,9 +35,10 @@ class GlobalOrder extends Model
         'delivered_at'          => 'datetime',
     ];
 
-    public function user()    { return $this->belongsTo(GlobalUser::class, 'global_user_id'); }
-    public function items()   { return $this->hasMany(GlobalOrderItem::class); }
-    public function payment() { return $this->hasOne(GlobalPayment::class); }
+    public function user()     { return $this->belongsTo(GlobalUser::class, 'global_user_id'); }
+    public function items()    { return $this->hasMany(GlobalOrderItem::class); }
+    public function payment()  { return $this->hasOne(GlobalPayment::class); }
+    public function payments() { return $this->hasMany(GlobalPayment::class); }
 
     public static function generateOrderNumber(): string
     {

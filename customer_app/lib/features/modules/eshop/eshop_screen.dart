@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/web_nav.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../core/widgets/network_image_widget.dart';
@@ -164,7 +165,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
               Stack(children: [
                 IconButton(
                   icon: Icon(Icons.shopping_bag_outlined, color: context.colors.navyText),
-                  onPressed: () => context.push('/eshop/cart'),
+                  onPressed: () => context.webPush('/eshop/cart'),
                 ),
                 if (cartCount > 0) Positioned(right: 6, top: 6, child: Container(
                   width: 16, height: 16,
@@ -182,7 +183,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
                   Expanded(child: TextField(
                     controller: _searchCtrl,
                     onChanged: (v) => setState(() => _search = v),
-                    onSubmitted: (v) => context.push('/eshop/products?search=${Uri.encodeComponent(v)}'),
+                    onSubmitted: (v) => context.webPush('/eshop/products?search=${Uri.encodeComponent(v)}'),
                     decoration: InputDecoration(
                       hintText: 'Search products...',
                       hintStyle: TextStyle(color: context.colors.mutedText, fontSize: 13),
@@ -250,7 +251,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Text('Categories', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
               GestureDetector(
-                onTap: () => context.push('/eshop/products'),
+                onTap: () => context.webPush('/eshop/products'),
                 child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
               ),
             ]),
@@ -286,7 +287,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
                     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                       Text('Stores', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
                       GestureDetector(
-                        onTap: () => context.push('/eshop/stores'),
+                        onTap: () => context.webPush('/eshop/stores'),
                         child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
                       ),
                     ]),
@@ -325,7 +326,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                       child: GestureDetector(
-                        onTap: () => context.push('/eshop/products'),
+                        onTap: () => context.webPush('/eshop/products'),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(16),
                           child: Stack(children: [
@@ -365,7 +366,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Text('Featured Products', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
               GestureDetector(
-                onTap: () => context.push('/eshop/products?featured=1'),
+                onTap: () => context.webPush('/eshop/products?featured=1'),
                 child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
               ),
             ]),
@@ -403,7 +404,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
                     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                       Text('Most Popular', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
                       GestureDetector(
-                        onTap: () => context.push('/eshop/popular'),
+                        onTap: () => context.webPush('/eshop/popular'),
                         child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
                       ),
                     ]),
@@ -445,7 +446,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Text('All Products', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
               GestureDetector(
-                onTap: () => context.push('/eshop/products'),
+                onTap: () => context.webPush('/eshop/products'),
                 child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
               ),
             ]),
@@ -488,7 +489,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
       floatingActionButton: cartCount > 0 ? Padding(
         padding: const EdgeInsets.only(bottom: 0),
         child: GestureDetector(
-          onTap: () => context.push('/eshop/cart'),
+          onTap: () => context.webPush('/eshop/cart'),
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -564,7 +565,7 @@ class _CategoriesCarouselState extends State<_CategoriesCarousel> {
       itemBuilder: (_, i) {
         final cat = _asMap(widget.cats[i]);
         return GestureDetector(
-          onTap: () => context.push(
+          onTap: () => context.webPush(
             '/eshop/products?category_id=${cat['id']}&category_name=${Uri.encodeComponent(cat['name'] ?? '')}'),
           child: Container(
             margin: const EdgeInsets.only(right: 10),
@@ -1013,7 +1014,7 @@ class _FlashDealSectionState extends State<_FlashDealSection> {
             final qty = widget.cartNotifier.qtyFor(_toId(p['id']));
             final hasDisc = p['sale_price'] != null && _toD(p['sale_price']) < _toD(p['price']);
             return GestureDetector(
-              onTap: () => context.push('/eshop/products/${p['id']}'),
+              onTap: () => context.webPush('/eshop/products/${p['id']}'),
               child: Container(
                 width: 120,
                 margin: const EdgeInsets.only(right: 12),
@@ -1102,7 +1103,7 @@ class _DealsOfDaySection extends StatelessWidget {
             final p = _asMap(item['product']);
             final badge = item['badge'] as String?;
             return GestureDetector(
-              onTap: () => context.push('/eshop/products/${p['id']}'),
+              onTap: () => context.webPush('/eshop/products/${p['id']}'),
               child: Container(
                 width: 155,
                 margin: const EdgeInsets.only(right: 12),
@@ -1167,7 +1168,7 @@ class _StoresRow extends StatelessWidget {
         final s = _asMap(stores[i]);
         final isOpen = s['is_open'] == true || s['is_open'] == 1;
         return GestureDetector(
-          onTap: () => context.push('/eshop/stores/${s['id']}'),
+          onTap: () => context.webPush('/eshop/stores/${s['id']}'),
           child: Container(
             width: 100,
             margin: const EdgeInsets.only(right: 12),
@@ -1304,7 +1305,7 @@ class _ProductCard extends ConsumerWidget {
     );
 
     return GestureDetector(
-      onTap: () => context.push('/eshop/products/${p['id']}'),
+      onTap: () => context.webPush('/eshop/products/${p['id']}'),
       child: card,
     );
   }

@@ -2,6 +2,7 @@
 import '../../../core/theme/theme_x.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/web_nav.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import 'eshop_providers.dart';
@@ -138,7 +139,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         actions: [
           IconButton(icon: const Icon(Icons.sort_rounded), onPressed: _showSortSheet),
           Stack(children: [
-            IconButton(icon: const Icon(Icons.shopping_bag_outlined), onPressed: () => context.push('/eshop/cart')),
+            IconButton(icon: const Icon(Icons.shopping_bag_outlined), onPressed: () => context.webPush('/eshop/cart')),
             if (cartNotifier.totalCount > 0) Positioned(right: 6, top: 6, child: Container(
               width: 16, height: 16,
               decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
@@ -254,7 +255,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         )),
       ]),
       floatingActionButton: cartNotifier.totalCount > 0 ? GestureDetector(
-        onTap: () => context.push('/eshop/cart'),
+        onTap: () => context.webPush('/eshop/cart'),
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -312,7 +313,7 @@ class _ProductGridCard extends ConsumerWidget {
     final inWishlist = ref.watch(eshopWishlistProvider.select((s) => s.contains(p['id'])));
 
     return GestureDetector(
-      onTap: () => context.push('/eshop/products/${p['id']}'),
+      onTap: () => context.webPush('/eshop/products/${p['id']}'),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -411,3 +412,4 @@ class _SortSheet extends StatelessWidget {
     );
   }
 }
+

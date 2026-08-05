@@ -1,8 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../../../core/storage/local_storage.dart';
-import '../../../../core/router/app_router.dart' show authChangeNotifierProvider;
+import '../../../../core/router/app_router.dart' show authChangeNotifierProvider, routerProvider;
 import '../../../../core/services/location_service.dart';
 import '../../../rewards/rewards_provider.dart';
 
@@ -105,14 +106,18 @@ final updateProfileProvider = Provider<Future<void> Function(Map<String, dynamic
 // Logout
 final logoutProvider = Provider<Future<void> Function()>((ref) {
   return () async {
-    LocationService.stopTracking();
+    if (!kIsWeb) LocationService.stopTracking();
     await ref.read(authRepositoryProvider).logout();
     ref.invalidate(authStateProvider);
     ref.invalidate(rewardsProvider);
-    // Trigger GoRouter redirect refresh without recreating the router
-    // The notifier is read lazily — only notifies if router is already built
     try {
       ref.read(authChangeNotifierProvider).notify();
     } catch (_) {}
+    // On web GoRouter redirect may run before async state settles — force navigate
+    if (kIsWeb) {
+      try {
+        ref.read(routerProvider).go('/auth/login');
+      } catch (_) {}
+    }
   };
 });

@@ -92,10 +92,9 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen>
     CommunityRepository().feedHeartbeat();
     _heartbeatTimer = Timer.periodic(AppConstants.feedHeartbeatInterval, (_) => CommunityRepository().feedHeartbeat());
     _subscribeNewPostFeed();
-    // Throttle VisibilityDetector callbacks — reduces native calls during fast scroll.
-    // 350ms: tight enough for dwell tracking and video play/pause, loose enough to not
-    // fire excessive callbacks that compete with scroll rendering on the UI thread.
-    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 350);
+    // Only video items use VisibilityDetector now (dwell removed from post cards).
+    // 500ms: rare enough to never compete with scroll rendering.
+    VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 500);
   }
 
   Future<void> _subscribeNewPostFeed() async {
@@ -351,7 +350,7 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
 
   Future<void> _loadESpaceAds() async {
     final ads = await ref.read(communityRepoProvider).getESpaceAds(placement: 'feed');
-    if (mounted && ads.isNotEmpty) {
+    if (mounted) {
       setState(() {
         _eSpaceAds = ads;
         _lastPosts = null; // force slot rebuild
@@ -384,8 +383,8 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
       if (i > 12 && (i - 12) % 10 == 0) s.add(_SuggSlot(((i - 12) ~/ 10) * 5));
       if (i > 16 && (i - 16) % 12 == 0) s.add(_ReelSlot(((i - 16) ~/ 12) * 4));
 
-      // Inject eSpace Ad every 7 regular posts (starting after post 6)
-      if (_eSpaceAds.isNotEmpty && regularPostCount > 0 && regularPostCount % 7 == 0) {
+      // Inject eSpace Ad every 5 regular posts
+      if (_eSpaceAds.isNotEmpty && regularPostCount > 0 && regularPostCount % 5 == 0) {
         s.add(_ESpaceAdSlot(eSpaceAdIndex % _eSpaceAds.length));
         eSpaceAdIndex++;
       }
@@ -420,9 +419,8 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
           color: kOrange,
           onRefresh: () => ref.read(communityFeedProvider.notifier).refresh(),
           child: CustomScrollView(
-            // BouncingScrollPhysics: smoother deceleration on Android vs default ClampingScrollPhysics.
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-            cacheExtent: 1200,
+            physics: const AlwaysScrollableScrollPhysics(),
+            cacheExtent: 1000,
             slivers: [
               SliverToBoxAdapter(child: RepaintBoundary(child: storiesState.when(
                 data: (groups) => StoriesBar(groups: groups),
@@ -909,7 +907,7 @@ class _PodcastReelCardState extends State<_PodcastReelCard>
   @override
   void initState() {
     super.initState();
-    _wave = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat(reverse: true);
+    _wave = AnimationController(vsync: this, duration: const Duration(milliseconds: 2000))..repeat(reverse: true);
   }
 
   @override
@@ -962,11 +960,13 @@ class _PodcastReelCardState extends State<_PodcastReelCard>
             colors: [Colors.transparent, Colors.black87]))),
           // Waveform animation
           Positioned(top: 16, left: 0, right: 0,
-            child: AnimatedBuilder(
-              animation: _wave,
-              builder: (_, __) => CustomPaint(
-                size: const Size(double.infinity, 40),
-                painter: _WaveformPainter(progress: _wave.value),
+            child: RepaintBoundary(
+              child: AnimatedBuilder(
+                animation: _wave,
+                builder: (_, __) => CustomPaint(
+                  size: const Size(double.infinity, 40),
+                  painter: _WaveformPainter(progress: _wave.value),
+                ),
               ),
             )),
           // Podcast badge
@@ -1005,12 +1005,12 @@ class _WaveformPainter extends CustomPainter {
       ..color = const Color(0xFFFF8A00).withValues(alpha: 0.8)
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
-    const bars = 12;
+    const bars = 8;
     final barW  = size.width / (bars * 1.8);
     final gap   = barW * 0.8;
     final total = bars * barW + (bars - 1) * gap;
     final startX = (size.width - total) / 2;
-    final heights = [0.3, 0.6, 0.9, 0.5, 0.8, 1.0, 0.7, 0.4, 0.9, 0.6, 0.3, 0.5];
+    final heights = [0.4, 0.8, 1.0, 0.6, 0.9, 0.5, 0.7, 0.4];
     for (var i = 0; i < bars; i++) {
       final phase = (progress + i / bars) % 1.0;
       final h = size.height * heights[i] * (0.5 + 0.5 * phase);
@@ -1035,9 +1035,8 @@ class _AdCard extends ConsumerStatefulWidget {
 
 class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
   VideoPlayerController? _ctrl;
-  bool _ready   = false;
-  bool _muted   = false;
-  bool _visible = false;
+  bool _ready = false;
+  bool _muted = false;
 
   String? get _url => widget.post.adMediaUrl;
 
@@ -1054,7 +1053,6 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
     ctrl.setLooping(true);
     ctrl.setVolume(_muted ? 0 : 1);
     setState(() { _ctrl = ctrl; _ready = true; });
-    if (_visible) ctrl.play();
   }
 
   @override
@@ -1091,20 +1089,7 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
     final p = widget.post;
     final c = context.colors;
 
-    return VisibilityDetector(
-      key: ValueKey('ad_${p.id}'),
-      onVisibilityChanged: (info) {
-        final nowVisible = info.visibleFraction > 0.5;
-        if (nowVisible == _visible) return;
-        _visible = nowVisible;
-        if (p.adType != 'video') return;
-        if (_visible) {
-          if (_ctrl != null && _ready) _ctrl!.play();
-        } else {
-          _ctrl?.pause();
-        }
-      },
-      child: Container(
+    return Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         color: c.cardBg,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1191,7 +1176,6 @@ class _AdCardState extends ConsumerState<_AdCard> with WidgetsBindingObserver {
             ]),
           ),
         ]),
-      ),
     );
   }
 }
@@ -1476,23 +1460,6 @@ class _PostCardState extends ConsumerState<_PostCard> {
   final Map<String, void Function(dynamic)> _realtimeListeners = {};
   late final ValueNotifier<_PostCounters> _counters;
 
-  // Dwell time tracking for non-video posts
-  DateTime? _dwellStart;
-
-  void _onVisibility(VisibilityInfo info) {
-    if (widget.post.isAd || widget.post.isVideo) return; // video handles its own
-    final visible = info.visibleFraction > 0.5;
-    if (visible && _dwellStart == null) {
-      _dwellStart = DateTime.now();
-    } else if (!visible && _dwellStart != null) {
-      final ms = DateTime.now().difference(_dwellStart!).inMilliseconds;
-      _dwellStart = null;
-      if (ms > 800 && widget.post.id > 0) {
-        ref.read(communityRepoProvider).sendDwell(widget.post.id, ms);
-      }
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -1602,10 +1569,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
     if (p.isPodcast) return _PodcastFeedCard(post: p);
 
     final c = context.colors;
-    return VisibilityDetector(
-      key: Key('dwell_${p.id}'),
-      onVisibilityChanged: _onVisibility,
-      child: Container(
+    return Container(
       margin: EdgeInsets.fromLTRB(12, 0, 12, 12),
       decoration: BoxDecoration(
         color: c.cardBg,
@@ -1811,8 +1775,7 @@ class _PostCardState extends ConsumerState<_PostCard> {
 
         _PostActionBar(post: p, onShare: _showShareDialog),
       ]),
-      ), // Container
-    ); // VisibilityDetector
+    );
   }
 
   void _showReactionsList(String initialType) {

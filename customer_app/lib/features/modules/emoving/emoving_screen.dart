@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
@@ -309,7 +310,7 @@ class _BookTabState extends ConsumerState<_BookTab> {
   }
 
   void _openBookingSheet() {
-    Navigator.of(context, rootNavigator: true).push(
+    Navigator.of(context, rootNavigator: !kIsWeb).push(
       MaterialPageRoute(
         builder: (_) => _BookingFlowScreen(
           moveType:        _selectedType!,

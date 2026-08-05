@@ -1,10 +1,7 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/theme_x.dart';
 import '../../data/models/community_models.dart';
-import '../../data/repositories/community_repository.dart';
 import '../providers/community_provider.dart';
 
 class ESpaceAdCard extends ConsumerStatefulWidget {
@@ -15,28 +12,16 @@ class ESpaceAdCard extends ConsumerStatefulWidget {
   ConsumerState<ESpaceAdCard> createState() => _ESpaceAdCardState();
 }
 
-class _ESpaceAdCardState extends ConsumerState<ESpaceAdCard> with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _scale;
+class _ESpaceAdCardState extends ConsumerState<ESpaceAdCard> {
   bool _dismissed = false;
+  bool _pressed   = false;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 120));
-    _scale = Tween<double>(begin: 1.0, end: 0.97).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
-    );
-    // Fire impression — non-blocking
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(communityRepoProvider).recordESpaceAdImpression(widget.ad.id);
+      if (mounted) ref.read(communityRepoProvider).recordESpaceAdImpression(widget.ad.id);
     });
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
   }
 
   Color _hexColor(String hex) {
@@ -44,12 +29,9 @@ class _ESpaceAdCardState extends ConsumerState<ESpaceAdCard> with SingleTickerPr
     return Color(int.parse('FF$h', radix: 16));
   }
 
-  Future<void> _onTap() async {
-    await _ctrl.forward();
-    await _ctrl.reverse();
-    if (!mounted) return;
+  void _onTap() {
     ref.read(communityRepoProvider).recordESpaceAdClick(widget.ad.id);
-    if (mounted) context.go(widget.ad.deepLink);
+    context.go(widget.ad.deepLink);
   }
 
   @override
@@ -58,41 +40,34 @@ class _ESpaceAdCardState extends ConsumerState<ESpaceAdCard> with SingleTickerPr
 
     final ad = widget.ad;
     final baseColor = _hexColor(ad.moduleColor);
+    final darkColor = Color.lerp(baseColor, Colors.black, 0.25)!;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: ScaleTransition(
-        scale: _scale,
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 80),
+        curve: Curves.easeOut,
         child: GestureDetector(
-          onTap: _onTap,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: baseColor.withValues(alpha: 0.25),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: ClipRRect(
+          onTapDown: (_) => setState(() => _pressed = true),
+          onTapUp: (_) { setState(() => _pressed = false); _onTap(); },
+          onTapCancel: () => setState(() => _pressed = false),
+          child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: Stack(
                 children: [
-                  // Gradient background
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [baseColor, Color.lerp(baseColor, Colors.black, 0.25)!],
+                        colors: [baseColor, darkColor],
                       ),
                     ),
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Header row
                         Row(
                           children: [
                             Container(
@@ -130,7 +105,6 @@ class _ESpaceAdCardState extends ConsumerState<ESpaceAdCard> with SingleTickerPr
                               ],
                             ),
                             const Spacer(),
-                            // Sponsored label
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
@@ -149,10 +123,7 @@ class _ESpaceAdCardState extends ConsumerState<ESpaceAdCard> with SingleTickerPr
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 16),
-
-                        // Title
                         Text(
                           ad.title,
                           style: const TextStyle(
@@ -162,7 +133,6 @@ class _ESpaceAdCardState extends ConsumerState<ESpaceAdCard> with SingleTickerPr
                             height: 1.2,
                           ),
                         ),
-
                         if (ad.subtitle != null && ad.subtitle!.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(
@@ -174,69 +144,39 @@ class _ESpaceAdCardState extends ConsumerState<ESpaceAdCard> with SingleTickerPr
                             ),
                           ),
                         ],
-
                         const SizedBox(height: 18),
-
-                        // CTA Button
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(30),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.15),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                ad.ctaText,
+                                style: TextStyle(
+                                  color: baseColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    ad.ctaText,
-                                    style: TextStyle(
-                                      color: baseColor,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Icon(Icons.arrow_forward_rounded, color: baseColor, size: 14),
-                                ],
-                              ),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Icon(Icons.arrow_forward_rounded, color: baseColor, size: 14),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-
-                  // Decorative large emoji (background)
+                  // Decorative emoji watermark
                   Positioned(
                     right: -8,
                     top: 10,
                     child: Text(
                       ad.moduleEmoji,
-                      style: TextStyle(fontSize: 90, color: Colors.white.withValues(alpha: 0.08)),
-                    ),
-                  ),
-
-                  // Shimmer line at bottom
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 3,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.white.withValues(alpha: 0.0), Colors.white.withValues(alpha: 0.3), Colors.white.withValues(alpha: 0.0)],
-                        ),
-                      ),
+                      style: TextStyle(fontSize: 90, color: Colors.white.withValues(alpha: 0.07)),
                     ),
                   ),
                 ],
@@ -244,7 +184,6 @@ class _ESpaceAdCardState extends ConsumerState<ESpaceAdCard> with SingleTickerPr
             ),
           ),
         ),
-      ),
     );
   }
 }
