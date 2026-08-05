@@ -1046,13 +1046,49 @@
         </div>
         <div class="nav-sub {{ request()->is('admin/global*') ? 'open' : '' }}">
             <a href="{{ route('admin.global.dashboard') }}" class="nav-link {{ request()->routeIs('admin.global.dashboard') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-chart-line"></i></div> Dashboard
+                <div class="nav-icon"><i class="fas fa-chart-pie"></i></div> Dashboard
             </a>
-            <a href="{{ route('admin.global.products.index') }}" class="nav-link {{ request()->routeIs('admin.global.products.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-box"></i></div> Products
+            <a href="{{ route('admin.global.analytics') }}" class="nav-link {{ request()->routeIs('admin.global.analytics') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-chart-line"></i></div> Analytics
+            </a>
+            <a href="{{ route('admin.global.revenue.index') }}" class="nav-link {{ request()->routeIs('admin.global.revenue.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-dollar-sign"></i></div> Revenue
             </a>
             <a href="{{ route('admin.global.orders.index') }}" class="nav-link {{ request()->routeIs('admin.global.orders.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-shopping-cart"></i></div> Orders
+            </a>
+            <a href="{{ route('admin.global.refunds.index') }}" class="nav-link {{ request()->routeIs('admin.global.refunds.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-rotate-left"></i></div> Refunds
+            </a>
+            <a href="{{ route('admin.global.products.index') }}" class="nav-link {{ request()->routeIs('admin.global.products.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-box-open"></i></div> Products
+            </a>
+            <a href="{{ route('admin.global.physical-products.index') }}" class="nav-link {{ request()->routeIs('admin.global.physical-products.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-warehouse"></i></div> Physical / Warehouse
+            </a>
+            <a href="{{ route('admin.global.dropshipping.index') }}" class="nav-link {{ request()->routeIs('admin.global.dropshipping.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-truck-fast"></i></div> Dropshipping
+            </a>
+            <a href="{{ route('admin.global.inventory.index') }}" class="nav-link {{ request()->routeIs('admin.global.inventory.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-cubes"></i></div> Inventory
+            </a>
+            <a href="{{ route('admin.global.shipping.index') }}" class="nav-link {{ request()->routeIs('admin.global.shipping.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-shipping-fast"></i></div> Shipping
+            </a>
+            <a href="{{ route('admin.global.currency.index') }}" class="nav-link {{ request()->routeIs('admin.global.currency.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-coins"></i></div> Currency
+            </a>
+            <a href="{{ route('admin.global.push-notifications.index') }}" class="nav-link {{ request()->routeIs('admin.global.push-notifications.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-bell"></i></div> Push Notifications
+            </a>
+            <a href="{{ route('admin.global.help-center.index') }}" class="nav-link {{ request()->routeIs('admin.global.help-center.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-headset"></i></div> Help Center
+            </a>
+            <a href="{{ route('admin.global.live-chat.index') }}" class="nav-link {{ request()->routeIs('admin.global.live-chat.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-comments"></i></div> Live Chat
+            </a>
+            <a href="{{ route('admin.global.security.index') }}" class="nav-link {{ request()->routeIs('admin.global.security.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-shield-halved"></i></div> Security
             </a>
             <a href="{{ route('admin.global.settings') }}" class="nav-link {{ request()->routeIs('admin.global.settings*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-sliders-h"></i></div> Settings

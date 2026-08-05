@@ -911,6 +911,84 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('/settings',                   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'index'])->name('settings');
             Route::put('/settings',                   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'update'])->name('settings.update');
             Route::put('/settings/shipping/{zone}',   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'updateShippingZone'])->name('settings.shipping.update');
+
+            // Inventory
+            Route::prefix('inventory')->name('inventory.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Admin\Global\AdminGlobalInventoryController::class, 'index'])->name('index');
+                Route::post('/bulk-update', [\App\Http\Controllers\Admin\Global\AdminGlobalInventoryController::class, 'bulkUpdate'])->name('bulk-update');
+                Route::post('/{product}/adjust', [\App\Http\Controllers\Admin\Global\AdminGlobalInventoryController::class, 'adjust'])->name('adjust');
+            });
+
+            // Currency
+            Route::prefix('currency')->name('currency.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Admin\Global\AdminGlobalCurrencyController::class, 'index'])->name('index');
+                Route::post('/update-rate', [\App\Http\Controllers\Admin\Global\AdminGlobalCurrencyController::class, 'updateRate'])->name('update-rate');
+                Route::post('/sync-rates', [\App\Http\Controllers\Admin\Global\AdminGlobalCurrencyController::class, 'syncRates'])->name('sync-rates');
+            });
+
+            // Analytics
+            Route::get('/analytics', [\App\Http\Controllers\Admin\Global\AdminGlobalAnalyticsController::class, 'index'])->name('analytics');
+
+            // Revenue
+            Route::prefix('revenue')->name('revenue.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Admin\Global\AdminGlobalRevenueController::class, 'index'])->name('index');
+                Route::get('/export', [\App\Http\Controllers\Admin\Global\AdminGlobalRevenueController::class, 'export'])->name('export');
+            });
+
+            // Refunds
+            Route::prefix('refunds')->name('refunds.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Admin\Global\AdminGlobalRefundsController::class, 'index'])->name('index');
+                Route::post('/{payment}/process', [\App\Http\Controllers\Admin\Global\AdminGlobalRefundsController::class, 'process'])->name('process');
+            });
+
+            // Help Center / Support Tickets
+            Route::prefix('help-center')->name('help-center.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Admin\Global\AdminGlobalHelpCenterController::class, 'index'])->name('index');
+                Route::get('/{ticket}', [\App\Http\Controllers\Admin\Global\AdminGlobalHelpCenterController::class, 'show'])->name('show');
+                Route::post('/{ticket}/reply', [\App\Http\Controllers\Admin\Global\AdminGlobalHelpCenterController::class, 'reply'])->name('reply');
+                Route::post('/{ticket}/close', [\App\Http\Controllers\Admin\Global\AdminGlobalHelpCenterController::class, 'close'])->name('close');
+            });
+
+            // Live Chat (LiveKit)
+            Route::prefix('live-chat')->name('live-chat.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Admin\Global\AdminGlobalLiveChatController::class, 'index'])->name('index');
+                Route::post('/join', [\App\Http\Controllers\Admin\Global\AdminGlobalLiveChatController::class, 'joinRoom'])->name('join');
+            });
+
+            // Push Notifications
+            Route::prefix('push-notifications')->name('push-notifications.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Admin\Global\AdminGlobalPushNotificationsController::class, 'index'])->name('index');
+                Route::post('/send', [\App\Http\Controllers\Admin\Global\AdminGlobalPushNotificationsController::class, 'send'])->name('send');
+            });
+
+            // Shipping
+            Route::prefix('shipping')->name('shipping.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Admin\Global\AdminGlobalShippingController::class, 'index'])->name('index');
+                Route::post('/zones', [\App\Http\Controllers\Admin\Global\AdminGlobalShippingController::class, 'storeZone'])->name('zones.store');
+                Route::put('/zones/{zone}', [\App\Http\Controllers\Admin\Global\AdminGlobalShippingController::class, 'updateZone'])->name('zones.update');
+                Route::delete('/zones/{zone}', [\App\Http\Controllers\Admin\Global\AdminGlobalShippingController::class, 'destroyZone'])->name('zones.destroy');
+            });
+
+            // Dropshipping
+            Route::prefix('dropshipping')->name('dropshipping.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Admin\Global\AdminGlobalDropshippingController::class, 'index'])->name('index');
+                Route::post('/import', [\App\Http\Controllers\Admin\Global\AdminGlobalDropshippingController::class, 'import'])->name('import');
+                Route::post('/{product}/sync', [\App\Http\Controllers\Admin\Global\AdminGlobalDropshippingController::class, 'sync'])->name('sync');
+            });
+
+            // Physical Products
+            Route::prefix('physical-products')->name('physical-products.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Admin\Global\AdminGlobalPhysicalProductsController::class, 'index'])->name('index');
+                Route::post('/{product}/restock', [\App\Http\Controllers\Admin\Global\AdminGlobalPhysicalProductsController::class, 'restock'])->name('restock');
+            });
+
+            // Security
+            Route::prefix('security')->name('security.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Admin\Global\AdminGlobalSecurityController::class, 'index'])->name('index');
+                Route::post('/block-user/{user}', [\App\Http\Controllers\Admin\Global\AdminGlobalSecurityController::class, 'blockUser'])->name('block-user');
+                Route::post('/unblock-user/{user}', [\App\Http\Controllers\Admin\Global\AdminGlobalSecurityController::class, 'unblockUser'])->name('unblock-user');
+                Route::post('/block-ip', [\App\Http\Controllers\Admin\Global\AdminGlobalSecurityController::class, 'blockIp'])->name('block-ip');
+            });
         });
 
         // ─── Legal Pages ──────────────────────────────────────────────────────────
