@@ -18,7 +18,7 @@ class GlobalRepository {
     headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
   ));
 
-  static const String _base = '/v1/global';
+  static const String _base = '/global';
 
   String? _token;
 
