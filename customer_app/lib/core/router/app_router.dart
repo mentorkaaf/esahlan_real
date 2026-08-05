@@ -153,6 +153,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isOnboarding = state.matchedLocation == '/onboarding';
 
       if (isSplash || isOnboarding) return null;
+      // /global routes are always accessible — no Somalia login required
+      if (state.matchedLocation.startsWith('/global')) return null;
       // While auth is still loading, stay on the current route.
       // The ref.listen above will notify GoRouter once it resolves.
       if (isLoading) return null;

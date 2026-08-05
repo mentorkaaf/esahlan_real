@@ -1060,6 +1060,9 @@
             <a href="{{ route('admin.global.refunds.index') }}" class="nav-link {{ request()->routeIs('admin.global.refunds.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-rotate-left"></i></div> Refunds
             </a>
+            <a href="{{ route('admin.global.categories.index') }}" class="nav-link {{ request()->routeIs('admin.global.categories.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-tags"></i></div> Categories
+            </a>
             <a href="{{ route('admin.global.products.index') }}" class="nav-link {{ request()->routeIs('admin.global.products.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-box-open"></i></div> Products
             </a>

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_assets.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 import '../../../../core/services/realtime_client.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -63,10 +64,41 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _textCtrl.forward();
   }
 
+  /// Returns true if the user's device IP is outside Somalia.
+  /// Defaults to false (show Somalia app) on any network error.
+  Future<bool> _isNonSomaliaUser() async {
+    try {
+      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 4)));
+      final res = await dio.get('https://ipapi.co/json/');
+      if (res.statusCode == 200) {
+        final data = res.data as Map<String, dynamic>;
+        final country = data['country_code'] as String? ?? 'SO';
+        return country != 'SO';
+      }
+    } catch (_) {
+      // On error, default to Somalia app (safe fallback)
+    }
+    return false;
+  }
+
   Future<void> _navigate() async {
-    await Future.delayed(const Duration(milliseconds: 3000));
+    // Run IP detection and splash animation concurrently
+    final results = await Future.wait([
+      _isNonSomaliaUser(),
+      Future.delayed(const Duration(milliseconds: 3000)),
+    ]);
     if (!mounted) return;
-    final token         = await LocalStorage.getToken();
+
+    final isNonSomalia = results[0] as bool;
+
+    // Non-Somalia IP → skip local auth, go directly to global store
+    if (isNonSomalia) {
+      context.go('/global');
+      return;
+    }
+
+    // Somalia flow — normal auth check
+    final token          = await LocalStorage.getToken();
     final onboardingDone = await LocalStorage.getBool('onboarding_done');
     if (!mounted) return;
     if (!onboardingDone) {

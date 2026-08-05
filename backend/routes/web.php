@@ -891,6 +891,14 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
         Route::prefix('global')->name('global.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\Global\AdminGlobalDashboardController::class, 'index'])->name('dashboard');
 
+            Route::prefix('categories')->name('categories.')->group(function () {
+                Route::get('/',                [\App\Http\Controllers\Admin\Global\AdminGlobalCategoriesController::class, 'index'])->name('index');
+                Route::post('/',               [\App\Http\Controllers\Admin\Global\AdminGlobalCategoriesController::class, 'store'])->name('store');
+                Route::put('/{category}',      [\App\Http\Controllers\Admin\Global\AdminGlobalCategoriesController::class, 'update'])->name('update');
+                Route::delete('/{category}',   [\App\Http\Controllers\Admin\Global\AdminGlobalCategoriesController::class, 'destroy'])->name('destroy');
+                Route::patch('/{category}/toggle', [\App\Http\Controllers\Admin\Global\AdminGlobalCategoriesController::class, 'toggle'])->name('toggle');
+            });
+
             Route::prefix('products')->name('products.')->group(function () {
                 Route::get('/',               [\App\Http\Controllers\Admin\Global\AdminGlobalProductsController::class, 'index'])->name('index');
                 Route::get('/create',         [\App\Http\Controllers\Admin\Global\AdminGlobalProductsController::class, 'create'])->name('create');

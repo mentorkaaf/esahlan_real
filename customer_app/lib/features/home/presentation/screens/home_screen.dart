@@ -230,9 +230,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 const SizedBox(height: 8),
                 const _DynamicBannerSlider(),
                 const SizedBox(height: 12),
-                // ── Global Store entry ──────────────────────────────────────
-                const _GlobalStoreBanner(),
-                const SizedBox(height: 8),
                 // ── Promotional banner ads (global / home targeted) ─────────
                 const BannerAdStrip(),
                 const _ServicesSectionHeader(),
@@ -835,60 +832,4 @@ class _ThemeCycleButton extends ConsumerWidget {
   }
 }
 
-// ── Global Store Entry Banner ─────────────────────────────────────────────────
-
-class _GlobalStoreBanner extends StatelessWidget {
-  const _GlobalStoreBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push('/global'),
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(14, 4, 14, 4),
-        height: 64,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
-          ),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(children: [
-          const Text('🌍', style: TextStyle(fontSize: 28)),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Global Store',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14)),
-                Text('Shop USA & Europe · Ship worldwide',
-                    style: TextStyle(
-                        color: Colors.white60, fontSize: 11)),
-              ],
-            ),
-          ),
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF59E0B),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text('Shop →',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1A1A2E))),
-          ),
-        ]),
-      ),
-    );
-  }
-}
 
