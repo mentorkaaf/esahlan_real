@@ -1037,6 +1037,30 @@
         @endcan
 
         @if($u->isFullAdmin())
+        <div class="nav-section-label">🌍 Global Store</div>
+        <div class="nav-link nav-toggle-btn {{ request()->is('admin/global*') ? 'open active' : '' }}"
+             onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+            <div class="nav-icon"><i class="fas fa-globe"></i></div>
+            <span class="nav-text">Global eCommerce</span>
+            <i class="fas fa-chevron-down toggle-arrow" style="margin-left:auto;font-size:10px;transition:.2s"></i>
+        </div>
+        <div class="nav-sub {{ request()->is('admin/global*') ? 'open' : '' }}">
+            <a href="{{ route('admin.global.dashboard') }}" class="nav-link {{ request()->routeIs('admin.global.dashboard') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-chart-line"></i></div> Dashboard
+            </a>
+            <a href="{{ route('admin.global.products.index') }}" class="nav-link {{ request()->routeIs('admin.global.products.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-box"></i></div> Products
+            </a>
+            <a href="{{ route('admin.global.orders.index') }}" class="nav-link {{ request()->routeIs('admin.global.orders.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-shopping-cart"></i></div> Orders
+            </a>
+            <a href="{{ route('admin.global.settings') }}" class="nav-link {{ request()->routeIs('admin.global.settings*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-sliders-h"></i></div> Settings
+            </a>
+        </div>
+        @endif
+
+        @if($u->isFullAdmin())
         <div class="nav-section-label">System</div>
         @if(in_array($u->role?->slug, ['super_admin','admin']))
         <a href="{{ route('admin.access.index') }}" class="nav-link {{ request()->routeIs('admin.access.*') ? 'active' : '' }}">

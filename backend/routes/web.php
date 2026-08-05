@@ -887,6 +887,32 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('reports', [AdminELearningController::class, 'reports'])->name('reports');
         });
 
+        // ─── Global eCommerce ─────────────────────────────────────────────────────
+        Route::prefix('global')->name('global.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\Global\AdminGlobalDashboardController::class, 'index'])->name('dashboard');
+
+            Route::prefix('products')->name('products.')->group(function () {
+                Route::get('/',               [\App\Http\Controllers\Admin\Global\AdminGlobalProductsController::class, 'index'])->name('index');
+                Route::get('/create',         [\App\Http\Controllers\Admin\Global\AdminGlobalProductsController::class, 'create'])->name('create');
+                Route::post('/',              [\App\Http\Controllers\Admin\Global\AdminGlobalProductsController::class, 'store'])->name('store');
+                Route::get('/{product}/edit', [\App\Http\Controllers\Admin\Global\AdminGlobalProductsController::class, 'edit'])->name('edit');
+                Route::put('/{product}',      [\App\Http\Controllers\Admin\Global\AdminGlobalProductsController::class, 'update'])->name('update');
+                Route::delete('/{product}',   [\App\Http\Controllers\Admin\Global\AdminGlobalProductsController::class, 'destroy'])->name('destroy');
+                Route::post('/{product}/toggle', [\App\Http\Controllers\Admin\Global\AdminGlobalProductsController::class, 'toggleActive'])->name('toggle');
+            });
+
+            Route::prefix('orders')->name('orders.')->group(function () {
+                Route::get('/',               [\App\Http\Controllers\Admin\Global\AdminGlobalOrdersController::class, 'index'])->name('index');
+                Route::get('/{order}',        [\App\Http\Controllers\Admin\Global\AdminGlobalOrdersController::class, 'show'])->name('show');
+                Route::put('/{order}/status', [\App\Http\Controllers\Admin\Global\AdminGlobalOrdersController::class, 'updateStatus'])->name('status');
+                Route::post('/{order}/refund',[\App\Http\Controllers\Admin\Global\AdminGlobalOrdersController::class, 'refund'])->name('refund');
+            });
+
+            Route::get('/settings',                   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'index'])->name('settings');
+            Route::put('/settings',                   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'update'])->name('settings.update');
+            Route::put('/settings/shipping/{zone}',   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'updateShippingZone'])->name('settings.shipping.update');
+        });
+
         // ─── Legal Pages ──────────────────────────────────────────────────────────
         Route::prefix('legal-pages')->name('legal-pages.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AdminLegalPagesController::class, 'index'])->name('index');
