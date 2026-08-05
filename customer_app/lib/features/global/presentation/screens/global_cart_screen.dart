@@ -188,7 +188,7 @@ class GlobalCartScreen extends ConsumerWidget {
                                         ref
                                             .read(globalCartProvider
                                                 .notifier)
-                                            .update(item.id,
+                                            .updateItem(item.id,
                                                 item.quantity - 1);
                                       } else {
                                         ref
@@ -210,7 +210,7 @@ class GlobalCartScreen extends ConsumerWidget {
                                     icon: Icons.add,
                                     onTap: () => ref
                                         .read(globalCartProvider.notifier)
-                                        .update(item.id, item.quantity + 1),
+                                        .updateItem(item.id, item.quantity + 1),
                                   ),
                                 ]),
                               ],

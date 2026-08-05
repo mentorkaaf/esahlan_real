@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -117,10 +118,31 @@ final routerProvider = Provider<GoRouter>((ref) {
     try { authNotifier.notify(); } catch (_) {}
   });
 
+  // Detect if running on global.esahlan.com → skip Somalia auth flow
+  bool _isGlobalDomain() {
+    if (!kIsWeb) return false;
+    try {
+      // ignore: undefined_prefixed_name
+      final hostname = Uri.base.host;
+      return hostname == 'global.esahlan.com' || hostname.startsWith('global.');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  final isGlobalDomain = _isGlobalDomain();
+
   final router = GoRouter(
-    initialLocation: '/splash',
+    initialLocation: isGlobalDomain ? '/global' : '/splash',
     refreshListenable: authNotifier,
     redirect: (context, state) {
+      // On global.esahlan.com — no Somalia auth required; /global routes are always accessible
+      if (isGlobalDomain) {
+        final loc = state.matchedLocation;
+        if (!loc.startsWith('/global')) return '/global';
+        return null;
+      }
+
       // Read (not watch) so we don't recreate the router on auth change.
       // GoRouter.refresh() triggers this callback instead.
       final authState = ref.read(authStateProvider);

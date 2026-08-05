@@ -400,8 +400,7 @@ class _GlobalProductDetailScreenState
                     offset: const Offset(0, -4))
               ],
             ),
-            child: productAsync.when(
-              data: (p) => Row(children: [
+            child: Row(children: [
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed:
@@ -446,9 +445,6 @@ class _GlobalProductDetailScreenState
                       style: TextStyle(fontWeight: FontWeight.w800)),
                 ),
               ]),
-              loading: () => const SizedBox(),
-              error: (_, __) => const SizedBox(),
-            ),
           ),
         ),
       ],

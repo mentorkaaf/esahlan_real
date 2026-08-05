@@ -1004,3 +1004,10 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
 Route::get('/privacy-policy', [\App\Http\Controllers\LegalPageWebController::class, 'show'])->defaults('slug', 'privacy-policy');
 Route::get('/terms',          [\App\Http\Controllers\LegalPageWebController::class, 'show'])->defaults('slug', 'terms');
 Route::get('/about',          [\App\Http\Controllers\LegalPageWebController::class, 'show'])->defaults('slug', 'about');
+
+// ─── Global Store SEO Pages (global.esahlan.com) ──────────────────────────────
+Route::prefix('seo/global')->name('global.seo.')->group(function () {
+    Route::get('/product/{id}', [\App\Http\Controllers\Api\Global\GlobalSeoController::class, 'product'])->name('product');
+    Route::get('/products',     [\App\Http\Controllers\Api\Global\GlobalSeoController::class, 'products'])->name('products');
+});
+Route::get('/sitemap-global.xml', [\App\Http\Controllers\Api\Global\GlobalSeoController::class, 'sitemap'])->name('global.sitemap');

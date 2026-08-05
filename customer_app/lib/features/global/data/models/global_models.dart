@@ -245,6 +245,7 @@ class GlobalOrder {
   final String? paymentStatus;
   final String? paidAt;
   final String? shippedAt;
+  final String? shippingCarrier;
 
   const GlobalOrder({
     required this.id,
@@ -263,6 +264,7 @@ class GlobalOrder {
     this.paymentStatus,
     this.paidAt,
     this.shippedAt,
+    this.shippingCarrier,
   });
 
   factory GlobalOrder.fromJson(Map<String, dynamic> j) => GlobalOrder(
@@ -284,6 +286,7 @@ class GlobalOrder {
         paymentStatus: j['payment_status'],
         paidAt: j['paid_at'],
         shippedAt: j['shipped_at'],
+        shippingCarrier: j['shipping_carrier'],
       );
 }
 

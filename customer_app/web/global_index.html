@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+
+  <!-- Primary SEO -->
+  <title>eSahlan Global — Shop USA & Europe, Delivered Worldwide</title>
+  <meta name="description" content="Shop millions of products from USA and Europe. Electronics, fashion, beauty, home goods — shipped worldwide. Stripe & PayPal payments.">
+  <meta name="keywords" content="online shopping, global store, USA products, Europe products, international shipping, electronics, fashion, eSahlan">
+  <meta name="author" content="eSahlan">
+  <link rel="canonical" href="https://global.esahlan.com/">
+
+  <!-- Open Graph (Facebook, WhatsApp, LinkedIn) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="eSahlan Global Store — Shop USA & Europe">
+  <meta property="og:description" content="Millions of products from USA & Europe delivered to your door. Electronics, fashion, home & more.">
+  <meta property="og:url" content="https://global.esahlan.com/">
+  <meta property="og:image" content="https://global.esahlan.com/icons/Icon-512.png">
+  <meta property="og:image:width" content="512">
+  <meta property="og:image:height" content="512">
+  <meta property="og:site_name" content="eSahlan Global">
+  <meta property="og:locale" content="en_US">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="eSahlan Global Store">
+  <meta name="twitter:description" content="Shop USA & Europe products delivered worldwide.">
+  <meta name="twitter:image" content="https://global.esahlan.com/icons/Icon-512.png">
+
+  <!-- PWA -->
+  <meta name="theme-color" content="#1A1A2E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="eSahlan Global">
+
+  <link rel="manifest" href="global_manifest.json">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="icons/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+
+  <!-- Structured Data: Organization -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "OnlineStore",
+    "name": "eSahlan Global Store",
+    "url": "https://global.esahlan.com",
+    "logo": "https://global.esahlan.com/icons/Icon-512.png",
+    "description": "Shop USA & Europe products delivered worldwide",
+    "currenciesAccepted": "USD, EUR",
+    "paymentAccepted": "Credit Card, PayPal",
+    "areaServed": "Worldwide",
+    "sameAs": ["https://esahlan.com"]
+  }
+  </script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1A1A2E; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+    /* Loading splash */
+    #splash {
+      position: fixed; inset: 0; z-index: 9999;
+      background: #1A1A2E;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 20px;
+      transition: opacity 0.4s ease;
+    }
+    #splash.hidden { opacity: 0; pointer-events: none; }
+    .splash-logo {
+      width: 80px; height: 80px; border-radius: 20px;
+      background: linear-gradient(135deg, #F59E0B, #D97706);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 40px;
+      box-shadow: 0 8px 32px rgba(245,158,11,0.4);
+    }
+    .splash-title { color: #fff; font-size: 22px; font-weight: 800; }
+    .splash-sub { color: rgba(255,255,255,0.5); font-size: 13px; }
+    .splash-bar {
+      width: 160px; height: 3px; background: rgba(255,255,255,0.1);
+      border-radius: 2px; overflow: hidden; margin-top: 8px;
+    }
+    .splash-bar-fill {
+      height: 100%; width: 0%; background: #F59E0B;
+      border-radius: 2px;
+      animation: load 1.8s ease-in-out forwards;
+    }
+    @keyframes load {
+      0%   { width: 0% }
+      60%  { width: 80% }
+      100% { width: 100% }
+    }
+
+    /* PWA install sheet */
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to   { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+      50%       { box-shadow: 0 0 0 8px rgba(245,158,11,0.35); }
+    }
+    .pwa-sheet {
+      display: none; position: fixed;
+      bottom: 0; left: 0; right: 0; z-index: 999999;
+      background: #1A1A2E; color: #fff;
+      border-radius: 20px 20px 0 0;
+      box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
+      animation: slideUp 0.38s cubic-bezier(0.32,0.72,0,1);
+      padding: 24px 20px calc(28px + env(safe-area-inset-bottom, 0px));
+    }
+    .banner-row { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+    .banner-row .logo { width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg,#F59E0B,#D97706); display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0; }
+    .banner-row strong { display:block;font-size:17px;font-weight:800; }
+    .banner-row span { display:block;font-size:12px;color:rgba(255,255,255,0.55);margin-top:2px; }
+    .install-btn { display:block;width:100%;background:#F59E0B;color:#1A1A2E;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:800;cursor:pointer; }
+    .ios-instruction { display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.08);border-radius:14px;padding:16px; }
+    .ios-tap-icon { width:48px;height:48px;flex-shrink:0;border-radius:12px;background:rgba(245,158,11,0.15);border:2px solid rgba(245,158,11,0.4);display:flex;align-items:center;justify-content:center;font-size:22px;animation:pulse 2s ease-in-out infinite; }
+    .ios-instr-text { font-size:15px;line-height:1.55;color:rgba(255,255,255,0.9); }
+    .ios-instr-text b { color:#F59E0B; }
+    #pwa-overlay { display:none;position:fixed;inset:0;z-index:999998;background:rgba(0,0,0,0.65); }
+  </style>
+</head>
+<body>
+  <!-- Loading splash -->
+  <div id="splash">
+    <div class="splash-logo">🌍</div>
+    <div class="splash-title">eSahlan Global</div>
+    <div class="splash-sub">Shop USA &amp; Europe · Worldwide Shipping</div>
+    <div class="splash-bar"><div class="splash-bar-fill"></div></div>
+  </div>
+
+  <div id="pwa-overlay"></div>
+
+  <!-- Android install -->
+  <div id="android-banner" class="pwa-sheet">
+    <div class="banner-row">
+      <div class="logo">🌍</div>
+      <div>
+        <strong>eSahlan Global Store</strong>
+        <span>Shop USA &amp; Europe — Fast worldwide delivery</span>
+      </div>
+    </div>
+    <button id="android-install-btn" class="install-btn">⬇️ &nbsp; Install App</button>
+  </div>
+
+  <!-- iOS install -->
+  <div id="ios-banner" class="pwa-sheet">
+    <div class="banner-row">
+      <div class="logo">🌍</div>
+      <div>
+        <strong>eSahlan Global Store</strong>
+        <span>Shop USA &amp; Europe — Fast worldwide delivery</span>
+      </div>
+    </div>
+    <div class="ios-instruction">
+      <div class="ios-tap-icon" id="ios-tap-icon">⬆️</div>
+      <div class="ios-instr-text" id="ios-instr-text">
+        Tap <b>⬆️</b> → <b>"Add to Home Screen"</b>
+      </div>
+    </div>
+  </div>
+
+  <script src="flutter_bootstrap.js" async></script>
+
+  <script>
+    // Hide splash when Flutter is ready
+    window.addEventListener('flutter-first-frame', function() {
+      var s = document.getElementById('splash');
+      if (s) { s.classList.add('hidden'); setTimeout(function(){s.remove();}, 500); }
+    });
+
+    // ── IP-based redirect: Somalia IPs → app.esahlan.com ──────────────────────
+    // (Only runs on global.esahlan.com — skip on localhost/app.esahlan.com)
+    if (location.hostname === 'global.esahlan.com') {
+      fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3000) })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          // Redirect Somalia users to main app
+          if (d.country_code === 'SO') {
+            location.href = 'https://app.esahlan.com';
+          }
+        })
+        .catch(function() { /* silently ignore — show global store */ });
+    }
+
+    // ── PWA install prompts ───────────────────────────────────────────────────
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true;
+
+    function isMobile() { return /android|iphone|ipad|ipod/i.test(navigator.userAgent); }
+    function isIOS()    { return /iphone|ipad|ipod/i.test(navigator.userAgent); }
+
+    function getIOSInstruction() {
+      var ua = navigator.userAgent;
+      if (/CriOS/i.test(ua)) return { icon:'⋯', html:'Tap <b>⋯</b> (top right) → <b>"Add to Home Screen"</b>' };
+      if (/FxiOS/i.test(ua)) return { icon:'☰', html:'Tap <b>☰</b> (bottom right) → <b>"Add to Home Screen"</b>' };
+      return { icon:'⬆️', html:'Tap <b>⬆️</b> (bottom) → <b>"Add to Home Screen"</b>' };
+    }
+
+    if (isMobile() && !isStandalone) {
+      var deferredPrompt = null;
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        deferredPrompt = e;
+        document.getElementById('pwa-overlay').style.display = 'block';
+        document.getElementById('android-banner').style.display = 'block';
+      });
+      document.getElementById('android-install-btn').addEventListener('click', function() {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function(r) {
+          deferredPrompt = null;
+          document.getElementById('android-banner').style.display = 'none';
+          document.getElementById('pwa-overlay').style.display = 'none';
+        });
+      });
+
+      if (isIOS()) {
+        var instr = getIOSInstruction();
+        document.getElementById('ios-tap-icon').textContent = instr.icon;
+        document.getElementById('ios-instr-text').innerHTML = instr.html;
+        document.getElementById('pwa-overlay').style.display = 'block';
+        document.getElementById('ios-banner').style.display = 'block';
+      }
+    }
+  </script>
+</body>
+</html>

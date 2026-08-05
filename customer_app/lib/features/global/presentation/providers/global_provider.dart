@@ -170,7 +170,7 @@ class GlobalCartNotifier extends AsyncNotifier<GlobalCart> {
         .addToCart(productId, qty, variant: variant));
   }
 
-  Future<void> update(int itemId, int qty) async {
+  Future<void> updateItem(int itemId, int qty) async {
     state = await AsyncValue.guard(
         () => ref.read(globalRepoProvider).updateCartItem(itemId, qty));
   }
