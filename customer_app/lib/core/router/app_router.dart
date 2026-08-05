@@ -14,6 +14,7 @@ import '../../features/global/presentation/screens/global_checkout_screen.dart';
 import '../../features/global/presentation/screens/global_orders_screen.dart';
 
 import '../../features/auth/presentation/screens/splash_screen.dart';
+import '../../features/auth/presentation/screens/country_selection_screen.dart';
 import '../../features/auth/presentation/screens/onboarding_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
@@ -152,7 +153,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isSplash     = state.matchedLocation == '/splash';
       final isOnboarding = state.matchedLocation == '/onboarding';
 
-      if (isSplash || isOnboarding) return null;
+      final isCountrySelect = state.matchedLocation == '/country-select';
+      if (isSplash || isOnboarding || isCountrySelect) return null;
       // /global routes are always accessible — no Somalia login required
       if (state.matchedLocation.startsWith('/global')) return null;
       // While auth is still loading, stay on the current route.
@@ -163,9 +165,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      // Splash & Onboarding
-      GoRoute(path: '/splash',     builder: (_, __) => const SplashScreen()),
-      GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
+      // Splash, Country Selection & Onboarding
+      GoRoute(path: '/splash',         builder: (_, __) => const SplashScreen()),
+      GoRoute(path: '/country-select', builder: (_, __) => const CountrySelectionScreen()),
+      GoRoute(path: '/onboarding',     builder: (_, __) => const OnboardingScreen()),
 
       // Auth routes
       GoRoute(path: '/auth/login',    builder: (_, __) => const LoginScreen()),

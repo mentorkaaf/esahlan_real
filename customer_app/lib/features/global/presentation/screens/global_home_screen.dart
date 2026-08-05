@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/global_provider.dart';
 import '../../data/models/global_models.dart';
 import '../widgets/global_product_card.dart';
+import '../../../../core/widgets/smart_location_banner.dart';
 
 class GlobalHomeScreen extends ConsumerStatefulWidget {
   const GlobalHomeScreen({super.key});
@@ -34,7 +35,9 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),
-      body: CustomScrollView(
+      body: Stack(
+        children: [
+          CustomScrollView(
         slivers: [
           // App Bar
           SliverAppBar(
@@ -235,6 +238,10 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
               ],
             ),
           ),
+        ],
+      ),
+          // Smart banner: detects if global user is now in Somalia → suggest Local
+          const SmartLocationBanner(isLocalApp: false),
         ],
       ),
     );

@@ -16,6 +16,7 @@ import '../../../gamification/gamification_screen.dart';
 import 'legal_page_screen.dart';
 import '../../../rewards/tier_widgets.dart';
 import '../../../rewards/rewards_provider.dart';
+import '../../../auth/presentation/screens/country_selection_screen.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const _kNavy   = Color(0xFF07003B);
@@ -232,6 +233,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               _buildPreferencesSection(context, settings, isDark),
               const SizedBox(height: 12),
               _buildSupportSection(context, isDark),
+              const SizedBox(height: 12),
+              _buildChangeRegion(context, isDark),
               const SizedBox(height: 12),
               _buildSignOut(context, isDark),
               Padding(
@@ -914,6 +917,69 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _NavRow(icon: Icons.star_rate_rounded,      iconColor: const Color(0xFFF59E0B), label: 'Rate eSahlan',     isDark: isDark, onTap: () {}),
         const SizedBox(height: 4),
       ])),
+    );
+  }
+
+  // ── Change Region ─────────────────────────────────────────────────────────────
+
+  Widget _buildChangeRegion(BuildContext context, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        onTap: () async {
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Row(children: [
+                Text('🌍', style: TextStyle(fontSize: 22)),
+                SizedBox(width: 10),
+                Text('Change Region', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+              ]),
+              content: const Text(
+                'This will take you to the region selector. Your current session will be kept.',
+                style: TextStyle(fontSize: 13, height: 1.5),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Change', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          );
+          if (confirm == true && context.mounted) {
+            await saveCountrySelection(null); // clear saved selection
+            context.go('/country-select');
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0A1628) : const Color(0xFFF0F4FF),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF3B82F6).withAlpha(60)),
+          ),
+          child: Row(children: [
+            Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFF3B82F6).withAlpha(20),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: const Icon(Icons.public_rounded, color: Color(0xFF3B82F6), size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Change Region', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+              Text('Switch between Somalia & Global store',
+                style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black45)),
+            ])),
+            const Icon(Icons.chevron_right_rounded, color: Color(0xFF3B82F6), size: 20),
+          ]),
+        ),
+      ),
     );
   }
 

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/providers/community_feature_provider.dart';
 import '../../../../core/services/realtime_client.dart';
+import '../../../../core/widgets/smart_location_banner.dart';
 import '../providers/home_provider.dart';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -117,7 +118,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       );
     }
 
-    // ── Mobile layout (unchanged) ─────────────────────────────────────────────
+    // ── Mobile layout ─────────────────────────────────────────────────────────
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -128,7 +129,13 @@ class _MainShellState extends ConsumerState<MainShell> {
       child: Scaffold(
         backgroundColor: _kBg,
         extendBody: showBar,
-        body: widget.child,
+        body: Stack(
+          children: [
+            widget.child,
+            // Smart banner: detects if local user is now abroad → suggest Global
+            const SmartLocationBanner(isLocalApp: true),
+          ],
+        ),
         bottomNavigationBar: showBar
             ? _FloatingNavBar(selectedIndex: idx, location: location, destinations: dests)
             : null,

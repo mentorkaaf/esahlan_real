@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_assets.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
+import '../../../../core/services/country_detection_service.dart';
+import 'country_selection_screen.dart';
 import '../../../../core/services/realtime_client.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -64,58 +65,67 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _textCtrl.forward();
   }
 
-  /// Returns true if the user's device IP is outside Somalia.
-  /// Defaults to false (show Somalia app) on any network error.
-  Future<bool> _isNonSomaliaUser() async {
-    try {
-      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 4)));
-      final res = await dio.get('https://ipapi.co/json/');
-      if (res.statusCode == 200) {
-        final data = res.data as Map<String, dynamic>;
-        final country = data['country_code'] as String? ?? 'SO';
-        return country != 'SO';
-      }
-    } catch (_) {
-      // On error, default to Somalia app (safe fallback)
-    }
-    return false;
-  }
-
   Future<void> _navigate() async {
-    // Run IP detection and splash animation concurrently
+    // Run country check + minimum splash delay concurrently.
     final results = await Future.wait([
-      _isNonSomaliaUser(),
+      _resolveDestination(),
       Future.delayed(const Duration(milliseconds: 3000)),
     ]);
     if (!mounted) return;
+    final destination = results[0] as String;
+    context.go(destination);
+  }
 
-    final isNonSomalia = results[0] as bool;
-
-    // Non-Somalia IP → skip local auth, go directly to global store
-    if (isNonSomalia) {
-      context.go('/global');
-      return;
+  /// Determines where to send the user after splash.
+  ///
+  /// Priority order:
+  ///   1. User previously chose a country manually → honour it (permanent cache).
+  ///   2. IP detection confident → auto-route, skip selector (good UX).
+  ///   3. IP detection uncertain (offline / failed) → show country selector.
+  Future<String> _resolveDestination() async {
+    // ── 1. Returning user — they already picked a country before ─────────────
+    final saved = await getSavedCountrySelection();
+    if (saved != null) {
+      return _destinationForCode(saved);
     }
 
-    // Somalia flow — normal auth check
-    final token          = await LocalStorage.getToken();
-    final onboardingDone = await LocalStorage.getBool('onboarding_done');
-    if (!mounted) return;
-    if (!onboardingDone) {
-      context.go('/onboarding');
-    } else if (token != null) {
-      RealtimeClient.instance.connect();
-      // Set the "is this message mine" id source for chat as early as
-      // possible — without this, every chat bubble renders as "theirs"
-      // (wrong side, wrong color) until something else happens to populate it.
-      ref.read(communityMyProfileProvider.future).then(
-        (me) => MessagesNotifier.setMyId(me.id),
-        onError: (_) {},
-      );
-      context.go('/home');
-    } else {
-      context.go('/auth/login');
+    // ── 2. First launch — try IP detection to skip the selector ──────────────
+    // Run IP detection with a hard 6s cap. If it returns a confident answer
+    // we auto-route the user without showing the selector (less friction).
+    // If it times out or fails we fall through to the selector.
+    try {
+      final isInternational = await CountryDetectionService.isInternationalUser()
+          .timeout(const Duration(seconds: 6));
+
+      // IP detection succeeded → save result and route automatically
+      final code = isInternational ? 'OTHER' : 'SO';
+      await saveCountrySelection(code);
+      return _destinationForCode(code);
+    } catch (_) {
+      // Detection failed / timed out → show selector so user can choose manually
+      return '/country-select';
     }
+  }
+
+  /// Maps a saved country code to the correct initial route.
+  Future<String> _destinationForCode(String code) async {
+    if (code == 'SO') {
+      // Somalia local flow — check auth
+      final token          = await LocalStorage.getToken();
+      final onboardingDone = await LocalStorage.getBool('onboarding_done');
+      if (!onboardingDone) return '/onboarding';
+      if (token != null) {
+        RealtimeClient.instance.connect();
+        ref.read(communityMyProfileProvider.future).then(
+          (me) => MessagesNotifier.setMyId(me.id),
+          onError: (_) {},
+        );
+        return '/home';
+      }
+      return '/auth/login';
+    }
+    // Any other code (US, GB, OTHER…) → global store
+    return '/global';
   }
 
   @override
