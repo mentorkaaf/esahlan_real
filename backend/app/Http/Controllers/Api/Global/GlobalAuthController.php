@@ -11,6 +11,9 @@ use Illuminate\Validation\ValidationException;
 
 class GlobalAuthController extends Controller
 {
+    // Sanctum guard name for global users
+    private const GUARD = 'global_users';
+
     public function register(Request $request)
     {
         $data = $request->validate([
@@ -36,7 +39,7 @@ class GlobalAuthController extends Controller
             'fcm_token' => $data['fcm_token'] ?? null,
         ]);
 
-        // Save default address — use actual DB column names
+        // Save default address
         GlobalAddress::create([
             'global_user_id' => $user->id,
             'name'           => $data['name'],
@@ -57,7 +60,7 @@ class GlobalAuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'user'  => $this->userResource($user),
+            'user'  => $this->userResource($user->load('addresses')),
         ], 201);
     }
 
@@ -79,7 +82,8 @@ class GlobalAuthController extends Controller
             return response()->json(['message' => 'Account suspended. Contact support.'], 403);
         }
 
-        if ($data['fcm_token']) {
+        // Update FCM token if provided
+        if (!empty($data['fcm_token'])) {
             $user->update(['fcm_token' => $data['fcm_token']]);
         }
 
@@ -93,20 +97,20 @@ class GlobalAuthController extends Controller
 
     public function logout(Request $request)
     {
-        $request->user('global')->currentAccessToken()->delete();
+        $request->user(self::GUARD)->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out.']);
     }
 
     public function me(Request $request)
     {
         return response()->json([
-            'user' => $this->userResource($request->user('global')->load('addresses')),
+            'user' => $this->userResource($request->user(self::GUARD)->load('addresses')),
         ]);
     }
 
     public function updateProfile(Request $request)
     {
-        $user = $request->user('global');
+        $user = $request->user(self::GUARD);
         $data = $request->validate([
             'name'      => 'sometimes|string|max:100',
             'phone'     => 'sometimes|nullable|string|max:20',
@@ -119,7 +123,7 @@ class GlobalAuthController extends Controller
 
     public function addAddress(Request $request)
     {
-        $user = $request->user('global');
+        $user = $request->user(self::GUARD);
         $data = $request->validate([
             'name'          => 'required|string',
             'phone'         => 'nullable|string',
@@ -136,7 +140,20 @@ class GlobalAuthController extends Controller
             GlobalAddress::where('global_user_id', $user->id)->update(['is_default' => false]);
         }
 
-        $address = GlobalAddress::create(['global_user_id' => $user->id] + $data);
+        $address = GlobalAddress::create([
+            'global_user_id' => $user->id,
+            'address_line1'  => $data['address_line1'],
+            'address_line2'  => $data['address_line2'] ?? null,
+            'city'           => $data['city'],
+            'state'          => $data['state'] ?? null,
+            'zip_code'       => $data['zip'],
+            'zip'            => $data['zip'],
+            'country_code'   => $data['country'],
+            'country'        => $data['country'],
+            'name'           => $data['name'],
+            'phone'          => $data['phone'] ?? null,
+            'is_default'     => $request->boolean('is_default', false),
+        ]);
 
         return response()->json(['address' => $address], 201);
     }
@@ -150,7 +167,7 @@ class GlobalAuthController extends Controller
             'phone'     => $user->phone,
             'avatar'    => $user->avatar,
             'country'   => $user->country,
-            'addresses' => $user->addresses ?? [],
+            'addresses' => $user->relationLoaded('addresses') ? $user->addresses : [],
         ];
     }
 }

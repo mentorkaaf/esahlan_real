@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Api\Global;
 
@@ -25,7 +25,7 @@ class GlobalCheckoutController extends Controller
     /** GET /checkout/summary */
     public function summary(Request $request)
     {
-        $userId = $request->user('global')->id;
+        $userId = $request->user('global_users')->id;
         $items  = DB::table('global_cart_items as c')
             ->join('global_products as p', 'p.id', '=', 'c.global_product_id')
             ->where('c.global_user_id', $userId)
@@ -37,7 +37,7 @@ class GlobalCheckoutController extends Controller
         }
 
         $subtotal = $items->sum(fn($i) => $i->price * $i->quantity);
-        $country  = $request->query('country', $request->user('global')->country ?? 'US');
+        $country  = $request->query('country', $request->user('global_users')->country ?? 'US');
         $shipping = $this->calcShipping($country, $subtotal);
 
         return response()->json([
@@ -63,7 +63,7 @@ class GlobalCheckoutController extends Controller
             'notes'             => 'nullable|string',
         ]);
 
-        $user   = $request->user('global');
+        $user   = $request->user('global_users');
         $userId = $user->id;
 
         [$order, $total] = $this->createPendingOrder($userId, $data, $user);
@@ -107,7 +107,7 @@ class GlobalCheckoutController extends Controller
             'notes'             => 'nullable|string',
         ]);
 
-        $user   = $request->user('global');
+        $user   = $request->user('global_users');
         $userId = $user->id;
 
         [$order, $total] = $this->createPendingOrder($userId, $data, $user);

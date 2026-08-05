@@ -25,7 +25,7 @@ class GlobalProductsController extends Controller
         }
 
         if ($request->category_id) {
-            $query->where('global_category_id', $request->category_id);
+            $query->where('category_id', $request->category_id);
         }
 
         if ($request->min_price) {
@@ -69,7 +69,7 @@ class GlobalProductsController extends Controller
         $product->increment('views_count');
 
         // Related products
-        $related = GlobalProduct::where('global_category_id', $product->global_category_id)
+        $related = GlobalProduct::where('category_id', $product->category_id)
             ->where('id', '!=', $id)
             ->where('is_active', true)
             ->limit(8)

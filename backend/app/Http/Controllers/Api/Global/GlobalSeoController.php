@@ -64,7 +64,7 @@ class GlobalSeoController extends Controller
         $products = GlobalProduct::where('is_active', true)
             ->orderBy('created_at', 'desc')
             ->limit(50)
-            ->get(['id', 'name', 'price', 'thumbnail', 'global_category_id']);
+            ->get(['id', 'name', 'price', 'thumbnail', 'category_id']);
 
         $categories = GlobalCategory::where('is_active', true)->get(['id', 'name']);
 

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Api\Global;
 
@@ -11,7 +11,7 @@ class GlobalOrdersController extends Controller
     public function index(Request $request)
     {
         $orders = GlobalOrder::with(['items'])
-            ->where('global_user_id', $request->user('global')->id)
+            ->where('global_user_id', $request->user('global_users')->id)
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
@@ -28,7 +28,7 @@ class GlobalOrdersController extends Controller
     public function show(Request $request, $id)
     {
         $order = GlobalOrder::with(['items.product', 'payments'])
-            ->where('global_user_id', $request->user('global')->id)
+            ->where('global_user_id', $request->user('global_users')->id)
             ->findOrFail($id);
 
         return response()->json(['order' => $this->orderDetail($order)]);

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Api\Global;
 
@@ -11,7 +11,7 @@ class GlobalCartController extends Controller
 {
     public function index(Request $request)
     {
-        $userId = $request->user('global')->id;
+        $userId = $request->user('global_users')->id;
         $items  = $this->getCartItems($userId);
         return response()->json($this->cartSummary($items));
     }
@@ -29,7 +29,7 @@ class GlobalCartController extends Controller
             return response()->json(['message' => 'Product not available.'], 422);
         }
 
-        $userId   = $request->user('global')->id;
+        $userId   = $request->user('global_users')->id;
         $qty      = $data['quantity'] ?? 1;
         $variant  = $data['variant'] ?? null;
 
@@ -62,7 +62,7 @@ class GlobalCartController extends Controller
     public function update(Request $request, $id)
     {
         $data = $request->validate(['quantity' => 'required|integer|min:1|max:100']);
-        $userId = $request->user('global')->id;
+        $userId = $request->user('global_users')->id;
 
         DB::table('global_cart_items')
             ->where('id', $id)
@@ -75,7 +75,7 @@ class GlobalCartController extends Controller
 
     public function remove(Request $request, $id)
     {
-        $userId = $request->user('global')->id;
+        $userId = $request->user('global_users')->id;
         DB::table('global_cart_items')
             ->where('id', $id)
             ->where('global_user_id', $userId)
@@ -87,7 +87,7 @@ class GlobalCartController extends Controller
 
     public function clear(Request $request)
     {
-        $userId = $request->user('global')->id;
+        $userId = $request->user('global_users')->id;
         DB::table('global_cart_items')->where('global_user_id', $userId)->delete();
         return response()->json(['items' => [], 'subtotal' => 0, 'count' => 0]);
     }
