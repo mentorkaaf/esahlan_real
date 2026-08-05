@@ -26,14 +26,25 @@ return new class extends Migration
             DB::statement('ALTER TABLE global_addresses MODIFY last_name VARCHAR(100) NULL DEFAULT NULL');
         }
 
-        // ── global_addresses: make state nullable (not always required) ───────
+        // ── global_addresses: make state nullable ────────────────────────────
         if (Schema::hasColumn('global_addresses', 'state')) {
             DB::statement('ALTER TABLE global_addresses MODIFY state VARCHAR(100) NULL DEFAULT NULL');
         }
-
         // ── global_addresses: make phone nullable ─────────────────────────────
         if (Schema::hasColumn('global_addresses', 'phone')) {
             DB::statement('ALTER TABLE global_addresses MODIFY phone VARCHAR(30) NULL DEFAULT NULL');
+        }
+        // ── global_addresses: make zip_code nullable ──────────────────────────
+        if (Schema::hasColumn('global_addresses', 'zip_code')) {
+            DB::statement('ALTER TABLE global_addresses MODIFY zip_code VARCHAR(255) NULL DEFAULT NULL');
+        }
+        // ── global_addresses: make country_name nullable ──────────────────────
+        if (Schema::hasColumn('global_addresses', 'country_name')) {
+            DB::statement('ALTER TABLE global_addresses MODIFY country_name VARCHAR(255) NULL DEFAULT NULL');
+        }
+        // ── global_addresses: make country_code nullable ──────────────────────
+        if (Schema::hasColumn('global_addresses', 'country_code')) {
+            DB::statement('ALTER TABLE global_addresses MODIFY country_code VARCHAR(2) NULL DEFAULT NULL');
         }
     }
 

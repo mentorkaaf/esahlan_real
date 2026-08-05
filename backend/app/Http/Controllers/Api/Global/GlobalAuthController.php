@@ -36,16 +36,19 @@ class GlobalAuthController extends Controller
             'fcm_token' => $data['fcm_token'] ?? null,
         ]);
 
-        // Save default address
+        // Save default address — use actual DB column names
         GlobalAddress::create([
             'global_user_id' => $user->id,
             'name'           => $data['name'],
+            'label'          => 'Home',
             'phone'          => $data['phone'] ?? null,
             'address_line1'  => $data['address_line1'],
             'address_line2'  => $data['address_line2'] ?? null,
             'city'           => $data['city'],
             'state'          => $data['state'] ?? null,
+            'zip_code'       => $data['zip'],
             'zip'            => $data['zip'],
+            'country_code'   => $data['country'],
             'country'        => $data['country'],
             'is_default'     => true,
         ]);
