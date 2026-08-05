@@ -13,12 +13,12 @@
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px">
     @php
     $kpis = [
-        ['label'=>'Total Orders',    'value'=>number_format($stats['orders_total']),   'icon'=>'fa-shopping-cart','color'=>'#6366f1','sub'=>$stats['orders_today'].' today'],
-        ['label'=>'This Month',      'value'=>number_format($stats['orders_month']),   'icon'=>'fa-calendar',     'color'=>'#10b981','sub'=>'orders'],
-        ['label'=>'Total Revenue',   'value'=>'$'.number_format($stats['revenue'],2),  'icon'=>'fa-dollar-sign',  'color'=>'#f59e0b','sub'=>'all time'],
-        ['label'=>'Global Users',    'value'=>number_format($stats['users']),           'icon'=>'fa-globe',        'color'=>'#3b82f6','sub'=>'registered'],
-        ['label'=>'Total Products',  'value'=>number_format($stats['products']),        'icon'=>'fa-box',          'color'=>'#8b5cf6','sub'=>'in catalog'],
-        ['label'=>'Low Stock',       'value'=>number_format($stats['low_stock']),       'icon'=>'fa-exclamation-triangle','color'=>'#ef4444','sub'=>'need restock'],
+        ['label'=>'Total Orders',    'value'=>number_format($stats['total_orders']),      'icon'=>'fa-shopping-cart','color'=>'#6366f1','sub'=>$stats['orders_today'].' today'],
+        ['label'=>'This Month',      'value'=>number_format($stats['orders_this_month']), 'icon'=>'fa-calendar',     'color'=>'#10b981','sub'=>'orders'],
+        ['label'=>'Total Revenue',   'value'=>'$'.number_format($stats['total_revenue'],2),'icon'=>'fa-dollar-sign', 'color'=>'#f59e0b','sub'=>'all time'],
+        ['label'=>'Global Users',    'value'=>number_format($stats['total_users']),        'icon'=>'fa-globe',        'color'=>'#3b82f6','sub'=>'registered'],
+        ['label'=>'Total Products',  'value'=>number_format($stats['total_products']),     'icon'=>'fa-box',          'color'=>'#8b5cf6','sub'=>'in catalog'],
+        ['label'=>'Low Stock',       'value'=>number_format($stats['low_stock']),          'icon'=>'fa-exclamation-triangle','color'=>'#ef4444','sub'=>'need restock'],
     ];
     @endphp
     @foreach($kpis as $k)
@@ -88,13 +88,13 @@
         </div>
         <div style="padding:20px">
             @php
-            $maxRev = max(array_column($revenueChart, 'revenue') ?: [1]);
+            $maxRev = max($revenueChart->pluck('total')->toArray() ?: [1]);
             @endphp
             <div style="display:flex;align-items:flex-end;gap:10px;height:140px">
                 @foreach($revenueChart as $day)
-                @php $h = $maxRev > 0 ? max(4, ($day['revenue']/$maxRev)*120) : 4; @endphp
+                @php $h = $maxRev > 0 ? max(4, ($day['total']/$maxRev)*120) : 4; @endphp
                 <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
-                    <div style="font-size:10px;font-weight:700;color:#374151">${{ number_format($day['revenue'],0) }}</div>
+                    <div style="font-size:10px;font-weight:700;color:#374151">${{ number_format($day['total'],0) }}</div>
                     <div style="width:100%;background:linear-gradient(to top,#6366f1,#818cf8);border-radius:4px 4px 0 0;height:{{ $h }}px;min-height:4px"></div>
                     <div style="font-size:10px;color:#9ca3af">{{ \Carbon\Carbon::parse($day['date'])->format('M d') }}</div>
                 </div>
