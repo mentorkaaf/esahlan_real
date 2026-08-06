@@ -430,7 +430,7 @@ class _GlobalProductDetailScreenState
                   onPressed: p.inStock
                       ? () async {
                           await _addToCart(p);
-                          if (mounted) context.push('/global/cart');
+                          if (mounted) context.push('/global/checkout');
                         }
                       : null,
                   style: ElevatedButton.styleFrom(

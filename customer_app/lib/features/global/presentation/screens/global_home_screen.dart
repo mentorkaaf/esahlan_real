@@ -95,7 +95,7 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
                                   fontWeight: FontWeight.w800,
                                   color: Color(0xFF1A1A2E))),
                         ),
-                        onPressed: () => context.push('/global/orders'),
+                        onPressed: () => context.go('/global/profile'),
                       )
                     : IconButton(
                         icon: const Icon(Icons.person_outline,

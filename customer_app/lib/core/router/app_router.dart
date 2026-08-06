@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../api/api_client.dart' show bannedNotifier;
 
 // Global Store screens
+import '../../features/global/presentation/screens/global_shell.dart';
 import '../../features/global/presentation/screens/global_home_screen.dart';
 import '../../features/global/presentation/screens/global_auth_screen.dart';
 import '../../features/global/presentation/screens/global_products_screen.dart';
@@ -12,6 +13,7 @@ import '../../features/global/presentation/screens/global_product_detail_screen.
 import '../../features/global/presentation/screens/global_cart_screen.dart';
 import '../../features/global/presentation/screens/global_checkout_screen.dart';
 import '../../features/global/presentation/screens/global_orders_screen.dart';
+import '../../features/global/presentation/screens/global_profile_screen.dart';
 
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/country_selection_screen.dart';
@@ -388,36 +390,57 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // ── Global eCommerce Store ──────────────────────────────────────────────
-      GoRoute(path: '/global', builder: (_, __) => const GlobalHomeScreen()),
+      // Auth (no shell/nav bar)
       GoRoute(
         path: '/global/auth',
         builder: (_, state) => GlobalAuthScreen(
             isLogin: state.uri.queryParameters['mode'] != 'register'),
       ),
+      // Checkout (no shell)
       GoRoute(
-        path: '/global/products',
-        builder: (_, state) => GlobalProductsScreen(
-          categoryId: int.tryParse(
-              state.uri.queryParameters['category_id'] ?? ''),
-          query: state.uri.queryParameters['q'],
-        ),
-      ),
+          path: '/global/checkout',
+          builder: (_, __) => const GlobalCheckoutScreen()),
+      // Product detail (full-screen, no shell)
       GoRoute(
         path: '/global/product/:id',
         builder: (_, state) => GlobalProductDetailScreen(
             productId: int.parse(state.pathParameters['id']!)),
       ),
-      GoRoute(path: '/global/cart', builder: (_, __) => const GlobalCartScreen()),
-      GoRoute(
-          path: '/global/checkout',
-          builder: (_, __) => const GlobalCheckoutScreen()),
-      GoRoute(
-          path: '/global/orders',
-          builder: (_, __) => const GlobalOrdersScreen()),
+      // Order detail (full-screen, no shell)
       GoRoute(
         path: '/global/order/:id',
         builder: (_, state) => GlobalOrderDetailScreen(
             orderId: int.parse(state.pathParameters['id']!)),
+      ),
+      // Shell: tabs with bottom nav
+      ShellRoute(
+        builder: (_, __, child) => GlobalShell(child: child),
+        routes: [
+          GoRoute(
+            path: '/global',
+            builder: (_, __) => const GlobalHomeScreen(),
+          ),
+          GoRoute(
+            path: '/global/products',
+            builder: (_, state) => GlobalProductsScreen(
+              categoryId: int.tryParse(
+                  state.uri.queryParameters['category_id'] ?? ''),
+              query: state.uri.queryParameters['q'],
+            ),
+          ),
+          GoRoute(
+            path: '/global/cart',
+            builder: (_, __) => const GlobalCartScreen(),
+          ),
+          GoRoute(
+            path: '/global/orders',
+            builder: (_, __) => const GlobalOrdersScreen(),
+          ),
+          GoRoute(
+            path: '/global/profile',
+            builder: (_, __) => const GlobalProfileScreen(),
+          ),
+        ],
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
