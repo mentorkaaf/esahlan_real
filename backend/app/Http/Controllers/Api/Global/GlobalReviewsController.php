@@ -91,8 +91,8 @@ class GlobalReviewsController extends Controller
             'rating'            => $data['rating'],
             'title'             => $data['title'] ?? null,
             'body'              => $data['body'] ?? null,
-            'is_approved'       => true,   // auto-approve; admin can moderate later
-            'is_verified'       => $purchased,
+            'is_approved'            => true,   // auto-approve; admin can moderate later
+            'is_verified_purchase'   => $purchased,
             'created_at'        => now(),
             'updated_at'        => now(),
         ]);

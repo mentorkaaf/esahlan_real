@@ -199,21 +199,7 @@ class _GlobalProductsScreenState extends ConsumerState<GlobalProductsScreen> {
                   },
                 );
               },
-              loading: () => GridView.builder(
-                padding: const EdgeInsets.all(12),
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 0.7,
-                ),
-                itemCount: 8,
-                itemBuilder: (_, __) => Container(
-                    decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(12))),
-              ),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(
                   child: Column(
                 mainAxisSize: MainAxisSize.min,
