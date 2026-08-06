@@ -56,14 +56,14 @@ class GlobalCheckoutController extends Controller
     {
         $data = $request->validate([
             'address_id'    => 'nullable|integer',
-            'first_name'    => 'required_without:address_id|string',
-            'last_name'     => 'required_without:address_id|string',
-            'address_line1' => 'required_without:address_id|string',
-            'city'          => 'required_without:address_id|string',
-            'zip'           => 'nullable|string',
-            'country_code'  => 'required_without:address_id|string|size:2',
-            'country_name'  => 'required_without:address_id|string',
-            'notes'         => 'nullable|string',
+            'first_name'    => 'required_without:address_id|nullable|string|max:100',
+            'last_name'     => 'nullable|string|max:100',
+            'address_line1' => 'required_without:address_id|nullable|string|max:255',
+            'city'          => 'required_without:address_id|nullable|string|max:100',
+            'zip'           => 'nullable|string|max:20',
+            'country_code'  => 'nullable|string|max:50',  // Accept full name or code; normalized in createPendingOrder
+            'country_name'  => 'nullable|string|max:100',
+            'notes'         => 'nullable|string|max:1000',
         ]);
 
         $user  = $request->user('global_users');
@@ -96,14 +96,14 @@ class GlobalCheckoutController extends Controller
     {
         $data = $request->validate([
             'address_id'    => 'nullable|integer',
-            'first_name'    => 'required_without:address_id|string',
-            'last_name'     => 'required_without:address_id|string',
-            'address_line1' => 'required_without:address_id|string',
-            'city'          => 'required_without:address_id|string',
-            'zip'           => 'nullable|string',
-            'country_code'  => 'required_without:address_id|string|size:2',
-            'country_name'  => 'required_without:address_id|string',
-            'notes'         => 'nullable|string',
+            'first_name'    => 'required_without:address_id|nullable|string|max:100',
+            'last_name'     => 'nullable|string|max:100',
+            'address_line1' => 'required_without:address_id|nullable|string|max:255',
+            'city'          => 'required_without:address_id|nullable|string|max:100',
+            'zip'           => 'nullable|string|max:20',
+            'country_code'  => 'nullable|string|max:50',  // Accept full name or code; normalized in createPendingOrder
+            'country_name'  => 'nullable|string|max:100',
+            'notes'         => 'nullable|string|max:1000',
             'return_url'    => 'nullable|string',
             'cancel_url'    => 'nullable|string',
         ]);
@@ -235,14 +235,16 @@ class GlobalCheckoutController extends Controller
                 $data['address_line1'] = $addr->address_line1;
                 $data['city']          = $addr->city;
                 $data['zip']           = $addr->zip ?? null;
-                $data['country_code']  = strtoupper($addr->country ?? 'US');
+                $rawCountry            = strtoupper(trim($addr->country ?? 'US'));
+                $data['country_code']  = strlen($rawCountry) === 2 ? $rawCountry : substr($rawCountry, 0, 2);
                 $data['country_name']  = $addr->country_name ?? $addr->country ?? 'United States';
             }
         }
 
-        $subtotal = $items->sum(fn($i) => $i->price_snapshot * $i->quantity);
-        $country  = strtoupper($data['country_code'] ?? $user->country ?? 'US');
-        $shipping = $this->calcShipping($country, $subtotal);
+        $subtotal    = $items->sum(fn($i) => $i->price_snapshot * $i->quantity);
+        $rawCountry  = strtoupper(trim($data['country_code'] ?? $user->country ?? 'US'));
+        $country     = strlen($rawCountry) === 2 ? $rawCountry : substr($rawCountry, 0, 2);
+        $shipping    = $this->calcShipping($country, $subtotal);
         $total    = round($subtotal + $shipping['amount'], 2);
 
         $nameParts = explode(' ', $user->name ?? 'Guest', 2);
