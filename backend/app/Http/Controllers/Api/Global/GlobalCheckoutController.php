@@ -69,12 +69,13 @@ class GlobalCheckoutController extends Controller
         $user  = $request->user('global_users');
 
         // Cancel any stale pending stripe orders to avoid duplicates
+        // payment_status ENUM: pending|paid|failed|refunded (no 'cancelled')
         GlobalOrder::where('global_user_id', $user->id)
             ->where('status', 'pending')
             ->where('payment_method', 'stripe')
             ->where('payment_status', 'pending')
             ->where('created_at', '<', now()->subMinutes(30))
-            ->update(['status' => 'cancelled', 'payment_status' => 'cancelled']);
+            ->update(['status' => 'cancelled', 'payment_status' => 'failed']);
 
         $order = $this->createPendingOrder($user, $data, 'stripe');
 
