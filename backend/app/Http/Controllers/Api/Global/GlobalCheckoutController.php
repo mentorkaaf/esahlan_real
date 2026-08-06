@@ -67,6 +67,15 @@ class GlobalCheckoutController extends Controller
         ]);
 
         $user  = $request->user('global_users');
+
+        // Cancel any stale pending stripe orders to avoid duplicates
+        GlobalOrder::where('global_user_id', $user->id)
+            ->where('status', 'pending')
+            ->where('payment_method', 'stripe')
+            ->where('payment_status', 'pending')
+            ->where('created_at', '<', now()->subMinutes(30))
+            ->update(['status' => 'cancelled', 'payment_status' => 'cancelled']);
+
         $order = $this->createPendingOrder($user, $data, 'stripe');
 
         $stripeData = $this->stripe->createPaymentIntent($order);
@@ -106,18 +115,16 @@ class GlobalCheckoutController extends Controller
         $returnUrl = $data['return_url'] ?? ($appUrl . '/global/orders/' . $order->id . '?success=1');
         $cancelUrl = $data['cancel_url'] ?? ($appUrl . '/global/checkout?cancelled=1');
 
+        // Service returns ['paypal_order_id' => ..., 'approve_url' => ...]
+        // and already persists paypal_order_id on the order internally
         $pp = $this->paypal->createOrder($order, $returnUrl, $cancelUrl);
-
-        $order->update(['paypal_order_id' => $pp['id']]);
-
-        $approveLink = collect($pp['links'] ?? [])->firstWhere('rel', 'approve');
 
         return response()->json([
             'order_id'     => $order->id,
             'order_number' => $order->order_number,
             'total'        => $order->total,
-            'approval_url' => $approveLink['href'] ?? null,
-            'paypal_id'    => $pp['id'],
+            'approval_url' => $pp['approve_url'] ?? null,
+            'paypal_id'    => $pp['paypal_order_id'] ?? null,
         ]);
     }
 
