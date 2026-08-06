@@ -129,6 +129,11 @@ class GlobalRepository {
     return GlobalAddress.fromJson(res['address']);
   }
 
+  Future<GlobalUser> updateAddress(int addressId, Map<String, dynamic> data) async {
+    final res = await _put('$_base/auth/addresses/$addressId', data);
+    return GlobalUser.fromJson(res['user']);
+  }
+
   // ── Products ─────────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> getProducts({

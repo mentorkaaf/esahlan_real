@@ -60,6 +60,14 @@ class GlobalAuthNotifier extends AsyncNotifier<GlobalUser?> {
     ref.invalidate(globalCartProvider);
     state = const AsyncData(null);
   }
+
+  /// Refresh user data from server (e.g. after address update)
+  Future<void> fetchMe() async {
+    try {
+      final user = await _repo.getMe();
+      state = AsyncData(user);
+    } catch (_) {}
+  }
 }
 
 // ── Products ─────────────────────────────────────────────────────────────────

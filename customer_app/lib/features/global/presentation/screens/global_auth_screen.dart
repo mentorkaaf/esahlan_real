@@ -1,7 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/global_provider.dart';
+
+// Full country list (code, flag+name)
+const _kRegCountries = [
+  ('US', '🇺🇸 United States'),
+  ('GB', '🇬🇧 United Kingdom'),
+  ('CA', '🇨🇦 Canada'),
+  ('AU', '🇦🇺 Australia'),
+  ('DE', '🇩🇪 Germany'),
+  ('FR', '🇫🇷 France'),
+  ('NL', '🇳🇱 Netherlands'),
+  ('SE', '🇸🇪 Sweden'),
+  ('NO', '🇳🇴 Norway'),
+  ('DK', '🇩🇰 Denmark'),
+  ('FI', '🇫🇮 Finland'),
+  ('CH', '🇨🇭 Switzerland'),
+  ('AT', '🇦🇹 Austria'),
+  ('BE', '🇧🇪 Belgium'),
+  ('IT', '🇮🇹 Italy'),
+  ('ES', '🇪🇸 Spain'),
+  ('PT', '🇵🇹 Portugal'),
+  ('IE', '🇮🇪 Ireland'),
+  ('NZ', '🇳🇿 New Zealand'),
+  ('SG', '🇸🇬 Singapore'),
+  ('AE', '🇦🇪 UAE'),
+  ('SA', '🇸🇦 Saudi Arabia'),
+  ('QA', '🇶🇦 Qatar'),
+  ('KW', '🇰🇼 Kuwait'),
+  ('BH', '🇧🇭 Bahrain'),
+  ('OM', '🇴🇲 Oman'),
+  ('ET', '🇪🇹 Ethiopia'),
+  ('KE', '🇰🇪 Kenya'),
+  ('NG', '🇳🇬 Nigeria'),
+  ('ZA', '🇿🇦 South Africa'),
+  ('EG', '🇪🇬 Egypt'),
+  ('SO', '🇸🇴 Somalia'),
+  ('DJ', '🇩🇯 Djibouti'),
+  ('TR', '🇹🇷 Turkey'),
+  ('IN', '🇮🇳 India'),
+  ('PK', '🇵🇰 Pakistan'),
+  ('JP', '🇯🇵 Japan'),
+  ('CN', '🇨🇳 China'),
+  ('KR', '🇰🇷 South Korea'),
+  ('MY', '🇲🇾 Malaysia'),
+  ('ID', '🇮🇩 Indonesia'),
+  ('PH', '🇵🇭 Philippines'),
+  ('TH', '🇹🇭 Thailand'),
+  ('BR', '🇧🇷 Brazil'),
+  ('MX', '🇲🇽 Mexico'),
+];
 
 class GlobalAuthScreen extends ConsumerStatefulWidget {
   final bool isLogin;
@@ -14,30 +64,36 @@ class GlobalAuthScreen extends ConsumerStatefulWidget {
 class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
-  final _loginKey = GlobalKey<FormState>();
+  final _loginKey    = GlobalKey<FormState>();
   final _registerKey = GlobalKey<FormState>();
 
-  // Login fields
+  // Login
   final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-
-  // Register fields
-  final _nameCtrl = TextEditingController();
-  final _regEmailCtrl = TextEditingController();
-  final _regPassCtrl = TextEditingController();
-  final _regPassConfirmCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  final _addr1Ctrl = TextEditingController();
-  final _cityCtrl = TextEditingController();
-  final _zipCtrl = TextEditingController();
-  String _country = 'US';
+  final _passCtrl  = TextEditingController();
   bool _obscurePass = true;
+
+  // Register — personal
+  final _nameCtrl           = TextEditingController();
+  final _regEmailCtrl       = TextEditingController();
+  final _regPassCtrl        = TextEditingController();
+  final _regPassConfirmCtrl = TextEditingController();
+  final _regPhoneCtrl       = TextEditingController();
+
+  // Register — shipping address (matches checkout form exactly)
+  final _addr1Ctrl = TextEditingController();
+  final _addr2Ctrl = TextEditingController(); // Apt/Suite — optional
+  final _cityCtrl  = TextEditingController();
+  final _stateCtrl = TextEditingController(); // State/Province — optional
+  final _zipCtrl   = TextEditingController(); // optional
+  String _country  = 'US';
+
   bool _loading = false;
 
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 2, vsync: this, initialIndex: widget.isLogin ? 0 : 1);
+    _tab = TabController(
+        length: 2, vsync: this, initialIndex: widget.isLogin ? 0 : 1);
   }
 
   @override
@@ -49,9 +105,11 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
     _regEmailCtrl.dispose();
     _regPassCtrl.dispose();
     _regPassConfirmCtrl.dispose();
-    _phoneCtrl.dispose();
+    _regPhoneCtrl.dispose();
     _addr1Ctrl.dispose();
+    _addr2Ctrl.dispose();
     _cityCtrl.dispose();
+    _stateCtrl.dispose();
     _zipCtrl.dispose();
     super.dispose();
   }
@@ -79,14 +137,16 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
     }
     setState(() => _loading = true);
     final ok = await ref.read(globalAuthProvider.notifier).register({
-      'name': _nameCtrl.text.trim(),
-      'email': _regEmailCtrl.text.trim(),
-      'password': _regPassCtrl.text,
+      'name':                  _nameCtrl.text.trim(),
+      'email':                 _regEmailCtrl.text.trim(),
+      'password':              _regPassCtrl.text,
       'password_confirmation': _regPassConfirmCtrl.text,
-      'phone': _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+      'phone':  _regPhoneCtrl.text.trim().isEmpty ? null : _regPhoneCtrl.text.trim(),
       'address_line1': _addr1Ctrl.text.trim(),
-      'city': _cityCtrl.text.trim(),
-      'zip': _zipCtrl.text.trim(),
+      'address_line2': _addr2Ctrl.text.trim().isEmpty ? null : _addr2Ctrl.text.trim(),
+      'city':    _cityCtrl.text.trim(),
+      'state':   _stateCtrl.text.trim().isEmpty ? null : _stateCtrl.text.trim(),
+      'zip':     _zipCtrl.text.trim().isEmpty ? null : _zipCtrl.text.trim(),
       'country': _country,
     });
     setState(() => _loading = false);
@@ -106,7 +166,6 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),
       body: SafeArea(
@@ -141,7 +200,8 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
                 indicatorColor: const Color(0xFFF59E0B),
                 labelColor: Colors.white,
                 unselectedLabelColor: Colors.white54,
-                labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                labelStyle:
+                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
               ),
             ]),
           ),
@@ -156,6 +216,8 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
       ),
     );
   }
+
+  // ── Login ──────────────────────────────────────────────────────────────────
 
   Widget _loginForm() {
     return SingleChildScrollView(
@@ -180,7 +242,8 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
                 icon: Icon(
                     _obscurePass ? Icons.visibility_off : Icons.visibility,
                     size: 20),
-                onPressed: () => setState(() => _obscurePass = !_obscurePass),
+                onPressed: () =>
+                    setState(() => _obscurePass = !_obscurePass),
               ),
               validator: (v) => v!.isEmpty ? 'Required' : null),
           const SizedBox(height: 24),
@@ -191,7 +254,8 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
               onPressed: _loading ? null : _doLogin,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A1A2E),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: _loading
                   ? const SizedBox(
@@ -200,7 +264,9 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
                           color: Colors.white, strokeWidth: 2))
                   : const Text('Sign In',
                       style: TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 15, color: Colors.white)),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: Colors.white)),
             ),
           ),
           const SizedBox(height: 16),
@@ -227,22 +293,9 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
     );
   }
 
-  Widget _registerForm() {
-    final countries = const [
-      ('US', '🇺🇸 United States'),
-      ('GB', '🇬🇧 United Kingdom'),
-      ('DE', '🇩🇪 Germany'),
-      ('FR', '🇫🇷 France'),
-      ('CA', '🇨🇦 Canada'),
-      ('AU', '🇦🇺 Australia'),
-      ('NL', '🇳🇱 Netherlands'),
-      ('NO', '🇳🇴 Norway'),
-      ('SE', '🇸🇪 Sweden'),
-      ('DK', '🇩🇰 Denmark'),
-      ('AE', '🇦🇪 UAE'),
-      ('SA', '🇸🇦 Saudi Arabia'),
-    ];
+  // ── Register ───────────────────────────────────────────────────────────────
 
+  Widget _registerForm() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Form(
@@ -256,67 +309,84 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
               style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
           const SizedBox(height: 24),
 
-          _sectionLabel('Personal Info'),
+          // ── Personal Info ─────────────────────────────────────────────────
+          _sectionLabel('PERSONAL INFO'),
+
           _field(_nameCtrl, 'Full name', Icons.person_outline,
-              validator: (v) => v!.isEmpty ? 'Required' : null),
+              textCapitalization: TextCapitalization.words,
+              validator: (v) => v!.trim().isEmpty ? 'Required' : null),
           const SizedBox(height: 12),
           _field(_regEmailCtrl, 'Email address', Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
-              validator: (v) =>
-                  v!.isEmpty ? 'Required' : (!v.contains('@') ? 'Invalid email' : null)),
+              validator: (v) => v!.isEmpty
+                  ? 'Required'
+                  : (!v.contains('@') ? 'Invalid email' : null)),
           const SizedBox(height: 12),
-          _field(_phoneCtrl, 'Phone (optional)', Icons.phone_outlined,
+          _field(_regPhoneCtrl, 'Phone (optional)', Icons.phone_outlined,
               keyboardType: TextInputType.phone),
           const SizedBox(height: 12),
           _field(_regPassCtrl, 'Password', Icons.lock_outline,
               obscure: true,
-              validator: (v) =>
-                  v!.length < 8 ? 'Min 8 characters' : null),
+              validator: (v) => v!.length < 8 ? 'Min 8 characters' : null),
           const SizedBox(height: 12),
           _field(_regPassConfirmCtrl, 'Confirm password', Icons.lock_outline,
               obscure: true,
               validator: (v) => v!.isEmpty ? 'Required' : null),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-          _sectionLabel('Shipping Address'),
-          _field(_addr1Ctrl, 'Street address', Icons.home_outlined,
-              validator: (v) => v!.isEmpty ? 'Required' : null),
+          // ── Shipping Address ──────────────────────────────────────────────
+          _sectionLabel('SHIPPING ADDRESS'),
+
+          // Street address
+          _field(_addr1Ctrl, 'Street Address *', Icons.home_outlined,
+              textCapitalization: TextCapitalization.words,
+              validator: (v) => v!.trim().isEmpty ? 'Required' : null),
           const SizedBox(height: 12),
+
+          // Apt/Suite (optional)
+          _field(_addr2Ctrl, 'Apt / Suite / Floor', Icons.business_outlined,
+              hint: 'Optional'),
+          const SizedBox(height: 12),
+
+          // City + State row
           Row(children: [
             Expanded(
-              child: _field(_cityCtrl, 'City', Icons.location_city_outlined,
-                  validator: (v) => v!.isEmpty ? 'Required' : null),
+              flex: 3,
+              child: _field(_cityCtrl, 'City *', Icons.location_city_outlined,
+                  textCapitalization: TextCapitalization.words,
+                  validator: (v) => v!.trim().isEmpty ? 'Required' : null),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _field(_zipCtrl, 'ZIP / Postal', Icons.markunread_mailbox_outlined,
-                  validator: (v) => v!.isEmpty ? 'Required' : null),
+              flex: 2,
+              child: _field(_stateCtrl, 'State / Province',
+                  Icons.map_outlined,
+                  hint: 'Optional',
+                  textCapitalization: TextCapitalization.words),
             ),
           ]),
           const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
+
+          // ZIP + Country row
+          Row(children: [
+            SizedBox(
+              width: 110,
+              child: _field(_zipCtrl, 'ZIP / Postal',
+                  Icons.markunread_mailbox_outlined,
+                  hint: 'Optional',
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                        RegExp(r'[0-9A-Za-z\- ]'))
+                  ]),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _country,
-                isExpanded: true,
-                items: countries
-                    .map((c) => DropdownMenuItem(
-                          value: c.$1,
-                          child: Text(c.$2,
-                              style: const TextStyle(fontSize: 14)),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() => _country = v!),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(width: 12),
+            Expanded(child: _CountryDropdown(
+              value: _country,
+              onChanged: (v) => setState(() => _country = v),
+            )),
+          ]),
+          const SizedBox(height: 28),
 
           SizedBox(
             width: double.infinity,
@@ -325,16 +395,18 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
               onPressed: _loading ? null : _doRegister,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFF59E0B),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: _loading
                   ? const SizedBox(
                       width: 20, height: 20,
                       child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
+                          color: Color(0xFF1A1A2E), strokeWidth: 2))
                   : const Text('Create Account',
                       style: TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
                           color: Color(0xFF1A1A2E))),
             ),
           ),
@@ -352,9 +424,11 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
     );
   }
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
   Widget _sectionLabel(String label) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Text(label.toUpperCase(),
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text(label,
             style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
@@ -364,10 +438,13 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
 
   Widget _field(
     TextEditingController ctrl,
-    String hint,
+    String label,
     IconData icon, {
+    String? hint,
     TextInputType? keyboardType,
     bool obscure = false,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+    List<TextInputFormatter>? inputFormatters,
     Widget? suffixIcon,
     String? Function(String?)? validator,
   }) {
@@ -375,9 +452,12 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
       controller: ctrl,
       obscureText: obscure,
       keyboardType: keyboardType,
+      textCapitalization: textCapitalization,
+      inputFormatters: inputFormatters,
       validator: validator,
       style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
+        labelText: label,
         hintText: hint,
         prefixIcon: Icon(icon, size: 18, color: Colors.grey.shade500),
         suffixIcon: suffixIcon,
@@ -393,11 +473,162 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
             borderSide: BorderSide(color: Colors.grey.shade200)),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF1A1A2E), width: 2)),
+            borderSide:
+                const BorderSide(color: Color(0xFF1A1A2E), width: 2)),
         errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Colors.red)),
+        labelStyle: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 12),
       ),
+    );
+  }
+}
+
+// ── Country dropdown ──────────────────────────────────────────────────────────
+
+class _CountryDropdown extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+  const _CountryDropdown({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _showSheet(context),
+      child: Container(
+        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(children: [
+          Text(
+            _kRegCountries
+                    .firstWhere((c) => c.$1 == value,
+                        orElse: () => _kRegCountries.first)
+                    .$2
+                    .split(' ')
+                    .first,
+            style: const TextStyle(fontSize: 20),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+          Icon(Icons.expand_more, size: 18, color: Colors.grey.shade400),
+        ]),
+      ),
+    );
+  }
+
+  void _showSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _CountrySheet(
+        selected: value,
+        onPick: (code) {
+          onChanged(code);
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
+}
+
+class _CountrySheet extends StatefulWidget {
+  final String selected;
+  final ValueChanged<String> onPick;
+  const _CountrySheet({required this.selected, required this.onPick});
+  @override
+  State<_CountrySheet> createState() => _CountrySheetState();
+}
+
+class _CountrySheetState extends State<_CountrySheet> {
+  String _q = '';
+  List<(String, String)> get _filtered => _q.isEmpty
+      ? _kRegCountries
+      : _kRegCountries
+          .where((c) =>
+              c.$2.toLowerCase().contains(_q.toLowerCase()) ||
+              c.$1.toLowerCase().contains(_q.toLowerCase()))
+          .toList();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.7,
+      child: Column(children: [
+        const SizedBox(height: 12),
+        Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2))),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Select Country',
+                style:
+                    TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: TextField(
+            onChanged: (v) => setState(() => _q = v),
+            decoration: InputDecoration(
+              prefixIcon:
+                  const Icon(Icons.search, size: 18, color: Colors.grey),
+              hintText: 'Search country...',
+              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide:
+                      BorderSide(color: Colors.grey.shade300)),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide:
+                      BorderSide(color: Colors.grey.shade300)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: ListView.builder(
+            itemCount: _filtered.length,
+            itemBuilder: (_, i) {
+              final c   = _filtered[i];
+              final sel = c.$1 == widget.selected;
+              return ListTile(
+                leading: Text(c.$2.split(' ').first,
+                    style: const TextStyle(fontSize: 22)),
+                title: Text(c.$2.substring(c.$2.indexOf(' ') + 1),
+                    style: TextStyle(
+                        fontWeight:
+                            sel ? FontWeight.w700 : FontWeight.w500,
+                        fontSize: 14)),
+                trailing: sel
+                    ? const Icon(Icons.check_circle_rounded,
+                        color: Color(0xFFF59E0B))
+                    : null,
+                onTap: () => widget.onPick(c.$1),
+              );
+            },
+          ),
+        ),
+      ]),
     );
   }
 }

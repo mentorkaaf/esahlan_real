@@ -17,6 +17,7 @@ import '../../features/global/presentation/screens/global_profile_screen.dart';
 import '../../features/global/presentation/screens/global_search_screen.dart';
 import '../../features/global/presentation/screens/global_write_review_screen.dart';
 import '../../features/global/presentation/screens/global_privacy_screen.dart';
+import '../../features/global/presentation/screens/global_address_screen.dart';
 
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/country_selection_screen.dart';
@@ -435,6 +436,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/global/terms',
         builder: (_, __) => const GlobalTermsScreen(),
+      ),
+      // Address management (edit/add shipping address)
+      GoRoute(
+        path: '/global/address',
+        builder: (_, __) => const GlobalAddressScreen(),
       ),
       // Shell: tabs with bottom nav
       ShellRoute(

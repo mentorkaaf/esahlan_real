@@ -278,7 +278,7 @@ class _GlobalCheckoutScreenState extends ConsumerState<GlobalCheckoutScreen> {
                 child: savedAddress != null
                     ? _SavedAddressCard(
                         address: savedAddress,
-                        onEdit: () => context.push('/global/auth'),
+                        onEdit: () => context.push('/global/address'),
                       )
                     : _AddressForm(
                         firstNameCtrl: _firstNameCtrl,
