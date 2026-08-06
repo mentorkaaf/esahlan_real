@@ -26,11 +26,11 @@ class AdminGlobalAnalyticsController extends Controller
 
         // Top products by revenue
         $topProducts = DB::table('global_order_items')
-            ->join('global_products', 'global_order_items.product_id', '=', 'global_products.id')
+            ->join('global_products', 'global_order_items.global_product_id', '=', 'global_products.id')
             ->select('global_products.name', 'global_products.thumbnail',
                 DB::raw('SUM(global_order_items.quantity) as units'),
                 DB::raw('SUM(global_order_items.total_price) as revenue'))
-            ->groupBy('global_order_items.product_id', 'global_products.name', 'global_products.thumbnail')
+            ->groupBy('global_order_items.global_product_id', 'global_products.name', 'global_products.thumbnail')
             ->orderByDesc('revenue')
             ->limit(10)
             ->get();
