@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\Global;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Controller;
 use App\Mail\Global\GlobalOrderConfirmationMail;
 use App\Models\Global\GlobalOrder;
 use App\Models\Global\GlobalOrderItem;
