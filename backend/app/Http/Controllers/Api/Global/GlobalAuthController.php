@@ -25,8 +25,8 @@ class GlobalAuthController extends Controller
             'address_line2'   => 'nullable|string|max:255',
             'city'            => 'required|string|max:100',
             'state'           => 'nullable|string|max:100',
-            'zip'             => 'required|string|max:20',
-            'country'         => 'required|string|size:2',
+            'zip'             => 'nullable|string|max:20',
+            'country'         => 'required|string|max:2',
             'fcm_token'       => 'nullable|string',
         ]);
 
@@ -131,8 +131,8 @@ class GlobalAuthController extends Controller
             'address_line2' => 'nullable|string',
             'city'          => 'required|string',
             'state'         => 'nullable|string',
-            'zip'           => 'required|string',
-            'country'       => 'required|string|size:2',
+            'zip'           => 'nullable|string|max:20',
+            'country'       => 'required|string|max:2',
             'is_default'    => 'boolean',
         ]);
 
@@ -156,6 +156,42 @@ class GlobalAuthController extends Controller
         ]);
 
         return response()->json(['address' => $address], 201);
+    }
+
+    public function updateAddress(Request $request, $addressId)
+    {
+        $user    = $request->user(self::GUARD);
+        $address = GlobalAddress::where('id', $addressId)
+            ->where('global_user_id', $user->id)
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'name'          => 'required|string|max:100',
+            'phone'         => 'nullable|string|max:20',
+            'address_line1' => 'required|string|max:255',
+            'address_line2' => 'nullable|string|max:255',
+            'city'          => 'required|string|max:100',
+            'state'         => 'nullable|string|max:100',
+            'zip'           => 'nullable|string|max:20',
+            'country'       => 'required|string|max:2',
+        ]);
+
+        $address->update([
+            'name'          => $data['name'],
+            'phone'         => $data['phone'] ?? null,
+            'address_line1' => $data['address_line1'],
+            'address_line2' => $data['address_line2'] ?? null,
+            'city'          => $data['city'],
+            'state'         => $data['state'] ?? null,
+            'zip_code'      => $data['zip'] ?? null,
+            'zip'           => $data['zip'] ?? null,
+            'country_code'  => $data['country'],
+            'country'       => $data['country'],
+        ]);
+
+        // Reload user so Flutter gets updated addresses
+        $user->load('addresses');
+        return response()->json(['user' => $this->userResource($user)]);
     }
 
     private function userResource(GlobalUser $user): array

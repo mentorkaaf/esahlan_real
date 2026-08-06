@@ -1086,6 +1086,7 @@ Route::prefix('v1/global')->group(function () {
         Route::get('/auth/me',                 [\App\Http\Controllers\Api\Global\GlobalAuthController::class, 'me']);
         Route::put('/auth/profile',            [\App\Http\Controllers\Api\Global\GlobalAuthController::class, 'updateProfile']);
         Route::post('/auth/addresses',         [\App\Http\Controllers\Api\Global\GlobalAuthController::class, 'addAddress']);
+        Route::put('/auth/addresses/{id}',    [\App\Http\Controllers\Api\Global\GlobalAuthController::class, 'updateAddress']);
 
         Route::get('/cart',                    [\App\Http\Controllers\Api\Global\GlobalCartController::class, 'index']);
         Route::post('/cart',                   [\App\Http\Controllers\Api\Global\GlobalCartController::class, 'add']);
