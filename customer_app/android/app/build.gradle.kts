@@ -65,4 +65,6 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     // WebRTC classes (VideoFrame, JavaI420Buffer, etc.) used in LiveVideoFilterPlugin
     compileOnly("io.github.webrtc-sdk:android:137.7151.04")
+    // Required for flutter_stripe Payment Sheet (Theme.MaterialComponents)
+    implementation("com.google.android.material:material:1.12.0")
 }
