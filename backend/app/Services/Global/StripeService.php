@@ -39,12 +39,13 @@ class StripeService
         $this->setApiKey();
 
         $intent = \Stripe\PaymentIntent::create([
-            'amount'   => (int) round($order->total * 100), // cents
-            'currency' => strtolower($order->currency),
-            'metadata' => [
+            'amount'               => (int) round($order->total * 100), // cents
+            'currency'             => strtolower($order->currency),
+            'payment_method_types' => ['card'],   // Card only — no Link, Bank, CashApp, AmazonPay
+            'metadata'             => [
                 'order_number' => $order->order_number,
-                'order_id'     => $order->id,
-                'user_id'      => $order->global_user_id,
+                'order_id'     => (string) $order->id,
+                'user_id'      => (string) $order->global_user_id,
             ],
             'description' => "eSahlan Global Order #{$order->order_number}",
         ]);
