@@ -1,16 +1,14 @@
-﻿<?php
+<?php
 
 namespace App\Http\Controllers\Api\Global;
 
 use App\Http\Controllers\Controller;
 use App\Models\Global\GlobalOrder;
 use App\Models\Global\GlobalOrderItem;
-use App\Models\Global\GlobalPayment;
-use App\Models\Global\GlobalProduct;
 use App\Models\Global\GlobalShippingZone;
 use App\Models\Global\GlobalSetting;
-use App\Services\StripeService;
-use App\Services\PayPalService;
+use App\Services\Global\StripeService;
+use App\Services\Global\PayPalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -18,8 +16,8 @@ use Illuminate\Support\Str;
 class GlobalCheckoutController extends Controller
 {
     public function __construct(
-        private StripeService  $stripe,
-        private PayPalService  $paypal,
+        private StripeService $stripe,
+        private PayPalService $paypal,
     ) {}
 
     /** GET /checkout/summary */
@@ -29,24 +27,24 @@ class GlobalCheckoutController extends Controller
         $items  = DB::table('global_cart_items as c')
             ->join('global_products as p', 'p.id', '=', 'c.global_product_id')
             ->where('c.global_user_id', $userId)
-            ->select('c.*', 'p.name', 'p.price', 'p.thumbnail', 'p.weight')
+            ->select('c.*', 'p.name', 'p.thumbnail', 'p.weight')
             ->get();
 
         if ($items->isEmpty()) {
             return response()->json(['message' => 'Cart is empty.'], 422);
         }
 
-        $subtotal = $items->sum(fn($i) => $i->price * $i->quantity);
+        $subtotal = $items->sum(fn($i) => $i->price_snapshot * $i->quantity);
         $country  = $request->query('country', $request->user('global_users')->country ?? 'US');
         $shipping = $this->calcShipping($country, $subtotal);
 
         return response()->json([
-            'subtotal'   => round($subtotal, 2),
-            'shipping'   => $shipping['amount'],
+            'subtotal'       => round($subtotal, 2),
+            'shipping'       => $shipping['amount'],
             'shipping_label' => $shipping['label'],
-            'tax'        => 0,
-            'total'      => round($subtotal + $shipping['amount'], 2),
-            'items_count'=> $items->sum('quantity'),
+            'tax'            => 0,
+            'total'          => round($subtotal + $shipping['amount'], 2),
+            'items_count'    => $items->sum('quantity'),
         ]);
     }
 
@@ -54,164 +52,207 @@ class GlobalCheckoutController extends Controller
     public function stripe(Request $request)
     {
         $data = $request->validate([
-            'address_id'        => 'nullable|integer',
-            'shipping_name'     => 'required_without:address_id|string',
-            'shipping_address1' => 'required_without:address_id|string',
-            'shipping_city'     => 'required_without:address_id|string',
-            'shipping_zip'      => 'required_without:address_id|string',
-            'shipping_country'  => 'required_without:address_id|string|size:2',
-            'notes'             => 'nullable|string',
+            'address_id'    => 'nullable|integer',
+            'first_name'    => 'required_without:address_id|string',
+            'last_name'     => 'required_without:address_id|string',
+            'address_line1' => 'required_without:address_id|string',
+            'city'          => 'required_without:address_id|string',
+            'zip'           => 'nullable|string',
+            'country_code'  => 'required_without:address_id|string|size:2',
+            'country_name'  => 'required_without:address_id|string',
+            'notes'         => 'nullable|string',
         ]);
 
-        $user   = $request->user('global_users');
-        $userId = $user->id;
+        $user  = $request->user('global_users');
+        $order = $this->createPendingOrder($user, $data, 'stripe');
 
-        [$order, $total] = $this->createPendingOrder($userId, $data, $user);
+        $stripeData = $this->stripe->createPaymentIntent($order);
 
-        $successUrl = GlobalSetting::getValue('global_app_url', 'https://esahlan.com')
-            . '/global/orders/' . $order->id . '?success=1';
-        $cancelUrl  = GlobalSetting::getValue('global_app_url', 'https://esahlan.com')
-            . '/global/checkout?cancelled=1';
+        $order->update(['payment_intent_id' => $stripeData['payment_intent_id']]);
 
-        $session = $this->stripe->createCheckoutSession([
-            'amount'       => (int)round($total * 100),
-            'currency'     => 'usd',
-            'description'  => 'eSahlan Global Order #' . $order->order_number,
-            'success_url'  => $successUrl,
-            'cancel_url'   => $cancelUrl,
-            'metadata'     => ['order_id' => $order->id],
+        return response()->json([
+            'order_id'      => $order->id,
+            'order_number'  => $order->order_number,
+            'total'         => $order->total,
+            'client_secret' => $stripeData['client_secret'],
+            'public_key'    => $this->stripe->getPublicKey(),
         ]);
-
-        GlobalPayment::create([
-            'global_order_id'   => $order->id,
-            'method'            => 'stripe',
-            'amount'            => $total,
-            'currency'          => 'usd',
-            'status'            => 'pending',
-            'transaction_id'    => $session['id'],
-        ]);
-
-        return response()->json(['checkout_url' => $session['url']]);
     }
 
     /** POST /checkout/paypal */
     public function paypal(Request $request)
     {
         $data = $request->validate([
-            'address_id'        => 'nullable|integer',
-            'shipping_name'     => 'required_without:address_id|string',
-            'shipping_address1' => 'required_without:address_id|string',
-            'shipping_city'     => 'required_without:address_id|string',
-            'shipping_zip'      => 'required_without:address_id|string',
-            'shipping_country'  => 'required_without:address_id|string|size:2',
-            'notes'             => 'nullable|string',
+            'address_id'    => 'nullable|integer',
+            'first_name'    => 'required_without:address_id|string',
+            'last_name'     => 'required_without:address_id|string',
+            'address_line1' => 'required_without:address_id|string',
+            'city'          => 'required_without:address_id|string',
+            'zip'           => 'nullable|string',
+            'country_code'  => 'required_without:address_id|string|size:2',
+            'country_name'  => 'required_without:address_id|string',
+            'notes'         => 'nullable|string',
+            'return_url'    => 'nullable|string',
+            'cancel_url'    => 'nullable|string',
         ]);
 
-        $user   = $request->user('global_users');
-        $userId = $user->id;
+        $user  = $request->user('global_users');
+        $order = $this->createPendingOrder($user, $data, 'paypal');
 
-        [$order, $total] = $this->createPendingOrder($userId, $data, $user);
+        $appUrl    = GlobalSetting::getValue('global_app_url', 'https://esahlan.com');
+        $returnUrl = $data['return_url'] ?? ($appUrl . '/global/orders/' . $order->id . '?success=1');
+        $cancelUrl = $data['cancel_url'] ?? ($appUrl . '/global/checkout?cancelled=1');
 
-        $returnUrl = GlobalSetting::getValue('global_app_url', 'https://esahlan.com')
-            . '/global/orders/' . $order->id . '?success=1';
-        $cancelUrl = GlobalSetting::getValue('global_app_url', 'https://esahlan.com')
-            . '/global/checkout?cancelled=1';
+        $pp = $this->paypal->createOrder($order, $returnUrl, $cancelUrl);
 
-        $pp = $this->paypal->createOrder($total, 'USD', $returnUrl, $cancelUrl, [
-            'order_id' => (string)$order->id,
+        $order->update(['paypal_order_id' => $pp['id']]);
+
+        $approveLink = collect($pp['links'] ?? [])->firstWhere('rel', 'approve');
+
+        return response()->json([
+            'order_id'     => $order->id,
+            'order_number' => $order->order_number,
+            'total'        => $order->total,
+            'approval_url' => $approveLink['href'] ?? null,
+            'paypal_id'    => $pp['id'],
         ]);
-
-        GlobalPayment::create([
-            'global_order_id'   => $order->id,
-            'method'            => 'paypal',
-            'amount'            => $total,
-            'currency'          => 'usd',
-            'status'            => 'pending',
-            'transaction_id'    => $pp['id'],
-        ]);
-
-        $approveLink = collect($pp['links'])->firstWhere('rel', 'approve');
-
-        return response()->json(['checkout_url' => $approveLink['href']]);
     }
 
-    /** POST /checkout/stripe/webhook */
+    /** POST /checkout/stripe/confirm */
+    public function stripeConfirm(Request $request)
+    {
+        $request->validate([
+            'order_id'           => 'required|integer',
+            'payment_intent_id'  => 'required|string',
+        ]);
+
+        $user  = $request->user('global_users');
+        $order = GlobalOrder::where('id', $request->order_id)
+            ->where('global_user_id', $user->id)
+            ->firstOrFail();
+
+        $this->stripe->confirmPayment($order, $request->payment_intent_id);
+
+        // Clear cart now that payment is confirmed
+        DB::table('global_cart_items')->where('global_user_id', $user->id)->delete();
+
+        return response()->json([
+            'success'  => true,
+            'order_id' => $order->id,
+            'status'   => $order->fresh()->status,
+        ]);
+    }
+
+    /** POST /checkout/paypal/capture */
+    public function paypalCapture(Request $request)
+    {
+        $request->validate(['order_id' => 'required|integer']);
+
+        $user  = $request->user('global_users');
+        $order = GlobalOrder::where('id', $request->order_id)
+            ->where('global_user_id', $user->id)
+            ->firstOrFail();
+
+        $this->paypal->captureOrder($order);
+
+        // Clear cart now that payment is confirmed
+        DB::table('global_cart_items')->where('global_user_id', $user->id)->delete();
+
+        return response()->json([
+            'success'  => true,
+            'order_id' => $order->id,
+            'status'   => $order->fresh()->status,
+        ]);
+    }
+
+    /** POST /checkout/stripe/webhook  (unauthenticated) */
     public function stripeWebhook(Request $request)
     {
         $sig    = $request->header('Stripe-Signature');
-        $secret = GlobalSetting::getValue('global_stripe_webhook_secret');
-        $event  = $this->stripe->constructWebhookEvent($request->getContent(), $sig, $secret);
-
-        if ($event->type === 'checkout.session.completed') {
-            $session = $event->data->object;
-            $orderId = $session->metadata->order_id ?? null;
-            if ($orderId) {
-                $this->markOrderPaid((int)$orderId, $session->id, 'stripe');
-            }
-        }
-
-        return response()->json(['ok' => true]);
+        $result = $this->stripe->handleWebhook($request->getContent(), $sig);
+        return response()->json($result);
     }
 
-    /** POST /checkout/paypal/webhook */
+    /** POST /checkout/paypal/webhook  (unauthenticated) */
     public function paypalWebhook(Request $request)
     {
         $eventType = $request->input('event_type');
         if ($eventType === 'PAYMENT.CAPTURE.COMPLETED') {
-            $resource    = $request->input('resource', []);
-            $customId    = $resource['custom_id'] ?? null;
-            $captureId   = $resource['id'] ?? null;
-            if ($customId) {
-                $this->markOrderPaid((int)$customId, $captureId, 'paypal');
+            $resource = $request->input('resource', []);
+            $ppId     = $resource['supplementary_data']['related_ids']['order_id'] ?? null;
+            if ($ppId) {
+                $order = GlobalOrder::where('paypal_order_id', $ppId)->first();
+                if ($order && $order->payment_status !== 'paid') {
+                    $order->update(['payment_status' => 'paid', 'status' => 'processing']);
+                }
             }
         }
         return response()->json(['ok' => true]);
     }
 
-    private function createPendingOrder(int $userId, array $data, $user): array
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    private function createPendingOrder($user, array $data, string $paymentMethod): GlobalOrder
     {
+        $userId = $user->id;
+
         $items = DB::table('global_cart_items as c')
             ->join('global_products as p', 'p.id', '=', 'c.global_product_id')
             ->where('c.global_user_id', $userId)
-            ->select('c.*', 'p.name', 'p.price', 'p.thumbnail', 'p.track_stock', 'p.stock')
+            ->select('c.*', 'p.name', 'p.thumbnail', 'p.track_stock', 'p.stock')
             ->get();
 
         if ($items->isEmpty()) {
             abort(422, 'Cart is empty.');
         }
 
-        $subtotal = $items->sum(fn($i) => $i->price * $i->quantity);
-        $country  = $data['shipping_country'] ?? $user->country ?? 'US';
-        $shipping = $this->calcShipping($country, $subtotal);
-        $total    = round($subtotal + $shipping['amount'], 2);
-
-        // Resolve address
+        // Resolve address from saved address or inline fields
         if (!empty($data['address_id'])) {
-            $addr = DB::table('global_addresses')->where('id', $data['address_id'])->where('global_user_id', $userId)->first();
+            $addr = DB::table('global_addresses')
+                ->where('id', $data['address_id'])
+                ->where('global_user_id', $userId)
+                ->first();
             if ($addr) {
-                $data['shipping_name']    = $addr->name;
-                $data['shipping_address1']= $addr->address_line1;
-                $data['shipping_city']    = $addr->city;
-                $data['shipping_zip']     = $addr->zip;
-                $data['shipping_country'] = $addr->country;
+                $nameParts             = explode(' ', $addr->name ?? $user->name ?? 'Guest', 2);
+                $data['first_name']    = $addr->first_name  ?? $nameParts[0];
+                $data['last_name']     = $addr->last_name   ?? ($nameParts[1] ?? '');
+                $data['address_line1'] = $addr->address_line1;
+                $data['city']          = $addr->city;
+                $data['zip']           = $addr->zip ?? null;
+                $data['country_code']  = strtoupper($addr->country ?? 'US');
+                $data['country_name']  = $addr->country_name ?? $addr->country ?? 'United States';
             }
         }
 
+        $subtotal = $items->sum(fn($i) => $i->price_snapshot * $i->quantity);
+        $country  = strtoupper($data['country_code'] ?? $user->country ?? 'US');
+        $shipping = $this->calcShipping($country, $subtotal);
+        $total    = round($subtotal + $shipping['amount'], 2);
+
+        $nameParts = explode(' ', $user->name ?? 'Guest', 2);
+        $firstName = $data['first_name'] ?? $nameParts[0];
+        $lastName  = $data['last_name']  ?? ($nameParts[1] ?? '');
+
         $order = GlobalOrder::create([
-            'global_user_id'      => $userId,
-            'order_number'        => 'GBL-' . strtoupper(Str::random(8)),
-            'status'              => 'pending',
-            'subtotal'            => $subtotal,
-            'shipping_cost'       => $shipping['amount'],
-            'tax'                 => 0,
-            'total'               => $total,
-            'currency'            => 'usd',
-            'shipping_name'       => $data['shipping_name'] ?? $user->name,
-            'shipping_address1'   => $data['shipping_address1'] ?? '',
-            'shipping_city'       => $data['shipping_city'] ?? '',
-            'shipping_zip'        => $data['shipping_zip'] ?? '',
-            'shipping_country'    => $country,
-            'notes'               => $data['notes'] ?? null,
+            'global_user_id'     => $userId,
+            'order_number'       => 'GBL-' . strtoupper(Str::random(8)),
+            'status'             => 'pending',
+            'payment_status'     => 'pending',
+            'payment_method'     => $paymentMethod,
+            'subtotal'           => $subtotal,
+            'shipping_cost'      => $shipping['amount'],
+            'tax'                => 0,
+            'discount'           => 0,
+            'total'              => $total,
+            'currency'           => 'USD',
+            'ship_first_name'    => $firstName,
+            'ship_last_name'     => $lastName,
+            'ship_address_line1' => $data['address_line1'] ?? '',
+            'ship_city'          => $data['city'] ?? '',
+            'ship_zip'           => $data['zip'] ?? null,
+            'ship_country_code'  => $country,
+            'ship_country_name'  => $data['country_name'] ?? $country,
+            'notes'              => $data['notes'] ?? null,
         ]);
 
         foreach ($items as $item) {
@@ -219,10 +260,11 @@ class GlobalCheckoutController extends Controller
                 'global_order_id'   => $order->id,
                 'global_product_id' => $item->global_product_id,
                 'product_name'      => $item->name,
-                'variant'           => $item->variant,
+                'product_image'     => $item->thumbnail ?? null,
+                'variant_name'      => $item->variant ?? null,
                 'quantity'          => $item->quantity,
-                'unit_price'        => $item->price,
-                'total'             => round($item->price * $item->quantity, 2),
+                'unit_price'        => $item->price_snapshot,
+                'total_price'       => round($item->price_snapshot * $item->quantity, 2),
             ]);
 
             if ($item->track_stock) {
@@ -232,26 +274,10 @@ class GlobalCheckoutController extends Controller
             }
         }
 
-        // Clear cart
-        DB::table('global_cart_items')->where('global_user_id', $userId)->delete();
+        // Cart is cleared only after payment is confirmed (stripeConfirm / paypalCapture)
+        // This allows retry if payment sheet fails without losing cart items.
 
-        return [$order, $total];
-    }
-
-    private function markOrderPaid(int $orderId, ?string $txId, string $method): void
-    {
-        GlobalOrder::where('id', $orderId)->update([
-            'status'     => 'paid',
-            'paid_at'    => now(),
-        ]);
-
-        GlobalPayment::where('global_order_id', $orderId)
-            ->where('method', $method)
-            ->update([
-                'status'         => 'paid',
-                'transaction_id' => $txId,
-                'paid_at'        => now(),
-            ]);
+        return $order;
     }
 
     private function calcShipping(string $country, float $subtotal): array
@@ -259,8 +285,11 @@ class GlobalCheckoutController extends Controller
         $zone = GlobalShippingZone::where('is_active', true)
             ->get()
             ->first(function ($z) use ($country) {
-                $countries = is_array($z->countries) ? $z->countries : json_decode($z->countries, true);
-                return in_array('*', $countries ?? []) || in_array(strtoupper($country), $countries ?? []);
+                $countries = is_array($z->countries)
+                    ? $z->countries
+                    : json_decode($z->countries, true);
+                return in_array('*', $countries ?? [])
+                    || in_array(strtoupper($country), $countries ?? []);
             });
 
         if (!$zone) {
@@ -273,7 +302,9 @@ class GlobalCheckoutController extends Controller
 
         return [
             'amount' => $zone->flat_rate,
-            'label'  => $zone->name . ' (' . $zone->estimated_days_min . '-' . $zone->estimated_days_max . ' days)',
+            'label'  => $zone->name . ' ('
+                . $zone->estimated_days_min . '-'
+                . $zone->estimated_days_max . ' days)',
         ];
     }
 }
