@@ -217,6 +217,11 @@ class GlobalOrderDetailScreen extends ConsumerWidget {
 
             const SizedBox(height: 12),
 
+            // ── Status timeline ──────────────────────────────────────────
+            _OrderTimeline(status: order.status),
+
+            const SizedBox(height: 12),
+
             // Shipping info
             if (order.shippingAddress != null)
               Container(
@@ -227,7 +232,7 @@ class GlobalOrderDetailScreen extends ConsumerWidget {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                  const Text('Shipping',
+                  const Text('Shipping Address',
                       style: TextStyle(
                           fontWeight: FontWeight.w800, fontSize: 14)),
                   const SizedBox(height: 8),
@@ -235,19 +240,36 @@ class GlobalOrderDetailScreen extends ConsumerWidget {
                       style: TextStyle(
                           color: Colors.grey.shade600, fontSize: 13)),
                   if (order.trackingNumber != null) ...[
-                    const SizedBox(height: 8),
-                    Row(children: [
-                      Icon(Icons.local_shipping_outlined,
-                          size: 16,
-                          color: Colors.blue.shade600),
-                      const SizedBox(width: 6),
-                      Text(
-                          '${order.shippingCarrier ?? 'Tracking'}: ${order.trackingNumber}',
-                          style: TextStyle(
-                              color: Colors.blue.shade600,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600)),
-                    ]),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(children: [
+                        Icon(Icons.local_shipping_outlined,
+                            size: 18, color: Colors.blue.shade700),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            Text(
+                                '${order.shippingCarrier ?? 'Carrier'} Tracking',
+                                style: TextStyle(
+                                    color: Colors.blue.shade800,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12)),
+                            Text(order.trackingNumber!,
+                                style: TextStyle(
+                                    color: Colors.blue.shade600,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
+                      ]),
+                    ),
                   ],
                 ]),
               ),
@@ -255,6 +277,129 @@ class GlobalOrderDetailScreen extends ConsumerWidget {
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text(e.toString())),
+      ),
+    );
+  }
+}
+
+// ── Order status timeline ─────────────────────────────────────────────────────
+
+class _OrderTimeline extends StatelessWidget {
+  final String status;
+  const _OrderTimeline({required this.status});
+
+  static const _steps = [
+    (id: 'pending',    label: 'Order Placed',   icon: Icons.check_circle_outline_rounded),
+    (id: 'processing', label: 'Processing',      icon: Icons.inventory_2_outlined),
+    (id: 'shipped',    label: 'Shipped',          icon: Icons.local_shipping_outlined),
+    (id: 'delivered',  label: 'Delivered',        icon: Icons.home_outlined),
+  ];
+
+  int _currentStep() {
+    switch (status) {
+      case 'pending':    return 0;
+      case 'paid':       return 0;
+      case 'processing': return 1;
+      case 'shipped':    return 2;
+      case 'delivered':  return 3;
+      case 'cancelled':  return -1;
+      default:           return 0;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cur = _currentStep();
+    if (cur == -1) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(children: [
+          Icon(Icons.cancel_outlined, color: Colors.red.shade600),
+          const SizedBox(width: 10),
+          Text('Order Cancelled',
+              style: TextStyle(
+                  color: Colors.red.shade800,
+                  fontWeight: FontWeight.w700)),
+        ]),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Order Status',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+          const SizedBox(height: 16),
+          Row(
+            children: List.generate(_steps.length * 2 - 1, (i) {
+              if (i.isOdd) {
+                // connector line
+                final stepIdx = i ~/ 2;
+                final done = stepIdx < cur;
+                return Expanded(
+                  child: Container(
+                    height: 2,
+                    color: done
+                        ? const Color(0xFF10B981)
+                        : Colors.grey.shade200,
+                  ),
+                );
+              }
+              final stepIdx = i ~/ 2;
+              final done    = stepIdx <= cur;
+              final active  = stepIdx == cur;
+              final step    = _steps[stepIdx];
+              return Column(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: done
+                          ? const Color(0xFF10B981)
+                          : Colors.grey.shade100,
+                      border: active
+                          ? Border.all(
+                              color: const Color(0xFF10B981), width: 2)
+                          : null,
+                    ),
+                    child: Icon(
+                      step.icon,
+                      size: 18,
+                      color: done ? Colors.white : Colors.grey.shade400,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    width: 60,
+                    child: Text(
+                      step.label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: active || done
+                            ? FontWeight.w700
+                            : FontWeight.w400,
+                        color: done
+                            ? const Color(0xFF065F46)
+                            : Colors.grey.shade400,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }),
+          ),
+        ],
       ),
     );
   }

@@ -14,6 +14,9 @@ import '../../features/global/presentation/screens/global_cart_screen.dart';
 import '../../features/global/presentation/screens/global_checkout_screen.dart';
 import '../../features/global/presentation/screens/global_orders_screen.dart';
 import '../../features/global/presentation/screens/global_profile_screen.dart';
+import '../../features/global/presentation/screens/global_search_screen.dart';
+import '../../features/global/presentation/screens/global_write_review_screen.dart';
+import '../../features/global/presentation/screens/global_privacy_screen.dart';
 
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/country_selection_screen.dart';
@@ -406,11 +409,32 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => GlobalProductDetailScreen(
             productId: int.parse(state.pathParameters['id']!)),
       ),
+      // Write review
+      GoRoute(
+        path: '/global/product/:id/review',
+        builder: (_, state) => GlobalWriteReviewScreen(
+            productId: int.parse(state.pathParameters['id']!)),
+      ),
       // Order detail (full-screen, no shell)
       GoRoute(
         path: '/global/order/:id',
         builder: (_, state) => GlobalOrderDetailScreen(
             orderId: int.parse(state.pathParameters['id']!)),
+      ),
+      // Search
+      GoRoute(
+        path: '/global/search',
+        builder: (_, __) => const GlobalSearchScreen(),
+      ),
+      // Privacy Policy
+      GoRoute(
+        path: '/global/privacy',
+        builder: (_, __) => const GlobalPrivacyScreen(),
+      ),
+      // Terms of Service
+      GoRoute(
+        path: '/global/terms',
+        builder: (_, __) => const GlobalTermsScreen(),
       ),
       // Shell: tabs with bottom nav
       ShellRoute(

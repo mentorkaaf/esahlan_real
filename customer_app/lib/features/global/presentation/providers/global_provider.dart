@@ -229,3 +229,18 @@ final globalOrderDetailProvider =
     FutureProvider.family<GlobalOrder, int>((ref, id) async {
   return ref.read(globalRepoProvider).getOrder(id);
 });
+
+// ── Reviews ───────────────────────────────────────────────────────────────────
+
+final globalReviewsProvider = FutureProvider.family<
+    ({List<GlobalReview> reviews, GlobalReviewStats stats}), int>(
+  (ref, productId) async {
+    final res = await ref.read(globalRepoProvider).getReviews(productId);
+    final reviews = (res['reviews'] as List? ?? [])
+        .map((r) => GlobalReview.fromJson(r))
+        .toList();
+    final stats = GlobalReviewStats.fromJson(
+        res['stats'] as Map<String, dynamic>? ?? {});
+    return (reviews: reviews, stats: stats);
+  },
+);

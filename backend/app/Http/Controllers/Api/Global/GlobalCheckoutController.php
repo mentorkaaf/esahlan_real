@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\Global;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Controller;
+use App\Mail\Global\GlobalOrderConfirmationMail;
 use App\Models\Global\GlobalOrder;
 use App\Models\Global\GlobalOrderItem;
 use App\Models\Global\GlobalShippingZone;
@@ -11,6 +13,8 @@ use App\Services\Global\StripeService;
 use App\Services\Global\PayPalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class GlobalCheckoutController extends Controller
@@ -136,6 +140,9 @@ class GlobalCheckoutController extends Controller
         // Clear cart now that payment is confirmed
         DB::table('global_cart_items')->where('global_user_id', $user->id)->delete();
 
+        // Send order confirmation email
+        $this->sendOrderConfirmationEmail($order->fresh(), $user->email);
+
         return response()->json([
             'success'  => true,
             'order_id' => $order->id,
@@ -157,6 +164,9 @@ class GlobalCheckoutController extends Controller
 
         // Clear cart now that payment is confirmed
         DB::table('global_cart_items')->where('global_user_id', $user->id)->delete();
+
+        // Send order confirmation email
+        $this->sendOrderConfirmationEmail($order->fresh(), $user->email);
 
         return response()->json([
             'success'  => true,
@@ -278,6 +288,45 @@ class GlobalCheckoutController extends Controller
         // This allows retry if payment sheet fails without losing cart items.
 
         return $order;
+    }
+
+    private function sendOrderConfirmationEmail(GlobalOrder $order, string $email): void
+    {
+        try {
+            $items = DB::table('global_order_items')
+                ->where('global_order_id', $order->id)
+                ->get()
+                ->map(fn($i) => [
+                    'name'      => $i->product_name,
+                    'thumbnail' => $i->product_image,
+                    'variant'   => $i->variant_name,
+                    'quantity'  => $i->quantity,
+                    'total'     => $i->total_price,
+                ])
+                ->toArray();
+
+            $addr = implode(', ', array_filter([
+                $order->ship_address_line1,
+                $order->ship_city,
+                $order->ship_zip,
+                $order->ship_country_name,
+            ]));
+
+            $orderData = [
+                'id'               => $order->id,
+                'order_number'     => $order->order_number,
+                'customer_name'    => trim($order->ship_first_name . ' ' . $order->ship_last_name),
+                'payment_method'   => $order->payment_method,
+                'subtotal'         => $order->subtotal,
+                'shipping'         => $order->shipping_cost,
+                'total'            => $order->total,
+                'shipping_address' => $addr,
+            ];
+
+            Mail::to($email)->queue(new GlobalOrderConfirmationMail($orderData, $items));
+        } catch (\Throwable $e) {
+            Log::error('GlobalOrderConfirmationMail failed', ['error' => $e->getMessage()]);
+        }
     }
 
     private function calcShipping(string $country, float $subtotal): array

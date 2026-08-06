@@ -178,6 +178,22 @@ class _ProfileView extends ConsumerWidget {
                     sub: 'FAQs, contact us',
                     onTap: () {},
                   ),
+                  _MenuItem(
+                    icon: Icons.privacy_tip_outlined,
+                    iconBg: const Color(0xFFF5F3FF),
+                    iconColor: const Color(0xFF7C3AED),
+                    label: 'Privacy Policy',
+                    sub: 'How we use your data',
+                    onTap: () => context.push('/global/privacy'),
+                  ),
+                  _MenuItem(
+                    icon: Icons.article_outlined,
+                    iconBg: const Color(0xFFFFF7ED),
+                    iconColor: const Color(0xFFD97706),
+                    label: 'Terms of Service',
+                    sub: 'User agreement',
+                    onTap: () => context.push('/global/terms'),
+                  ),
                 ]),
                 const SizedBox(height: 16),
 

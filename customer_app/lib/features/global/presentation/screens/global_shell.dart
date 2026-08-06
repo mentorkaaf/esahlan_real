@@ -2,13 +2,42 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/global_provider.dart';
+import 'global_privacy_screen.dart';
 
 /// Bottom-nav shell that wraps all global store tab screens.
 /// Used via [ShellRoute] in the router.
-class GlobalShell extends ConsumerWidget {
+class GlobalShell extends ConsumerStatefulWidget {
   final Widget child;
   const GlobalShell({super.key, required this.child});
+
+  @override
+  ConsumerState<GlobalShell> createState() => _GlobalShellState();
+}
+
+class _GlobalShellState extends ConsumerState<GlobalShell> {
+  bool _showGdpr = false;
+
+  static const _kGdprKey = 'global_gdpr_accepted';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkGdpr();
+  }
+
+  Future<void> _checkGdpr() async {
+    final prefs = await SharedPreferences.getInstance();
+    final accepted = prefs.getBool(_kGdprKey) ?? false;
+    if (!accepted && mounted) setState(() => _showGdpr = true);
+  }
+
+  Future<void> _acceptGdpr() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kGdprKey, true);
+    if (mounted) setState(() => _showGdpr = false);
+  }
 
   static const _tabs = [
     _Tab(path: '/global',          icon: Icons.home_outlined,              activeIcon: Icons.home_rounded,              label: 'Home'),
@@ -18,6 +47,7 @@ class GlobalShell extends ConsumerWidget {
     _Tab(path: '/global/profile',  icon: Icons.person_outline_rounded,     activeIcon: Icons.person_rounded,            label: 'Profile'),
   ];
 
+  // widget.child accessed via widget.child
   int _currentIndex(String location) {
     // exact match for /global home
     if (location == '/global' || location == '/global/') return 0;
@@ -30,10 +60,10 @@ class GlobalShell extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final location = GoRouterState.of(context).uri.path;
-    final idx      = _currentIndex(location);
-    final cart     = ref.watch(globalCartProvider).valueOrNull;
+  Widget build(BuildContext context) {
+    final location  = GoRouterState.of(context).uri.path;
+    final idx       = _currentIndex(location);
+    final cart      = ref.watch(globalCartProvider).valueOrNull;
     final cartCount = cart?.count ?? 0;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -46,7 +76,25 @@ class GlobalShell extends ConsumerWidget {
       child: Scaffold(
         backgroundColor: const Color(0xFFF0F2F5),
         extendBody: true,
-        body: child,
+        body: Stack(
+          children: [
+            widget.child,
+            // ── GDPR banner ─────────────────────────────────────────────
+            if (_showGdpr)
+              Positioned(
+                bottom: 80,
+                left: 0,
+                right: 0,
+                child: GlobalGdprBanner(
+                  onAccept: _acceptGdpr,
+                  onViewPolicy: () {
+                    _acceptGdpr();
+                    context.push('/global/privacy');
+                  },
+                ),
+              ),
+          ],
+        ),
         bottomNavigationBar: _GlobalNavBar(
           tabs: _tabs,
           selectedIndex: idx,

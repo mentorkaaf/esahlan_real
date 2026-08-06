@@ -56,6 +56,11 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
                     fontSize: 16,
                     fontWeight: FontWeight.w800)),
             actions: [
+              // Search
+              IconButton(
+                icon: const Icon(Icons.search_rounded, color: Colors.white),
+                onPressed: () => context.push('/global/search'),
+              ),
               // Cart
               Stack(
                 children: [

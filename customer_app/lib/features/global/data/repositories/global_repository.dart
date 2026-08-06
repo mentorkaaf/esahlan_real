@@ -234,4 +234,18 @@ class GlobalRepository {
     final res = await _get('$_base/orders/$id', auth: true);
     return GlobalOrder.fromJson(res['order']);
   }
+
+  // ── Reviews ──────────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getReviews(int productId) =>
+      _get('$_base/products/$productId/reviews');
+
+  Future<void> submitReview(
+      int productId, int rating, String? title, String? body) async {
+    await _post('$_base/products/$productId/reviews', {
+      'rating': rating,
+      if (title != null && title.isNotEmpty) 'title': title,
+      if (body != null && body.isNotEmpty) 'body': body,
+    }, auth: true);
+  }
 }

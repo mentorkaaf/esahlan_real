@@ -1073,6 +1073,7 @@ Route::prefix('v1/global')->group(function () {
     Route::get('/products/featured',       [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'featured']);
     Route::get('/products/flash',          [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'flash']);
     Route::get('/products/{id}',           [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'show']);
+    Route::get('/products/{id}/reviews',   [\App\Http\Controllers\Api\Global\GlobalReviewsController::class, 'index']);
     Route::get('/categories',              [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'categories']);
 
     // Stripe/PayPal webhooks (public, no auth)
@@ -1098,5 +1099,11 @@ Route::prefix('v1/global')->group(function () {
 
         Route::get('/orders',                  [\App\Http\Controllers\Api\Global\GlobalOrdersController::class, 'index']);
         Route::get('/orders/{id}',             [\App\Http\Controllers\Api\Global\GlobalOrdersController::class, 'show']);
+
+        Route::post('/products/{id}/reviews',  [\App\Http\Controllers\Api\Global\GlobalReviewsController::class, 'store']);
+
+        // Confirm endpoints (also authenticated)
+        Route::post('/checkout/stripe/confirm',[\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'stripeConfirm']);
+        Route::post('/checkout/paypal/capture',[\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'paypalCapture']);
     });
 });

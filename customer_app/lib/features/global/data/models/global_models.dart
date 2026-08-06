@@ -332,6 +332,61 @@ class GlobalOrderItem {
       );
 }
 
+class GlobalReview {
+  final int id;
+  final int rating;
+  final String? title;
+  final String? body;
+  final String userName;
+  final String? userCountry;
+  final String createdAt;
+
+  const GlobalReview({
+    required this.id,
+    required this.rating,
+    this.title,
+    this.body,
+    required this.userName,
+    this.userCountry,
+    required this.createdAt,
+  });
+
+  factory GlobalReview.fromJson(Map<String, dynamic> j) => GlobalReview(
+        id: j['id'] ?? 0,
+        rating: _i(j['rating']),
+        title: j['title'],
+        body: j['body'],
+        userName: j['user_name'] ?? 'Anonymous',
+        userCountry: j['user_country'],
+        createdAt: j['created_at'] ?? '',
+      );
+}
+
+class GlobalReviewStats {
+  final int total;
+  final double average;
+  final Map<int, int> distribution; // 1-5 => count
+
+  const GlobalReviewStats({
+    required this.total,
+    required this.average,
+    required this.distribution,
+  });
+
+  factory GlobalReviewStats.fromJson(Map<String, dynamic> j) =>
+      GlobalReviewStats(
+        total: _i(j['total']),
+        average: _d(j['average']),
+        distribution: {
+          5: _i(j['r5']),
+          4: _i(j['r4']),
+          3: _i(j['r3']),
+          2: _i(j['r2']),
+          1: _i(j['r1']),
+        },
+      );
+}
+
 class GlobalCheckoutSummary {
   final double subtotal;
   final double shipping;
