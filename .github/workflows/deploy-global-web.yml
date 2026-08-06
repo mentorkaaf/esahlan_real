@@ -21,7 +21,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
+          flutter-version: '3.32.0'
           channel: 'stable'
           cache: true
 
@@ -31,10 +31,7 @@ jobs:
 
       - name: Build Flutter Web (release)
         working-directory: customer_app
-        run: |
-          flutter build web --release \
-            --dart-define=FLUTTER_WEB_USE_SKIA=true \
-            --web-renderer canvaskit
+        run: flutter build web --release
 
       - name: Copy global_index.html as index.html
         working-directory: customer_app
