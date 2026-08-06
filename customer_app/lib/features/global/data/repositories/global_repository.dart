@@ -204,14 +204,25 @@ class GlobalRepository {
     return GlobalCheckoutSummary.fromJson(res);
   }
 
-  Future<String> createStripeCheckout(Map<String, dynamic> data) async {
-    final res = await _post('$_base/checkout/stripe', data, auth: true);
-    return res['checkout_url'];
+  /// Returns {order_id, order_number, total, client_secret, public_key}
+  Future<Map<String, dynamic>> createStripeCheckout(Map<String, dynamic> data) async {
+    return await _post('$_base/checkout/stripe', data, auth: true);
   }
 
-  Future<String> createPayPalCheckout(Map<String, dynamic> data) async {
-    final res = await _post('$_base/checkout/paypal', data, auth: true);
-    return res['checkout_url'];
+  /// Returns {order_id, order_number, total, approval_url, paypal_id}
+  Future<Map<String, dynamic>> createPayPalCheckout(Map<String, dynamic> data) async {
+    return await _post('$_base/checkout/paypal', data, auth: true);
+  }
+
+  /// Call after Stripe Payment Sheet completes successfully
+  Future<void> confirmStripePayment(int orderId, String paymentIntentId) async {
+    await _post('$_base/checkout/stripe/confirm',
+        {'order_id': orderId, 'payment_intent_id': paymentIntentId}, auth: true);
+  }
+
+  /// Call after PayPal redirect returns with success
+  Future<void> capturePaypalPayment(int orderId) async {
+    await _post('$_base/checkout/paypal/capture', {'order_id': orderId}, auth: true);
   }
 
   // ── Orders ───────────────────────────────────────────────────────────────────
