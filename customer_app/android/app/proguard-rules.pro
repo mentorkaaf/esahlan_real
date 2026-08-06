@@ -23,3 +23,7 @@
 
 # Keep app models
 -keep class com.esahlan.user.** { *; }
+
+# flutter_stripe — PushProvisioning is optional (requires Stripe Issuing)
+-dontwarn com.stripe.android.pushProvisioning.**
+-keep class com.stripe.android.pushProvisioning.** { *; }
