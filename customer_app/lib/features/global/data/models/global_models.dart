@@ -1,5 +1,19 @@
 // ignore_for_file: non_constant_identifier_names
 
+// Safe parser — handles both num and String from API
+double _d(dynamic v) {
+  if (v == null) return 0.0;
+  if (v is num) return v.toDouble();
+  return double.tryParse(v.toString()) ?? 0.0;
+}
+
+int _i(dynamic v) {
+  if (v == null) return 0;
+  if (v is int) return v;
+  if (v is num) return v.toInt();
+  return int.tryParse(v.toString()) ?? 0;
+}
+
 class GlobalUser {
   final int id;
   final String name;
@@ -146,13 +160,11 @@ class GlobalProduct {
         id: j['id'],
         name: j['name'] ?? '',
         slug: j['slug'],
-        price: (j['price'] as num).toDouble(),
-        comparePrice: j['compare_price'] != null
-            ? (j['compare_price'] as num).toDouble()
-            : null,
+        price: _d(j['price']),
+        comparePrice: j['compare_price'] != null ? _d(j['compare_price']) : null,
         discountPct: j['discount_pct'],
         thumbnail: j['thumbnail'],
-        rating: (j['rating'] as num? ?? 0).toDouble(),
+        rating: _d(j['rating']),
         reviewsCount: j['reviews_count'] ?? 0,
         isFeatured: j['is_featured'] == true,
         type: j['type'],
@@ -199,10 +211,10 @@ class GlobalCartItem {
         productId: j['product_id'],
         name: j['name'] ?? '',
         thumbnail: j['thumbnail'],
-        price: (j['price'] as num).toDouble(),
+        price: _d(j['price']),
         variant: j['variant'],
-        quantity: j['quantity'] ?? 1,
-        subtotal: (j['subtotal'] as num).toDouble(),
+        quantity: _i(j['quantity']) == 0 ? 1 : _i(j['quantity']),
+        subtotal: _d(j['subtotal']),
         inStock: j['in_stock'] ?? true,
       );
 }
@@ -223,7 +235,7 @@ class GlobalCart {
             .map((i) => GlobalCartItem.fromJson(i))
             .toList(),
         count: j['count'] ?? 0,
-        subtotal: (j['subtotal'] as num? ?? 0).toDouble(),
+        subtotal: _d(j['subtotal']),
       );
 }
 
@@ -271,7 +283,7 @@ class GlobalOrder {
         id: j['id'],
         orderNumber: j['order_number'] ?? '',
         status: j['status'] ?? 'pending',
-        total: (j['total'] as num).toDouble(),
+        total: _d(j['total']),
         currency: j['currency'] ?? 'USD',
         itemsCount: j['items_count'] ?? (j['items'] as List?)?.length ?? 0,
         thumbnail: j['thumbnail'],
@@ -314,8 +326,8 @@ class GlobalOrderItem {
         name: j['name'] ?? j['product_name'] ?? '',
         variant: j['variant'],
         quantity: j['quantity'] ?? 1,
-        unitPrice: (j['unit_price'] as num).toDouble(),
-        total: (j['total'] as num).toDouble(),
+        unitPrice: _d(j['unit_price']),
+        total: _d(j['total']),
         thumbnail: j['thumbnail'],
       );
 }
@@ -339,11 +351,11 @@ class GlobalCheckoutSummary {
 
   factory GlobalCheckoutSummary.fromJson(Map<String, dynamic> j) =>
       GlobalCheckoutSummary(
-        subtotal: (j['subtotal'] as num).toDouble(),
-        shipping: (j['shipping'] as num).toDouble(),
+        subtotal: _d(j['subtotal']),
+        shipping: _d(j['shipping']),
         shippingLabel: j['shipping_label'] ?? 'Shipping',
-        tax: (j['tax'] as num? ?? 0).toDouble(),
-        total: (j['total'] as num).toDouble(),
+        tax: _d(j['tax']),
+        total: _d(j['total']),
         itemsCount: j['items_count'] ?? 0,
       );
 }
