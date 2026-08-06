@@ -268,7 +268,7 @@ class GlobalCheckoutController extends Controller
             'ship_last_name'     => $lastName,
             'ship_address_line1' => $data['address_line1'] ?? '',
             'ship_city'          => $data['city'] ?? '',
-            'ship_zip'           => $data['zip'] ?? null,
+            'ship_zip'           => $data['zip'] ?? '',
             'ship_country_code'  => $country,
             'ship_country_name'  => $data['country_name'] ?? $country,
             'notes'              => $data['notes'] ?? null,
