@@ -1093,6 +1093,12 @@
             <a href="{{ route('admin.global.security.index') }}" class="nav-link {{ request()->routeIs('admin.global.security.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-shield-halved"></i></div> Security
             </a>
+            <a href="{{ route('admin.global.users.index') }}" class="nav-link {{ request()->routeIs('admin.global.users.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-users"></i></div> Users
+            </a>
+            <a href="{{ route('admin.global.sliders.index') }}" class="nav-link {{ request()->routeIs('admin.global.sliders.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-images"></i></div> Sliders
+            </a>
             <a href="{{ route('admin.global.settings') }}" class="nav-link {{ request()->routeIs('admin.global.settings*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-sliders-h"></i></div> Settings
             </a>
