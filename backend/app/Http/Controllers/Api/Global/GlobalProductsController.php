@@ -139,8 +139,8 @@ class GlobalProductsController extends Controller
                 ? round((1 - $p->price / $p->compare_price) * 100)
                 : null,
             'thumbnail'     => $thumb,
-            'rating'        => $p->rating_avg ?? 0,
-            'reviews_count' => $p->reviews_count ?? 0,
+            'rating'        => $p->rating ?? 0,
+            'reviews_count' => $p->review_count ?? 0,
             'is_featured'   => $p->is_featured,
             'type'          => $p->type,
             'category'      => $p->category?->name,
