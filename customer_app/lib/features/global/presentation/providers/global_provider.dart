@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/firebase_service.dart';
 import '../../data/models/global_models.dart';
 import '../../data/repositories/global_repository.dart';
 
@@ -32,7 +33,10 @@ class GlobalAuthNotifier extends AsyncNotifier<GlobalUser?> {
   Future<bool> login(String email, String password) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final data = await _repo.login(email, password);
+      // Get FCM token to register push notifications
+      String? fcmToken;
+      try { fcmToken = await FirebaseService.instance.getToken(); } catch (_) {}
+      final data = await _repo.login(email, password, fcmToken: fcmToken);
       await _repo.saveToken(data['token']);
       // Refresh cart
       ref.invalidate(globalCartProvider);
@@ -41,10 +45,14 @@ class GlobalAuthNotifier extends AsyncNotifier<GlobalUser?> {
     return state.hasValue && state.value != null;
   }
 
-  Future<bool> register(Map<String, dynamic> data) async {
+  Future<bool> register(Map<String, dynamic> payload) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final res = await _repo.register(data);
+      // Get FCM token to register push notifications
+      String? fcmToken;
+      try { fcmToken = await FirebaseService.instance.getToken(); } catch (_) {}
+      if (fcmToken != null) payload['fcm_token'] = fcmToken;
+      final res = await _repo.register(payload);
       await _repo.saveToken(res['token']);
       ref.invalidate(globalCartProvider);
       return GlobalUser.fromJson(res['user']);

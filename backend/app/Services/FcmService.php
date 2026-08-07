@@ -86,6 +86,7 @@ class FcmService
                 if (in_array($errCode, ['UNREGISTERED', 'SENDER_ID_MISMATCH'])) {
                     \App\Models\User::where('fcm_token', $fcmToken)->update(['fcm_token' => null]);
                     \App\Models\Vendor::where('vendor_fcm_token', $fcmToken)->update(['vendor_fcm_token' => null]);
+                    \App\Models\Global\GlobalUser::where('fcm_token', $fcmToken)->update(['fcm_token' => null]);
                     Log::info('[FCM] Cleared stale token', ['errorCode' => $errCode, 'token' => '...' . substr($fcmToken, -20)]);
                 }
             }

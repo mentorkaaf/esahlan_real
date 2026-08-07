@@ -7,7 +7,9 @@ use App\Models\Global\GlobalOrder;
 use App\Models\Global\GlobalPayment;
 use App\Services\Global\StripeService;
 use App\Services\Global\PayPalService;
+use App\Services\FcmService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class AdminGlobalOrdersController extends Controller
 {
@@ -61,9 +63,45 @@ class AdminGlobalOrdersController extends Controller
             $data['fulfillment_status'] = 'delivered';
         }
 
+        $oldStatus = $order->status;
         $order->update(array_filter($data, fn($v) => $v !== null));
 
+        // Send FCM push to customer if status changed
+        $newStatus = $request->status;
+        if ($newStatus && $newStatus !== $oldStatus) {
+            $this->notifyCustomer($order->fresh(), $newStatus);
+        }
+
         return back()->with('success', 'Order updated.');
+    }
+
+    private function notifyCustomer(GlobalOrder $order, string $status): void
+    {
+        try {
+            $fcmToken = $order->user?->fcm_token ?? null;
+            if (empty($fcmToken)) return;
+
+            $messages = [
+                'processing' => ['🔄 Order Processing', 'Your order ' . $order->order_number . ' is being processed.'],
+                'shipped'    => ['🚚 Order Shipped!', 'Your order ' . $order->order_number . ' is on its way!'],
+                'delivered'  => ['📦 Order Delivered!', 'Your order ' . $order->order_number . ' has been delivered.'],
+                'cancelled'  => ['❌ Order Cancelled', 'Your order ' . $order->order_number . ' has been cancelled.'],
+                'refunded'   => ['💰 Order Refunded', 'Your order ' . $order->order_number . ' has been refunded.'],
+                'on_hold'    => ['⏸ Order On Hold', 'Your order ' . $order->order_number . ' is on hold. We\'ll contact you soon.'],
+            ];
+
+            [$title, $body] = $messages[$status] ?? ['🛍 Order Update', 'Your order ' . $order->order_number . ' status: ' . $status];
+
+            FcmService::sendToToken($fcmToken, $title, $body, [
+                'type'         => 'global_order_update',
+                'order_id'     => (string) $order->id,
+                'order_number' => $order->order_number,
+                'status'       => $status,
+                'deep_link'    => '/global/orders',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('[GlobalOrders] FCM notify failed', ['error' => $e->getMessage()]);
+        }
     }
 
     public function refund(Request $request, GlobalOrder $order)

@@ -10,6 +10,7 @@ use App\Models\Global\GlobalShippingZone;
 use App\Models\Global\GlobalSetting;
 use App\Services\Global\StripeService;
 use App\Services\Global\PayPalService;
+use App\Services\FcmService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -147,13 +148,18 @@ class GlobalCheckoutController extends Controller
         // Clear cart now that payment is confirmed
         DB::table('global_cart_items')->where('global_user_id', $user->id)->delete();
 
+        $fresh = $order->fresh();
+
         // Send order confirmation email
-        $this->sendOrderConfirmationEmail($order->fresh(), $user->email);
+        $this->sendOrderConfirmationEmail($fresh, $user->email);
+
+        // Send FCM push notification
+        $this->sendOrderFcm($user, $fresh, 'confirmed');
 
         return response()->json([
             'success'  => true,
             'order_id' => $order->id,
-            'status'   => $order->fresh()->status,
+            'status'   => $fresh->status,
         ]);
     }
 
@@ -172,13 +178,18 @@ class GlobalCheckoutController extends Controller
         // Clear cart now that payment is confirmed
         DB::table('global_cart_items')->where('global_user_id', $user->id)->delete();
 
+        $fresh = $order->fresh();
+
         // Send order confirmation email
-        $this->sendOrderConfirmationEmail($order->fresh(), $user->email);
+        $this->sendOrderConfirmationEmail($fresh, $user->email);
+
+        // Send FCM push notification
+        $this->sendOrderFcm($user, $fresh, 'confirmed');
 
         return response()->json([
             'success'  => true,
             'order_id' => $order->id,
-            'status'   => $order->fresh()->status,
+            'status'   => $fresh->status,
         ]);
     }
 
@@ -335,6 +346,48 @@ class GlobalCheckoutController extends Controller
             Mail::to($email)->queue(new GlobalOrderConfirmationMail($orderData, $items));
         } catch (\Throwable $e) {
             Log::error('GlobalOrderConfirmationMail failed', ['error' => $e->getMessage()]);
+        }
+    }
+
+    private function sendOrderFcm($user, GlobalOrder $order, string $event): void
+    {
+        try {
+            $fcmToken = $user->fcm_token ?? null;
+            if (empty($fcmToken)) return;
+
+            $messages = [
+                'confirmed' => [
+                    'title' => '✅ Order Confirmed!',
+                    'body'  => 'Your order ' . $order->order_number . ' is confirmed. Total: $' . number_format($order->total, 2),
+                ],
+                'shipped' => [
+                    'title' => '🚚 Order Shipped!',
+                    'body'  => 'Your order ' . $order->order_number . ' is on its way!',
+                ],
+                'delivered' => [
+                    'title' => '📦 Order Delivered!',
+                    'body'  => 'Your order ' . $order->order_number . ' has been delivered.',
+                ],
+                'cancelled' => [
+                    'title' => '❌ Order Cancelled',
+                    'body'  => 'Your order ' . $order->order_number . ' has been cancelled.',
+                ],
+            ];
+
+            $msg = $messages[$event] ?? [
+                'title' => '🛍 Order Update',
+                'body'  => 'Your order ' . $order->order_number . ' status: ' . $event,
+            ];
+
+            FcmService::sendToToken($fcmToken, $msg['title'], $msg['body'], [
+                'type'         => 'global_order_update',
+                'order_id'     => (string) $order->id,
+                'order_number' => $order->order_number,
+                'status'       => $event,
+                'deep_link'    => '/global/orders',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('GlobalOrder FCM failed', ['error' => $e->getMessage(), 'order' => $order->order_number]);
         }
     }
 
