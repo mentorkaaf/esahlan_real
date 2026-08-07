@@ -1,5 +1,5 @@
 <div class="d-flex justify-content-end mt-3 mb-4">
-    <button type="submit" class="btn btn-primary px-4">
-        <i class="fas fa-save me-1"></i> Save Changes
+    <button type="button" class="btn-save" onclick="doSave(this)">
+        <i class="fas fa-save"></i> Save Changes
     </button>
 </div>
