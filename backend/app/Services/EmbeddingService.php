@@ -18,7 +18,8 @@ class EmbeddingService
     public static function embedPost(int $postId): ?array
     {
         $post = \DB::table('community_posts')
-            ->leftJoin('community_hashtags', 'community_posts.id', '=', 'community_hashtags.post_id')
+            ->leftJoin('community_post_hashtags', 'community_posts.id', '=', 'community_post_hashtags.post_id')
+            ->leftJoin('community_hashtags', 'community_post_hashtags.hashtag_id', '=', 'community_hashtags.id')
             ->where('community_posts.id', $postId)
             ->select('community_posts.content', \DB::raw('GROUP_CONCAT(community_hashtags.name SEPARATOR " ") as hashtags'))
             ->groupBy('community_posts.id', 'community_posts.content')
