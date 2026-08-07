@@ -16,8 +16,8 @@ class GlobalProductsScreen extends ConsumerStatefulWidget {
 }
 
 class _GlobalProductsScreenState extends ConsumerState<GlobalProductsScreen> {
-  late String? _sort;
-  late int? _categoryId;
+  String? _sort;
+  int? _categoryId;
   final _searchCtrl = TextEditingController();
   String? _searchQ;
   final _scrollCtrl = ScrollController();
