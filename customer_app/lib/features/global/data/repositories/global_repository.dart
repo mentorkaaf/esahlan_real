@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -251,11 +252,33 @@ class GlobalRepository {
       _get('$_base/products/$productId/reviews');
 
   Future<void> submitReview(
-      int productId, int rating, String? title, String? body) async {
-    await _post('$_base/products/$productId/reviews', {
+      int productId, int rating, String? title, String? body,
+      {List<File>? images}) async {
+    final token = await _token();
+    final formData = FormData.fromMap({
       'rating': rating,
       if (title != null && title.isNotEmpty) 'title': title,
       if (body != null && body.isNotEmpty) 'body': body,
-    }, auth: true);
+      if (images != null && images.isNotEmpty)
+        'images': await Future.wait(images.map((f) async =>
+            await MultipartFile.fromFile(f.path,
+                filename: f.path.split('/').last))),
+    });
+
+    try {
+      await _dio.post(
+        '$_base/products/$productId/reviews',
+        data: formData,
+        options: Options(
+          contentType: 'multipart/form-data',
+          headers: {
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message'] ?? e.message ?? 'Failed to submit review';
+      throw Exception(msg);
+    }
   }
 }

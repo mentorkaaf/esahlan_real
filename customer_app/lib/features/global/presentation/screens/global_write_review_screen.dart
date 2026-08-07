@@ -1,11 +1,20 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../data/repositories/global_repository.dart';
 
 class GlobalWriteReviewScreen extends ConsumerStatefulWidget {
   final int productId;
-  const GlobalWriteReviewScreen({super.key, required this.productId});
+  final String? productName;
+  final int? orderId;
+
+  const GlobalWriteReviewScreen({
+    super.key,
+    required this.productId,
+    this.productName,
+    this.orderId,
+  });
 
   @override
   ConsumerState<GlobalWriteReviewScreen> createState() =>
@@ -16,14 +25,34 @@ class _GlobalWriteReviewScreenState
     extends ConsumerState<GlobalWriteReviewScreen> {
   int _rating = 0;
   final _titleCtrl = TextEditingController();
-  final _bodyCtrl  = TextEditingController();
+  final _bodyCtrl = TextEditingController();
+  final List<File> _images = [];
   bool _loading = false;
+
+  static const _maxImages = 3;
 
   @override
   void dispose() {
     _titleCtrl.dispose();
     _bodyCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    if (_images.length >= _maxImages) return;
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1200,
+    );
+    if (picked != null) {
+      setState(() => _images.add(File(picked.path)));
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() => _images.removeAt(index));
   }
 
   Future<void> _submit() async {
@@ -40,8 +69,9 @@ class _GlobalWriteReviewScreenState
         _rating,
         _titleCtrl.text.trim(),
         _bodyCtrl.text.trim(),
+        images: _images.isNotEmpty ? _images : null,
       );
-      if (mounted) context.pop(true);
+      if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
@@ -57,6 +87,8 @@ class _GlobalWriteReviewScreenState
 
   @override
   Widget build(BuildContext context) {
+    final ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -67,7 +99,7 @@ class _GlobalWriteReviewScreenState
             style: TextStyle(fontWeight: FontWeight.w800)),
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
-          onPressed: () => context.pop(false),
+          onPressed: () => Navigator.of(context).pop(false),
         ),
       ),
       body: SingleChildScrollView(
@@ -75,6 +107,30 @@ class _GlobalWriteReviewScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Product name banner
+            if (widget.productName != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F9FA),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.shopping_bag_outlined,
+                      size: 16, color: Color(0xFF1A1A2E)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(widget.productName!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 13)),
+                  ),
+                ]),
+              ),
+              const SizedBox(height: 20),
+            ],
+
             // Rating stars
             const Text('Your Rating *',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
@@ -102,7 +158,7 @@ class _GlobalWriteReviewScreenState
             if (_rating > 0) ...[
               const SizedBox(height: 4),
               Text(
-                ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][_rating],
+                ratingLabels[_rating],
                 style: const TextStyle(
                     color: Color(0xFFF59E0B),
                     fontWeight: FontWeight.w700,
@@ -154,6 +210,90 @@ class _GlobalWriteReviewScreenState
                 ),
                 alignLabelWithHint: true,
                 counterText: '',
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Photo upload
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Add Photos (optional)',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                Text('${_images.length}/$_maxImages',
+                    style: TextStyle(
+                        color: Colors.grey.shade500, fontSize: 12)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 90,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  // Existing images
+                  ..._images.asMap().entries.map((e) => Stack(
+                        children: [
+                          Container(
+                            width: 80,
+                            height: 80,
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              image: DecorationImage(
+                                image: FileImage(e.value),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 2,
+                            right: 10,
+                            child: GestureDetector(
+                              onTap: () => _removeImage(e.key),
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.close,
+                                    size: 12, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )),
+                  // Add button
+                  if (_images.length < _maxImages)
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FA),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: Colors.grey.shade300,
+                              style: BorderStyle.solid),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_photo_alternate_outlined,
+                                size: 26, color: Colors.grey.shade400),
+                            const SizedBox(height: 4),
+                            Text('Add Photo',
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade500)),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: 32),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/global_provider.dart';
 import '../../data/models/global_models.dart';
+import 'global_write_review_screen.dart';
 
 class GlobalOrdersScreen extends ConsumerWidget {
   const GlobalOrdersScreen({super.key});
@@ -219,6 +220,12 @@ class GlobalOrderDetailScreen extends ConsumerWidget {
 
             // ── Status timeline ──────────────────────────────────────────
             _OrderTimeline(status: order.status),
+
+            const SizedBox(height: 12),
+
+            // ── Write a Review (delivered/shipped orders only) ───────────
+            if (order.status == 'delivered' || order.status == 'shipped')
+              _ReviewSection(order: order),
 
             const SizedBox(height: 12),
 
@@ -513,6 +520,108 @@ class _StatusBadge extends StatelessWidget {
       child: Text(status.toUpperCase(),
           style: TextStyle(
               fontSize: 9, fontWeight: FontWeight.w800, color: cfg.$2)),
+    );
+  }
+}
+
+// ── Review section on Order Detail (delivered/shipped) ────────────────────────
+class _ReviewSection extends ConsumerWidget {
+  final GlobalOrder order;
+  const _ReviewSection({required this.order});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reviewableItems = order.items
+        .where((i) => i.productId != null)
+        .toList();
+
+    if (reviewableItems.isEmpty) return const SizedBox();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 18),
+            const SizedBox(width: 6),
+            const Text('Share Your Experience',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+          ]),
+          const SizedBox(height: 4),
+          Text(
+            'Help others by reviewing the products you received.',
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          ...reviewableItems.map((item) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(children: [
+              if (item.thumbnail != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Image.network(
+                    item.thumbnail!,
+                    width: 40, height: 40,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(width: 40, height: 40,
+                            decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(6))),
+                  ),
+                ),
+              if (item.thumbnail != null) const SizedBox(width: 10),
+              Expanded(
+                child: Text(item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: () async {
+                  final ok = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(
+                      builder: (_) => GlobalWriteReviewScreen(
+                        productId: item.productId!,
+                        productName: item.name,
+                        orderId: order.id,
+                      ),
+                    ),
+                  );
+                  if (ok == true && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('✅ Review submitted! Thank you.'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF1A1A2E),
+                  side: const BorderSide(color: Color(0xFF1A1A2E)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Review',
+                    style: TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w700)),
+              ),
+            ]),
+          )),
+        ],
+      ),
     );
   }
 }

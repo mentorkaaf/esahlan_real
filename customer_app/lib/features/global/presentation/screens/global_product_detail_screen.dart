@@ -753,35 +753,9 @@ class _ReviewsSection extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Customer Reviews',
-                    style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w800)),
-                if (auth != null)
-                  TextButton.icon(
-                    onPressed: () async {
-                      final ok = await context.push<bool>(
-                          '/global/product/$productId/review');
-                      if (ok == true) {
-                        ref.invalidate(globalReviewsProvider(productId));
-                        ref.invalidate(
-                            globalProductDetailProvider(productId));
-                      }
-                    },
-                    icon: const Icon(Icons.edit_outlined,
-                        size: 15, color: Color(0xFFF59E0B)),
-                    label: const Text('Write Review',
-                        style: TextStyle(
-                            color: Color(0xFFF59E0B),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700)),
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                  ),
-              ],
-            ),
+            // Header — review button is on the Order Details page (delivered orders only)
+            const Text('Customer Reviews',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
             const SizedBox(height: 12),
 
             if (stats.total == 0)

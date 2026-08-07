@@ -304,6 +304,7 @@ class GlobalOrder {
 
 class GlobalOrderItem {
   final int id;
+  final int? productId;
   final String name;
   final String? variant;
   final int quantity;
@@ -313,6 +314,7 @@ class GlobalOrderItem {
 
   const GlobalOrderItem({
     required this.id,
+    this.productId,
     required this.name,
     this.variant,
     required this.quantity,
@@ -323,6 +325,7 @@ class GlobalOrderItem {
 
   factory GlobalOrderItem.fromJson(Map<String, dynamic> j) => GlobalOrderItem(
         id: j['id'],
+        productId: j['product_id'] is int ? j['product_id'] : int.tryParse('${j['product_id'] ?? ''}'),
         name: j['name'] ?? j['product_name'] ?? '',
         variant: j['variant'],
         quantity: j['quantity'] ?? 1,
