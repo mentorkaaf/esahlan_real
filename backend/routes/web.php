@@ -997,6 +997,25 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
                 Route::post('/unblock-user/{user}', [\App\Http\Controllers\Admin\Global\AdminGlobalSecurityController::class, 'unblockUser'])->name('unblock-user');
                 Route::post('/block-ip', [\App\Http\Controllers\Admin\Global\AdminGlobalSecurityController::class, 'blockIp'])->name('block-ip');
             });
+
+            // Global Users
+            Route::prefix('users')->name('users.')->group(function () {
+                Route::get('/',                        [\App\Http\Controllers\Admin\Global\AdminGlobalUsersController::class, 'index'])->name('index');
+                Route::get('/{user}',                  [\App\Http\Controllers\Admin\Global\AdminGlobalUsersController::class, 'show'])->name('show');
+                Route::post('/{user}/ban',             [\App\Http\Controllers\Admin\Global\AdminGlobalUsersController::class, 'ban'])->name('ban');
+                Route::post('/{user}/unban',           [\App\Http\Controllers\Admin\Global\AdminGlobalUsersController::class, 'unban'])->name('unban');
+                Route::delete('/{user}',               [\App\Http\Controllers\Admin\Global\AdminGlobalUsersController::class, 'destroy'])->name('destroy');
+                Route::post('/{user}/notify',          [\App\Http\Controllers\Admin\Global\AdminGlobalUsersController::class, 'sendNotification'])->name('notify');
+            });
+
+            // Global Sliders
+            Route::prefix('sliders')->name('sliders.')->group(function () {
+                Route::get('/',               [\App\Http\Controllers\Admin\Global\AdminGlobalSlidersController::class, 'index'])->name('index');
+                Route::post('/',              [\App\Http\Controllers\Admin\Global\AdminGlobalSlidersController::class, 'store'])->name('store');
+                Route::put('/{slider}',       [\App\Http\Controllers\Admin\Global\AdminGlobalSlidersController::class, 'update'])->name('update');
+                Route::delete('/{slider}',    [\App\Http\Controllers\Admin\Global\AdminGlobalSlidersController::class, 'destroy'])->name('destroy');
+                Route::post('/reorder',       [\App\Http\Controllers\Admin\Global\AdminGlobalSlidersController::class, 'reorder'])->name('reorder');
+            });
         });
 
         // ─── Legal Pages ──────────────────────────────────────────────────────────

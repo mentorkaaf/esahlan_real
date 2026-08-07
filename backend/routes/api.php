@@ -1075,6 +1075,7 @@ Route::prefix('v1/global')->group(function () {
     Route::get('/products/{id}',           [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'show']);
     Route::get('/products/{id}/reviews',   [\App\Http\Controllers\Api\Global\GlobalReviewsController::class, 'index']);
     Route::get('/categories',              [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'categories']);
+    Route::get('/sliders',                 [\App\Http\Controllers\Api\Global\GlobalSliderController::class, 'index']);
 
     // Stripe/PayPal webhooks (public, no auth)
     Route::post('/checkout/stripe/webhook',  [\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'stripeWebhook']);

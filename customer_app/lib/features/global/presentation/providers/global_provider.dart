@@ -80,6 +80,11 @@ class GlobalAuthNotifier extends AsyncNotifier<GlobalUser?> {
 
 // ── Products ─────────────────────────────────────────────────────────────────
 
+final globalSlidersProvider =
+    FutureProvider<List<GlobalSlider>>((ref) async {
+  return ref.read(globalRepoProvider).getSliders();
+});
+
 final globalCategoriesProvider =
     FutureProvider<List<GlobalCategory>>((ref) async {
   return ref.read(globalRepoProvider).getCategories();

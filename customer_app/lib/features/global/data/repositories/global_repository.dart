@@ -158,6 +158,11 @@ class GlobalRepository {
     return GlobalProduct.fromJson(res['product']);
   }
 
+  Future<List<GlobalSlider>> getSliders() async {
+    final res = await _get('$_base/sliders');
+    return (res['sliders'] as List).map((s) => GlobalSlider.fromJson(s)).toList();
+  }
+
   Future<List<GlobalProduct>> getFeatured() async {
     final res = await _get('$_base/products/featured');
     return (res['products'] as List).map((p) => GlobalProduct.fromJson(p)).toList();

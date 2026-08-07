@@ -387,6 +387,43 @@ class GlobalReviewStats {
       );
 }
 
+class GlobalSlider {
+  final int id;
+  final String title;
+  final String? subtitle;
+  final String? imageUrl;
+  final String? linkUrl;
+  final String bgColor;
+  final String buttonText;
+
+  const GlobalSlider({
+    required this.id,
+    required this.title,
+    this.subtitle,
+    this.imageUrl,
+    this.linkUrl,
+    this.bgColor = '#1A1A2E',
+    this.buttonText = 'Shop Now',
+  });
+
+  factory GlobalSlider.fromJson(Map<String, dynamic> j) => GlobalSlider(
+        id: _i(j['id']),
+        title: j['title'] ?? '',
+        subtitle: j['subtitle'],
+        imageUrl: j['image_url'],
+        linkUrl: j['link_url'],
+        bgColor: j['bg_color'] ?? '#1A1A2E',
+        buttonText: j['button_text'] ?? 'Shop Now',
+      );
+
+  /// Parse hex color string like #1A1A2E to int value usable by Color()
+  int get colorValue {
+    final hex = bgColor.replaceAll('#', '');
+    if (hex.length == 6) return int.parse('FF$hex', radix: 16);
+    return 0xFF1A1A2E;
+  }
+}
+
 class GlobalCheckoutSummary {
   final double subtotal;
   final double shipping;

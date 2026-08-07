@@ -16,13 +16,6 @@ class GlobalHomeScreen extends ConsumerStatefulWidget {
 class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
   final _searchCtrl = TextEditingController();
 
-  static const _banners = [
-    {'title': 'Free Shipping', 'sub': 'On orders over \$50 to Europe & USA', 'color': 0xFF1A1A2E, 'icon': '🚚'},
-    {'title': 'Flash Deals', 'sub': 'Up to 60% off today only', 'color': 0xFFB45309, 'icon': '⚡'},
-    {'title': 'New Arrivals', 'sub': 'Fresh styles just landed', 'color': 0xFF065F46, 'icon': '✨'},
-  ];
-
-  int _bannerIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -152,8 +145,8 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
                   ),
                 ),
 
-                // Banner carousel
-                _BannerCarousel(banners: _banners),
+                // Banner carousel — from API
+                _ApiSliderCarousel(),
 
                 const SizedBox(height: 20),
 
@@ -253,92 +246,135 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
   }
 }
 
-class _BannerCarousel extends StatefulWidget {
-  final List<Map<String, dynamic>> banners;
-  const _BannerCarousel({required this.banners});
-
+// ── API-driven slider carousel (3:1.5 ratio) ──────────────────────────────────
+class _ApiSliderCarousel extends ConsumerStatefulWidget {
+  const _ApiSliderCarousel();
   @override
-  State<_BannerCarousel> createState() => _BannerCarouselState();
+  ConsumerState<_ApiSliderCarousel> createState() => _ApiSliderCarouselState();
 }
 
-class _BannerCarouselState extends State<_BannerCarousel> {
+class _ApiSliderCarouselState extends ConsumerState<_ApiSliderCarousel> {
   int _index = 0;
   final PageController _ctrl = PageController();
 
+  // Fallback sliders shown if API fails / no sliders in DB
+  static const _fallback = [
+    GlobalSlider(id: 0, title: 'Free Shipping', subtitle: 'On orders over \$50', bgColor: '#1A1A2E', buttonText: 'Shop Now'),
+    GlobalSlider(id: 0, title: 'Flash Deals', subtitle: 'Up to 60% off today', bgColor: '#0F3460', buttonText: 'See Deals'),
+    GlobalSlider(id: 0, title: 'New Arrivals', subtitle: 'Fresh styles just landed', bgColor: '#16213E', buttonText: 'Explore'),
+  ];
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final slidersAsync = ref.watch(globalSlidersProvider);
+    final sliders = slidersAsync.valueOrNull?.isNotEmpty == true
+        ? slidersAsync.value!
+        : _fallback;
+
     return Column(children: [
-      SizedBox(
-        height: 140,
+      // 3:1.5 aspect ratio = width / height = 2.0
+      AspectRatio(
+        aspectRatio: 3 / 1.5,
         child: PageView.builder(
           controller: _ctrl,
           onPageChanged: (i) => setState(() => _index = i),
-          itemCount: widget.banners.length,
-          itemBuilder: (_, i) {
-            final b = widget.banners[i];
-            return Container(
-              margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              decoration: BoxDecoration(
-                color: Color(b['color'] as int),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              padding: const EdgeInsets.all(20),
-              child: Row(children: [
-                Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(b['title'] as String,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800)),
-                        const SizedBox(height: 6),
-                        Text(b['sub'] as String,
-                            style: const TextStyle(
-                                color: Colors.white70, fontSize: 12)),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF59E0B),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text('Shop Now',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1A1A2E))),
-                        ),
-                      ]),
-                ),
-                Text(b['icon'] as String,
-                    style: const TextStyle(fontSize: 56)),
-              ]),
-            );
-          },
+          itemCount: sliders.length,
+          itemBuilder: (_, i) => _SliderCard(slider: sliders[i]),
         ),
       ),
+      const SizedBox(height: 8),
       Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(
-            widget.banners.length,
-            (i) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: _index == i ? 20 : 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: _index == i
-                        ? const Color(0xFFF59E0B)
-                        : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                )),
+        children: List.generate(sliders.length, (i) => AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          width: _index == i ? 20 : 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: _index == i ? const Color(0xFFF59E0B) : Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        )),
       ),
     ]);
+  }
+}
+
+class _SliderCard extends StatelessWidget {
+  final GlobalSlider slider;
+  const _SliderCard({required this.slider});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = slider.imageUrl != null && slider.imageUrl!.isNotEmpty;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      decoration: BoxDecoration(
+        color: Color(slider.colorValue),
+        borderRadius: BorderRadius.circular(16),
+        image: hasImage
+            ? DecorationImage(
+                image: NetworkImage(slider.imageUrl!),
+                fit: BoxFit.cover,
+                colorFilter: ColorFilter.mode(
+                  Colors.black.withValues(alpha: 0.35),
+                  BlendMode.darken,
+                ),
+              )
+            : null,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(slider.title,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+                if (slider.subtitle != null && slider.subtitle!.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(slider.subtitle!,
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis),
+                ],
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(slider.buttonText,
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1A1A2E))),
+                ),
+              ],
+            ),
+          ),
+          if (!hasImage)
+            const Text('🛍', style: TextStyle(fontSize: 48)),
+        ],
+      ),
+    );
   }
 }
 
