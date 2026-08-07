@@ -35,7 +35,7 @@ class GlobalAuthNotifier extends AsyncNotifier<GlobalUser?> {
     state = await AsyncValue.guard(() async {
       // Get FCM token to register push notifications
       String? fcmToken;
-      try { fcmToken = await FirebaseService.instance.getToken(); } catch (_) {}
+      try { fcmToken = await FirebaseService().getToken(); } catch (_) {}
       final data = await _repo.login(email, password, fcmToken: fcmToken);
       await _repo.saveToken(data['token']);
       // Refresh cart
@@ -50,7 +50,7 @@ class GlobalAuthNotifier extends AsyncNotifier<GlobalUser?> {
     state = await AsyncValue.guard(() async {
       // Get FCM token to register push notifications
       String? fcmToken;
-      try { fcmToken = await FirebaseService.instance.getToken(); } catch (_) {}
+      try { fcmToken = await FirebaseService().getToken(); } catch (_) {}
       if (fcmToken != null) payload['fcm_token'] = fcmToken;
       final res = await _repo.register(payload);
       await _repo.saveToken(res['token']);
