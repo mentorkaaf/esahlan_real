@@ -254,7 +254,7 @@ class GlobalRepository {
   Future<void> submitReview(
       int productId, int rating, String? title, String? body,
       {List<File>? images}) async {
-    final token = await _token();
+    final token = await this.token;
     final formData = FormData.fromMap({
       'rating': rating,
       if (title != null && title.isNotEmpty) 'title': title,
