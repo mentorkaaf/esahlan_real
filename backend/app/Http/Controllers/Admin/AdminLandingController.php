@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class AdminLandingController extends Controller
 {
@@ -42,11 +43,7 @@ class AdminLandingController extends Controller
 
     public function update(Request $request)
     {
-        // Handle image file uploads
-        $uploadDir = public_path('uploads/landing');
-        if (!file_exists($uploadDir)) {
-            mkdir($uploadDir, 0775, true);
-        }
+        // Handle image file uploads — stored in storage/app/public/landing/ (survives deploys)
         $imageUploadKeys = [
             'landing_dl_image_left', 'landing_dl_image_right',
             'landing_logo_nav', 'landing_logo_hero', 'landing_logo_footer',
@@ -56,9 +53,9 @@ class AdminLandingController extends Controller
             $fileKey = $imageKey . '_file';
             if ($request->hasFile($fileKey) && $request->file($fileKey)->isValid()) {
                 $file = $request->file($fileKey);
-                $filename = $imageKey . '_' . time() . '.' . $file->getClientOriginalExtension();
-                $file->move($uploadDir, $filename);
-                $request->merge([$imageKey => '/uploads/landing/' . $filename]);
+                $path = $file->store('landing', 'public');
+                // public URL e.g. /storage/landing/filename.png
+                $request->merge([$imageKey => Storage::url($path)]);
             }
         }
 
