@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -246,7 +247,7 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
   }
 }
 
-// ── API-driven slider carousel (3:1.5 ratio) ──────────────────────────────────
+// ── API-driven slider carousel (3:1 ratio + auto-slide) ──────────────────────
 class _ApiSliderCarousel extends ConsumerStatefulWidget {
   const _ApiSliderCarousel();
   @override
@@ -255,7 +256,8 @@ class _ApiSliderCarousel extends ConsumerStatefulWidget {
 
 class _ApiSliderCarouselState extends ConsumerState<_ApiSliderCarousel> {
   int _index = 0;
-  final PageController _ctrl = PageController();
+  late final PageController _ctrl;
+  Timer? _timer;
 
   // Fallback sliders shown if API fails / no sliders in DB
   static const _fallback = [
@@ -265,7 +267,30 @@ class _ApiSliderCarouselState extends ConsumerState<_ApiSliderCarousel> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _ctrl = PageController();
+    _startAutoSlide();
+  }
+
+  void _startAutoSlide() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || !_ctrl.hasClients) return;
+      final sliders = ref.read(globalSlidersProvider).valueOrNull;
+      final count = (sliders != null && sliders.isNotEmpty) ? sliders.length : _fallback.length;
+      final next = (_index + 1) % count;
+      _ctrl.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  @override
   void dispose() {
+    _timer?.cancel();
     _ctrl.dispose();
     super.dispose();
   }
@@ -278,9 +303,9 @@ class _ApiSliderCarouselState extends ConsumerState<_ApiSliderCarousel> {
         : _fallback;
 
     return Column(children: [
-      // 3:1.5 aspect ratio = width / height = 2.0
+      // 3:1 aspect ratio
       AspectRatio(
-        aspectRatio: 3 / 1.5,
+        aspectRatio: 3 / 1,
         child: PageView.builder(
           controller: _ctrl,
           onPageChanged: (i) => setState(() => _index = i),
@@ -292,7 +317,7 @@ class _ApiSliderCarouselState extends ConsumerState<_ApiSliderCarousel> {
       Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(sliders.length, (i) => AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 250),
           margin: const EdgeInsets.symmetric(horizontal: 3),
           width: _index == i ? 20 : 6,
           height: 6,

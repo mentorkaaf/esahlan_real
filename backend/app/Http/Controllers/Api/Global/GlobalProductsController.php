@@ -99,9 +99,10 @@ class GlobalProductsController extends Controller
         $products = Cache::remember('global_featured', 300, function () {
             return GlobalProduct::with(['category', 'images'])
                 ->where('is_active', true)
-                ->where('is_featured', true)
+                // Show featured first, then rest — no hard filter on is_featured
+                ->orderByDesc('is_featured')
                 ->orderBy('created_at', 'desc')
-                ->limit(12)
+                ->limit(20)
                 ->get()
                 ->map(fn($p) => $this->productCard($p));
         });
