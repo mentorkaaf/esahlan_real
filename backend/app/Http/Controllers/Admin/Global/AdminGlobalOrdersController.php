@@ -9,7 +9,9 @@ use App\Services\Global\StripeService;
 use App\Services\Global\PayPalService;
 use App\Services\FcmService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class AdminGlobalOrdersController extends Controller
 {
@@ -70,6 +72,10 @@ class AdminGlobalOrdersController extends Controller
         $newStatus = $request->status;
         if ($newStatus && $newStatus !== $oldStatus) {
             $this->notifyCustomer($order->fresh(), $newStatus);
+            // Send review request notification immediately on delivery
+            if ($newStatus === 'delivered') {
+                $this->sendDeliveryReviewRequest($order->fresh());
+            }
         }
 
         return back()->with('success', 'Order updated.');
@@ -101,6 +107,45 @@ class AdminGlobalOrdersController extends Controller
             ]);
         } catch (\Throwable $e) {
             Log::error('[GlobalOrders] FCM notify failed', ['error' => $e->getMessage()]);
+        }
+    }
+
+    private function sendDeliveryReviewRequest(GlobalOrder $order): void
+    {
+        try {
+            $user = $order->user;
+            if (!$user) return;
+
+            $firstItem = $order->items->first();
+            $productName = $firstItem?->product_name ?? 'your recent purchase';
+
+            // FCM
+            if ($user->fcm_token) {
+                FcmService::sendToToken(
+                    $user->fcm_token,
+                    '📦 Order Delivered! ⭐ Leave a Review',
+                    "Your order {$order->order_number} arrived! Tell us what you think of $productName",
+                    ['type' => 'review_request', 'order_id' => (string) $order->id, 'deep_link' => '/global/orders']
+                );
+            }
+
+            // Email
+            Mail::to($user->email)->queue(new \App\Mail\Global\GlobalReviewRequestMail([
+                'name'         => $user->name,
+                'order_number' => $order->order_number,
+                'product_name' => $productName,
+                'order_id'     => $order->id,
+                'is_reminder'  => false,
+            ]));
+
+            // Mark as notified
+            DB::table('global_orders')->where('id', $order->id)->update([
+                'review_notified_at'    => now(),
+                'review_reminder_count' => 1,
+            ]);
+
+        } catch (\Throwable $e) {
+            Log::error('[GlobalOrders] Review request failed: ' . $e->getMessage());
         }
     }
 

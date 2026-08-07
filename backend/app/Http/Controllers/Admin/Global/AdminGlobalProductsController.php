@@ -8,6 +8,7 @@ use App\Models\Global\GlobalCategory;
 use App\Models\Global\GlobalProductImage;
 use App\Models\Global\GlobalProductVariant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class AdminGlobalProductsController extends Controller
@@ -70,6 +71,7 @@ class AdminGlobalProductsController extends Controller
             'images'               => 'nullable|array',
             'images.*'             => 'url',
             'thumbnail'            => 'nullable|string',
+            'image_file'           => 'nullable|image|max:5120',
         ]);
 
         $data['slug']       = Str::slug($data['name']) . '-' . Str::random(5);
@@ -82,10 +84,16 @@ class AdminGlobalProductsController extends Controller
             ? array_map('trim', explode(',', $request->tags))
             : null;
 
+        // Handle image file upload — takes priority over URL
+        if ($request->hasFile('image_file')) {
+            $path = $request->file('image_file')->store('global/products', 'public');
+            $data['thumbnail'] = Storage::url($path);
+        }
+
         $images = $data['images'] ?? [];
         unset($data['images']);
 
-        if (!$request->filled('thumbnail') && !empty($images)) {
+        if (!isset($data['thumbnail']) && !$request->filled('thumbnail') && !empty($images)) {
             $data['thumbnail'] = $images[0];
         }
 
@@ -141,6 +149,7 @@ class AdminGlobalProductsController extends Controller
             'origin_country'      => 'nullable|string|max:2',
             'thumbnail'           => 'nullable|string',
             'tags'                => 'nullable|string',
+            'image_file'          => 'nullable|image|max:5120',
         ]);
 
         $data['is_active']      = $request->boolean('is_active', true);
@@ -151,6 +160,12 @@ class AdminGlobalProductsController extends Controller
         $data['tags']           = $request->filled('tags')
             ? array_map('trim', explode(',', $request->tags))
             : null;
+
+        // Handle image file upload — takes priority over URL
+        if ($request->hasFile('image_file')) {
+            $path = $request->file('image_file')->store('global/products', 'public');
+            $data['thumbnail'] = Storage::url($path);
+        }
 
         $product->update($data);
 

@@ -1102,6 +1102,7 @@ Route::prefix('v1/global')->group(function () {
         Route::get('/orders',                  [\App\Http\Controllers\Api\Global\GlobalOrdersController::class, 'index']);
         Route::get('/orders/{id}',             [\App\Http\Controllers\Api\Global\GlobalOrdersController::class, 'show']);
 
+        Route::get('/products/{id}/reviews/can-review', [\App\Http\Controllers\Api\Global\GlobalReviewsController::class, 'canReview']);
         Route::post('/products/{id}/reviews',  [\App\Http\Controllers\Api\Global\GlobalReviewsController::class, 'store']);
 
         // Confirm endpoints (also authenticated)

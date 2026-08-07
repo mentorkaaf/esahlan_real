@@ -79,6 +79,12 @@ Schedule::job(new \App\Jobs\ComputeUserSimilaritiesJob)
     ->name('feed:collab-similarities')
     ->withoutOverlapping();
 
+// Send review reminders daily at 10:00
+Schedule::command('global:review-reminders')
+    ->dailyAt('10:00')
+    ->name('global:review-reminders')
+    ->withoutOverlapping();
+
 // Cart abandonment notifications: every 15 minutes
 Schedule::command('cart:notify-abandoned')
     ->everyFifteenMinutes()

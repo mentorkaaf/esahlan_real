@@ -20,7 +20,7 @@
 </div>
 @endif
 
-<form method="POST" action="{{ route('admin.global.products.store') }}">
+<form method="POST" action="{{ route('admin.global.products.store') }}" enctype="multipart/form-data">
 @csrf
 <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:start">
 
@@ -81,8 +81,10 @@
     <div style="background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:24px">
         <h3 style="font-size:14px;font-weight:700;color:#111;margin-bottom:16px">Images</h3>
         <div>
-            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">Thumbnail URL</label>
-            <input name="thumbnail" type="url" value="{{ old('thumbnail') }}" placeholder="https://..." style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;margin-bottom:10px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">Thumbnail (Upload File)</label>
+            <input name="image_file" type="file" accept="image/*" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;margin-bottom:10px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">Or Thumbnail URL</label>
+            <input name="thumbnail" type="url" value="{{ old('thumbnail') }}" placeholder="https://... (used if no file uploaded)" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;margin-bottom:10px">
         </div>
         <div id="imageInputs">
             <div style="display:flex;gap:8px;margin-bottom:6px">

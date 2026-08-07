@@ -19,7 +19,7 @@
 </div>
 @endif
 
-<form method="POST" action="{{ route('admin.global.products.update', $product) }}">
+<form method="POST" action="{{ route('admin.global.products.update', $product) }}" enctype="multipart/form-data">
 @csrf @method('PUT')
 <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:start">
 
@@ -62,7 +62,13 @@
         <h3 style="font-size:14px;font-weight:700;color:#111;margin-bottom:16px">Images</h3>
         <div>
             <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">Thumbnail URL</label>
-            <input name="thumbnail" type="url" value="{{ old('thumbnail', $product->thumbnail) }}" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;margin-bottom:12px">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">Upload New Thumbnail</label>
+            <input name="image_file" type="file" accept="image/*" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;margin-bottom:10px">
+            @if($product->thumbnail)
+            <div style="margin-bottom:8px"><img src="{{ $product->thumbnail }}" style="max-height:80px;border-radius:6px;border:1px solid #e5e7eb"></div>
+            @endif
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">Or Thumbnail URL</label>
+            <input name="thumbnail" type="url" value="{{ old('thumbnail', $product->thumbnail) }}" placeholder="https://... (used if no file uploaded)" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;margin-bottom:12px">
         </div>
         <div id="imageInputs">
             @forelse($product->images as $img)
