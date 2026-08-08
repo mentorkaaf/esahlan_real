@@ -193,6 +193,45 @@ class GlobalCheckoutController extends Controller
         ]);
     }
 
+    /** POST /checkout/stripe-web-session  (web: redirect to hosted Stripe checkout) */
+    public function stripeWebSession(Request $request)
+    {
+        $data = $request->validate([
+            'address_id'    => 'nullable|integer',
+            'first_name'    => 'required_without:address_id|nullable|string|max:100',
+            'last_name'     => 'nullable|string|max:100',
+            'address_line1' => 'required_without:address_id|nullable|string|max:255',
+            'city'          => 'required_without:address_id|nullable|string|max:100',
+            'zip'           => 'nullable|string|max:20',
+            'country_code'  => 'nullable|string|max:50',
+            'country_name'  => 'nullable|string|max:100',
+            'notes'         => 'nullable|string|max:1000',
+        ]);
+
+        $user  = $request->user('global_users');
+
+        GlobalOrder::where('global_user_id', $user->id)
+            ->where('status', 'pending')
+            ->where('payment_method', 'stripe')
+            ->where('payment_status', 'pending')
+            ->where('created_at', '<', now()->subMinutes(30))
+            ->update(['status' => 'cancelled', 'payment_status' => 'failed']);
+
+        $order = $this->createPendingOrder($user, $data, 'stripe');
+
+        $sessionData = $this->stripe->createCheckoutSession($order);
+
+        $order->update(['payment_intent_id' => $sessionData['session_id']]);
+
+        // Send order confirmation FCM
+        $this->sendOrderFcm($user, $order->fresh(), 'confirmed');
+
+        return response()->json([
+            'order_id'    => $order->id,
+            'session_url' => $sessionData['session_url'],
+        ]);
+    }
+
     /** POST /checkout/stripe/webhook  (unauthenticated) */
     public function stripeWebhook(Request $request)
     {

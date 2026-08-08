@@ -220,6 +220,11 @@ class GlobalRepository {
     return await _post('$_base/checkout/stripe', data, auth: true);
   }
 
+  /// Web-only: creates a Stripe Checkout Session, returns {order_id, session_url}
+  Future<Map<String, dynamic>> createStripeWebSession(Map<String, dynamic> data) async {
+    return await _post('$_base/checkout/stripe-web-session', data, auth: true);
+  }
+
   /// Returns {order_id, order_number, total, approval_url, paypal_id}
   Future<Map<String, dynamic>> createPayPalCheckout(Map<String, dynamic> data) async {
     return await _post('$_base/checkout/paypal', data, auth: true);

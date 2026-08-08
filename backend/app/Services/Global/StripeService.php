@@ -116,6 +116,44 @@ class StripeService
     }
 
     /**
+     * Create a Stripe Checkout Session (web redirect flow)
+     * Returns ['session_id' => '...', 'session_url' => '...']
+     */
+    public function createCheckoutSession(GlobalOrder $order): array
+    {
+        if (!$this->isEnabled()) {
+            throw new Exception('Stripe payments are not enabled.');
+        }
+
+        $this->setApiKey();
+
+        $session = \Stripe\Checkout\Session::create([
+            'payment_method_types' => ['card'],
+            'line_items' => [[
+                'price_data' => [
+                    'currency'     => strtolower($order->currency),
+                    'product_data' => ['name' => "eSahlan Global Order #{$order->order_number}"],
+                    'unit_amount'  => (int) round($order->total * 100),
+                ],
+                'quantity' => 1,
+            ]],
+            'mode'        => 'payment',
+            'success_url' => 'https://global.esahlan.com/#/global/orders?payment=success&order_id=' . $order->id,
+            'cancel_url'  => 'https://global.esahlan.com/#/global/cart',
+            'metadata'    => [
+                'order_id'     => (string) $order->id,
+                'order_number' => $order->order_number,
+                'user_id'      => (string) $order->global_user_id,
+            ],
+        ]);
+
+        return [
+            'session_id'  => $session->id,
+            'session_url' => $session->url,
+        ];
+    }
+
+    /**
      * Handle Stripe webhook
      */
     public function handleWebhook(string $payload, string $signature): array
@@ -137,6 +175,21 @@ class StripeService
                 $order = GlobalOrder::where('payment_intent_id', $pi->id)->first();
                 if ($order) {
                     $order->update(['payment_status' => 'failed']);
+                }
+                break;
+
+            case 'checkout.session.completed':
+                $session = $event->data->object;
+                $orderId = $session->metadata->order_id ?? null;
+                if ($orderId) {
+                    $order = GlobalOrder::find($orderId);
+                    if ($order && $order->payment_status !== 'paid') {
+                        $order->update([
+                            'payment_status'    => 'paid',
+                            'status'            => 'processing',
+                            'payment_intent_id' => $session->payment_intent,
+                        ]);
+                    }
                 }
                 break;
         }

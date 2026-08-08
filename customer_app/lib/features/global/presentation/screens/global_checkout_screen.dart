@@ -461,6 +461,21 @@ class _GlobalCheckoutScreenState extends ConsumerState<GlobalCheckoutScreen> {
   }
 
   Future<void> _doStripe(GlobalRepository repo, Map<String, dynamic> ship) async {
+    if (kIsWeb) {
+      // Web: redirect to Stripe-hosted checkout page (flutter_stripe doesn't support web)
+      final res        = await repo.createStripeWebSession(ship);
+      final sessionUrl = res['session_url'] as String;
+      final uri        = Uri.parse(sessionUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        throw Exception('Could not open Stripe checkout.');
+      }
+      // User is redirected away; order confirmed via Stripe webhook automatically
+      return;
+    }
+
+    // Mobile: use flutter_stripe Payment Sheet
     final res          = await repo.createStripeCheckout(ship);
     final clientSecret = res['client_secret'] as String;
     final publicKey    = res['public_key']    as String;

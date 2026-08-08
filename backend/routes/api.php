@@ -1096,8 +1096,9 @@ Route::prefix('v1/global')->group(function () {
         Route::delete('/cart',                 [\App\Http\Controllers\Api\Global\GlobalCartController::class, 'clear']);
 
         Route::get('/checkout/summary',        [\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'summary']);
-        Route::post('/checkout/stripe',        [\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'stripe']);
-        Route::post('/checkout/paypal',        [\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'paypal']);
+        Route::post('/checkout/stripe',            [\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'stripe']);
+        Route::post('/checkout/stripe-web-session',[\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'stripeWebSession']);
+        Route::post('/checkout/paypal',            [\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'paypal']);
 
         Route::get('/orders',                  [\App\Http\Controllers\Api\Global\GlobalOrdersController::class, 'index']);
         Route::get('/orders/{id}',             [\App\Http\Controllers\Api\Global\GlobalOrdersController::class, 'show']);
