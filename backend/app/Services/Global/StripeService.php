@@ -90,6 +90,51 @@ class StripeService
     }
 
     /**
+     * Create a PaymentMethod from raw card data (server-side, secret key).
+     * Called by mobile app to avoid "integration surface unsupported" error
+     * that occurs when the publishable key is used directly from a Flutter app.
+     */
+    public function createPaymentMethodFromCard(
+        string $number,
+        int $expMonth,
+        int $expYear,
+        string $cvc
+    ): string {
+        $this->setApiKey();
+
+        $pm = \Stripe\PaymentMethod::create([
+            'type' => 'card',
+            'card' => [
+                'number'    => preg_replace('/\s+/', '', $number),
+                'exp_month' => $expMonth,
+                'exp_year'  => $expYear,
+                'cvc'       => $cvc,
+            ],
+        ]);
+
+        return $pm->id; // pm_xxx
+    }
+
+    /**
+     * Attach a PaymentMethod to a PaymentIntent and confirm it.
+     * Returns the updated PaymentIntent status and any next_action.
+     */
+    public function attachAndConfirm(string $paymentIntentId, string $paymentMethodId): array
+    {
+        $this->setApiKey();
+
+        $intent = \Stripe\PaymentIntent::confirm($paymentIntentId, [
+            'payment_method' => $paymentMethodId,
+            'return_url'     => 'https://app.esahlan.com/global/payment-return',
+        ]);
+
+        return [
+            'status'      => $intent->status,
+            'next_action' => $intent->next_action ? $intent->next_action->toArray() : null,
+        ];
+    }
+
+    /**
      * Issue a refund
      */
     public function refund(GlobalPayment $payment, float $amount = null): void

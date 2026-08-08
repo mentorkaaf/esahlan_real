@@ -1107,7 +1107,8 @@ Route::prefix('v1/global')->group(function () {
         Route::post('/products/{id}/reviews',  [\App\Http\Controllers\Api\Global\GlobalReviewsController::class, 'store']);
 
         // Confirm endpoints (also authenticated)
-        Route::post('/checkout/stripe/confirm',[\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'stripeConfirm']);
+        Route::post('/checkout/stripe/confirm',  [\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'stripeConfirm']);
+        Route::post('/checkout/stripe/tokenize', [\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'stripeTokenize']);
         Route::post('/checkout/paypal/capture',[\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'paypalCapture']);
     });
 });

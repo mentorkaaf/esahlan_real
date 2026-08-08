@@ -163,6 +163,60 @@ class GlobalCheckoutController extends Controller
         ]);
     }
 
+    /**
+     * POST /checkout/stripe/tokenize
+     * Mobile-only: create a PaymentMethod server-side from raw card data,
+     * then attach + confirm the PaymentIntent. Avoids "integration surface
+     * unsupported" error that occurs when calling Stripe directly from Flutter
+     * with a publishable key.
+     */
+    public function stripeTokenize(Request $request)
+    {
+        $data = $request->validate([
+            'order_id'    => 'required|integer',
+            'card_number' => 'required|string|min:13|max:19',
+            'exp_month'   => 'required|integer|min:1|max:12',
+            'exp_year'    => 'required|integer|min:2024|max:2050',
+            'cvc'         => 'required|string|min:3|max:4',
+        ]);
+
+        $user  = $request->user('global_users');
+        $order = GlobalOrder::where('id', $data['order_id'])
+            ->where('global_user_id', $user->id)
+            ->firstOrFail();
+
+        if ($order->payment_status === 'paid') {
+            return response()->json(['error' => 'Order already paid.'], 422);
+        }
+
+        try {
+            // 1. Create PaymentMethod via secret key (server-side — allowed)
+            $pmId = $this->stripe->createPaymentMethodFromCard(
+                $data['card_number'],
+                (int) $data['exp_month'],
+                (int) $data['exp_year'],
+                $data['cvc']
+            );
+
+            // 2. Attach PM to existing PaymentIntent and confirm
+            $result = $this->stripe->attachAndConfirm(
+                $order->payment_intent_id,
+                $pmId
+            );
+
+            return response()->json([
+                'status'      => $result['status'],
+                'next_action' => $result['next_action'],
+                'order_id'    => $order->id,
+            ]);
+        } catch (\Stripe\Exception\CardException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            Log::error('stripeTokenize error', ['msg' => $e->getMessage()]);
+            return response()->json(['error' => 'Payment failed. Please try again.'], 500);
+        }
+    }
+
     /** POST /checkout/paypal/capture */
     public function paypalCapture(Request $request)
     {
