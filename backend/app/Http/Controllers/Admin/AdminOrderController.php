@@ -127,7 +127,7 @@ class AdminOrderController extends Controller
         } catch (\Throwable $e) {
             $order->load(['user.district', 'vendor', 'deliveryman', 'items.product']);
         }
-        $deliverymen = Deliveryman::where('is_approved', true)->where('status', 'available')->with('user')->get();
+        $deliverymen = Deliveryman::where('is_approved', true)->whereIn('status', ['available', 'busy'])->with('user')->get();
         return view('admin.orders.show', compact('order', 'deliverymen'));
     }
 
