@@ -833,6 +833,9 @@
         <a href="{{ route('admin.notifications.cart-templates') }}" class="nav-link {{ request()->routeIs('admin.notifications.cart-templates*') ? 'active' : '' }}" style="padding-left:36px;font-size:12px;">
             <div class="nav-icon"><i class="fas fa-shopping-cart"></i></div> Cart Reminders
         </a>
+        <a href="{{ route('admin.db-clean.index') }}" class="nav-link {{ request()->routeIs('admin.db-clean.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-broom"></i></div> Clean Database
+        </a>
 
         <div class="nav-section-label">Inbox</div>
         <div class="nav-link nav-toggle-btn {{ request()->is('admin/inbox*') ? 'open active' : '' }}"

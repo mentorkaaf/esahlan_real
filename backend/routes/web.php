@@ -507,6 +507,12 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/{id}/resend', [AdminNotificationController::class, 'resend'])->name('resend');
         });
 
+        // Database Cleaner
+        Route::prefix('db-clean')->name('db-clean.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\AdminDbCleanController::class, 'index'])->name('index');
+            Route::post('/run', [\App\Http\Controllers\Admin\AdminDbCleanController::class, 'run'])->name('run');
+        });
+
         // Inbox (Support + Marketing broadcasts)
         Route::prefix('inbox')->name('inbox.')->controller(\App\Http\Controllers\Admin\AdminInboxWebController::class)->group(function () {
             Route::get('/conversations',               'conversations')->name('conversations');
