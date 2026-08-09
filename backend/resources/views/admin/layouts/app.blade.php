@@ -22,10 +22,13 @@
     }
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }
-        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #f1f5f9; color: #1a1a2e; display: flex; min-height: 100vh; font-size: 14px; line-height: 1.55; }
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #f1f5f9; color: #1a1a2e; display: flex; min-height: 100vh; font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #c7cce0; border-radius: 3px; }
@@ -83,16 +86,22 @@
         .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
 
         .nav-section-label {
-            padding: 16px 20px 5px; font-size: 9px; font-weight: 800;
-            letter-spacing: 2.5px; text-transform: uppercase;
-            color: rgba(255,138,0,0.4); user-select: none;
+            padding: 20px 18px 6px; font-size: 10px; font-weight: 700;
+            letter-spacing: 1.5px; text-transform: uppercase;
+            color: rgba(255,138,0,0.5); user-select: none;
+            display: flex; align-items: center; gap: 7px;
+        }
+        .nav-section-label::after {
+            content: ''; flex: 1; height: 1px;
+            background: linear-gradient(to right, rgba(255,138,0,0.15), transparent);
         }
         .nav-link {
             display: flex; align-items: center; gap: 11px;
-            padding: 9px 15px; margin: 2px 10px; border-radius: 11px;
-            color: rgba(255,255,255,0.5); text-decoration: none;
-            font-size: 13.5px; font-weight: 500; position: relative;
-            cursor: pointer; transition: all .18s; white-space: nowrap; overflow: hidden;
+            padding: 9px 14px; margin: 1px 8px; border-radius: 10px;
+            color: rgba(255,255,255,0.55); text-decoration: none;
+            font-size: 13px; font-weight: 500; position: relative;
+            cursor: pointer; transition: all .15s; white-space: nowrap; overflow: hidden;
+            letter-spacing: -0.1px;
         }
         .nav-icon {
             width: 32px; height: 32px; border-radius: 9px;
@@ -678,456 +687,460 @@
     <div class="sidebar-scroll">
         @php $u = auth()->user(); @endphp
 
-        <div class="nav-section-label">Main</div>
+        {{-- ══ OVERVIEW ══ --}}
+        <div class="nav-section-label">Overview</div>
         <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-chart-pie"></i></div> Dashboard
+            <div class="nav-icon"><i class="fas fa-chart-pie"></i></div><span class="nav-text">Dashboard</span>
         </a>
         <a href="{{ route('admin.analytics') }}" class="nav-link {{ request()->routeIs('admin.analytics*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-chart-line"></i></div> Analytics
+            <div class="nav-icon"><i class="fas fa-chart-line"></i></div><span class="nav-text">Analytics</span>
         </a>
 
+        {{-- ══ PEOPLE ══ --}}
         @if($u->isFullAdmin())
         <div class="nav-section-label">People</div>
         <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-users"></i></div> Users
+            <div class="nav-icon"><i class="fas fa-users"></i></div><span class="nav-text">Customers</span>
         </a>
         <a href="{{ route('admin.vendors.index') }}" class="nav-link {{ request()->routeIs('admin.vendors.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-store"></i></div> Vendors
+            <div class="nav-icon"><i class="fas fa-store"></i></div><span class="nav-text">Vendors</span>
         </a>
         <a href="{{ route('admin.deliverymen.index') }}" class="nav-link {{ request()->routeIs('admin.deliverymen.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-motorcycle"></i></div> Deliverymen
+            <div class="nav-icon"><i class="fas fa-motorcycle"></i></div><span class="nav-text">Drivers</span>
         </a>
 
-        <div class="nav-section-label">Operations</div>
+        {{-- ══ ORDERS & LOGISTICS ══ --}}
+        <div class="nav-section-label">Orders & Logistics</div>
         <a href="{{ route('admin.orders.index') }}" class="nav-link {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-shopping-bag"></i></div>
-            Orders
+            <div class="nav-icon"><i class="fas fa-shopping-bag"></i></div><span class="nav-text">Orders</span>
             @php try { $__pOrd = \App\Models\Order::where('status','pending')->count(); } catch(\Exception $e){ $__pOrd=0; } @endphp
             @if($__pOrd > 0)<span class="nav-badge">{{ $__pOrd }}</span>@endif
         </a>
-        <a href="{{ route('admin.wallet.index') }}" class="nav-link {{ request()->routeIs('admin.wallet.index') || request()->routeIs('admin.wallet.show') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-wallet"></i></div> ePay
-        </a>
-        <a href="{{ route('admin.wallet.topup-requests') }}" class="nav-link {{ request()->routeIs('admin.wallet.topup-requests*') ? 'active' : '' }}" style="padding-left:36px">
-            <div class="nav-icon"><i class="fas fa-clock"></i></div> Top-up Requests
-            @php try { $__pendingTopup = \Illuminate\Support\Facades\DB::table('wallet_topup_requests')->where('status','pending')->count(); } catch(\Exception $e){ $__pendingTopup=0; } @endphp
-            @if($__pendingTopup > 0)<span class="nav-badge">{{ $__pendingTopup }}</span>@endif
-        </a>
-        <a href="{{ route('admin.mobile-pay.index') }}" class="nav-link {{ request()->routeIs('admin.mobile-pay.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-mobile-alt"></i></div> Mobile Pay
-        </a>
-        <a href="{{ route('admin.crypto.dashboard') }}" class="nav-link {{ request()->routeIs('admin.crypto.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fab fa-bitcoin"></i></div> Crypto Exchange
-            @php try { $__pendingWd = \App\Models\CryptoWithdrawal::where('status','pending')->count(); $__openDsp = \App\Models\P2pDispute::where('status','open')->count(); $__cx = $__pendingWd + $__openDsp; } catch(\Exception $e){ $__cx=0; } @endphp
-            @if($__cx > 0)<span class="nav-badge">{{ $__cx }}</span>@endif
-        </a>
         <a href="{{ route('admin.dispatch') }}" class="nav-link {{ request()->routeIs('admin.dispatch') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-map-marked-alt"></i></div> Dispatch
+            <div class="nav-icon"><i class="fas fa-map-marked-alt"></i></div><span class="nav-text">Dispatch</span>
         </a>
         <a href="{{ route('admin.dispatch.map') }}" class="nav-link {{ request()->routeIs('admin.dispatch.map') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-satellite-dish"></i></div> Live Tracking
+            <div class="nav-icon"><i class="fas fa-satellite-dish"></i></div><span class="nav-text">Live Tracking</span>
         </a>
-        <a href="{{ route('admin.rewards.index') }}" class="nav-link {{ request()->routeIs('admin.rewards.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-star"></i></div> Rewards
-        </a>
-        <a href="{{ route('admin.affiliates.index') }}" class="nav-link {{ request()->routeIs('admin.affiliates.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-handshake"></i></div> Affiliates
-        </a>
-        <a href="{{ route('admin.payment-settings.index') }}" class="nav-link {{ request()->routeIs('admin.payment-settings.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-credit-card"></i></div> Payments
-        </a>
-        <a href="{{ route('admin.modules.index') }}" class="nav-link {{ request()->routeIs('admin.modules.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-th-large"></i></div> Modules
-        </a>
-        @endif
 
-        <div class="nav-section-label">Module Data</div>
-        <div class="nav-link nav-toggle-btn {{ request()->is('admin/module-data*') ? 'open active' : '' }}"
+        {{-- ══ MODULE DATA ══ --}}
+        <div class="nav-link nav-toggle-btn {{ request()->is('admin/module-data*') || request()->is('admin/eshop*') ? 'open active' : '' }}"
              onclick="toggleNav(this,'moduleDataNav')">
-            <div class="nav-icon"><i class="fas fa-database"></i></div>
-            Module Data
+            <div class="nav-icon"><i class="fas fa-th-large"></i></div>
+            <span class="nav-text">Module Data</span>
             <i class="fas fa-chevron-right toggle-arrow"></i>
         </div>
-        <div class="nav-submenu {{ request()->is('admin/module-data*') ? 'open' : '' }}" id="moduleDataNav">
+        <div class="nav-submenu {{ request()->is('admin/module-data*') || request()->is('admin/eshop*') ? 'open' : '' }}" id="moduleDataNav">
             @if($u->canManageModule('efood'))
             <a href="{{ route('admin.module-data.efood.index') }}" class="nav-link {{ request()->routeIs('admin.module-data.efood*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-utensils"></i></div> eFood
-            </a>
-            @endif
-            @if($u->canManageModule('eshop'))
-            <a href="{{ route('admin.eshop.index') }}" class="nav-link {{ request()->routeIs('admin.eshop*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-shopping-bag"></i></div> eShop
-            </a>
-            @endif
-            @if($u->canManageModule('elaundry'))
-            <a href="{{ route('admin.module-data.laundry') }}" class="nav-link {{ request()->routeIs('admin.module-data.laundry*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-tshirt"></i></div> eLaundry
-            </a>
-            @endif
-            @if($u->canManageModule('emoving'))
-            <a href="{{ route('admin.module-data.moving') }}" class="nav-link {{ request()->routeIs('admin.module-data.moving*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-truck-moving"></i></div> eMoving
-            </a>
-            @endif
-            @if($u->canManageModule('eparcel'))
-            <a href="{{ route('admin.module-data.parcel') }}" class="nav-link {{ request()->routeIs('admin.module-data.parcel*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-box"></i></div> eParcel
-            </a>
-            @endif
-            @if($u->canManageModule('edata'))
-            <a href="{{ route('admin.module-data.data') }}" class="nav-link {{ request()->routeIs('admin.module-data.data*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-wifi"></i></div> eData
-            </a>
-            @endif
-            @if($u->canManageModule('eexchange'))
-            <a href="{{ route('admin.module-data.exchange') }}" class="nav-link {{ request()->routeIs('admin.module-data.exchange*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-exchange-alt"></i></div> eExchange
-            </a>
-            @endif
-            @if($u->canManageModule('ehealth'))
-            <a href="{{ route('admin.module-data.health') }}" class="nav-link {{ request()->routeIs('admin.module-data.health*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-user-md"></i></div> eHealth
-            </a>
-            @endif
-            @if($u->canManageModule('erent'))
-            <a href="{{ route('admin.module-data.rent') }}" class="nav-link {{ request()->routeIs('admin.module-data.rent*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-home"></i></div> eRent
-            </a>
-            @endif
-            @if($u->canManageModule('ewholesale'))
-            <a href="{{ route('admin.module-data.wholesale') }}" class="nav-link {{ request()->routeIs('admin.module-data.wholesale*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-warehouse"></i></div> Wholesale
+                <div class="nav-icon"><i class="fas fa-utensils"></i></div><span class="nav-text">eFood</span>
             </a>
             @endif
             @if($u->canManageModule('egrocery'))
             <a href="{{ route('admin.module-data.egrocery.index') }}" class="nav-link {{ request()->routeIs('admin.module-data.egrocery*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-carrot"></i></div> eGrocery
+                <div class="nav-icon"><i class="fas fa-carrot"></i></div><span class="nav-text">eGrocery</span>
+            </a>
+            @endif
+            @if($u->canManageModule('eshop'))
+            <a href="{{ route('admin.eshop.index') }}" class="nav-link {{ request()->routeIs('admin.eshop*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-bag-shopping"></i></div><span class="nav-text">eShop</span>
+            </a>
+            @endif
+            @if($u->canManageModule('eparcel'))
+            <a href="{{ route('admin.module-data.parcel') }}" class="nav-link {{ request()->routeIs('admin.module-data.parcel*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-box"></i></div><span class="nav-text">eParcel</span>
+            </a>
+            @endif
+            @if($u->canManageModule('emoving'))
+            <a href="{{ route('admin.module-data.moving') }}" class="nav-link {{ request()->routeIs('admin.module-data.moving*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-truck-moving"></i></div><span class="nav-text">eMoving</span>
+            </a>
+            @endif
+            @if($u->canManageModule('elaundry'))
+            <a href="{{ route('admin.module-data.laundry') }}" class="nav-link {{ request()->routeIs('admin.module-data.laundry*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-tshirt"></i></div><span class="nav-text">eLaundry</span>
+            </a>
+            @endif
+            @if($u->canManageModule('edata'))
+            <a href="{{ route('admin.module-data.data') }}" class="nav-link {{ request()->routeIs('admin.module-data.data*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-wifi"></i></div><span class="nav-text">eData</span>
+            </a>
+            @endif
+            @if($u->canManageModule('ehealth'))
+            <a href="{{ route('admin.module-data.health') }}" class="nav-link {{ request()->routeIs('admin.module-data.health*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-user-md"></i></div><span class="nav-text">eHealth</span>
+            </a>
+            @endif
+            @if($u->canManageModule('erent'))
+            <a href="{{ route('admin.module-data.rent') }}" class="nav-link {{ request()->routeIs('admin.module-data.rent*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-home"></i></div><span class="nav-text">eRent</span>
+            </a>
+            @endif
+            @if($u->canManageModule('eexchange'))
+            <a href="{{ route('admin.module-data.exchange') }}" class="nav-link {{ request()->routeIs('admin.module-data.exchange*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-exchange-alt"></i></div><span class="nav-text">eExchange</span>
+            </a>
+            @endif
+            @if($u->canManageModule('ewholesale'))
+            <a href="{{ route('admin.module-data.wholesale') }}" class="nav-link {{ request()->routeIs('admin.module-data.wholesale*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-warehouse"></i></div><span class="nav-text">Wholesale</span>
             </a>
             @endif
             @if($u->canManageModule('eticket'))
             <a href="{{ route('admin.module-data.ticket') }}" class="nav-link {{ request()->routeIs('admin.module-data.ticket*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-plane"></i></div> eTicket
+                <div class="nav-icon"><i class="fas fa-plane"></i></div><span class="nav-text">eTicket</span>
             </a>
             @endif
         </div>
 
-        @if($u->isFullAdmin())
+        {{-- ══ FINANCE ══ --}}
         <div class="nav-section-label">Finance</div>
         <a href="{{ route('admin.finance.index') }}" class="nav-link {{ request()->routeIs('admin.finance.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-wallet"></i></div> Finance
+            <div class="nav-icon"><i class="fas fa-landmark"></i></div><span class="nav-text">Revenue</span>
         </a>
         <a href="{{ route('admin.reports.sales') }}" class="nav-link {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-chart-bar"></i></div> Reports
+            <div class="nav-icon"><i class="fas fa-file-invoice-dollar"></i></div><span class="nav-text">Reports</span>
         </a>
+        <a href="{{ route('admin.wallet.index') }}" class="nav-link {{ request()->routeIs('admin.wallet.index') || request()->routeIs('admin.wallet.show') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-wallet"></i></div><span class="nav-text">ePay Wallet</span>
+        </a>
+        <a href="{{ route('admin.wallet.topup-requests') }}" class="nav-link {{ request()->routeIs('admin.wallet.topup-requests*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-arrow-up-from-bracket"></i></div><span class="nav-text">Top-up Requests</span>
+            @php try { $__pendingTopup = \Illuminate\Support\Facades\DB::table('wallet_topup_requests')->where('status','pending')->count(); } catch(\Exception $e){ $__pendingTopup=0; } @endphp
+            @if($__pendingTopup > 0)<span class="nav-badge">{{ $__pendingTopup }}</span>@endif
+        </a>
+        <a href="{{ route('admin.mobile-pay.index') }}" class="nav-link {{ request()->routeIs('admin.mobile-pay.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-mobile-screen-button"></i></div><span class="nav-text">Mobile Pay</span>
+        </a>
+        <a href="{{ route('admin.crypto.dashboard') }}" class="nav-link {{ request()->routeIs('admin.crypto.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fab fa-bitcoin"></i></div><span class="nav-text">Crypto Exchange</span>
+            @php try { $__pendingWd = \App\Models\CryptoWithdrawal::where('status','pending')->count(); $__openDsp = \App\Models\P2pDispute::where('status','open')->count(); $__cx = $__pendingWd + $__openDsp; } catch(\Exception $e){ $__cx=0; } @endphp
+            @if($__cx > 0)<span class="nav-badge">{{ $__cx }}</span>@endif
+        </a>
+        <a href="{{ route('admin.payment-settings.index') }}" class="nav-link {{ request()->routeIs('admin.payment-settings.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-credit-card"></i></div><span class="nav-text">Payment Gateways</span>
+        </a>
+        <a href="{{ route('admin.rewards.index') }}" class="nav-link {{ request()->routeIs('admin.rewards.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-star"></i></div><span class="nav-text">Rewards & Points</span>
+        </a>
+        <a href="{{ route('admin.affiliates.index') }}" class="nav-link {{ request()->routeIs('admin.affiliates.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-handshake"></i></div><span class="nav-text">Affiliates</span>
+        </a>
+        @endif
 
+        {{-- ══ MARKETING ══ --}}
+        @if($u->isFullAdmin())
         <div class="nav-section-label">Marketing</div>
         <a href="{{ route('admin.banners.index') }}" class="nav-link {{ request()->routeIs('admin.banners.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-image"></i></div> Banners
+            <div class="nav-icon"><i class="fas fa-images"></i></div><span class="nav-text">Banners</span>
         </a>
         <a href="{{ route('admin.ads.index') }}" class="nav-link {{ request()->routeIs('admin.ads.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-ad"></i></div> Ads Manager
+            <div class="nav-icon"><i class="fas fa-rectangle-ad"></i></div><span class="nav-text">Ads Manager</span>
         </a>
-        <a href="{{ route('admin.notifications.index') }}" class="nav-link {{ request()->routeIs('admin.notifications.index') || request()->routeIs('admin.notifications.send') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-bell"></i></div> Notifications
-        </a>
-        <a href="{{ route('admin.notifications.cart-templates') }}" class="nav-link {{ request()->routeIs('admin.notifications.cart-templates*') ? 'active' : '' }}" style="padding-left:36px;font-size:12px;">
-            <div class="nav-icon"><i class="fas fa-shopping-cart"></i></div> Cart Reminders
-        </a>
-        <a href="{{ route('admin.db-clean.index') }}" class="nav-link {{ request()->routeIs('admin.db-clean.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-broom"></i></div> Clean Database
-        </a>
-
-        <div class="nav-section-label">Inbox</div>
-        <div class="nav-link nav-toggle-btn {{ request()->is('admin/inbox*') ? 'open active' : '' }}"
-             onclick="toggleNav(this,'inboxNav')">
-            <div class="nav-icon"><i class="fas fa-headset"></i></div>
-            Support &amp; Inbox
+        <div class="nav-link nav-toggle-btn {{ request()->routeIs('admin.notifications.*') || request()->is('admin/inbox*') ? 'open active' : '' }}"
+             onclick="toggleNav(this,'engageNav')">
+            <div class="nav-icon"><i class="fas fa-paper-plane"></i></div>
+            <span class="nav-text">Messaging</span>
             <i class="fas fa-chevron-right toggle-arrow"></i>
         </div>
-        <div class="nav-submenu {{ request()->is('admin/inbox*') ? 'open' : '' }}" id="inboxNav">
+        <div class="nav-submenu {{ request()->routeIs('admin.notifications.*') || request()->is('admin/inbox*') ? 'open' : '' }}" id="engageNav">
+            <a href="{{ route('admin.notifications.index') }}" class="nav-link {{ request()->routeIs('admin.notifications.index') || request()->routeIs('admin.notifications.send') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-bell"></i></div><span class="nav-text">Push Notifications</span>
+            </a>
+            <a href="{{ route('admin.notifications.cart-templates') }}" class="nav-link {{ request()->routeIs('admin.notifications.cart-templates*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-cart-arrow-down"></i></div><span class="nav-text">Cart Reminders</span>
+            </a>
             <a href="{{ route('admin.inbox.conversations') }}" class="nav-link {{ request()->routeIs('admin.inbox.conversations') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-comments"></i></div> Support Tickets
+                <div class="nav-icon"><i class="fas fa-headset"></i></div><span class="nav-text">Support Inbox</span>
             </a>
             <a href="{{ route('admin.inbox.broadcasts.index') }}" class="nav-link {{ request()->routeIs('admin.inbox.broadcasts.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-bullhorn"></i></div> Broadcasts
+                <div class="nav-icon"><i class="fas fa-bullhorn"></i></div><span class="nav-text">Broadcasts</span>
             </a>
             <a href="{{ route('admin.inbox.stats') }}" class="nav-link {{ request()->routeIs('admin.inbox.stats') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-chart-bar"></i></div> Stats
+                <div class="nav-icon"><i class="fas fa-chart-bar"></i></div><span class="nav-text">Inbox Stats</span>
             </a>
         </div>
+        @endif
 
+        {{-- ══ COMMUNITY ══ --}}
+        @if($u->isFullAdmin() || $u->canManageModule('community'))
         <div class="nav-section-label">Community</div>
-        <div class="nav-link nav-toggle-btn {{ request()->is('admin/community*') ? 'open active' : '' }}"
-             onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
-            <div class="nav-icon"><i class="fas fa-users"></i></div>
-            Community
+        <div class="nav-link nav-toggle-btn {{ request()->is('admin/community*') || request()->is('admin/emarry*') || request()->is('admin/podcast*') ? 'open active' : '' }}"
+             onclick="toggleNav(this,'communityNav')">
+            <div class="nav-icon"><i class="fas fa-users-rectangle"></i></div>
+            <span class="nav-text">Social Feed</span>
             <i class="fas fa-chevron-right toggle-arrow"></i>
         </div>
-        <div class="nav-submenu {{ request()->is('admin/community*') ? 'open' : '' }}">
+        <div class="nav-submenu {{ request()->is('admin/community*') || request()->is('admin/emarry*') || request()->is('admin/podcast*') ? 'open' : '' }}" id="communityNav">
             <a href="{{ route('admin.community.index') }}" class="nav-link {{ request()->routeIs('admin.community.index') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-tachometer-alt"></i></div> Dashboard
-            </a>
-            <a href="{{ route('admin.community.posts') }}" class="nav-link {{ request()->routeIs('admin.community.posts') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-file-alt"></i></div> Posts
-            </a>
-            <a href="{{ route('admin.community.reports') }}" class="nav-link {{ request()->routeIs('admin.community.reports') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-flag"></i></div> Reports
-            </a>
-            <a href="{{ route('admin.community.groups') }}" class="nav-link {{ request()->routeIs('admin.community.groups') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-layer-group"></i></div> Groups
-            </a>
-            <a href="{{ route('admin.community.users') }}" class="nav-link {{ request()->routeIs('admin.community.users') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-user-shield"></i></div> Users
-            </a>
-            <a href="{{ route('admin.community.moderation') }}" class="nav-link {{ request()->routeIs('admin.community.moderation*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-shield-alt"></i></div> Moderation
-            </a>
-            <a href="{{ route("admin.community.engagement") }}" class="nav-link {{ request()->routeIs("admin.community.engagement*") ? "active" : "" }}">
-                <div class="nav-icon"><i class="fas fa-magic"></i></div> Engagement
+                <div class="nav-icon"><i class="fas fa-gauge-high"></i></div><span class="nav-text">Dashboard</span>
             </a>
             <a href="{{ route('admin.community.algorithm') }}" class="nav-link {{ request()->routeIs('admin.community.algorithm*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-brain"></i></div> Algorithm
+                <div class="nav-icon"><i class="fas fa-brain"></i></div><span class="nav-text">Feed Algorithm</span>
+            </a>
+            <a href="{{ route('admin.community.posts') }}" class="nav-link {{ request()->routeIs('admin.community.posts') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-photo-film"></i></div><span class="nav-text">Posts & Reels</span>
+            </a>
+            <a href="{{ route('admin.community.users') }}" class="nav-link {{ request()->routeIs('admin.community.users') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-user-group"></i></div><span class="nav-text">Users</span>
+            </a>
+            <a href="{{ route('admin.community.groups') }}" class="nav-link {{ request()->routeIs('admin.community.groups') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-layer-group"></i></div><span class="nav-text">Groups</span>
+            </a>
+            <a href="{{ route('admin.community.moderation') }}" class="nav-link {{ request()->routeIs('admin.community.moderation*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-shield-halved"></i></div><span class="nav-text">Moderation</span>
+            </a>
+            <a href="{{ route('admin.community.reports') }}" class="nav-link {{ request()->routeIs('admin.community.reports') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-flag"></i></div><span class="nav-text">Reports</span>
+            </a>
+            <a href="{{ route("admin.community.engagement") }}" class="nav-link {{ request()->routeIs("admin.community.engagement*") ? "active" : "" }}">
+                <div class="nav-icon"><i class="fas fa-fire-flame-curved"></i></div><span class="nav-text">Engagement</span>
             </a>
             <a href="{{ route('admin.community-ads.index') }}" class="nav-link {{ request()->routeIs('admin.community-ads.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-bullhorn"></i></div> Ads & Pages
+                <div class="nav-icon"><i class="fas fa-rectangle-ad"></i></div><span class="nav-text">Community Ads</span>
             </a>
             <a href="{{ route('admin.espace-ads.index') }}" class="nav-link {{ request()->routeIs('admin.espace-ads.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-rocket"></i></div> eSpace Ads
+                <div class="nav-icon"><i class="fas fa-rocket"></i></div><span class="nav-text">eSpace Ads</span>
             </a>
             <a href="{{ route('admin.podcast.index') }}" class="nav-link {{ request()->routeIs('admin.podcast.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-podcast"></i></div> Podcasts
+                <div class="nav-icon"><i class="fas fa-podcast"></i></div><span class="nav-text">Podcasts</span>
             </a>
+            {{-- eMarry nested --}}
             <div class="nav-link nav-toggle-btn {{ request()->routeIs('admin.emarry.*') ? 'open active' : '' }}"
                  onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
-                <div class="nav-icon">💍</div> eMarry
-                @php $emPending = \Illuminate\Support\Facades\DB::table('emarry_profiles')->where('status','pending')->count(); $emMpPending = \Illuminate\Support\Facades\DB::table('emarry_mobile_pay_requests')->where('status','pending')->count(); @endphp
-                @if($emPending > 0)
-                  <span style="margin-left:auto;background:#E11D48;color:#fff;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:800;">{{ $emPending }}</span>
-                @endif
+                <div class="nav-icon">💍</div><span class="nav-text">eMarry</span>
+                @php try { $emPending = \Illuminate\Support\Facades\DB::table('emarry_profiles')->where('status','pending')->count(); $emMpPending = \Illuminate\Support\Facades\DB::table('emarry_mobile_pay_requests')->where('status','pending')->count(); } catch(\Exception $e){ $emPending=0; $emMpPending=0; } @endphp
+                @if($emPending > 0)<span class="nav-badge" style="background:#E11D48;">{{ $emPending }}</span>@endif
                 <i class="fas fa-chevron-right toggle-arrow"></i>
             </div>
             <div class="nav-sub {{ request()->routeIs('admin.emarry.*') ? 'open' : '' }}">
                 <a href="{{ route('admin.emarry.index') }}" class="nav-link nav-sub-link {{ request()->routeIs('admin.emarry.index') ? 'active' : '' }}">
-                    👥 Profiles
+                    <div class="nav-icon"><i class="fas fa-users"></i></div> Profiles
                 </a>
                 <a href="{{ route('admin.emarry.interests') }}" class="nav-link nav-sub-link {{ request()->routeIs('admin.emarry.interests') ? 'active' : '' }}">
-                    💞 Interests
+                    <div class="nav-icon"><i class="fas fa-heart"></i></div> Interests
                 </a>
                 <a href="{{ route('admin.emarry.monetization') }}" class="nav-link nav-sub-link {{ request()->routeIs('admin.emarry.monetization*') ? 'active' : '' }}">
-                    💰 Monetization
-                    @if($emMpPending > 0)
-                    <span style="margin-left:auto;background:#E11D48;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:800;">{{ $emMpPending }}</span>
-                    @endif
+                    <div class="nav-icon"><i class="fas fa-dollar-sign"></i></div> Monetization
+                    @if($emMpPending > 0)<span class="nav-badge" style="background:#E11D48;">{{ $emMpPending }}</span>@endif
                 </a>
             </div>
         </div>
 
-        {{-- Live Management --}}
+        {{-- Live --}}
         <div class="nav-link nav-toggle-btn {{ request()->is('admin/live*') ? 'open active' : '' }}"
-             onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+             onclick="toggleNav(this,'liveNav')">
             <div class="nav-icon"><i class="fas fa-video"></i></div>
-            Live
-            <i class="fas fa-chevron-right toggle-arrow"></i>
-            @php $activeLiveCount = \Illuminate\Support\Facades\DB::table('live_rooms')->where('status','live')->count(); @endphp
+            <span class="nav-text">Live Rooms</span>
+            @php try { $activeLiveCount = \Illuminate\Support\Facades\DB::table('live_rooms')->where('status','live')->count(); } catch(\Exception $e){ $activeLiveCount=0; } @endphp
             @if($activeLiveCount > 0)<span class="nav-badge" style="background:#D92D20;">{{ $activeLiveCount }}</span>@endif
+            <i class="fas fa-chevron-right toggle-arrow"></i>
         </div>
-        <div class="nav-submenu {{ request()->is('admin/live*') ? 'open' : '' }}">
+        <div class="nav-submenu {{ request()->is('admin/live*') ? 'open' : '' }}" id="liveNav">
             <a href="{{ route('admin.live.index') }}" class="nav-link {{ request()->routeIs('admin.live.index') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-tachometer-alt"></i></div> Dashboard
+                <div class="nav-icon"><i class="fas fa-gauge-high"></i></div><span class="nav-text">Dashboard</span>
             </a>
             <a href="{{ route('admin.live.history') }}" class="nav-link {{ request()->routeIs('admin.live.history') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-history"></i></div> History
+                <div class="nav-icon"><i class="fas fa-clock-rotate-left"></i></div><span class="nav-text">History</span>
             </a>
             <a href="{{ route('admin.live.gifts') }}" class="nav-link {{ request()->routeIs('admin.live.gifts*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-gift"></i></div> Gifts
-            </a>
-            <a href="{{ route('admin.live.transactions') }}" class="nav-link {{ request()->routeIs('admin.live.transactions') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-coins"></i></div> Transactions
-            </a>
-            <a href="{{ route('admin.live.banned') }}" class="nav-link {{ request()->routeIs('admin.live.banned') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-ban"></i></div> Banned Users
-            </a>
-            <a href="{{ route('admin.live.reports') }}" class="nav-link {{ request()->routeIs('admin.live.reports*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-flag"></i></div> Reports
-                @php $pendingReports = \App\Models\LiveRoomReport::where('status','pending')->count(); @endphp
-                @if($pendingReports > 0)<span class="nav-badge" style="background:#D92D20;">{{ $pendingReports }}</span>@endif
+                <div class="nav-icon"><i class="fas fa-gift"></i></div><span class="nav-text">Gifts</span>
             </a>
             <a href="{{ route('admin.live.coin-revenue') }}" class="nav-link {{ request()->routeIs('admin.live.coin-revenue') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-chart-line"></i></div> Coin Revenue
+                <div class="nav-icon"><i class="fas fa-coins"></i></div><span class="nav-text">Coin Revenue</span>
+            </a>
+            <a href="{{ route('admin.live.transactions') }}" class="nav-link {{ request()->routeIs('admin.live.transactions') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-list-check"></i></div><span class="nav-text">Transactions</span>
+            </a>
+            <a href="{{ route('admin.live.reports') }}" class="nav-link {{ request()->routeIs('admin.live.reports*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-flag"></i></div><span class="nav-text">Reports</span>
+                @php try { $pendingReports = \App\Models\LiveRoomReport::where('status','pending')->count(); } catch(\Exception $e){ $pendingReports=0; } @endphp
+                @if($pendingReports > 0)<span class="nav-badge" style="background:#D92D20;">{{ $pendingReports }}</span>@endif
+            </a>
+            <a href="{{ route('admin.live.banned') }}" class="nav-link {{ request()->routeIs('admin.live.banned') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-ban"></i></div><span class="nav-text">Banned</span>
             </a>
         </div>
         @endif
 
+        {{-- ══ TRUST & SAFETY ══ --}}
         @if($u->canManageModule('community') || $u->role === 'super_admin' || $u->role === 'admin')
         <div class="nav-section-label">Trust & Safety</div>
-        <a href="{{ route('admin.trust-safety.dashboard') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.dashboard') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-shield-halved"></i></div> Dashboard
-        </a>
-        <a href="{{ route('admin.trust-safety.queue') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.queue') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-inbox"></i></div> Review Queue
-            @php $tsQueueCount = \Illuminate\Support\Facades\DB::table('community_posts')->where('moderation_status','pending')->count(); @endphp
-            @if($tsQueueCount > 0)<span class="nav-badge">{{ $tsQueueCount }}</span>@endif
-        </a>
-        <a href="{{ route('admin.trust-safety.reports') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.reports') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-flag"></i></div> Reports
-            @php $tsReportCount = \Illuminate\Support\Facades\DB::table('community_reports')->where('status','pending')->count(); @endphp
-            @if($tsReportCount > 0)<span class="nav-badge">{{ $tsReportCount }}</span>@endif
-        </a>
-        <a href="{{ route('admin.trust-safety.strikes') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.strikes') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-gavel"></i></div> Strikes
-        </a>
-        <a href="{{ route('admin.trust-safety.appeals') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.appeals') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-scale-balanced"></i></div> Appeals
-        </a>
-        <a href="{{ route('admin.trust-safety.settings') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.settings') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-sliders"></i></div> TS Settings
-        </a>
+        <div class="nav-link nav-toggle-btn {{ request()->is('admin/trust-safety*') ? 'open active' : '' }}"
+             onclick="toggleNav(this,'tsNav')">
+            <div class="nav-icon"><i class="fas fa-shield-halved"></i></div>
+            <span class="nav-text">Trust & Safety</span>
+            @php try { $tsQueueCount = \Illuminate\Support\Facades\DB::table('community_posts')->where('moderation_status','pending')->count(); $tsReportCount = \Illuminate\Support\Facades\DB::table('community_reports')->where('status','pending')->count(); $tsTotal = $tsQueueCount + $tsReportCount; } catch(\Exception $e){ $tsTotal=0; } @endphp
+            @if($tsTotal > 0)<span class="nav-badge">{{ $tsTotal }}</span>@endif
+            <i class="fas fa-chevron-right toggle-arrow"></i>
+        </div>
+        <div class="nav-submenu {{ request()->is('admin/trust-safety*') ? 'open' : '' }}" id="tsNav">
+            <a href="{{ route('admin.trust-safety.dashboard') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.dashboard') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-gauge-high"></i></div><span class="nav-text">Dashboard</span>
+            </a>
+            <a href="{{ route('admin.trust-safety.queue') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.queue') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-inbox"></i></div><span class="nav-text">Review Queue</span>
+                @if(isset($tsQueueCount) && $tsQueueCount > 0)<span class="nav-badge">{{ $tsQueueCount }}</span>@endif
+            </a>
+            <a href="{{ route('admin.trust-safety.reports') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.reports') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-flag"></i></div><span class="nav-text">Reports</span>
+                @if(isset($tsReportCount) && $tsReportCount > 0)<span class="nav-badge">{{ $tsReportCount }}</span>@endif
+            </a>
+            <a href="{{ route('admin.trust-safety.strikes') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.strikes') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-gavel"></i></div><span class="nav-text">Strikes</span>
+            </a>
+            <a href="{{ route('admin.trust-safety.appeals') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.appeals') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-scale-balanced"></i></div><span class="nav-text">Appeals</span>
+            </a>
+            <a href="{{ route('admin.trust-safety.settings') }}" class="nav-link {{ request()->routeIs('admin.trust-safety.settings') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-sliders"></i></div><span class="nav-text">Settings</span>
+            </a>
+        </div>
         @endif
 
+        {{-- ══ eLEARNING ══ --}}
         @if($u->canManageModule('elearning'))
         <div class="nav-section-label">eLearning</div>
         <div class="nav-link nav-toggle-btn {{ request()->is('admin/elearning*') ? 'open active' : '' }}"
-             onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+             onclick="toggleNav(this,'elearningNav')">
             <div class="nav-icon"><i class="fas fa-graduation-cap"></i></div>
-            eLearning
+            <span class="nav-text">eLearning</span>
+            @php try { $__pInst = \App\Models\ELearningInstructor::where('verification_status','pending')->count(); $__pCrs = \App\Models\ELearningCourse::where('status','pending')->count(); $__pWdr = \App\Models\ELearningWithdrawal::where('status','pending')->count(); $__elTotal = $__pInst + $__pCrs + $__pWdr; } catch(\Exception $e){ $__elTotal=0; } @endphp
+            @if($__elTotal > 0)<span class="nav-badge">{{ $__elTotal }}</span>@endif
             <i class="fas fa-chevron-right toggle-arrow"></i>
         </div>
-        <div class="nav-submenu {{ request()->is('admin/elearning*') ? 'open' : '' }}">
+        <div class="nav-submenu {{ request()->is('admin/elearning*') ? 'open' : '' }}" id="elearningNav">
             <a href="{{ route('admin.elearning.dashboard') }}" class="nav-link {{ request()->routeIs('admin.elearning.dashboard') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-tachometer-alt"></i></div> Dashboard
+                <div class="nav-icon"><i class="fas fa-gauge-high"></i></div><span class="nav-text">Dashboard</span>
             </a>
             <a href="{{ route('admin.elearning.instructors') }}" class="nav-link {{ request()->routeIs('admin.elearning.instructors*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-chalkboard-teacher"></i></div> Instructors
-                @php try { $__pInst = \App\Models\ELearningInstructor::where('verification_status','pending')->count(); } catch(\Exception $e){ $__pInst=0; } @endphp
-                @if($__pInst > 0)<span class="nav-badge">{{ $__pInst }}</span>@endif
+                <div class="nav-icon"><i class="fas fa-chalkboard-user"></i></div><span class="nav-text">Instructors</span>
+                @if(isset($__pInst) && $__pInst > 0)<span class="nav-badge">{{ $__pInst }}</span>@endif
             </a>
             <a href="{{ route('admin.elearning.courses') }}" class="nav-link {{ request()->routeIs('admin.elearning.courses*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-book-open"></i></div> Courses
-                @php try { $__pCrs = \App\Models\ELearningCourse::where('status','pending')->count(); } catch(\Exception $e){ $__pCrs=0; } @endphp
-                @if($__pCrs > 0)<span class="nav-badge">{{ $__pCrs }}</span>@endif
+                <div class="nav-icon"><i class="fas fa-book-open"></i></div><span class="nav-text">Courses</span>
+                @if(isset($__pCrs) && $__pCrs > 0)<span class="nav-badge">{{ $__pCrs }}</span>@endif
             </a>
             <a href="{{ route('admin.elearning.categories') }}" class="nav-link {{ request()->routeIs('admin.elearning.categories*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-tags"></i></div> Categories
+                <div class="nav-icon"><i class="fas fa-tags"></i></div><span class="nav-text">Categories</span>
             </a>
             <a href="{{ route('admin.elearning.students') }}" class="nav-link {{ request()->routeIs('admin.elearning.students*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-user-graduate"></i></div> Students
+                <div class="nav-icon"><i class="fas fa-user-graduate"></i></div><span class="nav-text">Students</span>
             </a>
             <a href="{{ route('admin.elearning.certificates') }}" class="nav-link {{ request()->routeIs('admin.elearning.certificates*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-certificate"></i></div> Certificates
+                <div class="nav-icon"><i class="fas fa-certificate"></i></div><span class="nav-text">Certificates</span>
             </a>
             <a href="{{ route('admin.elearning.withdrawals') }}" class="nav-link {{ request()->routeIs('admin.elearning.withdrawals*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-money-bill-wave"></i></div> Withdrawals
-                @php try { $__pWdr = \App\Models\ELearningWithdrawal::where('status','pending')->count(); } catch(\Exception $e){ $__pWdr=0; } @endphp
-                @if($__pWdr > 0)<span class="nav-badge">{{ $__pWdr }}</span>@endif
+                <div class="nav-icon"><i class="fas fa-money-bill-transfer"></i></div><span class="nav-text">Withdrawals</span>
+                @if(isset($__pWdr) && $__pWdr > 0)<span class="nav-badge">{{ $__pWdr }}</span>@endif
             </a>
             <a href="{{ route('admin.elearning.reviews') }}" class="nav-link {{ request()->routeIs('admin.elearning.reviews*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-star"></i></div> Reviews
-            </a>
-            <a href="{{ route('admin.elearning.settings') }}" class="nav-link {{ request()->routeIs('admin.elearning.settings*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-sliders-h"></i></div> Settings
+                <div class="nav-icon"><i class="fas fa-star-half-stroke"></i></div><span class="nav-text">Reviews</span>
             </a>
             <a href="{{ route('admin.elearning.reports') }}" class="nav-link {{ request()->routeIs('admin.elearning.reports*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-chart-line"></i></div> Reports
+                <div class="nav-icon"><i class="fas fa-chart-line"></i></div><span class="nav-text">Reports</span>
+            </a>
+            <a href="{{ route('admin.elearning.settings') }}" class="nav-link {{ request()->routeIs('admin.elearning.settings*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-sliders"></i></div><span class="nav-text">Settings</span>
             </a>
         </div>
         @endif
 
-        @can('platform.audit.view')
-        <div class="nav-section-label">Security</div>
-        <a href="{{ route('admin.security.soc') }}" class="nav-link {{ request()->routeIs('admin.security.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-shield-halved"></i></div> SOC Dashboard
-        </a>
-        @endcan
-
+        {{-- ══ GLOBAL STORE ══ --}}
         @if($u->isFullAdmin())
-        <div class="nav-section-label">🌍 Global Store</div>
+        <div class="nav-section-label">Global Store</div>
         <div class="nav-link nav-toggle-btn {{ request()->is('admin/global*') ? 'open active' : '' }}"
-             onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+             onclick="toggleNav(this,'globalNav')">
             <div class="nav-icon"><i class="fas fa-globe"></i></div>
             <span class="nav-text">Global eCommerce</span>
-            <i class="fas fa-chevron-down toggle-arrow" style="margin-left:auto;font-size:10px;transition:.2s"></i>
+            <i class="fas fa-chevron-right toggle-arrow"></i>
         </div>
-        <div class="nav-sub {{ request()->is('admin/global*') ? 'open' : '' }}">
+        <div class="nav-submenu {{ request()->is('admin/global*') ? 'open' : '' }}" id="globalNav">
             <a href="{{ route('admin.global.dashboard') }}" class="nav-link {{ request()->routeIs('admin.global.dashboard') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-chart-pie"></i></div> Dashboard
+                <div class="nav-icon"><i class="fas fa-gauge-high"></i></div><span class="nav-text">Dashboard</span>
             </a>
             <a href="{{ route('admin.global.analytics') }}" class="nav-link {{ request()->routeIs('admin.global.analytics') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-chart-line"></i></div> Analytics
+                <div class="nav-icon"><i class="fas fa-chart-line"></i></div><span class="nav-text">Analytics</span>
             </a>
             <a href="{{ route('admin.global.revenue.index') }}" class="nav-link {{ request()->routeIs('admin.global.revenue.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-dollar-sign"></i></div> Revenue
+                <div class="nav-icon"><i class="fas fa-dollar-sign"></i></div><span class="nav-text">Revenue</span>
             </a>
             <a href="{{ route('admin.global.orders.index') }}" class="nav-link {{ request()->routeIs('admin.global.orders.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-shopping-cart"></i></div> Orders
+                <div class="nav-icon"><i class="fas fa-shopping-cart"></i></div><span class="nav-text">Orders</span>
             </a>
             <a href="{{ route('admin.global.refunds.index') }}" class="nav-link {{ request()->routeIs('admin.global.refunds.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-rotate-left"></i></div> Refunds
-            </a>
-            <a href="{{ route('admin.global.categories.index') }}" class="nav-link {{ request()->routeIs('admin.global.categories.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-tags"></i></div> Categories
+                <div class="nav-icon"><i class="fas fa-rotate-left"></i></div><span class="nav-text">Refunds</span>
             </a>
             <a href="{{ route('admin.global.products.index') }}" class="nav-link {{ request()->routeIs('admin.global.products.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-box-open"></i></div> Products
+                <div class="nav-icon"><i class="fas fa-box-open"></i></div><span class="nav-text">Products</span>
+            </a>
+            <a href="{{ route('admin.global.categories.index') }}" class="nav-link {{ request()->routeIs('admin.global.categories.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-tags"></i></div><span class="nav-text">Categories</span>
             </a>
             <a href="{{ route('admin.global.physical-products.index') }}" class="nav-link {{ request()->routeIs('admin.global.physical-products.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-warehouse"></i></div> Physical / Warehouse
+                <div class="nav-icon"><i class="fas fa-warehouse"></i></div><span class="nav-text">Physical / Warehouse</span>
             </a>
             <a href="{{ route('admin.global.dropshipping.index') }}" class="nav-link {{ request()->routeIs('admin.global.dropshipping.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-truck-fast"></i></div> Dropshipping
+                <div class="nav-icon"><i class="fas fa-truck-fast"></i></div><span class="nav-text">Dropshipping</span>
             </a>
             <a href="{{ route('admin.global.inventory.index') }}" class="nav-link {{ request()->routeIs('admin.global.inventory.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-cubes"></i></div> Inventory
+                <div class="nav-icon"><i class="fas fa-cubes"></i></div><span class="nav-text">Inventory</span>
             </a>
             <a href="{{ route('admin.global.shipping.index') }}" class="nav-link {{ request()->routeIs('admin.global.shipping.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-shipping-fast"></i></div> Shipping
+                <div class="nav-icon"><i class="fas fa-truck"></i></div><span class="nav-text">Shipping</span>
             </a>
             <a href="{{ route('admin.global.currency.index') }}" class="nav-link {{ request()->routeIs('admin.global.currency.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-coins"></i></div> Currency
-            </a>
-            <a href="{{ route('admin.global.push-notifications.index') }}" class="nav-link {{ request()->routeIs('admin.global.push-notifications.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-bell"></i></div> Push Notifications
-            </a>
-            <a href="{{ route('admin.global.help-center.index') }}" class="nav-link {{ request()->routeIs('admin.global.help-center.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-headset"></i></div> Help Center
-            </a>
-            <a href="{{ route('admin.global.live-chat.index') }}" class="nav-link {{ request()->routeIs('admin.global.live-chat.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-comments"></i></div> Live Chat
-            </a>
-            <a href="{{ route('admin.global.security.index') }}" class="nav-link {{ request()->routeIs('admin.global.security.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-shield-halved"></i></div> Security
+                <div class="nav-icon"><i class="fas fa-coins"></i></div><span class="nav-text">Currency</span>
             </a>
             <a href="{{ route('admin.global.users.index') }}" class="nav-link {{ request()->routeIs('admin.global.users.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-users"></i></div> Users
+                <div class="nav-icon"><i class="fas fa-users"></i></div><span class="nav-text">Users</span>
             </a>
             <a href="{{ route('admin.global.sliders.index') }}" class="nav-link {{ request()->routeIs('admin.global.sliders.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-images"></i></div> Sliders
+                <div class="nav-icon"><i class="fas fa-images"></i></div><span class="nav-text">Sliders</span>
+            </a>
+            <a href="{{ route('admin.global.push-notifications.index') }}" class="nav-link {{ request()->routeIs('admin.global.push-notifications.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-bell"></i></div><span class="nav-text">Notifications</span>
+            </a>
+            <a href="{{ route('admin.global.help-center.index') }}" class="nav-link {{ request()->routeIs('admin.global.help-center.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-headset"></i></div><span class="nav-text">Help Center</span>
             </a>
             <a href="{{ route('admin.global.settings') }}" class="nav-link {{ request()->routeIs('admin.global.settings*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-sliders-h"></i></div> Settings
+                <div class="nav-icon"><i class="fas fa-sliders"></i></div><span class="nav-text">Settings</span>
             </a>
         </div>
-        @endif
 
-        @if($u->isFullAdmin())
+        {{-- ══ SYSTEM ══ --}}
         <div class="nav-section-label">System</div>
+        <a href="{{ route('admin.settings.index') }}" class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-gear"></i></div><span class="nav-text">App Settings</span>
+        </a>
+        <a href="{{ route('admin.modules.index') }}" class="nav-link {{ request()->routeIs('admin.modules.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-puzzle-piece"></i></div><span class="nav-text">Modules</span>
+        </a>
         @if(in_array($u->role?->slug, ['super_admin','admin']))
         <a href="{{ route('admin.access.index') }}" class="nav-link {{ request()->routeIs('admin.access.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-user-shield"></i></div> Roles &amp; Access
+            <div class="nav-icon"><i class="fas fa-user-shield"></i></div><span class="nav-text">Roles & Access</span>
         </a>
         @endif
-        <a href="{{ route('admin.landing.index') }}" class="nav-link {{ request()->routeIs('admin.landing.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-paint-brush"></i></div> Landing Page
-        </a>
         <a href="{{ route('admin.email-templates.index') }}" class="nav-link {{ request()->is('admin/email-templates*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-envelope-open-text"></i></div> Email Templates
+            <div class="nav-icon"><i class="fas fa-envelope-open-text"></i></div><span class="nav-text">Email Templates</span>
         </a>
         <a href="{{ route('admin.legal-pages.index') }}" class="nav-link {{ request()->routeIs('admin.legal-pages.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-file-contract"></i></div> Legal Pages
+            <div class="nav-icon"><i class="fas fa-file-contract"></i></div><span class="nav-text">Legal Pages</span>
         </a>
-        <a href="{{ route('admin.settings.index') }}" class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-cog"></i></div> Settings
+        <a href="{{ route('admin.landing.index') }}" class="nav-link {{ request()->routeIs('admin.landing.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-paint-brush"></i></div><span class="nav-text">Landing Page</span>
+        </a>
+        @can('platform.audit.view')
+        <a href="{{ route('admin.security.soc') }}" class="nav-link {{ request()->routeIs('admin.security.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-radar"></i></div><span class="nav-text">SOC Security</span>
+        </a>
+        @endcan
+        <a href="{{ route('admin.db-clean.index') }}" class="nav-link {{ request()->routeIs('admin.db-clean.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-broom"></i></div><span class="nav-text">Clean Database</span>
         </a>
         @endif
+
     </div>
 
     <div class="sidebar-footer">
