@@ -501,6 +501,10 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('/cart-templates',         [AdminNotificationController::class, 'cartTemplates'])->name('cart-templates');
             Route::post('/cart-templates/update', [AdminNotificationController::class, 'updateCartTemplate'])->name('cart-templates.update');
             Route::post('/cart-templates/toggle', [AdminNotificationController::class, 'toggleCartTemplate'])->name('cart-templates.toggle');
+
+            // Notification analytics
+            Route::get('/{id}/stats',   [AdminNotificationController::class, 'stats'])->name('stats');
+            Route::post('/{id}/resend', [AdminNotificationController::class, 'resend'])->name('resend');
         });
 
         // Inbox (Support + Marketing broadcasts)
