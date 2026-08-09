@@ -5,7 +5,7 @@
 
     {{-- Header --}}
     <div class="d-flex align-items-center gap-3 mb-4">
-        <a href="{{ route('notifications.index') }}" class="btn btn-sm btn-outline-secondary">
+        <a href="{{ route('admin.notifications.index') }}" class="btn btn-sm btn-outline-secondary">
             <i class="fas fa-arrow-left"></i> Back
         </a>
         <div>
@@ -55,7 +55,7 @@
         {{-- Resend button --}}
         @if($stats['unopened'] > 0)
         <div class="mt-3">
-            <form action="{{ route('notifications.resend', $pushLog->id) }}" method="POST"
+            <form action="{{ route('admin.notifications.resend', $pushLog->id) }}" method="POST"
                   onsubmit="return confirm('Re-send to {{ $stats['unopened'] }} user(s) who did not open?')">
                 @csrf
                 <button type="submit" class="btn btn-warning btn-sm fw-bold">
