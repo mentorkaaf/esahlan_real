@@ -100,6 +100,7 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await FirebaseService().initialize();
+      await FirebaseService().setupOpenedHandlers();
       _setupNotificationNavigation();
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) FirebaseService().requestPermissionIfNeeded();

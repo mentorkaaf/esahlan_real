@@ -75,11 +75,17 @@ class VendorFcmService {
     FirebaseMessaging.onMessage.listen(_onForeground);
 
     // Background tap: app was backgrounded when user tapped notification
-    FirebaseMessaging.onMessageOpenedApp.listen(_onTap);
+    FirebaseMessaging.onMessageOpenedApp.listen((msg) {
+      _reportOpened(msg.data);
+      _onTap(msg);
+    });
 
     // Killed tap: app was killed when user tapped notification
     final initial = await FirebaseMessaging.instance.getInitialMessage();
-    if (initial != null) _routeFromData(initial.data);
+    if (initial != null) {
+      _reportOpened(initial.data);
+      _routeFromData(initial.data);
+    }
 
     // Register FCM token (best-effort; will 401 if not logged in yet)
     await _tryUploadToken();
@@ -159,12 +165,20 @@ class VendorFcmService {
     );
   }
 
+  // ── Report open to backend ─────────────────────────────────────────────────
+  static void _reportOpened(Map<String, dynamic> data) {
+    final logId = data['notification_log_id'] as String?;
+    if (logId == null || logId.isEmpty) return;
+    ApiClient().post('/notifications/opened/$logId').catchError((_) {});
+  }
+
   // ── Notification tap handlers ──────────────────────────────────────────────
   static void _onTap(RemoteMessage message) => _routeFromData(message.data);
 
   static void _onLocalTap(NotificationResponse response) {
     try {
       final data = jsonDecode(response.payload ?? '{}') as Map<String, dynamic>;
+      _reportOpened(data);
       _routeFromData(data);
     } catch (_) {}
   }

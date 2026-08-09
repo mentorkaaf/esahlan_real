@@ -15,9 +15,12 @@ class FcmService
         string  $fcmToken,
         string  $title,
         string  $body,
-        array   $data     = [],
-        ?string $imageUrl = null,
-        string  $channelId = 'esahlan_high_v3',
+        array   $data         = [],
+        ?string $imageUrl     = null,
+        string  $channelId    = 'esahlan_high_v3',
+        ?int    $pushNotifId  = null,   // for open-rate tracking
+        ?int    $userId       = null,
+        string  $userType     = 'customer',
     ): bool {
         if (empty($fcmToken)) return false;
 
@@ -54,6 +57,25 @@ class FcmService
             ],
         ];
 
+        // Inject log ID into data payload so Flutter can report opens
+        $logId = null;
+        if ($pushNotifId) {
+            try {
+                $log = \App\Models\NotificationLog::create([
+                    'push_notification_id' => $pushNotifId,
+                    'user_id'   => $userId,
+                    'user_type' => $userType,
+                    'fcm_token' => $fcmToken,
+                    'status'    => 'sent',
+                    'sent_at'   => now(),
+                ]);
+                $logId = $log->id;
+                $payload['message']['data']['notification_log_id'] = (string) $logId;
+            } catch (\Throwable $e) {
+                Log::warning('[FCM] Could not create NotificationLog: ' . $e->getMessage());
+            }
+        }
+
         $url = "https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send";
         $ch  = curl_init($url);
         curl_setopt_array($ch, [
@@ -78,6 +100,10 @@ class FcmService
                 'token' => '...' . substr($fcmToken, -20),
                 'resp'  => $resp,
             ]);
+
+            if ($logId) {
+                \App\Models\NotificationLog::where('id', $logId)->update(['status' => 'failed']);
+            }
 
             // Auto-clear stale tokens (check both user and vendor tables)
             if ($code === 404) {

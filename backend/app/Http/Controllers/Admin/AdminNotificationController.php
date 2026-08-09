@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\PushNotificationLog;
+use App\Models\NotificationLog;
 use App\Models\OrderNotificationTemplate;
+use App\Services\FcmService;
 use App\Services\Notification\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -96,51 +98,139 @@ class AdminNotificationController extends Controller
         $data = [];
         if ($deepLink) $data['deep_link'] = $deepLink;
 
-        $sentCount = 0;
-
-        if ($request->target_type === 'specific') {
-            $user = User::find($request->target_id);
-            if ($user?->fcm_token) {
-                $ok = $this->notificationService->sendPush([$user->fcm_token], $request->title, $request->body, $data, $imageUrl);
-                $sentCount = $ok ? 1 : 0;
-            }
-        } elseif ($request->target_type === 'all') {
-            $tokens = User::whereNotNull('fcm_token')->where('status', 'active')->pluck('fcm_token')->toArray();
-            $sentCount = count($tokens);
-            $this->notificationService->sendPush($tokens, $request->title, $request->body, $data, $imageUrl);
-        } else {
-            if ($request->target_type === 'vendors') {
-                // Vendors have their own separate FCM token (vendor app vs customer app)
-                $tokens = \App\Models\Vendor::whereNotNull('vendor_fcm_token')
-                    ->pluck('vendor_fcm_token')
-                    ->toArray();
-            } elseif ($request->target_type === 'deliverymen') {
-                $tokens = User::whereHas('role', fn($q) => $q->where('slug', 'deliveryman'))
-                    ->whereNotNull('fcm_token')
-                    ->pluck('fcm_token')
-                    ->toArray();
-            } else {
-                $tokens = User::whereHas('role', fn($q) => $q->where('slug', 'customer'))
-                    ->whereNotNull('fcm_token')
-                    ->pluck('fcm_token')
-                    ->toArray();
-            }
-            $sentCount = count($tokens);
-            $this->notificationService->sendPush($tokens, $request->title, $request->body, $data, $imageUrl);
-        }
-
-        PushNotificationLog::create([
+        // Create the push notification log first (we need its ID for per-delivery tracking)
+        $pushLog = PushNotificationLog::create([
             'title'       => $request->title,
             'body'        => $request->body,
             'image_url'   => $imageUrl,
             'deep_link'   => $deepLink,
             'target_type' => $request->target_type,
             'target_id'   => $request->target_type === 'specific' ? $request->target_id : null,
-            'sent_count'  => $sentCount,
+            'sent_count'  => 0,
             'sent_by'     => auth()->id(),
         ]);
 
+        $sentCount = $this->_sendToTargets(
+            $request->target_type,
+            $request->target_id,
+            $request->title,
+            $request->body,
+            $data,
+            $imageUrl,
+            $pushLog->id,
+        );
+
+        $pushLog->update(['sent_count' => $sentCount]);
+
         return back()->with('success', "Notification sent to {$sentCount} device(s).");
+    }
+
+    // ── Re-send to users who did NOT open ────────────────────────────────────
+    public function resend(int $id)
+    {
+        $pushLog = PushNotificationLog::findOrFail($id);
+        $tokens  = NotificationLog::unopenedTokensFor($id);
+
+        if (empty($tokens)) {
+            return back()->with('info', 'Everyone already opened this notification.');
+        }
+
+        $data = [];
+        if ($pushLog->deep_link) $data['deep_link'] = $pushLog->deep_link;
+
+        $sent = 0;
+        foreach ($tokens as $token) {
+            $ok = FcmService::sendToToken(
+                $token,
+                $pushLog->title,
+                $pushLog->body,
+                $data,
+                $pushLog->image_url,
+                'esahlan_high_v3',
+                $pushLog->id,
+            );
+            if ($ok) $sent++;
+        }
+
+        return back()->with('success', "Re-sent to {$sent} user(s) who hadn't opened.");
+    }
+
+    // ── Open-rate stats for a single notification ─────────────────────────────
+    public function stats(int $id)
+    {
+        $pushLog = PushNotificationLog::findOrFail($id);
+        $stats   = NotificationLog::statsFor($id);
+
+        $rows = NotificationLog::where('push_notification_id', $id)
+            ->with('user:id,name,phone,email')
+            ->latest()
+            ->get();
+
+        return view('admin.notifications.stats', compact('pushLog', 'stats', 'rows'));
+    }
+
+    // ── Internal: send to all targets + log per-user ──────────────────────────
+    private function _sendToTargets(
+        string  $targetType,
+        ?int    $targetId,
+        string  $title,
+        string  $body,
+        array   $data,
+        ?string $imageUrl,
+        int     $pushLogId,
+    ): int {
+        $sent = 0;
+
+        if ($targetType === 'specific') {
+            $user = User::find($targetId);
+            if ($user?->fcm_token) {
+                $ok = FcmService::sendToToken(
+                    $user->fcm_token, $title, $body, $data, $imageUrl,
+                    'esahlan_high_v3', $pushLogId, $user->id, 'customer'
+                );
+                if ($ok) $sent++;
+            }
+            return $sent;
+        }
+
+        if ($targetType === 'vendors') {
+            $vendors = \App\Models\Vendor::whereNotNull('vendor_fcm_token')->get(['id','vendor_fcm_token']);
+            foreach ($vendors as $v) {
+                $ok = FcmService::sendToToken(
+                    $v->vendor_fcm_token, $title, $body, $data, $imageUrl,
+                    'esahlan_high_v3', $pushLogId, $v->id, 'vendor'
+                );
+                if ($ok) $sent++;
+            }
+            return $sent;
+        }
+
+        if ($targetType === 'deliverymen') {
+            $drivers = \DB::table('deliverymen')->whereNotNull('fcm_token')->get(['id','fcm_token']);
+            foreach ($drivers as $d) {
+                $ok = FcmService::sendToToken(
+                    $d->fcm_token, $title, $body, $data, $imageUrl,
+                    'esahlan_high_v3', $pushLogId, $d->id, 'driver'
+                );
+                if ($ok) $sent++;
+            }
+            return $sent;
+        }
+
+        // all or customers
+        $query = User::whereNotNull('fcm_token')->where('status', 'active');
+        if ($targetType === 'customers') {
+            $query->whereHas('role', fn($q) => $q->where('slug', 'customer'));
+        }
+        $users = $query->get(['id','fcm_token']);
+        foreach ($users as $u) {
+            $ok = FcmService::sendToToken(
+                $u->fcm_token, $title, $body, $data, $imageUrl,
+                'esahlan_high_v3', $pushLogId, $u->id, 'customer'
+            );
+            if ($ok) $sent++;
+        }
+        return $sent;
     }
 
 

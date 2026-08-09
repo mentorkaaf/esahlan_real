@@ -345,6 +345,11 @@ textarea.nf-input { resize:vertical; min-height:80px; }
                         <span style="font-size:11px;">{{ $log->sentBy?->name ?? 'System' }}</span>
                     </td>
                     <td style="padding:12px 12px;text-align:center;">
+                        <a href="{{ route('admin.notifications.stats', $log->id) }}"
+                           title="View open-rate stats"
+                           style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:rgba(99,102,241,.1);color:#6366f1;text-decoration:none;margin-right:4px;">
+                            <i class="fas fa-chart-bar" style="font-size:13px;"></i>
+                        </a>
                         <form method="POST" action="{{ route('admin.notifications.destroy', $log->id) }}"
                               onsubmit="return confirm('Delete this notification?')" style="display:inline;">
                             @csrf @method('DELETE')

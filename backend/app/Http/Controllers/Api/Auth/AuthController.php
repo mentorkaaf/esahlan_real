@@ -546,6 +546,16 @@ class AuthController extends Controller
         return response()->json(['success' => true, 'message' => 'FCM token updated']);
     }
 
+    public function markNotificationOpened(Request $request, int $id)
+    {
+        try {
+            \App\Models\NotificationLog::where('id', $id)
+                ->where('status', 'sent')
+                ->update(['status' => 'opened', 'opened_at' => now()]);
+        } catch (\Throwable) {}
+        return response()->json(['success' => true]);
+    }
+
     public function updateLocation(Request $request)
     {
         $request->validate([

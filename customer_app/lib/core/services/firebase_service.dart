@@ -186,6 +186,7 @@ class FirebaseService {
     if (response.payload == null || response.payload!.isEmpty) return;
     try {
       final data = jsonDecode(response.payload!) as Map<String, dynamic>;
+      _reportOpened(data);
       final dl = data['deep_link'] as String?;
       if (dl != null && dl.isNotEmpty) {
         debugPrint('[FCM] Notification tapped → $dl');
@@ -193,6 +194,32 @@ class FirebaseService {
       }
     } catch (e) {
       debugPrint('[FCM] Tap parse error: $e');
+    }
+  }
+
+  // ── Report notification open to backend ───────────────────────────────────
+  static void _reportOpened(Map<String, dynamic> data) {
+    final logId = data['notification_log_id'] as String?;
+    if (logId == null || logId.isEmpty) return;
+    ApiClient.instance.post('/notifications/opened/$logId').catchError((_) {});
+    debugPrint('[FCM] Reported open for log #$logId');
+  }
+
+  /// Call this from main() after initialize() to handle background/killed taps
+  Future<void> setupOpenedHandlers() async {
+    // Background tap (app was in background when user tapped)
+    FirebaseMessaging.onMessageOpenedApp.listen((msg) {
+      _reportOpened(msg.data);
+      final dl = msg.data['deep_link'] as String?;
+      if (dl != null && dl.isNotEmpty) onDeepLink?.call(dl);
+    });
+
+    // Killed tap (app was killed when user tapped)
+    final initial = await _fcm.getInitialMessage();
+    if (initial != null) {
+      _reportOpened(initial.data);
+      final dl = initial.data['deep_link'] as String?;
+      if (dl != null && dl.isNotEmpty) onDeepLink?.call(dl);
     }
   }
 
