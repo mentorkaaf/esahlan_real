@@ -120,6 +120,168 @@
   </style>
 </head>
 <body>
+  <!-- Stripe.js — must load before flutter_bootstrap -->
+  <script src="https://js.stripe.com/v3/"></script>
+  <script>
+    /**
+     * showStripeModal — opens a card-only payment overlay (light theme).
+     * Uses Stripe Card Element — no Bank/Klarna/Link tabs.
+     * Calls window.__onStripeResult(jsonString) when done (callback set by Dart).
+     */
+    window.showStripeModal = function(publicKey, clientSecret, totalLabel) {
+      function done(obj) {
+        if (window.__onStripeResult) {
+          try { window.__onStripeResult(JSON.stringify(obj)); } catch(e) {}
+        }
+      }
+      (function() {
+
+        // ── overlay (semi-transparent backdrop) ────────────────────────────
+        var overlay = document.createElement('div');
+        Object.assign(overlay.style, {
+          position:'fixed', inset:'0',
+          background:'rgba(0,0,0,0.5)',
+          zIndex:'9999999',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+        });
+
+        // ── modal card (light) ─────────────────────────────────────────────
+        var modal = document.createElement('div');
+        Object.assign(modal.style, {
+          background:'#ffffff',
+          borderRadius:'20px',
+          padding:'28px 24px 24px',
+          width:'100%', maxWidth:'420px',
+          margin:'16px',
+          boxSizing:'border-box',
+          boxShadow:'0 20px 60px rgba(0,0,0,0.25)'
+        });
+
+        modal.innerHTML =
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">' +
+            '<div>' +
+              '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
+                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L4 7v10l8 5 8-5V7z" fill="#22c55e"/></svg>' +
+                '<span style="font-size:12px;color:#22c55e;font-weight:600;letter-spacing:0.04em;">SECURE PAYMENT</span>' +
+              '</div>' +
+              '<h3 style="margin:0;color:#111827;font-size:22px;font-weight:800;">Card Details</h3>' +
+            '</div>' +
+            '<button id="stripe-modal-close" style="background:#f3f4f6;border:none;color:#6b7280;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;line-height:36px;text-align:center;padding:0;">✕</button>' +
+          '</div>' +
+          '<div style="margin-bottom:12px;">' +
+            '<label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:8px;">Card number</label>' +
+            '<div id="stripe-card-number" style="border:1.5px solid #e5e7eb;border-radius:12px;padding:14px 16px;background:#f9fafb;transition:border-color 0.2s;"></div>' +
+          '</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">' +
+            '<div>' +
+              '<label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:8px;">Expiry date</label>' +
+              '<div id="stripe-card-expiry" style="border:1.5px solid #e5e7eb;border-radius:12px;padding:14px 16px;background:#f9fafb;"></div>' +
+            '</div>' +
+            '<div>' +
+              '<label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:8px;">Security code</label>' +
+              '<div id="stripe-card-cvc" style="border:1.5px solid #e5e7eb;border-radius:12px;padding:14px 16px;background:#f9fafb;"></div>' +
+            '</div>' +
+          '</div>' +
+          '<div id="stripe-modal-error" style="display:none;color:#dc2626;font-size:13px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 14px;margin-bottom:14px;"></div>' +
+          '<button id="stripe-modal-pay" style="width:100%;padding:16px;background:#F5A623;color:#07003B;border:none;border-radius:14px;font-size:17px;font-weight:800;cursor:pointer;">Pay ' + totalLabel + '</button>' +
+          '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="#9ca3af" stroke-width="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="#9ca3af" stroke-width="2"/></svg>' +
+            '<span style="font-size:11px;color:#9ca3af;">256-bit SSL · Powered by Stripe</span>' +
+          '</div>';
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // ── Stripe Card Elements (split fields — card-only, no tabs) ───────
+        var stripe   = Stripe(publicKey);
+        var elements = stripe.elements();
+        var baseStyle = {
+          base: {
+            color: '#111827',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            fontSize: '16px',
+            fontSmoothing: 'antialiased',
+            '::placeholder': { color: '#9ca3af' }
+          },
+          invalid: { color: '#dc2626', iconColor: '#dc2626' }
+        };
+
+        var cardNumber = elements.create('cardNumber', { style: baseStyle, showIcon: true });
+        var cardExpiry = elements.create('cardExpiry', { style: baseStyle });
+        var cardCvc    = elements.create('cardCvc',    { style: baseStyle });
+
+        cardNumber.mount('#stripe-card-number');
+        cardExpiry.mount('#stripe-card-expiry');
+        cardCvc.mount('#stripe-card-cvc');
+
+        // Focus highlight for each field
+        [cardNumber, cardExpiry, cardCvc].forEach(function(el, i) {
+          var ids = ['stripe-card-number','stripe-card-expiry','stripe-card-cvc'];
+          el.on('focus', function() {
+            document.getElementById(ids[i]).style.borderColor = '#F5A623';
+            document.getElementById(ids[i]).style.boxShadow  = '0 0 0 3px rgba(245,166,35,0.15)';
+          });
+          el.on('blur', function() {
+            document.getElementById(ids[i]).style.borderColor = '#e5e7eb';
+            document.getElementById(ids[i]).style.boxShadow  = 'none';
+          });
+        });
+
+        // ── close ──────────────────────────────────────────────────────────
+        document.getElementById('stripe-modal-close').onclick = function() {
+          cardNumber.destroy(); cardExpiry.destroy(); cardCvc.destroy();
+          overlay.remove();
+          done({ cancelled: true });
+        };
+
+        // ── pay ────────────────────────────────────────────────────────────
+        document.getElementById('stripe-modal-pay').onclick = async function() {
+          var payBtn = document.getElementById('stripe-modal-pay');
+          var errDiv = document.getElementById('stripe-modal-error');
+          payBtn.disabled = true;
+          payBtn.style.opacity = '0.7';
+          payBtn.textContent   = 'Processing…';
+          errDiv.style.display = 'none';
+
+          var result;
+          try {
+            result = await stripe.confirmCardPayment(clientSecret, {
+              payment_method: { card: cardNumber }
+            });
+          } catch(err) {
+            errDiv.textContent   = 'Payment failed: ' + (err.message || err);
+            errDiv.style.display = 'block';
+            payBtn.disabled      = false;
+            payBtn.style.opacity = '1';
+            payBtn.textContent   = 'Try Again';
+            return;
+          }
+
+          if (result.error) {
+            errDiv.textContent   = result.error.message;
+            errDiv.style.display = 'block';
+            payBtn.disabled      = false;
+            payBtn.style.opacity = '1';
+            payBtn.textContent   = 'Try Again';
+          } else if (result.paymentIntent &&
+                    (result.paymentIntent.status === 'succeeded' ||
+                     result.paymentIntent.status === 'processing')) {
+            cardNumber.destroy(); cardExpiry.destroy(); cardCvc.destroy();
+            overlay.remove();
+            done({ success: true, paymentIntentId: result.paymentIntent.id });
+          } else {
+            errDiv.textContent   = 'Unexpected status: ' + (result.paymentIntent ? result.paymentIntent.status : 'unknown');
+            errDiv.style.display = 'block';
+            payBtn.disabled      = false;
+            payBtn.style.opacity = '1';
+            payBtn.textContent   = 'Try Again';
+          }
+        };
+      })();
+    };
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 
   <div id="pwa-overlay"></div>

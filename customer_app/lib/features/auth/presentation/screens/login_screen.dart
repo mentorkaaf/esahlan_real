@@ -59,6 +59,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   String get _pin       => _pinCtrls.map((c) => c.text).join();
   String get _fullPhone => '${_country.dialCode}${_phoneCtrl.text.trim()}';
 
+  Future<void> _googleLogin() async {
+    await ref.read(googleLoginProvider.notifier).login();
+    if (!mounted) return;
+    ref.read(googleLoginProvider).whenOrNull(
+      error: (e, _) {
+        final msg = e.toString().replaceFirst('Exception: ', '');
+        if (msg != 'cancelled') _err(msg);
+      },
+    );
+  }
+
   Future<void> _login() async {
     if (_mode == 0) {
       if (_phoneCtrl.text.trim().isEmpty) { _err('Enter your phone number'); return; }
@@ -82,14 +93,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = ref.watch(loginProvider).isLoading;
+    final isLoading       = ref.watch(loginProvider).isLoading;
+    final isGoogleLoading = ref.watch(googleLoginProvider).isLoading;
     final isDesktop = kIsWeb && MediaQuery.sizeOf(context).width >= 900;
 
-    if (isDesktop) return _buildDesktop(context, isLoading);
-    return _buildMobile(context, isLoading);
+    if (isDesktop) return _buildDesktop(context, isLoading, isGoogleLoading);
+    return _buildMobile(context, isLoading, isGoogleLoading);
   }
 
-  Widget _buildDesktop(BuildContext context, bool isLoading) {
+  Widget _buildDesktop(BuildContext context, bool isLoading, bool isGoogleLoading) {
     return Scaffold(
       body: Row(children: [
         const SizedBox(width: 400, child: _AuthLeftPanel()),
@@ -103,7 +115,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   constraints: const BoxConstraints(maxWidth: 460),
                   child: FadeTransition(
                     opacity: _fadeAnim,
-                    child: _desktopForm(context, isLoading),
+                    child: _desktopForm(context, isLoading, isGoogleLoading),
                   ),
                 ),
               ),
@@ -114,7 +126,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  Column _desktopForm(BuildContext context, bool isLoading) {
+  Column _desktopForm(BuildContext context, bool isLoading, bool isGoogleLoading) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('Welcome back 👋', style: TextStyle(
         fontSize: 32, fontWeight: FontWeight.w900,
@@ -162,6 +174,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       const SizedBox(height: 32),
       _ActionButton(label: 'Sign In', icon: Icons.arrow_forward_rounded,
           isLoading: isLoading, onTap: isLoading ? null : _login),
+      const SizedBox(height: 20),
+      _OrDivider(),
+      const SizedBox(height: 20),
+      _GoogleButton(isLoading: isGoogleLoading, onTap: isGoogleLoading ? null : _googleLogin),
       const SizedBox(height: 24),
       Center(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
         Text("Don't have an account? ",
@@ -175,7 +191,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     ]);
   }
 
-  Widget _buildMobile(BuildContext context, bool isLoading) {
+  Widget _buildMobile(BuildContext context, bool isLoading, bool isGoogleLoading) {
     return Scaffold(
       backgroundColor: const Color(0xFF07003B),
       body: Stack(
@@ -264,6 +280,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             const SizedBox(height: 32),
                             _ActionButton(label: 'Sign In', icon: Icons.arrow_forward_rounded,
                                 isLoading: isLoading, onTap: isLoading ? null : _login),
+                            const SizedBox(height: 20),
+                            _OrDivider(),
+                            const SizedBox(height: 20),
+                            _GoogleButton(isLoading: isGoogleLoading, onTap: isGoogleLoading ? null : _googleLogin),
                             const SizedBox(height: 24),
                             Center(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                               Text("Don't have an account? ",
@@ -589,6 +609,69 @@ class _PinBox extends StatelessWidget {
           onChanged: onChanged,
           onSubmitted: onSubmit,
         ),
+      ),
+    );
+  }
+}
+
+class _OrDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Expanded(child: Divider(color: context.colors.mutedText.withOpacity(0.25), thickness: 1)),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Text('or', style: TextStyle(
+          fontSize: 13, fontWeight: FontWeight.w600, color: context.colors.mutedText)),
+      ),
+      Expanded(child: Divider(color: context.colors.mutedText.withOpacity(0.25), thickness: 1)),
+    ]);
+  }
+}
+
+class _GoogleButton extends StatelessWidget {
+  final VoidCallback? onTap;
+  final bool isLoading;
+  const _GoogleButton({this.onTap, this.isLoading = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity, height: 56,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: AppColors.primary.withOpacity(0.4), width: 1.5),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: context.colors.elevatedBg,
+        ),
+        child: isLoading
+            ? SizedBox(width: 22, height: 22,
+                child: CircularProgressIndicator(
+                  color: AppColors.primary, strokeWidth: 2.5))
+            : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                // Google "G" icon using colored text
+                Container(
+                  width: 26, height: 26,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                  ),
+                  child: const Center(
+                    child: Text('G', style: TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w800,
+                      color: Color(0xFF4285F4),
+                      fontFamily: 'Arial',
+                    )),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text('Continue with Google',
+                  style: TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w700,
+                    color: context.colors.bodyText,
+                  )),
+              ]),
       ),
     );
   }

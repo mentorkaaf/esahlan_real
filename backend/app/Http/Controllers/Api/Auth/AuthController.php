@@ -395,6 +395,86 @@ class AuthController extends Controller
         return response()->json(['success' => true, 'data' => $user->fresh()]);
     }
 
+    /**
+     * POST /auth/google
+     * Verify a Google ID token and return a Sanctum token.
+     * Creates a new account automatically if the email doesn't exist yet.
+     */
+    public function googleLogin(Request $request)
+    {
+        $request->validate(['id_token' => 'required|string']);
+
+        // Verify token with Google — no extra package needed
+        $res = \Illuminate\Support\Facades\Http::get(
+            'https://oauth2.googleapis.com/tokeninfo',
+            ['id_token' => $request->id_token]
+        );
+
+        if (!$res->ok()) {
+            return response()->json(['success' => false, 'message' => 'Invalid Google token.'], 401);
+        }
+
+        $payload = $res->json();
+
+        $email      = $payload['email']          ?? null;
+        $verified   = $payload['email_verified'] ?? false;
+        $googleId   = $payload['sub']            ?? null;
+        $name       = $payload['name']           ?? ($payload['given_name'] ?? 'Google User');
+
+        if (!$email || !$verified || !$googleId) {
+            return response()->json(['success' => false, 'message' => 'Google account not verified.'], 401);
+        }
+
+        $customerRole = DB::table('roles')->where('slug', 'customer')->first();
+
+        $user = DB::transaction(function () use ($email, $googleId, $name, $customerRole) {
+            // Find by google_id or email
+            $user = User::where('google_id', $googleId)
+                        ->orWhere('email', $email)
+                        ->first();
+
+            if ($user) {
+                // Update google_id if signing in with Google for the first time
+                if (!$user->google_id) {
+                    $user->update(['google_id' => $googleId, 'email_verified_at' => now()]);
+                }
+                return $user;
+            }
+
+            // New user — create account
+            $user = User::create([
+                'uuid'               => (string) Str::uuid(),
+                'name'               => $name,
+                'email'              => $email,
+                'google_id'          => $googleId,
+                'email_verified_at'  => now(),
+                'password'           => Hash::make(Str::random(32)),
+                'role_id'            => $customerRole?->id,
+                'status'             => 'active',
+                'referral_code'      => strtoupper(Str::random(8)),
+                'preferred_language' => 'so',
+            ]);
+
+            Wallet::create([
+                'owner_type' => User::class,
+                'owner_id'   => $user->id,
+                'balance'    => 0,
+                'currency'   => 'USD',
+            ]);
+
+            try { Mail::to($email)->send(new WelcomeMail($name)); } catch (\Exception) {}
+
+            return $user;
+        });
+
+        $token = $user->createToken('mobile')->plainTextToken;
+
+        return response()->json([
+            'success' => true,
+            'data'    => ['user' => $user->load('role'), 'token' => $token],
+        ]);
+    }
+
     public function forgotPassword(Request $request)
     {
         $v = Validator::make($request->all(), [

@@ -41,6 +41,24 @@ class LoginNotifier extends AsyncNotifier<void> {
 
 final loginProvider = AsyncNotifierProvider<LoginNotifier, void>(LoginNotifier.new);
 
+// Google Sign-In state
+class GoogleLoginNotifier extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<void> login() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final repo = ref.read(authRepositoryProvider);
+      await repo.googleLogin();
+      ref.invalidate(authStateProvider);
+    });
+  }
+}
+
+final googleLoginProvider =
+    AsyncNotifierProvider<GoogleLoginNotifier, void>(GoogleLoginNotifier.new);
+
 // Register state
 class RegisterNotifier extends AsyncNotifier<void> {
   @override

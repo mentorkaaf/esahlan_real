@@ -161,6 +161,7 @@ Route::prefix('v1')->group(function () {
         Route::post('register',        [AuthController::class, 'register']);
         Route::post('verify-otp',      [AuthController::class, 'verifyOtp']);
         Route::post('login',           [AuthController::class, 'login'])->middleware('brute_force');
+        Route::post('google',          [AuthController::class, 'googleLogin']);
         Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
         Route::post('reset-password',  [AuthController::class, 'resetPassword']);
         // OTP has its own stricter limit on top of auth

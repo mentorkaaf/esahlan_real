@@ -264,8 +264,9 @@ class GlobalRepository {
       'rating': rating,
       if (title != null && title.isNotEmpty) 'title': title,
       if (body != null && body.isNotEmpty) 'body': body,
+      // 'images[]' — array naming so PHP receives $request->file('images') as array
       if (images != null && images.isNotEmpty)
-        'images': await Future.wait(images.map((f) async =>
+        'images[]': await Future.wait(images.map((f) async =>
             await MultipartFile.fromFile(f.path,
                 filename: f.path.split('/').last))),
     });

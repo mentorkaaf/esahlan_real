@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/services/firebase_service.dart';
 import '../../../../core/services/realtime_client.dart';
@@ -63,6 +64,35 @@ class AuthRepository {
       return (user: user, token: token);
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<({UserModel user, String token})> googleLogin() async {
+    final googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+    try {
+      final account = await googleSignIn.signIn();
+      if (account == null) throw Exception('Google sign-in cancelled.');
+
+      final auth    = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null) throw Exception('Failed to get Google ID token.');
+
+      final res   = await _dio.post('/auth/google', data: {'id_token': idToken});
+      final data  = res.data['data'];
+      final token = data['token'] as String;
+      await LocalStorage.saveToken(token);
+      final user = await getMe();
+      FirebaseService().registerTokenAfterLogin();
+      RealtimeClient.instance.connect();
+      MessagesNotifier.setMyId(user.id);
+      return (user: user, token: token);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    } catch (e) {
+      if (e.toString().contains('cancelled') || e.toString().contains('cancel')) {
+        throw Exception('cancelled');
+      }
+      rethrow;
     }
   }
 

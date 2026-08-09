@@ -9,6 +9,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../providers/global_provider.dart';
 import '../../data/models/global_models.dart';
 import '../../data/repositories/global_repository.dart';
+import '../widgets/stripe_web_modal.dart';
 
 // ── Country data ──────────────────────────────────────────────────────────────
 
@@ -462,34 +463,63 @@ class _GlobalCheckoutScreenState extends ConsumerState<GlobalCheckoutScreen> {
 
   Future<void> _doStripe(GlobalRepository repo, Map<String, dynamic> ship) async {
     if (kIsWeb) {
-      // Web: redirect to Stripe-hosted checkout page (flutter_stripe doesn't support web)
-      final res        = await repo.createStripeWebSession(ship);
-      final sessionUrl = res['session_url'] as String;
-      final uri        = Uri.parse(sessionUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        throw Exception('Could not open Stripe checkout.');
+      // Web: inline Stripe Payment Element modal (no redirect, card-only)
+      final res          = await repo.createStripeCheckout(ship);
+      final clientSecret = res['client_secret'] as String;
+      final publicKey    = res['public_key']    as String;
+      final orderId      = res['order_id']      as int;
+      final totalRaw     = res['total'];
+      final totalLabel   = '\$${(totalRaw is num ? totalRaw : double.tryParse('$totalRaw') ?? 0).toStringAsFixed(2)}';
+
+      if (!mounted) return;
+      final result = await showStripeWebModal(
+        context:      context,
+        publicKey:    publicKey,
+        clientSecret: clientSecret,
+        totalLabel:   totalLabel,
+      );
+
+      if (result == null || result['cancelled'] == true) {
+        throw Exception('Payment cancelled.');
       }
-      // User is redirected away; order confirmed via Stripe webhook automatically
+      if (result['success'] != true) {
+        throw Exception('Payment failed. Please try again.');
+      }
+
+      final piId = result['paymentIntentId'] as String? ??
+          clientSecret.split('_secret_').first;
+      await repo.confirmStripePayment(orderId, piId);
+
+      if (mounted) {
+        ref.invalidate(globalCartProvider);
+        ref.invalidate(globalOrdersProvider);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✓  Payment successful! Order placed.'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ));
+        context.go('/global/orders');
+      }
       return;
     }
 
-    // Mobile: use flutter_stripe Payment Sheet
+    // Mobile: flutter_stripe CardField — official Stripe SDK (PCI compliant)
     final res          = await repo.createStripeCheckout(ship);
     final clientSecret = res['client_secret'] as String;
     final publicKey    = res['public_key']    as String;
     final orderId      = res['order_id']      as int;
+    final totalRaw     = res['total'];
+    final totalLabel   = '\$${(totalRaw is num ? totalRaw : double.tryParse('$totalRaw') ?? 0).toStringAsFixed(2)}';
 
     Stripe.publishableKey = publicKey;
-    await Stripe.instance.initPaymentSheet(
-      paymentSheetParameters: SetupPaymentSheetParameters(
-        paymentIntentClientSecret: clientSecret,
-        merchantDisplayName: 'eSahlan Global',
-        style: ThemeMode.light,
-      ),
+    await Stripe.instance.applySettings();
+
+    if (!mounted) return;
+    final paid = await _showMobileCardSheet(
+      clientSecret: clientSecret,
+      totalLabel:   totalLabel,
     );
-    await Stripe.instance.presentPaymentSheet();
+    if (!paid) throw Exception('Payment cancelled.');
 
     final piId = clientSecret.split('_secret_').first;
     await repo.confirmStripePayment(orderId, piId);
@@ -504,6 +534,25 @@ class _GlobalCheckoutScreenState extends ConsumerState<GlobalCheckoutScreen> {
       ));
       context.go('/global/orders');
     }
+  }
+
+  /// Shows a modal bottom sheet with flutter_stripe CardField.
+  /// Uses Stripe's official SDK — PCI compliant, no raw card data ever leaves device.
+  /// Returns true if payment succeeded, false if cancelled.
+  Future<bool> _showMobileCardSheet({
+    required String clientSecret,
+    required String totalLabel,
+  }) async {
+    final result = await showModalBottomSheet<bool>(
+      context:            context,
+      isScrollControlled: true,
+      backgroundColor:    Colors.transparent,
+      builder: (_) => _MobileCardSheet(
+        clientSecret: clientSecret,
+        totalLabel:   totalLabel,
+      ),
+    );
+    return result == true;
   }
 
   Future<void> _doPayPal(GlobalRepository repo, Map<String, dynamic> ship) async {
@@ -1149,6 +1198,181 @@ class _PayPalWebViewState extends State<_PayPalWebView> {
             ),
           ),
       ]),
+    );
+  }
+}
+
+// ── Mobile card-only payment bottom sheet ────────────────────────────────────
+// Uses flutter_stripe CardField — the ONLY PCI-compliant approach for mobile.
+// Card data never leaves the device in plain text; Stripe SDK handles it all.
+
+class _MobileCardSheet extends StatefulWidget {
+  final String clientSecret;
+  final String totalLabel;
+  const _MobileCardSheet({
+    required this.clientSecret,
+    required this.totalLabel,
+  });
+
+  @override
+  State<_MobileCardSheet> createState() => _MobileCardSheetState();
+}
+
+class _MobileCardSheetState extends State<_MobileCardSheet> {
+  CardFieldInputDetails? _card;
+  bool    _paying = false;
+  String? _error;
+
+  static const _brand = Color(0xFF07003B);
+  static const _gold  = Color(0xFFF5A623);
+
+  Future<void> _pay() async {
+    if (_card?.complete != true) {
+      setState(() => _error = 'Please complete your card details.');
+      return;
+    }
+    setState(() { _paying = true; _error = null; });
+    try {
+      // flutter_stripe handles tokenization internally via native Android/iOS SDK
+      // Card data never passes through our server — fully PCI compliant
+      final result = await Stripe.instance.confirmPayment(
+        paymentIntentClientSecret: widget.clientSecret,
+        data: const PaymentMethodParams.card(
+          paymentMethodData: PaymentMethodData(),
+        ),
+      );
+      final status = result.status;
+      if (status == PaymentIntentsStatus.Succeeded ||
+          status == PaymentIntentsStatus.Processing) {
+        if (mounted) Navigator.of(context).pop(true);
+      } else {
+        setState(() {
+          _error  = 'Payment not completed. Please try again.';
+          _paying = false;
+        });
+      }
+    } on StripeException catch (e) {
+      if (e.error.code == FailureCode.Canceled) {
+        setState(() { _paying = false; });
+        return;
+      }
+      setState(() {
+        _error  = e.error.localizedMessage ?? e.error.message ?? 'Payment failed.';
+        _paying = false;
+      });
+    } catch (e) {
+      setState(() { _error = e.toString(); _paying = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: EdgeInsets.fromLTRB(20, 24, 20, 20 + bottom),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // header
+          Row(children: [
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(children: [
+                  Icon(Icons.lock, size: 13, color: Color(0xFF22c55e)),
+                  SizedBox(width: 4),
+                  Text('SECURE PAYMENT',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF22c55e),
+                          fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                ]),
+                const SizedBox(height: 4),
+                const Text('Card Details',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800,
+                        color: Color(0xFF111827))),
+              ],
+            )),
+            GestureDetector(
+              onTap: () => Navigator.of(context).pop(false),
+              child: Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(color: const Color(0xFFF3F4F6),
+                    borderRadius: BorderRadius.circular(18)),
+                child: const Icon(Icons.close, size: 18, color: Color(0xFF6B7280)),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 20),
+
+          // Stripe CardField — native Android/iOS SDK, PCI compliant
+          CardField(
+            onCardChanged: (card) => setState(() => _card = card),
+            style: const TextStyle(fontSize: 16, color: Color(0xFF111827)),
+            decoration: const InputDecoration(
+              fillColor: Color(0xFFF9FAFB),
+              filled: true,
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderSide: BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderSide: BorderSide(color: Color(0xFFF5A623), width: 2),
+              ),
+              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+          ),
+
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                border: Border.all(color: const Color(0xFFFECACA)),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(_error!,
+                  style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
+            ),
+          ],
+          const SizedBox(height: 20),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: (_paying || _card?.complete != true) ? null : _pay,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _gold,
+                foregroundColor: _brand,
+                disabledBackgroundColor: _gold.withValues(alpha: 0.5),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              child: _paying
+                  ? const SizedBox(height: 20, width: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.5, color: Color(0xFF07003B)))
+                  : Text('Pay ${widget.totalLabel}',
+                      style: const TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.w800)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.lock_outline, size: 13, color: Color(0xFF9CA3AF)),
+            SizedBox(width: 5),
+            Text('256-bit SSL · Powered by Stripe',
+                style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+          ]),
+        ],
+      ),
     );
   }
 }
