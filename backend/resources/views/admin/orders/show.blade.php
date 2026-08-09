@@ -1,13 +1,13 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Order #' . $order->order_number)
 
 @push('styles')
 <style>
-/* ── Reset & Base ─────────────────────────────── */
+/* â”€â”€ Reset & Base â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .od-wrap { display:grid; grid-template-columns:1fr 340px; gap:20px; align-items:start; }
 @media(max-width:960px){ .od-wrap{ grid-template-columns:1fr; } }
 
-/* ── Module Hero Banners ──────────────────────── */
+/* â”€â”€ Module Hero Banners â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .mod-hero { border-radius:14px; overflow:hidden; margin-bottom:20px; box-shadow:0 4px 20px rgba(0,0,0,.10); }
 
 /* Boarding pass */
@@ -95,27 +95,27 @@
 .items-total-table td { padding:5px 0; font-size:13px; color:#666; }
 .items-total-table .total-row td { font-size:16px; font-weight:800; color:#FF8A00; padding-top:10px; border-top:2px solid #F0F1F5; }
 
-/* ── Section Cards ─────────────────────────────── */
+/* â”€â”€ Section Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .od-card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.07); overflow:hidden; margin-bottom:20px; }
 .od-card-header { padding:14px 20px; border-bottom:1px solid #F0F1F5; display:flex; align-items:center; gap:10px; }
 .od-card-header .icon { width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff; flex-shrink:0; }
 .od-card-header .title { font-weight:700; font-size:14px; color:#1a1a2e; }
 .od-card-body { padding:20px; }
 
-/* ── Order Info Table ──────────────────────────── */
+/* â”€â”€ Order Info Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .od-info-table { width:100%; }
 .od-info-table tr td:first-child { padding:10px 16px; color:#888; font-size:13px; width:110px; font-weight:500; vertical-align:middle; }
 .od-info-table tr td:last-child { padding:10px 16px; font-size:14px; vertical-align:middle; }
 .od-info-table tr:nth-child(even) { background:#FAFBFF; }
 .od-info-total { font-size:24px !important; font-weight:900 !important; color:#FF8A00 !important; }
 
-/* ── Module Badge ──────────────────────────────── */
+/* â”€â”€ Module Badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .mod-badge { display:inline-flex; align-items:center; gap:6px; border-radius:8px; padding:4px 10px; font-size:12px; font-weight:800; letter-spacing:.5px; }
 
-/* ── Customer Card ─────────────────────────────── */
+/* â”€â”€ Customer Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .cust-avatar { width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:900; flex-shrink:0; }
 
-/* ── Status Timeline ───────────────────────────── */
+/* â”€â”€ Status Timeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .timeline { padding:8px 20px 4px; }
 .tl-item { display:flex; gap:14px; padding-bottom:16px; position:relative; }
 .tl-item:not(:last-child)::before { content:''; position:absolute; left:9px; top:20px; bottom:0; width:2px; background:#F0F1F5; }
@@ -125,12 +125,12 @@
 .tl-note { font-size:12px; color:#888; margin-top:2px; }
 .tl-time { font-size:11px; color:#bbb; margin-top:3px; }
 
-/* ── Update Status Form ────────────────────────── */
+/* â”€â”€ Update Status Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .status-form { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 .status-form select, .status-form input { flex:1; min-width:120px; }
 .status-form .btn { flex-shrink:0; }
 
-/* ── Page Header ───────────────────────────────── */
+/* â”€â”€ Page Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .od-page-header { background:linear-gradient(135deg,#07003B 0%,#140066 100%); border-radius:16px; padding:24px 28px; margin-bottom:24px; color:#fff; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
 .od-page-header-left h1 { font-size:24px; font-weight:900; margin:0 0 6px; }
 .od-page-header-left .breadcrumb { margin:0; padding:0; background:transparent; }
@@ -139,7 +139,7 @@
 .od-page-header-left .breadcrumb-item+.breadcrumb-item::before { color:rgba(255,255,255,.4); }
 .od-status-badge { display:flex; align-items:center; gap:8px; }
 
-/* ── Status colors ─────────────────────────────── */
+/* â”€â”€ Status colors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .s-pending        { background:#FFF3E0; color:#E65100; }
 .s-confirmed      { background:#E3F2FD; color:#1565C0; }
 .s-preparing      { background:#F3E5F5; color:#6A1B9A; }
@@ -155,14 +155,14 @@
 .pay-unpaid  { background:#FFEBEE;color:#C62828; }
 .pay-refunded{ background:#FFF8E1;color:#F57F17; }
 
-/* ── Assign Deliveryman ────────────────────────── */
+/* â”€â”€ Assign Deliveryman â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .assign-form { display:flex; gap:10px; }
 .assign-form select { flex:1; }
 </style>
 @endpush
 
 @php
-/* ── Parse note JSON ── */
+/* â”€â”€ Parse note JSON â”€â”€ */
 $note = [];
 if ($order->note) {
     try { $note = is_string($order->note) ? json_decode($order->note, true) : (array)$order->note; } catch(\Throwable $e) {}
@@ -170,7 +170,7 @@ if ($order->note) {
 
 $slug = strtolower($order->module_slug ?? '');
 
-/* ── Module meta ── */
+/* â”€â”€ Module meta â”€â”€ */
 $modConfigs = [
     'eticket'  => ['label'=>'eTicket',  'color'=>'#07003B','bg'=>'#EEF2FF','icon'=>'fa-plane',        'iconBg'=>'#3F51B5'],
     'emoving'  => ['label'=>'eMoving',  'color'=>'#0d47a1','bg'=>'#E3F2FD','icon'=>'fa-truck-moving', 'iconBg'=>'#1565C0'],
@@ -187,7 +187,7 @@ $modConfigs = [
 ];
 $mod = $modConfigs[$slug] ?? ['label'=>strtoupper($slug),'color'=>'#546e7a','bg'=>'#ECEFF1','icon'=>'fa-circle','iconBg'=>'#546e7a'];
 
-/* ── Status color map ── */
+/* â”€â”€ Status color map â”€â”€ */
 $scMap = [
     'pending'=>'#FF8A00','confirmed'=>'#1565C0','preparing'=>'#6A1B9A',
     'out_for_delivery'=>'#00695C','delivered'=>'#2E7D32','cancelled'=>'#C62828',
@@ -197,7 +197,7 @@ $scMap = [
 ];
 $scColor = $scMap[$order->status] ?? '#546e7a';
 
-/* ── eParcel ── */
+/* â”€â”€ eParcel â”€â”€ */
 $isParcel = $slug === 'eparcel';
 $pickupDistrict = $deliveryDistrict = null;
 if ($isParcel) {
@@ -209,13 +209,13 @@ if ($isParcel) {
     if ($delivId) $deliveryDistrict = \Illuminate\Support\Facades\DB::table('districts')->find($delivId)?->name;
 }
 
-/* ── Timezone helper ── */
+/* â”€â”€ Timezone helper â”€â”€ */
 $tz = \App\Helpers\AppSettings::timezone();
 @endphp
 
 @section('content')
 
-{{-- ══════════════ PAGE HEADER ══════════════ --}}
+{{-- â•â•â•â•â•â•â•â•â•â•â•â•â•â• PAGE HEADER â•â•â•â•â•â•â•â•â•â•â•â•â•â• --}}
 <div class="od-page-header">
     <div class="od-page-header-left">
         <h1><i class="fas {{ $mod['icon'] }}" style="margin-right:10px;color:#FF8A00;"></i>Order #{{ $order->order_number }}</h1>
@@ -234,21 +234,21 @@ $tz = \App\Helpers\AppSettings::timezone();
 </div>
 
 <div class="od-wrap">
-{{-- ═══════════════════════ LEFT ═══════════════════════ --}}
+{{-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• LEFT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• --}}
 <div>
 
-{{-- ══════ ETICKET: Full Airline-Style Page ══════ --}}
+{{-- â•â•â•â•â•â• ETICKET: Full Airline-Style Page â•â•â•â•â•â• --}}
 @if($slug === 'eticket')
 @php
     $depDt  = !empty($note['departure']) ? \Carbon\Carbon::parse($note['departure'])->setTimezone($tz) : null;
     $arrDt  = !empty($note['arrival'])   ? \Carbon\Carbon::parse($note['arrival'])->setTimezone($tz)   : null;
     $dur    = ($depDt && $arrDt) ? $depDt->diff($arrDt) : null;
-    $durStr = $dur ? $dur->h.'h '.($dur->i > 0 ? $dur->i.'m' : '') : '—';
+    $durStr = $dur ? $dur->h.'h '.($dur->i > 0 ? $dur->i.'m' : '') : 'â€”';
     $paxList = $note['passengers'] ?? [];
     $paxCount = count($paxList);
     $seatClass = ucfirst($note['seat_class'] ?? 'economy');
     $airline   = $note['airline'] ?? 'Airline';
-    $flightNo  = $note['flight_number'] ?? '—';
+    $flightNo  = $note['flight_number'] ?? 'â€”';
     $fromCode  = strtoupper($note['from_code'] ?? '???');
     $toCode    = strtoupper($note['to_code']   ?? '???');
     $fromCity  = $note['from'] ?? '';
@@ -267,7 +267,7 @@ $tz = \App\Helpers\AppSettings::timezone();
 @endphp
 
 <style>
-/* ── Airline-specific styles ── */
+/* â”€â”€ Airline-specific styles â”€â”€ */
 .etkt-wrap { display:flex; flex-direction:column; gap:20px; }
 .etkt-bp { border-radius:18px; overflow:hidden; box-shadow:0 8px 32px rgba(7,0,59,.18); }
 
@@ -338,7 +338,7 @@ $tz = \App\Helpers\AppSettings::timezone();
 
 <div class="etkt-wrap">
 
-{{-- ① Boarding Pass ─────────────────────────────────────── --}}
+{{-- â‘  Boarding Pass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ --}}
 <div class="etkt-bp">
     {{-- Header strip --}}
     <div class="etkt-header">
@@ -377,7 +377,7 @@ $tz = \App\Helpers\AppSettings::timezone();
         <div class="etkt-times">
             <div class="etkt-time-cell">
                 <div class="etkt-time-lbl">Departure</div>
-                <div class="etkt-time-val">{{ $depDt ? $depDt->format('H:i') : '—' }}</div>
+                <div class="etkt-time-val">{{ $depDt ? $depDt->format('H:i') : 'â€”' }}</div>
                 <div class="etkt-time-date">{{ $depDt ? $depDt->format('d M Y') : '' }}</div>
             </div>
             <div class="etkt-dur-cell">
@@ -387,7 +387,7 @@ $tz = \App\Helpers\AppSettings::timezone();
             </div>
             <div class="etkt-time-cell" style="text-align:right;">
                 <div class="etkt-time-lbl">Arrival</div>
-                <div class="etkt-time-val">{{ $arrDt ? $arrDt->format('H:i') : '—' }}</div>
+                <div class="etkt-time-val">{{ $arrDt ? $arrDt->format('H:i') : 'â€”' }}</div>
                 <div class="etkt-time-date">{{ $arrDt ? $arrDt->format('d M Y') : '' }}</div>
             </div>
         </div>
@@ -434,7 +434,7 @@ $tz = \App\Helpers\AppSettings::timezone();
     </div>
 </div>
 
-{{-- ② Passenger Manifest ───────────────────────────────── --}}
+{{-- â‘¡ Passenger Manifest â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ --}}
 <div class="etkt-pax-card">
     <div class="etkt-pax-header">
         <div class="etkt-pax-title"><i class="fas fa-users" style="margin-right:8px;color:#FF8A00;"></i>Passenger Manifest</div>
@@ -457,15 +457,15 @@ $tz = \App\Helpers\AppSettings::timezone();
             <tr>
                 <td style="color:#aaa;font-weight:700;font-size:12px;">{{ $i+1 }}</td>
                 <td>
-                    <div class="etkt-pax-name">{{ trim(($pax['title'] ?? '').' '.($pax['full_name'] ?? $pax['name'] ?? '—')) }}</div>
+                    <div class="etkt-pax-name">{{ trim(($pax['title'] ?? '').' '.($pax['full_name'] ?? $pax['name'] ?? 'â€”')) }}</div>
                     @if(!empty($pax['dob']))
                     <div style="font-size:11px;color:#aaa;margin-top:2px;">DOB: {{ \Carbon\Carbon::parse($pax['dob'])->format('d M Y') }}</div>
                     @endif
                 </td>
                 <td><span class="etkt-pax-type {{ $ptype }}">{{ ucfirst($ptype) }}</span></td>
-                <td style="font-family:monospace;font-size:12px;letter-spacing:.5px;color:#555;">{{ $pax['passport_number'] ?? $pax['id_number'] ?? '—' }}</td>
-                <td style="font-size:12px;color:#555;">{{ $pax['nationality'] ?? '—' }}</td>
-                <td style="font-size:12px;color:#555;">{{ ucfirst($pax['gender'] ?? '—') }}</td>
+                <td style="font-family:monospace;font-size:12px;letter-spacing:.5px;color:#555;">{{ $pax['passport_number'] ?? $pax['id_number'] ?? 'â€”' }}</td>
+                <td style="font-size:12px;color:#555;">{{ $pax['nationality'] ?? 'â€”' }}</td>
+                <td style="font-size:12px;color:#555;">{{ ucfirst($pax['gender'] ?? 'â€”') }}</td>
             </tr>
             @empty
             <tr><td colspan="6" style="text-align:center;padding:24px;color:#ccc;"><i class="fas fa-user-slash" style="font-size:22px;display:block;margin-bottom:8px;"></i>No passenger data</td></tr>
@@ -474,7 +474,7 @@ $tz = \App\Helpers\AppSettings::timezone();
     </table>
 </div>
 
-{{-- ③ Price Summary ──────────────────────────────────────── --}}
+{{-- â‘¢ Price Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ --}}
 <div class="etkt-price-card">
     <div class="etkt-price-header">
         <div class="icon"><i class="fas fa-receipt" style="color:#FF8A00;"></i></div>
@@ -483,13 +483,13 @@ $tz = \App\Helpers\AppSettings::timezone();
     @if($paxCount > 0)
     <div class="etkt-price-row">
         <span style="color:#666;">Base Fare <span style="color:#aaa;font-size:11px;">({{ $seatClass }})</span></span>
-        <span style="color:#1a1a2e;font-weight:600;">${{ number_format($pricePax,2) }} × {{ $paxCount }}</span>
+        <span style="color:#1a1a2e;font-weight:600;">${{ number_format($pricePax,2) }} Ã— {{ $paxCount }}</span>
     </div>
     @foreach(['adult','child','infant'] as $pt)
     @php $ptPax = array_filter($paxList, fn($p) => strtolower($p['type']??'adult') === $pt); @endphp
     @if(count($ptPax) > 0)
     <div class="etkt-price-row">
-        <span style="color:#aaa;font-size:12px;padding-left:14px;">↳ {{ ucfirst($pt) }}</span>
+        <span style="color:#aaa;font-size:12px;padding-left:14px;">â†³ {{ ucfirst($pt) }}</span>
         <span style="color:#888;font-size:12px;">{{ count($ptPax) }} pax</span>
     </div>
     @endif
@@ -509,22 +509,22 @@ $tz = \App\Helpers\AppSettings::timezone();
 
 </div>{{-- /etkt-wrap --}}
 
-{{-- ══════ EMOVING: Moving Card ══════ --}}
+{{-- â•â•â•â•â•â• EMOVING: Moving Card â•â•â•â•â•â• --}}
 @elseif($slug === 'emoving')
 <div class="mod-hero">
     <div class="mv-card">
         <div class="mv-route">
             <div class="mv-loc">
-                <div class="mv-loc-label">📍 From</div>
-                <div class="mv-loc-val">{{ $note['from_district'] ?? $note['pickup_address'] ?? '—' }}</div>
+                <div class="mv-loc-label">ðŸ“ From</div>
+                <div class="mv-loc-val">{{ $note['from_district'] ?? $note['pickup_address'] ?? 'â€”' }}</div>
                 @if(!empty($note['pickup_address']) && !empty($note['from_district']))
                 <div style="font-size:12px;opacity:.6;margin-top:2px;">{{ $note['pickup_address'] }}</div>
                 @endif
             </div>
             <div class="mv-arrow"><i class="fas fa-arrow-right"></i></div>
             <div class="mv-loc" style="text-align:right;">
-                <div class="mv-loc-label">🎯 To</div>
-                <div class="mv-loc-val">{{ $note['to_district'] ?? $note['delivery_address'] ?? '—' }}</div>
+                <div class="mv-loc-label">ðŸŽ¯ To</div>
+                <div class="mv-loc-val">{{ $note['to_district'] ?? $note['delivery_address'] ?? 'â€”' }}</div>
                 @if(!empty($note['delivery_address']) && !empty($note['to_district']))
                 <div style="font-size:12px;opacity:.6;margin-top:2px;">{{ $note['delivery_address'] }}</div>
                 @endif
@@ -532,15 +532,15 @@ $tz = \App\Helpers\AppSettings::timezone();
         </div>
         <div class="mv-details-grid">
             <div class="mv-detail-item">
-                <div class="mv-detail-val">{{ ucfirst($note['move_type'] ?? '—') }}</div>
+                <div class="mv-detail-val">{{ ucfirst($note['move_type'] ?? 'â€”') }}</div>
                 <div class="mv-detail-lbl">Move Type</div>
             </div>
             <div class="mv-detail-item">
-                <div class="mv-detail-val">{{ $note['room_count'] ?? '—' }}</div>
+                <div class="mv-detail-val">{{ $note['room_count'] ?? 'â€”' }}</div>
                 <div class="mv-detail-lbl">Rooms</div>
             </div>
             <div class="mv-detail-item">
-                <div class="mv-detail-val">{{ $note['package'] ?? '—' }}</div>
+                <div class="mv-detail-val">{{ $note['package'] ?? 'â€”' }}</div>
                 <div class="mv-detail-lbl">Package</div>
             </div>
         </div>
@@ -586,20 +586,20 @@ $tz = \App\Helpers\AppSettings::timezone();
     </div>
 </div>
 
-{{-- ══════ EDATA: Data Bundle Card ══════ --}}
+{{-- â•â•â•â•â•â• EDATA: Data Bundle Card â•â•â•â•â•â• --}}
 @elseif($slug === 'edata')
 <div class="mod-hero">
     <div class="dt-card">
         <div class="dt-icon-wrap">
             @if(strtolower($note['type'] ?? '') === 'airtime')
-                📞
+                ðŸ“ž
             @else
-                📶
+                ðŸ“¶
             @endif
         </div>
         <div class="dt-info">
             <div class="dt-item-name">{{ $note['item_name'] ?? 'Data Bundle' }}</div>
-            <div class="dt-phone"><i class="fas fa-sim-card" style="margin-right:6px;"></i>{{ $note['phone_number'] ?? '—' }}</div>
+            <div class="dt-phone"><i class="fas fa-sim-card" style="margin-right:6px;"></i>{{ $note['phone_number'] ?? 'â€”' }}</div>
             <div class="dt-badges">
                 @if(!empty($note['type']))<span class="dt-badge">{{ ucfirst($note['type']) }}</span>@endif
                 @if(!empty($note['data_amount']))<span class="dt-badge"><i class="fas fa-wifi" style="margin-right:4px;"></i>{{ $note['data_amount'] }}</span>@endif
@@ -613,13 +613,13 @@ $tz = \App\Helpers\AppSettings::timezone();
     </div>
 </div>
 
-{{-- ══════ EFOOD: Food Order Card ══════ --}}
+{{-- â•â•â•â•â•â• EFOOD: Food Order Card â•â•â•â•â•â• --}}
 @elseif($slug === 'efood')
 <div class="mod-hero">
     <div class="fd-card">
         @if($order->vendor)
         <div class="fd-vendor-row">
-            <div class="fd-vendor-icon">🍽️</div>
+            <div class="fd-vendor-icon">ðŸ½ï¸</div>
             <div>
                 <div class="fd-vendor-name">{{ $order->vendor->name }}</div>
                 <div class="fd-vendor-sub">{{ $order->vendor->phone ?? 'Restaurant' }}</div>
@@ -633,8 +633,8 @@ $tz = \App\Helpers\AppSettings::timezone();
             @endphp
             <div class="fd-item-row">
                 <div>
-                    <span class="fd-item-name">{{ $item->name ?? $item->product?->name ?? '—' }}</span>
-                    <span class="fd-item-qty">×{{ $item->quantity }}</span>
+                    <span class="fd-item-name">{{ $item->name ?? $item->product?->name ?? 'â€”' }}</span>
+                    <span class="fd-item-qty">Ã—{{ $item->quantity }}</span>
                     @if(!empty($meta['variant_name']))
                     <div style="font-size:11px;opacity:.7;margin-top:2px;">{{ $meta['variant_name'] }}</div>
                     @endif
@@ -669,7 +669,7 @@ $tz = \App\Helpers\AppSettings::timezone();
     </div>
 </div>
 
-{{-- ══════ eSHOP ══════ --}}
+{{-- â•â•â•â•â•â• eSHOP â•â•â•â•â•â• --}}
 @elseif($slug === 'eshop')
 <div class="mod-hero">
     <div style="background:linear-gradient(135deg,#4A148C,#7B1FA2);color:#fff;padding:20px 24px 0;border-radius:14px 14px 0 0;">
@@ -678,7 +678,7 @@ $tz = \App\Helpers\AppSettings::timezone();
             @if($order->vendor->logo)
             <img src="{{ $order->vendor->logo }}" style="width:44px;height:44px;border-radius:10px;object-fit:cover;border:2px solid rgba(255,255,255,.3);">
             @else
-            <div style="width:44px;height:44px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:20px;">🛍️</div>
+            <div style="width:44px;height:44px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:20px;">ðŸ›ï¸</div>
             @endif
             <div>
                 <div style="font-weight:800;font-size:15px;">{{ $order->vendor->name }}</div>
@@ -699,10 +699,10 @@ $tz = \App\Helpers\AppSettings::timezone();
             @php $meta = $item->meta ? (is_string($item->meta) ? json_decode($item->meta,true) : (array)$item->meta) : []; @endphp
             <tr>
                 <td style="padding:8px 0;font-size:13px;">
-                    {{ $item->name ?? $item->product?->name ?? '—' }}
+                    {{ $item->name ?? $item->product?->name ?? 'â€”' }}
                     @if(!empty($meta['variant_name']))<div style="font-size:11px;opacity:.65;">{{ $meta['variant_name'] }}</div>@endif
                 </td>
-                <td style="text-align:center;font-size:13px;opacity:.85;">×{{ $item->quantity }}</td>
+                <td style="text-align:center;font-size:13px;opacity:.85;">Ã—{{ $item->quantity }}</td>
                 <td style="text-align:right;font-size:13px;font-weight:700;">${{ number_format($item->price * $item->quantity,2) }}</td>
             </tr>
             @empty
@@ -727,7 +727,7 @@ $tz = \App\Helpers\AppSettings::timezone();
         <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;color:#FF8A00;padding-top:10px;border-top:2px solid #F0F1F5;margin-bottom:10px;"><span>Total (Customer Paid)</span><span>${{ number_format($order->total_amount,2) }}</span></div>
 
         <div style="background:#f8f9fa;border-radius:10px;padding:12px;margin-top:4px;">
-            <div style="font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;margin-bottom:8px;">💰 Revenue Breakdown</div>
+            <div style="font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;margin-bottom:8px;">ðŸ’° Revenue Breakdown</div>
             <div style="display:flex;justify-content:space-between;font-size:13px;color:#1565C0;margin-bottom:6px;font-weight:600;">
                 <span>Admin Commission ({{ $commRate }}%)</span>
                 <span>+${{ number_format($commission, 2) }}</span>
@@ -744,36 +744,36 @@ $tz = \App\Helpers\AppSettings::timezone();
     </div>
 </div>
 
-{{-- ══════ EPARCEL ══════ --}}
+{{-- â•â•â•â•â•â• EPARCEL â•â•â•â•â•â• --}}
 @elseif($isParcel)
 <div class="mod-hero" style="border:none;box-shadow:none;">
     <div style="background:linear-gradient(135deg,#E65100,#FF8A00);color:#fff;padding:24px 28px 0;border-radius:14px 14px 0 0;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
             <div>
                 <div style="font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Parcel Delivery</div>
-                <div style="font-size:20px;font-weight:900;">{{ $pickupDistrict ?? '—' }} <span style="opacity:.5;font-size:14px;">→</span> {{ $deliveryDistrict ?? '—' }}</div>
+                <div style="font-size:20px;font-weight:900;">{{ $pickupDistrict ?? 'â€”' }} <span style="opacity:.5;font-size:14px;">â†’</span> {{ $deliveryDistrict ?? 'â€”' }}</div>
             </div>
             <div style="font-size:28px;font-weight:900;color:#FFF3E0;">${{ number_format($order->total_amount,2) }}</div>
         </div>
         <div style="background:rgba(255,255,255,.1);border-radius:10px;overflow:hidden;margin-bottom:20px;">
             <div style="display:grid;grid-template-columns:1fr 1fr;">
                 <div style="padding:16px;border-right:1px solid rgba(255,255,255,.15);">
-                    <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">📦 Sender</div>
-                    <div style="font-weight:700;">{{ $note['pickup']['name'] ?? $order->user?->name ?? '—' }}</div>
-                    <div style="font-size:12px;opacity:.7;margin-top:3px;">{{ $note['pickup']['phone'] ?? $order->user?->phone ?? '—' }}</div>
-                    <div style="font-size:11px;opacity:.5;margin-top:2px;">{{ $pickupDistrict ?? '—' }}</div>
+                    <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">ðŸ“¦ Sender</div>
+                    <div style="font-weight:700;">{{ $note['pickup']['name'] ?? $order->user?->name ?? 'â€”' }}</div>
+                    <div style="font-size:12px;opacity:.7;margin-top:3px;">{{ $note['pickup']['phone'] ?? $order->user?->phone ?? 'â€”' }}</div>
+                    <div style="font-size:11px;opacity:.5;margin-top:2px;">{{ $pickupDistrict ?? 'â€”' }}</div>
                 </div>
                 <div style="padding:16px;">
-                    <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🎯 Recipient</div>
-                    <div style="font-weight:700;">{{ $note['recipient'] ?? '—' }}</div>
-                    <div style="font-size:12px;opacity:.7;margin-top:3px;">{{ $note['recipient_phone'] ?? '—' }}</div>
-                    <div style="font-size:11px;opacity:.5;margin-top:2px;">{{ $deliveryDistrict ?? '—' }}</div>
+                    <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">ðŸŽ¯ Recipient</div>
+                    <div style="font-weight:700;">{{ $note['recipient'] ?? 'â€”' }}</div>
+                    <div style="font-size:12px;opacity:.7;margin-top:3px;">{{ $note['recipient_phone'] ?? 'â€”' }}</div>
+                    <div style="font-size:11px;opacity:.5;margin-top:2px;">{{ $deliveryDistrict ?? 'â€”' }}</div>
                 </div>
             </div>
         </div>
         @if(!empty($note['description']))
         <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:12px 16px;margin-bottom:20px;">
-            <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">📝 Contents</div>
+            <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">ðŸ“ Contents</div>
             <div style="font-size:13px;">{{ $note['description'] }}</div>
         </div>
         @endif
@@ -787,10 +787,10 @@ $tz = \App\Helpers\AppSettings::timezone();
     <div style="background:#fff;padding:12px 20px;border-radius:0 0 14px 14px;border-top:none;"></div>
 </div>
 
-{{-- ══════ ERENT: Rental Property Card ══════ --}}
+{{-- â•â•â•â•â•â• ERENT: Rental Property Card â•â•â•â•â•â• --}}
 @elseif($slug === 'erent')
 @php
-    // ── Live booking data from DB (always up-to-date) ──
+    // â”€â”€ Live booking data from DB (always up-to-date) â”€â”€
     $liveBooking = \Illuminate\Support\Facades\DB::table('property_bookings')
         ->where('order_id', $order->id)->first();
 
@@ -800,7 +800,7 @@ $tz = \App\Helpers\AppSettings::timezone();
     $liveStatus     = $liveBooking->status ?? $order->status;
     $isFullyPaid    = $liveRemaining <= 0;
 
-    // If was carbuun but remaining = 0 → show as fully completed
+    // If was carbuun but remaining = 0 â†’ show as fully completed
     $isCarbuun      = $bookingType === 'carbuun';
     $showAsFullPaid = $isCarbuun && $isFullyPaid;
 
@@ -820,11 +820,11 @@ $tz = \App\Helpers\AppSettings::timezone();
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;">
             <div>
                 <div style="font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">
-                    🏠 @if($showAsFullPaid) Full Rent — Fully Paid
+                    ðŸ  @if($showAsFullPaid) Full Rent â€” Fully Paid
                         @elseif($isCarbuun) Carbuun (30% Deposit)
                         @else Full Rent @endif
                 </div>
-                <div style="font-size:20px;font-weight:900;line-height:1.2;">{{ $note['property_title'] ?? '—' }}</div>
+                <div style="font-size:20px;font-weight:900;line-height:1.2;">{{ $note['property_title'] ?? 'â€”' }}</div>
                 @if(!empty($note['property_type']))
                 <div style="font-size:12px;opacity:.75;margin-top:4px;text-transform:capitalize;">{{ $note['property_type'] }}</div>
                 @endif
@@ -840,15 +840,15 @@ $tz = \App\Helpers\AppSettings::timezone();
         {{-- Stats row --}}
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;background:rgba(255,255,255,.12);border-radius:12px;overflow:hidden;margin-bottom:20px;">
             <div style="padding:14px 16px;border-right:1px solid rgba(255,255,255,.15);">
-                <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">📅 Move-in</div>
-                <div style="font-size:14px;font-weight:800;">{{ $moveInDate ? \Carbon\Carbon::parse($moveInDate)->format('d M Y') : '—' }}</div>
+                <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">ðŸ“… Move-in</div>
+                <div style="font-size:14px;font-weight:800;">{{ $moveInDate ? \Carbon\Carbon::parse($moveInDate)->format('d M Y') : 'â€”' }}</div>
             </div>
             <div style="padding:14px 16px;border-right:1px solid rgba(255,255,255,.15);">
-                <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">💰 Monthly Rent</div>
+                <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">ðŸ’° Monthly Rent</div>
                 <div style="font-size:14px;font-weight:800;">${{ number_format($monthlyRent, 2) }}</div>
             </div>
             <div style="padding:14px 16px;">
-                <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">🏦 Total Value</div>
+                <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">ðŸ¦ Total Value</div>
                 <div style="font-size:14px;font-weight:800;">${{ number_format($totalValue, 2) }}</div>
             </div>
         </div>
@@ -868,7 +868,7 @@ $tz = \App\Helpers\AppSettings::timezone();
                     @endif
                 </div>
                 <div style="background:{{ $showAsFullPaid ? 'rgba(76,175,80,.4)' : 'rgba(255,255,255,.2)' }};border-radius:8px;padding:6px 14px;font-size:13px;font-weight:800;">
-                    {{ $showAsFullPaid ? '✅ Fully Paid' : '⏳ Deposit Only' }}
+                    {{ $showAsFullPaid ? 'âœ… Fully Paid' : 'â³ Deposit Only' }}
                 </div>
             </div>
             {{-- Progress bar --}}
@@ -897,30 +897,30 @@ $tz = \App\Helpers\AppSettings::timezone();
     {{-- Bottom section --}}
     <div style="background:#fff;padding:14px 20px 18px;border-radius:0 0 14px 14px;">
         <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:6px;">
-            <span>🔑 Deposit</span>
+            <span>ðŸ”‘ Deposit</span>
             <span style="font-weight:700;">${{ number_format($deposit, 2) }}</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:6px;">
-            <span>🤝 Brokerage Fee</span>
+            <span>ðŸ¤ Brokerage Fee</span>
             <span style="font-weight:700;">${{ number_format($brokerage, 2) }}</span>
         </div>
         @if(!empty($note['note']))
         <div style="margin-top:10px;padding:10px 14px;background:#F9F9F9;border-radius:8px;font-size:12px;color:#555;border-left:3px solid {{ $accentColor }};">
-            <span style="font-weight:700;color:{{ $accentColor }};">📝 Note:</span> {{ $note['note'] }}
+            <span style="font-weight:700;color:{{ $accentColor }};">ðŸ“ Note:</span> {{ $note['note'] }}
         </div>
         @endif
         <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #F0F0F5;padding-top:10px;">
             <span style="font-size:13px;color:#888;">Booking Status</span>
             <span style="font-size:13px;font-weight:800;color:{{ $accentColor }};background:{{ $accentLight }};padding:3px 12px;border-radius:20px;">
-                @if($showAsFullPaid) ✅ Full Rent — Complete
-                @elseif($isCarbuun) 🕐 Carbuun — Awaiting Balance
-                @else ✅ Full Rent @endif
+                @if($showAsFullPaid) âœ… Full Rent â€” Complete
+                @elseif($isCarbuun) ðŸ• Carbuun â€” Awaiting Balance
+                @else âœ… Full Rent @endif
             </span>
         </div>
     </div>
 </div>
 
-{{-- ══════ ESHOP / Default: Items Table ══════ --}}
+{{-- â•â•â•â•â•â• ESHOP / Default: Items Table â•â•â•â•â•â• --}}
 @else
 <div class="items-modern">
     <div class="items-header">
@@ -939,11 +939,11 @@ $tz = \App\Helpers\AppSettings::timezone();
                 $meta = $item->meta ? (is_string($item->meta) ? json_decode($item->meta, true) : (array)$item->meta) : [];
             @endphp
             <tr>
-                <td style="font-weight:600;color:#1a1a2e;">{{ $item->name ?? $item->product?->name ?? '—' }}</td>
+                <td style="font-weight:600;color:#1a1a2e;">{{ $item->name ?? $item->product?->name ?? 'â€”' }}</td>
                 <td>
                     @if(!empty($meta['variant_name']))
                     <span style="background:#EEF2FF;color:#3949AB;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:700;">{{ $meta['variant_name'] }}</span>
-                    @else<span style="color:#ccc;">—</span>@endif
+                    @else<span style="color:#ccc;">â€”</span>@endif
                 </td>
                 <td><span style="background:#F5F5F5;border-radius:6px;padding:2px 8px;font-weight:700;">{{ $item->quantity }}</span></td>
                 <td>${{ number_format($item->price,2) }}</td>
@@ -967,7 +967,7 @@ $tz = \App\Helpers\AppSettings::timezone();
 </div>
 @endif
 
-{{-- ── Update Status ── --}}
+{{-- â”€â”€ Update Status â”€â”€ --}}
 <div class="od-card">
     <div class="od-card-header">
         <div class="icon" style="background:#FF8A00;"><i class="fas fa-edit"></i></div>
@@ -979,13 +979,13 @@ $tz = \App\Helpers\AppSettings::timezone();
             <select name="status" class="form-control" style="max-width:220px;">
                 @if($slug === 'eticket')
                     @foreach([
-                        'pending'   => '⏳ Pending',
-                        'confirmed' => '✅ Confirmed',
-                        'boarded'   => '🛫 Boarded',
-                        'completed' => '🏁 Completed',
-                        'no_show'   => '🚫 No Show',
-                        'cancelled' => '❌ Cancelled',
-                        'refunded'  => '💸 Refunded',
+                        'pending'   => 'â³ Pending',
+                        'confirmed' => 'âœ… Confirmed',
+                        'boarded'   => 'ðŸ›« Boarded',
+                        'completed' => 'ðŸ Completed',
+                        'no_show'   => 'ðŸš« No Show',
+                        'cancelled' => 'âŒ Cancelled',
+                        'refunded'  => 'ðŸ’¸ Refunded',
                     ] as $val => $label)
                     <option value="{{ $val }}" {{ $order->status === $val ? 'selected' : '' }}>{{ $label }}</option>
                     @endforeach
@@ -1001,7 +1001,7 @@ $tz = \App\Helpers\AppSettings::timezone();
     </div>
 </div>
 
-{{-- ── Assign Deliveryman ── --}}
+{{-- â”€â”€ Assign Deliveryman â”€â”€ --}}
 @if($slug !== 'eticket' && in_array($order->status, ['confirmed','preparing','ready_for_pickup']) && !$order->deliveryman_id)
 <div class="od-card">
     <div class="od-card-header">
@@ -1012,7 +1012,7 @@ $tz = \App\Helpers\AppSettings::timezone();
         <form action="{{ route('admin.orders.assign', $order->id) }}" method="POST" class="assign-form">
             @csrf
             <select name="deliveryman_id" class="form-control">
-                <option value="">— Select Deliveryman —</option>
+                <option value="">â€” Select Deliveryman â€”</option>
                 @foreach($deliverymen as $dm)
                 <option value="{{ $dm->id }}">{{ $dm->user?->name }} ({{ ucfirst($dm->vehicle_type) }})</option>
                 @endforeach
@@ -1025,10 +1025,10 @@ $tz = \App\Helpers\AppSettings::timezone();
 
 </div>{{-- /left --}}
 
-{{-- ═══════════════════════ RIGHT ═══════════════════════ --}}
+{{-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• RIGHT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• --}}
 <div>
 
-{{-- ── Order Info ── --}}
+{{-- â”€â”€ Order Info â”€â”€ --}}
 <div class="od-card">
     <div class="od-card-header">
         <div class="icon" style="background:{{ $mod['iconBg'] }};"><i class="fas fa-receipt"></i></div>
@@ -1060,26 +1060,26 @@ $tz = \App\Helpers\AppSettings::timezone();
         <tr>
             <td>Flight</td>
             <td>
-                <span style="font-weight:800;color:#07003B;font-size:13px;letter-spacing:.5px;">{{ $note['flight_number'] ?? '—' }}</span>
-                @if(!empty($note['airline']))<span style="color:#888;font-size:12px;"> · {{ $note['airline'] }}</span>@endif
+                <span style="font-weight:800;color:#07003B;font-size:13px;letter-spacing:.5px;">{{ $note['flight_number'] ?? 'â€”' }}</span>
+                @if(!empty($note['airline']))<span style="color:#888;font-size:12px;"> Â· {{ $note['airline'] }}</span>@endif
             </td>
         </tr>
         <tr>
             <td>Route</td>
             <td style="font-weight:700;font-size:13px;color:#07003B;letter-spacing:.5px;">
-                {{ $note['from_code'] ?? '?' }} <span style="color:#FF8A00;margin:0 4px;">→</span> {{ $note['to_code'] ?? '?' }}
+                {{ $note['from_code'] ?? '?' }} <span style="color:#FF8A00;margin:0 4px;">â†’</span> {{ $note['to_code'] ?? '?' }}
             </td>
         </tr>
         <tr>
             <td>Departure</td>
             <td style="font-size:13px;color:#1565C0;font-weight:600;">
-                @if(!empty($note['departure'])){{ \Carbon\Carbon::parse($note['departure'])->setTimezone($tz)->format('d M Y · H:i') }}@else—@endif
+                @if(!empty($note['departure'])){{ \Carbon\Carbon::parse($note['departure'])->setTimezone($tz)->format('d M Y Â· H:i') }}@elseâ€”@endif
             </td>
         </tr>
         <tr>
             <td>Arrival</td>
             <td style="font-size:13px;color:#2E7D32;font-weight:600;">
-                @if(!empty($note['arrival'])){{ \Carbon\Carbon::parse($note['arrival'])->setTimezone($tz)->format('d M Y · H:i') }}@else—@endif
+                @if(!empty($note['arrival'])){{ \Carbon\Carbon::parse($note['arrival'])->setTimezone($tz)->format('d M Y Â· H:i') }}@elseâ€”@endif
             </td>
         </tr>
         <tr>
@@ -1109,7 +1109,7 @@ $tz = \App\Helpers\AppSettings::timezone();
                             <i class="fas fa-phone" style="color:#2E7D32;margin-right:6px;"></i>
                             <strong>{{ $proof['phone'] }}</strong>
                         </div>
-                        <div style="font-size:11px;color:#888;">Amount: ${{ number_format($proof['amount'],2) }} &nbsp;·&nbsp; {{ \Carbon\Carbon::parse($proof['created_at'])->setTimezone($tz)->format('d M Y · H:i') }}</div>
+                        <div style="font-size:11px;color:#888;">Amount: ${{ number_format($proof['amount'],2) }} &nbsp;Â·&nbsp; {{ \Carbon\Carbon::parse($proof['created_at'])->setTimezone($tz)->format('d M Y Â· H:i') }}</div>
                         <a href="{{ $proof['image_url'] }}" target="_blank" style="display:inline-block;">
                             <img src="{{ $proof['image_url'] }}" alt="Payment Proof"
                                  style="max-width:220px;max-height:300px;border-radius:10px;border:2px solid #4CAF50;cursor:zoom-in;object-fit:cover;">
@@ -1124,12 +1124,12 @@ $tz = \App\Helpers\AppSettings::timezone();
         @endif
         <tr>
             <td>Placed At</td>
-            <td style="font-size:13px;">{{ ($order->placed_at ?? $order->created_at)?->setTimezone($tz)->format('d M Y · H:i') }}</td>
+            <td style="font-size:13px;">{{ ($order->placed_at ?? $order->created_at)?->setTimezone($tz)->format('d M Y Â· H:i') }}</td>
         </tr>
         @if($order->delivered_at)
         <tr>
             <td>Delivered</td>
-            <td style="font-size:13px;color:#2E7D32;font-weight:600;"><i class="fas fa-check-circle" style="margin-right:4px;"></i>{{ $order->delivered_at->setTimezone($tz)->format('d M Y · H:i') }}</td>
+            <td style="font-size:13px;color:#2E7D32;font-weight:600;"><i class="fas fa-check-circle" style="margin-right:4px;"></i>{{ $order->delivered_at->setTimezone($tz)->format('d M Y Â· H:i') }}</td>
         </tr>
         @endif
         <tr>
@@ -1139,7 +1139,7 @@ $tz = \App\Helpers\AppSettings::timezone();
     </table>
 </div>
 
-{{-- ── Customer ── --}}
+{{-- â”€â”€ Customer â”€â”€ --}}
 <div class="od-card">
     <div class="od-card-header">
         <div class="icon" style="background:#3949AB;"><i class="fas fa-user"></i></div>
@@ -1151,8 +1151,8 @@ $tz = \App\Helpers\AppSettings::timezone();
                 {{ strtoupper(substr($order->user?->name ?? 'U',0,1)) }}
             </div>
             <div>
-                <div style="font-weight:800;font-size:15px;color:#1a1a2e;">{{ $order->user?->name ?? '—' }}</div>
-                <div style="color:#888;font-size:13px;margin-top:3px;"><i class="fas fa-phone" style="font-size:10px;margin-right:5px;color:#888;"></i>{{ $order->user?->phone ?? '—' }}</div>
+                <div style="font-weight:800;font-size:15px;color:#1a1a2e;">{{ $order->user?->name ?? 'â€”' }}</div>
+                <div style="color:#888;font-size:13px;margin-top:3px;"><i class="fas fa-phone" style="font-size:10px;margin-right:5px;color:#888;"></i>{{ $order->user?->phone ?? 'â€”' }}</div>
                 @if($order->user?->email)
                 <div style="color:#aaa;font-size:12px;margin-top:2px;"><i class="fas fa-envelope" style="font-size:10px;margin-right:5px;"></i>{{ $order->user->email }}</div>
                 @endif
@@ -1171,7 +1171,7 @@ $tz = \App\Helpers\AppSettings::timezone();
             <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">
                 <i class="fas fa-map-marker-alt" style="color:{{ $custGps ? '#FF8A00' : '#3949AB' }};margin-right:4px;"></i>
                 @if($custGps) Customer Location
-                @else District: {{ $order->user?->district?->name ?? '—' }}
+                @else District: {{ $order->user?->district?->name ?? 'â€”' }}
                 @endif
             </div>
             <div id="order-cust-map" style="height:200px;border-radius:12px;overflow:hidden;"></div>
@@ -1183,7 +1183,7 @@ $tz = \App\Helpers\AppSettings::timezone();
     </div>
 </div>
 
-{{-- ── Vendor (if applicable) ── --}}
+{{-- â”€â”€ Vendor (if applicable) â”€â”€ --}}
 @if($order->vendor)
 <div class="od-card">
     <div class="od-card-header">
@@ -1192,7 +1192,7 @@ $tz = \App\Helpers\AppSettings::timezone();
     </div>
     <div class="od-card-body">
         <div style="display:flex;align-items:center;gap:12px;">
-            <div style="width:44px;height:44px;background:#FBE9E7;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;">🏪</div>
+            <div style="width:44px;height:44px;background:#FBE9E7;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;">ðŸª</div>
             <div>
                 <div style="font-weight:800;font-size:15px;color:#1a1a2e;">{{ $order->vendor->name }}</div>
                 @if($order->vendor->phone)<div style="color:#888;font-size:13px;margin-top:3px;"><i class="fas fa-phone" style="font-size:10px;margin-right:5px;"></i>{{ $order->vendor->phone }}</div>@endif
@@ -1202,7 +1202,7 @@ $tz = \App\Helpers\AppSettings::timezone();
 </div>
 @endif
 
-{{-- ── Deliveryman ── --}}
+{{-- â”€â”€ Deliveryman â”€â”€ --}}
 @if($order->deliveryman)
 <div class="od-card">
     <div class="od-card-header">
@@ -1215,9 +1215,9 @@ $tz = \App\Helpers\AppSettings::timezone();
                 {{ strtoupper(substr($order->deliveryman->user?->name ?? 'D',0,1)) }}
             </div>
             <div style="flex:1;">
-                <div style="font-weight:800;font-size:15px;color:#1a1a2e;">{{ $order->deliveryman->user?->name ?? '—' }}</div>
+                <div style="font-weight:800;font-size:15px;color:#1a1a2e;">{{ $order->deliveryman->user?->name ?? 'â€”' }}</div>
                 <div style="margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;">
-                    @php $vEmoji = ['motorcycle'=>'🏍️','bajaj'=>'🛺','car'=>'🚗','van'=>'🚐','truck'=>'🚛','bicycle'=>'🚲'][$order->deliveryman->vehicle_type] ?? '🚗'; @endphp
+                    @php $vEmoji = ['motorcycle'=>'ðŸï¸','bajaj'=>'ðŸ›º','car'=>'ðŸš—','van'=>'ðŸš','truck'=>'ðŸš›','bicycle'=>'ðŸš²'][$order->deliveryman->vehicle_type] ?? 'ðŸš—'; @endphp
                     <span style="background:#E0F2F1;color:#00695C;padding:2px 8px;border-radius:5px;font-size:12px;font-weight:700;">{{ $vEmoji }} {{ ucfirst($order->deliveryman->vehicle_type) }}</span>
                     @if($order->deliveryman->user?->phone)
                     <span style="background:#F5F5F5;color:#666;padding:2px 8px;border-radius:5px;font-size:12px;"><i class="fas fa-phone" style="font-size:9px;margin-right:3px;"></i>{{ $order->deliveryman->user->phone }}</span>
@@ -1251,7 +1251,7 @@ $tz = \App\Helpers\AppSettings::timezone();
     <div class="modal-box" style="max-width:420px;">
         <div class="modal-header">
             <h3 class="modal-title">Reassign Driver</h3>
-            <button class="modal-close" onclick="closeModal('reassignModal')">✕</button>
+            <button class="modal-close" onclick="closeModal('reassignModal')">âœ•</button>
         </div>
         <form action="{{ route('admin.orders.reassign-driver', $order->id) }}" method="POST">
             @csrf
@@ -1263,11 +1263,11 @@ $tz = \App\Helpers\AppSettings::timezone();
                 <div class="form-group">
                     <label class="form-label">Select New Driver</label>
                     <select name="deliveryman_id" class="form-control" required>
-                        <option value="">— Choose driver —</option>
+                        <option value="">â€” Choose driver â€”</option>
                         @foreach($deliverymen as $dm)
                         @if($dm->id !== $order->deliveryman_id)
-                        @php $emoji = ['motorcycle'=>'🏍️','bajaj'=>'🛺','car'=>'🚗','van'=>'🚐','truck'=>'🚛','bicycle'=>'🚲'][$dm->vehicle_type] ?? '🚗'; @endphp
-                        <option value="{{ $dm->id }}">{{ $emoji }} {{ $dm->user?->name }} — {{ $dm->user?->phone }} (★{{ number_format($dm->rating ?? 5, 1) }})</option>
+                        @php $emoji = ['motorcycle'=>'ðŸï¸','bajaj'=>'ðŸ›º','car'=>'ðŸš—','van'=>'ðŸš','truck'=>'ðŸš›','bicycle'=>'ðŸš²'][$dm->vehicle_type] ?? 'ðŸš—'; @endphp
+                        <option value="{{ $dm->id }}">{{ $emoji }} {{ $dm->user?->name }} â€” {{ $dm->user?->phone }} (â˜…{{ number_format($dm->rating ?? 5, 1) }})</option>
                         @endif
                         @endforeach
                     </select>
@@ -1282,7 +1282,7 @@ $tz = \App\Helpers\AppSettings::timezone();
 </div>
 @endif
 
-{{-- ── Status History Timeline ── --}}
+{{-- â”€â”€ Status History Timeline â”€â”€ --}}
 <div class="od-card">
     <div class="od-card-header">
         <div class="icon" style="background:#5C6BC0;"><i class="fas fa-history"></i></div>
@@ -1303,7 +1303,7 @@ $tz = \App\Helpers\AppSettings::timezone();
             <div class="tl-content">
                 <div class="tl-status" style="color:{{ $hc }};">{{ ucfirst(str_replace('_',' ',$h->status)) }}</div>
                 @if($h->note)<div class="tl-note">{{ $h->note }}</div>@endif
-                <div class="tl-time">{{ $h->created_at?->setTimezone($tz)->format('d M Y · H:i') ?? '—' }}</div>
+                <div class="tl-time">{{ $h->created_at?->setTimezone($tz)->format('d M Y Â· H:i') ?? 'â€”' }}</div>
             </div>
         </div>
         @empty
@@ -1348,7 +1348,7 @@ function initOrderCustMap() {
     iw.open(map, marker);
 }
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A&callback=initOrderCustMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC1pxwcaFZxDXwqDpxK_gDfPAdpFM8bTnc&callback=initOrderCustMap" async defer></script>
 @endif
 
 @endsection

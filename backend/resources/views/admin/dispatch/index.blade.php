@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Dispatch Center')
 
 @section('content')
@@ -76,7 +76,7 @@
     <div class="modal-box" style="max-width:420px;">
         <div class="modal-header">
             <h3 class="modal-title">Assign Driver</h3>
-            <button class="modal-close" onclick="closeModal('assignModal')">✕</button>
+            <button class="modal-close" onclick="closeModal('assignModal')">âœ•</button>
         </div>
         <div class="modal-body">
             <div style="background:#f8f9fa;border-radius:10px;padding:12px;margin-bottom:14px;">
@@ -106,7 +106,7 @@
 @push('scripts')
 <script>
 var map, ordersData=[], driversData=[], markers=[], currentTab='orders', assignOrderId=null;
-var vehicleEmoji = {motorcycle:'🏍️',bajaj:'🛺',car:'🚗',van:'🚐',truck:'🚛',bicycle:'🚲',pickup:'🚛'};
+var vehicleEmoji = {motorcycle:'ðŸï¸',bajaj:'ðŸ›º',car:'ðŸš—',van:'ðŸš',truck:'ðŸš›',bicycle:'ðŸš²',pickup:'ðŸš›'};
 var statusColor = {pending:'#F59E0B',confirmed:'#3B82F6',preparing:'#8B5CF6',ready_for_pickup:'#FF8A00',out_for_delivery:'#10B981'};
 
 function initDispatchMap() {
@@ -154,7 +154,7 @@ function plotMarkers() {
                 title:o.vendor_name,
             });
             m.addListener('click',function(){
-                iw.setContent('<div style="padding:4px"><b style="color:#FF8A00">🏪 '+o.vendor_name+'</b></div>');
+                iw.setContent('<div style="padding:4px"><b style="color:#FF8A00">ðŸª '+o.vendor_name+'</b></div>');
                 iw.open(map,m);
             });
             markers.push(m);
@@ -170,7 +170,7 @@ function plotMarkers() {
                 title:o.customer_name,
             });
             m.addListener('click',function(){
-                iw.setContent('<div style="padding:4px"><b>👤 '+o.customer_name+'</b><br><small>#'+o.order_number+'</small></div>');
+                iw.setContent('<div style="padding:4px"><b>ðŸ‘¤ '+o.customer_name+'</b><br><small>#'+o.order_number+'</small></div>');
                 iw.open(map,m);
             });
             markers.push(m);
@@ -180,7 +180,7 @@ function plotMarkers() {
     // Driver markers (vehicle emoji)
     driversData.forEach(function(d) {
         if (!d.latitude || !d.longitude) return;
-        var emoji = vehicleEmoji[d.vehicle_type] || '🚗';
+        var emoji = vehicleEmoji[d.vehicle_type] || 'ðŸš—';
         var color = d.status === 'available' ? '#10B981' : '#F59E0B';
         var m = new google.maps.Marker({
             position:{lat:d.latitude,lng:d.longitude}, map:map,
@@ -194,9 +194,9 @@ function plotMarkers() {
                 '<div style="font-size:12px;color:#666;">'+d.phone+'</div>'+
                 '<div style="margin-top:4px;">'+
                 '<span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;background:'+color+'20;color:'+color+';">'+d.status+'</span>'+
-                ' <span style="color:#f59e0b;">★ '+d.rating+'</span>'+
+                ' <span style="color:#f59e0b;">â˜… '+d.rating+'</span>'+
                 '</div>'+
-                '<div style="font-size:11px;color:#888;margin-top:4px;">'+emoji+' '+d.vehicle_type+' · '+d.total_deliveries+' trips</div>'+
+                '<div style="font-size:11px;color:#888;margin-top:4px;">'+emoji+' '+d.vehicle_type+' Â· '+d.total_deliveries+' trips</div>'+
                 (d.last_seen ? '<div style="font-size:10px;color:#aaa;margin-top:2px;">Last seen: '+d.last_seen+'</div>' : '')+
                 '</div>'
             );
@@ -226,7 +226,7 @@ function renderPanel() {
                 '<span style="padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:'+sc+'15;color:'+sc+';">'+o.status.replace(/_/g,' ')+'</span>'+
                 '</div>'+
                 '<div style="font-size:12px;color:#666;margin-top:6px;">'+
-                '<span style="color:#FF8A00;">🏪</span> '+(o.vendor_name||'—')+' → <span style="color:#3B82F6;">👤</span> '+(o.customer_name||'—')+
+                '<span style="color:#FF8A00;">ðŸª</span> '+(o.vendor_name||'â€”')+' â†’ <span style="color:#3B82F6;">ðŸ‘¤</span> '+(o.customer_name||'â€”')+
                 '</div>'+
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">'+
                 '<span style="font-weight:700;color:#10B981;font-size:13px;">$'+o.total.toFixed(2)+'</span>'+
@@ -240,7 +240,7 @@ function renderPanel() {
     } else {
         if (!driversData.length) { panel.innerHTML = '<div style="text-align:center;padding:40px;color:#8A8A9A;"><i class="fas fa-motorcycle" style="font-size:30px;display:block;margin-bottom:10px;opacity:0.3;"></i>No drivers online</div>'; return; }
         panel.innerHTML = driversData.map(function(d) {
-            var emoji = vehicleEmoji[d.vehicle_type] || '🚗';
+            var emoji = vehicleEmoji[d.vehicle_type] || 'ðŸš—';
             var color = d.status === 'available' ? '#10B981' : '#F59E0B';
             return '<div class="d-driver">'+
                 '<div style="display:flex;align-items:center;gap:10px;">'+
@@ -251,10 +251,10 @@ function renderPanel() {
                 '</div>'+
                 '<div style="text-align:right;">'+
                 '<span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:'+color+'15;color:'+color+';">'+d.status+'</span>'+
-                '<div style="font-size:11px;color:#f59e0b;margin-top:2px;">★ '+d.rating+' · '+d.total_deliveries+' trips</div>'+
+                '<div style="font-size:11px;color:#f59e0b;margin-top:2px;">â˜… '+d.rating+' Â· '+d.total_deliveries+' trips</div>'+
                 '</div>'+
                 '</div>'+
-                (d.last_seen ? '<div style="font-size:10px;color:#aaa;margin-top:6px;">📍 Last seen: '+d.last_seen+'</div>' : '')+
+                (d.last_seen ? '<div style="font-size:10px;color:#aaa;margin-top:6px;">ðŸ“ Last seen: '+d.last_seen+'</div>' : '')+
                 '</div>';
         }).join('');
     }
@@ -273,8 +273,8 @@ function openAssign(orderId, orderNum) {
     var available = driversData.filter(function(d){return d.status==='available'});
     sel.innerHTML = available.length
         ? available.map(function(d){
-            var emoji = vehicleEmoji[d.vehicle_type]||'🚗';
-            return '<option value="'+d.id+'">'+emoji+' '+d.name+' — '+d.phone+' (★'+d.rating+')</option>';
+            var emoji = vehicleEmoji[d.vehicle_type]||'ðŸš—';
+            return '<option value="'+d.id+'">'+emoji+' '+d.name+' â€” '+d.phone+' (â˜…'+d.rating+')</option>';
         }).join('')
         : '<option value="">No available drivers</option>';
     openModal('assignModal');
@@ -296,6 +296,6 @@ async function confirmAssign() {
     } catch(e) {}
 }
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A&callback=initDispatchMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC1pxwcaFZxDXwqDpxK_gDfPAdpFM8bTnc&callback=initDispatchMap" async defer></script>
 @endpush
 @endsection

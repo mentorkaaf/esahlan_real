@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Orders')
 @section('content')
 
@@ -18,7 +18,7 @@
 .bulk-sep{width:1px;height:22px;background:rgba(255,255,255,.15);}
 .bulk-dd{position:relative;user-select:none;}
 .bulk-dd-btn{padding:7px 30px 7px 12px;border-radius:8px;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font-size:13px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:8px;min-width:180px;}
-.bulk-dd-btn::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;opacity:.7;}
+.bulk-dd-btn::after{content:'â–¾';position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;opacity:.7;}
 .bulk-dd-menu{display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:100%;background:#1e293b;border:1px solid rgba(255,255,255,.15);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:9999;overflow:hidden;}
 .bulk-dd-menu.open{display:block;}
 .bulk-dd-item{padding:9px 14px;color:#e2e8f0;font-size:13px;cursor:pointer;transition:background .12s;}
@@ -73,7 +73,7 @@ tbody tr.selected td{background:rgba(255,138,0,.04);}
 </div>
 
 @push('scripts')
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A&callback=initDriversMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC1pxwcaFZxDXwqDpxK_gDfPAdpFM8bTnc&callback=initDriversMap" async defer></script>
 <script>
 var __driversMapInit = false;
 function initDriversMap() {
@@ -89,7 +89,7 @@ function initDriversMap() {
     });
 
     var vehicleIcons = {
-        motorcycle: '🏍️', bajaj: '🛺', car: '🚗', van: '🚐', truck: '🚛', bicycle: '🚲', pickup: '🚛'
+        motorcycle: 'ðŸï¸', bajaj: 'ðŸ›º', car: 'ðŸš—', van: 'ðŸš', truck: 'ðŸš›', bicycle: 'ðŸš²', pickup: 'ðŸš›'
     };
 
     var drivers = {{ Illuminate\Support\Js::from($availableDrivers->map(function($d) {
@@ -110,7 +110,7 @@ function initDriversMap() {
 
     drivers.forEach(function(d) {
         if (!d.lat || !d.lng) return;
-        var emoji = vehicleIcons[d.vehicle] || '🚗';
+        var emoji = vehicleIcons[d.vehicle] || 'ðŸš—';
         var statusColor = d.status === 'available' ? '#10B981' : '#F59E0B';
         var marker = new google.maps.Marker({
             position: {lat: d.lat, lng: d.lng},
@@ -125,7 +125,7 @@ function initDriversMap() {
                 '<div style="font-size:12px;color:#666;">' + d.phone + '</div>' +
                 '<div style="margin-top:4px;">' +
                 '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:' + statusColor + '20;color:' + statusColor + ';">' + d.status + '</span>' +
-                ' <span style="color:#f59e0b;">★ ' + (d.rating||5) + '</span>' +
+                ' <span style="color:#f59e0b;">â˜… ' + (d.rating||5) + '</span>' +
                 '</div>' +
                 '<div style="font-size:11px;color:#888;margin-top:2px;">' + emoji + ' ' + d.vehicle + '</div>' +
                 '</div>'
@@ -159,10 +159,10 @@ document.getElementById('driversMapWrap')?.addEventListener('transitionend', fun
     <div class="bulk-sep"></div>
     <div class="bulk-dd" id="bulkDd">
         <div class="bulk-dd-btn" id="bulkDdBtn" onclick="toggleBulkDd()">
-            <span id="bulkDdLabel">— Change status to —</span>
+            <span id="bulkDdLabel">â€” Change status to â€”</span>
         </div>
         <div class="bulk-dd-menu" id="bulkDdMenu">
-            <div class="bulk-dd-item placeholder" onclick="setBulkStatus('','— Change status to —')">— Change status to —</div>
+            <div class="bulk-dd-item placeholder" onclick="setBulkStatus('','â€” Change status to â€”')">â€” Change status to â€”</div>
             <div class="bulk-dd-item" onclick="setBulkStatus('pending','Pending')">Pending</div>
             <div class="bulk-dd-item" onclick="setBulkStatus('confirmed','Confirmed')">Confirmed</div>
             <div class="bulk-dd-item" onclick="setBulkStatus('preparing','Preparing')">Preparing</div>
@@ -200,7 +200,7 @@ $statuses=[''=>['All','secondary'],'pending'=>['Pending','warning'],'confirmed'=
             <input type="hidden" name="status" value="{{ request('status') }}">
             <div style="flex:1;min-width:200px;">
                 <div class="input-group">
-                    <input type="text" name="search" class="form-control" placeholder="Search order #, customer, reference…" value="{{ request('search') }}">
+                    <input type="text" name="search" class="form-control" placeholder="Search order #, customer, referenceâ€¦" value="{{ request('search') }}">
                     <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
                 </div>
             </div>
@@ -233,7 +233,7 @@ function orderBadge($status) {
 }
 @endphp
 
-{{-- ═══ MODULE SECTIONS ════════════════════════════════════════════════════ --}}
+{{-- â•â•â• MODULE SECTIONS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• --}}
 @if($moduleGroups)
 
 @php
@@ -306,12 +306,12 @@ $count = $grpOrders->count();
                                     {{ strtoupper(substr($order->user?->name ?? 'U',0,1)) }}
                                 </div>
                                 <div>
-                                    <div style="font-weight:600;font-size:13px;">{{ $order->user?->name ?? '—' }}</div>
+                                    <div style="font-weight:600;font-size:13px;">{{ $order->user?->name ?? 'â€”' }}</div>
                                     <div style="font-size:11px;color:var(--text-muted);">{{ $order->user?->phone ?? '' }}</div>
                                 </div>
                             </div>
                         </td>
-                        <td style="font-size:12px;color:var(--text-muted);">{{ $order->vendor?->name ?? '—' }}</td>
+                        <td style="font-size:12px;color:var(--text-muted);">{{ $order->vendor?->name ?? 'â€”' }}</td>
                         <td>
                             @if($order->deliveryman?->user?->name)
                                 <div style="display:flex;align-items:center;gap:7px;">
@@ -384,7 +384,7 @@ $count = $grpOrders->count();
                         <div style="display:flex;align-items:center;gap:8px;">
                             <div class="avatar avatar-sm avatar-orange">{{ strtoupper(substr($order->user?->name??'U',0,1)) }}</div>
                             <div>
-                                <div style="font-weight:600;font-size:13px;">{{ $order->user?->name??'—' }}</div>
+                                <div style="font-weight:600;font-size:13px;">{{ $order->user?->name??'â€”' }}</div>
                                 <div style="font-size:11px;color:var(--text-muted);">{{ $order->user?->phone??'' }}</div>
                             </div>
                         </div>
@@ -428,7 +428,7 @@ $count = $grpOrders->count();
 </div>
 @endif
 
-{{-- ═══ EXCHANGE ORDERS SECTION ════════════════════════════════════════════ --}}
+{{-- â•â•â• EXCHANGE ORDERS SECTION â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• --}}
 @if($exchangeOrders->count())
 <div class="module-section" style="margin-top:8px;">
     <div class="module-section-header">

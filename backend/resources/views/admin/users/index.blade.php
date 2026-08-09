@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'Users')
 
 @push('styles')
@@ -32,7 +32,7 @@ $mappableUsers = $users->getCollection()->filter(function($u) {
     </div>
 </div>
 
-{{-- ── Live User Map ─────────────────────────────────────────── --}}
+{{-- â”€â”€ Live User Map â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ --}}
 <div class="card" style="margin-bottom:20px;">
     <div class="card-header">
         <div class="card-header-title">
@@ -53,7 +53,7 @@ $mappableUsers = $users->getCollection()->filter(function($u) {
         <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;width:100%;align-items:center;">
             <div style="flex:1;min-width:200px;">
                 <div class="input-group">
-                    <input type="text" name="search" class="form-control" placeholder="Search name, phone, email…" value="{{ request('search') }}">
+                    <input type="text" name="search" class="form-control" placeholder="Search name, phone, emailâ€¦" value="{{ request('search') }}">
                     <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
                 </div>
             </div>
@@ -246,7 +246,7 @@ var __usersMapData = {{ Illuminate\Support\Js::from($mappableUsers->map(function
         'lat'     => (float) ($hasGps ? $u->latitude  : $u->district?->latitude),
         'lng'     => (float) ($hasGps ? $u->longitude : $u->district?->longitude),
         'url'     => route('admin.users.show', $u->id),
-        'updated' => $hasGps ? (optional($u->location_updated_at)->diffForHumans() ?? 'Unknown') : ('District: ' . ($u->district?->name ?? '—')),
+        'updated' => $hasGps ? (optional($u->location_updated_at)->diffForHumans() ?? 'Unknown') : ('District: ' . ($u->district?->name ?? 'â€”')),
         'hasGps'  => $hasGps,
     ];
 })->values()) }};
@@ -332,6 +332,6 @@ function initUsersMap() {
     }, 30000);
 }
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A&callback=initUsersMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC1pxwcaFZxDXwqDpxK_gDfPAdpFM8bTnc&callback=initUsersMap" async defer></script>
 
 @endsection

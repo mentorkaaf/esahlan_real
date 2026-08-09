@@ -1,4 +1,4 @@
-@extends('admin.layouts.app')
+﻿@extends('admin.layouts.app')
 @section('title', 'User Details')
 
 @push('styles')
@@ -43,7 +43,7 @@
             <div style="margin-bottom:16px;">
                 <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">New PIN (4 digits)</label>
                 <input type="password" name="pin" maxlength="4" pattern="\d{4}" inputmode="numeric"
-                    placeholder="••••"
+                    placeholder="â€¢â€¢â€¢â€¢"
                     style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:20px;letter-spacing:8px;text-align:center;"
                     required>
             </div>
@@ -64,16 +64,16 @@
             <div class="card-body">
                 <table>
                     <tr><td class="text-muted" style="width:130px;padding:8px 12px 8px 0;">Name</td><td class="fw-bold">{{ $user->name }}</td></tr>
-                    <tr><td class="text-muted">Phone</td><td>{{ $user->phone ?? '—' }}</td></tr>
-                    <tr><td class="text-muted">Email</td><td>{{ $user->email ?? '—' }}</td></tr>
-                    <tr><td class="text-muted">Role</td><td><span class="badge badge-info">{{ $user->role?->name ?? '—' }}</span></td></tr>
+                    <tr><td class="text-muted">Phone</td><td>{{ $user->phone ?? 'â€”' }}</td></tr>
+                    <tr><td class="text-muted">Email</td><td>{{ $user->email ?? 'â€”' }}</td></tr>
+                    <tr><td class="text-muted">Role</td><td><span class="badge badge-info">{{ $user->role?->name ?? 'â€”' }}</span></td></tr>
                     <tr><td class="text-muted">Status</td>
                         <td><span class="badge {{ $user->status === 'active' ? 'badge-success' : 'badge-danger' }}">{{ ucfirst($user->status) }}</span></td>
                     </tr>
                     <tr><td class="text-muted">Language</td><td>{{ strtoupper($user->preferred_language ?? 'en') }}</td></tr>
-                    <tr><td class="text-muted">Referral Code</td><td><code>{{ $user->referral_code ?? '—' }}</code></td></tr>
+                    <tr><td class="text-muted">Referral Code</td><td><code>{{ $user->referral_code ?? 'â€”' }}</code></td></tr>
                     <tr><td class="text-muted">Phone Verified</td>
-                        <td>{{ $user->phone_verified_at ? $user->phone_verified_at->format('d M Y') : '—' }}</td>
+                        <td>{{ $user->phone_verified_at ? $user->phone_verified_at->format('d M Y') : 'â€”' }}</td>
                     </tr>
                     <tr><td class="text-muted">Joined</td><td>{{ $user->created_at->format('d M Y H:i') }}</td></tr>
                 </table>
@@ -94,7 +94,7 @@
     </div>
 
     <div>
-        {{-- ── Location Map ── --}}
+        {{-- â”€â”€ Location Map â”€â”€ --}}
         @php
             $mapLat = $user->latitude  ?? $user->district?->latitude;
             $mapLng = $user->longitude ?? $user->district?->longitude;
@@ -109,7 +109,7 @@
                     <span style="font-size:12px;color:#999;margin-left:8px;">{{ $user->location_updated_at->diffForHumans() }}</span>
                     @endif
                 @else
-                    <span><i class="fas fa-map-marker-alt" style="color:#3949AB;margin-right:8px;"></i>District Location — {{ $user->district?->name ?? '—' }}</span>
+                    <span><i class="fas fa-map-marker-alt" style="color:#3949AB;margin-right:8px;"></i>District Location â€” {{ $user->district?->name ?? 'â€”' }}</span>
                     <span style="font-size:11px;color:#bbb;margin-left:8px;">No GPS yet</span>
                 @endif
             </div>
@@ -134,7 +134,7 @@
                         @forelse($user->orders ?? [] as $order)
                         <tr>
                             <td><a href="{{ route('admin.orders.show', $order->id) }}" class="text-primary">{{ $order->order_number }}</a></td>
-                            <td>{{ strtoupper($order->module_slug ?? '—') }}</td>
+                            <td>{{ strtoupper($order->module_slug ?? 'â€”') }}</td>
                             <td>${{ number_format($order->total_amount, 2) }}</td>
                             <td>
                                 @php $sc = ['delivered'=>'success','pending'=>'warning','cancelled'=>'danger'][$order->status] ?? 'secondary' @endphp
@@ -183,7 +183,7 @@ function initUserLocMap() {
     iw.open(map, marker);
 }
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A&callback=initUserLocMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC1pxwcaFZxDXwqDpxK_gDfPAdpFM8bTnc&callback=initUserLocMap" async defer></script>
 @endif
 
 @endsection
