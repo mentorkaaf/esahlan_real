@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../../../core/services/firebase_service.dart';
 import '../../data/models/global_models.dart';
 import '../../data/repositories/global_repository.dart';
@@ -56,6 +57,36 @@ class GlobalAuthNotifier extends AsyncNotifier<GlobalUser?> {
       await _repo.saveToken(res['token']);
       ref.invalidate(globalCartProvider);
       return GlobalUser.fromJson(res['user']);
+    });
+    return state.hasValue && state.value != null;
+  }
+
+  /// Sign in with Google → verify ID token on backend → return user.
+  Future<bool> googleLogin() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile'],
+        // Web client ID required so we get an ID token for server verification
+        serverClientId: '30724696826-i8k7t0uevuq418vhqoues09vab9486d7.apps.googleusercontent.com',
+      );
+
+      // Sign out first so user can pick account each time
+      await googleSignIn.signOut();
+      final account = await googleSignIn.signIn();
+      if (account == null) throw Exception('Google sign-in cancelled.');
+
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null) throw Exception('Could not get Google ID token.');
+
+      String? fcmToken;
+      try { fcmToken = await FirebaseService().getToken(); } catch (_) {}
+
+      final data = await _repo.googleAuth(idToken, fcmToken: fcmToken);
+      await _repo.saveToken(data['token']);
+      ref.invalidate(globalCartProvider);
+      return GlobalUser.fromJson(data['user']);
     });
     return state.hasValue && state.value != null;
   }

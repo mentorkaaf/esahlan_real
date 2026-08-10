@@ -111,6 +111,12 @@ class GlobalRepository {
         if (fcmToken != null) 'fcm_token': fcmToken,
       });
 
+  Future<Map<String, dynamic>> googleAuth(String idToken, {String? fcmToken}) =>
+      _post('$_base/auth/google', {
+        'id_token': idToken,
+        if (fcmToken != null) 'fcm_token': fcmToken,
+      });
+
   Future<void> logout() async {
     await _post('$_base/auth/logout', {}, auth: true);
   }

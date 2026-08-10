@@ -1,3 +1,4 @@
+import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -112,6 +113,21 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
     _stateCtrl.dispose();
     _zipCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _doGoogleLogin() async {
+    setState(() => _loading = true);
+    final ok = await ref.read(globalAuthProvider.notifier).googleLogin();
+    setState(() => _loading = false);
+    if (ok && mounted) {
+      context.go('/global');
+    } else if (mounted) {
+      final err = ref.read(globalAuthProvider).error;
+      final msg = err?.toString() ?? '';
+      if (!msg.contains('cancelled')) {
+        _showError(msg.isEmpty ? 'Google sign-in failed.' : msg);
+      }
+    }
   }
 
   Future<void> _doLogin() async {
@@ -269,6 +285,49 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
                           color: Colors.white)),
             ),
           ),
+          const SizedBox(height: 16),
+
+          // ── OR divider ──────────────────────────────────────────────────
+          Row(children: [
+            Expanded(child: Divider(color: Colors.grey.shade300)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text('OR', style: TextStyle(color: Colors.grey.shade500, fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+            Expanded(child: Divider(color: Colors.grey.shade300)),
+          ]),
+
+          const SizedBox(height: 14),
+
+          // ── Google Sign-In ───────────────────────────────────────────────
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton(
+              onPressed: _loading ? null : _doGoogleLogin,
+              style: OutlinedButton.styleFrom(
+                backgroundColor: Colors.white,
+                side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _GoogleLogo(size: 22),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Continue with Google',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1A1A2E),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
           const SizedBox(height: 16),
           Center(
             child: GestureDetector(
@@ -483,6 +542,70 @@ class _GlobalAuthScreenState extends ConsumerState<GlobalAuthScreen>
       ),
     );
   }
+}
+
+// ── Google Logo (canvas-drawn, no external package needed) ────────────────────
+
+class _GoogleLogo extends StatelessWidget {
+  final double size;
+  const _GoogleLogo({this.size = 24});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size, height: size,
+      child: CustomPaint(painter: _GoogleLogoPainter()),
+    );
+  }
+}
+
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = size.width / 2;
+    final center = Offset(r, r);
+
+    // Draw colored arcs (simplified Google G)
+    final colors = [
+      const Color(0xFF4285F4), // blue  — right
+      const Color(0xFF34A853), // green — bottom
+      const Color(0xFFFBBC05), // yellow — bottom-left
+      const Color(0xFFEA4335), // red   — top-left
+    ];
+    final sweeps = [pi * 0.5, pi * 0.5, pi * 0.5, pi * 0.5];
+    final starts = [
+      -pi * 0.25,           // blue starts at top-right
+      pi * 0.25,            // green
+      pi * 0.75,            // yellow
+      -pi * 0.75,           // red
+    ];
+
+    for (var i = 0; i < 4; i++) {
+      final paint = Paint()
+        ..color = colors[i]
+        ..strokeWidth = size.width * 0.28
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.butt;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: r * 0.72),
+        starts[i], sweeps[i], false, paint,
+      );
+    }
+
+    // White fill center
+    canvas.drawCircle(center, r * 0.44, Paint()..color = Colors.white);
+
+    // Blue horizontal bar of the "G"
+    final barPaint = Paint()..color = const Color(0xFF4285F4);
+    final barRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(r * 0.54, r * 0.72, r * 0.9, r * 0.28),
+      Radius.circular(r * 0.14),
+    );
+    canvas.drawRRect(barRect, barPaint);
+  }
+
+  @override
+  bool shouldRepaint(_GoogleLogoPainter _) => false;
 }
 
 // ── Country dropdown ──────────────────────────────────────────────────────────
