@@ -1204,7 +1204,7 @@ class _PayPalWebViewState extends State<_PayPalWebView> {
 }
 
 // ── Mobile card-only payment bottom sheet ────────────────────────────────────
-// Uses flutter_stripe CardField — the ONLY PCI-compliant approach for mobile.
+// Uses flutter_stripe CardFormField (multi-row) — PCI compliant.
 // Card data never leaves the device in plain text; Stripe SDK handles it all.
 
 class _MobileCardSheet extends StatefulWidget {
@@ -1220,15 +1220,30 @@ class _MobileCardSheet extends StatefulWidget {
 }
 
 class _MobileCardSheetState extends State<_MobileCardSheet> {
-  CardFieldInputDetails? _card;
-  bool    _paying = false;
+  // CardFormField uses a controller instead of onCardChanged callback
+  final _formCtrl = CardFormEditController();
+  bool    _paying  = false;
   String? _error;
 
   static const _brand = Color(0xFF07003B);
   static const _gold  = Color(0xFFF5A623);
 
+  @override
+  void initState() {
+    super.initState();
+    _formCtrl.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _formCtrl.dispose();
+    super.dispose();
+  }
+
+  bool get _cardComplete => _formCtrl.details?.complete == true;
+
   Future<void> _pay() async {
-    if (_card?.complete != true) {
+    if (!_cardComplete) {
       setState(() => _error = 'Please complete your card details.');
       return;
     }
@@ -1333,32 +1348,22 @@ class _MobileCardSheetState extends State<_MobileCardSheet> {
                 ]),
                 const SizedBox(height: 24),
 
-                // ── Stripe CardField ───────────────────────────────────────
-                // Native Android/iOS Stripe SDK — PCI compliant
-                // Minimum height set so field never collapses under keyboard
-                CardField(
-                  onCardChanged: (card) => setState(() => _card = card),
-                  style: const TextStyle(fontSize: 16, color: Color(0xFF111827)),
-                  decoration: const InputDecoration(
-                    fillColor: Color(0xFFF9FAFB),
-                    filled: true,
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
-                      borderSide: BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
-                      borderSide: BorderSide(color: Color(0xFFF5A623), width: 2),
-                    ),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                // ── Stripe CardFormField ───────────────────────────────────
+                // Multi-row form: card number, expiry, CVC each on own line.
+                // Much more readable & easier to type than single-line CardField.
+                // Native Android/iOS Stripe SDK — PCI compliant.
+                CardFormField(
+                  controller: _formCtrl,
+                  style: CardFormStyle(
+                    backgroundColor: const Color(0xFFF9FAFB),
+                    borderColor: const Color(0xFFE5E7EB),
+                    borderRadius: 12,
+                    borderWidth: 2,
+                    fontSize: 16,
+                    textColor: const Color(0xFF111827),
+                    placeholderColor: const Color(0xFF9CA3AF),
+                    cursorColor: const Color(0xFFF5A623),
                   ),
-                ),
-                const SizedBox(height: 8),
-
-                // Helper text
-                Text(
-                  'Enter your 16-digit card number, expiry date, and CVC.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                 ),
 
                 if (_error != null) ...[
@@ -1381,7 +1386,7 @@ class _MobileCardSheetState extends State<_MobileCardSheet> {
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton(
-                    onPressed: (_paying || _card?.complete != true) ? null : _pay,
+                    onPressed: (_paying || !_cardComplete) ? null : _pay,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _gold,
                       foregroundColor: _brand,
