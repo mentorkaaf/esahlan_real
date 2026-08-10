@@ -16,7 +16,8 @@ class MobilePayController extends Controller
         $accounts = Cache::remember('mobile_pay_accounts.active', 300, function () {
             return MobilePayAccount::where('is_active', true)
                 ->orderBy('sort_order')
-                ->get(['id', 'name', 'account_number', 'ussd_template', 'instructions', 'icon']);
+                ->get(['id', 'name', 'account_number', 'ussd_template', 'instructions', 'icon', 'logo'])
+                ->map(fn($a) => array_merge($a->toArray(), ['logo_url' => $a->logo_url]));
         });
 
         return response()->json(['success' => true, 'data' => $accounts]);

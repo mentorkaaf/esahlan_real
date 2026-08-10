@@ -59,6 +59,7 @@ class MobilePayAccount {
   final String ussdTemplate;
   final String? instructions;
   final String? icon;
+  final String? logoUrl;
 
   const MobilePayAccount({
     required this.id,
@@ -67,6 +68,7 @@ class MobilePayAccount {
     required this.ussdTemplate,
     this.instructions,
     this.icon,
+    this.logoUrl,
   });
 
   factory MobilePayAccount.fromJson(Map<String, dynamic> j) => MobilePayAccount(
@@ -76,6 +78,7 @@ class MobilePayAccount {
     ussdTemplate:  j['ussd_template'] as String,
     instructions:  j['instructions'] as String?,
     icon:          j['icon'] as String?,
+    logoUrl:       j['logo_url'] as String?,
   );
 
   String buildUssd(double amount) {
@@ -183,7 +186,10 @@ class _MobilePaySheetState extends State<_MobilePaySheet> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(children: [
-          Text(acc.icon ?? '📱', style: const TextStyle(fontSize: 22)),
+          acc.logoUrl != null
+              ? Image.network(acc.logoUrl!, width: 28, height: 28, fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Text(acc.icon ?? '📱', style: const TextStyle(fontSize: 22)))
+              : Text(acc.icon ?? '📱', style: const TextStyle(fontSize: 22)),
           const SizedBox(width: 8),
           Text('${acc.name} Payment', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
         ]),
@@ -254,7 +260,10 @@ class _MobilePaySheetState extends State<_MobilePaySheet> {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(children: [
-            Text(acc.icon ?? '📱', style: const TextStyle(fontSize: 22)),
+            acc.logoUrl != null
+                ? Image.network(acc.logoUrl!, width: 28, height: 28, fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Text(acc.icon ?? '📱', style: const TextStyle(fontSize: 22)))
+                : Text(acc.icon ?? '📱', style: const TextStyle(fontSize: 22)),
             const SizedBox(width: 8),
             Expanded(child: Text('${acc.name} Payment', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
           ]),
@@ -678,7 +687,17 @@ class _AccountTile extends StatelessWidget {
           Container(
             width: 44, height: 44,
             decoration: BoxDecoration(color: _kGreenLight.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-            child: Center(child: Text(account.icon ?? '📱', style: const TextStyle(fontSize: 22))),
+            child: account.logoUrl != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      account.logoUrl!,
+                      width: 44, height: 44,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Center(child: Text(account.icon ?? '📱', style: const TextStyle(fontSize: 22))),
+                    ),
+                  )
+                : Center(child: Text(account.icon ?? '📱', style: const TextStyle(fontSize: 22))),
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

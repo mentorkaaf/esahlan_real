@@ -199,6 +199,12 @@ $methodDefs = [
         <button onclick="openModal('addMobileModal')" class="pm-save-btn" style="margin-left:auto;padding:6px 14px;font-size:12px;">
             <i class="fas fa-plus"></i> Add Account
         </button>
+        <style>
+        .logo-upload-box { border:2px dashed #ddd; border-radius:10px; padding:14px; text-align:center; cursor:pointer; transition:.2s; position:relative; }
+        .logo-upload-box:hover { border-color:#4CAF50; background:#F0FDF4; }
+        .logo-upload-box input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; }
+        .logo-preview { width:64px; height:64px; object-fit:contain; border-radius:10px; border:1px solid #eee; }
+        </style>
     </div>
     <div class="pm-config-body" style="padding:0;">
         @if(!($statuses['mobile'] ?? true))
@@ -214,7 +220,11 @@ $methodDefs = [
                 @foreach($mobileAccounts as $acc)
                 <tr>
                     <td>
-                        <span style="font-size:20px;margin-right:6px;">{{ $acc->icon ?? '📱' }}</span>
+                        @if($acc->logo_url)
+                            <img src="{{ $acc->logo_url }}" alt="{{ $acc->name }}" style="width:36px;height:36px;object-fit:contain;border-radius:8px;border:1px solid #eee;vertical-align:middle;margin-right:8px;">
+                        @else
+                            <span style="font-size:20px;margin-right:8px;vertical-align:middle;">{{ $acc->icon ?? '📱' }}</span>
+                        @endif
                         <strong>{{ $acc->name }}</strong>
                     </td>
                     <td style="font-family:monospace;color:#555;">{{ $acc->account_number }}</td>
@@ -259,9 +269,20 @@ $methodDefs = [
             <h3 class="modal-title"><i class="fas fa-mobile-alt" style="color:#2E7D32;margin-right:8px;"></i>Add Mobile Pay Account</h3>
             <button class="modal-close" onclick="closeModal('addMobileModal')">✕</button>
         </div>
-        <form method="POST" action="{{ route('admin.payment-settings.mobile.store') }}">
+        <form method="POST" action="{{ route('admin.payment-settings.mobile.store') }}" enctype="multipart/form-data">
             @csrf
             <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                {{-- Logo upload --}}
+                <div class="pm-form-group" style="grid-column:1/-1;">
+                    <label>Provider Logo <span style="color:#aaa;font-weight:400;">(PNG/JPG/SVG — shown in app)</span></label>
+                    <div class="logo-upload-box" id="addLogoBox" onclick="document.getElementById('addLogoInput').click()">
+                        <input type="file" name="logo" id="addLogoInput" accept="image/*" style="display:none;" onchange="previewLogo(this,'addLogoPreview','addLogoBox')">
+                        <div id="addLogoPreview" style="display:flex;align-items:center;justify-content:center;gap:12px;">
+                            <i class="fas fa-cloud-upload-alt" style="font-size:24px;color:#ccc;"></i>
+                            <span style="color:#aaa;font-size:13px;">Click to upload logo</span>
+                        </div>
+                    </div>
+                </div>
                 <div class="pm-form-group" style="grid-column:1/-1;">
                     <label>Provider Name</label>
                     <input type="text" name="name" required placeholder="e.g. EVC Plus">
@@ -271,13 +292,13 @@ $methodDefs = [
                     <input type="text" name="account_number" required placeholder="6141234567">
                 </div>
                 <div class="pm-form-group">
-                    <label>Icon (emoji)</label>
+                    <label>Icon (emoji) <span style="color:#aaa;font-weight:400;">— fallback if no logo</span></label>
                     <input type="text" name="icon" maxlength="5" placeholder="📱">
                 </div>
                 <div class="pm-form-group" style="grid-column:1/-1;">
                     <label>USSD Template</label>
-                    <input type="text" name="ussd_template" required placeholder="*712*614{account}*{amount}#">
-                    <span style="font-size:11px;color:#aaa;margin-top:3px;">Use <code>{amount}</code> as placeholder. For decimals use <code>*</code> as decimal point (EVC format).</span>
+                    <input type="text" name="ussd_template" required placeholder="*712*614xxxxxx*{amount}#">
+                    <span style="font-size:11px;color:#aaa;margin-top:3px;">Use <code>{amount}</code> as placeholder. Decimals use <code>*</code> (EVC format: 14*89).</span>
                 </div>
                 <div class="pm-form-group" style="grid-column:1/-1;">
                     <label>Instructions (optional)</label>
@@ -303,9 +324,20 @@ $methodDefs = [
             <h3 class="modal-title"><i class="fas fa-pen" style="color:#1565C0;margin-right:8px;"></i>Edit Account</h3>
             <button class="modal-close" onclick="closeModal('editMobileModal')">✕</button>
         </div>
-        <form method="POST" id="editMobileForm">
+        <form method="POST" id="editMobileForm" enctype="multipart/form-data">
             @csrf @method('PATCH')
             <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                {{-- Logo upload --}}
+                <div class="pm-form-group" style="grid-column:1/-1;">
+                    <label>Provider Logo <span style="color:#aaa;font-weight:400;">(upload new to replace)</span></label>
+                    <div class="logo-upload-box" onclick="document.getElementById('editLogoInput').click()">
+                        <input type="file" name="logo" id="editLogoInput" accept="image/*" style="display:none;" onchange="previewLogo(this,'editLogoPreview','editLogoBox')">
+                        <div id="editLogoPreview" style="display:flex;align-items:center;gap:12px;">
+                            <img id="em_logo_img" src="" alt="" style="display:none;width:48px;height:48px;object-fit:contain;border-radius:8px;border:1px solid #eee;">
+                            <span id="em_logo_placeholder"><i class="fas fa-cloud-upload-alt" style="font-size:20px;color:#ccc;margin-right:6px;"></i><span style="color:#aaa;font-size:13px;">Click to replace logo</span></span>
+                        </div>
+                    </div>
+                </div>
                 <div class="pm-form-group" style="grid-column:1/-1;">
                     <label>Provider Name</label>
                     <input type="text" name="name" id="em_name" required>
@@ -315,7 +347,7 @@ $methodDefs = [
                     <input type="text" name="account_number" id="em_number" required>
                 </div>
                 <div class="pm-form-group">
-                    <label>Icon (emoji)</label>
+                    <label>Icon (emoji) <span style="color:#aaa;font-weight:400;">— fallback if no logo</span></label>
                     <input type="text" name="icon" id="em_icon" maxlength="5">
                 </div>
                 <div class="pm-form-group" style="grid-column:1/-1;">
@@ -377,7 +409,36 @@ function openEditMobile(acc) {
     document.getElementById('em_ussd').value   = acc.ussd_template || '';
     document.getElementById('em_instr').value  = acc.instructions || '';
     document.getElementById('em_sort').value   = acc.sort_order || 0;
+    // Logo preview
+    const img = document.getElementById('em_logo_img');
+    const ph  = document.getElementById('em_logo_placeholder');
+    if (acc.logo_url) {
+        img.src = acc.logo_url;
+        img.style.display = 'block';
+        ph.style.display = 'none';
+    } else {
+        img.style.display = 'none';
+        ph.style.display = 'flex';
+    }
+    // Reset file input
+    document.getElementById('editLogoInput').value = '';
     openModal('editMobileModal');
+}
+
+function previewLogo(input, previewId, boxId) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const container = document.getElementById(previewId);
+        container.innerHTML = `
+            <img src="${e.target.result}" style="width:64px;height:64px;object-fit:contain;border-radius:10px;border:1px solid #eee;">
+            <div>
+                <div style="font-weight:700;font-size:13px;color:#333;">${file.name}</div>
+                <div style="font-size:11px;color:#aaa;">${(file.size/1024).toFixed(0)} KB — click to change</div>
+            </div>`;
+    };
+    reader.readAsDataURL(file);
 }
 </script>
 @endpush
