@@ -522,7 +522,7 @@ class _BestSellerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/global/products/${product.id}'),
+      onTap: () => context.push('/global/product/${product.id}'),
       child: Container(
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(

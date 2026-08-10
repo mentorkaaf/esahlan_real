@@ -877,25 +877,41 @@ class _ReviewCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            // Avatar circle
+            // Avatar circle — image if available, else initial
             Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1A2E),
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Color(0xFF1A1A2E),
                 shape: BoxShape.circle,
               ),
-              child: Center(
-                child: Text(
-                  review.userName.isNotEmpty
-                      ? review.userName[0].toUpperCase()
-                      : '?',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800),
-                ),
-              ),
+              clipBehavior: Clip.hardEdge,
+              child: review.userAvatar != null
+                  ? Image.network(
+                      review.userAvatar!,
+                      width: 36, height: 36,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Text(
+                          review.userName.isNotEmpty
+                              ? review.userName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 15,
+                              fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    )
+                  : Center(
+                      child: Text(
+                        review.userName.isNotEmpty
+                            ? review.userName[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 15,
+                            fontWeight: FontWeight.w800),
+                      ),
+                    ),
             ),
             const SizedBox(width: 10),
             Expanded(

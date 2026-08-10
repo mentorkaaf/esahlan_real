@@ -351,6 +351,7 @@ class GlobalReview {
   final String? body;
   final String userName;
   final String? userCountry;
+  final String? userAvatar;
   final String createdAt;
 
   const GlobalReview({
@@ -360,6 +361,7 @@ class GlobalReview {
     this.body,
     required this.userName,
     this.userCountry,
+    this.userAvatar,
     required this.createdAt,
   });
 
@@ -370,6 +372,7 @@ class GlobalReview {
         body: j['body'],
         userName: j['user_name'] ?? 'Anonymous',
         userCountry: j['user_country'],
+        userAvatar: j['user_avatar'],
         createdAt: j['created_at'] ?? '',
       );
 }

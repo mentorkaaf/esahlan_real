@@ -26,6 +26,7 @@ class GlobalReviewsController extends Controller
                 'global_reviews.created_at',
                 'global_users.name as user_name',
                 'global_users.country as user_country',
+                'global_users.avatar as user_avatar',
             )
             ->get()
             ->map(function ($r) {
