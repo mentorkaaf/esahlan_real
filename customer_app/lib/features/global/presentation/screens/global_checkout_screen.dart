@@ -545,8 +545,9 @@ class _GlobalCheckoutScreenState extends ConsumerState<GlobalCheckoutScreen> {
   }) async {
     final result = await showModalBottomSheet<bool>(
       context:            context,
-      isScrollControlled: true,
+      isScrollControlled: true,   // allows sheet to resize with keyboard
       backgroundColor:    Colors.transparent,
+      useSafeArea:        false,  // we handle safe area manually in the widget
       builder: (_) => _MobileCardSheet(
         clientSecret: clientSecret,
         totalLabel:   totalLabel,
@@ -1267,111 +1268,148 @@ class _MobileCardSheetState extends State<_MobileCardSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
-    return Container(
-      margin: const EdgeInsets.all(12),
-      padding: EdgeInsets.fromLTRB(20, 24, 20, 20 + bottom),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // header
-          Row(children: [
-            Expanded(child: Column(
+    final mq     = MediaQuery.of(context);
+    final bottom = mq.viewInsets.bottom;   // keyboard height
+    final safeB  = mq.padding.bottom;      // safe area (home indicator)
+
+    return Padding(
+      // Push sheet up by exactly the keyboard height — sheet stays readable
+      padding: EdgeInsets.only(bottom: bottom),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        // SingleChildScrollView so content is reachable when keyboard is open
+        child: SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(20, 24, 20, 20 + safeB),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(children: [
-                  Icon(Icons.lock, size: 13, color: Color(0xFF22c55e)),
-                  SizedBox(width: 4),
-                  Text('SECURE PAYMENT',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF22c55e),
-                          fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                // ── Drag handle ────────────────────────────────────────────
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE5E7EB),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+
+                // ── Header ─────────────────────────────────────────────────
+                Row(children: [
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(children: [
+                        Icon(Icons.lock, size: 13, color: Color(0xFF22c55e)),
+                        SizedBox(width: 4),
+                        Text('SECURE PAYMENT',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF22c55e),
+                                fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                      ]),
+                      const SizedBox(height: 4),
+                      const Text('Card Details',
+                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800,
+                              color: Color(0xFF111827))),
+                    ],
+                  )),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(false),
+                    child: Container(
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(
+                          color: const Color(0xFFF3F4F6),
+                          borderRadius: BorderRadius.circular(18)),
+                      child: const Icon(Icons.close, size: 18, color: Color(0xFF6B7280)),
+                    ),
+                  ),
                 ]),
-                const SizedBox(height: 4),
-                const Text('Card Details',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800,
-                        color: Color(0xFF111827))),
+                const SizedBox(height: 24),
+
+                // ── Stripe CardField ───────────────────────────────────────
+                // Native Android/iOS Stripe SDK — PCI compliant
+                // Minimum height set so field never collapses under keyboard
+                CardField(
+                  onCardChanged: (card) => setState(() => _card = card),
+                  style: const TextStyle(fontSize: 16, color: Color(0xFF111827)),
+                  decoration: const InputDecoration(
+                    fillColor: Color(0xFFF9FAFB),
+                    filled: true,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(12)),
+                      borderSide: BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(12)),
+                      borderSide: BorderSide(color: Color(0xFFF5A623), width: 2),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Helper text
+                Text(
+                  'Enter your 16-digit card number, expiry date, and CVC.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                ),
+
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      border: Border.all(color: const Color(0xFFFECACA)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(_error!,
+                        style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
+                  ),
+                ],
+                const SizedBox(height: 24),
+
+                // ── Pay button ─────────────────────────────────────────────
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: (_paying || _card?.complete != true) ? null : _pay,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _gold,
+                      foregroundColor: _brand,
+                      disabledBackgroundColor: _gold.withValues(alpha: 0.5),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
+                    ),
+                    child: _paying
+                        ? const SizedBox(height: 22, width: 22,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2.5, color: Color(0xFF07003B)))
+                        : Text('Pay ${widget.totalLabel}',
+                            style: const TextStyle(
+                                fontSize: 17, fontWeight: FontWeight.w800)),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Icon(Icons.lock_outline, size: 13, color: Color(0xFF9CA3AF)),
+                  SizedBox(width: 5),
+                  Text('256-bit SSL · Powered by Stripe',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+                ]),
               ],
-            )),
-            GestureDetector(
-              onTap: () => Navigator.of(context).pop(false),
-              child: Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(color: const Color(0xFFF3F4F6),
-                    borderRadius: BorderRadius.circular(18)),
-                child: const Icon(Icons.close, size: 18, color: Color(0xFF6B7280)),
-              ),
-            ),
-          ]),
-          const SizedBox(height: 20),
-
-          // Stripe CardField — native Android/iOS SDK, PCI compliant
-          CardField(
-            onCardChanged: (card) => setState(() => _card = card),
-            style: const TextStyle(fontSize: 16, color: Color(0xFF111827)),
-            decoration: const InputDecoration(
-              fillColor: Color(0xFFF9FAFB),
-              filled: true,
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12)),
-                borderSide: BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12)),
-                borderSide: BorderSide(color: Color(0xFFF5A623), width: 2),
-              ),
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             ),
           ),
-
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
-                border: Border.all(color: const Color(0xFFFECACA)),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(_error!,
-                  style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
-            ),
-          ],
-          const SizedBox(height: 20),
-
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: (_paying || _card?.complete != true) ? null : _pay,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _gold,
-                foregroundColor: _brand,
-                disabledBackgroundColor: _gold.withValues(alpha: 0.5),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-              ),
-              child: _paying
-                  ? const SizedBox(height: 20, width: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2.5, color: Color(0xFF07003B)))
-                  : Text('Pay ${widget.totalLabel}',
-                      style: const TextStyle(
-                          fontSize: 17, fontWeight: FontWeight.w800)),
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.lock_outline, size: 13, color: Color(0xFF9CA3AF)),
-            SizedBox(width: 5),
-            Text('256-bit SSL · Powered by Stripe',
-                style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
-          ]),
-        ],
+        ),
       ),
     );
   }
