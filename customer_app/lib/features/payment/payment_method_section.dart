@@ -29,7 +29,7 @@ class PaymentMethodSection extends ConsumerWidget {
           if (showCod) _MethodDef('cod',        '💵', 'Cash on Delivery', 'Pay when delivered', const Color(0xFF607D8B)),
           _MethodDef('mobile_pay', '📲', 'Mobile Pay',     'EVC Plus, Waafi, Sahal — USSD', const Color(0xFF4CAF50)),
           _MethodDef('wallet',     '👛', 'ePay Balance',   'Deducted from your eSahlan ePay', const Color(0xFF1565C0)),
-          _MethodDef('waafi_pay',  '📱', 'Waafi Pay',      'EVC / eDahab / Jeep / Premier', const Color(0xFFFF8A00)),
+          _MethodDef('waafi_pay',  '📱', 'Waafi Pay',      'EVC', const Color(0xFFFF8A00)),
         ];
 
     final visible = methods.where((m) => isMethodEnabled(data.enabled, m.key)).toList();

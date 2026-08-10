@@ -1,10 +1,12 @@
 ﻿import 'dart:async';
 import '../../../core/theme/theme_x.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/module_api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/error_handler.dart';
 import '../../core/widgets/phone_input_field.dart';
+import '../../core/providers/payment_methods_provider.dart';
 
 /// Result returned from showWaafiPaySheet
 class WaafiPayResult {
@@ -37,7 +39,7 @@ Future<WaafiPayResult?> showWaafiPaySheet(
   );
 }
 
-class _WaafiPaySheet extends StatefulWidget {
+class _WaafiPaySheet extends ConsumerStatefulWidget {
   final double amount;
   final String type;
   final String? description;
@@ -45,12 +47,12 @@ class _WaafiPaySheet extends StatefulWidget {
   const _WaafiPaySheet({required this.amount, required this.type, this.description, this.prefillPhone});
 
   @override
-  State<_WaafiPaySheet> createState() => _WaafiPaySheetState();
+  ConsumerState<_WaafiPaySheet> createState() => _WaafiPaySheetState();
 }
 
 enum _PayState { input, loading, waiting, success, failed }
 
-class _WaafiPaySheetState extends State<_WaafiPaySheet> {
+class _WaafiPaySheetState extends ConsumerState<_WaafiPaySheet> {
   final _phoneCtrl = TextEditingController();
   CountryCode _country = kDefaultCountry;
   final _svc = ModuleApiService.create();
@@ -184,17 +186,28 @@ class _WaafiPaySheetState extends State<_WaafiPaySheet> {
   }
 
   Widget _buildHeader() {
+    final logoUrl = ref.watch(enabledPaymentMethodsProvider).valueOrNull?.logos['waafi_pay'];
     return Row(
       children: [
         Container(
           width: 48, height: 48,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [Color(0xFF1a237e), AppColors.primary]),
+            gradient: logoUrl != null ? null : const LinearGradient(colors: [Color(0xFF1a237e), AppColors.primary]),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 24),
+          child: logoUrl != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image.network(
+                    logoUrl,
+                    width: 48, height: 48,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 24),
+                  ),
+                )
+              : const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 24),
         ),
-        SizedBox(width: 14),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Waafi Pay', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: context.colors.navyText)),
