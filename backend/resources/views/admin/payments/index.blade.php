@@ -127,9 +127,31 @@ $methodDefs = [
         @if(!($statuses['waafi'] ?? true))
         <div class="pm-disabled-overlay"><i class="fas fa-ban" style="margin-right:6px;"></i>Waafi Pay is currently disabled. Enable it above to configure.</div>
         @else
-        <form method="POST" action="{{ route('admin.payment-settings.waafi') }}">
+        <form method="POST" action="{{ route('admin.payment-settings.waafi') }}" enctype="multipart/form-data">
             @csrf
             <div class="pm-form-grid" style="margin-bottom:16px;">
+                {{-- Logo upload row --}}
+                <div class="pm-form-group" style="grid-column:1/-1;">
+                    <label>Waafi Pay Logo <span style="color:#aaa;font-weight:400;">(shown in app — PNG/JPG/SVG)</span></label>
+                    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                        @if(!empty($waafiConfig['logo_url']))
+                        <img id="waafiLogoPreview" src="{{ $waafiConfig['logo_url'] }}" alt="Waafi Logo"
+                             style="width:64px;height:64px;object-fit:contain;border-radius:10px;border:1px solid #e0e0e0;">
+                        @else
+                        <div id="waafiLogoPreview" style="width:64px;height:64px;border-radius:10px;border:2px dashed #e0e0e0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:22px;">📱</div>
+                        @endif
+                        <div>
+                            <label for="waafiLogoInput" class="pm-save-btn" style="cursor:pointer;background:#f5f5f5;color:#555;border:1.5px solid #ddd;">
+                                <i class="fas fa-upload"></i> {{ !empty($waafiConfig['logo_url']) ? 'Replace Logo' : 'Upload Logo' }}
+                            </label>
+                            <input type="file" name="logo" id="waafiLogoInput" accept="image/*" style="display:none;"
+                                   onchange="(function(i){if(!i.files[0])return;var r=new FileReader();r.onload=function(e){var el=document.getElementById('waafiLogoPreview');el.tagName==='IMG'?el.src=e.target.result:(el.outerHTML='<img id=\'waafiLogoPreview\' src=\''+e.target.result+'\' style=\'width:64px;height:64px;object-fit:contain;border-radius:10px;border:1px solid #e0e0e0;\'>')};r.readAsDataURL(i.files[0])})(this)">
+                            @if(!empty($waafiConfig['logo_url']))
+                            <div style="font-size:11px;color:#4CAF50;margin-top:4px;"><i class="fas fa-check-circle"></i> Logo uploaded</div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
                 <div class="pm-form-group">
                     <label>Merchant UID</label>
                     <input type="text" name="merchant_uid" value="{{ $waafiConfig['merchant_uid'] }}" placeholder="M0910000..." class="secret">

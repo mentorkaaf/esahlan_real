@@ -25,12 +25,14 @@ class AdminPaymentSettingsController extends Controller
             $statuses[$key] = (bool) AppSettings::get("payment_{$key}_enabled", true);
         }
 
+        $waafiLogoPath = AppSettings::get('waafi_logo');
         $waafiConfig = [
             'merchant_uid' => AppSettings::get('waafi_merchant_uid', ''),
             'api_user_id'  => AppSettings::get('waafi_api_user_id', ''),
             'api_key'      => AppSettings::get('waafi_api_key', ''),
             'api_url'      => AppSettings::get('waafi_api_url', 'https://api.waafipay.net/asm'),
             'description'  => AppSettings::get('waafi_description', 'eSahlan Payment'),
+            'logo_url'     => $waafiLogoPath ? url('storage/' . $waafiLogoPath) : null,
         ];
 
         $walletConfig = [
@@ -70,6 +72,7 @@ class AdminPaymentSettingsController extends Controller
             'api_key'      => 'required|string|max:200',
             'api_url'      => 'required|url|max:300',
             'description'  => 'nullable|string|max:200',
+            'logo'         => 'nullable|image|mimes:png,jpg,jpeg,svg,webp|max:2048',
         ]);
 
         AppSettings::set('waafi_merchant_uid', $data['merchant_uid']);
@@ -77,6 +80,15 @@ class AdminPaymentSettingsController extends Controller
         AppSettings::set('waafi_api_key',      $data['api_key']);
         AppSettings::set('waafi_api_url',      $data['api_url']);
         AppSettings::set('waafi_description',  $data['description'] ?? 'eSahlan Payment');
+
+        if ($request->hasFile('logo')) {
+            // Delete old logo
+            $old = AppSettings::get('waafi_logo');
+            if ($old) Storage::disk('public')->delete($old);
+            $path = $request->file('logo')->store('payment_logos', 'public');
+            AppSettings::set('waafi_logo', $path);
+            Cache::forget('payment_methods_enabled');
+        }
 
         return back()->with('success', 'Waafi Pay configuration saved.');
     }
@@ -161,6 +173,19 @@ class AdminPaymentSettingsController extends Controller
             if (AppSettings::get('payment_wallet_enabled', true)) $methods[] = 'wallet';
             if (AppSettings::get('payment_mobile_enabled', true)) $methods[] = 'mobile_pay';
             return $methods;
+        });
+    }
+
+    /** API — returns logos for payment methods */
+    public static function paymentLogos(): array
+    {
+        return Cache::remember('payment_logos', 600, function () {
+            $logos = [];
+            $waafiLogo = AppSettings::get('waafi_logo');
+            if ($waafiLogo) {
+                $logos['waafi_pay'] = url('storage/' . $waafiLogo);
+            }
+            return $logos;
         });
     }
 }

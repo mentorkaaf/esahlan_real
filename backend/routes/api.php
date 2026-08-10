@@ -187,7 +187,8 @@ Route::prefix('v1')->group(function () {
     Route::get('modules/{slug}',        [HomeController::class, 'moduleDetails']);
     Route::get('payment/methods',           function () {
         return response()->json([
-            'enabled' => \App\Http\Controllers\Admin\AdminPaymentSettingsController::enabledMethods()
+            'enabled' => \App\Http\Controllers\Admin\AdminPaymentSettingsController::enabledMethods(),
+            'logos'   => \App\Http\Controllers\Admin\AdminPaymentSettingsController::paymentLogos(),
         ]);
     });
     Route::get('mobile-pay/accounts',      [MobilePayController::class, 'accounts']);

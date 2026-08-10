@@ -476,13 +476,13 @@ class _PayMethodSelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enabledAsync = ref.watch(enabledPaymentMethodsProvider);
-    final enabled = enabledAsync.valueOrNull; // null = loading/error → show all (fail-open)
+    final enabledList = enabledAsync.valueOrNull?.enabled; // null = loading/error → show all (fail-open)
 
     // crypto uses 'epay' key, but server stores 'wallet'
     bool methodEnabled(String key) {
-      if (enabled == null) return true;
+      if (enabledList == null) return true;
       final serverKey = key == 'epay' ? 'wallet' : key;
-      return enabled.contains(serverKey);
+      return enabledList.contains(serverKey);
     }
 
     final methods = isBuy

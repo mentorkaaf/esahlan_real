@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'api_client.dart'; // also exports ApiException
+import '../providers/payment_methods_provider.dart' show PaymentMethodsData;
 
 /// Centralized service for all 12 module API calls
 class ModuleApiService {
@@ -283,6 +284,18 @@ class ModuleApiService {
       return List<String>.from(res['enabled'] ?? ['cod', 'waafi_pay', 'wallet', 'mobile_pay']);
     } catch (_) {
       return ['cod', 'waafi_pay', 'wallet', 'mobile_pay'];
+    }
+  }
+
+  Future<PaymentMethodsData> getPaymentMethodsData() async {
+    try {
+      final res = await _get('/payment/methods');
+      final enabled = List<String>.from(res['enabled'] ?? ['cod', 'waafi_pay', 'wallet', 'mobile_pay']);
+      final logosRaw = res['logos'] as Map<String, dynamic>? ?? {};
+      final logos = logosRaw.map((k, v) => MapEntry(k, v.toString()));
+      return PaymentMethodsData(enabled: enabled, logos: logos);
+    } catch (_) {
+      return PaymentMethodsData.fallback;
     }
   }
 

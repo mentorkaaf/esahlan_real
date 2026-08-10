@@ -4,8 +4,6 @@ import '../../core/providers/payment_methods_provider.dart';
 
 /// A shared payment method picker that auto-hides methods disabled by admin.
 /// [selected] is one of: 'wallet' | 'waafi_pay' | 'mobile_pay' | 'cod'
-/// [onChanged] receives the new selection.
-/// [available] — list of methods to offer (subset of all). If null, shows all 3 standard ones.
 class PaymentMethodSection extends ConsumerWidget {
   final String selected;
   final ValueChanged<String> onChanged;
@@ -22,8 +20,9 @@ class PaymentMethodSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final enabledAsync = ref.watch(enabledPaymentMethodsProvider);
-    final enabled = enabledAsync.valueOrNull;
+    final dataAsync = ref.watch(enabledPaymentMethodsProvider);
+    final data = dataAsync.valueOrNull ?? PaymentMethodsData.fallback;
+    final logos = data.logos;
 
     final methods = available ??
         [
@@ -33,7 +32,7 @@ class PaymentMethodSection extends ConsumerWidget {
           _MethodDef('waafi_pay',  '📱', 'Waafi Pay',      'EVC / eDahab / Jeep / Premier', const Color(0xFFFF8A00)),
         ];
 
-    final visible = methods.where((m) => isMethodEnabled(enabled, m.key)).toList();
+    final visible = methods.where((m) => isMethodEnabled(data.enabled, m.key)).toList();
 
     if (visible.isEmpty) {
       return Container(
@@ -43,7 +42,6 @@ class PaymentMethodSection extends ConsumerWidget {
       );
     }
 
-    // If current selection got disabled, auto-switch to first visible
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!visible.any((m) => m.key == selected)) {
         onChanged(visible.first.key);
@@ -53,7 +51,6 @@ class PaymentMethodSection extends ConsumerWidget {
     return Column(
       children: visible.asMap().entries.map((e) {
         final m = e.value;
-        final isSelected = selected == m.key;
         return Padding(
           padding: EdgeInsets.only(bottom: e.key < visible.length - 1 ? 10 : 0),
           child: _PayMethodTile(
@@ -61,7 +58,8 @@ class PaymentMethodSection extends ConsumerWidget {
             sub: m.sub,
             emoji: m.emoji,
             color: m.color,
-            selected: isSelected,
+            logoUrl: logos[m.key],
+            selected: selected == m.key,
             onTap: () => onChanged(m.key),
           ),
         );
@@ -78,6 +76,7 @@ class _MethodDef {
 
 class _PayMethodTile extends StatelessWidget {
   final String label, sub, emoji;
+  final String? logoUrl;
   final Color color;
   final bool selected;
   final VoidCallback onTap;
@@ -85,6 +84,7 @@ class _PayMethodTile extends StatelessWidget {
   const _PayMethodTile({
     required this.label, required this.sub, required this.emoji,
     required this.color, required this.selected, required this.onTap,
+    this.logoUrl,
   });
 
   @override
@@ -103,7 +103,17 @@ class _PayMethodTile extends StatelessWidget {
           Container(
             width: 40, height: 40,
             decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 20))),
+            child: logoUrl != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      logoUrl!,
+                      width: 40, height: 40,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Center(child: Text(emoji, style: const TextStyle(fontSize: 20))),
+                    ),
+                  )
+                : Center(child: Text(emoji, style: const TextStyle(fontSize: 20))),
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
