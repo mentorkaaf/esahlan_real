@@ -7,7 +7,10 @@ use App\Models\Global\GlobalUser;
 use App\Models\Global\GlobalAddress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class GlobalAuthController extends Controller
 {
@@ -85,6 +88,76 @@ class GlobalAuthController extends Controller
         // Update FCM token if provided
         if (!empty($data['fcm_token'])) {
             $user->update(['fcm_token' => $data['fcm_token']]);
+        }
+
+        $token = $user->createToken('global-app')->plainTextToken;
+
+        return response()->json([
+            'token' => $token,
+            'user'  => $this->userResource($user->load('addresses')),
+        ]);
+    }
+
+    /**
+     * POST /global/auth/google
+     * Verify Google ID token → find or create GlobalUser → return Sanctum token.
+     */
+    public function googleAuth(Request $request)
+    {
+        $request->validate([
+            'id_token'  => 'required|string',
+            'fcm_token' => 'nullable|string',
+        ]);
+
+        // Verify ID token with Google's tokeninfo endpoint
+        $response = Http::get('https://oauth2.googleapis.com/tokeninfo', [
+            'id_token' => $request->id_token,
+        ]);
+
+        if (!$response->successful()) {
+            Log::warning('[GlobalAuth] Google token verification failed', [
+                'status' => $response->status(),
+                'body'   => $response->body(),
+            ]);
+            return response()->json(['message' => 'Invalid Google token. Please try again.'], 401);
+        }
+
+        $google = $response->json();
+
+        if (empty($google['email'])) {
+            return response()->json(['message' => 'Google account has no email.'], 422);
+        }
+
+        // Find or create user
+        $user = GlobalUser::firstOrCreate(
+            ['email' => $google['email']],
+            [
+                'name'      => $google['name'] ?? explode('@', $google['email'])[0],
+                'avatar'    => $google['picture'] ?? null,
+                'password'  => Hash::make(Str::random(32)),
+                'is_active' => true,
+                'email_verified' => true,
+                'country'   => 'US',
+            ]
+        );
+
+        if ($user->is_banned) {
+            return response()->json(['message' => 'Account suspended. Contact support.'], 403);
+        }
+
+        // Update avatar and name if Google provides newer data
+        $updates = [];
+        if (!empty($google['picture']) && $user->avatar !== $google['picture']) {
+            $updates['avatar'] = $google['picture'];
+        }
+        if (!empty($google['name']) && $user->name !== $google['name'] && str_starts_with($user->name, explode('@', $google['email'])[0])) {
+            $updates['name'] = $google['name'];
+        }
+        if (!empty($request->fcm_token)) {
+            $updates['fcm_token'] = $request->fcm_token;
+        }
+        if (!empty($updates)) {
+            $user->update($updates);
         }
 
         $token = $user->createToken('global-app')->plainTextToken;

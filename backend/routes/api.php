@@ -1071,6 +1071,7 @@ Route::prefix('v1/global')->group(function () {
     // Public endpoints
     Route::post('/auth/register',          [\App\Http\Controllers\Api\Global\GlobalAuthController::class, 'register']);
     Route::post('/auth/login',             [\App\Http\Controllers\Api\Global\GlobalAuthController::class, 'login']);
+    Route::post('/auth/google',            [\App\Http\Controllers\Api\Global\GlobalAuthController::class, 'googleAuth']);
     Route::get('/products',                [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'index']);
     Route::get('/products/featured',       [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'featured']);
     Route::get('/products/flash',          [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'flash']);
