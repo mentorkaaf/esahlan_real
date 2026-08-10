@@ -956,8 +956,77 @@ class _ReviewCard extends StatelessWidget {
                     color: Colors.grey.shade700,
                     height: 1.5)),
           ],
+          // ── Review images uploaded by the user ──────────────────────────
+          if (review.images.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 90,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: review.images.length,
+                itemBuilder: (ctx, i) => GestureDetector(
+                  onTap: () => _showImageFullscreen(ctx, review.images, i),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
+                    clipBehavior: Clip.hardEdge,
+                    child: Image.network(
+                      review.images[i],
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Icon(Icons.image_not_supported_outlined,
+                            color: Colors.grey)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
+}
+
+void _showImageFullscreen(
+    BuildContext context, List<String> images, int initialIndex) {
+  showDialog(
+    context: context,
+    builder: (_) => Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: EdgeInsets.zero,
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: PageController(initialPage: initialIndex),
+            itemCount: images.length,
+            itemBuilder: (_, i) => InteractiveViewer(
+              child: Center(
+                child: Image.network(images[i], fit: BoxFit.contain),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 16, right: 16,
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(Icons.close, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }

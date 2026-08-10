@@ -352,6 +352,7 @@ class GlobalReview {
   final String userName;
   final String? userCountry;
   final String? userAvatar;
+  final List<String> images;  // photos user uploaded with review
   final String createdAt;
 
   const GlobalReview({
@@ -362,6 +363,7 @@ class GlobalReview {
     required this.userName,
     this.userCountry,
     this.userAvatar,
+    this.images = const [],
     required this.createdAt,
   });
 
@@ -373,6 +375,7 @@ class GlobalReview {
         userName: j['user_name'] ?? 'Anonymous',
         userCountry: j['user_country'],
         userAvatar: j['user_avatar'],
+        images: (j['images'] as List? ?? []).cast<String>(),
         createdAt: j['created_at'] ?? '',
       );
 }
