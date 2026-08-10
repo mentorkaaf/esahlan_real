@@ -4,6 +4,7 @@ namespace App\Services\Global;
 
 use App\Models\Global\GlobalSetting;
 use App\Models\Global\GlobalOrder;
+use App\Models\Global\GlobalUser;
 use App\Models\Global\GlobalPayment;
 use Exception;
 
@@ -38,31 +39,34 @@ class StripeService
 
         $this->setApiKey();
 
-        $user       = $order->user;
-        $userEmail  = $user?->email ?? null;
-        $userName   = trim(($order->ship_first_name ?? '') . ' ' . ($order->ship_last_name ?? ''))
-                      ?: ($user?->name ?? 'Guest');
+        $user      = $order->user;
+        $userName  = trim(($order->ship_first_name ?? '') . ' ' . ($order->ship_last_name ?? ''))
+                     ?: ($user?->name ?? 'Guest');
+
+        // Find or create a unique Stripe Customer for this eSahlan user.
+        // This ensures each PaymentIntent is linked to the correct Customer object
+        // in the Stripe dashboard — not the card billing info or a shared customer.
+        $stripeCustomerId = $user ? $this->findOrCreateStripeCustomer($user, $userName) : null;
 
         $intentData = [
             'amount'               => (int) round($order->total * 100), // cents
             'currency'             => strtolower($order->currency),
-            'payment_method_types' => ['card'],   // Card only — no Link, Bank, CashApp, AmazonPay
+            'payment_method_types' => ['card'],
+            'description'          => "eSahlan Global Order #{$order->order_number}",
             'metadata'             => [
-                'order_number'  => $order->order_number,
-                'order_id'      => (string) $order->id,
-                'user_id'       => (string) $order->global_user_id,
-                'customer_name' => $userName,
-                'customer_email'=> $userEmail ?? '',
+                'order_number'   => $order->order_number,
+                'order_id'       => (string) $order->id,
+                'esahlan_user_id'=> (string) $order->global_user_id,
             ],
-            'description' => "eSahlan Global Order #{$order->order_number}",
         ];
 
-        // Attach customer email so Stripe shows correct user in dashboard
-        if ($userEmail) {
-            $intentData['receipt_email'] = $userEmail;
+        // Link to Stripe Customer so dashboard shows the correct user
+        if ($stripeCustomerId) {
+            $intentData['customer']      = $stripeCustomerId;
+            $intentData['receipt_email'] = $user->email;
         }
 
-        // Attach shipping address so Stripe dashboard shows correct delivery info
+        // Attach shipping address
         if ($order->ship_address_line1) {
             $intentData['shipping'] = [
                 'name'    => $userName,
@@ -154,10 +158,11 @@ class StripeService
 
         $this->setApiKey();
 
-        $user      = $order->user;
-        $userEmail = $user?->email ?? null;
-        $userName  = trim(($order->ship_first_name ?? '') . ' ' . ($order->ship_last_name ?? ''))
-                     ?: ($user?->name ?? 'Guest');
+        $user     = $order->user;
+        $userName = trim(($order->ship_first_name ?? '') . ' ' . ($order->ship_last_name ?? ''))
+                    ?: ($user?->name ?? 'Guest');
+
+        $stripeCustomerId = $user ? $this->findOrCreateStripeCustomer($user, $userName) : null;
 
         $sessionData = [
             'payment_method_types' => ['card'],
@@ -173,22 +178,17 @@ class StripeService
             'success_url' => 'https://global.esahlan.com/#/global/orders?payment=success&order_id=' . $order->id,
             'cancel_url'  => 'https://global.esahlan.com/#/global/cart',
             'metadata'    => [
-                'order_id'      => (string) $order->id,
-                'order_number'  => $order->order_number,
-                'user_id'       => (string) $order->global_user_id,
-                'customer_name' => $userName,
-                'customer_email'=> $userEmail ?? '',
+                'order_id'        => (string) $order->id,
+                'order_number'    => $order->order_number,
+                'esahlan_user_id' => (string) $order->global_user_id,
             ],
         ];
 
-        // Pre-fill customer email on hosted Stripe checkout page
-        if ($userEmail) {
-            $sessionData['customer_email'] = $userEmail;
-        }
-
-        // Pre-fill shipping address on hosted checkout
-        if ($order->ship_address_line1) {
-            $sessionData['shipping_address_collection'] = ['allowed_countries' => ['US', 'GB', 'CA', 'AU', 'SO', 'AE', 'SA', 'QA', 'KW', 'OM', 'BH', 'ET', 'KE', 'TZ', 'UG', 'RW']];
+        // Link to the user's Stripe Customer (shows correct name/email in dashboard)
+        if ($stripeCustomerId) {
+            $sessionData['customer'] = $stripeCustomerId;
+        } elseif ($user?->email) {
+            $sessionData['customer_email'] = $user->email;
         }
 
         $session = \Stripe\Checkout\Session::create($sessionData);
@@ -241,6 +241,48 @@ class StripeService
         }
 
         return ['received' => true, 'type' => $event->type];
+    }
+
+    /**
+     * Find existing Stripe Customer for this user, or create one and persist it.
+     * Ensures each eSahlan user maps to exactly one Stripe Customer object,
+     * so every PaymentIntent in the Stripe dashboard shows the correct customer.
+     */
+    private function findOrCreateStripeCustomer(GlobalUser $user, string $name): ?string
+    {
+        try {
+            // Already have a Stripe customer ID saved — verify it still exists
+            if (!empty($user->stripe_customer_id)) {
+                try {
+                    \Stripe\Customer::retrieve($user->stripe_customer_id);
+                    return $user->stripe_customer_id;
+                } catch (\Stripe\Exception\InvalidRequestException $e) {
+                    // Customer was deleted in Stripe — fall through to recreate
+                }
+            }
+
+            // Create a new Stripe Customer linked to this eSahlan user
+            $customer = \Stripe\Customer::create([
+                'email'    => $user->email,
+                'name'     => $name,
+                'metadata' => [
+                    'esahlan_user_id' => (string) $user->id,
+                    'platform'        => 'global_store',
+                ],
+            ]);
+
+            // Persist so we reuse the same Customer next time
+            $user->update(['stripe_customer_id' => $customer->id]);
+
+            return $customer->id;
+        } catch (\Throwable $e) {
+            // Non-fatal: payment still works without customer linking
+            \Illuminate\Support\Facades\Log::warning('Stripe Customer create failed', [
+                'user_id' => $user->id,
+                'error'   => $e->getMessage(),
+            ]);
+            return null;
+        }
     }
 
     private function setApiKey(): void
