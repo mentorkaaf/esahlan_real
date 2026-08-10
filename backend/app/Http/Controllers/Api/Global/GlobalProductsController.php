@@ -88,7 +88,14 @@ class GlobalProductsController extends Controller
             return GlobalCategory::withCount(['products' => fn($q) => $q->where('is_active', true)])
                 ->where('is_active', true)
                 ->orderBy('sort_order')
-                ->get();
+                ->get()
+                ->map(fn($c) => [
+                    'id'             => $c->id,
+                    'name'           => $c->name,
+                    'icon'           => $c->icon,
+                    'image'          => $c->image ? url($c->image) : null,
+                    'products_count' => $c->products_count,
+                ]);
         });
 
         return response()->json(['categories' => $categories]);
@@ -102,6 +109,44 @@ class GlobalProductsController extends Controller
                 // Show featured first, then rest — no hard filter on is_featured
                 ->orderByDesc('is_featured')
                 ->orderBy('created_at', 'desc')
+                ->limit(20)
+                ->get()
+                ->map(fn($p) => $this->productCard($p));
+        });
+
+        return response()->json(['products' => $products]);
+    }
+
+    public function newArrivals()
+    {
+        $products = Cache::remember('global_new_arrivals', 300, function () {
+            return GlobalProduct::with(['category', 'images'])
+                ->where('is_active', true)
+                ->where(function ($q) {
+                    $q->where('is_new_arrival', true)
+                      ->orWhere('created_at', '>=', now()->subDays(14));
+                })
+                ->orderByDesc('is_new_arrival')
+                ->orderByDesc('created_at')
+                ->limit(20)
+                ->get()
+                ->map(fn($p) => $this->productCard($p));
+        });
+
+        return response()->json(['products' => $products]);
+    }
+
+    public function bestSellers()
+    {
+        $products = Cache::remember('global_best_sellers', 300, function () {
+            return GlobalProduct::with(['category', 'images'])
+                ->where('is_active', true)
+                ->where(function ($q) {
+                    $q->where('is_bestseller', true)
+                      ->orWhere('sold_count', '>', 0);
+                })
+                ->orderByDesc('is_bestseller')
+                ->orderByDesc('sold_count')
                 ->limit(20)
                 ->get()
                 ->map(fn($p) => $this->productCard($p));
@@ -141,9 +186,12 @@ class GlobalProductsController extends Controller
             'thumbnail'     => $thumb,
             'rating'        => $p->rating ?? 0,
             'reviews_count' => $p->review_count ?? 0,
-            'is_featured'   => $p->is_featured,
-            'type'          => $p->type,
-            'category'      => $p->category?->name,
+            'is_featured'    => $p->is_featured,
+            'is_new_arrival' => $p->is_new_arrival,
+            'is_bestseller'  => $p->is_bestseller,
+            'sold_count'     => $p->sold_count ?? 0,
+            'type'           => $p->type,
+            'category'       => $p->category?->name,
         ];
     }
 

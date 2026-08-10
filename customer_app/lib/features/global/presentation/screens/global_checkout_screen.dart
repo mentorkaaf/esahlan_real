@@ -536,21 +536,21 @@ class _GlobalCheckoutScreenState extends ConsumerState<GlobalCheckoutScreen> {
     }
   }
 
-  /// Shows a modal bottom sheet with flutter_stripe CardField.
+  /// Opens a full-screen card payment page.
+  /// Full-screen avoids all keyboard/bottom-sheet cramping issues.
   /// Uses Stripe's official SDK — PCI compliant, no raw card data ever leaves device.
   /// Returns true if payment succeeded, false if cancelled.
   Future<bool> _showMobileCardSheet({
     required String clientSecret,
     required String totalLabel,
   }) async {
-    final result = await showModalBottomSheet<bool>(
-      context:            context,
-      isScrollControlled: true,   // allows sheet to resize with keyboard
-      backgroundColor:    Colors.transparent,
-      useSafeArea:        false,  // we handle safe area manually in the widget
-      builder: (_) => _MobileCardSheet(
-        clientSecret: clientSecret,
-        totalLabel:   totalLabel,
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _CardPaymentPage(
+          clientSecret: clientSecret,
+          totalLabel:   totalLabel,
+        ),
       ),
     );
     return result == true;
@@ -1203,44 +1203,33 @@ class _PayPalWebViewState extends State<_PayPalWebView> {
   }
 }
 
-// ── Mobile card-only payment bottom sheet ────────────────────────────────────
-// Uses flutter_stripe CardFormField (multi-row) — PCI compliant.
-// Card data never leaves the device in plain text; Stripe SDK handles it all.
+// ── Full-screen card payment page ─────────────────────────────────────────────
+// Full-screen route avoids all keyboard/sheet cramping issues.
+// Scaffold's resizeToAvoidBottomInset pushes the Pay button up naturally.
+// Uses flutter_stripe CardFormField — PCI compliant, no raw card data leaves device.
 
-class _MobileCardSheet extends StatefulWidget {
+class _CardPaymentPage extends StatefulWidget {
   final String clientSecret;
   final String totalLabel;
-  const _MobileCardSheet({
+  const _CardPaymentPage({
     required this.clientSecret,
     required this.totalLabel,
   });
 
   @override
-  State<_MobileCardSheet> createState() => _MobileCardSheetState();
+  State<_CardPaymentPage> createState() => _CardPaymentPageState();
 }
 
-class _MobileCardSheetState extends State<_MobileCardSheet> {
-  // CardFormField uses a controller instead of onCardChanged callback
-  final _formCtrl = CardFormEditController();
+class _CardPaymentPageState extends State<_CardPaymentPage> {
+  CardFieldInputDetails? _card;
   bool    _paying  = false;
   String? _error;
 
   static const _brand = Color(0xFF07003B);
   static const _gold  = Color(0xFFF5A623);
+  static const _bg    = Color(0xFFF8F9FB);
 
-  @override
-  void initState() {
-    super.initState();
-    _formCtrl.addListener(() => setState(() {}));
-  }
-
-  @override
-  void dispose() {
-    _formCtrl.dispose();
-    super.dispose();
-  }
-
-  bool get _cardComplete => _formCtrl.details?.complete == true;
+  bool get _cardComplete => _card?.complete == true;
 
   Future<void> _pay() async {
     if (!_cardComplete) {
@@ -1249,8 +1238,6 @@ class _MobileCardSheetState extends State<_MobileCardSheet> {
     }
     setState(() { _paying = true; _error = null; });
     try {
-      // flutter_stripe handles tokenization internally via native Android/iOS SDK
-      // Card data never passes through our server — fully PCI compliant
       final result = await Stripe.instance.confirmPayment(
         paymentIntentClientSecret: widget.clientSecret,
         data: const PaymentMethodParams.card(
@@ -1283,105 +1270,138 @@ class _MobileCardSheetState extends State<_MobileCardSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final mq     = MediaQuery.of(context);
-    final bottom = mq.viewInsets.bottom;   // keyboard height
-    final safeB  = mq.padding.bottom;      // safe area (home indicator)
-
-    return Padding(
-      // Push sheet up by exactly the keyboard height — sheet stays readable
-      padding: EdgeInsets.only(bottom: bottom),
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+    return Scaffold(
+      // Scaffold automatically resizes when keyboard appears — no manual math needed
+      resizeToAvoidBottomInset: true,
+      backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: _bg,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Color(0xFF374151)),
+          onPressed: () => Navigator.of(context).pop(false),
         ),
-        // SingleChildScrollView so content is reachable when keyboard is open
-        child: SingleChildScrollView(
-          physics: const ClampingScrollPhysics(),
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(20, 24, 20, 20 + safeB),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: const [
+              Icon(Icons.lock, size: 12, color: Color(0xFF22c55e)),
+              SizedBox(width: 4),
+              Text('SECURE PAYMENT',
+                  style: TextStyle(fontSize: 10, color: Color(0xFF22c55e),
+                      fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+            ]),
+            const Text('Card Details',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800,
+                    color: Color(0xFF111827))),
+          ],
+        ),
+        titleSpacing: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: const Color(0xFFE5E7EB)),
+        ),
+      ),
+      body: Column(
+        children: [
+          // ── Scrollable content — card form lives here ─────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Amount summary card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: _brand,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.credit_card_rounded, color: Colors.white70, size: 20),
+                      const SizedBox(width: 10),
+                      const Text('Total amount',
+                          style: TextStyle(color: Colors.white70, fontSize: 13)),
+                      const Spacer(),
+                      Text(widget.totalLabel,
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 18,
+                              fontWeight: FontWeight.w800)),
+                    ]),
+                  ),
+                  const SizedBox(height: 24),
+
+                  const Text('Card information',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
+                          color: Color(0xFF374151), letterSpacing: 0.2)),
+                  const SizedBox(height: 10),
+
+                  // ── Card number field ──────────────────────────────────────
+                  _CardInputBox(
+                    label: 'Card Number',
+                    icon: Icons.credit_card_rounded,
+                    child: CardField(
+                      onCardChanged: (c) => setState(() => _card = c),
+                      style: const TextStyle(
+                          fontSize: 16, color: Color(0xFF111827)),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 4),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  // Helper labels below CardField (Stripe puts all in one native row)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Row(children: const [
+                      Expanded(
+                        child: Text('Expiry (MM/YY)',
+                            style: TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+                      ),
+                      Text('CVC',
+                          style: TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+                      SizedBox(width: 40),
+                    ]),
+                  ),
+
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.error_outline, color: Color(0xFFDC2626), size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(_error!,
+                            style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13))),
+                      ]),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+
+          // ── Sticky bottom — Pay button always visible above keyboard ───────
+          Container(
+            padding: EdgeInsets.fromLTRB(
+                20, 12, 20, 12 + MediaQuery.of(context).padding.bottom),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Drag handle ────────────────────────────────────────────
-                Center(
-                  child: Container(
-                    width: 40, height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE5E7EB),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-
-                // ── Header ─────────────────────────────────────────────────
-                Row(children: [
-                  Expanded(child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(children: [
-                        Icon(Icons.lock, size: 13, color: Color(0xFF22c55e)),
-                        SizedBox(width: 4),
-                        Text('SECURE PAYMENT',
-                            style: TextStyle(fontSize: 11, color: Color(0xFF22c55e),
-                                fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-                      ]),
-                      const SizedBox(height: 4),
-                      const Text('Card Details',
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800,
-                              color: Color(0xFF111827))),
-                    ],
-                  )),
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(false),
-                    child: Container(
-                      width: 36, height: 36,
-                      decoration: BoxDecoration(
-                          color: const Color(0xFFF3F4F6),
-                          borderRadius: BorderRadius.circular(18)),
-                      child: const Icon(Icons.close, size: 18, color: Color(0xFF6B7280)),
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 24),
-
-                // ── Stripe CardFormField ───────────────────────────────────
-                // Multi-row form: card number, expiry, CVC each on own line.
-                // Much more readable & easier to type than single-line CardField.
-                // Native Android/iOS Stripe SDK — PCI compliant.
-                CardFormField(
-                  controller: _formCtrl,
-                  style: CardFormStyle(
-                    backgroundColor: const Color(0xFFF9FAFB),
-                    borderColor: const Color(0xFFE5E7EB),
-                    borderRadius: 12,
-                    borderWidth: 2,
-                    fontSize: 16,
-                    textColor: const Color(0xFF111827),
-                    placeholderColor: const Color(0xFF9CA3AF),
-                    cursorColor: const Color(0xFFF5A623),
-                  ),
-                ),
-
-                if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
-                      border: Border.all(color: const Color(0xFFFECACA)),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(_error!,
-                        style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
-                  ),
-                ],
-                const SizedBox(height: 24),
-
-                // ── Pay button ─────────────────────────────────────────────
                 SizedBox(
                   width: double.infinity,
                   height: 54,
@@ -1390,7 +1410,7 @@ class _MobileCardSheetState extends State<_MobileCardSheet> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _gold,
                       foregroundColor: _brand,
-                      disabledBackgroundColor: _gold.withValues(alpha: 0.5),
+                      disabledBackgroundColor: _gold.withValues(alpha: 0.45),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
                       elevation: 0,
@@ -1404,17 +1424,56 @@ class _MobileCardSheetState extends State<_MobileCardSheet> {
                                 fontSize: 17, fontWeight: FontWeight.w800)),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 8),
                 const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(Icons.lock_outline, size: 13, color: Color(0xFF9CA3AF)),
-                  SizedBox(width: 5),
+                  Icon(Icons.lock_outline, size: 12, color: Color(0xFF9CA3AF)),
+                  SizedBox(width: 4),
                   Text('256-bit SSL · Powered by Stripe',
                       style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
                 ]),
               ],
             ),
           ),
-        ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Labeled bordered card input box ───────────────────────────────────────────
+class _CardInputBox extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Widget child;
+  const _CardInputBox({required this.label, required this.icon, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFD1D5DB), width: 1.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+            child: Row(children: [
+              Icon(icon, size: 14, color: const Color(0xFF6B7280)),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w600,
+                      color: Color(0xFF6B7280), letterSpacing: 0.3)),
+            ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 2, 10, 8),
+            child: child,
+          ),
+        ],
       ),
     );
   }

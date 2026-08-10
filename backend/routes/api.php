@@ -1075,6 +1075,8 @@ Route::prefix('v1/global')->group(function () {
     Route::get('/products',                [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'index']);
     Route::get('/products/featured',       [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'featured']);
     Route::get('/products/flash',          [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'flash']);
+    Route::get('/products/new-arrivals',   [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'newArrivals']);
+    Route::get('/products/best-sellers',   [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'bestSellers']);
     Route::get('/products/{id}',           [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'show']);
     Route::get('/products/{id}/reviews',   [\App\Http\Controllers\Api\Global\GlobalReviewsController::class, 'index']);
     Route::get('/categories',              [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'categories']);

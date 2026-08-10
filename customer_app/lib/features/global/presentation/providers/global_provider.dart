@@ -126,6 +126,16 @@ final globalFeaturedProvider =
   return ref.read(globalRepoProvider).getFeatured();
 });
 
+final globalNewArrivalsProvider =
+    FutureProvider<List<GlobalProduct>>((ref) async {
+  return ref.read(globalRepoProvider).getNewArrivals();
+});
+
+final globalBestSellersProvider =
+    FutureProvider<List<GlobalProduct>>((ref) async {
+  return ref.read(globalRepoProvider).getBestSellers();
+});
+
 final globalFlashDealsProvider =
     FutureProvider<List<GlobalProduct>>((ref) async {
   return ref.read(globalRepoProvider).getFlashDeals();

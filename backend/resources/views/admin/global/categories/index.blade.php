@@ -51,8 +51,13 @@
         <div style="background:linear-gradient(135deg,#1A1A2E,#16213E);padding:20px 18px;display:flex;align-items:center;gap:14px">
             <div style="width:50px;height:50px;border-radius:14px;background:rgba(245,158,11,0.15);
                         border:2px solid rgba(245,158,11,0.3);display:flex;align-items:center;
-                        justify-content:center;font-size:24px;flex-shrink:0">
-                {{ $cat->icon ?: '📦' }}
+                        justify-content:center;font-size:24px;flex-shrink:0;overflow:hidden">
+                @if($cat->image)
+                    <img src="{{ $cat->image }}" alt="{{ $cat->name }}"
+                         style="width:100%;height:100%;object-fit:cover">
+                @else
+                    {{ $cat->icon ?: '📦' }}
+                @endif
             </div>
             <div style="flex:1;min-width:0">
                 <div style="color:#fff;font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
@@ -121,7 +126,7 @@
             <button onclick="document.getElementById('add-modal').style.display='none'"
                 style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button>
         </div>
-        <form method="POST" action="{{ route('admin.global.categories.store') }}">
+        <form method="POST" action="{{ route('admin.global.categories.store') }}" enctype="multipart/form-data">
             @csrf
             @include('admin.global.categories._form')
             <div style="display:flex;gap:10px;margin-top:20px">
@@ -147,7 +152,7 @@
             <button onclick="document.getElementById('edit-modal').style.display='none'"
                 style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button>
         </div>
-        <form id="edit-form" method="POST" action="">
+        <form id="edit-form" method="POST" action="" enctype="multipart/form-data">
             @csrf @method('PUT')
             @include('admin.global.categories._form', ['editing' => true])
             <div style="display:flex;gap:10px;margin-top:20px">

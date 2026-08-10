@@ -24,6 +24,8 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
     final categories = ref.watch(globalCategoriesProvider);
     final featured = ref.watch(globalFeaturedProvider);
     final flash = ref.watch(globalFlashDealsProvider);
+    final newArrivals = ref.watch(globalNewArrivalsProvider);
+    final bestSellers = ref.watch(globalBestSellersProvider);
     final cart = ref.watch(globalCartProvider);
     final cartCount = cart.valueOrNull?.count ?? 0;
 
@@ -160,10 +162,11 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
                           children: [
                             _SectionHeader(
                                 title: 'Shop by Category',
+                                subtitle: 'Browse all departments',
                                 onTap: () =>
                                     context.push('/global/products')),
                             SizedBox(
-                              height: 90,
+                              height: 110,
                               child: ListView.builder(
                                 scrollDirection: Axis.horizontal,
                                 padding: const EdgeInsets.symmetric(
@@ -175,7 +178,7 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
                             ),
                           ],
                         ),
-                  loading: () => const SizedBox(height: 90,
+                  loading: () => const SizedBox(height: 110,
                       child: Center(child: CircularProgressIndicator())),
                   error: (_, __) => const SizedBox(),
                 ),
@@ -215,7 +218,69 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
 
                 const SizedBox(height: 20),
 
-                // Featured
+                // ── New Arrivals ───────────────────────────────────────────
+                newArrivals.when(
+                  data: (products) => products.isEmpty
+                      ? const SizedBox()
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _SectionHeader(
+                                title: '✨ New Arrivals',
+                                subtitle: 'Fresh items just landed',
+                                onTap: () => context.push('/global/products')),
+                            SizedBox(
+                              height: 260,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                itemCount: products.length,
+                                itemBuilder: (ctx, i) => SizedBox(
+                                  width: 160,
+                                  child: GlobalProductCard(product: products[i]),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                  loading: () => _HorizontalShimmer(),
+                  error: (_, __) => const SizedBox(),
+                ),
+
+                const SizedBox(height: 24),
+
+                // ── Best Sellers ───────────────────────────────────────────
+                bestSellers.when(
+                  data: (products) => products.isEmpty
+                      ? const SizedBox()
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _SectionHeader(
+                                title: '🔥 Best Sellers',
+                                subtitle: 'Most purchased by shoppers',
+                                onTap: () => context.push('/global/products')),
+                            SizedBox(
+                              height: 280,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                itemCount: products.length,
+                                itemBuilder: (ctx, i) => SizedBox(
+                                  width: 160,
+                                  child: _BestSellerCard(product: products[i]),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                  loading: () => _HorizontalShimmer(),
+                  error: (_, __) => const SizedBox(),
+                ),
+
+                const SizedBox(height: 24),
+
+                // ── Featured ───────────────────────────────────────────────
                 featured.when(
                   data: (products) => products.isEmpty
                       ? const SizedBox()
@@ -224,8 +289,8 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
                           children: [
                             _SectionHeader(
                                 title: '🌟 Featured Products',
-                                onTap: () =>
-                                    context.push('/global/products')),
+                                subtitle: 'Hand-picked for you',
+                                onTap: () => context.push('/global/products')),
                             _ProductGrid(products: products),
                           ],
                         ),
@@ -405,27 +470,167 @@ class _SliderCard extends StatelessWidget {
 
 class _SectionHeader extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final VoidCallback? onTap;
-  const _SectionHeader({required this.title, this.onTap});
+  const _SectionHeader({required this.title, this.subtitle, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(title,
-            style: const TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w800)),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 17, fontWeight: FontWeight.w800,
+                    color: Color(0xFF111827))),
+            if (subtitle != null)
+              Text(subtitle!,
+                  style: const TextStyle(
+                      fontSize: 12, color: Color(0xFF6B7280))),
+          ]),
+        ),
         if (onTap != null)
           GestureDetector(
             onTap: onTap,
-            child: const Text('See all →',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFFF59E0B),
-                    fontWeight: FontWeight.w600)),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text('See all →',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFFD97706),
+                      fontWeight: FontWeight.w700)),
+            ),
           ),
       ]),
+    );
+  }
+}
+
+// Best Seller card — shows sold count badge
+class _BestSellerCard extends StatelessWidget {
+  final GlobalProduct product;
+  const _BestSellerCard({required this.product});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/global/products/${product.id}'),
+      child: Container(
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 8, offset: const Offset(0, 2)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image with 🔥 badge
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  child: product.thumbnail != null
+                      ? Image.network(product.thumbnail!,
+                            height: 150, width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                                height: 150,
+                                color: const Color(0xFFF3F4F6),
+                                child: const Icon(Icons.image_outlined,
+                                    color: Colors.grey)))
+                      : Container(height: 150, color: const Color(0xFFF3F4F6),
+                            child: const Icon(Icons.image_outlined, color: Colors.grey)),
+                ),
+                // Sold count badge
+                if (product.soldCount > 0)
+                  Positioned(
+                    bottom: 8, left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A2E),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.shopping_bag_outlined,
+                            color: Color(0xFFF59E0B), size: 11),
+                        const SizedBox(width: 3),
+                        Text('${product.soldCount} sold',
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 10,
+                                fontWeight: FontWeight.w700)),
+                      ]),
+                    ),
+                  ),
+                // Discount badge
+                if (product.discountPct != null && product.discountPct! > 0)
+                  Positioned(
+                    top: 8, right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text('-${product.discountPct}%',
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 10,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+              ],
+            ),
+            // Info
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(product.name,
+                    maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600,
+                        color: Color(0xFF111827))),
+                const SizedBox(height: 6),
+                Row(children: [
+                  Text('\$${product.price.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w800,
+                          color: Color(0xFF1A1A2E))),
+                  if (product.comparePrice != null) ...[
+                    const SizedBox(width: 6),
+                    Text('\$${product.comparePrice!.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontSize: 11, color: Color(0xFF9CA3AF),
+                            decoration: TextDecoration.lineThrough)),
+                  ],
+                ]),
+                if (product.rating > 0) ...[
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    const Icon(Icons.star_rounded,
+                        color: Color(0xFFF59E0B), size: 12),
+                    const SizedBox(width: 2),
+                    Text(product.rating.toStringAsFixed(1),
+                        style: const TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w600,
+                            color: Color(0xFF374151))),
+                  ]),
+                ],
+              ]),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -445,37 +650,48 @@ class _CategoryChip extends ConsumerWidget {
     return GestureDetector(
       onTap: () => context.push('/global/products?category_id=${cat.id}'),
       child: Container(
-        margin: const EdgeInsets.only(right: 10),
-        width: 72,
+        margin: const EdgeInsets.only(right: 12),
+        width: 80,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 52,
-              height: 52,
+              width: 68,
+              height: 68,
               decoration: BoxDecoration(
-                  color: Color(color), borderRadius: BorderRadius.circular(14)),
-              child: cat.icon != null
-                  ? Center(
-                      child:
-                          Text(cat.icon!, style: const TextStyle(fontSize: 24)))
-                  : cat.image != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Image.network(cat.image!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Icon(
-                                  Icons.category,
-                                  color: Colors.grey)))
-                      : const Icon(Icons.category, color: Colors.grey),
+                color: Color(color),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: cat.image != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Image.network(cat.image!,
+                          width: 68, height: 68,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => cat.icon != null
+                              ? Center(child: Text(cat.icon!,
+                                    style: const TextStyle(fontSize: 28)))
+                              : const Icon(Icons.category, color: Colors.grey, size: 28)))
+                  : cat.icon != null
+                      ? Center(child: Text(cat.icon!,
+                            style: const TextStyle(fontSize: 28)))
+                      : const Icon(Icons.category, color: Colors.grey, size: 28),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 7),
             Text(cat.name,
                 textAlign: TextAlign.center,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                    fontSize: 10, fontWeight: FontWeight.w600)),
+                    fontSize: 10, fontWeight: FontWeight.w700,
+                    color: Color(0xFF1F2937))),
           ],
         ),
       ),

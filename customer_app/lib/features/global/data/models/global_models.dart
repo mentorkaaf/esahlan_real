@@ -123,6 +123,9 @@ class GlobalProduct {
   final double rating;
   final int reviewsCount;
   final bool isFeatured;
+  final bool isNewArrival;
+  final bool isBestseller;
+  final int soldCount;
   final String? type;
   final String? category;
   // Detail fields
@@ -145,6 +148,9 @@ class GlobalProduct {
     this.rating = 0,
     this.reviewsCount = 0,
     this.isFeatured = false,
+    this.isNewArrival = false,
+    this.isBestseller = false,
+    this.soldCount = 0,
     this.type,
     this.category,
     this.description,
@@ -167,6 +173,9 @@ class GlobalProduct {
         rating: _d(j['rating']),
         reviewsCount: j['reviews_count'] ?? 0,
         isFeatured: j['is_featured'] == true,
+        isNewArrival: j['is_new_arrival'] == true,
+        isBestseller: j['is_bestseller'] == true,
+        soldCount: j['sold_count'] ?? 0,
         type: j['type'],
         category: j['category'],
         description: j['description'],

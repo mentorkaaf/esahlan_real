@@ -26,11 +26,18 @@ class AdminGlobalCategoriesController extends Controller
             'icon'       => 'nullable|string|max:10',
             'sort_order' => 'nullable|integer|min:0',
             'is_active'  => 'nullable|boolean',
+            'image'      => 'nullable|image|max:2048',
         ]);
 
         $data['slug']       = Str::slug($data['name']) . '-' . Str::random(4);
         $data['is_active']  = $request->boolean('is_active', true);
         $data['sort_order'] = $data['sort_order'] ?? 0;
+        unset($data['image']);
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('global/categories', 'public');
+            $data['image'] = '/storage/' . $path;
+        }
 
         GlobalCategory::create($data);
 
@@ -44,10 +51,17 @@ class AdminGlobalCategoriesController extends Controller
             'icon'       => 'nullable|string|max:10',
             'sort_order' => 'nullable|integer|min:0',
             'is_active'  => 'nullable|boolean',
+            'image'      => 'nullable|image|max:2048',
         ]);
 
         $data['is_active']  = $request->boolean('is_active', true);
         $data['sort_order'] = $data['sort_order'] ?? $category->sort_order;
+        unset($data['image']);
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('global/categories', 'public');
+            $data['image'] = '/storage/' . $path;
+        }
 
         $category->update($data);
 
