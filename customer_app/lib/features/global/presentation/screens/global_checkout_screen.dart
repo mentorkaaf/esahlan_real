@@ -1221,7 +1221,7 @@ class _CardPaymentPage extends StatefulWidget {
 }
 
 class _CardPaymentPageState extends State<_CardPaymentPage> {
-  CardFieldInputDetails? _card;
+  final _formCtrl = CardFormEditController();
   bool    _paying  = false;
   String? _error;
 
@@ -1229,7 +1229,19 @@ class _CardPaymentPageState extends State<_CardPaymentPage> {
   static const _gold  = Color(0xFFF5A623);
   static const _bg    = Color(0xFFF8F9FB);
 
-  bool get _cardComplete => _card?.complete == true;
+  @override
+  void initState() {
+    super.initState();
+    _formCtrl.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _formCtrl.dispose();
+    super.dispose();
+  }
+
+  bool get _cardComplete => _formCtrl.details?.complete == true;
 
   Future<void> _pay() async {
     if (!_cardComplete) {
@@ -1339,34 +1351,21 @@ class _CardPaymentPageState extends State<_CardPaymentPage> {
                           color: Color(0xFF374151), letterSpacing: 0.2)),
                   const SizedBox(height: 10),
 
-                  // ── Card number field ──────────────────────────────────────
-                  _CardInputBox(
-                    label: 'Card Number',
-                    icon: Icons.credit_card_rounded,
-                    child: CardField(
-                      onCardChanged: (c) => setState(() => _card = c),
-                      style: const TextStyle(
-                          fontSize: 16, color: Color(0xFF111827)),
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 4),
-                        isDense: true,
-                      ),
+                  // ── Stripe CardFormField (multi-row, per-field borders) ────
+                  // Each field (card number, expiry, CVC, country, postal) gets
+                  // its own outlined border via CardFormStyle on Android/iOS.
+                  CardFormField(
+                    controller: _formCtrl,
+                    style: CardFormStyle(
+                      backgroundColor: Colors.white,
+                      borderColor: const Color(0xFF6B7280),
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      fontSize: 16,
+                      textColor: const Color(0xFF111827),
+                      placeholderColor: const Color(0xFF9CA3AF),
+                      cursorColor: _gold,
                     ),
-                  ),
-                  const SizedBox(height: 1),
-                  // Helper labels below CardField (Stripe puts all in one native row)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: Row(children: const [
-                      Expanded(
-                        child: Text('Expiry (MM/YY)',
-                            style: TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
-                      ),
-                      Text('CVC',
-                          style: TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
-                      SizedBox(width: 40),
-                    ]),
                   ),
 
                   if (_error != null) ...[

@@ -203,8 +203,9 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 16),
                                 itemCount: products.length,
-                                itemBuilder: (ctx, i) => SizedBox(
+                                itemBuilder: (ctx, i) => Container(
                                   width: 160,
+                                  margin: const EdgeInsets.only(right: 12),
                                   child: GlobalProductCard(
                                       product: products[i]),
                                 ),
@@ -235,8 +236,9 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
                                 scrollDirection: Axis.horizontal,
                                 padding: const EdgeInsets.symmetric(horizontal: 16),
                                 itemCount: products.length,
-                                itemBuilder: (ctx, i) => SizedBox(
+                                itemBuilder: (ctx, i) => Container(
                                   width: 160,
+                                  margin: const EdgeInsets.only(right: 12),
                                   child: GlobalProductCard(product: products[i]),
                                 ),
                               ),
@@ -552,8 +554,8 @@ class _BestSellerCard extends StatelessWidget {
                       : Container(height: 150, color: const Color(0xFFF3F4F6),
                             child: const Icon(Icons.image_outlined, color: Colors.grey)),
                 ),
-                // Sold count badge
-                if (product.soldCount > 0)
+                // Sold count / bestseller badge — always show for bestsellers
+                if (product.isBestseller || product.soldCount > 0)
                   Positioned(
                     bottom: 8, left: 8,
                     child: Container(
@@ -563,10 +565,12 @@ class _BestSellerCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(children: [
-                        const Icon(Icons.shopping_bag_outlined,
+                        const Icon(Icons.local_fire_department_rounded,
                             color: Color(0xFFF59E0B), size: 11),
                         const SizedBox(width: 3),
-                        Text('${product.soldCount} sold',
+                        Text(product.soldCount > 0
+                                ? '${product.soldCount} sold'
+                                : 'Best Seller',
                             style: const TextStyle(
                                 color: Colors.white, fontSize: 10,
                                 fontWeight: FontWeight.w700)),
@@ -669,20 +673,34 @@ class _CategoryChip extends ConsumerWidget {
                   ),
                 ],
               ),
-              child: cat.image != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child: Image.network(cat.image!,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: cat.image != null
+                    ? Image.network(
+                        cat.image!,
+                        width: 68, height: 68,
+                        fit: BoxFit.cover,
+                        alignment: Alignment.center,
+                        errorBuilder: (_, __, ___) => Container(
                           width: 68, height: 68,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => cat.icon != null
-                              ? Center(child: Text(cat.icon!,
-                                    style: const TextStyle(fontSize: 28)))
-                              : const Icon(Icons.category, color: Colors.grey, size: 28)))
-                  : cat.icon != null
-                      ? Center(child: Text(cat.icon!,
-                            style: const TextStyle(fontSize: 28)))
-                      : const Icon(Icons.category, color: Colors.grey, size: 28),
+                          color: Color(color),
+                          child: Center(
+                            child: cat.icon != null
+                                ? Text(cat.icon!, style: const TextStyle(fontSize: 28))
+                                : const Icon(Icons.category, color: Colors.grey, size: 28),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        width: 68, height: 68,
+                        color: Color(color),
+                        child: Center(
+                          child: cat.icon != null
+                              ? Text(cat.icon!, style: const TextStyle(fontSize: 28))
+                              : const Icon(Icons.category, color: Colors.grey, size: 28),
+                        ),
+                      ),
+              ),
             ),
             const SizedBox(height: 7),
             Text(cat.name,
