@@ -56,11 +56,26 @@
     @endif
 </form>
 
+{{-- Bulk toolbar --}}
+<div id="bulkBar" style="display:none;background:#1e1b4b;border-radius:10px;padding:10px 16px;margin-bottom:12px;align-items:center;gap:12px;flex-wrap:wrap">
+    <span id="bulkCount" style="color:#c7d2fe;font-size:13px;font-weight:600"></span>
+    <form id="bulkDeleteForm" method="POST" action="{{ route('admin.global.users.bulk') }}" style="display:flex">
+        @csrf
+        <input type="hidden" name="action" value="delete">
+        <div id="bulkIds"></div>
+        <button type="submit" onclick="return confirm('Delete selected users? This cannot be undone.')"
+            style="padding:6px 16px;background:#dc2626;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">🗑 Delete Selected</button>
+    </form>
+</div>
+
 {{-- Table --}}
 <div style="background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden">
     <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead>
             <tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb">
+                <th style="padding:11px 12px;width:36px">
+                    <input type="checkbox" id="checkAll" title="Select all" style="cursor:pointer;width:15px;height:15px">
+                </th>
                 <th style="padding:11px 16px;text-align:left;font-weight:700;color:#374151">User</th>
                 <th style="padding:11px 16px;text-align:left;font-weight:700;color:#374151">Country</th>
                 <th style="padding:11px 16px;text-align:center;font-weight:700;color:#374151">Orders</th>
@@ -71,7 +86,10 @@
         </thead>
         <tbody>
         @forelse($users as $user)
-        <tr style="border-bottom:1px solid #f3f4f6">
+        <tr style="border-bottom:1px solid #f3f4f6" class="user-row">
+            <td style="padding:12px 12px">
+                <input type="checkbox" class="row-check" value="{{ $user->id }}" style="cursor:pointer;width:15px;height:15px">
+            </td>
             <td style="padding:12px 16px">
                 <div style="display:flex;align-items:center;gap:10px">
                     @if($user->avatar)
@@ -107,11 +125,18 @@
                     @else
                     <button onclick="openBanModal({{ $user->id }})" style="padding:5px 12px;background:#fef2f2;color:#dc2626;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">Ban</button>
                     @endif
+                    {{-- Single delete --}}
+                    <form method="POST" action="{{ route('admin.global.users.destroy', $user) }}" style="display:inline"
+                          onsubmit="return confirm('Delete user {{ addslashes($user->name) }}?')">
+                        @csrf @method('DELETE')
+                        <button type="submit"
+                            style="padding:5px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">🗑</button>
+                    </form>
                 </div>
             </td>
         </tr>
         @empty
-        <tr><td colspan="6" style="padding:40px;text-align:center;color:#9ca3af">No users found.</td></tr>
+        <tr><td colspan="7" style="padding:40px;text-align:center;color:#9ca3af">No users found.</td></tr>
         @endforelse
         </tbody>
     </table>
@@ -136,6 +161,7 @@
     </div>
 </div>
 
+@push('scripts')
 <script>
 function openBanModal(id) {
     document.getElementById('ban-form').action = '/admin/global/users/' + id + '/ban';
@@ -144,5 +170,41 @@ function openBanModal(id) {
 function closeBanModal() {
     document.getElementById('ban-modal').style.display = 'none';
 }
+
+(function(){
+    const checkAll = document.getElementById('checkAll');
+    const bulkBar  = document.getElementById('bulkBar');
+    const bulkCount= document.getElementById('bulkCount');
+
+    function getChecked() {
+        return [...document.querySelectorAll('.row-check:checked')].map(c => c.value);
+    }
+
+    function updateBar() {
+        const ids = getChecked();
+        if (ids.length > 0) {
+            bulkBar.style.display = 'flex';
+            bulkCount.textContent = ids.length + ' user(s) selected';
+            document.getElementById('bulkIds').innerHTML =
+                ids.map(id => `<input type="hidden" name="ids[]" value="${id}">`).join('');
+        } else {
+            bulkBar.style.display = 'none';
+        }
+    }
+
+    checkAll.addEventListener('change', function() {
+        document.querySelectorAll('.row-check').forEach(c => c.checked = this.checked);
+        updateBar();
+    });
+
+    document.querySelectorAll('.row-check').forEach(c => {
+        c.addEventListener('change', function() {
+            const all = document.querySelectorAll('.row-check');
+            checkAll.checked = [...all].every(x => x.checked);
+            updateBar();
+        });
+    });
+})();
 </script>
+@endpush
 @endsection

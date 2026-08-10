@@ -78,4 +78,20 @@ class AdminGlobalUsersController extends Controller
         }
         return back()->with('error', 'User has no FCM token.');
     }
+
+    /** POST /admin/global/users/bulk — bulk delete */
+    public function bulk(Request $request)
+    {
+        $request->validate([
+            'action' => 'required|in:delete',
+            'ids'    => 'required|array|min:1',
+            'ids.*'  => 'integer',
+        ]);
+
+        $ids   = $request->ids;
+        $count = GlobalUser::whereIn('id', $ids)->count();
+        GlobalUser::whereIn('id', $ids)->delete();
+
+        return back()->with('success', "$count user(s) deleted.");
+    }
 }

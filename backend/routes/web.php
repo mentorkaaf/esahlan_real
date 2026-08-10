@@ -921,9 +921,11 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
 
             Route::prefix('orders')->name('orders.')->group(function () {
                 Route::get('/',               [\App\Http\Controllers\Admin\Global\AdminGlobalOrdersController::class, 'index'])->name('index');
+                Route::post('/bulk',          [\App\Http\Controllers\Admin\Global\AdminGlobalOrdersController::class, 'bulk'])->name('bulk');
                 Route::get('/{order}',        [\App\Http\Controllers\Admin\Global\AdminGlobalOrdersController::class, 'show'])->name('show');
                 Route::put('/{order}/status', [\App\Http\Controllers\Admin\Global\AdminGlobalOrdersController::class, 'updateStatus'])->name('status');
                 Route::post('/{order}/refund',[\App\Http\Controllers\Admin\Global\AdminGlobalOrdersController::class, 'refund'])->name('refund');
+                Route::delete('/{order}',     [\App\Http\Controllers\Admin\Global\AdminGlobalOrdersController::class, 'destroy'])->name('destroy');
             });
 
             Route::get('/settings',                   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'index'])->name('settings');
@@ -1011,6 +1013,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             // Global Users
             Route::prefix('users')->name('users.')->group(function () {
                 Route::get('/',                        [\App\Http\Controllers\Admin\Global\AdminGlobalUsersController::class, 'index'])->name('index');
+                Route::post('/bulk',                   [\App\Http\Controllers\Admin\Global\AdminGlobalUsersController::class, 'bulk'])->name('bulk');
                 Route::get('/{user}',                  [\App\Http\Controllers\Admin\Global\AdminGlobalUsersController::class, 'show'])->name('show');
                 Route::post('/{user}/ban',             [\App\Http\Controllers\Admin\Global\AdminGlobalUsersController::class, 'ban'])->name('ban');
                 Route::post('/{user}/unban',           [\App\Http\Controllers\Admin\Global\AdminGlobalUsersController::class, 'unban'])->name('unban');

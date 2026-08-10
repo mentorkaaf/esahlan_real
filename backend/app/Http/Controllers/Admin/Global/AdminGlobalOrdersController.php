@@ -174,4 +174,52 @@ class AdminGlobalOrdersController extends Controller
             return back()->with('error', 'Refund failed: ' . $e->getMessage());
         }
     }
+
+    /** DELETE /admin/global/orders/{order} — single delete */
+    public function destroy(GlobalOrder $order)
+    {
+        $order->items()->delete();
+        $order->delete();
+        return redirect()->route('admin.global.orders.index')->with('success', 'Order deleted.');
+    }
+
+    /** POST /admin/global/orders/bulk — bulk delete or bulk status change */
+    public function bulk(Request $request)
+    {
+        $request->validate([
+            'action'  => 'required|in:delete,status',
+            'ids'     => 'required|array|min:1',
+            'ids.*'   => 'integer',
+            'status'  => 'required_if:action,status|nullable|in:pending,processing,shipped,delivered,cancelled,refunded,on_hold',
+        ]);
+
+        $ids = $request->ids;
+
+        if ($request->action === 'delete') {
+            DB::table('global_order_items')->whereIn('global_order_id', $ids)->delete();
+            GlobalOrder::whereIn('id', $ids)->delete();
+            $count = count($ids);
+            return back()->with('success', "$count order(s) deleted.");
+        }
+
+        if ($request->action === 'status') {
+            $newStatus = $request->status;
+            $data = ['status' => $newStatus];
+            if ($newStatus === 'shipped')   $data['shipped_at']   = now();
+            if ($newStatus === 'delivered') { $data['delivered_at'] = now(); $data['fulfillment_status'] = 'delivered'; }
+
+            $orders = GlobalOrder::with('user')->whereIn('id', $ids)->get();
+            foreach ($orders as $order) {
+                $old = $order->status;
+                $order->update($data);
+                if ($newStatus !== $old) {
+                    $this->notifyCustomer($order->fresh(), $newStatus);
+                }
+            }
+            $count = count($ids);
+            return back()->with('success', "$count order(s) updated to \"$newStatus\".");
+        }
+
+        return back()->with('error', 'Unknown action.');
+    }
 }
