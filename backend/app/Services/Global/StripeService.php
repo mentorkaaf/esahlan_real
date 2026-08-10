@@ -38,17 +38,44 @@ class StripeService
 
         $this->setApiKey();
 
-        $intent = \Stripe\PaymentIntent::create([
+        $user       = $order->user;
+        $userEmail  = $user?->email ?? null;
+        $userName   = trim(($order->ship_first_name ?? '') . ' ' . ($order->ship_last_name ?? ''))
+                      ?: ($user?->name ?? 'Guest');
+
+        $intentData = [
             'amount'               => (int) round($order->total * 100), // cents
             'currency'             => strtolower($order->currency),
             'payment_method_types' => ['card'],   // Card only — no Link, Bank, CashApp, AmazonPay
             'metadata'             => [
-                'order_number' => $order->order_number,
-                'order_id'     => (string) $order->id,
-                'user_id'      => (string) $order->global_user_id,
+                'order_number'  => $order->order_number,
+                'order_id'      => (string) $order->id,
+                'user_id'       => (string) $order->global_user_id,
+                'customer_name' => $userName,
+                'customer_email'=> $userEmail ?? '',
             ],
             'description' => "eSahlan Global Order #{$order->order_number}",
-        ]);
+        ];
+
+        // Attach customer email so Stripe shows correct user in dashboard
+        if ($userEmail) {
+            $intentData['receipt_email'] = $userEmail;
+        }
+
+        // Attach shipping address so Stripe dashboard shows correct delivery info
+        if ($order->ship_address_line1) {
+            $intentData['shipping'] = [
+                'name'    => $userName,
+                'address' => [
+                    'line1'       => $order->ship_address_line1,
+                    'city'        => $order->ship_city        ?? '',
+                    'postal_code' => $order->ship_zip         ?? '',
+                    'country'     => $order->ship_country_code ?? 'US',
+                ],
+            ];
+        }
+
+        $intent = \Stripe\PaymentIntent::create($intentData);
 
         return [
             'client_secret'     => $intent->client_secret,
@@ -127,7 +154,12 @@ class StripeService
 
         $this->setApiKey();
 
-        $session = \Stripe\Checkout\Session::create([
+        $user      = $order->user;
+        $userEmail = $user?->email ?? null;
+        $userName  = trim(($order->ship_first_name ?? '') . ' ' . ($order->ship_last_name ?? ''))
+                     ?: ($user?->name ?? 'Guest');
+
+        $sessionData = [
             'payment_method_types' => ['card'],
             'line_items' => [[
                 'price_data' => [
@@ -141,11 +173,25 @@ class StripeService
             'success_url' => 'https://global.esahlan.com/#/global/orders?payment=success&order_id=' . $order->id,
             'cancel_url'  => 'https://global.esahlan.com/#/global/cart',
             'metadata'    => [
-                'order_id'     => (string) $order->id,
-                'order_number' => $order->order_number,
-                'user_id'      => (string) $order->global_user_id,
+                'order_id'      => (string) $order->id,
+                'order_number'  => $order->order_number,
+                'user_id'       => (string) $order->global_user_id,
+                'customer_name' => $userName,
+                'customer_email'=> $userEmail ?? '',
             ],
-        ]);
+        ];
+
+        // Pre-fill customer email on hosted Stripe checkout page
+        if ($userEmail) {
+            $sessionData['customer_email'] = $userEmail;
+        }
+
+        // Pre-fill shipping address on hosted checkout
+        if ($order->ship_address_line1) {
+            $sessionData['shipping_address_collection'] = ['allowed_countries' => ['US', 'GB', 'CA', 'AU', 'SO', 'AE', 'SA', 'QA', 'KW', 'OM', 'BH', 'ET', 'KE', 'TZ', 'UG', 'RW']];
+        }
+
+        $session = \Stripe\Checkout\Session::create($sessionData);
 
         return [
             'session_id'  => $session->id,
