@@ -253,7 +253,7 @@ $methodDefs = [
 </div>
 
 {{-- ── Add Mobile Account Modal ── --}}
-<div class="modal-overlay" id="addMobileModal" style="display:none;">
+<div class="modal-overlay" id="addMobileModal">
     <div class="modal-box" style="max-width:480px;">
         <div class="modal-header">
             <h3 class="modal-title"><i class="fas fa-mobile-alt" style="color:#2E7D32;margin-right:8px;"></i>Add Mobile Pay Account</h3>
@@ -297,7 +297,7 @@ $methodDefs = [
 </div>
 
 {{-- ── Edit Mobile Account Modal ── --}}
-<div class="modal-overlay" id="editMobileModal" style="display:none;">
+<div class="modal-overlay" id="editMobileModal">
     <div class="modal-box" style="max-width:480px;">
         <div class="modal-header">
             <h3 class="modal-title"><i class="fas fa-pen" style="color:#1565C0;margin-right:8px;"></i>Edit Account</h3>
