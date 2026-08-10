@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MobilePayAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 
 class AdminPaymentSettingsController extends Controller
 {
@@ -104,8 +105,12 @@ class AdminPaymentSettingsController extends Controller
             'ussd_template'  => 'required|string|max:200',
             'instructions'   => 'nullable|string|max:1000',
             'icon'           => 'nullable|string|max:10',
+            'logo'           => 'nullable|image|mimes:png,jpg,jpeg,svg,webp|max:2048',
             'sort_order'     => 'integer|min:0',
         ]);
+        if ($request->hasFile('logo')) {
+            $data['logo'] = $request->file('logo')->store('mobile_pay_logos', 'public');
+        }
         MobilePayAccount::create($data + ['is_active' => true]);
         Cache::forget('mobile_pay_accounts.active');
         return back()->with('success', 'Mobile Pay account added.');
@@ -119,9 +124,14 @@ class AdminPaymentSettingsController extends Controller
             'ussd_template'  => 'sometimes|string|max:200',
             'instructions'   => 'nullable|string|max:1000',
             'icon'           => 'nullable|string|max:10',
+            'logo'           => 'nullable|image|mimes:png,jpg,jpeg,svg,webp|max:2048',
             'sort_order'     => 'sometimes|integer|min:0',
             'is_active'      => 'sometimes|boolean',
         ]);
+        if ($request->hasFile('logo')) {
+            if ($account->logo) Storage::disk('public')->delete($account->logo);
+            $data['logo'] = $request->file('logo')->store('mobile_pay_logos', 'public');
+        }
         $account->update($data);
         Cache::forget('mobile_pay_accounts.active');
         return back()->with('success', 'Account updated.');
