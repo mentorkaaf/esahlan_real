@@ -1077,6 +1077,10 @@ Route::prefix('v1/global')->group(function () {
     Route::get('/products/flash',          [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'flash']);
     Route::get('/products/new-arrivals',   [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'newArrivals']);
     Route::get('/products/best-sellers',   [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'bestSellers']);
+
+    // Coupons (public: available deals; auth: collect + my wallet)
+    Route::get('/coupons/available',       [\App\Http\Controllers\Api\Global\GlobalCouponsController::class, 'available']);
+    Route::post('/coupons/validate',       [\App\Http\Controllers\Api\Global\GlobalCouponsController::class, 'validate']);
     Route::get('/products/{id}',           [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'show']);
     Route::get('/products/{id}/reviews',   [\App\Http\Controllers\Api\Global\GlobalReviewsController::class, 'index']);
     Route::get('/categories',              [\App\Http\Controllers\Api\Global\GlobalProductsController::class, 'categories']);
@@ -1110,6 +1114,11 @@ Route::prefix('v1/global')->group(function () {
 
         Route::get('/products/{id}/reviews/can-review', [\App\Http\Controllers\Api\Global\GlobalReviewsController::class, 'canReview']);
         Route::post('/products/{id}/reviews',  [\App\Http\Controllers\Api\Global\GlobalReviewsController::class, 'store']);
+
+        // Coupons (auth required)
+        Route::get('/coupons/my',              [\App\Http\Controllers\Api\Global\GlobalCouponsController::class, 'myCoupons']);
+        Route::post('/coupons/collect-all',    [\App\Http\Controllers\Api\Global\GlobalCouponsController::class, 'collectAll']);
+        Route::post('/coupons/{coupon}/collect',[\App\Http\Controllers\Api\Global\GlobalCouponsController::class, 'collect']);
 
         // Confirm endpoints (also authenticated)
         Route::post('/checkout/stripe/confirm',[\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'stripeConfirm']);

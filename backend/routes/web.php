@@ -928,6 +928,16 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
                 Route::delete('/{order}',     [\App\Http\Controllers\Admin\Global\AdminGlobalOrdersController::class, 'destroy'])->name('destroy');
             });
 
+            // Coupons
+            Route::prefix('coupons')->name('coupons.')->group(function () {
+                $cc = \App\Http\Controllers\Admin\Global\AdminGlobalCouponsController::class;
+                Route::get('/',                 [$cc, 'index'])->name('index');
+                Route::post('/',                [$cc, 'store'])->name('store');
+                Route::put('/{coupon}',         [$cc, 'update'])->name('update');
+                Route::delete('/{coupon}',      [$cc, 'destroy'])->name('destroy');
+                Route::patch('/{coupon}/toggle',[$cc, 'toggle'])->name('toggle');
+            });
+
             Route::get('/settings',                   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'index'])->name('settings');
             Route::put('/settings',                   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'update'])->name('settings.update');
             Route::put('/settings/shipping/{zone}',   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'updateShippingZone'])->name('settings.shipping.update');

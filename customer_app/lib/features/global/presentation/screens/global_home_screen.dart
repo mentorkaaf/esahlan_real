@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/global_provider.dart';
 import '../../data/models/global_models.dart';
 import '../widgets/global_product_card.dart';
+import '../widgets/global_coupon_popup.dart';
 import '../../../../core/widgets/smart_location_banner.dart';
 
 class GlobalHomeScreen extends ConsumerStatefulWidget {
@@ -16,10 +17,41 @@ class GlobalHomeScreen extends ConsumerStatefulWidget {
 
 class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
   final _searchCtrl = TextEditingController();
+  bool _couponPopupShown = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Show coupon popup shortly after page loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 1200), () {
+        if (mounted && !_couponPopupShown) _checkCouponPopup();
+      });
+    });
+  }
+
+  void _checkCouponPopup() {
+    final coupons = ref.read(globalAvailableCouponsProvider).valueOrNull;
+    if (coupons != null && coupons.isNotEmpty) {
+      setState(() => _couponPopupShown = true);
+      showCouponPopup(context, coupons, ref);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Watch coupons so popup triggers if they load after initState
+    ref.listen<AsyncValue<List<GlobalCoupon>>>(globalAvailableCouponsProvider,
+        (_, next) {
+      next.whenData((coupons) {
+        if (!_couponPopupShown && coupons.isNotEmpty && mounted) {
+          setState(() => _couponPopupShown = true);
+          Future.delayed(const Duration(milliseconds: 800), () {
+            if (mounted) showCouponPopup(context, coupons, ref); // ignore: use_build_context_synchronously
+          });
+        }
+      });
+    });
     final auth = ref.watch(globalAuthProvider);
     final categories = ref.watch(globalCategoriesProvider);
     final featured = ref.watch(globalFeaturedProvider);

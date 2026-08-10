@@ -136,6 +136,20 @@ final globalBestSellersProvider =
   return ref.read(globalRepoProvider).getBestSellers();
 });
 
+// ── Coupons ───────────────────────────────────────────────────────────────────
+
+final globalAvailableCouponsProvider =
+    FutureProvider<List<GlobalCoupon>>((ref) async {
+  return ref.read(globalRepoProvider).getAvailableCoupons();
+});
+
+final globalMyCouponsProvider =
+    FutureProvider<List<GlobalCoupon>>((ref) async {
+  return ref.read(globalRepoProvider).getMyCoupons();
+});
+
+// ── Products ─────────────────────────────────────────────────────────────────
+
 final globalFlashDealsProvider =
     FutureProvider<List<GlobalProduct>>((ref) async {
   return ref.read(globalRepoProvider).getFlashDeals();

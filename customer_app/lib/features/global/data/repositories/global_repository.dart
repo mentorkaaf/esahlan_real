@@ -195,6 +195,33 @@ class GlobalRepository {
     return (res['categories'] as List).map((c) => GlobalCategory.fromJson(c)).toList();
   }
 
+  // ── Coupons ───────────────────────────────────────────────────────────────────
+
+  Future<List<GlobalCoupon>> getAvailableCoupons() async {
+    final res = await _get('$_base/coupons/available');
+    return (res['coupons'] as List).map((c) => GlobalCoupon.fromJson(c)).toList();
+  }
+
+  Future<List<GlobalCoupon>> getMyCoupons() async {
+    final res = await _get('$_base/coupons/my', auth: true);
+    return (res['coupons'] as List).map((c) => GlobalCoupon.fromJson(c)).toList();
+  }
+
+  Future<void> collectAllCoupons() async {
+    await _post('$_base/coupons/collect-all', {}, auth: true);
+  }
+
+  Future<void> collectCoupon(int couponId) async {
+    await _post('$_base/coupons/$couponId/collect', {}, auth: true);
+  }
+
+  Future<Map<String, dynamic>> validateCoupon(String code, double orderTotal) async {
+    return await _post('$_base/coupons/validate', {
+      'code': code,
+      'order_total': orderTotal,
+    }, auth: true);
+  }
+
   // ── Cart ─────────────────────────────────────────────────────────────────────
 
   Future<GlobalCart> getCart() async {

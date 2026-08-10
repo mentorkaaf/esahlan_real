@@ -1077,6 +1077,9 @@
             <a href="{{ route('admin.global.categories.index') }}" class="nav-link {{ request()->routeIs('admin.global.categories.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-tags"></i></div><span class="nav-text">Categories</span>
             </a>
+            <a href="{{ route('admin.global.coupons.index') }}" class="nav-link {{ request()->routeIs('admin.global.coupons.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-ticket"></i></div><span class="nav-text">Coupons</span>
+            </a>
             <a href="{{ route('admin.global.physical-products.index') }}" class="nav-link {{ request()->routeIs('admin.global.physical-products.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-warehouse"></i></div><span class="nav-text">Physical / Warehouse</span>
             </a>

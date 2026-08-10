@@ -442,6 +442,59 @@ class GlobalSlider {
   }
 }
 
+class GlobalCoupon {
+  final int id;
+  final String name;
+  final String? description;
+  final String? label;
+  final String code;
+  final String type; // 'percentage' | 'fixed'
+  final double value;
+  final double minimumOrder;
+  final double? maximumDiscount;
+  final bool isNewUserOnly;
+  final DateTime? expiresAt;
+
+  const GlobalCoupon({
+    required this.id,
+    required this.name,
+    this.description,
+    this.label,
+    required this.code,
+    required this.type,
+    required this.value,
+    required this.minimumOrder,
+    this.maximumDiscount,
+    this.isNewUserOnly = false,
+    this.expiresAt,
+  });
+
+  factory GlobalCoupon.fromJson(Map<String, dynamic> j) => GlobalCoupon(
+        id: _i(j['id']),
+        name: j['name'] ?? '',
+        description: j['description'],
+        label: j['label'],
+        code: j['code'] ?? '',
+        type: j['type'] ?? 'percentage',
+        value: _d(j['value']),
+        minimumOrder: _d(j['minimum_order']),
+        maximumDiscount: j['maximum_discount'] != null ? _d(j['maximum_discount']) : null,
+        isNewUserOnly: j['is_new_user_only'] == true,
+        expiresAt: j['expires_at'] != null ? DateTime.tryParse(j['expires_at']) : null,
+      );
+
+  /// Display string e.g. "30% OFF" or "$5 OFF"
+  String get discountLabel =>
+      type == 'percentage' ? '${value.toInt()}% OFF' : '\$${value.toStringAsFixed(0)} OFF';
+
+  /// Days until expiry (null = no expiry)
+  int? get daysLeft {
+    if (expiresAt == null) return null;
+    final diff = expiresAt!.difference(DateTime.now()).inDays;
+    return diff < 0 ? 0 : diff;
+  }
+}
+
 class GlobalCheckoutSummary {
   final double subtotal;
   final double shipping;
