@@ -66,15 +66,7 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
     final isDesktop    = kIsWeb && width >= 1024;
 
     if (isDesktop) {
-      return _DesktopHomeLayout(
-        auth: auth,
-        categories: categories,
-        featured: featured,
-        flash: flash,
-        newArrivals: newArrivals,
-        bestSellers: bestSellers,
-        cartCount: cartCount,
-      );
+      return const _DesktopHomeLayout();
     }
 
     // ── Mobile Layout ────────────────────────────────────────────────────────
@@ -292,39 +284,30 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
 
 // ── Desktop Home Layout ───────────────────────────────────────────────────────
 
+// _DesktopHomeLayout watches its OWN providers (no constructor params for async data)
+// — avoids stale snapshot issue when parent passes AsyncValue as constructor arg.
+// Also no nested Scaffold (shell already provides one).
 class _DesktopHomeLayout extends ConsumerWidget {
-  final AsyncValue<dynamic> auth;
-  final AsyncValue<List<GlobalCategory>> categories;
-  final AsyncValue<List<GlobalProduct>> featured;
-  final AsyncValue<List<GlobalProduct>> flash;
-  final AsyncValue<List<GlobalProduct>> newArrivals;
-  final AsyncValue<List<GlobalProduct>> bestSellers;
-  final int cartCount;
+  const _DesktopHomeLayout();
 
-  const _DesktopHomeLayout({
-    required this.auth,
-    required this.categories,
-    required this.featured,
-    required this.flash,
-    required this.newArrivals,
-    required this.bestSellers,
-    required this.cartCount,
-  });
-
-  static const _kOrange = Color(0xFFF59E0B);
-  static const _kNavy   = Color(0xFF1A1A2E);
-  static const _kBg     = Color(0xFFF0F2F5);
+  static const _kBg = Color(0xFFF0F2F5);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l = AppL10n.of(context);
-    return Scaffold(
-      backgroundColor: _kBg,
-      body: SingleChildScrollView(
+    final l           = AppL10n.of(context);
+    final categories  = ref.watch(globalCategoriesProvider);
+    final featured    = ref.watch(globalFeaturedProvider);
+    final flash       = ref.watch(globalFlashDealsProvider);
+    final newArrivals = ref.watch(globalNewArrivalsProvider);
+    final bestSellers = ref.watch(globalBestSellersProvider);
+
+    return Container(
+      color: _kBg,
+      child: SingleChildScrollView(
         child: Column(
           children: [
             // ── Hero Banner ─────────────────────────────────────────────────
-            _DesktopBannerSection(),
+            const _DesktopBannerSection(),
 
             // ── Max-width content wrapper ────────────────────────────────────
             Center(
@@ -351,28 +334,8 @@ class _DesktopHomeLayout extends ConsumerWidget {
                             _DesktopCategoryGrid(cats: cats),
                           ],
                         ),
-                        loading: () => const SizedBox(height: 140, child: Center(child: CircularProgressIndicator())),
-                        error: (_, __) => const SizedBox(),
-                      ),
-
-                      const SizedBox(height: 48),
-
-                      // ── Flash Deals ───────────────────────────────────────
-                      flash.when(
-                        data: (products) => products.isEmpty ? const SizedBox() : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _DesktopSectionHeader(
-                              title: '⚡ ${l.flashDeals}',
-                              subtitle: 'Limited time offers',
-                              onTap: () => context.push('/global/products'),
-                              badge: 'SALE',
-                            ),
-                            const SizedBox(height: 16),
-                            _DesktopProductRow(products: products.take(5).toList()),
-                          ],
-                        ),
-                        loading: () => _DesktopSectionShimmer(),
+                        loading: () => const SizedBox(height: 140,
+                            child: Center(child: CircularProgressIndicator(color: Color(0xFFF59E0B)))),
                         error: (_, __) => const SizedBox(),
                       ),
 
@@ -394,7 +357,7 @@ class _DesktopHomeLayout extends ConsumerWidget {
                           ],
                         ),
                         loading: () => _DesktopSectionShimmer(),
-                        error: (_, __) => const SizedBox(),
+                        error: (e, _) => Center(child: Text('Error: $e')),
                       ),
 
                       const SizedBox(height: 48),
@@ -408,6 +371,27 @@ class _DesktopHomeLayout extends ConsumerWidget {
                               title: '🔥 ${l.bestSellers}',
                               subtitle: 'Most purchased by shoppers',
                               onTap: () => context.push('/global/products'),
+                            ),
+                            const SizedBox(height: 16),
+                            _DesktopProductGrid4(products: products.take(8).toList()),
+                          ],
+                        ),
+                        loading: () => _DesktopSectionShimmer(),
+                        error: (e, _) => Center(child: Text('Error: $e')),
+                      ),
+
+                      const SizedBox(height: 48),
+
+                      // ── Flash Deals ───────────────────────────────────────
+                      flash.when(
+                        data: (products) => products.isEmpty ? const SizedBox() : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _DesktopSectionHeader(
+                              title: '⚡ ${l.flashDeals}',
+                              subtitle: 'Limited time offers',
+                              onTap: () => context.push('/global/products'),
+                              badge: 'SALE',
                             ),
                             const SizedBox(height: 16),
                             _DesktopProductGrid4(products: products.take(8).toList()),
@@ -434,7 +418,7 @@ class _DesktopHomeLayout extends ConsumerWidget {
                           ],
                         ),
                         loading: () => _DesktopSectionShimmer(),
-                        error: (_, __) => const SizedBox(),
+                        error: (e, _) => Center(child: Text('Error: $e')),
                       ),
 
                       const SizedBox(height: 64),
@@ -848,24 +832,141 @@ class _DesktopCategoryItemState extends State<_DesktopCategoryItem> {
 
 // ── Desktop Product Row (horizontal scroll on desktop) ────────────────────────
 
-class _DesktopProductRow extends StatelessWidget {
-  final List<GlobalProduct> products;
-  const _DesktopProductRow({required this.products});
+// ── Desktop Product Card (fixed height — no Expanded dependency) ──────────────
+
+class _DesktopProductCard extends StatefulWidget {
+  final GlobalProduct product;
+  const _DesktopProductCard({required this.product});
+
+  @override
+  State<_DesktopProductCard> createState() => _DesktopProductCardState();
+}
+
+class _DesktopProductCardState extends State<_DesktopProductCard> {
+  bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: products.map((p) => Expanded(
-        child: Padding(
-          padding: EdgeInsets.only(right: products.last == p ? 0 : 12),
-          child: GlobalProductCard(product: p),
+    final p = widget.product;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_)  => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: () => context.push('/global/product/${p.id}'),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: _hover
+              ? [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, 6))]
+              : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image — fixed height 200px
+              SizedBox(
+                height: 200,
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                      child: p.thumbnail != null
+                        ? Image.network(p.thumbnail!,
+                            width: double.infinity, height: 200,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _DesktopImgPlaceholder())
+                        : _DesktopImgPlaceholder(),
+                    ),
+                    if (p.discountPct != null && p.discountPct! > 0)
+                      Positioned(
+                        top: 10, left: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade600,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text('-${p.discountPct}%', style: const TextStyle(
+                            color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800,
+                          )),
+                        ),
+                      ),
+                    if (p.isBestseller)
+                      Positioned(
+                        top: 10, right: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF59E0B),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text('BEST', style: TextStyle(
+                            color: Color(0xFF1A1A2E), fontSize: 10, fontWeight: FontWeight.w800,
+                          )),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              // Info
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(p.name,
+                      maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, height: 1.3)),
+                    const SizedBox(height: 6),
+                    if (p.rating > 0)
+                      Row(children: [
+                        const Icon(Icons.star_rounded, size: 14, color: Color(0xFFF59E0B)),
+                        const SizedBox(width: 3),
+                        Text(p.rating.toStringAsFixed(1),
+                          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        const SizedBox(width: 4),
+                        Text('(${p.reviewsCount})',
+                          style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      ]),
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(p.formattedPrice, style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF1A1A2E),
+                        )),
+                        if (p.formattedComparePrice != null) ...[
+                          const SizedBox(width: 6),
+                          Text(p.formattedComparePrice!, style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade400,
+                            decoration: TextDecoration.lineThrough,
+                          )),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      )).toList(),
+      ),
     );
   }
 }
 
-// ── Desktop Product Grid (4 columns) ─────────────────────────────────────────
+class _DesktopImgPlaceholder extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity, height: 200,
+    color: Colors.grey.shade100,
+    child: Icon(Icons.image_outlined, color: Colors.grey.shade400, size: 48),
+  );
+}
+
+// ── Desktop Product Grid (4 columns, fixed card height) ───────────────────────
 
 class _DesktopProductGrid4 extends StatelessWidget {
   final List<GlobalProduct> products;
@@ -873,17 +974,18 @@ class _DesktopProductGrid4 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 0.7,
-      ),
-      itemCount: products.length,
-      itemBuilder: (ctx, i) => GlobalProductCard(product: products[i]),
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        final cardWidth = (constraints.maxWidth - 16 * 3) / 4;
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: products.map((p) => SizedBox(
+            width: cardWidth,
+            child: _DesktopProductCard(product: p),
+          )).toList(),
+        );
+      },
     );
   }
 }
