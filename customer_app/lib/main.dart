@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 
@@ -225,8 +226,14 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
         themeMode: settings.themeMode,
         locale: settings.locale,
         supportedLocales: const [
-          Locale('en'), Locale('so'), Locale('ar'),
-          Locale('am'), Locale('sw'), Locale('fr'),
+          Locale('en'),
+          Locale('so'),
+          Locale('ar'),
+        ],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
         ],
         routerConfig: ref.watch(routerProvider),
         builder: (ctx, child) => MediaQuery(

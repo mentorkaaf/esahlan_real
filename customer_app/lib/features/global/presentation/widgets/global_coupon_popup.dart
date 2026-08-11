@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/global_models.dart';
 import '../providers/global_provider.dart';
+import '../../../../core/l10n/app_strings.dart';
 
 /// Shows the Shein-style "Special Deals" coupon collection popup.
 Future<void> showCouponPopup(
@@ -111,9 +112,9 @@ class _CouponPopupSheetState extends State<_CouponPopupSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Special Deals for You! 🎉',
-                        style: TextStyle(
+                      Text(
+                        AppL10n.current.specialDealsForYou,
+                        style: const TextStyle(
                             color: Colors.white,
                             fontSize: 15,
                             fontWeight: FontWeight.w800),
@@ -173,8 +174,8 @@ class _CouponPopupSheetState extends State<_CouponPopupSheet> {
                             color: _gold, strokeWidth: 2.5))
                     : Text(
                         allCollected
-                            ? '✓ All Coupons Collected!'
-                            : 'Collect All ${widget.coupons.length} Coupons',
+                            ? '✓ ${AppL10n.current.collected}!'
+                            : '${AppL10n.current.collectAll} (${widget.coupons.length})',
                         style: const TextStyle(
                             fontSize: 15, fontWeight: FontWeight.w800),
                       ),
@@ -343,7 +344,7 @@ class _CouponTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  collected ? '✓' : 'Collect',
+                  collected ? '✓' : AppL10n.current.collect,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,

@@ -73,9 +73,11 @@ class AppSettingsNotifier extends StateNotifier<AppSettings> {
 
   Future<void> _load() async {
     final p = await SharedPreferences.getInstance();
+    final rawLang = p.getString('app_language') ?? 'en';
+    final lang = {'en','so','ar'}.contains(rawLang) ? rawLang : 'en';
     state = AppSettings(
       themeMode:       _theme(p.getString('app_theme') ?? 'light'),
-      language:        p.getString('app_language') ?? 'en',
+      language:        lang,
       fontSize:        p.getString('app_font_size') ?? 'medium',
       reduceMotion:    p.getBool('app_reduce_motion') ?? false,
       dataSaverEnabled: p.getBool('app_data_saver') ?? false,
@@ -108,10 +110,14 @@ class AppSettingsNotifier extends StateNotifier<AppSettings> {
   }
 
   // ── Language ─────────────────────────────────────────────────────────────────
+  // Only en, so, ar are supported
+  static const _supportedLangs = {'en', 'so', 'ar'};
+
   Future<void> setLanguage(String code) async {
-    (await _prefs).setString('app_language', code);
-    state = state.copyWith(language: code);
-    _backend('language', {'code': code});
+    final safe = _supportedLangs.contains(code) ? code : 'en';
+    (await _prefs).setString('app_language', safe);
+    state = state.copyWith(language: safe);
+    _backend('language', {'code': safe});
   }
 
   // ── Font size ────────────────────────────────────────────────────────────────

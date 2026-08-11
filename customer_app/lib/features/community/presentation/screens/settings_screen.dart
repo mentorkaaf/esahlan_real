@@ -1351,43 +1351,107 @@ class _LangState extends ConsumerState<LanguageSettingsScreen> {
   late String _code;
   @override void initState() {
     super.initState();
-    // Use current app setting (SharedPreferences-backed) not just backend initial
     _code = AppSettingsNotifier.current.language;
-    if (_code == 'en' && widget.initial['code'] != null) {
-      _code = widget.initial['code'] as String? ?? 'en';
-    }
+    // Sanitize: only allow en/so/ar
+    if (!{'en','so','ar'}.contains(_code)) _code = 'en';
   }
 
+  // Only 3 languages: English, Somali, Arabic
   static const _langs = [
-    ('English',  'en'), ('Somali', 'so'), ('Arabic', 'ar'),
-    ('Amharic',  'am'), ('Swahili', 'sw'), ('French', 'fr'),
+    ('🇬🇧', 'English',     'Ingiriisi',  'الإنجليزية', 'en'),
+    ('🇸🇴', 'Somali',      'Soomaali',   'الصومالية',  'so'),
+    ('🇸🇦', 'Arabic',      'Carabi',     'العربية',    'ar'),
   ];
 
   Future<void> _select(String code) async {
     setState(() => _code = code);
-    ref.read(appSettingsProvider.notifier).setLanguage(code);
+    await ref.read(appSettingsProvider.notifier).setLanguage(code);
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final lang = AppSettingsNotifier.current.language;
     return Scaffold(
-      backgroundColor: c.scaffoldBg, appBar: _bar(context, 'Language'),
-      body: ListView.separated(
+      backgroundColor: c.scaffoldBg,
+      appBar: _bar(context, lang == 'ar' ? 'اللغة' : lang == 'so' ? 'Luuqadda' : 'Language'),
+      body: Padding(
         padding: const EdgeInsets.all(16),
-        itemCount: _langs.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 4),
-        itemBuilder: (_, i) {
-          final (label, code) = _langs[i];
-          final isSelected = code == _code;
-          return ListTile(
-            tileColor: c.cardBg,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            title: Text(label, style: TextStyle(fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal, color: c.bodyText)),
-            trailing: isSelected ? const Icon(Icons.check_rounded, color: _kOrange) : null,
-            onTap: () => _select(code),
-          );
-        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Description
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                lang == 'ar'
+                    ? 'اختر لغة التطبيق'
+                    : lang == 'so'
+                        ? 'Dooro luuqadda aad u baahan tahay'
+                        : 'Choose your preferred language',
+                style: TextStyle(fontSize: 13, color: c.bodyText.withAlpha(160)),
+              ),
+            ),
+            ..._langs.map((l) {
+              final (flag, en, so, ar, code) = l;
+              final isSelected = code == _code;
+              // Show native name based on selected language
+              final displayName = lang == 'so' ? so : lang == 'ar' ? ar : en;
+              final nativeName = code == 'en' ? 'English' : code == 'so' ? 'Soomaali' : 'العربية';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: GestureDetector(
+                  onTap: () => _select(code),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    decoration: BoxDecoration(
+                      color: isSelected ? _kOrange.withAlpha(20) : c.cardBg,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isSelected ? _kOrange : c.cardBg,
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    child: Row(
+                      children: [
+                        Text(flag, style: const TextStyle(fontSize: 28)),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(displayName,
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                      color: isSelected ? _kOrange : c.bodyText)),
+                              Text(nativeName,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: c.bodyText.withAlpha(140))),
+                            ],
+                          ),
+                        ),
+                        if (isSelected)
+                          Container(
+                            width: 24,
+                            height: 24,
+                            decoration: const BoxDecoration(
+                              color: _kOrange,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.check_rounded,
+                                color: Colors.white, size: 16),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }

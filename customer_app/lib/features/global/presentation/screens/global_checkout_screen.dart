@@ -10,6 +10,7 @@ import '../providers/global_provider.dart';
 import '../../data/models/global_models.dart';
 import '../../data/repositories/global_repository.dart';
 import '../widgets/stripe_web_modal.dart';
+import '../../../../core/l10n/app_strings.dart';
 
 // ── Country data ──────────────────────────────────────────────────────────────
 

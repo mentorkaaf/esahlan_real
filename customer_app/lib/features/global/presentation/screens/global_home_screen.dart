@@ -6,6 +6,7 @@ import '../providers/global_provider.dart';
 import '../../data/models/global_models.dart';
 import '../widgets/global_product_card.dart';
 import '../widgets/global_coupon_popup.dart';
+import '../../../../core/l10n/app_strings.dart';
 import '../../../../core/widgets/smart_location_banner.dart';
 
 class GlobalHomeScreen extends ConsumerStatefulWidget {
@@ -193,8 +194,8 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _SectionHeader(
-                                title: 'Shop by Category',
-                                subtitle: 'Browse all departments',
+                                title: AppL10n.of(context).categories,
+                                subtitle: AppL10n.of(context).tr('contentPrefs'),
                                 onTap: () =>
                                     context.push('/global/products')),
                             SizedBox(
@@ -225,7 +226,7 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _SectionHeader(
-                                title: '⚡ Flash Deals',
+                                title: '⚡ ${AppL10n.of(context).flashDeals}',
                                 onTap: () => context.push(
                                     '/global/products?sort=flash')),
                             SizedBox(
@@ -259,7 +260,7 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _SectionHeader(
-                                title: '✨ New Arrivals',
+                                title: '✨ ${AppL10n.of(context).newArrivals}',
                                 subtitle: 'Fresh items just landed',
                                 onTap: () => context.push('/global/products')),
                             SizedBox(
@@ -291,7 +292,7 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _SectionHeader(
-                                title: '🔥 Best Sellers',
+                                title: '🔥 ${AppL10n.of(context).bestSellers}',
                                 subtitle: 'Most purchased by shoppers',
                                 onTap: () => context.push('/global/products')),
                             SizedBox(
@@ -322,7 +323,7 @@ class _GlobalHomeScreenState extends ConsumerState<GlobalHomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _SectionHeader(
-                                title: '🌟 Featured Products',
+                                title: '🌟 ${AppL10n.of(context).featured}',
                                 subtitle: 'Hand-picked for you',
                                 onTap: () => context.push('/global/products')),
                             _ProductGrid(products: products),
@@ -601,8 +602,8 @@ class _BestSellerCard extends StatelessWidget {
                             color: Color(0xFFF59E0B), size: 11),
                         const SizedBox(width: 3),
                         Text(product.soldCount > 0
-                                ? '${product.soldCount} sold'
-                                : 'Best Seller',
+                                ? '${product.soldCount} ${AppL10n.of(context).sold}'
+                                : AppL10n.of(context).bestSellers,
                             style: const TextStyle(
                                 color: Colors.white, fontSize: 10,
                                 fontWeight: FontWeight.w700)),
