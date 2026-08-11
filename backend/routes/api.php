@@ -142,6 +142,49 @@ Route::prefix('v1')->group(function () {
     Route::get('img/{path}', fn (string $path) => proxy_storage_file($path))
         ->where('path', '.*');
 
+    // ─── External image proxy (for Flutter Web CORS) ─────────────────────────
+    // Proxies any external image URL so Flutter Web (global.esahlan.com) can
+    // load images from external CDNs (e.g. cdn.phototourl.com) that lack CORS.
+    // Usage: /api/v1/ext-image?url=https://cdn.phototourl.com/...
+    Route::match(['GET', 'OPTIONS'], 'ext-image', function (\Illuminate\Http\Request $request) {
+        $corsHeaders = [
+            'Access-Control-Allow-Origin'  => '*',
+            'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+            'Access-Control-Allow-Headers' => 'Origin, Accept, Content-Type',
+            'Access-Control-Max-Age'       => '86400',
+        ];
+        if ($request->isMethod('OPTIONS')) {
+            return response('', 204, $corsHeaders);
+        }
+        $url = (string) $request->query('url', '');
+        if (empty($url) || !filter_var($url, FILTER_VALIDATE_URL)) {
+            abort(400, 'Invalid url parameter');
+        }
+        // Security: only allow http/https schemes
+        $scheme = strtolower(parse_url($url, PHP_URL_SCHEME) ?? '');
+        abort_unless(in_array($scheme, ['http', 'https']), 400, 'Only http/https allowed');
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(10)
+                ->withHeaders(['User-Agent' => 'eSahlan-Proxy/1.0'])
+                ->get($url);
+
+            $contentType = $response->header('Content-Type') ?? 'image/jpeg';
+            // Only allow image content types
+            if (!str_starts_with($contentType, 'image/')) {
+                abort(400, 'Not an image');
+            }
+
+            return response($response->body(), 200, array_merge($corsHeaders, [
+                'Content-Type'  => $contentType,
+                'Cache-Control' => 'public, max-age=86400',
+                'X-Proxied-For' => 'esahlan-ext-image',
+            ]));
+        } catch (\Exception $e) {
+            abort(502, 'Could not fetch image');
+        }
+    })->middleware('throttle:60,1');
+
     // ═══════════════════════════════════════════════════════════════
     // PUBLIC ROUTES
     // ═══════════════════════════════════════════════════════════════

@@ -1,5 +1,21 @@
 // ignore_for_file: non_constant_identifier_names
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../../../../core/constants/app_constants.dart';
+
+// ─── Web image proxy ─────────────────────────────────────────────────────────
+// On Flutter Web (global.esahlan.com), external CDN images lack CORS headers.
+// This helper routes them through our backend proxy so browsers can load them.
+String? _webImg(String? url) {
+  if (url == null || url.isEmpty) return null;
+  if (!kIsWeb) return url;
+  // Already our own domain — no proxy needed (our backend has CORS headers).
+  if (url.contains('esahlan.com')) return url;
+  // External URL — route through /api/v1/ext-image?url=...
+  final encoded = Uri.encodeComponent(url);
+  return '${AppConstants.baseUrl}/ext-image?url=$encoded';
+}
+
 // Safe parser — handles both num and String from API
 double _d(dynamic v) {
   if (v == null) return 0.0;
@@ -107,7 +123,7 @@ class GlobalCategory {
         id: j['id'],
         name: j['name'] ?? '',
         icon: j['icon'],
-        image: j['image'],
+        image: _webImg(j['image']),
         productsCount: j['products_count'] ?? 0,
       );
 }
@@ -169,7 +185,7 @@ class GlobalProduct {
         price: _d(j['price']),
         comparePrice: j['compare_price'] != null ? _d(j['compare_price']) : null,
         discountPct: j['discount_pct'],
-        thumbnail: j['thumbnail'],
+        thumbnail: _webImg(j['thumbnail']),
         rating: _d(j['rating']),
         reviewsCount: j['reviews_count'] ?? 0,
         isFeatured: j['is_featured'] == true,
@@ -182,7 +198,10 @@ class GlobalProduct {
         sku: j['sku'],
         stock: j['stock'],
         inStock: j['in_stock'] ?? true,
-        images: (j['images'] as List? ?? []).cast<String>(),
+        images: (j['images'] as List? ?? [])
+            .cast<String>()
+            .map((u) => _webImg(u) ?? u)
+            .toList(),
         variants: j['variants'] ?? [],
         tags: (j['tags'] as List? ?? []).cast<String>(),
       );
@@ -219,7 +238,7 @@ class GlobalCartItem {
         id: j['id'],
         productId: j['product_id'],
         name: j['name'] ?? '',
-        thumbnail: j['thumbnail'],
+        thumbnail: _webImg(j['thumbnail']),
         price: _d(j['price']),
         variant: j['variant'],
         quantity: _i(j['quantity']) == 0 ? 1 : _i(j['quantity']),
@@ -295,7 +314,7 @@ class GlobalOrder {
         total: _d(j['total']),
         currency: j['currency'] ?? 'USD',
         itemsCount: j['items_count'] ?? (j['items'] as List?)?.length ?? 0,
-        thumbnail: j['thumbnail'],
+        thumbnail: _webImg(j['thumbnail']),
         createdAt: j['created_at'] ?? '',
         items: (j['items'] as List? ?? [])
             .map((i) => GlobalOrderItem.fromJson(i))
@@ -340,7 +359,7 @@ class GlobalOrderItem {
         quantity: j['quantity'] ?? 1,
         unitPrice: _d(j['unit_price']),
         total: _d(j['total']),
-        thumbnail: j['thumbnail'],
+        thumbnail: _webImg(j['thumbnail']),
       );
 }
 
@@ -374,8 +393,11 @@ class GlobalReview {
         body: j['body'],
         userName: j['user_name'] ?? 'Anonymous',
         userCountry: j['user_country'],
-        userAvatar: j['user_avatar'],
-        images: (j['images'] as List? ?? []).cast<String>(),
+        userAvatar: _webImg(j['user_avatar']),
+        images: (j['images'] as List? ?? [])
+            .cast<String>()
+            .map((u) => _webImg(u) ?? u)
+            .toList(),
         createdAt: j['created_at'] ?? '',
       );
 }
@@ -428,7 +450,7 @@ class GlobalSlider {
         id: _i(j['id']),
         title: j['title'] ?? '',
         subtitle: j['subtitle'],
-        imageUrl: j['image_url'],
+        imageUrl: _webImg(j['image_url']),
         linkUrl: j['link_url'],
         bgColor: j['bg_color'] ?? '#1A1A2E',
         buttonText: j['button_text'] ?? 'Shop Now',
