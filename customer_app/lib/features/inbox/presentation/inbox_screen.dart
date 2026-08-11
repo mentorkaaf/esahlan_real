@@ -4,6 +4,7 @@ import '../data/inbox_models.dart';
 import '../data/inbox_repository.dart';
 import 'inbox_support_screen.dart';
 import 'inbox_marketing_screen.dart';
+import '../../../core/l10n/app_strings.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 
@@ -72,7 +73,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
               backgroundColor: _kAccent,
               elevation: 3,
               icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('New Request', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+              label: Text(AppL10n.of(context).newRequest, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
             )
           : null,
     );
@@ -109,7 +110,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
                       child: const Icon(Icons.inbox_rounded, color: Colors.white, size: 18),
                     ),
                     const SizedBox(width: 10),
-                    Text('Inbox', style: TextStyle(
+                    Text(AppL10n.of(context).inbox, style: TextStyle(
                       fontSize: 22, fontWeight: FontWeight.w900,
                       color: isDark ? Colors.white : _kPrimary,
                       letterSpacing: -.5,
@@ -118,7 +119,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
                     _UnreadBadge(),
                   ]),
                   const SizedBox(height: 6),
-                  Text('Your messages & notifications',
+                  Text(AppL10n.of(context).inboxSubtitle,
                       style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                 ],
               ),
@@ -170,8 +171,8 @@ class _CustomTabBar extends ConsumerWidget {
       unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
       dividerColor: isDark ? const Color(0xFF252540) : const Color(0xFFEEF0F8),
       tabs: [
-        Tab(child: _TabChip('Marketing', broads, Icons.campaign_outlined)),
-        Tab(child: _TabChip('Support', convs, Icons.headset_mic_outlined)),
+        Tab(child: _TabChip(AppL10n.of(context).marketing, broads, Icons.campaign_outlined)),
+        Tab(child: _TabChip(AppL10n.of(context).support, convs, Icons.headset_mic_outlined)),
       ],
     );
   }
@@ -212,7 +213,7 @@ class _UnreadBadge extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(12)),
-      child: Text('$total unread', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+      child: Text('$total ${AppL10n.of(context).unread}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
     );
   }
 }
@@ -231,7 +232,7 @@ class _MarketingTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator(color: _kAccent, strokeWidth: 2)),
       error:   (e, _) => _ErrorState('$e', () => ref.invalidate(inboxBroadcastsProvider)),
       data:    (list) {
-        if (list.isEmpty) return _EmptyState('No campaigns yet', 'Marketing messages from eSahlan\nwill appear here', Icons.campaign_outlined);
+        if (list.isEmpty) return _EmptyState(AppL10n.of(context).noNotifications, AppL10n.of(context).marketing, Icons.campaign_outlined);
         return RefreshIndicator(
           color: _kAccent,
           onRefresh: () async => ref.invalidate(inboxBroadcastsProvider),
@@ -371,11 +372,11 @@ class _SupportTab extends ConsumerWidget {
       error:   (e, _) => _ErrorState('$e', () => ref.invalidate(inboxConvsProvider)),
       data:    (list) {
         if (list.isEmpty) return _EmptyState(
-          'No support tickets yet',
-          'Start a conversation with our support team',
+          AppL10n.of(context).noMessages,
+          AppL10n.of(context).support,
           Icons.support_agent_outlined,
           action: onNewRequest,
-          actionLabel: 'New Request',
+          actionLabel: AppL10n.of(context).newRequest,
         );
         return RefreshIndicator(
           color: _kAccent,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/l10n/app_strings.dart';
 import '../../../../core/providers/app_settings_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
@@ -221,16 +222,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _confirmLogout() {
+    final l = AppL10n.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(children: [
-          Icon(Icons.logout_rounded, color: Colors.red, size: 22),
-          SizedBox(width: 8),
-          Text('Sign Out?', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+        title: Row(children: [
+          const Icon(Icons.logout_rounded, color: Colors.red, size: 22),
+          const SizedBox(width: 8),
+          Text(l.signOutTitle, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
         ]),
-        content: const Text('Are you sure you want to sign out?'),
+        content: Text(l.logout),
         actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
           Row(children: [
@@ -240,7 +242,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-              child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: Text(l.cancel, style: const TextStyle(fontWeight: FontWeight.w700)),
             )),
             const SizedBox(width: 10),
             Expanded(child: ElevatedButton(
@@ -256,7 +258,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-              child: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: Text(l.signOut, style: const TextStyle(fontWeight: FontWeight.w700)),
             )),
           ]),
         ],
@@ -796,21 +798,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   // ── Account section ──────────────────────────────────────────────────────────
 
   Widget _buildAccountSection(BuildContext context, UserModel? user, bool isDark) {
+    final l = AppL10n.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: _Card(isDark: isDark, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _SectionHeaderPad('My Account'),
+        _SectionHeaderPad(l.myAccount),
         _EditableRow(
           icon: Icons.person_outline_rounded,
-          label: 'Full Name',
+          label: l.fullName,
           value: user?.name ?? '—',
           isDark: isDark,
-          onTap: () => _editField('Full Name', user?.name ?? '', 'name'),
+          onTap: () => _editField(l.fullName, user?.name ?? '', 'name'),
         ),
         _kDivider,
         _EditableRow(
           icon: Icons.phone_outlined,
-          label: 'Phone Number',
+          label: l.phoneNumber,
           value: user?.phone ?? '—',
           isDark: isDark,
           editable: false,
@@ -818,16 +821,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _kDivider,
         _EditableRow(
           icon: Icons.email_outlined,
-          label: 'Email Address',
-          value: user?.email ?? 'Not added',
+          label: l.emailAddress,
+          value: user?.email ?? l.notAdded,
           isDark: isDark,
-          onTap: () => _editField('Email Address', user?.email ?? '', 'email', keyboard: TextInputType.emailAddress),
+          onTap: () => _editField(l.emailAddress, user?.email ?? '', 'email', keyboard: TextInputType.emailAddress),
         ),
         _kDivider,
         _EditableRow(
           icon: Icons.location_on_outlined,
-          label: 'District',
-          value: user?.districtName ?? 'Not set',
+          label: l.district,
+          value: user?.districtName ?? l.notSet,
           isDark: isDark,
           editable: false,
         ),
@@ -839,23 +842,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   // ── Preferences section ──────────────────────────────────────────────────────
 
   Widget _buildPreferencesSection(BuildContext context, AppSettings settings, bool isDark) {
+    final l = AppL10n.of(context);
     final themeLabel = switch (settings.themeMode) {
-      ThemeMode.light  => 'Light',
-      ThemeMode.dark   => 'Dark',
-      _                => 'System',
+      ThemeMode.light  => l.light,
+      ThemeMode.dark   => l.dark,
+      _                => l.systemDefault,
     };
-    final langLabels = {'en': 'English', 'so': 'Soomaali', 'ar': 'العربية'};
-    final fontLabels = {'small': 'Small', 'medium': 'Medium', 'large': 'Large', 'xlarge': 'Extra Large'};
+    final langLabels = {'en': l.langEnglish, 'so': l.langSomali, 'ar': l.langArabic};
+    final fontLabels = {'small': l.small, 'medium': l.medium, 'large': l.large, 'xlarge': l.extraLarge};
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: _Card(isDark: isDark, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _SectionHeaderPad('Preferences'),
+        _SectionHeaderPad(l.preferences),
 
         // Theme
         _PrefRow(
           icon: Icons.palette_outlined,
-          label: 'Appearance',
+          label: l.appearance,
           value: themeLabel,
           isDark: isDark,
           onTap: () => _showThemePicker(settings),
@@ -865,8 +869,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         // Language
         _PrefRow(
           icon: Icons.language_rounded,
-          label: 'Language',
-          value: langLabels[settings.language] ?? 'English',
+          label: l.language,
+          value: langLabels[settings.language] ?? l.langEnglish,
           isDark: isDark,
           onTap: () => _showLanguagePicker(settings),
         ),
@@ -875,8 +879,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         // Font size
         _PrefRow(
           icon: Icons.text_fields_rounded,
-          label: 'Text Size',
-          value: fontLabels[settings.fontSize] ?? 'Medium',
+          label: l.textSize,
+          value: fontLabels[settings.fontSize] ?? l.medium,
           isDark: isDark,
           onTap: () => _showFontSizePicker(settings),
         ),
@@ -885,8 +889,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         // Data Saver
         _ToggleRow(
           icon: Icons.data_saver_on_rounded,
-          label: 'Data Saver',
-          subtitle: 'Reduce media quality to save data',
+          label: l.dataSaver,
+          subtitle: l.reduceDataQuality,
           value: settings.dataSaverEnabled,
           isDark: isDark,
           onChanged: (v) => ref.read(appSettingsProvider.notifier).setDataSaver(v),
@@ -962,19 +966,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   // ── Support & Legal ──────────────────────────────────────────────────────────
 
   Widget _buildSupportSection(BuildContext context, bool isDark) {
+    final l = AppL10n.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: _Card(isDark: isDark, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _SectionHeaderPad('Support & Legal'),
-        _NavRow(icon: Icons.headset_mic_rounded,   iconColor: _kPurple,            label: 'Help & Support',   isDark: isDark, onTap: () => context.push('/chat')),
+        _SectionHeaderPad(l.supportLegal),
+        _NavRow(icon: Icons.headset_mic_rounded,   iconColor: _kPurple,            label: l.helpSupport,      isDark: isDark, onTap: () => context.push('/chat')),
         _kDivider,
-        _NavRow(icon: Icons.privacy_tip_outlined,   iconColor: const Color(0xFF0EA5E9), label: 'Privacy Policy',   isDark: isDark, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalPageScreen(slug: 'privacy-policy', title: 'Privacy Policy')))),
+        _NavRow(icon: Icons.privacy_tip_outlined,   iconColor: const Color(0xFF0EA5E9), label: l.privacyPolicy,isDark: isDark, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LegalPageScreen(slug: 'privacy-policy', title: l.privacyPolicy)))),
         _kDivider,
-        _NavRow(icon: Icons.description_outlined,   iconColor: const Color(0xFF6C63FF), label: 'Terms of Service', isDark: isDark, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalPageScreen(slug: 'terms', title: 'Terms of Service')))),
+        _NavRow(icon: Icons.description_outlined,   iconColor: const Color(0xFF6C63FF), label: l.termsOfService,isDark: isDark, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LegalPageScreen(slug: 'terms', title: l.termsOfService)))),
         _kDivider,
-        _NavRow(icon: Icons.info_outline_rounded,   iconColor: const Color(0xFF10B981), label: 'About eSahlan',    isDark: isDark, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalPageScreen(slug: 'about', title: 'About eSahlan')))),
+        _NavRow(icon: Icons.info_outline_rounded,   iconColor: const Color(0xFF10B981), label: l.aboutApp,     isDark: isDark, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LegalPageScreen(slug: 'about', title: l.aboutApp)))),
         _kDivider,
-        _NavRow(icon: Icons.star_rate_rounded,      iconColor: const Color(0xFFF59E0B), label: 'Rate eSahlan',     isDark: isDark, onTap: () {}),
+        _NavRow(icon: Icons.star_rate_rounded,      iconColor: const Color(0xFFF59E0B), label: l.rateApp,      isDark: isDark, onTap: () {}),
         const SizedBox(height: 4),
       ])),
     );
@@ -987,24 +992,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: GestureDetector(
         onTap: () async {
+          final l = AppL10n.of(context);
           final confirm = await showDialog<bool>(
             context: context,
             builder: (ctx) => AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Row(children: [
-                Text('🌍', style: TextStyle(fontSize: 22)),
-                SizedBox(width: 10),
-                Text('Change Region', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+              title: Row(children: [
+                const Text('🌍', style: TextStyle(fontSize: 22)),
+                const SizedBox(width: 10),
+                Text(l.changeRegion, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
               ]),
-              content: const Text(
-                'This will take you to the region selector. Your current session will be kept.',
-                style: TextStyle(fontSize: 13, height: 1.5),
+              content: Text(
+                l.changeRegionMsg,
+                style: const TextStyle(fontSize: 13, height: 1.5),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.cancel)),
                 TextButton(
                   onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Change', style: TextStyle(fontWeight: FontWeight.w700)),
+                  child: Text(l.change, style: const TextStyle(fontWeight: FontWeight.w700)),
                 ),
               ],
             ),
@@ -1031,11 +1037,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: const Icon(Icons.public_rounded, color: Color(0xFF3B82F6), size: 20),
             ),
             const SizedBox(width: 14),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Change Region', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-              Text('Switch between Somalia & Global store',
-                style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black45)),
-            ])),
+            Expanded(child: Builder(builder: (ctx) {
+              final l = AppL10n.of(ctx);
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(l.changeRegion, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                Text('Switch between Somalia & Global store',
+                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black45)),
+              ]);
+            })),
             const Icon(Icons.chevron_right_rounded, color: Color(0xFF3B82F6), size: 20),
           ]),
         ),
@@ -1057,19 +1066,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.red.withAlpha(60)),
           ),
-          child: Row(children: [
-            Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(color: Colors.red.withAlpha(20), borderRadius: BorderRadius.circular(11)),
-              child: const Icon(Icons.logout_rounded, color: Colors.red, size: 20),
-            ),
-            const SizedBox(width: 14),
-            const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Sign Out', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.red)),
-              Text('You can always log back in', style: TextStyle(fontSize: 11, color: Colors.redAccent)),
-            ])),
-            const Icon(Icons.chevron_right_rounded, color: Colors.red, size: 20),
-          ]),
+          child: Builder(builder: (ctx) {
+            final l = AppL10n.of(ctx);
+            return Row(children: [
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(color: Colors.red.withAlpha(20), borderRadius: BorderRadius.circular(11)),
+                child: const Icon(Icons.logout_rounded, color: Colors.red, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(l.signOut, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.red)),
+                Text(l.signOutSub, style: const TextStyle(fontSize: 11, color: Colors.redAccent)),
+              ])),
+              const Icon(Icons.chevron_right_rounded, color: Colors.red, size: 20),
+            ]);
+          }),
         ),
       ),
     );

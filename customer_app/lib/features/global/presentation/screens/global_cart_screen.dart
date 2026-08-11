@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/global_provider.dart';
+import '../../../../core/l10n/app_strings.dart';
 
 class GlobalCartScreen extends ConsumerWidget {
   const GlobalCartScreen({super.key});
@@ -10,11 +11,12 @@ class GlobalCartScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cartAsync = ref.watch(globalCartProvider);
     final auth = ref.watch(globalAuthProvider).valueOrNull;
+    final l = AppL10n.of(context);
 
     if (auth == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('My Cart'),
+          title: Text(l.myCart),
           backgroundColor: const Color(0xFF1A1A2E),
           foregroundColor: Colors.white,
         ),
@@ -23,15 +25,15 @@ class GlobalCartScreen extends ConsumerWidget {
             const Icon(Icons.shopping_cart_outlined,
                 size: 64, color: Colors.grey),
             const SizedBox(height: 16),
-            const Text('Sign in to view your cart',
-                style: TextStyle(fontSize: 16, color: Colors.grey)),
+            Text(l.signInToViewCart,
+                style: const TextStyle(fontSize: 16, color: Colors.grey)),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => context.push('/global/auth'),
               style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A1A2E),
                   foregroundColor: Colors.white),
-              child: const Text('Sign In'),
+              child: Text(l.signIn),
             ),
           ]),
         ),
@@ -42,10 +44,10 @@ class GlobalCartScreen extends ConsumerWidget {
       backgroundColor: const Color(0xFFF0F2F5),
       appBar: AppBar(
         title: cartAsync.when(
-          data: (cart) => Text('My Cart (${cart.count})',
+          data: (cart) => Text('${l.myCart} (${cart.count})',
               style: const TextStyle(fontWeight: FontWeight.w700)),
-          loading: () => const Text('My Cart'),
-          error: (_, __) => const Text('My Cart'),
+          loading: () => Text(l.myCart),
+          error: (_, __) => Text(l.myCart),
         ),
         backgroundColor: const Color(0xFF1A1A2E),
         foregroundColor: Colors.white,
@@ -56,14 +58,14 @@ class GlobalCartScreen extends ConsumerWidget {
                 final ok = await showDialog<bool>(
                   context: context,
                   builder: (_) => AlertDialog(
-                    title: const Text('Clear cart?'),
+                    title: Text(l.clearCart),
                     actions: [
                       TextButton(
                           onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel')),
+                          child: Text(l.cancel)),
                       ElevatedButton(
                           onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Clear')),
+                          child: Text(l.clearBtn)),
                     ],
                   ),
                 );
@@ -71,8 +73,8 @@ class GlobalCartScreen extends ConsumerWidget {
                   ref.read(globalCartProvider.notifier).clear();
                 }
               },
-              child: const Text('Clear',
-                  style: TextStyle(color: Colors.white70, fontSize: 13)),
+              child: Text(l.clearBtn,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13)),
             ),
         ],
       ),
@@ -84,19 +86,19 @@ class GlobalCartScreen extends ConsumerWidget {
                 const Icon(Icons.shopping_cart_outlined,
                     size: 72, color: Colors.grey),
                 const SizedBox(height: 16),
-                const Text('Your cart is empty',
+                Text(l.emptyCart,
                     style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey)),
                 const SizedBox(height: 8),
-                const Text('Add some products to get started',
-                    style: TextStyle(color: Colors.grey, fontSize: 13)),
+                Text(l.startShoppingNow,
+                    style: const TextStyle(color: Colors.grey, fontSize: 13)),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
                   onPressed: () => context.go('/global'),
                   icon: const Icon(Icons.shopping_bag_outlined),
-                  label: const Text('Start Shopping'),
+                  label: Text(l.continueShopping),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1A1A2E),
                     foregroundColor: Colors.white,
@@ -251,7 +253,7 @@ class GlobalCartScreen extends ConsumerWidget {
                 Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                  const Text('Subtotal',
+                  Text(l.subtotal,
                       style: TextStyle(
                           fontSize: 14, color: Colors.grey)),
                   Text('\$${cart.subtotal.toStringAsFixed(2)}',
@@ -261,10 +263,10 @@ class GlobalCartScreen extends ConsumerWidget {
                 const SizedBox(height: 6),
                 Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                  Text('Shipping',
-                      style: TextStyle(fontSize: 14, color: Colors.grey)),
-                  Text('Calculated at checkout',
+                    children: [
+                  Text(l.shipping,
+                      style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                  Text(l.calculatedAtCheckout,
                       style:
                           TextStyle(fontSize: 12, color: Colors.grey)),
                 ]),
@@ -272,7 +274,7 @@ class GlobalCartScreen extends ConsumerWidget {
                 Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                  const Text('Total',
+                  Text(l.total,
                       style: TextStyle(
                           fontSize: 16, fontWeight: FontWeight.w800)),
                   Text('\$${cart.subtotal.toStringAsFixed(2)}+',
@@ -293,7 +295,7 @@ class GlobalCartScreen extends ConsumerWidget {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Proceed to Checkout →',
+                    child: Text(l.proceedCheckout,
                         style: TextStyle(
                             fontWeight: FontWeight.w800, fontSize: 15)),
                   ),

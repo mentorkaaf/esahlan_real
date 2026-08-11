@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'notification_provider.dart';
+import '../../../core/l10n/app_strings.dart';
 
 const _kNavy   = Color(0xFF07003B);
 const _kOrange = Color(0xFFFF8A00);
@@ -10,6 +11,7 @@ class NotificationScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppL10n.of(context);
     final state = ref.watch(notificationsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -18,24 +20,24 @@ class NotificationScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: _kNavy,
         foregroundColor: Colors.white,
-        title: const Text('Notifications', style: TextStyle(fontWeight: FontWeight.w700)),
+        title: Text(l.notifications, style: const TextStyle(fontWeight: FontWeight.w700)),
         actions: [
           TextButton(
             onPressed: () => ref.read(notificationsProvider.notifier).markAllRead(),
-            child: const Text('Mark all read', style: TextStyle(color: _kOrange, fontSize: 13)),
+            child: Text(l.markAllRead, style: const TextStyle(color: _kOrange, fontSize: 13)),
           ),
         ],
       ),
       body: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text('${l.error}: $e')),
         data: (notifications) {
           if (notifications.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.notifications_none_rounded, size: 64, color: Colors.grey),
-                SizedBox(height: 12),
-                Text('No notifications yet', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                const Icon(Icons.notifications_none_rounded, size: 64, color: Colors.grey),
+                const SizedBox(height: 12),
+                Text(l.noNotifications, style: const TextStyle(color: Colors.grey, fontSize: 16)),
               ]),
             );
           }

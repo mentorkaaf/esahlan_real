@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/l10n/app_strings.dart';
 import '../../../../core/providers/community_feature_provider.dart';
 import '../../../../core/services/realtime_client.dart';
 import '../../../../core/widgets/smart_location_banner.dart';
@@ -353,19 +354,24 @@ class _SidebarNavItemState extends State<_SidebarNavItem> {
                 size: 20,
               ),
               const SizedBox(width: 12),
-              Text(
-                widget.dest.label,
-                style: TextStyle(
-                  color: active
-                      ? _kOrange
-                      : _hover
-                          ? Colors.white.withValues(alpha: 0.85)
-                          : Colors.white.withValues(alpha: 0.55),
+              Builder(builder: (ctx) {
+                final l = AppL10n.of(ctx);
+                final lbl = switch (widget.dest.path) {
+                  '/home'      => l.home,
+                  '/orders'    => l.orders,
+                  '/wallet'    => 'ePay',
+                  '/community' => l.community,
+                  '/chat'      => l.messages,
+                  '/profile'   => l.profile,
+                  _            => widget.dest.label,
+                };
+                return Text(lbl, style: TextStyle(
+                  color: active ? _kOrange : _hover ? Colors.white.withValues(alpha: 0.85) : Colors.white.withValues(alpha: 0.55),
                   fontSize: 14,
                   fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                   letterSpacing: active ? 0.2 : 0,
-                ),
-              ),
+                ));
+              }),
             ],
           ),
         ),
@@ -411,11 +417,21 @@ class _FloatingNavBar extends StatelessWidget {
           children: List.generate(destinations.length, (i) {
             final dest   = destinations[i];
             final active = selectedIndex == i;
+            final l = AppL10n.of(context);
+            final translatedLabel = switch (dest.path) {
+              '/home'      => l.home,
+              '/orders'    => l.orders,
+              '/wallet'    => 'ePay',
+              '/community' => l.community,
+              '/chat'      => l.messages,
+              '/profile'   => l.profile,
+              _            => dest.label,
+            };
             return Expanded(
               child: _NavPill(
                 icon:       dest.icon,
                 activeIcon: dest.activeIcon,
-                label:      dest.label,
+                label:      translatedLabel,
                 active:     active,
                 onTap: () => context.go(dest.path),
               ),

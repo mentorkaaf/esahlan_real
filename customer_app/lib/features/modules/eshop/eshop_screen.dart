@@ -8,6 +8,7 @@ import '../../../../core/theme/theme_x.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import 'eshop_providers.dart';
 import '../../ads/services/ad_service.dart';
+import '../../../core/l10n/app_strings.dart';
 
 Widget _errorSliver(Object err) => SliverToBoxAdapter(
   child: Padding(
@@ -127,6 +128,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     final homeAsync = ref.watch(eshopHomeProvider);
     final flashAsync = ref.watch(eshopFlashDealsProvider);
     final dealsAsync = ref.watch(eshopDealsOfDayProvider);
@@ -185,7 +187,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
                     onChanged: (v) => setState(() => _search = v),
                     onSubmitted: (v) => context.webPush('/eshop/products?search=${Uri.encodeComponent(v)}'),
                     decoration: InputDecoration(
-                      hintText: 'Search products...',
+                      hintText: l.searchProducts,
                       hintStyle: TextStyle(color: context.colors.mutedText, fontSize: 13),
                       prefixIcon: Icon(Icons.search_rounded, color: context.colors.mutedText, size: 20),
                       suffixIcon: _search.isNotEmpty
@@ -249,10 +251,10 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
           SliverToBoxAdapter(child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('Categories', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+              Text(l.categories, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
               GestureDetector(
                 onTap: () => context.webPush('/eshop/products'),
-                child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                child: Text(l.seeAll, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
               ),
             ]),
           )),
@@ -285,10 +287,10 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
                     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text('Stores', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+                      Text(l.stores, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
                       GestureDetector(
                         onTap: () => context.webPush('/eshop/stores'),
-                        child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                        child: Text(l.seeAll, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
                       ),
                     ]),
                   ),
@@ -319,7 +321,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-                    child: Text('Campaigns', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+                    child: Text(l.campaigns, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
                   ),
                   ...campaigns.map((c) {
                     final campaign = _asMap(c);
@@ -347,7 +349,7 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
                                   margin: const EdgeInsets.only(top: 6),
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                   decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(20)),
-                                  child: Text('Up to ${campaign['discount_value']}% OFF', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+                                  child: Text('${l.upToOff} ${campaign['discount_value']}% ${l.off}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
                                 ),
                             ])),
                           ]),
@@ -364,10 +366,10 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
           SliverToBoxAdapter(child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('Featured Products', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+              Text(l.featuredProducts, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
               GestureDetector(
                 onTap: () => context.webPush('/eshop/products?featured=1'),
-                child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                child: Text(l.seeAll, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
               ),
             ]),
           )),
@@ -402,10 +404,10 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
                     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text('Most Popular', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+                      Text(l.mostPopular, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
                       GestureDetector(
                         onTap: () => context.webPush('/eshop/popular'),
-                        child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                        child: Text(l.seeAll, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
                       ),
                     ]),
                   ),
@@ -444,10 +446,10 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
           SliverToBoxAdapter(child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('All Products', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+              Text(l.allProducts, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
               GestureDetector(
                 onTap: () => context.webPush('/eshop/products'),
-                child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                child: Text(l.seeAll, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
               ),
             ]),
           )),
@@ -501,10 +503,10 @@ class _EShopScreenState extends ConsumerState<EShopScreen> with WidgetsBindingOb
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               const Icon(Icons.shopping_bag_rounded, color: Colors.white, size: 20),
               const SizedBox(width: 10),
-              Text('$cartCount ${cartCount == 1 ? 'item' : 'items'} • ${_fmt(cartTotal)}',
+              Text('$cartCount ${l.items} • ${_fmt(cartTotal)}',
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
               const SizedBox(width: 10),
-              const Text('View Cart', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
+              Text(l.viewCart, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
             ]),
           ),
         ),
@@ -737,8 +739,8 @@ class _FlashDealBannerState extends State<_FlashDealBanner> {
           const SizedBox(width: 12),
           // Label
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Flash Deals', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 0.2)),
-            Text(widget.deal['title'] ?? 'Limited offers',
+            Text(AppL10n.of(context).flashDeals, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 0.2)),
+            Text(widget.deal['title'] ?? AppL10n.of(context).limitedOffers,
               style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 11)),
           ])),
           // Countdown chip
@@ -799,7 +801,7 @@ class _FlashDealSheet extends StatelessWidget {
             ),
             SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Flash Deals', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: context.colors.navyText)),
+              Text(AppL10n.of(context).flashDeals, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: context.colors.navyText)),
               Text(deal['title'] ?? '', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
             ])),
             Container(
@@ -971,10 +973,10 @@ class _FlashDealSectionState extends State<_FlashDealSection> {
                     color: Colors.white.withValues(alpha: 0.22),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.bolt_rounded, color: Colors.white, size: 13),
-                    SizedBox(width: 3),
-                    Text('FLASH DEALS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 0.8)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.bolt_rounded, color: Colors.white, size: 13),
+                    const SizedBox(width: 3),
+                    Text(AppL10n.of(context).flashDeals.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 0.8)),
                   ]),
                 ),
               ]),
@@ -982,23 +984,23 @@ class _FlashDealSectionState extends State<_FlashDealSection> {
               Text(dealName,
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 17, height: 1.2)),
               const SizedBox(height: 3),
-              const Text('Hurry! Offer ends soon', style: TextStyle(color: Colors.white70, fontSize: 12)),
+              Text(AppL10n.of(context).hurryOfferEndsSoon, style: const TextStyle(color: Colors.white70, fontSize: 12)),
             ])),
             const SizedBox(width: 12),
             // Countdown
             Column(children: [
               Row(mainAxisSize: MainAxisSize.min, children: [
-                _timeBox(h, 'HRS'),
+                _timeBox(h, AppL10n.of(context).hrs),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Text(' : ', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontWeight: FontWeight.w900, fontSize: 18)),
                 ),
-                _timeBox(m, 'MIN'),
+                _timeBox(m, AppL10n.of(context).minLabel),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Text(' : ', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontWeight: FontWeight.w900, fontSize: 18)),
                 ),
-                _timeBox(s, 'SEC'),
+                _timeBox(s, AppL10n.of(context).secLabel),
               ]),
             ]),
           ]),
@@ -1092,7 +1094,7 @@ class _DealsOfDaySection extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-          child: Text('Deals of the Day', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: context.colors.navyText)),
+          child: Text(AppL10n.of(context).dealsOfDay, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: context.colors.navyText)),
         ),
         SizedBox(height: 220, child: ListView.builder(
           scrollDirection: Axis.horizontal,

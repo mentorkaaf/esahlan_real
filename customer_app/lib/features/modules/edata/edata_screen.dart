@@ -16,6 +16,7 @@ import '../../payment/mobile_pay_sheet.dart';
 import '../../payment/payment_method_section.dart';
 import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
+import '../../../core/l10n/app_strings.dart';
 
 double _toD(dynamic v) => double.tryParse(v?.toString() ?? '0') ?? 0;
 
@@ -60,6 +61,7 @@ class _EDataScreenState extends ConsumerState<EDataScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: NestedScrollView(
@@ -82,7 +84,7 @@ class _EDataScreenState extends ConsumerState<EDataScreen>
                   indicatorColor: _kOrange, indicatorWeight: 3,
                   labelColor: _kOrange, unselectedLabelColor: Colors.white60,
                   labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                  tabs: const [Tab(text: 'Buy Data'), Tab(text: 'History')],
+                  tabs: [Tab(text: l.buyData), Tab(text: l.history)],
                 ),
               ),
             ),
@@ -106,14 +108,14 @@ class _BuyDataTab extends ConsumerWidget {
       error: (e, _) => _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_providersProvider)),
       data: (data) {
         final providers = List<Map>.from(data is Map ? (data['data'] ?? []) : data ?? []);
-        if (providers.isEmpty) return const _EmptyState(
-          icon: Icons.sim_card_outlined, title: 'No Providers', subtitle: 'Data providers will appear here');
+        if (providers.isEmpty) return _EmptyState(
+          icon: Icons.sim_card_outlined, title: AppL10n.of(context).noProviders, subtitle: AppL10n.of(context).dataProvidersHere);
         return CustomScrollView(slivers: [
           SliverToBoxAdapter(child: _HeroBanner()),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             sliver: SliverToBoxAdapter(
-              child: Text('Choose Provider',
+              child: Text(AppL10n.of(context).chooseProvider,
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.colors.navyText)),
             ),
           ),
@@ -170,16 +172,16 @@ class _HeroBanner extends StatelessWidget {
     ),
     child: Row(children: [
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Mobile Data & Bundles',
-            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+        Text(AppL10n.of(context).mobileDataBundles,
+            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
         const SizedBox(height: 4),
-        Text('Choose provider, pick a package,\nthen select your bundle',
+        Text(AppL10n.of(context).chooseProviderPickPackage,
             style: TextStyle(color: Colors.white.withValues(alpha: 0.70), fontSize: 12, height: 1.5)),
         const SizedBox(height: 14),
         Row(children: [
-          _HeroBadge(icon: Icons.flash_on_rounded, label: 'Instant'),
+          _HeroBadge(icon: Icons.flash_on_rounded, label: AppL10n.of(context).instantLabel),
           const SizedBox(width: 8),
-          _HeroBadge(icon: Icons.security_rounded, label: 'Secure'),
+          _HeroBadge(icon: Icons.security_rounded, label: AppL10n.of(context).secureLabel),
         ]),
       ])),
       const SizedBox(width: 16),

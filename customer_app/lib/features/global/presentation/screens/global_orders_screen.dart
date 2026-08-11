@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/global_provider.dart';
 import '../../data/models/global_models.dart';
 import 'global_write_review_screen.dart';
+import '../../../../core/l10n/app_strings.dart';
 
 class GlobalOrdersScreen extends ConsumerWidget {
   const GlobalOrdersScreen({super.key});
@@ -11,16 +12,17 @@ class GlobalOrdersScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(globalAuthProvider).valueOrNull;
+    final l = AppL10n.of(context);
     if (auth == null) {
       return Scaffold(
         appBar: AppBar(
-            title: const Text('My Orders'),
+            title: Text(l.myGlobalOrders),
             backgroundColor: const Color(0xFF1A1A2E),
             foregroundColor: Colors.white),
         body: Center(
           child: ElevatedButton(
             onPressed: () => context.push('/global/auth'),
-            child: const Text('Sign In to View Orders'),
+            child: Text(l.signInToViewOrders),
           ),
         ),
       );
@@ -31,8 +33,8 @@ class GlobalOrdersScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),
       appBar: AppBar(
-        title: const Text('My Orders',
-            style: TextStyle(fontWeight: FontWeight.w700)),
+        title: Text(l.myGlobalOrders,
+            style: const TextStyle(fontWeight: FontWeight.w700)),
         backgroundColor: const Color(0xFF1A1A2E),
         foregroundColor: Colors.white,
         actions: [
@@ -57,16 +59,16 @@ class GlobalOrdersScreen extends ConsumerWidget {
                 const Icon(Icons.receipt_long_outlined,
                     size: 64, color: Colors.grey),
                 const SizedBox(height: 16),
-                const Text('No orders yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey)),
+                Text(l.noOrdersYet,
+                    style: const TextStyle(fontSize: 18, color: Colors.grey)),
                 const SizedBox(height: 8),
-                const Text('Start shopping to see your orders here',
-                    style: TextStyle(color: Colors.grey, fontSize: 13)),
+                Text(l.startShoppingOrders,
+                    style: const TextStyle(color: Colors.grey, fontSize: 13)),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
                   onPressed: () => context.go('/global'),
                   icon: const Icon(Icons.shopping_bag_outlined),
-                  label: const Text('Shop Now'),
+                  label: Text(l.startShoppingNow),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1A1A2E),
                     foregroundColor: Colors.white,
@@ -110,12 +112,13 @@ class GlobalOrderDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final orderAsync = ref.watch(globalOrderDetailProvider(orderId));
+    final l = AppL10n.of(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),
       appBar: AppBar(
-        title: const Text('Order Details',
-            style: TextStyle(fontWeight: FontWeight.w700)),
+        title: Text(l.orderDetails,
+            style: const TextStyle(fontWeight: FontWeight.w700)),
         backgroundColor: const Color(0xFF1A1A2E),
         foregroundColor: Colors.white,
       ),
@@ -166,8 +169,8 @@ class GlobalOrderDetailScreen extends ConsumerWidget {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                const Text('Items',
-                    style: TextStyle(
+                Text(l.items,
+                    style: const TextStyle(
                         fontWeight: FontWeight.w800, fontSize: 14)),
                 const SizedBox(height: 12),
                 ...order.items.map((item) => Padding(
@@ -239,8 +242,8 @@ class GlobalOrderDetailScreen extends ConsumerWidget {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                  const Text('Shipping Address',
-                      style: TextStyle(
+                  Text(l.shippingAddress,
+                      style: const TextStyle(
                           fontWeight: FontWeight.w800, fontSize: 14)),
                   const SizedBox(height: 8),
                   Text(order.shippingAddress!,
@@ -295,12 +298,6 @@ class _OrderTimeline extends StatelessWidget {
   final String status;
   const _OrderTimeline({required this.status});
 
-  static const _steps = [
-    (id: 'pending',    label: 'Order Placed',   icon: Icons.check_circle_outline_rounded),
-    (id: 'processing', label: 'Processing',      icon: Icons.inventory_2_outlined),
-    (id: 'shipped',    label: 'Shipped',          icon: Icons.local_shipping_outlined),
-    (id: 'delivered',  label: 'Delivered',        icon: Icons.home_outlined),
-  ];
 
   int _currentStep() {
     switch (status) {
@@ -316,6 +313,13 @@ class _OrderTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
+    final steps = [
+      (id: 'pending',    label: l.orderPlaced,   icon: Icons.check_circle_outline_rounded),
+      (id: 'processing', label: l.processing,     icon: Icons.inventory_2_outlined),
+      (id: 'shipped',    label: l.shipped,         icon: Icons.local_shipping_outlined),
+      (id: 'delivered',  label: l.delivered,       icon: Icons.home_outlined),
+    ];
     final cur = _currentStep();
     if (cur == -1) {
       return Container(
@@ -327,7 +331,7 @@ class _OrderTimeline extends StatelessWidget {
         child: Row(children: [
           Icon(Icons.cancel_outlined, color: Colors.red.shade600),
           const SizedBox(width: 10),
-          Text('Order Cancelled',
+          Text(l.orderCancelled,
               style: TextStyle(
                   color: Colors.red.shade800,
                   fontWeight: FontWeight.w700)),
@@ -342,11 +346,11 @@ class _OrderTimeline extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Order Status',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+          Text(l.orderStatus,
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
           const SizedBox(height: 16),
           Row(
-            children: List.generate(_steps.length * 2 - 1, (i) {
+            children: List.generate(steps.length * 2 - 1, (i) {
               if (i.isOdd) {
                 // connector line
                 final stepIdx = i ~/ 2;
@@ -363,7 +367,7 @@ class _OrderTimeline extends StatelessWidget {
               final stepIdx = i ~/ 2;
               final done    = stepIdx <= cur;
               final active  = stepIdx == cur;
-              final step    = _steps[stepIdx];
+              final step    = steps[stepIdx];
               return Column(
                 children: [
                   Container(
@@ -531,6 +535,7 @@ class _ReviewSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppL10n.of(context);
     final reviewableItems = order.items
         .where((i) => i.productId != null)
         .toList();
@@ -550,12 +555,12 @@ class _ReviewSection extends ConsumerWidget {
           Row(children: [
             const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 18),
             const SizedBox(width: 6),
-            const Text('Share Your Experience',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+            Text(l.shareExperience,
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
           ]),
           const SizedBox(height: 4),
           Text(
-            'Help others by reviewing the products you received.',
+            l.helpOthersReview,
             style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
           ),
           const SizedBox(height: 12),
@@ -614,8 +619,8 @@ class _ReviewSection extends ConsumerWidget {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8)),
                 ),
-                child: const Text('Review',
-                    style: TextStyle(
+                child: Text(l.reviewBtn,
+                    style: const TextStyle(
                         fontSize: 11, fontWeight: FontWeight.w700)),
               ),
             ]),

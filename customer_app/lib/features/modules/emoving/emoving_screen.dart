@@ -14,6 +14,7 @@ import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../rewards/redeem_points_bar.dart';
+import '../../../../core/l10n/app_strings.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DESIGN CONSTANTS
@@ -72,6 +73,7 @@ class _EMovingScreenState extends ConsumerState<EMovingScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     return Scaffold(
             body: Column(
         children: [
@@ -86,13 +88,13 @@ class _EMovingScreenState extends ConsumerState<EMovingScreen>
               indicatorWeight: 3,
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white60,
-              labelStyle: TextStyle(
+              labelStyle: const TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
               ),
-              tabs: const [
-                Tab(text: 'Book Move'),
-                Tab(text: 'My Orders'),
+              tabs: [
+                Tab(text: l.bookMove),
+                Tab(text: l.myMovingOrders),
               ],
             ),
           ),
@@ -177,8 +179,8 @@ class _EMovingScreenState extends ConsumerState<EMovingScreen>
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Professional Moving Services',
-                      style: TextStyle(
+                      AppL10n.of(context).professionalMoving,
+                      style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 13,
                       ),
@@ -305,7 +307,7 @@ class _BookTabState extends ConsumerState<_BookTab> {
     } catch (e) {
       setState(() => _calculating = false);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Calculation failed: $e'), backgroundColor: Colors.red));
+        SnackBar(content: Text('${AppL10n.current.calcFailed}: $e'), backgroundColor: Colors.red));
     }
   }
 
@@ -327,6 +329,7 @@ class _BookTabState extends ConsumerState<_BookTab> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     final typesAsync = ref.watch(_moveTypesProvider);
 
     return SingleChildScrollView(
@@ -337,8 +340,8 @@ class _BookTabState extends ConsumerState<_BookTab> {
           // ── SECTION 1: Move Type Grid ──────────────────────────────────
           _SectionHeader(
             icon: Icons.category_rounded,
-            title: 'Select Move Type',
-            subtitle: 'Choose what you need to move',
+            title: l.selectMoveType,
+            subtitle: l.chooseMoveNeeds,
           ),
           typesAsync.when(
             loading: () => _TypeGridSkeleton(),
@@ -372,10 +375,10 @@ class _BookTabState extends ConsumerState<_BookTab> {
                     children: [
                       _SectionHeader(
                         icon: Icons.inventory_2_rounded,
-                        title: _isHouseOrSingle ? 'Room Count' : 'Select Package',
+                        title: _isHouseOrSingle ? l.roomCountQ : l.selectPackage,
                         subtitle: _isHouseOrSingle
-                            ? 'How many rooms are you moving?'
-                            : 'Pick the package that fits your needs',
+                            ? l.howManyRooms
+                            : l.pickPackageFits,
                       ),
                       _PackagesSection(
                         typeSlug:        _typeSlug,
@@ -398,8 +401,8 @@ class _BookTabState extends ConsumerState<_BookTab> {
           // ── SECTION 3: Route Selection ─────────────────────────────────
           _SectionHeader(
             icon: Icons.route_rounded,
-            title: 'Select Route',
-            subtitle: 'Pickup and delivery districts',
+            title: l.selectRoute,
+            subtitle: l.pickupDeliveryDistricts,
           ),
           _RouteSection(
             fromDistrict: _fromDistrict,
@@ -411,8 +414,8 @@ class _BookTabState extends ConsumerState<_BookTab> {
           // ── SECTION 4: Extra Services ─────────────────────────────────
           _SectionHeader(
             icon: Icons.add_box_outlined,
-            title: 'Extra Services',
-            subtitle: 'Optional add-ons for your move',
+            title: l.extraServices,
+            subtitle: l.optionalAddOns,
           ),
           _ExtrasSection(
             selectedExtras: _selectedExtras,
@@ -436,8 +439,8 @@ class _BookTabState extends ConsumerState<_BookTab> {
                     children: [
                       _SectionHeader(
                         icon: Icons.receipt_long_rounded,
-                        title: 'Price Estimate',
-                        subtitle: 'Tap Calculate to get your quote',
+                        title: l.priceEstimate,
+                        subtitle: l.tapCalculate,
                       ),
                       _PriceSection(
                         breakdown:   _priceBreakdown,
@@ -465,11 +468,11 @@ class _BookTabState extends ConsumerState<_BookTab> {
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.local_shipping_rounded, size: 22),
-                  SizedBox(width: 10),
+                children: [
+                  const Icon(Icons.local_shipping_rounded, size: 22),
+                  const SizedBox(width: 10),
                   Text(
-                    'Book Moving Service',
+                    l.bookMovingService,
                     style: TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w800),
                   ),
@@ -682,11 +685,11 @@ class _PackagesSection extends ConsumerWidget {
                 // Show packages if any exist for the type
                 if (packages.isNotEmpty) ...[
                   const SizedBox(height: 14),
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Or select a package:',
-                      style: TextStyle(fontSize: 13, color: AppColors.textGrey, fontWeight: FontWeight.w600),
+                      AppL10n.of(context).orSelectPackage,
+                      style: const TextStyle(fontSize: 13, color: AppColors.textGrey, fontWeight: FontWeight.w600),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -710,10 +713,10 @@ class _PackagesSection extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.divider),
               ),
-              child: const Center(
+              child: Center(
                 child: Text(
-                  'No packages available — contact us for a custom quote',
-                  style: TextStyle(color: _kMuted, fontSize: 13),
+                  AppL10n.of(context).noPackagesContact,
+                  style: const TextStyle(color: _kMuted, fontSize: 13),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -759,7 +762,7 @@ class _RoomsSelector extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Number of Rooms',
+          Text(AppL10n.of(context).numberOfRooms,
               style: TextStyle(
                   fontSize: 14, fontWeight: FontWeight.w700, color: context.colors.navyText)),
           const SizedBox(height: 12),
@@ -944,7 +947,7 @@ class _RouteSection extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: _DistrictDropdown(
-                      label: 'From District',
+                      label: AppL10n.of(context).fromDistrict,
                       icon: Icons.location_on_rounded,
                       iconColor: _kOrange,
                       selected: fromDistrict,
@@ -966,7 +969,7 @@ class _RouteSection extends ConsumerWidget {
                   ),
                   Expanded(
                     child: _DistrictDropdown(
-                      label: 'To District',
+                      label: AppL10n.of(context).toDistrict,
                       icon: Icons.flag_rounded,
                       iconColor: const Color(0xFF2ECC71),
                       selected: toDistrict,
@@ -1093,7 +1096,7 @@ class _DistrictDropdown extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              selected != null ? selected!['name']?.toString() ?? 'Selected' : 'Tap to select',
+              selected != null ? selected!['name']?.toString() ?? AppL10n.of(context).selected : AppL10n.of(context).tapToSelect,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
@@ -1335,11 +1338,11 @@ class _PriceSection extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
                 child: Column(
                   children: [
-                    _PriceLineItem('Base Price',     breakdown!['base_price'] ?? 0),
-                    _PriceLineItem('Room Cost',      breakdown!['room_price'] ?? 0),
-                    _PriceLineItem('Package Cost',   breakdown!['package_price'] ?? 0),
-                    _PriceLineItem('Extra Services', breakdown!['extra_fee'] ?? 0),
-                    _PriceLineItem('Distance Fee',   breakdown!['distance_fee'] ?? 0),
+                    _PriceLineItem(AppL10n.of(context).basePrice,     breakdown!['base_price'] ?? 0),
+                    _PriceLineItem(AppL10n.of(context).roomCost,      breakdown!['room_price'] ?? 0),
+                    _PriceLineItem(AppL10n.of(context).packageCost,   breakdown!['package_price'] ?? 0),
+                    _PriceLineItem(AppL10n.of(context).extraServices, breakdown!['extra_fee'] ?? 0),
+                    _PriceLineItem(AppL10n.of(context).distanceFee,   breakdown!['distance_fee'] ?? 0),
                     const Divider(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1384,11 +1387,11 @@ class _PriceSection extends StatelessWidget {
                       )
                     : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.calculate_rounded, size: 18),
-                          SizedBox(width: 8),
-                          Text('Calculate Price',
-                              style: TextStyle(
+                        children: [
+                          const Icon(Icons.calculate_rounded, size: 18),
+                          const SizedBox(width: 8),
+                          Text(AppL10n.of(context).calculatePrice,
+                              style: const TextStyle(
                                   fontSize: 14, fontWeight: FontWeight.w700)),
                         ],
                       ),
@@ -1488,9 +1491,9 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
                   const SizedBox(height: 12),
                   TextField(
                     onChanged: (v) => setState(() => _q = v),
-                    decoration: const InputDecoration(
-                      hintText: 'Search district...',
-                      prefixIcon: Icon(Icons.search_rounded),
+                    decoration: InputDecoration(
+                      hintText: AppL10n.of(context).searchDistrict,
+                      prefixIcon: const Icon(Icons.search_rounded),
                     ),
                   ),
                 ],
@@ -1666,7 +1669,7 @@ class _BookingFlowScreenState extends ConsumerState<_BookingFlowScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Booking failed: $e'),
+            content: Text('${AppL10n.current.bookingFailed}: $e'),
             backgroundColor: AppColors.error,
           ),
         );

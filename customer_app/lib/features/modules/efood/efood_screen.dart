@@ -1,5 +1,6 @@
 ﻿import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../core/l10n/app_strings.dart';
 import '../../../core/services/cart_sync_service.dart';
 import '../../../core/services/cart_persistence_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -352,15 +353,16 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     return CustomScrollView(
       slivers: [
         _buildHeader(context),
-        SliverToBoxAdapter(child: _buildSearch(context)),
+        SliverToBoxAdapter(child: _buildSearch(context, l)),
         SliverToBoxAdapter(child: _BannerSlider()),
-        SliverToBoxAdapter(child: _buildCategories()),
-        SliverToBoxAdapter(child: _buildSection('Popular Restaurants', featured: true)),
-        SliverToBoxAdapter(child: _buildSection('Top Rated', topRated: true)),
-        SliverToBoxAdapter(child: _buildSection('Near You')),
+        SliverToBoxAdapter(child: _buildCategories(l)),
+        SliverToBoxAdapter(child: _buildSection(l.popularRestaurants, featured: true, l: l)),
+        SliverToBoxAdapter(child: _buildSection(l.topRated, topRated: true, l: l)),
+        SliverToBoxAdapter(child: _buildSection(l.nearYou, l: l)),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
     );
@@ -434,7 +436,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
     ),
   );
 
-  Widget _buildSearch(BuildContext context) => Padding(
+  Widget _buildSearch(BuildContext context, AppL10n l) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
     child: Row(children: [
       Expanded(
@@ -448,10 +450,10 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
               boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10)],
             ),
             child: Row(children: [
-              SizedBox(width: 14),
+              const SizedBox(width: 14),
               Icon(Icons.search_rounded, color: context.colors.mutedText),
-              SizedBox(width: 8),
-              Text('Search for food or restaurants...', style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
+              const SizedBox(width: 8),
+              Text(l.searchFoodHint, style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
             ]),
           ),
         ),
@@ -465,15 +467,15 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
     ]),
   );
 
-  Widget _buildCategories() {
+  Widget _buildCategories(AppL10n l) {
     final cats = ref.watch(_catsProvider);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text('Food Categories', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: context.colors.navyText)),
-          TextButton(onPressed: () {}, child: const Text('View all', style: TextStyle(color: _primary, fontWeight: FontWeight.w600))),
+          Text(l.foodCategories, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: context.colors.navyText)),
+          TextButton(onPressed: () {}, child: Text(l.viewAll, style: const TextStyle(color: _primary, fontWeight: FontWeight.w600))),
         ]),
         const SizedBox(height: 12),
         cats.when(
@@ -526,7 +528,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
     );
   }
 
-  Widget _buildSection(String title, {bool featured = false, bool topRated = false}) {
+  Widget _buildSection(String title, {bool featured = false, bool topRated = false, required AppL10n l}) {
     final restaurants = ref.watch(_restaurantsProvider(_rKey(
       featured: featured,
       topRated: topRated,
@@ -540,7 +542,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: context.colors.navyText)),
-            TextButton(onPressed: () {}, child: const Text('View all', style: TextStyle(color: _primary, fontWeight: FontWeight.w600))),
+            TextButton(onPressed: () {}, child: Text(l.viewAll, style: const TextStyle(color: _primary, fontWeight: FontWeight.w600))),
           ]),
         ),
         const SizedBox(height: 12),
@@ -740,7 +742,7 @@ class _RestaurantCard extends ConsumerWidget {
             if (!isOpen)
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-                child: Container(height: 110, color: Colors.black.withValues(alpha: 0.45), child: const Center(child: Text('CLOSED', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)))),
+                child: Container(height: 110, color: Colors.black.withValues(alpha: 0.45), child: Center(child: Text(AppL10n.of(context).closed, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)))),
               ),
             Positioned(top: 8, right: 8,
               child: GestureDetector(
@@ -799,7 +801,7 @@ class _RestaurantCard extends ConsumerWidget {
                 final feeNum = fee == null ? null : double.tryParse('$fee');
                 final isFree = feeNum == null || feeNum == 0;
                 return Text(
-                  isFree ? 'Free delivery' : '\$${feeNum.toStringAsFixed(2)} delivery',
+                  isFree ? AppL10n.of(context).freeDelivery : '\$${feeNum.toStringAsFixed(2)} ${AppL10n.of(context).delivery}',
                   style: TextStyle(fontSize: 11, color: isFree ? Colors.green[600] : Colors.grey[500], fontWeight: FontWeight.w500),
                 );
               }),
@@ -830,6 +832,7 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     final results = ref.watch(_restaurantsProvider(_rKey(search: _query.isEmpty ? null : _query)));
 
     return SafeArea(child: Column(children: [
@@ -839,10 +842,10 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
           controller: _ctrl,
           onChanged: (v) => setState(() => _query = v),
           decoration: InputDecoration(
-            hintText: 'Search restaurants, food...',
+            hintText: l.searchRestaurants,
             hintStyle: TextStyle(color: context.colors.mutedText, fontSize: 14),
             prefixIcon: Icon(Icons.search_rounded, color: _primary),
-            suffixIcon: _query.isNotEmpty ? IconButton(icon: Icon(Icons.clear), onPressed: () { _ctrl.clear(); setState(() => _query = ''); }) : null,
+            suffixIcon: _query.isNotEmpty ? IconButton(icon: const Icon(Icons.clear), onPressed: () { _ctrl.clear(); setState(() => _query = ''); }) : null,
             filled: true, fillColor: context.colors.inputFill,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
             contentPadding: const EdgeInsets.symmetric(vertical: 14),
@@ -852,8 +855,8 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
       Expanded(child: results.when(
         data: (data) {
           final list = data is List ? data : (data['data'] ?? []);
-          if (_query.isEmpty) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Text('🔍', style: TextStyle(fontSize: 60)), const SizedBox(height: 16), Text('Search for your favourite food', style: TextStyle(color: Colors.grey[500], fontSize: 15))]));
-          if (list.isEmpty) return Center(child: Text('No results for "$_query"', style: TextStyle(color: Colors.grey[500])));
+          if (_query.isEmpty) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Text('🔍', style: TextStyle(fontSize: 60)), const SizedBox(height: 16), Text(l.searchFavFood, style: TextStyle(color: Colors.grey[500], fontSize: 15))]));
+          if (list.isEmpty) return Center(child: Text('${l.noResults} "$_query"', style: TextStyle(color: Colors.grey[500])));
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: list.length,
@@ -1017,7 +1020,7 @@ class _RestaurantDetailPageState extends ConsumerState<_RestaurantDetailPage> wi
                             child: Row(mainAxisSize: MainAxisSize.min, children: [
                               Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
                               const SizedBox(width: 6),
-                              const Text('Open Now', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w700, fontSize: 12)),
+                              Text(AppL10n.of(context).openNow, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w700, fontSize: 12)),
                             ]),
                           ),
                         ])
@@ -1027,9 +1030,9 @@ class _RestaurantDetailPageState extends ConsumerState<_RestaurantDetailPage> wi
                           child: Row(children: [
                             const Icon(Icons.store_outlined, color: Colors.red, size: 18),
                             const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text('This restaurant is currently closed. You cannot place an order at this time.',
-                                style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600)),
+                            Expanded(
+                              child: Text(AppL10n.of(context).restaurantClosed,
+                                style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600)),
                             ),
                           ]),
                         ),
@@ -1060,7 +1063,7 @@ class _RestaurantDetailPageState extends ConsumerState<_RestaurantDetailPage> wi
                   controller: _searchCtrl,
                   onChanged: (v) => setState(() => _search = v),
                   decoration: InputDecoration(
-                    hintText: 'Search menu items...',
+                    hintText: AppL10n.of(context).searchMenuHint,
                     hintStyle: TextStyle(color: context.colors.mutedText, fontSize: 13),
                     prefixIcon: Icon(Icons.search_rounded, color: context.colors.mutedText, size: 20),
                     suffixIcon: const Icon(Icons.tune_rounded, color: _primary, size: 20),
@@ -1076,7 +1079,7 @@ class _RestaurantDetailPageState extends ConsumerState<_RestaurantDetailPage> wi
                 labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                 indicatorColor: _primary,
                 indicatorWeight: 3,
-                tabs: const [Tab(text: 'Menu'), Tab(text: 'Reviews'), Tab(text: 'Info')],
+                tabs: [Tab(text: AppL10n.of(context).menuTab), Tab(text: AppL10n.of(context).reviews), Tab(text: AppL10n.of(context).infoTab)],
               ),
             ]),
           )),
@@ -1094,8 +1097,8 @@ class _RestaurantDetailPageState extends ConsumerState<_RestaurantDetailPage> wi
         onTap: () {
           final isOpen = _asBool(r['is_open'] ?? r['is_active'] ?? 1);
           if (!isOpen) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('This restaurant is currently closed. Cannot place order.'),
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(AppL10n.of(context).cannotOrder),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
             ));
@@ -1253,7 +1256,7 @@ class _CategoriesFilter extends ConsumerWidget {
 
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           SizedBox(height: 14),
-          Text('Menu Categories', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText)),
+          Text(AppL10n.of(context).menuCategories, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText)),
           const SizedBox(height: 8),
           SizedBox(
             height: 36,
@@ -1335,7 +1338,7 @@ class _CouponsStrip extends ConsumerWidget {
           Row(children: [
             const Icon(Icons.local_offer_rounded, color: _primary, size: 16),
             SizedBox(width: 6),
-            Text('Offers & Coupons', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText)),
+            Text(AppL10n.of(context).offersAndCoupons, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.navyText)),
           ]),
           const SizedBox(height: 8),
           SizedBox(
@@ -1378,7 +1381,7 @@ class _CouponsStrip extends ConsumerWidget {
                       const SizedBox(height: 4),
                       Text(discount, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, height: 1)),
                       Text(
-                        minOrder > 0 ? 'Min order \$${minOrder.toStringAsFixed(2)}' : 'No minimum',
+                        minOrder > 0 ? '${AppL10n.of(context).minOrderLabel} \$${minOrder.toStringAsFixed(2)}' : AppL10n.of(context).noMinimum,
                         style: const TextStyle(color: Colors.white70, fontSize: 10),
                       ),
                     ]),
@@ -1452,7 +1455,7 @@ class _CouponsStrip extends ConsumerWidget {
             ),
             const SizedBox(height: 10),
             if (minOrder > 0)
-              Text('Min order: \$${minOrder.toStringAsFixed(2)}', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+              Text('${AppL10n.of(context).minOrderLabel}: \$${minOrder.toStringAsFixed(2)}', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
             if (maxDisc > 0)
               Text('Max discount: \$${maxDisc.toStringAsFixed(2)}', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
             if (endsAt != null)
@@ -1463,7 +1466,7 @@ class _CouponsStrip extends ConsumerWidget {
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(backgroundColor: _secondary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                child: const Text('Got it!', style: TextStyle(fontWeight: FontWeight.w700)),
+                child: Text(AppL10n.of(context).gotIt, style: const TextStyle(fontWeight: FontWeight.w700)),
               ),
             ),
           ]),
@@ -1526,21 +1529,21 @@ class _DeliveryInfoRow extends ConsumerWidget {
             Expanded(child: _DeliveryInfoCard(
               icon: Icons.near_me_rounded,
               label: distKm != null ? '${distKm.toStringAsFixed(1)} km' : '...',
-              subtitle: 'Distance',
+              subtitle: AppL10n.of(context).distance,
               color: const Color(0xFF3B82F6),
             )),
             const SizedBox(width: 10),
             Expanded(child: _DeliveryInfoCard(
               icon: Icons.access_time_rounded,
               label: deliveryTime != null ? '$deliveryTime min' : '30-45 min',
-              subtitle: 'Delivery Time',
+              subtitle: AppL10n.of(context).deliveryTime,
               color: const Color(0xFFFF8A00),
             )),
             const SizedBox(width: 10),
             Expanded(child: _DeliveryInfoCard(
               icon: Icons.delivery_dining_rounded,
               label: 'eSahlan',
-              subtitle: 'Delivery by',
+              subtitle: AppL10n.of(context).deliveryBy,
               color: const Color(0xFF10B981),
             )),
           ]),
@@ -2251,7 +2254,7 @@ class _CartPageState extends ConsumerState<_CartPage> {
           ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               const Text('🛒', style: TextStyle(fontSize: 60)),
               const SizedBox(height: 16),
-              Text('Your cart is empty', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: context.colors.navyText)),
+              Text(AppL10n.of(context).emptyCart, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: context.colors.navyText)),
               const SizedBox(height: 8),
               Text('Add items to get started', style: TextStyle(color: Colors.grey[500])),
             ]))
@@ -2291,8 +2294,8 @@ class _CartPageState extends ConsumerState<_CartPage> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
                   child: Column(children: [
-                    _PriceRow('Subtotal', '\$${subtotal.toStringAsFixed(2)}'),
-                    _PriceRow('Delivery Fee', '\$${deliveryFee.toStringAsFixed(2)}'),
+                    _PriceRow(AppL10n.of(context).subtotal, '\$${subtotal.toStringAsFixed(2)}'),
+                    _PriceRow(AppL10n.of(context).deliveryFee, '\$${deliveryFee.toStringAsFixed(2)}'),
                     _PriceRow('Tax', '\$${tax.toStringAsFixed(2)}'),
                     if (_discount > 0) _PriceRow('Discount', '-\$${_discount.toStringAsFixed(2)}', color: Colors.green),
                     const Divider(height: 20),
@@ -2316,7 +2319,7 @@ class _CartPageState extends ConsumerState<_CartPage> {
             height: 56,
             decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: _primary.withValues(alpha: 0.4), blurRadius: 14, offset: const Offset(0, 6))]),
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Text('Checkout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+              Text(AppL10n.of(context).checkout, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
               const SizedBox(width: 8),
               Text('\$${(subtotal + deliveryFee + tax - _discount).toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
             ]),
@@ -2469,12 +2472,12 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         backgroundColor: context.colors.cardBg,
         elevation: 0,
         leading: IconButton(icon: Icon(Icons.arrow_back_rounded, color: context.colors.navyText), onPressed: () => Navigator.pop(context)),
-        title: Text('Checkout', style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w700, fontSize: 18)),
+        title: Text(AppL10n.of(context).checkout, style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w700, fontSize: 18)),
         centerTitle: true,
       ),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         // Delivery Address
-        Text('Delivery Address', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
+        Text(AppL10n.of(context).deliveryAddress, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
         const SizedBox(height: 12),
         GestureDetector(
           onTap: _pickDistrict,
@@ -2516,7 +2519,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
           onChanged: (pts, disc) => setState(() { _pointsToRedeem = pts; _pointsDiscount = disc; }),
         ),
         const SizedBox(height: 8),
-        Text('Payment Method', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
+        Text(AppL10n.of(context).paymentMethod, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
         const SizedBox(height: 12),
         PaymentMethodSection(
           selected: _apiPayment,
@@ -2535,7 +2538,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
           decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
           child: Column(children: [
             _PriceRow('${ref.read(_cartProvider.notifier).totalItems} Items', '\$${widget.subtotal.toStringAsFixed(2)}'),
-            _PriceRow('Delivery Fee', '\$${widget.deliveryFee.toStringAsFixed(2)}'),
+            _PriceRow(AppL10n.of(context).deliveryFee, '\$${widget.deliveryFee.toStringAsFixed(2)}'),
             _PriceRow('Tax', '\$${widget.tax.toStringAsFixed(2)}'),
             if (widget.discount > 0) _PriceRow('Discount', '-\$${widget.discount.toStringAsFixed(2)}', color: Colors.green),
             if (_pointsDiscount > 0) _PriceRow('Points ($_pointsToRedeem pts)', '-\$${_pointsDiscount.toStringAsFixed(2)}', color: const Color(0xFFF59E0B)),
@@ -2559,7 +2562,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
             child: _placing
                 ? const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                 : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    const Text('Place Order', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+                    Text(AppL10n.of(context).placeOrder, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
                     const SizedBox(width: 8),
                     Text('\$${_total.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
                   ]),

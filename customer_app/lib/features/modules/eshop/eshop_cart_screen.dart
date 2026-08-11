@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import 'eshop_providers.dart';
+import '../../../core/l10n/app_strings.dart';
 
 class EShopCartScreen extends ConsumerStatefulWidget {
   const EShopCartScreen({super.key});
@@ -35,6 +36,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     final cart = ref.watch(eshopCartProvider);
     final cartNotifier = ref.read(eshopCartProvider.notifier);
     final coupon = ref.watch(eshopCouponProvider);
@@ -50,7 +52,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20), onPressed: () => context.pop()),
         title: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Text('My Cart', style: TextStyle(fontWeight: FontWeight.w800, fontFamily: 'Cairo')),
+          Text(l.myCart, style: const TextStyle(fontWeight: FontWeight.w800, fontFamily: 'Cairo')),
           if (cart.isNotEmpty) ...[
             const SizedBox(width: 8),
             Container(
@@ -63,7 +65,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
         actions: [
           if (cart.isNotEmpty) TextButton(
             onPressed: () { cartNotifier.clear(); ref.read(eshopCouponProvider.notifier).clear(); },
-            child: const Text('Clear All', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w700)),
+            child: Text(l.clearAll, style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -74,11 +76,11 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                 child: const Icon(Icons.shopping_bag_outlined, size: 60, color: AppColors.textGrey),
               ),
               SizedBox(height: 20),
-              Text('Your cart is empty', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: context.colors.navyText)),
+              Text(l.emptyCart, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: context.colors.navyText)),
               const SizedBox(height: 8),
-              const Text('Add products to get started', style: TextStyle(color: AppColors.textGrey, fontSize: 14)),
+              Text(l.addProductsToStart, style: const TextStyle(color: AppColors.textGrey, fontSize: 14)),
               const SizedBox(height: 24),
-              AppButton(label: 'Browse Products', width: 180, onPressed: () => context.go('/eshop')),
+              AppButton(label: l.browseProducts, width: 180, onPressed: () => context.go('/eshop')),
             ]))
           : ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 120), children: [
               // Cart Items
@@ -143,14 +145,14 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
                 ),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Coupon Code', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
+                  Text(l.couponCode, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
                   const SizedBox(height: 12),
                   Row(children: [
                     Expanded(child: TextField(
                       controller: _couponCtrl,
                       textCapitalization: TextCapitalization.characters,
                       decoration: InputDecoration(
-                        hintText: 'Enter coupon code',
+                        hintText: l.enterCouponCode,
                         filled: true, fillColor: context.colors.cardBg,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
@@ -160,7 +162,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                     )),
                     const SizedBox(width: 10),
                     AppButton(
-                      label: 'Apply',
+                      label: l.apply,
                       width: 80, height: 46,
                       isLoading: _validatingCoupon,
                       onPressed: () => _applyCoupon(cart),
@@ -188,15 +190,15 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
                 ),
                 child: Column(children: [
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Text('Order Summary', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
+                    Text(l.orderSummaryLabel, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
                   ]),
                   const SizedBox(height: 16),
-                  _summaryRow('Subtotal', '\$${subtotal.toStringAsFixed(2)}'),
-                  if (discount > 0) _summaryRow('Discount', '-\$${discount.toStringAsFixed(2)}', valueColor: AppColors.success),
-                  _summaryRow('Delivery Fee', '\$${_deliveryFee.toStringAsFixed(2)}'),
+                  _summaryRow(l.subtotal, '\$${subtotal.toStringAsFixed(2)}'),
+                  if (discount > 0) _summaryRow(l.discount, '-\$${discount.toStringAsFixed(2)}', valueColor: AppColors.success),
+                  _summaryRow(l.deliveryFee, '\$${_deliveryFee.toStringAsFixed(2)}'),
                   const Divider(height: 20),
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Text('Total', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: context.colors.navyText)),
+                    Text(l.total, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: context.colors.navyText)),
                     Text('\$${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: AppColors.primary)),
                   ]),
                 ]),
@@ -209,7 +211,7 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, -2))],
         ),
         child: AppButton(
-          label: 'Proceed to Checkout  •  \$${total.toStringAsFixed(2)}',
+          label: '${l.proceedCheckout}  \$${total.toStringAsFixed(2)}',
           onPressed: () => context.webPush('/eshop/checkout'),
         ),
       ) : null,

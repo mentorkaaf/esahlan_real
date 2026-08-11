@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/constants/app_assets.dart';
+import '../../../../core/l10n/app_strings.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
@@ -85,27 +86,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   String get _fullPhone => '${_country.dialCode}${_phoneCtrl.text.trim()}';
 
   Future<void> _register() async {
-    if (_nameCtrl.text.trim().isEmpty)  { _err('Enter your full name');   return; }
-    if (_phoneCtrl.text.trim().isEmpty) { _err('Enter your phone number'); return; }
-    if (_districtId == null)            { _err('Select your district');    return; }
+    final l = AppL10n.of(context);
+    if (_nameCtrl.text.trim().isEmpty)  { _err(l.fullName);        return; }
+    if (_phoneCtrl.text.trim().isEmpty) { _err(l.enterPhone);      return; }
+    if (_districtId == null)            { _err(l.selectDistrict);  return; }
 
     String? email;
     String password;
 
     if (_credMode == 0) {
-      if (_pin.length < 4) { _err('Create a 4-digit PIN'); return; }
+      if (_pin.length < 4) { _err(l.createPin); return; }
       password = _pin;
     } else {
-      if (_emailCtrl.text.trim().isEmpty)  { _err('Enter your email address'); return; }
+      if (_emailCtrl.text.trim().isEmpty)  { _err(l.enterEmailAddr); return; }
       if (!RegExp(r'^[\w\.\-]+@[\w\-]+\.\w+$').hasMatch(_emailCtrl.text.trim())) {
-        _err('Enter a valid email address'); return;
+        _err(l.enterEmailAddr); return;
       }
-      if (!_hasLength)  { _err('Password must be at least 8 characters'); return; }
-      if (!_hasUpper)   { _err('Password needs an uppercase letter');     return; }
-      if (!_hasLower)   { _err('Password needs a lowercase letter');      return; }
-      if (!_hasDigit)   { _err('Password needs a number');                return; }
-      if (!_hasSpecial) { _err('Password needs a special character (@\$!%*#?&)'); return; }
-      if (_passwordCtrl.text != _confirmCtrl.text) { _err('Passwords do not match'); return; }
+      if (!_hasLength)  { _err(l.pwCheck8chars); return; }
+      if (!_hasUpper)   { _err(l.pwCheckUpper);  return; }
+      if (!_hasLower)   { _err(l.pwCheckLower);  return; }
+      if (!_hasDigit)   { _err(l.pwCheckDigit);  return; }
+      if (!_hasSpecial) { _err(l.pwCheckSymbol); return; }
+      if (_passwordCtrl.text != _confirmCtrl.text) { _err(l.confirmPassword); return; }
       email    = _emailCtrl.text.trim();
       password = _passwordCtrl.text;
     }
@@ -192,6 +194,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   }
 
   Column _desktopForm(BuildContext context, bool isLoading, AsyncValue<List<DistrictModel>> distAsync) {
+    final l = AppL10n.of(context);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         GestureDetector(
@@ -208,18 +211,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
         ),
         const SizedBox(width: 16),
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Create Account 🚀', style: TextStyle(
+          Text('${l.createAccount} 🚀', style: TextStyle(
             fontSize: 28, fontWeight: FontWeight.w900,
             color: context.colors.navyText, letterSpacing: -0.5)),
           const SizedBox(height: 2),
-          Text('Join eSahlan in seconds',
+          Text(l.joinEsahlan,
             style: TextStyle(fontSize: 14, color: context.colors.mutedText, fontWeight: FontWeight.w500)),
         ]),
       ]),
       const SizedBox(height: 32),
       Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const _Label('Full Name'),
+          _Label(l.fullName),
           const SizedBox(height: 8),
           _InputField(ctrl: _nameCtrl, hint: 'Mohamed Omar',
               icon: Icons.person_outline_rounded, cap: TextCapitalization.words),
@@ -227,7 +230,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
         const SizedBox(width: 16),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            const _Label('Phone Number'),
+            _Label(l.phoneNumber),
             const SizedBox(width: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -235,7 +238,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                 color: AppColors.primary.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Text('Required', style: TextStyle(
+              child: Text(l.requiredLabel, style: TextStyle(
                   fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary)),
             ),
           ]),
@@ -247,13 +250,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
       const SizedBox(height: 16),
       Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const _Label('District'),
+          _Label(l.district),
           const SizedBox(height: 8),
           distAsync.when(
             loading: () => Builder(builder: (ctx) => _distContainer(ctx,
               child: const Center(child: SizedBox(width: 20, height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2))))),
-            error: (e, _) => Text('Failed to load districts',
+            error: (e, _) => Text(l.failedDistricts,
                 style: TextStyle(color: AppColors.error, fontSize: 13)),
             data: (list) => Builder(builder: (ctx) => _distContainer(ctx,
               child: DropdownButtonHideUnderline(
@@ -262,7 +265,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                   dropdownColor: ctx.colors.elevatedBg,
                   icon: Icon(Icons.keyboard_arrow_down_rounded, color: ctx.colors.bodyText),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  hint: Text('Select your district',
+                  hint: Text(AppL10n.of(ctx).selectDistrict,
                       style: TextStyle(color: ctx.colors.subtleText, fontSize: 14)),
                   style: TextStyle(color: ctx.colors.bodyText, fontSize: 15,
                       fontWeight: FontWeight.w600, fontFamily: 'Cairo'),
@@ -278,24 +281,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
         ])),
         const SizedBox(width: 16),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const _Label('Referral Code (optional)'),
+          _Label(l.referralCode),
           const SizedBox(height: 8),
           _InputField(ctrl: _referralCtrl, hint: 'e.g. ABC12345',
               icon: Icons.card_giftcard_rounded, cap: TextCapitalization.characters),
         ])),
       ]),
       const SizedBox(height: 20),
-      const _Label('Security Method'),
+      _Label(l.securityMethod),
       const SizedBox(height: 10),
       _CredToggle(selected: _credMode, onChanged: (v) => setState(() => _credMode = v)),
       const SizedBox(height: 20),
       if (_credMode == 0) ...[
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const _Label('Create PIN'),
-          Text('4 digits', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
+          _Label(l.createPin),
+          Text(l.fourDigits, style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
         ]),
         const SizedBox(height: 4),
-        Text('Quick & easy sign in every time',
+        Text(l.quickEasySignIn,
           style: TextStyle(fontSize: 12, color: context.colors.mutedText, height: 1.4)),
         const SizedBox(height: 12),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -311,16 +314,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
       if (_credMode == 1) ...[
         Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const _Label('Email Address'),
+            _Label(l.emailAddress),
             const SizedBox(height: 8),
             _InputField(ctrl: _emailCtrl, hint: 'you@example.com',
                 icon: Icons.email_outlined, type: TextInputType.emailAddress),
           ])),
           const SizedBox(width: 16),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const _Label('Password'),
+            _Label(l.password),
             const SizedBox(height: 8),
             _PasswordField(ctrl: _passwordCtrl, show: _showPass,
+                hint: l.createStrongPass,
                 onToggle: () => setState(() => _showPass = !_showPass)),
           ])),
         ]),
@@ -328,22 +332,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
         _PasswordStrength(hasLength: _hasLength, hasUpper: _hasUpper,
             hasLower: _hasLower, hasDigit: _hasDigit, hasSpecial: _hasSpecial),
         const SizedBox(height: 14),
-        const _Label('Confirm Password'),
+        _Label(l.confirmPassword),
         const SizedBox(height: 8),
-        _PasswordField(ctrl: _confirmCtrl, show: _showConfirm, hint: 'Re-enter password',
+        _PasswordField(ctrl: _confirmCtrl, show: _showConfirm, hint: l.reenterPass,
             onToggle: () => setState(() => _showConfirm = !_showConfirm),
             onSubmit: (_) => _register()),
       ],
       const SizedBox(height: 28),
-      _ActionButton(label: 'Create Account', icon: Icons.check_rounded,
+      _ActionButton(label: l.createAccount, icon: Icons.check_rounded,
           isLoading: isLoading, onTap: isLoading ? null : _register),
       const SizedBox(height: 20),
       Center(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text('Already have an account? ',
+        Text('${l.alreadyHaveAccount} ',
           style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
         GestureDetector(
           onTap: () => context.go('/auth/login'),
-          child: Text('Sign In', style: TextStyle(
+          child: Text(l.signIn, style: TextStyle(
             color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 14)),
         ),
       ])),
@@ -387,11 +391,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                     child: SlideTransition(
                       position: _slideAnim,
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Text('Create Account 🚀', style: TextStyle(
+                        Text('${AppL10n.of(context).createAccount} 🚀', style: const TextStyle(
                           fontSize: 26, fontWeight: FontWeight.w900,
                           color: Colors.white, letterSpacing: -0.5)),
                         const SizedBox(height: 6),
-                        Text('Join eSahlan in seconds',
+                        Text(AppL10n.of(context).joinEsahlan,
                           style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.5),
                               fontWeight: FontWeight.w500)),
                       ]),
@@ -413,14 +417,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                         ),
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            const _Label('Full Name'),
+                          child: Builder(builder: (ctx) {
+                            final l = AppL10n.of(ctx);
+                            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            _Label(l.fullName),
                             const SizedBox(height: 8),
                             _InputField(ctrl: _nameCtrl, hint: 'Mohamed Omar',
                                 icon: Icons.person_outline_rounded, cap: TextCapitalization.words),
                             const SizedBox(height: 16),
                             Row(children: [
-                              const _Label('Phone Number'),
+                              _Label(l.phoneNumber),
                               const SizedBox(width: 6),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -428,7 +434,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                                   color: AppColors.primary.withOpacity(0.12),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: Text('Required', style: TextStyle(
+                                child: Text(l.requiredLabel, style: TextStyle(
                                     fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary)),
                               ),
                             ]),
@@ -436,24 +442,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             PhoneInputField(controller: _phoneCtrl,
                                 onCountryChanged: (c) => setState(() => _country = c)),
                             const SizedBox(height: 16),
-                            const _Label('District'),
+                            _Label(l.district),
                             const SizedBox(height: 8),
                             distAsync.when(
-                              loading: () => Builder(builder: (ctx) => _distContainer(ctx,
+                              loading: () => Builder(builder: (ctx2) => _distContainer(ctx2,
                                 child: const Center(child: SizedBox(width: 20, height: 20,
                                     child: CircularProgressIndicator(strokeWidth: 2))))),
-                              error: (e, _) => Text('Failed to load districts',
+                              error: (e, _) => Text(l.failedDistricts,
                                   style: TextStyle(color: AppColors.error, fontSize: 13)),
-                              data: (list) => Builder(builder: (ctx) => _distContainer(ctx,
+                              data: (list) => Builder(builder: (ctx2) => _distContainer(ctx2,
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<int>(
                                     value: _districtId, isExpanded: true,
-                                    dropdownColor: ctx.colors.elevatedBg,
-                                    icon: Icon(Icons.keyboard_arrow_down_rounded, color: ctx.colors.bodyText),
+                                    dropdownColor: ctx2.colors.elevatedBg,
+                                    icon: Icon(Icons.keyboard_arrow_down_rounded, color: ctx2.colors.bodyText),
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                    hint: Text('Select your district',
-                                        style: TextStyle(color: ctx.colors.subtleText, fontSize: 14)),
-                                    style: TextStyle(color: ctx.colors.bodyText, fontSize: 15,
+                                    hint: Text(AppL10n.of(ctx2).selectDistrict,
+                                        style: TextStyle(color: ctx2.colors.subtleText, fontSize: 14)),
+                                    style: TextStyle(color: ctx2.colors.bodyText, fontSize: 15,
                                         fontWeight: FontWeight.w600, fontFamily: 'Cairo'),
                                     borderRadius: BorderRadius.circular(14),
                                     items: list.map((d) => DropdownMenuItem(
@@ -466,71 +472,72 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                               )),
                             ),
                             const SizedBox(height: 16),
-                            const _Label('Referral Code (optional)'),
+                            _Label(l.referralCode),
                             const SizedBox(height: 8),
                             _InputField(ctrl: _referralCtrl, hint: 'e.g. ABC12345',
                                 icon: Icons.card_giftcard_rounded, cap: TextCapitalization.characters),
                             const SizedBox(height: 20),
-                            const _Label('Security Method'),
+                            _Label(l.securityMethod),
                             const SizedBox(height: 10),
                             _CredToggle(selected: _credMode,
                                 onChanged: (v) => setState(() => _credMode = v)),
                             const SizedBox(height: 20),
                             if (_credMode == 0) ...[
                               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                                const _Label('Create PIN'),
-                                Text('4 digits', style: TextStyle(
-                                    fontSize: 12, color: context.colors.mutedText)),
+                                _Label(l.createPin),
+                                Text(l.fourDigits, style: TextStyle(
+                                    fontSize: 12, color: ctx.colors.mutedText)),
                               ]),
                               const SizedBox(height: 4),
-                              Text('Quick & easy sign in every time',
-                                style: TextStyle(fontSize: 12, color: context.colors.mutedText, height: 1.4)),
+                              Text(l.quickEasySignIn,
+                                style: TextStyle(fontSize: 12, color: ctx.colors.mutedText, height: 1.4)),
                               const SizedBox(height: 12),
                               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: List.generate(4, (i) => _PinBox(
                                   controller: _pinCtrls[i], focusNode: _pinFocus[i],
                                   onChanged: (v) {
-                                    if (v.isNotEmpty && i < 3) FocusScope.of(context).requestFocus(_pinFocus[i + 1]);
-                                    else if (v.isEmpty && i > 0) FocusScope.of(context).requestFocus(_pinFocus[i - 1]);
+                                    if (v.isNotEmpty && i < 3) FocusScope.of(ctx).requestFocus(_pinFocus[i + 1]);
+                                    else if (v.isEmpty && i > 0) FocusScope.of(ctx).requestFocus(_pinFocus[i - 1]);
                                   },
                                   onSubmit: i == 3 ? (_) => _register() : null,
                                 ))),
                             ],
                             if (_credMode == 1) ...[
-                              const _Label('Email Address'),
+                              _Label(l.emailAddress),
                               const SizedBox(height: 8),
                               _InputField(ctrl: _emailCtrl, hint: 'you@example.com',
                                   icon: Icons.email_outlined, type: TextInputType.emailAddress),
                               const SizedBox(height: 16),
-                              const _Label('Password'),
+                              _Label(l.password),
                               const SizedBox(height: 8),
                               _PasswordField(ctrl: _passwordCtrl, show: _showPass,
+                                  hint: l.createStrongPass,
                                   onToggle: () => setState(() => _showPass = !_showPass)),
                               const SizedBox(height: 10),
                               _PasswordStrength(hasLength: _hasLength, hasUpper: _hasUpper,
                                   hasLower: _hasLower, hasDigit: _hasDigit, hasSpecial: _hasSpecial),
                               const SizedBox(height: 14),
-                              const _Label('Confirm Password'),
+                              _Label(l.confirmPassword),
                               const SizedBox(height: 8),
                               _PasswordField(ctrl: _confirmCtrl, show: _showConfirm,
-                                  hint: 'Re-enter password',
+                                  hint: l.reenterPass,
                                   onToggle: () => setState(() => _showConfirm = !_showConfirm),
                                   onSubmit: (_) => _register()),
                             ],
                             const SizedBox(height: 28),
-                            _ActionButton(label: 'Create Account', icon: Icons.check_rounded,
+                            _ActionButton(label: l.createAccount, icon: Icons.check_rounded,
                                 isLoading: isLoading, onTap: isLoading ? null : _register),
                             const SizedBox(height: 20),
                             Center(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                              Text('Already have an account? ',
-                                style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
+                              Text('${l.alreadyHaveAccount} ',
+                                style: TextStyle(color: ctx.colors.mutedText, fontSize: 14)),
                               GestureDetector(
-                                onTap: () => context.go('/auth/login'),
-                                child: Text('Sign In', style: TextStyle(
+                                onTap: () => ctx.go('/auth/login'),
+                                child: Text(l.signIn, style: TextStyle(
                                   color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 14)),
                               ),
                             ])),
-                          ]),
+                          ]);}),
                         ),
                       ),
                     ),
@@ -653,20 +660,21 @@ class _CredToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     return Column(children: [
       _CredOption(
         index: 0, selected: selected,
         icon: Icons.pin_outlined,
-        title: '4-Digit PIN',
-        subtitle: 'Fast & easy — sign in with your phone + PIN',
+        title: l.pinOption,
+        subtitle: l.pinSubtitle,
         onTap: () => onChanged(0),
       ),
       const SizedBox(height: 10),
       _CredOption(
         index: 1, selected: selected,
         icon: Icons.security_rounded,
-        title: 'Email & Strong Password',
-        subtitle: 'Higher security — uppercase, numbers & symbols required',
+        title: l.emailStrong,
+        subtitle: l.emailStrongSub,
         onTap: () => onChanged(1),
       ),
     ]);
@@ -744,12 +752,13 @@ class _PasswordStrength extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     final checks = [
-      (hasLength,  '8+ characters'),
-      (hasUpper,   'Uppercase (A-Z)'),
-      (hasLower,   'Lowercase (a-z)'),
-      (hasDigit,   'Number (0-9)'),
-      (hasSpecial, 'Symbol (@\$!%*#?&)'),
+      (hasLength,  l.pwCheck8chars),
+      (hasUpper,   l.pwCheckUpper),
+      (hasLower,   l.pwCheckLower),
+      (hasDigit,   l.pwCheckDigit),
+      (hasSpecial, l.pwCheckSymbol),
     ];
     final passed = checks.where((c) => c.$1).length;
     final color  = passed <= 1 ? const Color(0xFFEF4444)
@@ -768,7 +777,7 @@ class _PasswordStrength extends StatelessWidget {
           ),
         )),
         const SizedBox(width: 8),
-        Text(['Weak', 'Weak', 'Fair', 'Good', 'Strong', 'Strong'][passed],
+        Text([l.weakPassword, l.weakPassword, l.fairPassword, l.goodPassword, l.strongPassword, l.strongPassword][passed],
           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
       ]),
       const SizedBox(height: 8),

@@ -8,6 +8,7 @@ import '../../data/models/global_models.dart';
 import '../widgets/global_product_card.dart';
 import '../widgets/global_coupon_popup.dart';
 import '../../../../core/l10n/app_strings.dart';
+import 'global_shell.dart' show GlobalDesktopFooter;
 import '../../../../core/widgets/smart_location_banner.dart';
 
 class GlobalHomeScreen extends ConsumerStatefulWidget {
@@ -427,6 +428,8 @@ class _DesktopHomeLayout extends ConsumerWidget {
                 ),
               ),
             ),
+            // ── Footer ────────────────────────────────────────────────────────
+            const GlobalDesktopFooter(),
           ],
         ),
       ),

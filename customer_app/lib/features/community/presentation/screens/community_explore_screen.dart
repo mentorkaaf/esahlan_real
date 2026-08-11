@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/models/community_models.dart';
 import '../providers/community_provider.dart';
 import 'community_shell.dart';
+import '../../../../core/l10n/app_strings.dart';
 
 class CommunityExploreScreen extends ConsumerStatefulWidget {
   const CommunityExploreScreen({super.key});
@@ -29,6 +30,7 @@ class _State extends ConsumerState<CommunityExploreScreen> {
   Widget build(BuildContext context) {
     final exploreAsync = ref.watch(communityExploreProvider);
     final suggestions = ref.watch(communitySuggestionsProvider);
+    final l = AppL10n.of(context);
 
     return Scaffold(
       
@@ -50,7 +52,7 @@ class _State extends ConsumerState<CommunityExploreScreen> {
             onChanged: (v) => setState(() => _query = v),
             style: TextStyle(fontSize: 14, color: context.colors.navyText),
             decoration: InputDecoration(
-              hintText: 'Search eSahlan Community...',
+              hintText: l.searchCommunity,
               hintStyle: TextStyle(color: context.colors.mutedText, fontSize: 14),
               prefixIcon: Icon(Icons.search_rounded, color: context.colors.mutedText, size: 20),
               border: InputBorder.none,
@@ -64,7 +66,7 @@ class _State extends ConsumerState<CommunityExploreScreen> {
         children: [
           // People you may know
           if (_query.isEmpty) ...[
-            _section('People You May Know'),
+            _section(l.peopleYouMayKnow),
             suggestions.when(
               data: (users) => SizedBox(
                 height: 120,
@@ -78,7 +80,7 @@ class _State extends ConsumerState<CommunityExploreScreen> {
               loading: () => SizedBox(height: 120, child: Center(child: CircularProgressIndicator(color: kOrange))),
               error: (_, __) => const SizedBox.shrink(),
             ),
-            _section('Trending Posts'),
+            _section(l.trendingPosts),
           ],
 
           // Posts
@@ -91,7 +93,7 @@ class _State extends ConsumerState<CommunityExploreScreen> {
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.trending_up_rounded, size: 50, color: Color(0xFFD1D5DB)),
                       SizedBox(height: 12),
-                      Text('No trending posts yet',
+                      Text(l.noTrendingPosts,
                           style: TextStyle(color: context.colors.mutedText, fontSize: 15)),
                     ]),
                   ),

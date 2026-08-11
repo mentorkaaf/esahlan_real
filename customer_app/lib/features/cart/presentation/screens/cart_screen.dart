@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/error_handler.dart';
 import '../../../../shared/widgets/app_button.dart';
 import 'package:dio/dio.dart';
+import '../../../../core/l10n/app_strings.dart';
 
 // Cart item model
 class CartItem {
@@ -53,12 +54,13 @@ class CartScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppL10n.of(context);
     final cartAsync = ref.watch(cartProvider);
 
     return Scaffold(
       backgroundColor: context.colors.scaffoldBg,
       appBar: AppBar(
-        title: const Text('My Cart', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: Text(l.myCart, style: const TextStyle(fontWeight: FontWeight.w800)),
         
         foregroundColor: context.colors.navyText,
         elevation: 0,
@@ -79,11 +81,11 @@ class CartScreen extends ConsumerWidget {
                 children: [
                   const Text('🛒', style: TextStyle(fontSize: 64)),
                   const SizedBox(height: 16),
-                  Text('Your cart is empty', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.navyText)),
+                  Text(l.emptyCart, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.navyText)),
                   const SizedBox(height: 8),
-                  const Text('Add items from a vendor', style: TextStyle(color: AppColors.textGrey)),
+                  Text(l.addProductsToStart, style: const TextStyle(color: AppColors.textGrey)),
                   const SizedBox(height: 24),
-                  AppButton(label: 'Browse Services', onPressed: () => context.go('/home'), width: 200),
+                  AppButton(label: l.allServices, onPressed: () => context.go('/home'), width: 200),
                 ],
               ),
             );
@@ -113,13 +115,13 @@ class CartScreen extends ConsumerWidget {
                 ),
                 child: Column(
                   children: [
-                    _SummaryRow(label: 'Subtotal', value: '\$${subtotal.toStringAsFixed(2)}'),
+                    _SummaryRow(label: l.subtotal, value: '\$${subtotal.toStringAsFixed(2)}'),
                     const SizedBox(height: 6),
-                    _SummaryRow(label: 'Delivery Fee', value: '\$${delivery.toStringAsFixed(2)}'),
+                    _SummaryRow(label: l.deliveryFee, value: '\$${delivery.toStringAsFixed(2)}'),
                     const Divider(height: 20, color: AppColors.divider),
-                    _SummaryRow(label: 'Total', value: '\$${total.toStringAsFixed(2)}', bold: true),
+                    _SummaryRow(label: l.total, value: '\$${total.toStringAsFixed(2)}', bold: true),
                     const SizedBox(height: 16),
-                    AppButton(label: 'Proceed to Checkout', onPressed: () {}),
+                    AppButton(label: l.proceedCheckout, onPressed: () {}),
                   ],
                 ),
               ),

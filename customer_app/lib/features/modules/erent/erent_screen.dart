@@ -20,6 +20,7 @@ import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'request_detail_screen.dart';
+import '../../../core/l10n/app_strings.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -96,7 +97,7 @@ class _ERentScreenState extends ConsumerState<ERentScreen>
                   indicatorColor: _kOrange, indicatorWeight: 3,
                   labelColor: _kOrange, unselectedLabelColor: Colors.white60,
                   labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                  tabs: const [Tab(text: 'Browse'), Tab(text: 'My Bookings'), Tab(text: 'Find Agent')],
+                  tabs: [Tab(text: AppL10n.of(context).browse), Tab(text: AppL10n.of(context).myBookings), Tab(text: AppL10n.of(context).findAgent)],
                 ),
               ),
             ),
@@ -143,9 +144,9 @@ class _BrowseTabState extends ConsumerState<_BrowseTab> {
       error: (e, _) => _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_districtsProvider)),
       data: (data) {
         final districts = List<Map>.from(data is Map ? (data['data'] ?? []) : []);
-        if (districts.isEmpty) return const _EmptyState(
-          icon: Icons.location_city_rounded, title: 'No Districts',
-          subtitle: 'Districts will appear here');
+        if (districts.isEmpty) return _EmptyState(
+          icon: Icons.location_city_rounded, title: AppL10n.of(context).noDistricts,
+          subtitle: AppL10n.of(context).dataProvidersHere);
         return CustomScrollView(slivers: [
           SliverToBoxAdapter(child: _RentHeader()),
           SliverToBoxAdapter(child: _SearchSection(
@@ -185,7 +186,7 @@ class _BrowseTabState extends ConsumerState<_BrowseTab> {
               Container(width: 4, height: 18,
                   decoration: BoxDecoration(color: _kOrange, borderRadius: BorderRadius.circular(2))),
               SizedBox(width: 8),
-              Text('Browse by District',
+              Text(AppL10n.of(context).browseByDistrict,
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: context.colors.navyText)),
             ]),
           )),
@@ -252,11 +253,12 @@ class _SearchSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     final districtName = districtId != null
         ? (districts.firstWhere(
               (d) => d['id'].toString() == districtId.toString(),
-              orElse: () => {'name': 'Any'})['name'] ?? 'Any').toString()
-        : 'Any District';
+              orElse: () => {'name': l.tabAll})['name'] ?? l.tabAll).toString()
+        : l.anyDistrict;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -271,7 +273,7 @@ class _SearchSection extends StatelessWidget {
           Container(width: 4, height: 16,
               decoration: BoxDecoration(color: _kOrange, borderRadius: BorderRadius.circular(2))),
           SizedBox(width: 8),
-          Text('Search Properties', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.colors.navyText)),
+          Text(l.searchPropertiesBtn, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.colors.navyText)),
         ]),
         const SizedBox(height: 12),
         Row(children: [
@@ -281,8 +283,8 @@ class _SearchSection extends StatelessWidget {
           )),
           const SizedBox(width: 10),
           Expanded(child: _FilterCard(
-            icon: Icons.home_work_rounded, label: 'Type',
-            value: type != null ? _cap(type!) : 'Any Type',
+            icon: Icons.home_work_rounded, label: l.propertyType,
+            value: type != null ? _cap(type!) : l.anyType,
             color: const Color(0xFF1565C0), onTap: () => _showTypeSheet(context),
           )),
         ]),
@@ -306,7 +308,7 @@ class _SearchSection extends StatelessWidget {
           child: ElevatedButton.icon(
             onPressed: onSearch,
             icon: const Icon(Icons.search_rounded, size: 18),
-            label: const Text('Search Properties', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+            label: Text(l.searchPropertiesBtn, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
             style: ElevatedButton.styleFrom(
               backgroundColor: _kOrange, foregroundColor: Colors.white,
               minimumSize: const Size(0, 50),
@@ -475,9 +477,9 @@ class _RentHeader extends StatelessWidget {
     ),
     child: Row(children: [
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Find Your Home', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+        Text(AppL10n.of(context).findYourHome, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
         const SizedBox(height: 4),
-        Text('Browse properties by district', style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13)),
+        Text(AppL10n.of(context).browsePropertiesByDistrict, style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13)),
         const SizedBox(height: 12),
         Row(children: [
           _HeaderBadge(icon: Icons.home_outlined, label: 'Full Rent'),

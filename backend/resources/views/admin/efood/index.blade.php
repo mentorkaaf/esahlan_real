@@ -1671,21 +1671,38 @@
         <form action="{{ route('admin.module-data.efood.campaign.store') }}" method="POST">
             @csrf
             <div style="padding:20px;">
-                <div class="grid-2">
-                    <div class="form-group">
-                        <label class="form-label">Restaurant *</label>
-                        <select name="vendor_id" class="form-control" required>
-                            <option value="">Select restaurant</option>
-                            @foreach($allRestaurants as $ar)
-                                <option value="{{ $ar->id }}">{{ $ar->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Campaign Name *</label>
-                        <input type="text" name="name" class="form-control" required placeholder="e.g., Summer Sale">
+
+                {{-- ── Restaurants multi-select ─────────────────────────────── --}}
+                <div class="form-group">
+                    <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
+                        <span>Restaurants * <span id="cmp_sel_count" style="font-weight:400;color:#888;">(0 selected)</span></span>
+                        <span style="display:flex;gap:8px;">
+                            <button type="button" onclick="cmpSelectAll()" style="font-size:11px;padding:2px 8px;background:#FF8A00;color:#fff;border:none;border-radius:4px;cursor:pointer;">All</button>
+                            <button type="button" onclick="cmpClearAll()" style="font-size:11px;padding:2px 8px;background:#6c757d;color:#fff;border:none;border-radius:4px;cursor:pointer;">Clear</button>
+                        </span>
+                    </label>
+                    {{-- Search box --}}
+                    <input type="text" id="cmp_rest_search" placeholder="🔍 Search restaurants..." oninput="cmpFilterRest()"
+                        style="width:100%;padding:7px 10px;border:1px solid #dee2e6;border-radius:6px;margin-bottom:6px;font-size:13px;box-sizing:border-box;">
+                    {{-- Checkbox list --}}
+                    <div id="cmp_rest_list" style="max-height:180px;overflow-y:auto;border:1px solid #dee2e6;border-radius:8px;padding:6px 4px;">
+                        @foreach($allRestaurants as $ar)
+                        <label id="cmp_r_{{ $ar->id }}" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;cursor:pointer;transition:background .15s;"
+                               onmouseover="this.style.background='#fff3e0'" onmouseout="this.style.background=''">
+                            <input type="checkbox" name="vendor_ids[]" value="{{ $ar->id }}" onchange="cmpUpdateCount()"
+                                style="width:16px;height:16px;accent-color:#FF8A00;cursor:pointer;">
+                            <span style="font-size:13px;font-weight:500;">{{ $ar->name }}</span>
+                        </label>
+                        @endforeach
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <label class="form-label">Campaign Name *</label>
+                    <input type="text" name="name" class="form-control" required placeholder="e.g., Summer Sale">
+                </div>
+                <div style="display:none;">{{-- dummy so grid layout stays --}}</div>
+                <div>
                 <div class="form-group">
                     <label class="form-label">Description</label>
                     <textarea name="description" class="form-control" rows="2" placeholder="Brief description"></textarea>
@@ -2347,6 +2364,40 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
+// ─── Campaign Multi-Restaurant Select ────────────────────────────────────────
+function cmpUpdateCount() {
+    const checked = document.querySelectorAll('#cmp_rest_list input[type=checkbox]:checked').length;
+    document.getElementById('cmp_sel_count').textContent = '(' + checked + ' selected)';
+}
+function cmpSelectAll() {
+    document.querySelectorAll('#cmp_rest_list input[type=checkbox]').forEach(cb => {
+        const row = cb.closest('label');
+        if (row && row.style.display !== 'none') cb.checked = true;
+    });
+    cmpUpdateCount();
+}
+function cmpClearAll() {
+    document.querySelectorAll('#cmp_rest_list input[type=checkbox]').forEach(cb => cb.checked = false);
+    cmpUpdateCount();
+}
+function cmpFilterRest() {
+    const q = document.getElementById('cmp_rest_search').value.toLowerCase();
+    document.querySelectorAll('#cmp_rest_list label').forEach(row => {
+        const name = row.querySelector('span')?.textContent.toLowerCase() ?? '';
+        row.style.display = name.includes(q) ? '' : 'none';
+    });
+}
+
+// Validate at least one restaurant selected before submit
+document.querySelector('form[action*="campaign.store"], form[action*="/campaigns"]')
+    ?.addEventListener('submit', function(e) {
+        const checked = this.querySelectorAll('input[name="vendor_ids[]"]:checked').length;
+        if (checked === 0) {
+            e.preventDefault();
+            alert('Please select at least one restaurant.');
+        }
+    });
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google.maps_api_key') }}&libraries=places&callback=initAdminMaps" async defer></script>
 @endpush

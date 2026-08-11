@@ -9,6 +9,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/utils/error_handler.dart';
 import '../providers/order_provider.dart';
+import '../../../../core/l10n/app_strings.dart';
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
   final int orderId;
@@ -101,12 +102,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     final orderAsync = ref.watch(orderDetailProvider(widget.orderId));
 
     return Scaffold(
             appBar: AppBar(
-        title: const Text('Track Order',
-            style: TextStyle(fontWeight: FontWeight.w800)),
+        title: Text(l.orderTracking,
+            style: const TextStyle(fontWeight: FontWeight.w800)),
         
         foregroundColor: AppColors.textDark,
         elevation: 0,
@@ -209,12 +211,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _LegendItem(color: Colors.orange, label: 'Restaurant'),
+                            _LegendItem(color: Colors.orange, label: l.restaurant),
                             const SizedBox(height: 4),
-                            _LegendItem(color: Colors.purple, label: 'Delivery'),
+                            _LegendItem(color: Colors.purple, label: l.delivery),
                             if (_markers.any((m) => m.markerId.value == 'driver')) ...[
                               const SizedBox(height: 4),
-                              _LegendItem(color: Colors.green, label: 'Driver'),
+                              _LegendItem(color: Colors.green, label: l.driver),
                             ],
                           ],
                         ),
@@ -260,8 +262,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                             children: [
                               const Icon(Icons.sync_rounded, size: 12, color: AppColors.textGrey),
                               const SizedBox(width: 4),
-                              Text('Auto-refresh',
-                                  style: TextStyle(fontSize: 11, color: AppColors.textGrey)),
+                              Text(l.autoRefresh,
+                                  style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
                             ],
                           ),
                         ],
@@ -280,27 +282,27 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                             children: [
                               _TrackStep(
                                 icon: Icons.check_circle_rounded,
-                                label: 'Order Placed',
+                                label: l.orderPlacedStep,
                                 done: true,
                               ),
                               _TrackStep(
                                 icon: Icons.restaurant_rounded,
-                                label: 'Confirmed',
+                                label: l.confirmed,
                                 done: _isDone(order.status, 'confirmed'),
                               ),
                               _TrackStep(
                                 icon: Icons.lunch_dining_rounded,
-                                label: 'Preparing',
+                                label: l.preparing,
                                 done: _isDone(order.status, 'preparing'),
                               ),
                               _TrackStep(
                                 icon: Icons.delivery_dining_rounded,
-                                label: 'On the way',
+                                label: l.onTheWay,
                                 done: _isDone(order.status, 'picked_up'),
                               ),
                               _TrackStep(
                                 icon: Icons.home_rounded,
-                                label: 'Delivered',
+                                label: l.tabDelivered,
                                 done: order.status == 'delivered',
                                 last: true,
                               ),
@@ -425,10 +427,10 @@ class _WebMapPlaceholder extends StatelessWidget {
                   child: const Icon(Icons.delivery_dining_rounded, color: Colors.white, size: 38),
                 ),
                 const SizedBox(height: 16),
-                const Text('Live Tracking',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                Text(AppL10n.current.liveTracking,
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 6),
-                Text('Available on the mobile app',
+                Text(AppL10n.current.mobileOnly,
                     style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13)),
                 const SizedBox(height: 20),
                 Container(

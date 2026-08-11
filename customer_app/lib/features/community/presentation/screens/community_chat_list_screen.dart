@@ -7,6 +7,7 @@ import '../../data/models/community_models.dart';
 import '../providers/community_provider.dart';
 import 'community_shell.dart';
 import 'community_chat_screen.dart';
+import '../../../../core/l10n/app_strings.dart';
 
 final _taCache = <String, String>{};
 String _fmtTimeago(DateTime dt, {String locale = 'en'}) {
@@ -38,13 +39,14 @@ class _CommunityChatListScreenState extends ConsumerState<CommunityChatListScree
   @override
   Widget build(BuildContext context) {
     final chatsAsync = ref.watch(communityChatsProvider);
+    final l = AppL10n.of(context);
 
     return Scaffold(
-      
+
       appBar: AppBar(
-        
+
         elevation: 0,
-        title: Text('Chats',
+        title: Text(l.chats,
             style: TextStyle(color: context.colors.bodyText, fontWeight: FontWeight.w800, fontSize: 22)),
         actions: [
           IconButton(
@@ -71,7 +73,7 @@ class _CommunityChatListScreenState extends ConsumerState<CommunityChatListScree
               SizedBox(width: 12),
               Icon(Icons.search_rounded, color: context.colors.mutedText, size: 20),
               SizedBox(width: 8),
-              Text('Search messages or users',
+              Text(l.searchMessages,
                   style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
             ]),
           ),
@@ -92,10 +94,10 @@ class _CommunityChatListScreenState extends ConsumerState<CommunityChatListScree
                       child: Icon(Icons.chat_bubble_rounded, size: 35, color: context.colors.subtleText),
                     ),
                     SizedBox(height: 14),
-                    Text('No messages yet',
+                    Text(l.noMessages,
                         style: TextStyle(color: context.colors.bodyText, fontSize: 16, fontWeight: FontWeight.w700)),
                     SizedBox(height: 6),
-                    Text('Start a conversation with someone',
+                    Text(l.startChat,
                         style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
                   ]),
                 );
@@ -127,6 +129,7 @@ class _ChatTile extends ConsumerWidget {
     final lastMsg = chat.lastMessage;
     final hasUnread = (chat.unreadCount ?? 0) > 0;
     final isTyping = ref.watch(chatTypingProvider(chat.id));
+    final l = AppL10n.of(context);
 
     // Parse created_at — could be DateTime string or DateTime object
     DateTime? lastMsgTime;
@@ -172,7 +175,7 @@ class _ChatTile extends ConsumerWidget {
       subtitle: Row(children: [
         Expanded(
           child: isTyping
-              ? Text('typing…',
+              ? Text('${l.typing}…',
                   maxLines: 1,
                   style: TextStyle(
                     color: kOrange,

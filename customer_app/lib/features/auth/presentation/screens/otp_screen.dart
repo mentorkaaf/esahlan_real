@@ -9,6 +9,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/error_handler.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../providers/auth_provider.dart';
+import '../../../../core/l10n/app_strings.dart';
 
 class OtpScreen extends ConsumerStatefulWidget {
   final String phone;
@@ -64,7 +65,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   Future<void> _verify() async {
     if (_otp.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter 6-digit OTP')),
+        SnackBar(content: Text(AppL10n.of(context).enterOtp)),
       );
       return;
     }
@@ -81,9 +82,10 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   Widget build(BuildContext context) {
     final otpState = ref.watch(otpProvider);
     final isLoading = otpState.isLoading;
+    final l = AppL10n.of(context);
 
     return Scaffold(
-      
+
       appBar: AppBar(
          elevation: 0,
         leading: IconButton(
@@ -98,14 +100,14 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              const Text('Verify Your Number',
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textDark)),
+              Text(l.verifyNumber,
+                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textDark)),
               const SizedBox(height: 8),
               RichText(
                 text: TextSpan(
                   style: const TextStyle(fontSize: 14, color: AppColors.textGrey, height: 1.5),
                   children: [
-                    const TextSpan(text: 'We sent a 6-digit code to\n'),
+                    TextSpan(text: '${l.codeSentTo}\n'),
                     TextSpan(
                       text: widget.phone,
                       style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textDark),
@@ -152,7 +154,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
               const SizedBox(height: 36),
 
               AppButton(
-                label: 'Verify',
+                label: isLoading ? l.verifying : l.verify,
                 onPressed: isLoading ? null : _verify,
                 isLoading: isLoading,
               ),
@@ -160,12 +162,12 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
               Center(
                 child: _secondsLeft > 0
-                    ? Text('Resend code in ${_secondsLeft}s',
+                    ? Text('${l.didntReceive} ${_secondsLeft}s',
                         style: const TextStyle(color: AppColors.textGrey))
                     : GestureDetector(
                         onTap: _sendOtp,
-                        child: const Text('Resend Code',
-                          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+                        child: Text(l.resend,
+                          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
                       ),
               ),
             ],

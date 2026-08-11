@@ -176,8 +176,7 @@ class _DesktopShell extends ConsumerWidget {
               ],
             ),
           ),
-          // ── Desktop Footer ───────────────────────────────────────────────
-          _DesktopFooter(),
+          // ── Desktop Footer — rendered by each page inside its scroll ────
         ],
       ),
     );
@@ -511,6 +510,13 @@ class _SignInButtonState extends State<_SignInButton> {
 }
 
 // ── Desktop Footer ────────────────────────────────────────────────────────────
+
+/// Public footer widget — used by desktop pages inside their ScrollView.
+class GlobalDesktopFooter extends StatelessWidget {
+  const GlobalDesktopFooter({super.key});
+  @override
+  Widget build(BuildContext context) => _DesktopFooter();
+}
 
 class _DesktopFooter extends StatelessWidget {
   @override

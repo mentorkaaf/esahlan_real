@@ -7,6 +7,7 @@ import '../../../../core/theme/theme_x.dart';
 import '../../../../core/utils/error_handler.dart';
 import '../providers/order_provider.dart';
 import '../../data/models/order_model.dart';
+import '../../../../core/l10n/app_strings.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
@@ -18,12 +19,11 @@ class OrdersScreen extends ConsumerStatefulWidget {
 class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   final _statusFilters = [null, 'pending', 'preparing', 'delivered', 'cancelled'];
-  final _tabLabels    = ['All', 'Pending', 'Preparing', 'Delivered', 'Cancelled'];
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: _tabLabels.length, vsync: this);
+    _tabs = TabController(length: _statusFilters.length, vsync: this);
   }
 
   @override
@@ -31,9 +31,11 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
+    final tabLabels = [l.tabAll, l.tabPending, l.tabPreparing, l.tabDelivered, l.tabCancelled];
     return Scaffold(
             appBar: AppBar(
-        title: const Text('My Orders', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: Text(l.myOrders, style: const TextStyle(fontWeight: FontWeight.w800)),
         
         foregroundColor: context.colors.navyText,
         elevation: 0,
@@ -47,7 +49,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
           indicatorColor: AppColors.primary,
           indicatorSize: TabBarIndicatorSize.label,
           labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-          tabs: _tabLabels.map((l) => Tab(text: l)).toList(),
+          tabs: tabLabels.map((t) => Tab(text: t)).toList(),
         ),
       ),
       body: TabBarView(
@@ -65,6 +67,7 @@ class _OrdersList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ordersAsync = ref.watch(ordersProvider(status));
+    final l = AppL10n.of(context);
 
     return ordersAsync.when(
       loading: () => ListView.separated(
@@ -95,9 +98,9 @@ class _OrdersList extends ConsumerWidget {
               children: [
                 Text('📦', style: TextStyle(fontSize: 56)),
                 SizedBox(height: 16),
-                Text('No orders yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
+                Text(l.noOrdersYet, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.navyText)),
                 SizedBox(height: 6),
-                Text('Your orders will appear here', style: TextStyle(color: AppColors.textGrey)),
+                Text(l.ordersWillAppear, style: TextStyle(color: AppColors.textGrey)),
               ],
             ),
           );
@@ -123,6 +126,7 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     return GestureDetector(
       onTap: () => context.push('/orders/${order.id}'),
       child: Container(
@@ -192,7 +196,7 @@ class _OrderCard extends StatelessWidget {
                   if (order.isActive)
                     GestureDetector(
                       onTap: () => context.push('/orders/${order.id}/tracking'),
-                      child: const Text('Track', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                      child: Text(l.trackBtn, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
                     ),
                 ],
               ),

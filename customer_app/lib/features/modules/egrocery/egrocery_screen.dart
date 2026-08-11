@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/l10n/app_strings.dart';
 import '../../../core/services/cart_sync_service.dart';
 import '../../../core/services/cart_persistence_service.dart';
 import 'package:go_router/go_router.dart';
@@ -132,6 +133,7 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     final cart = ref.watch(_cartProvider);
     final cartCount = ref.read(_cartProvider.notifier).totalItems;
     final catsAsync = ref.watch(_catsProvider);
@@ -140,7 +142,7 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.colors.navyText), onPressed: () => context.pop()),
-        title: Text('eGrocery', style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText, fontFamily: 'Cairo')),
+        title: const Text('eGrocery', style: TextStyle(fontWeight: FontWeight.w800, fontFamily: 'Cairo')),
         actions: [
           Stack(children: [
             IconButton(icon: Icon(Icons.shopping_cart_outlined, color: context.colors.navyText),
@@ -158,7 +160,7 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
           child: TextField(
             controller: _searchCtrl, onChanged: (v) => setState(() => _search = v),
             decoration: InputDecoration(
-              hintText: 'Search groceries...', hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
+              hintText: l.searchGroceries, hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
               prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textGrey, size: 20),
               suffixIcon: _search.isNotEmpty ? IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () { _searchCtrl.clear(); setState(() => _search = ''); }) : null,
               filled: true, fillColor: context.colors.scaffoldBg,
@@ -178,7 +180,7 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
               scrollDirection: Axis.horizontal, padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
               itemCount: cats.length + 1,
               itemBuilder: (_, i) {
-                if (i == 0) return _CatChip(label: 'All', icon: Icons.grid_view_rounded, selected: _categoryId == null, onTap: () => setState(() => _categoryId = null));
+                if (i == 0) return _CatChip(label: AppL10n.of(context).tabAll, icon: Icons.grid_view_rounded, selected: _categoryId == null, onTap: () => setState(() => _categoryId = null));
                 final c = cats[i - 1];
                 return _CatChip(label: c['name'] ?? '', imageUrl: c['image'], selected: _categoryId == c['id'], onTap: () => setState(() => _categoryId = c['id']));
               },
@@ -192,7 +194,7 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
           error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: AppColors.error))),
           data: (res) {
             final products = res['data'] as List? ?? [];
-            if (products.isEmpty) return const Center(child: Text('No products found', style: TextStyle(color: AppColors.textGrey)));
+            if (products.isEmpty) return Center(child: Text(l.noProductsFound, style: const TextStyle(color: AppColors.textGrey)));
             return GridView.builder(
               padding: const EdgeInsets.all(14),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.72, crossAxisSpacing: 12, mainAxisSpacing: 12),
@@ -208,7 +210,7 @@ class _EGroceryScreenState extends ConsumerState<EGroceryScreen> {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(color: context.colors.cardBg, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, -2))]),
         child: AppButton(
-          label: 'Checkout ($cartCount items) • \$${ref.read(_cartProvider.notifier).subtotal.toStringAsFixed(2)}',
+          label: '${l.checkout} ($cartCount ${l.items}) • \$${ref.read(_cartProvider.notifier).subtotal.toStringAsFixed(2)}',
           onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _CheckoutPage())),
         ),
       ) : null,
@@ -372,7 +374,7 @@ class _ProductDetailPageState extends ConsumerState<_ProductDetailPage> {
           const SizedBox(width: 12),
           // Add to cart
           Expanded(child: AppButton(
-            label: cartQty > 0 ? 'Update Cart • \$${(effectivePrice * _qty).toStringAsFixed(2)}' : 'Add to Cart • \$${(effectivePrice * _qty).toStringAsFixed(2)}',
+            label: cartQty > 0 ? '${AppL10n.of(context).updateCart} • \$${(effectivePrice * _qty).toStringAsFixed(2)}' : '${AppL10n.of(context).addToCart} • \$${(effectivePrice * _qty).toStringAsFixed(2)}',
             onPressed: () {
               final notifier = ref.read(_cartProvider.notifier);
               final existing = notifier.qtyOf(p['id']);
@@ -384,7 +386,7 @@ class _ProductDetailPageState extends ConsumerState<_ProductDetailPage> {
                 while (notifier.qtyOf(p['id']) > _qty) notifier.decrement(p['id']);
               }
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(cartQty > 0 ? 'Cart updated!' : 'Added to cart!'), backgroundColor: AppColors.success,
+                content: Text(cartQty > 0 ? AppL10n.of(context).cartUpdated : AppL10n.of(context).addedToCartMsg), backgroundColor: AppColors.success,
                 behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)));
             },
           )),
@@ -523,7 +525,7 @@ class _ProductDetailPageState extends ConsumerState<_ProductDetailPage> {
           // Description
           if (description.isNotEmpty) ...[
             const SizedBox(height: 20),
-            Text('Description', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+            Text(AppL10n.of(context).description, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
             const SizedBox(height: 8),
             Text(description, style: TextStyle(fontSize: 14, color: context.colors.navyText.withValues(alpha: 0.7), height: 1.5)),
           ],
@@ -531,7 +533,7 @@ class _ProductDetailPageState extends ConsumerState<_ProductDetailPage> {
           // Reviews
           if (reviews.isNotEmpty) ...[
             const SizedBox(height: 24),
-            Text('Reviews', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+            Text(AppL10n.of(context).reviews, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
             const SizedBox(height: 12),
             ...reviews.map((r) {
               final rv = r as Map<String, dynamic>;
@@ -632,7 +634,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
   String? _mobileProofToken;
 
   Future<void> _placeOrder() async {
-    if (_districtId == null) { _snack('Select delivery district'); return; }
+    if (_districtId == null) { _snack(AppL10n.current.selectDistrict2); return; }
     final cart = ref.read(_cartProvider);
     if (cart.isEmpty) return;
     final subtotal = ref.read(_cartProvider.notifier).subtotal;
@@ -671,7 +673,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         _svc.attachMobilePayProof(orderNumber, _mobileProofToken!);
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Grocery order placed! 🛒'), backgroundColor: AppColors.success));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppL10n.current.groceryOrderPlaced), backgroundColor: AppColors.success));
         Navigator.pop(context);
       }
     } catch (e) {
@@ -684,6 +686,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
   @override
   Widget build(BuildContext context) {
     ref.listen(authStateProvider, (_, __) { if (!_districtInit) _initDistrict(); });
+    final l = AppL10n.of(context);
     final cart = ref.watch(_cartProvider);
     final subtotal = ref.read(_cartProvider.notifier).subtotal;
     const deliveryFee = AppConstants.groceryDeliveryFee;
@@ -692,11 +695,11 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20), onPressed: () => Navigator.pop(context)),
-        title: const Text('Checkout', style: TextStyle(fontWeight: FontWeight.w800, fontFamily: 'Cairo')),
+        title: Text(l.checkout, style: const TextStyle(fontWeight: FontWeight.w800, fontFamily: 'Cairo')),
       ),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 100), children: [
         // Delivery District
-        _section('Delivery Address', Icons.location_on_outlined, children: [
+        _section(l.deliveryAddress, Icons.location_on_outlined, children: [
           GestureDetector(
             onTap: _pickDistrict,
             child: Container(
@@ -709,7 +712,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
               child: Row(children: [
                 Icon(Icons.location_on_rounded, color: _districtId != null ? AppColors.primary : AppColors.textGrey, size: 20),
                 const SizedBox(width: 12),
-                Expanded(child: Text(_districtName ?? 'Select delivery district',
+                Expanded(child: Text(_districtName ?? l.selectDistrict2,
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: _districtId != null ? context.colors.navyText : AppColors.textGrey))),
                 const Icon(Icons.chevron_right_rounded, color: AppColors.textGrey),
               ]),
@@ -719,7 +722,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         const SizedBox(height: 16),
 
         // Order Items
-        _section('Order Summary', Icons.receipt_long_outlined, children: [
+        _section(l.orderSummaryLabel, Icons.receipt_long_outlined, children: [
           ...cart.map((item) => Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Row(children: [
@@ -737,12 +740,12 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
           )),
           const Divider(height: 8),
           const SizedBox(height: 8),
-          _priceRow('Subtotal', '\$${subtotal.toStringAsFixed(2)}'),
-          _priceRow('Delivery Fee', '\$${deliveryFee.toStringAsFixed(2)}'),
+          _priceRow(l.subtotal, '\$${subtotal.toStringAsFixed(2)}'),
+          _priceRow(l.deliveryFee, '\$${deliveryFee.toStringAsFixed(2)}'),
           if (_pointsDiscount > 0) _priceRow('Points ($_pointsToRedeem pts)', '-\$${_pointsDiscount.toStringAsFixed(2)}', valueColor: const Color(0xFFF59E0B)),
           const Divider(height: 16),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Total', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: context.colors.navyText)),
+            Text(l.total, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: context.colors.navyText)),
             Text('\$${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: AppColors.primary)),
           ]),
         ]),
@@ -755,7 +758,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         const SizedBox(height: 8),
 
         // Payment
-        _section('Payment Method', Icons.payment_outlined, children: [
+        _section(l.paymentMethod, Icons.payment_outlined, children: [
           PaymentMethodSection(
             selected: _payment,
             onChanged: (m) => setState(() => _payment = m),
@@ -766,7 +769,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         decoration: BoxDecoration(color: context.colors.cardBg, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, -2))]),
         child: AppButton(
-          label: 'Place Order • \$${total.toStringAsFixed(2)}',
+          label: '${l.placeOrder} • \$${total.toStringAsFixed(2)}',
           isLoading: _ordering,
           onPressed: cart.isEmpty ? null : _placeOrder,
         ),

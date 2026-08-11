@@ -7,6 +7,7 @@ import '../../../../core/utils/error_handler.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../providers/order_provider.dart';
 import '../../data/models/order_model.dart';
+import '../../../../core/l10n/app_strings.dart';
 
 const _navy  = Color(0xFF07003B);
 const _navyL = Color(0xFF1B0F6E);
@@ -46,6 +47,7 @@ class _OrderDetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     return CustomScrollView(
       slivers: [
         // ── Hero status app bar ──────────────────────────────────────
@@ -62,7 +64,7 @@ class _OrderDetailBody extends StatelessWidget {
               TextButton.icon(
                 onPressed: () => context.push('/orders/$orderId/tracking'),
                 icon: const Icon(Icons.location_on_outlined, color: Colors.white, size: 16),
-                label: const Text('Track', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                label: Text(l.trackBtn, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
               ),
           ],
           flexibleSpace: FlexibleSpaceBar(
@@ -125,7 +127,7 @@ class _OrderDetailBody extends StatelessWidget {
               // ── Regular items (non-parcel) ─────────────────────────
               if (!isParcel && order.items.isNotEmpty) ...[
                 _DetailCard(
-                  title: 'Order Items',
+                  title: l.orderItems,
                   icon: Icons.shopping_bag_outlined,
                   child: Column(children: [
                     ...order.items.map((item) => Padding(
@@ -176,25 +178,25 @@ class _OrderDetailBody extends StatelessWidget {
 
               // ── Payment summary ────────────────────────────────────
               _DetailCard(
-                title: 'Payment Summary',
+                title: l.paymentSummary,
                 icon: Icons.receipt_long_outlined,
                 child: Column(children: [
                   if (!isParcel) ...[
-                    _SumRow('Subtotal', '\$${(order.totalAmount - (order.deliveryFee ?? 0) + (order.discount ?? 0)).toStringAsFixed(2)}'),
+                    _SumRow(l.subtotal, '\$${(order.totalAmount - (order.deliveryFee ?? 0) + (order.discount ?? 0)).toStringAsFixed(2)}'),
                     if ((order.deliveryFee ?? 0) > 0)
-                      _SumRow('Delivery Fee', '\$${order.deliveryFee!.toStringAsFixed(2)}'),
+                      _SumRow(l.deliveryFee, '\$${order.deliveryFee!.toStringAsFixed(2)}'),
                     if ((order.discount ?? 0) > 0)
-                      _SumRow('Discount', '-\$${order.discount!.toStringAsFixed(2)}', color: Colors.green),
+                      _SumRow(l.discount, '-\$${order.discount!.toStringAsFixed(2)}', color: Colors.green),
                     const Divider(height: 16, color: AppColors.divider),
                   ],
-                  _SumRow('Total', '\$${order.totalAmount.toStringAsFixed(2)}', bold: true),
+                  _SumRow(l.total, '\$${order.totalAmount.toStringAsFixed(2)}', bold: true),
                 ]),
               ),
               const SizedBox(height: 14),
 
               // ── Payment method ─────────────────────────────────────
               _DetailCard(
-                title: 'Payment',
+                title: l.payment,
                 icon: Icons.payment_outlined,
                 child: Row(children: [
                   Container(
@@ -237,7 +239,7 @@ class _OrderDetailBody extends StatelessWidget {
               // ── Status timeline ────────────────────────────────────
               if (order.history != null && (order.history as List).isNotEmpty) ...[
                 _DetailCard(
-                  title: 'Status Timeline',
+                  title: l.statusTimeline,
                   icon: Icons.timeline_outlined,
                   child: Column(children: [
                     ...(order.history as List).asMap().entries.map((e) {
@@ -289,6 +291,7 @@ class _ParcelRouteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(colors: [_navy, _navyL],
@@ -312,10 +315,10 @@ class _ParcelRouteCard extends StatelessWidget {
                   color: _amber.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: _amber.withOpacity(0.3))),
-                child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.local_shipping_rounded, color: _amber, size: 14),
-                  SizedBox(width: 6),
-                  Text('Parcel Delivery', style: TextStyle(color: _amber, fontSize: 12, fontWeight: FontWeight.w700)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.local_shipping_rounded, color: _amber, size: 14),
+                  const SizedBox(width: 6),
+                  Text(l.parcelDelivery, style: const TextStyle(color: _amber, fontSize: 12, fontWeight: FontWeight.w700)),
                 ]),
               ),
             ]),
@@ -326,7 +329,7 @@ class _ParcelRouteCard extends StatelessWidget {
               Expanded(child: _RouteStop(
                 icon: Icons.my_location_rounded,
                 iconColor: const Color(0xFF22C55E),
-                label: 'Pickup',
+                label: l.pickup,
                 district: p['pickup_district'] ?? '—',
                 name: p['sender_name'] ?? '—',
                 phone: p['sender_phone'] ?? '—',
@@ -343,7 +346,7 @@ class _ParcelRouteCard extends StatelessWidget {
               Expanded(child: _RouteStop(
                 icon: Icons.location_on_rounded,
                 iconColor: Colors.redAccent,
-                label: 'Delivery',
+                label: l.delivery,
                 district: p['delivery_district'] ?? '—',
                 name: p['recipient_name'] ?? '—',
                 phone: p['recipient_phone'] ?? '—',
@@ -361,7 +364,7 @@ class _ParcelRouteCard extends StatelessWidget {
                   color: Colors.white.withOpacity(0.07),
                   borderRadius: BorderRadius.circular(10)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Package Contents', style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w600)),
+                  Text(l.packageContents, style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
                   Text('${p['description']}', style: const TextStyle(color: Colors.white, fontSize: 13)),
                 ]),
@@ -509,12 +512,14 @@ class _CancelButton extends StatelessWidget {
   const _CancelButton({required this.orderId, required this.ref});
 
   @override
-  Widget build(BuildContext context) => SizedBox(
+  Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
+    return SizedBox(
     width: double.infinity,
     child: OutlinedButton.icon(
       onPressed: () => _confirm(context),
       icon: const Icon(Icons.cancel_outlined, size: 18),
-      label: const Text('Cancel Order', style: TextStyle(fontWeight: FontWeight.w700)),
+      label: Text(l.cancelOrder, style: const TextStyle(fontWeight: FontWeight.w700)),
       style: OutlinedButton.styleFrom(
         foregroundColor: Colors.red,
         side: const BorderSide(color: Colors.red),
@@ -523,15 +528,18 @@ class _CancelButton extends StatelessWidget {
       ),
     ),
   );
+  }
 
-  void _confirm(BuildContext context) => showDialog(
+  void _confirm(BuildContext context) {
+    final l = AppL10n.of(context);
+    showDialog(
     context: context,
     builder: (_) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      title: const Text('Cancel Order?', style: TextStyle(fontWeight: FontWeight.w800)),
-      content: const Text('Are you sure you want to cancel this order?'),
+      title: Text(l.cancelOrderQ, style: const TextStyle(fontWeight: FontWeight.w800)),
+      content: Text(l.cancelOrderConfirm),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('No')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(l.no)),
         ElevatedButton(
           onPressed: () async {
             Navigator.pop(context);
@@ -540,9 +548,10 @@ class _CancelButton extends StatelessWidget {
             ref.refresh(orderDetailProvider(orderId));
           },
           style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-          child: const Text('Yes, Cancel'),
+          child: Text(l.yesCancel),
         ),
       ],
     ),
   );
+  }
 }

@@ -13,6 +13,7 @@ import '../providers/community_provider.dart';
 import 'community_shell.dart';
 import '../../../../core/widgets/restriction_dialog.dart';
 import '../../../calls/data/repositories/call_repository.dart';
+import '../../../../core/l10n/app_strings.dart';
 import '../../../calls/presentation/screens/active_call_screen.dart';
 
 // Minute-bucketed timeago cache — same pattern as feed screen.
@@ -211,6 +212,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     final myProfile = ref.watch(communityMyProfileProvider);
     final myId = myProfile.valueOrNull?.id ?? 0;
     final msgsAsync = ref.watch(communityMessagesProvider(chat.id));
+    final l = AppL10n.of(context);
 
     return Scaffold(
       
@@ -234,7 +236,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
               ],
             ]),
             Text(
-              _otherTyping ? 'typing…' : (_otherOnline ? 'Online' : 'last seen recently'),
+              _otherTyping ? '${l.typing}…' : (_otherOnline ? l.online : l.lastSeenRecently),
               style: TextStyle(
                 color: _otherTyping ? kOrange : (_otherOnline ? const Color(0xFF45BD62) : Colors.grey),
                 fontSize: 12,
@@ -277,7 +279,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
                     Text(other?.name ?? '',
                         style: TextStyle(color: context.colors.bodyText, fontWeight: FontWeight.w700, fontSize: 16)),
                     SizedBox(height: 4),
-                    Text('Say hi!', style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
+                    Text(l.sayHi, style: TextStyle(color: context.colors.mutedText, fontSize: 13)),
                   ]),
                 );
               }
@@ -314,7 +316,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
                   textCapitalization: TextCapitalization.sentences,
                   style: TextStyle(fontSize: 15, color: context.colors.bodyText),
                   decoration: InputDecoration.collapsed(
-                    hintText: 'Type a message...',
+                    hintText: l.typeMessage,
                     hintStyle: TextStyle(color: context.colors.mutedText),
                   ),
                   onChanged: _onTextChanged,
@@ -352,6 +354,7 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMe = msg.isMe;
+    final l = AppL10n.of(context);
     return Padding(
       padding: EdgeInsets.only(bottom: 6),
       child: Row(
@@ -405,7 +408,7 @@ class _MessageBubble extends StatelessWidget {
                       ),
                       SizedBox(width: 2),
                       Text(
-                        msg.isRead ? 'Seen' : 'Delivered',
+                        msg.isRead ? l.seen : l.delivered,
                         style: TextStyle(
                           color: msg.isRead ? kOrange : const Color(0xFF9CA3AF),
                           fontSize: 10,

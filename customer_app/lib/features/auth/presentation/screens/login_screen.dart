@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/constants/app_assets.dart';
+import '../../../../core/l10n/app_strings.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -71,13 +72,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _login() async {
+    final l = AppL10n.of(context);
     if (_mode == 0) {
-      if (_phoneCtrl.text.trim().isEmpty) { _err('Enter your phone number'); return; }
-      if (_pin.length < 4)               { _err('Enter your 4-digit PIN');   return; }
+      if (_phoneCtrl.text.trim().isEmpty) { _err(l.enterPhone); return; }
+      if (_pin.length < 4)               { _err(l.enterPin);   return; }
       await ref.read(loginProvider.notifier).login(phone: _fullPhone, password: _pin);
     } else {
-      if (_emailCtrl.text.trim().isEmpty)    { _err('Enter your email address'); return; }
-      if (_passwordCtrl.text.trim().isEmpty) { _err('Enter your password');      return; }
+      if (_emailCtrl.text.trim().isEmpty)    { _err(l.enterEmailAddr); return; }
+      if (_passwordCtrl.text.trim().isEmpty) { _err(l.enterPassword);  return; }
       await ref.read(loginProvider.notifier)
           .login(email: _emailCtrl.text.trim(), password: _passwordCtrl.text);
     }
@@ -127,24 +129,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Column _desktopForm(BuildContext context, bool isLoading, bool isGoogleLoading) {
+    final l = AppL10n.of(context);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Welcome back 👋', style: TextStyle(
+      Text(l.welcomeBack, style: TextStyle(
         fontSize: 32, fontWeight: FontWeight.w900,
         color: context.colors.navyText, letterSpacing: -0.5)),
       const SizedBox(height: 6),
-      Text('Sign in to your eSahlan account',
+      Text(l.signInSubtitle,
         style: TextStyle(fontSize: 15, color: context.colors.mutedText, fontWeight: FontWeight.w500)),
       const SizedBox(height: 36),
       _ModeToggle(selected: _mode, onChanged: (v) => setState(() => _mode = v)),
       const SizedBox(height: 28),
       if (_mode == 0) ...[
-        const _Label('Phone Number'),
+        _Label(l.phoneNumber),
         const SizedBox(height: 8),
         PhoneInputField(controller: _phoneCtrl, onCountryChanged: (c) => setState(() => _country = c)),
         const SizedBox(height: 24),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const _Label('PIN Code'),
-          Text('4 digits', style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
+          _Label(l.pinCode),
+          Text(l.fourDigits, style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
         ]),
         const SizedBox(height: 12),
         Row(
@@ -160,19 +163,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
       ],
       if (_mode == 1) ...[
-        const _Label('Email Address'),
+        _Label(l.emailAddress),
         const SizedBox(height: 8),
         _InputField(ctrl: _emailCtrl, hint: 'you@example.com',
             icon: Icons.email_outlined, type: TextInputType.emailAddress),
         const SizedBox(height: 20),
-        const _Label('Password'),
+        _Label(l.password),
         const SizedBox(height: 8),
         _PasswordField(ctrl: _passwordCtrl, show: _showPassword,
             onToggle: () => setState(() => _showPassword = !_showPassword),
             onSubmit: (_) => _login()),
       ],
       const SizedBox(height: 32),
-      _ActionButton(label: 'Sign In', icon: Icons.arrow_forward_rounded,
+      _ActionButton(label: l.signIn, icon: Icons.arrow_forward_rounded,
           isLoading: isLoading, onTap: isLoading ? null : _login),
       const SizedBox(height: 20),
       _OrDivider(),
@@ -180,11 +183,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       _GoogleButton(isLoading: isGoogleLoading, onTap: isGoogleLoading ? null : _googleLogin),
       const SizedBox(height: 24),
       Center(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text("Don't have an account? ",
+        Text('${l.dontHaveAccount} ',
           style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
         GestureDetector(
           onTap: () => context.go('/auth/register'),
-          child: Text('Sign Up', style: TextStyle(
+          child: Text(l.signUp, style: TextStyle(
             color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 14)),
         ),
       ])),
@@ -212,11 +215,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     child: SlideTransition(
                       position: _slideAnim,
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Text('Welcome back 👋', style: TextStyle(
+                        Text(AppL10n.of(context).welcomeBack, style: const TextStyle(
                           fontSize: 28, fontWeight: FontWeight.w900,
                           color: Colors.white, letterSpacing: -0.5)),
                         const SizedBox(height: 6),
-                        Text('Sign in to your eSahlan account',
+                        Text(AppL10n.of(context).signInSubtitle,
                           style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.55),
                               fontWeight: FontWeight.w500)),
                       ]),
@@ -238,19 +241,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         ),
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          child: Builder(builder: (ctx) {
+                            final l = AppL10n.of(ctx);
+                            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             _ModeToggle(selected: _mode, onChanged: (v) => setState(() => _mode = v)),
                             const SizedBox(height: 28),
                             if (_mode == 0) ...[
-                              const _Label('Phone Number'),
+                              _Label(l.phoneNumber),
                               const SizedBox(height: 8),
                               PhoneInputField(controller: _phoneCtrl,
                                   onCountryChanged: (c) => setState(() => _country = c)),
                               const SizedBox(height: 24),
                               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                                const _Label('PIN Code'),
-                                Text('4 digits', style: TextStyle(
-                                    fontSize: 12, color: context.colors.mutedText)),
+                                _Label(l.pinCode),
+                                Text(l.fourDigits, style: TextStyle(
+                                    fontSize: 12, color: ctx.colors.mutedText)),
                               ]),
                               const SizedBox(height: 12),
                               Row(
@@ -258,27 +263,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 children: List.generate(4, (i) => _PinBox(
                                   controller: _pinCtrls[i], focusNode: _pinFocus[i],
                                   onChanged: (v) {
-                                    if (v.isNotEmpty && i < 3) FocusScope.of(context).requestFocus(_pinFocus[i + 1]);
-                                    else if (v.isEmpty && i > 0) FocusScope.of(context).requestFocus(_pinFocus[i - 1]);
+                                    if (v.isNotEmpty && i < 3) FocusScope.of(ctx).requestFocus(_pinFocus[i + 1]);
+                                    else if (v.isEmpty && i > 0) FocusScope.of(ctx).requestFocus(_pinFocus[i - 1]);
                                   },
                                   onSubmit: i == 3 ? (_) => _login() : null,
                                 )),
                               ),
                             ],
                             if (_mode == 1) ...[
-                              const _Label('Email Address'),
+                              _Label(l.emailAddress),
                               const SizedBox(height: 8),
                               _InputField(ctrl: _emailCtrl, hint: 'you@example.com',
                                   icon: Icons.email_outlined, type: TextInputType.emailAddress),
                               const SizedBox(height: 20),
-                              const _Label('Password'),
+                              _Label(l.password),
                               const SizedBox(height: 8),
                               _PasswordField(ctrl: _passwordCtrl, show: _showPassword,
                                   onToggle: () => setState(() => _showPassword = !_showPassword),
                                   onSubmit: (_) => _login()),
                             ],
                             const SizedBox(height: 32),
-                            _ActionButton(label: 'Sign In', icon: Icons.arrow_forward_rounded,
+                            _ActionButton(label: l.signIn, icon: Icons.arrow_forward_rounded,
                                 isLoading: isLoading, onTap: isLoading ? null : _login),
                             const SizedBox(height: 20),
                             _OrDivider(),
@@ -286,15 +291,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             _GoogleButton(isLoading: isGoogleLoading, onTap: isGoogleLoading ? null : _googleLogin),
                             const SizedBox(height: 24),
                             Center(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                              Text("Don't have an account? ",
-                                style: TextStyle(color: context.colors.mutedText, fontSize: 14)),
+                              Text('${l.dontHaveAccount} ',
+                                style: TextStyle(color: ctx.colors.mutedText, fontSize: 14)),
                               GestureDetector(
-                                onTap: () => context.go('/auth/register'),
-                                child: Text('Sign Up', style: TextStyle(
+                                onTap: () => ctx.go('/auth/register'),
+                                child: Text(l.signUp, style: TextStyle(
                                   color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 14)),
                               ),
                             ])),
-                          ]),
+                          ]);}),
                         ),
                       ),
                     ),
@@ -415,11 +420,14 @@ class _ModeToggle extends StatelessWidget {
         border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1),
       ),
       padding: const EdgeInsets.all(4),
-      child: Row(children: [
-        _Tab(label: '📱  Phone & PIN', active: selected == 0, onTap: () => onChanged(0)),
-        const SizedBox(width: 4),
-        _Tab(label: '✉️  Email & Password', active: selected == 1, onTap: () => onChanged(1)),
-      ]),
+      child: Builder(builder: (context) {
+        final l = AppL10n.of(context);
+        return Row(children: [
+          _Tab(label: l.phoneAndPin, active: selected == 0, onTap: () => onChanged(0)),
+          const SizedBox(width: 4),
+          _Tab(label: l.emailAndPass, active: selected == 1, onTap: () => onChanged(1)),
+        ]);
+      }),
     );
   }
 }
@@ -546,7 +554,7 @@ class _PasswordField extends StatelessWidget {
             onSubmitted: onSubmit,
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.bodyText),
             decoration: InputDecoration(
-              hintText: 'Your password',
+              hintText: AppL10n.of(context).yourPassword,
               hintStyle: TextStyle(color: c.subtleText, fontSize: 14, fontWeight: FontWeight.w400),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
@@ -617,11 +625,12 @@ class _PinBox extends StatelessWidget {
 class _OrDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     return Row(children: [
       Expanded(child: Divider(color: context.colors.mutedText.withOpacity(0.25), thickness: 1)),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14),
-        child: Text('or', style: TextStyle(
+        child: Text(l.orDivider, style: TextStyle(
           fontSize: 13, fontWeight: FontWeight.w600, color: context.colors.mutedText)),
       ),
       Expanded(child: Divider(color: context.colors.mutedText.withOpacity(0.25), thickness: 1)),
@@ -666,7 +675,7 @@ class _GoogleButton extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Text('Continue with Google',
+                Text(AppL10n.of(context).continueGoogle,
                   style: TextStyle(
                     fontSize: 15, fontWeight: FontWeight.w700,
                     color: context.colors.bodyText,

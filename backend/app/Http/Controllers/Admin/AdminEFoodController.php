@@ -736,7 +736,10 @@ class AdminEFoodController extends Controller
         ]);
 
         $data = $request->validate([
-            'vendor_id'      => 'required|exists:vendors,id',
+            // Accept single vendor_id (legacy) OR array vendor_ids[]
+            'vendor_ids'     => 'nullable|array|min:1',
+            'vendor_ids.*'   => 'exists:vendors,id',
+            'vendor_id'      => 'nullable|exists:vendors,id',
             'name'           => 'required|string|max:200',
             'description'    => 'nullable|string',
             'discount_type'  => 'required|in:percentage,fixed',
@@ -750,15 +753,38 @@ class AdminEFoodController extends Controller
             'internal_notes' => 'nullable|string',
         ]);
 
-        DiscountCampaign::create(array_merge($data, [
+        // Resolve which restaurants to target
+        $vendorIds = !empty($data['vendor_ids'])
+            ? $data['vendor_ids']
+            : ($request->filled('vendor_id') ? [$request->vendor_id] : []);
+
+        if (empty($vendorIds)) {
+            return back()->withErrors(['vendor_ids' => 'Select at least one restaurant.']);
+        }
+
+        $shared = [
+            'name'          => $data['name'],
+            'description'   => $data['description'] ?? null,
+            'discount_type' => $data['discount_type'],
+            'discount_value'=> $data['discount_value'],
+            'starts_at'     => $data['starts_at'],
+            'ends_at'       => $data['ends_at'],
+            'badge_text'    => $data['badge_text']  ?? 'Special Offer',
+            'badge_color'   => $data['badge_color'] ?? 'orange',
             'apply_to_all'  => $request->boolean('apply_to_all', true),
             'is_active'     => $request->boolean('is_active', true),
-            'badge_text'    => $data['badge_text'] ?? 'Special Offer',
-            'badge_color'   => $data['badge_color'] ?? 'orange',
+            'internal_notes'=> $data['internal_notes'] ?? null,
             'created_by'    => auth()->id(),
-        ]));
+        ];
 
-        return back()->with('success', 'Campaign created!');
+        foreach ($vendorIds as $vid) {
+            DiscountCampaign::create(array_merge($shared, ['vendor_id' => $vid]));
+        }
+
+        $count = count($vendorIds);
+        $msg   = $count === 1 ? 'Campaign created!' : "{$count} campaigns created (one per restaurant)!";
+
+        return back()->with('success', $msg);
     }
 
     public function campaignUpdate(Request $request, $id)

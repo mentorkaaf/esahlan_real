@@ -17,6 +17,7 @@ import '../../auth/data/repositories/district_repository.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import 'eshop_providers.dart';
 import '../../rewards/redeem_points_bar.dart';
+import '../../../core/l10n/app_strings.dart';
 
 final _eshopDistrictsProvider = FutureProvider<List<DistrictModel>>(
   (_) => DistrictRepository().getDistricts(),
@@ -105,8 +106,8 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
 
   Future<void> _placeOrder() async {
     if (!_addressFilled) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Please select a delivery district'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppL10n.current.selectDistrict2),
         backgroundColor: AppColors.error,
         behavior: SnackBarBehavior.floating,
       ));
@@ -205,17 +206,17 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
             child: const Icon(Icons.check_circle_rounded, size: 50, color: AppColors.success),
           ),
           const SizedBox(height: 20),
-          Text('Order Placed!', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: context.colors.navyText)),
+          Text(AppL10n.of(context).orderConfirmed, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: context.colors.navyText)),
           const SizedBox(height: 8),
-          const Text('Your order has been placed successfully. You will receive a confirmation shortly.',
-            textAlign: TextAlign.center, style: TextStyle(color: AppColors.textGrey, fontSize: 13, height: 1.5)),
+          Text(AppL10n.of(context).orderPlacedSuccess,
+            textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textGrey, fontSize: 13, height: 1.5)),
           const SizedBox(height: 24),
-          AppButton(label: 'Continue Shopping', onPressed: () {
+          AppButton(label: AppL10n.of(context).continueShopping, onPressed: () {
             Navigator.of(dialogCtx).pop();
             context.go('/eshop');
           }),
           const SizedBox(height: 8),
-          AppButton(label: 'View Orders', outlined: true, onPressed: () {
+          AppButton(label: AppL10n.of(context).viewOrders, outlined: true, onPressed: () {
             Navigator.of(dialogCtx).pop();
             context.go('/orders');
           }),
@@ -241,25 +242,25 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20), onPressed: () => context.pop()),
-        title: const Text('Checkout', style: TextStyle(fontWeight: FontWeight.w800, fontFamily: 'Cairo')),
+        title: Text(AppL10n.of(context).checkout, style: const TextStyle(fontWeight: FontWeight.w800, fontFamily: 'Cairo')),
       ),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 100), children: [
         // ── Delivery District ─────────────────────────────────────
-        _section('Delivery Address', Icons.location_on_outlined, children: [
+        _section(AppL10n.of(context).deliveryAddress, Icons.location_on_outlined, children: [
           _DistrictCard(
             districtName: _districtName,
             onChangeTap: _pickDistrict,
           ),
           const SizedBox(height: 12),
-          _field(_nameCtrl, 'Full Name', Icons.person_outline_rounded),
+          _field(_nameCtrl, AppL10n.of(context).fullName, Icons.person_outline_rounded),
           const SizedBox(height: 12),
-          _field(_phoneCtrl, 'Phone Number', Icons.phone_outlined, keyboardType: TextInputType.phone),
+          _field(_phoneCtrl, AppL10n.of(context).phoneNumber, Icons.phone_outlined, keyboardType: TextInputType.phone),
         ]),
 
         const SizedBox(height: 16),
 
         // ── Order Items ───────────────────────────────────────────
-        _section('Order Summary', Icons.receipt_long_outlined, children: [
+        _section(AppL10n.of(context).orderSummaryLabel, Icons.receipt_long_outlined, children: [
           ...cart.map((item) => Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Row(children: [
@@ -291,15 +292,15 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
           )),
           const Divider(height: 8),
           const SizedBox(height: 8),
-          _row('Subtotal', '\$${subtotal.toStringAsFixed(2)}'),
+          _row(AppL10n.of(context).subtotal, '\$${subtotal.toStringAsFixed(2)}'),
           if (coupon.isValid && discount > 0)
-            _row('Coupon (${coupon.code})', '-\$${discount.toStringAsFixed(2)}', valueColor: AppColors.success),
+            _row('${AppL10n.of(context).coupon} (${coupon.code})', '-\$${discount.toStringAsFixed(2)}', valueColor: AppColors.success),
           if (_pointsDiscount > 0)
             _row('Points ($_pointsToRedeem pts)', '-\$${_pointsDiscount.toStringAsFixed(2)}', valueColor: const Color(0xFFF59E0B)),
-          _row('Delivery Fee', '\$${_deliveryFee.toStringAsFixed(2)}'),
+          _row(AppL10n.of(context).deliveryFee, '\$${_deliveryFee.toStringAsFixed(2)}'),
           const Divider(height: 16),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Total', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: context.colors.navyText)),
+            Text(AppL10n.of(context).total, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: context.colors.navyText)),
             Text('\$${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: AppColors.primary)),
           ]),
         ]),
@@ -313,7 +314,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
         ),
 
         // ── Payment Method ────────────────────────────────────────
-        _section('Payment Method', Icons.payment_outlined, children: [
+        _section(AppL10n.of(context).paymentMethod, Icons.payment_outlined, children: [
           PaymentMethodSection(
             selected: _paymentMethod,
             onChanged: (v) => setState(() => _paymentMethod = v),
@@ -327,7 +328,7 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, -2))],
         ),
         child: AppButton(
-          label: 'Place Order  •  \$${total.toStringAsFixed(2)}',
+          label: '${AppL10n.of(context).placeOrder}  •  \$${total.toStringAsFixed(2)}',
           isLoading: _placing,
           onPressed: cart.isEmpty ? null : _placeOrder,
         ),
@@ -412,7 +413,7 @@ class _DistrictCard extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(
-              hasDistrict ? districtName! : 'Select delivery district',
+              hasDistrict ? districtName! : AppL10n.of(context).selectDistrict2,
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
@@ -421,7 +422,7 @@ class _DistrictCard extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              hasDistrict ? 'Tap to change district' : 'Choose where to deliver',
+              hasDistrict ? AppL10n.of(context).tapToChangeDistrict : AppL10n.of(context).chooseWhereToDeliver,
               style: const TextStyle(fontSize: 11, color: AppColors.textGrey),
             ),
           ])),
@@ -462,7 +463,7 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(children: [
-            Expanded(child: Text('Select District', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: context.colors.navyText))),
+            Expanded(child: Text(AppL10n.of(context).selectDistrictBtn, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: context.colors.navyText))),
             IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(context)),
           ]),
         ),
@@ -472,7 +473,7 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
             autofocus: true,
             onChanged: (v) => setState(() => _search = v),
             decoration: InputDecoration(
-              hintText: 'Search district...',
+              hintText: AppL10n.of(context).searchDistrict,
               prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textGrey),
               filled: true, fillColor: AppColors.surface,
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

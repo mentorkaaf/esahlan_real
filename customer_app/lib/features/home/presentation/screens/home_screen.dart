@@ -17,6 +17,7 @@ import '../../../../features/ads/widgets/banner_ad_strip.dart';
 import '../../../../features/ads/widgets/card_ad_strip.dart';
 import '../../../notifications/notification_screen.dart';
 import '../../../notifications/notification_provider.dart';
+import '../../../../core/l10n/app_strings.dart';
 
 // ── eSahlan Brand Gradient — Navy dominant, subtle orange touch at corner ──────
 // All service cards share ONE unified gradient: deep navy → very faint orange
@@ -203,7 +204,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Search services, restaurants, houses...',
+                            AppL10n.of(context).searchHint,
                             style: TextStyle(
                               color: isDark
                                   ? const Color(0xFF5A5A7A)
@@ -253,7 +254,9 @@ class _ServicesSectionHeader extends StatelessWidget {
   const _ServicesSectionHeader();
 
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
+    return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16),
     child: Row(
       children: [
@@ -264,13 +267,14 @@ class _ServicesSectionHeader extends StatelessWidget {
         ),
         SizedBox(width: 10),
         Text(
-          'Our Services',
+          l.ourServices,
           style: TextStyle(
               fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.navyText),
         ),
       ],
     ),
   );
+  }
 }
 
 // ─── API-driven Services Grid ─────────────────────────────────────────────────
@@ -639,6 +643,7 @@ class _FallbackHeroBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       height: height,
@@ -681,9 +686,9 @@ class _FallbackHeroBanner extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
-                        'Everything you need\nis now in one App',
-                        style: TextStyle(
+                      Text(
+                        l.bannerTagline,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -721,9 +726,9 @@ class _FallbackHeroBanner extends StatelessWidget {
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Text(
-                          'Explore Now',
-                          style: TextStyle(
+                        child: Text(
+                          l.exploreNow,
+                          style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
                               fontSize: 13),

@@ -16,6 +16,7 @@ import '../../payment/mobile_pay_sheet.dart';
 import '../../payment/payment_method_section.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../ads/services/ad_service.dart';
+import '../../../core/l10n/app_strings.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Theme Constants
@@ -111,6 +112,7 @@ class _ETicketScreenState extends ConsumerState<ETicketScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: NestedScrollView(
@@ -157,7 +159,7 @@ class _ETicketScreenState extends ConsumerState<ETicketScreen>
                                     fontSize: 24, fontWeight: FontWeight.w900)),
                           ]),
                           const SizedBox(height: 4),
-                          Text('Book your flight across Somalia & beyond',
+                          Text(l.bookFlightDesc,
                               style: TextStyle(color: Colors.white.withValues(alpha: 0.75),
                                   fontSize: 13)),
                         ],
@@ -174,7 +176,7 @@ class _ETicketScreenState extends ConsumerState<ETicketScreen>
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white60,
               labelStyle: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-              tabs: const [Tab(text: 'Book Flight'), Tab(text: 'My Tickets')],
+              tabs: [Tab(text: l.bookFlight), Tab(text: l.myTickets)],
             ),
           ),
         ],
@@ -242,6 +244,7 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     return SingleChildScrollView(
       child: Column(children: [
         // ── Search card ──────────────────────────────────────────────
@@ -260,9 +263,9 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: Row(children: [
-                _TripTypeChip(label: 'One Way',  value: 'one_way',   selected: _tripType, onTap: (v) => setState(() { _tripType = v; _returnDate = null; })),
+                _TripTypeChip(label: l.oneWay,  value: 'one_way',   selected: _tripType, onTap: (v) => setState(() { _tripType = v; _returnDate = null; })),
                 const SizedBox(width: 8),
-                _TripTypeChip(label: 'Round Trip', value: 'round_trip', selected: _tripType, onTap: (v) => setState(() => _tripType = v)),
+                _TripTypeChip(label: l.roundTrip, value: 'round_trip', selected: _tripType, onTap: (v) => setState(() => _tripType = v)),
               ]),
             ),
             const SizedBox(height: 16),
@@ -271,9 +274,9 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(children: [
                 Expanded(child: _CitySelector(
-                  label: 'From',
+                  label: l.fromCity,
                   city: _fromCity,
-                  hint: 'Departure city',
+                  hint: l.departureCity,
                   onSelect: (c) => setState(() => _fromCity = c),
                 )),
                 GestureDetector(
@@ -290,9 +293,9 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
                   ),
                 ),
                 Expanded(child: _CitySelector(
-                  label: 'To',
+                  label: l.toCity,
                   city: _toCity,
-                  hint: 'Destination city',
+                  hint: l.destinationCity,
                   onSelect: (c) => setState(() => _toCity = c),
                 )),
               ]),
@@ -308,7 +311,7 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(children: [
                 Expanded(child: _DatePicker(
-                  label: 'Departure',
+                  label: l.departureDate,
                   date: _departureDate,
                   fromCity: _fromCity?['city'],
                   toCity: _toCity?['city'],
@@ -317,7 +320,7 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
                 if (_tripType == 'round_trip') ...[
                   const SizedBox(width: 12),
                   Expanded(child: _DatePicker(
-                    label: 'Return',
+                    label: l.returnDate,
                     date: _returnDate,
                     fromCity: _toCity?['city'],
                     toCity: _fromCity?['city'],
@@ -367,7 +370,7 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
                     const Icon(Icons.search_rounded, color: Colors.white, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      _searchParams != null ? 'Update Search' : 'Search Flights',
+                      _searchParams != null ? l.updateSearch : l.searchFlights,
                       style: TextStyle(color: Colors.white,
                           fontWeight: FontWeight.w800, fontSize: 16),
                     ),
@@ -544,7 +547,7 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
             child: Row(children: [
               Icon(Icons.flight_rounded, color: context.colors.navyText, size: 22),
               const SizedBox(width: 10),
-              Text('Select City',
+              Text(AppL10n.of(context).selectCity,
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800,
                       color: context.colors.navyText)),
               const Spacer(),

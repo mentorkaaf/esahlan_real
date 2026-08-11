@@ -13,6 +13,7 @@ import '../../wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../rewards/redeem_points_bar.dart';
+import '../../../../core/l10n/app_strings.dart';
 
 final _svc = ModuleApiService.create();
 final _parcelTypesProvider     = FutureProvider((_) => _svc.getParcelTypes());
@@ -91,6 +92,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
   // ── build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     final parcelTypes = ref.watch(_parcelTypesProvider).valueOrNull?['data'] as List? ?? [];
     final districts   = ref.watch(_parcelDistrictsProvider).valueOrNull?['data'] as List? ?? [];
 
@@ -145,7 +147,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
                         const Text('eParcel', style: TextStyle(
                           color: Colors.white, fontSize: 22,
                           fontWeight: FontWeight.w900, letterSpacing: 0.5)),
-                        const Text('Fast & Reliable Delivery', style: TextStyle(
+                        Text(l.fastReliable, style: const TextStyle(
                           color: Colors.white54, fontSize: 12)),
                       ]),
                     ),
@@ -163,18 +165,18 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
 
                 // ── 1. Sender card ─────────────────────────────────────────
                 _StepCard(
-                  step: 1, title: 'Sender Information',
+                  step: 1, title: l.senderInfo,
                   icon: Icons.person_rounded,
                   child: Row(children: [
                     Expanded(child: _InfoChip(
                       icon: Icons.badge_outlined,
-                      label: 'Name',
+                      label: l.nameLabel,
                       value: _senderName.isNotEmpty ? _senderName : '—',
                     )),
                     const SizedBox(width: 10),
                     Expanded(child: _InfoChip(
                       icon: Icons.phone_outlined,
-                      label: 'Phone',
+                      label: l.phoneLabel,
                       value: _senderPhone.isNotEmpty ? _senderPhone : '—',
                     )),
                   ]),
@@ -183,19 +185,19 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
 
                 // ── 2. Receiver card ───────────────────────────────────────
                 _StepCard(
-                  step: 2, title: 'Receiver Information',
+                  step: 2, title: l.receiverInfo,
                   icon: Icons.person_add_rounded,
                   child: Column(children: [
                     _PremiumField(
                       ctrl: _recipientNameCtrl,
-                      label: 'Receiver Name',
-                      hint: 'Full name',
+                      label: l.receiverName,
+                      hint: l.fullName,
                       icon: Icons.person_outline_rounded,
                     ),
                     const SizedBox(height: 12),
                     _PremiumField(
                       ctrl: _recipientPhoneCtrl,
-                      label: 'Receiver Phone',
+                      label: l.receiverPhone,
                       hint: '+252 xxx xxx xxx',
                       icon: Icons.phone_outlined,
                       inputType: TextInputType.phone,
@@ -206,13 +208,13 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
 
                 // ── 3. Package type ────────────────────────────────────────
                 _StepCard(
-                  step: 3, title: 'Package Type',
+                  step: 3, title: l.pkgTypeStep,
                   icon: Icons.inventory_2_rounded,
                   child: parcelTypes.isEmpty
                       ? const _LoadingRow()
                       : _PremiumDropdown(
                           value: _parcelTypeName,
-                          hint: 'Select package type',
+                          hint: l.selectPkgType,
                           icon: Icons.inventory_2_outlined,
                           items: parcelTypes.map<Map<String, dynamic>>((t) => {
                             'label': t['name'].toString(),
@@ -232,14 +234,14 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
 
                 // ── 4. Districts ───────────────────────────────────────────
                 _StepCard(
-                  step: 4, title: 'Route',
+                  step: 4, title: l.routeStep,
                   icon: Icons.route_rounded,
                   child: districts.isEmpty
                       ? const _LoadingRow()
                       : Column(children: [
                           _PremiumDropdown(
                             value: _pickupDistrictName,
-                            hint: 'Pickup District',
+                            hint: l.pickupDistrict,
                             icon: Icons.my_location_rounded,
                             iconColor: _green,
                             items: districts.map<Map<String, dynamic>>((d) => {
@@ -272,7 +274,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
                           const SizedBox(height: 10),
                           _PremiumDropdown(
                             value: _deliveryDistrictName,
-                            hint: 'Delivery District',
+                            hint: l.deliveryDistrict,
                             icon: Icons.location_on_rounded,
                             iconColor: Colors.redAccent,
                             items: districts.map<Map<String, dynamic>>((d) => {
@@ -293,14 +295,14 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
 
                 // ── 5. Description ─────────────────────────────────────────
                 _StepCard(
-                  step: 5, title: 'Package Contents',
+                  step: 5, title: l.packageContents,
                   icon: Icons.notes_rounded,
                   child: TextField(
                     controller: _descCtrl,
                     maxLines: 2,
                     style: const TextStyle(fontSize: 14, color: AppColors.textDark),
                     decoration: InputDecoration(
-                      hintText: 'What is inside the package? (Optional)',
+                      hintText: l.pkgContentsHint,
                       hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 13),
                       filled: true,
                       fillColor: context.colors.inputFill,
@@ -322,7 +324,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
                 // ── Calculate button ───────────────────────────────────────
                 if (_price == null)
                   _GradientButton(
-                    label: _calculating ? 'Calculating...' : 'Get Delivery Price',
+                    label: _calculating ? l.calculating : l.getDeliveryPrice,
                     icon: _calculating
                         ? null
                         : Icons.calculate_rounded,
@@ -351,7 +353,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
                   ),
                   const SizedBox(height: 14),
                   _GradientButton(
-                    label: _ordering ? 'Placing Order...' : 'Send Parcel Now',
+                    label: _ordering ? l.placingOrder : l.sendParcelNow,
                     icon: _ordering ? null : Icons.send_rounded,
                     loading: _ordering,
                     enabled: _recipientNameCtrl.text.trim().isNotEmpty &&
@@ -364,7 +366,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
                     child: TextButton.icon(
                       onPressed: () => setState(() => _price = null),
                       icon: const Icon(Icons.refresh_rounded, size: 16),
-                      label: const Text('Change details'),
+                      label: Text(l.changeDetails),
                       style: TextButton.styleFrom(foregroundColor: AppColors.textGrey),
                     ),
                   ),
@@ -398,8 +400,8 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
   }
 
   Future<void> _placeOrder() async {
-    if (_recipientNameCtrl.text.trim().isEmpty) { _snack('Enter receiver name', error: true); return; }
-    if (_recipientPhoneCtrl.text.trim().isEmpty) { _snack('Enter receiver phone', error: true); return; }
+    if (_recipientNameCtrl.text.trim().isEmpty) { _snack(AppL10n.current.enterReceiverName, error: true); return; }
+    if (_recipientPhoneCtrl.text.trim().isEmpty) { _snack(AppL10n.current.enterReceiverPhone, error: true); return; }
 
     if (_payMethod == 'mobile_pay' || _payMethod == 'waafi_pay') {
       final price = double.tryParse(_price?['total']?.toString() ?? '0') ?? 0;
@@ -442,7 +444,7 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
       }
       if (_payMethod == 'wallet') ref.invalidate(walletProvider);
       if (mounted) {
-        _snack('Parcel order placed successfully! 🎉');
+        _snack(AppL10n.current.parcelPlaced);
         await Future.delayed(const Duration(milliseconds: 800));
         if (mounted) context.pop();
       }
@@ -833,7 +835,7 @@ class _PriceCard extends StatelessWidget {
                   label: '${price['from_district']}',
                   color: _green,
                   icon: Icons.my_location_rounded,
-                  sub: 'Pickup',
+                  sub: AppL10n.of(context).pickupLabel,
                 ),
                 Expanded(child: _DashedLine()),
                 const Icon(Icons.local_shipping_rounded, color: Colors.white38, size: 22),
@@ -842,7 +844,7 @@ class _PriceCard extends StatelessWidget {
                   label: '${price['to_district']}',
                   color: Colors.redAccent,
                   icon: Icons.location_on_rounded,
-                  sub: 'Delivery',
+                  sub: AppL10n.of(context).delivery,
                   align: CrossAxisAlignment.end,
                 ),
               ]),
@@ -852,14 +854,14 @@ class _PriceCard extends StatelessWidget {
               // price
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Delivery Price', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                  Text(AppL10n.of(context).deliveryLabel, style: const TextStyle(color: Colors.white60, fontSize: 12)),
                   const SizedBox(height: 4),
                   Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                     Text('\$', style: TextStyle(color: _amber.withOpacity(0.8), fontSize: 16, fontWeight: FontWeight.w700)),
                     Text('${price['total']}',
                       style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w900, height: 1)),
                   ]),
-                  Text('${price['currency'] ?? 'USD'} • Flat Rate',
+                  Text('${price['currency'] ?? 'USD'} • ${AppL10n.of(context).flatRate}',
                     style: const TextStyle(color: Colors.white38, fontSize: 11)),
                 ]),
                 Container(
@@ -872,8 +874,8 @@ class _PriceCard extends StatelessWidget {
                   child: Column(children: [
                     const Icon(Icons.verified_rounded, color: _green, size: 22),
                     const SizedBox(height: 4),
-                    const Text('Cash on\nDelivery', textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600)),
+                    Text(AppL10n.of(context).cashOnDelivery.replaceAll(' ', '\n'), textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600)),
                   ]),
                 ),
               ]),

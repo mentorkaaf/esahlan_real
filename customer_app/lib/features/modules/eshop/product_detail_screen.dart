@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
 import 'eshop_providers.dart';
+import '../../../core/l10n/app_strings.dart';
 
 double _toD(dynamic v) => double.tryParse(v?.toString() ?? '0') ?? 0;
 
@@ -61,6 +62,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     final async = ref.watch(eshopProductProvider(widget.productId));
     final cartNotifier = ref.read(eshopCartProvider.notifier);
     ref.watch(eshopCartProvider);
@@ -72,13 +74,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         loading: () => const Scaffold(body: Center(child: CircularProgressIndicator(color: AppColors.primary))),
         error: (e, _) => Scaffold(
           appBar: AppBar(leading: BackButton(onPressed: () => context.pop())),
-          body: Center(child: Text('Error: $e')),
+          body: Center(child: Text('${l.error}: $e')),
         ),
         data: (product) {
           if (product.isEmpty) {
             return Scaffold(
               appBar: AppBar(leading: BackButton(onPressed: () => context.pop())),
-              body: const Center(child: Text('Product not found')),
+              body: Center(child: Text(l.productNotFound)),
             );
           }
 
@@ -265,7 +267,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      stock > 0 ? 'In Stock ($stock left)' : 'Out of Stock',
+                      stock > 0 ? l.inStockCount(stock) : l.outOfStock,
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: stock > 0 ? AppColors.success : AppColors.error),
                     ),
                   ]),
@@ -281,7 +283,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
                 // Variants
                 if (activeVariants.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Variants', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
+                  Text(l.variants, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
                   const SizedBox(height: 12),
                   Wrap(spacing: 8, runSpacing: 8, children: activeVariants.map((v) {
                     final selected = _selectedVariantId == v['id'];
@@ -315,7 +317,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
                 // Quantity selector
                 Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Quantity', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
+                  Text(l.quantity, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
                   SizedBox(height: 12),
                   Row(children: [
                     _qtyBtn(Icons.remove_rounded, () { if (_qty > 1) setState(() => _qty--); }, _qty > 1),
@@ -334,7 +336,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
                 // Description
                 if (description.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Description', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
+                  Text(l.description, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
                   const SizedBox(height: 10),
                   AnimatedSize(
                     duration: const Duration(milliseconds: 300),
@@ -346,7 +348,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   if (description.length > 120) GestureDetector(
                     onTap: () => setState(() => _descExpanded = !_descExpanded),
                     child: Padding(padding: const EdgeInsets.only(top: 6), child: Text(
-                      _descExpanded ? 'Show less' : 'Read more',
+                      _descExpanded ? l.showLess : l.readMore,
                       style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13),
                     )),
                   ),
@@ -366,7 +368,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         ),
         child: Row(children: [
           Expanded(child: AppButton(
-            label: 'Add to Cart',
+            label: l.addToCart,
             outlined: true,
             onPressed: () {
               cartNotifier.addItem(async.value!, qty: _qty, variantId: _selectedVariantId,
@@ -374,15 +376,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     ? (async.value!['variants'] as List?)?.cast<Map<String, dynamic>>().where((v) => v['id'] == _selectedVariantId).firstOrNull
                     : null);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: const Text('Added to cart'), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating,
-                  action: SnackBarAction(label: 'View Cart', textColor: Colors.white, onPressed: () => context.webPush('/eshop/cart')),
+                SnackBar(content: Text(l.addedToCart), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating,
+                  action: SnackBarAction(label: l.viewCart, textColor: Colors.white, onPressed: () => context.webPush('/eshop/cart')),
                 ),
               );
             },
           )),
           const SizedBox(width: 12),
           Expanded(child: AppButton(
-            label: 'Buy Now',
+            label: l.buyNow,
             onPressed: () {
               cartNotifier.addItem(async.value!, qty: _qty, variantId: _selectedVariantId);
               context.webPush('/eshop/checkout');
@@ -416,6 +418,7 @@ class _VendorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     final vendorId   = int.tryParse(product['vendor_id']?.toString() ?? '0') ?? 0;
     final name       = product['shop_name']?.toString() ?? 'Store';
     final logo       = product['shop_logo']?.toString();
@@ -479,7 +482,7 @@ class _VendorCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Text(isOpen ? 'Open' : 'Closed',
+                      Text(isOpen ? l.openLabel : l.closedLabel,
                           style: TextStyle(
                               fontSize: 11,
                               color: isOpen ? AppColors.success : AppColors.textGrey)),

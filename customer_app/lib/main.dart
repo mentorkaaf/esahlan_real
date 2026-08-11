@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'core/constants/app_constants.dart';
+import 'core/l10n/app_strings.dart';
 import 'core/providers/app_settings_provider.dart';
 import 'core/providers/community_feature_provider.dart';
 import 'core/providers/theme_provider.dart';
@@ -237,11 +238,14 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
           GlobalCupertinoLocalizations.delegate,
         ],
         routerConfig: ref.watch(routerProvider),
-        builder: (ctx, child) => MediaQuery(
-          data: MediaQuery.of(ctx).copyWith(
-            textScaler: TextScaler.linear(settings.textScaleFactor),
+        builder: (ctx, child) => AppLangScope(
+          language: settings.language,
+          child: MediaQuery(
+            data: MediaQuery.of(ctx).copyWith(
+              textScaler: TextScaler.linear(settings.textScaleFactor),
+            ),
+            child: child!,
           ),
-          child: child!,
         ),
       ),
     );
