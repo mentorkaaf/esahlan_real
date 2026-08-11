@@ -357,27 +357,48 @@ class AdminEFoodController extends Controller
     public function categoryStore(Request $request)
     {
         $data = $request->validate([
-            'name'       => 'required|string|max:100',
-            'image'      => 'nullable|max:500',
-            'image_file' => 'nullable|image|max:5120',
-            'sort_order' => 'nullable|integer',
-            'is_active'  => 'nullable|boolean',
+            'name'        => 'required|string|max:100',
+            'image'       => 'nullable|max:500',
+            'image_file'  => 'nullable|image|max:5120',
+            'sort_order'  => 'nullable|integer',
+            'is_active'   => 'nullable|boolean',
+            'vendor_ids'  => 'nullable|array',
+            'vendor_ids.*'=> 'integer|exists:vendors,id',
         ]);
         if ($request->hasFile('image_file')) $data['image'] = $this->storeUpload($request->file('image_file'));
         unset($data['image_file']);
 
-        $module = $this->efoodModule();
+        $module    = $this->efoodModule();
+        $vendorIds = $data['vendor_ids'] ?? [];
+        unset($data['vendor_ids']);
 
-        Category::create([
+        $base = [
             'name'       => $data['name'],
-            'slug'       => Str::slug($data['name']) . '-' . Str::random(4),
             'image'      => $data['image'] ?? null,
             'module_id'  => $module?->id,
             'sort_order' => $data['sort_order'] ?? 0,
             'is_active'  => $request->boolean('is_active', true),
-        ]);
+        ];
 
-        return back()->with('success', 'Category added!');
+        if (empty($vendorIds)) {
+            // Global category (no vendor)
+            Category::create(array_merge($base, [
+                'slug' => Str::slug($data['name']) . '-' . Str::random(4),
+            ]));
+            return back()->with('success', 'Category added (global).');
+        }
+
+        // Create one category copy per selected restaurant
+        foreach ($vendorIds as $vid) {
+            Category::firstOrCreate(
+                ['vendor_id' => $vid, 'name' => $data['name'], 'module_id' => $module?->id],
+                array_merge($base, [
+                    'vendor_id' => $vid,
+                    'slug'      => Str::slug($data['name']) . '-' . Str::random(4),
+                ])
+            );
+        }
+        return back()->with('success', 'Category added to ' . count($vendorIds) . ' restaurant(s).');
     }
 
     public function categoryUpdate(Request $request, $id)

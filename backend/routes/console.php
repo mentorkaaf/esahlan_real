@@ -91,3 +91,12 @@ Schedule::command('cart:notify-abandoned')
     ->name('cart:abandonment-notifications')
     ->withoutOverlapping()
     ->runInBackground();
+
+// eFood campaign discount notifications: every 2 hours
+// Sends FCM to users who haven't purchased during the active campaign.
+// Stops sending to users once they place an order (purchased = excluded).
+Schedule::command('efood:send-campaign-notifications')
+    ->everyTwoHours()
+    ->name('efood:campaign-notifications')
+    ->withoutOverlapping()
+    ->runInBackground();

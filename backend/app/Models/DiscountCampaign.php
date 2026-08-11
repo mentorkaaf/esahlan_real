@@ -30,6 +30,11 @@ class DiscountCampaign extends Model
         return $this->belongsTo(Vendor::class);
     }
 
+    public function category()
+    {
+        return $this->belongsTo(\App\Models\Category::class);
+    }
+
     /** Is the campaign currently live? */
     public function isLive(): bool
     {

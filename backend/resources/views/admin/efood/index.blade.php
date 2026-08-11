@@ -1135,6 +1135,41 @@
                     </label>
                 </div>
             </div>
+
+            {{-- ── Restaurant Assignment (optional) ──────────────────── --}}
+            <div style="border:1px solid #e9ecef;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;font-size:13px;font-weight:600;">
+                    <input type="checkbox" id="cat_assign_toggle" onchange="catToggleAssign(this.checked)"
+                           style="width:15px;height:15px;accent-color:#FF8A00;">
+                    Assign to restaurants? <span style="font-weight:400;color:#888;">(optional — leave unchecked for global category)</span>
+                </label>
+                <div id="cat_assign_panel" style="display:none;margin-top:10px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                        <span style="font-size:12px;color:#555;" id="cat_assign_count">0 selected</span>
+                        <span style="display:flex;gap:6px;">
+                            <button type="button" onclick="catSelectAll()" style="font-size:11px;padding:2px 8px;background:#FF8A00;color:#fff;border:none;border-radius:4px;cursor:pointer;">All</button>
+                            <button type="button" onclick="catClearAll()" style="font-size:11px;padding:2px 8px;background:#6c757d;color:#fff;border:none;border-radius:4px;cursor:pointer;">Clear</button>
+                        </span>
+                    </div>
+                    <input type="text" placeholder="🔍 Search restaurants..." oninput="catFilterRest(this.value)"
+                           style="width:100%;padding:6px 10px;border:1px solid #dee2e6;border-radius:6px;margin-bottom:6px;font-size:12px;box-sizing:border-box;">
+                    <div id="cat_rest_list" style="max-height:160px;overflow-y:auto;border:1px solid #dee2e6;border-radius:8px;padding:4px;">
+                        @foreach($allRestaurants as $ar)
+                        <label style="display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:13px;"
+                               onmouseover="this.style.background='#fff3e0'" onmouseout="this.style.background=''">
+                            <input type="checkbox" name="vendor_ids[]" value="{{ $ar->id }}"
+                                   onchange="catUpdateCount()"
+                                   style="width:14px;height:14px;accent-color:#FF8A00;cursor:pointer;">
+                            {{ $ar->name }}
+                        </label>
+                        @endforeach
+                    </div>
+                    <p style="font-size:11px;color:#888;margin:6px 0 0;">
+                        One category copy will be created per selected restaurant.
+                    </p>
+                </div>
+            </div>
+
             <button type="submit" class="btn btn-primary" style="width:100%;">Add Category</button>
         </form>
     </div>
@@ -2438,6 +2473,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
+// ─── Category Assignment ─────────────────────────────────────────────────────
+function catToggleAssign(on) {
+    document.getElementById('cat_assign_panel').style.display = on ? 'block' : 'none';
+    if (!on) catClearAll();
+}
+function catUpdateCount() {
+    const n = document.querySelectorAll('#cat_rest_list input:checked').length;
+    document.getElementById('cat_assign_count').textContent = n + ' selected';
+}
+function catSelectAll() {
+    document.querySelectorAll('#cat_rest_list input').forEach(cb => cb.checked = true);
+    catUpdateCount();
+}
+function catClearAll() {
+    document.querySelectorAll('#cat_rest_list input').forEach(cb => cb.checked = false);
+    catUpdateCount();
+}
+function catFilterRest(q) {
+    q = q.toLowerCase();
+    document.querySelectorAll('#cat_rest_list label').forEach(l => {
+        l.style.display = l.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
 
 // ─── Campaign Multi-Restaurant + Per-Vendor Discount + Category ──────────────
 
