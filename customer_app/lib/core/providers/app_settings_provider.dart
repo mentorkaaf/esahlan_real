@@ -6,7 +6,7 @@ import '../../features/community/data/repositories/community_repository.dart';
 // ── State ─────────────────────────────────────────────────────────────────────
 class AppSettings {
   final ThemeMode themeMode;
-  final String language;       // en|so|ar|am|sw|fr
+  final String language;       // en|so|ar
   final String fontSize;       // small|medium|large|xlarge
   final bool reduceMotion;
   final bool dataSaverEnabled;

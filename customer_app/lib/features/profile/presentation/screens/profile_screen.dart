@@ -87,38 +87,98 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _showLanguagePicker(AppSettings settings) {
+    // Only 3 supported languages
     const langs = [
-      ('en', '🇺🇸', 'English'),
-      ('so', '🇸🇴', 'Somali'),
-      ('ar', '🇸🇦', 'Arabic'),
-      ('am', '🇪🇹', 'Amharic'),
-      ('sw', '🌍', 'Swahili'),
-      ('fr', '🇫🇷', 'French'),
+      ('en', '🇬🇧', 'English',  'English',   'الإنجليزية'),
+      ('so', '🇸🇴', 'Somali',   'Soomaali',  'الصومالية'),
+      ('ar', '🇸🇦', 'Arabic',   'Carabi',    'العربية'),
     ];
+    final cur = settings.language;
     showModalBottomSheet(
       context: context,
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _BottomSheet(
-        title: 'Language',
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: langs.map((l) {
-            final (code, flag, name) = l;
-            final selected = settings.language == code;
-            return ListTile(
-              leading: Text(flag, style: const TextStyle(fontSize: 22)),
-              title: Text(name, style: TextStyle(
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-                color: selected ? _kNavy : null,
-              )),
-              trailing: selected ? Icon(Icons.check_circle_rounded, color: _kOrange) : null,
-              onTap: () {
-                ref.read(appSettingsProvider.notifier).setLanguage(code);
-                Navigator.pop(ctx);
-              },
-            );
-          }).toList(),
+          children: [
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              cur == 'ar' ? 'اللغة' : cur == 'so' ? 'Luuqadda' : 'Language',
+              style: const TextStyle(
+                  fontSize: 17, fontWeight: FontWeight.w800, color: _kNavy),
+            ),
+            const SizedBox(height: 16),
+            ...langs.map((l) {
+              final (code, flag, en, so, ar) = l;
+              final selected = cur == code;
+              final displayName = cur == 'so' ? so : cur == 'ar' ? ar : en;
+              final nativeName = code == 'en' ? 'English' : code == 'so' ? 'Soomaali' : 'العربية';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: GestureDetector(
+                  onTap: () {
+                    ref.read(appSettingsProvider.notifier).setLanguage(code);
+                    Navigator.pop(ctx);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: selected ? _kOrange.withAlpha(20) : const Color(0xFFF9FAFB),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: selected ? _kOrange : const Color(0xFFE5E7EB),
+                        width: selected ? 2 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(flag, style: const TextStyle(fontSize: 28)),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(displayName,
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                      color: selected ? _kOrange : _kNavy)),
+                              Text(nativeName,
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                        if (selected)
+                          Container(
+                            width: 26, height: 26,
+                            decoration: const BoxDecoration(
+                                color: _kOrange, shape: BoxShape.circle),
+                            child: const Icon(Icons.check_rounded,
+                                color: Colors.white, size: 16),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
         ),
       ),
     );
@@ -784,7 +844,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ThemeMode.dark   => 'Dark',
       _                => 'System',
     };
-    final langLabels = {'en': 'English', 'so': 'Somali', 'ar': 'Arabic', 'am': 'Amharic', 'sw': 'Swahili', 'fr': 'French'};
+    final langLabels = {'en': 'English', 'so': 'Soomaali', 'ar': 'العربية'};
     final fontLabels = {'small': 'Small', 'medium': 'Medium', 'large': 'Large', 'xlarge': 'Extra Large'};
 
     return Padding(
