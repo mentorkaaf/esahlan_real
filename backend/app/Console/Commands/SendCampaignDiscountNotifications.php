@@ -13,46 +13,59 @@ use App\Services\FcmService;
 /**
  * Sends FCM push notifications for active eFood discount campaigns.
  *
- * Runs every 2 hours via the scheduler.
+ * Runs every 2 hours (normal) via scheduler.
+ * Runs every 30 minutes with --urgent flag when campaign has ≤ 2 hours left.
  *
- * Logic:
- *  - Find all live campaigns (active, started, not expired)
- *  - For each campaign, find users who:
- *      1. Have a valid FCM token
- *      2. Have NOT already ordered from that restaurant during the campaign window
- *      3. Have NOT been notified about THIS campaign in the last 2 hours
- *  - Send a rich FCM notification with discount details
- *  - Mark notified user+campaign pairs in Redis (TTL 2h) to avoid spam
+ * Features:
+ *  - Deep link: data['deep_link'] → Flutter navigates to vendor page on tap
+ *  - Excludes users who have already ordered during the campaign window
+ *  - Redis cache prevents duplicate notifications within the same send window
+ *  - Urgent mode: last 2 hours of campaign → 30-min interval, 2x per hour
  */
 class SendCampaignDiscountNotifications extends Command
 {
-    protected $signature   = 'efood:send-campaign-notifications {--dry-run : Show what would be sent without sending}';
-    protected $description = 'Send FCM notifications to users about active eFood discount campaigns (every 2h)';
+    protected $signature = 'efood:send-campaign-notifications
+                            {--urgent  : Only campaigns ending ≤2h from now, 30-min cache TTL}
+                            {--dry-run : Show what would be sent without actually sending}';
 
-    // Cache TTL — matches the scheduler interval so each user gets at most 1 notif per window
-    private const NOTIF_TTL = 7200; // 2 hours in seconds
+    protected $description = 'Send FCM notifications to users about active eFood discount campaigns';
+
+    // Normal mode: 2-hour cache = 1 notification per 2h window
+    private const NORMAL_TTL = 7200;   // 2h
+
+    // Urgent mode (last 2h of campaign): 30-min cache = up to 2 notifications/hour
+    private const URGENT_TTL = 1800;   // 30 min
 
     public function handle(): int
     {
+        $urgent = $this->option('urgent');
         $dryRun = $this->option('dry-run');
+        $now    = now();
 
-        // ── 1. Get all live campaigns ────────────────────────────────────────
-        $now       = now();
-        $campaigns = DiscountCampaign::with(['vendor:id,name,logo', 'category:id,name'])
+        // ── 1. Get active campaigns ───────────────────────────────────────────
+        $query = DiscountCampaign::with(['vendor:id,name,logo', 'category:id,name'])
             ->where('is_active', true)
             ->where('starts_at', '<=', $now)
             ->where('ends_at',   '>=', $now)
-            ->whereHas('vendor', fn($q) => $q->where('module_slug', 'efood'))
-            ->get();
+            ->whereHas('vendor', fn($q) => $q->where('module_slug', 'efood'));
+
+        if ($urgent) {
+            // Urgent mode: only campaigns ending in the next 2 hours
+            $query->where('ends_at', '<=', $now->copy()->addHours(2));
+        }
+
+        $campaigns = $query->get();
 
         if ($campaigns->isEmpty()) {
-            $this->info('No active eFood campaigns found.');
+            $mode = $urgent ? 'urgent' : 'normal';
+            $this->info("No active eFood campaigns found [{$mode} mode].");
             return 0;
         }
 
-        $this->info("Found {$campaigns->count()} active campaign(s).");
+        $mode = $urgent ? '⚡ URGENT' : '🔔 Normal';
+        $this->info("{$mode} | Found {$campaigns->count()} campaign(s).");
 
-        // ── 2. Get all users with FCM tokens ─────────────────────────────────
+        // ── 2. All users with FCM tokens ─────────────────────────────────────
         $users = User::whereNotNull('fcm_token')
             ->where('fcm_token', '!=', '')
             ->where('status', '!=', 'banned')
@@ -65,56 +78,76 @@ class SendCampaignDiscountNotifications extends Command
             return 0;
         }
 
+        $cacheTtl  = $urgent ? self::URGENT_TTL : self::NORMAL_TTL;
         $totalSent = 0;
 
         foreach ($campaigns as $campaign) {
-            $vendorId    = $campaign->vendor_id;
-            $vendorName  = $campaign->vendor?->name ?? 'Restaurant';
-            $logoUrl     = $campaign->vendor?->logo;
-            $catName     = $campaign->category?->name;
+            $vendorId   = $campaign->vendor_id;
+            $vendorName = $campaign->vendor?->name ?? 'Restaurant';
+            $logoUrl    = $campaign->vendor?->logo;
+            $catName    = $campaign->category?->name;
+            $endsAt     = $campaign->ends_at;
+
+            // Discount label
             $discountStr = $campaign->discount_type === 'percentage'
                 ? "{$campaign->discount_value}% OFF"
                 : '$' . number_format($campaign->discount_value, 0) . ' OFF';
 
-            // ── 3. Users who ordered from this restaurant during campaign ────
+            // Time remaining label
+            $minutesLeft = (int) $now->diffInMinutes($endsAt, false);
+            $timeLabel   = $minutesLeft <= 60
+                ? $minutesLeft . ' minutes left!'
+                : ($endsAt->diffInHours($now) . 'h left — ends ' . $endsAt->format('g:ia'));
+
+            // ── 3. Users who already ordered during this campaign ─────────────
             $purchasedUserIds = Order::where('vendor_id', $vendorId)
                 ->where('module_slug', 'efood')
-                ->whereBetween('created_at', [$campaign->starts_at, $campaign->ends_at])
+                ->whereBetween('created_at', [$campaign->starts_at, $endsAt])
                 ->whereNotIn('status', ['cancelled', 'rejected', 'failed'])
                 ->pluck('user_id')
                 ->unique()
-                ->flip(); // flip for O(1) lookup
+                ->flip();
 
-            // ── 4. Build notification content ────────────────────────────────
-            $title = "🔥 {$discountStr} at {$vendorName}!";
-            $body  = $catName
-                ? "Get {$discountStr} on {$catName} at {$vendorName}. Offer ends " . $campaign->ends_at->format('M j, g:ia') . '!'
-                : "Get {$discountStr} at {$vendorName}. Offer ends " . $campaign->ends_at->format('M j, g:ia') . '!';
+            // ── 4. Build notification content ─────────────────────────────────
+            if ($urgent) {
+                // Urgency message for last 2h
+                $title = "⏰ Hurry! {$discountStr} at {$vendorName} — {$timeLabel}";
+                $body  = $catName
+                    ? "Last chance! {$discountStr} on {$catName} at {$vendorName}. Don't miss it!"
+                    : "Last chance! {$discountStr} at {$vendorName}. Offer ends soon!";
+            } else {
+                $title = "🔥 {$discountStr} at {$vendorName}!";
+                $body  = $catName
+                    ? "Get {$discountStr} on {$catName} at {$vendorName}. Ends {$endsAt->format('M j, g:ia')}!"
+                    : "Get {$discountStr} at {$vendorName}. Ends {$endsAt->format('M j, g:ia')}!";
+            }
+
+            // Deep link → Flutter reads data['deep_link'] and calls router.push()
+            // Route: /vendor/:id  (GoRouter path in app_router.dart)
+            $deepLink = '/vendor/' . $vendorId;
 
             $data = [
                 'type'        => 'discount_campaign',
                 'campaign_id' => (string) $campaign->id,
                 'vendor_id'   => (string) $vendorId,
                 'module'      => 'efood',
-                'route'       => '/efood/vendor/' . $vendorId,
+                'deep_link'   => $deepLink,   // ← Flutter navigates here on tap
+                'is_urgent'   => $urgent ? '1' : '0',
             ];
 
             $sent = 0;
 
             foreach ($users as $userId => $user) {
-                // Skip users who already purchased during this campaign
-                if (isset($purchasedUserIds[$userId])) {
-                    continue;
-                }
+                // Skip users who purchased during campaign
+                if (isset($purchasedUserIds[$userId])) continue;
 
-                // Skip users already notified about this campaign in this 2h window
-                $cacheKey = "camp_notif:{$campaign->id}:{$userId}";
-                if (Cache::has($cacheKey)) {
-                    continue;
-                }
+                // Cache key — urgent and normal use different keys so they don't block each other
+                $prefix   = $urgent ? 'camp_notif_urgent' : 'camp_notif';
+                $cacheKey = "{$prefix}:{$campaign->id}:{$userId}";
+                if (Cache::has($cacheKey)) continue;
 
                 if ($dryRun) {
-                    $this->line("  [DRY] Would notify user #{$userId} → campaign #{$campaign->id} ({$vendorName})");
+                    $this->line("  [DRY] → user #{$userId} | {$vendorName} | link: {$deepLink}");
                 } else {
                     $ok = FcmService::sendToToken(
                         fcmToken:  $user->fcm_token,
@@ -122,24 +155,23 @@ class SendCampaignDiscountNotifications extends Command
                         body:      $body,
                         data:      $data,
                         imageUrl:  $logoUrl,
-                        channelId: 'esahlan_promo',
+                        channelId: $urgent ? 'esahlan_high_v3' : 'esahlan_promo',
                     );
 
                     if ($ok) {
-                        // Mark as notified for 2h to prevent re-sending in same window
-                        Cache::put($cacheKey, 1, self::NOTIF_TTL);
+                        Cache::put($cacheKey, 1, $cacheTtl);
                         $sent++;
                     }
                 }
             }
 
             $totalSent += $sent;
-            $this->info("  Campaign #{$campaign->id} ({$vendorName}): sent {$sent} notifications" . ($dryRun ? ' [DRY RUN]' : ''));
-
-            Log::info('[CampaignNotif] Campaign #' . $campaign->id . ' sent=' . $sent . ' vendor=' . $vendorName);
+            $label = $urgent ? '⚡ Urgent' : '🔔';
+            $this->info("  {$label} Campaign #{$campaign->id} ({$vendorName}): sent {$sent} notifications" . ($dryRun ? ' [DRY]' : ''));
+            Log::info("[CampaignNotif] campaign={$campaign->id} vendor={$vendorName} sent={$sent} urgent=" . ($urgent ? 'yes' : 'no'));
         }
 
-        $this->info("Done. Total notifications sent: {$totalSent}");
+        $this->info("Done. Total sent: {$totalSent}");
         return 0;
     }
 }
