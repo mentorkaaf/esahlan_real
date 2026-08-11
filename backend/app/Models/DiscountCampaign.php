@@ -9,18 +9,20 @@ class DiscountCampaign extends Model
     protected $fillable = [
         'vendor_id', 'name', 'description',
         'discount_type', 'discount_value',
+        'per_vendor_discounts',
         'starts_at', 'ends_at',
         'badge_text', 'badge_color',
-        'apply_to_all', 'is_active',
+        'apply_to_all', 'category_id', 'is_active',
         'internal_notes', 'created_by',
     ];
 
     protected $casts = [
-        'is_active'      => 'boolean',
-        'apply_to_all'   => 'boolean',
-        'starts_at'      => 'datetime',
-        'ends_at'        => 'datetime',
-        'discount_value' => 'float',
+        'is_active'            => 'boolean',
+        'apply_to_all'         => 'boolean',
+        'starts_at'            => 'datetime',
+        'ends_at'              => 'datetime',
+        'discount_value'       => 'float',
+        'per_vendor_discounts' => 'array',
     ];
 
     public function vendor()

@@ -1685,14 +1685,27 @@
                     <input type="text" id="cmp_rest_search" placeholder="🔍 Search restaurants..." oninput="cmpFilterRest()"
                         style="width:100%;padding:7px 10px;border:1px solid #dee2e6;border-radius:6px;margin-bottom:6px;font-size:13px;box-sizing:border-box;">
                     {{-- Checkbox list --}}
-                    <div id="cmp_rest_list" style="max-height:180px;overflow-y:auto;border:1px solid #dee2e6;border-radius:8px;padding:6px 4px;">
+                    {{-- Restaurant rows — each has a checkbox + optional per-vendor discount input --}}
+                    <div id="cmp_rest_list" style="max-height:200px;overflow-y:auto;border:1px solid #dee2e6;border-radius:8px;padding:6px 4px;">
                         @foreach($allRestaurants as $ar)
-                        <label id="cmp_r_{{ $ar->id }}" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;cursor:pointer;transition:background .15s;"
-                               onmouseover="this.style.background='#fff3e0'" onmouseout="this.style.background=''">
-                            <input type="checkbox" name="vendor_ids[]" value="{{ $ar->id }}" onchange="cmpUpdateCount()"
-                                style="width:16px;height:16px;accent-color:#FF8A00;cursor:pointer;">
-                            <span style="font-size:13px;font-weight:500;">{{ $ar->name }}</span>
-                        </label>
+                        <div id="cmp_r_{{ $ar->id }}" style="display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:6px;transition:background .15s;"
+                             onmouseover="this.style.background='#fff3e0'" onmouseout="this.style.background=''">
+                            {{-- Checkbox --}}
+                            <input type="checkbox" name="vendor_ids[]" value="{{ $ar->id }}"
+                                   id="cmp_cb_{{ $ar->id }}"
+                                   onchange="cmpUpdateCount(); cmpSyncPerVendorRow({{ $ar->id }})"
+                                   style="width:16px;height:16px;accent-color:#FF8A00;cursor:pointer;flex-shrink:0;">
+                            {{-- Name --}}
+                            <label for="cmp_cb_{{ $ar->id }}" style="flex:1;font-size:13px;font-weight:500;cursor:pointer;margin:0;">{{ $ar->name }}</label>
+                            {{-- Per-vendor discount input (hidden by default, shown in "per restaurant" mode) --}}
+                            <div id="cmp_pv_{{ $ar->id }}" style="display:none;align-items:center;gap:4px;">
+                                <input type="number" name="vendor_discount[{{ $ar->id }}]"
+                                       id="cmp_pvv_{{ $ar->id }}"
+                                       step="0.01" min="0" placeholder="%" disabled
+                                       style="width:80px;padding:4px 8px;border:1px solid #FF8A00;border-radius:6px;font-size:12px;text-align:center;">
+                                <span id="cmp_pv_unit_{{ $ar->id }}" style="font-size:11px;color:#888;">%</span>
+                            </div>
+                        </div>
                         @endforeach
                     </div>
                 </div>
@@ -1701,24 +1714,88 @@
                     <label class="form-label">Campaign Name *</label>
                     <input type="text" name="name" class="form-control" required placeholder="e.g., Summer Sale">
                 </div>
-                <div style="display:none;">{{-- dummy so grid layout stays --}}</div>
-                <div>
+
                 <div class="form-group">
                     <label class="form-label">Description</label>
                     <textarea name="description" class="form-control" rows="2" placeholder="Brief description"></textarea>
                 </div>
+
+                {{-- ── Discount section ──────────────────────────────────────── --}}
+                <div style="background:#fff8f0;border:1px solid #ffe0b2;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <span style="font-size:13px;font-weight:700;color:#333;">💰 Discount Settings</span>
+                        {{-- Per-restaurant toggle --}}
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#555;">
+                            <input type="checkbox" id="cmp_per_vendor_toggle" onchange="cmpTogglePerVendor(this.checked)"
+                                   style="width:14px;height:14px;accent-color:#FF8A00;">
+                            Different discount per restaurant
+                        </label>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label" style="font-size:12px;">Discount Type *</label>
+                            <select name="discount_type" id="cmp_dtype" class="form-control" required onchange="cmpUpdateUnits()">
+                                <option value="percentage">Percentage (%)</option>
+                                <option value="fixed">Fixed Amount ($)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="cmp_global_val_wrap" style="margin-bottom:0;">
+                            <label class="form-label" style="font-size:12px;">
+                                Discount Value * <span id="cmp_global_unit" style="color:#FF8A00;font-weight:700;">%</span>
+                                <span style="font-size:10px;color:#888;" id="cmp_global_hint"> (applied to all selected)</span>
+                            </label>
+                            <input type="number" name="discount_value" id="cmp_discount_value"
+                                   class="form-control" step="0.01" min="0" value="0">
+                        </div>
+                    </div>
+                    {{-- Per-vendor summary (shown when toggle on) --}}
+                    <div id="cmp_per_vendor_hint" style="display:none;margin-top:8px;padding:8px 10px;background:#fff3e0;border-radius:6px;font-size:11px;color:#e65100;">
+                        ⚡ Enter each restaurant's discount value in the list above. Leave blank to use the global value.
+                    </div>
+                </div>
+
+                {{-- ── Category section ─────────────────────────────────────── --}}
+                <div style="background:#f0f4ff;border:1px solid #c5d2ff;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+                    <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:10px;">🏷️ Apply Discount To</div>
+                    <div style="display:flex;gap:16px;margin-bottom:10px;">
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+                            <input type="radio" name="cmp_scope" value="all" checked onchange="cmpToggleScope('all')"
+                                   style="accent-color:#FF8A00;">
+                            All menu items
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+                            <input type="radio" name="cmp_scope" value="category" onchange="cmpToggleScope('category')"
+                                   style="accent-color:#FF8A00;">
+                            Specific category only
+                        </label>
+                    </div>
+                    {{-- Category picker (hidden by default) --}}
+                    <div id="cmp_cat_picker" style="display:none;">
+                        <input type="text" id="cmp_cat_search" placeholder="🔍 Search categories..."
+                               oninput="cmpFilterCats()"
+                               style="width:100%;padding:6px 10px;border:1px solid #c5d2ff;border-radius:6px;margin-bottom:6px;font-size:12px;box-sizing:border-box;">
+                        <div id="cmp_cat_list" style="max-height:150px;overflow-y:auto;border:1px solid #c5d2ff;border-radius:8px;padding:4px;">
+                            <label style="display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:6px;cursor:pointer;">
+                                <input type="radio" name="category_id" value="" checked style="accent-color:#FF8A00;">
+                                <span style="font-size:13px;color:#888;font-style:italic;">— No category filter (all items) —</span>
+                            </label>
+                            @foreach($categories as $cat)
+                            <label class="cmp-cat-row" data-vendor="{{ $cat->vendor_id ?? '' }}"
+                                   style="display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:6px;cursor:pointer;transition:background .15s;"
+                                   onmouseover="this.style.background='#eef1ff'" onmouseout="this.style.background=''">
+                                <input type="radio" name="category_id" value="{{ $cat->id }}" style="accent-color:#FF8A00;">
+                                <span style="font-size:13px;font-weight:500;">{{ $cat->name }}</span>
+                                @if($cat->vendor)
+                                <span style="font-size:10px;color:#888;margin-left:auto;">{{ $cat->vendor->name }}</span>
+                                @endif
+                            </label>
+                            @endforeach
+                        </div>
+                        <p style="font-size:11px;color:#666;margin:6px 0 0;">Only categories from selected restaurants are shown.</p>
+                    </div>
+                </div>
+
                 <div class="grid-2">
-                    <div class="form-group">
-                        <label class="form-label">Discount Type *</label>
-                        <select name="discount_type" class="form-control" required>
-                            <option value="percentage">Percentage (%)</option>
-                            <option value="fixed">Fixed Amount ($)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Discount Value *</label>
-                        <input type="number" name="discount_value" class="form-control" step="0.01" min="0" required value="0">
-                    </div>
                     <div class="form-group">
                         <label class="form-label">Start Date *</label>
                         <input type="date" name="starts_at_date" id="add_starts_date" class="form-control" required>
@@ -1752,9 +1829,6 @@
                     </div>
                 </div>
                 <div style="display:flex;gap:20px;margin-bottom:16px;">
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                        <input type="checkbox" name="apply_to_all" value="1" checked> Apply to all menu items
-                    </label>
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                         <input type="checkbox" name="is_active" value="1" checked> Campaign is active
                     </label>
@@ -2365,31 +2439,111 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// ─── Campaign Multi-Restaurant Select ────────────────────────────────────────
+// ─── Campaign Multi-Restaurant + Per-Vendor Discount + Category ──────────────
+
+// Track per-vendor mode
+let _cmpPerVendor = false;
+
 function cmpUpdateCount() {
     const checked = document.querySelectorAll('#cmp_rest_list input[type=checkbox]:checked').length;
     document.getElementById('cmp_sel_count').textContent = '(' + checked + ' selected)';
+    // Re-filter categories whenever restaurant selection changes
+    cmpFilterCatsBySelected();
 }
+
+function cmpSyncPerVendorRow(vendorId) {
+    // Show/hide per-vendor discount input based on checkbox + per-vendor mode
+    const cb  = document.getElementById('cmp_cb_' + vendorId);
+    const div = document.getElementById('cmp_pv_' + vendorId);
+    const inp = document.getElementById('cmp_pvv_' + vendorId);
+    if (!div || !cb) return;
+    const show = _cmpPerVendor && cb.checked;
+    div.style.display = show ? 'flex' : 'none';
+    if (inp) inp.disabled = !show;
+}
+
+function cmpTogglePerVendor(on) {
+    _cmpPerVendor = on;
+    // Show/hide hint
+    document.getElementById('cmp_per_vendor_hint').style.display = on ? 'block' : 'none';
+    document.getElementById('cmp_global_hint').textContent = on ? ' (default fallback)' : ' (applied to all selected)';
+    // Sync each vendor row
+    document.querySelectorAll('#cmp_rest_list input[type=checkbox]').forEach(cb => {
+        cmpSyncPerVendorRow(cb.value);
+    });
+    // Update unit labels
+    cmpUpdateUnits();
+}
+
+function cmpUpdateUnits() {
+    const type = document.getElementById('cmp_dtype')?.value ?? 'percentage';
+    const unit = type === 'percentage' ? '%' : '$';
+    const globalUnit = document.getElementById('cmp_global_unit');
+    if (globalUnit) globalUnit.textContent = unit;
+    // Per-vendor unit labels
+    document.querySelectorAll('[id^="cmp_pv_unit_"]').forEach(el => el.textContent = unit);
+}
+
 function cmpSelectAll() {
     document.querySelectorAll('#cmp_rest_list input[type=checkbox]').forEach(cb => {
-        const row = cb.closest('label');
-        if (row && row.style.display !== 'none') cb.checked = true;
+        const row = cb.closest('div');
+        if (row && row.style.display !== 'none') {
+            cb.checked = true;
+            cmpSyncPerVendorRow(cb.value);
+        }
     });
     cmpUpdateCount();
 }
+
 function cmpClearAll() {
-    document.querySelectorAll('#cmp_rest_list input[type=checkbox]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('#cmp_rest_list input[type=checkbox]').forEach(cb => {
+        cb.checked = false;
+        cmpSyncPerVendorRow(cb.value);
+    });
     cmpUpdateCount();
 }
+
 function cmpFilterRest() {
     const q = document.getElementById('cmp_rest_search').value.toLowerCase();
-    document.querySelectorAll('#cmp_rest_list label').forEach(row => {
-        const name = row.querySelector('span')?.textContent.toLowerCase() ?? '';
+    document.querySelectorAll('#cmp_rest_list > div').forEach(row => {
+        const name = row.querySelector('label')?.textContent.toLowerCase() ?? '';
         row.style.display = name.includes(q) ? '' : 'none';
     });
 }
 
-// Validate at least one restaurant selected before submit
+// ── Category scope toggle ─────────────────────────────────────────────────────
+function cmpToggleScope(val) {
+    const picker = document.getElementById('cmp_cat_picker');
+    if (picker) picker.style.display = val === 'category' ? 'block' : 'none';
+    // When "all" selected, clear category selection
+    if (val === 'all') {
+        const firstRadio = document.querySelector('#cmp_cat_list input[type=radio][value=""]');
+        if (firstRadio) firstRadio.checked = true;
+    }
+}
+
+function cmpFilterCats() {
+    const q = document.getElementById('cmp_cat_search')?.value.toLowerCase() ?? '';
+    document.querySelectorAll('.cmp-cat-row').forEach(row => {
+        const name = row.querySelector('span')?.textContent.toLowerCase() ?? '';
+        const visible = row.style.display !== 'none' || true; // respect vendor filter too
+        row.style.display = name.includes(q) ? '' : 'none';
+    });
+}
+
+// Filter category rows by selected restaurants (show only matching vendor categories + global)
+function cmpFilterCatsBySelected() {
+    const selectedVendors = new Set(
+        [...document.querySelectorAll('#cmp_rest_list input[type=checkbox]:checked')].map(cb => cb.value)
+    );
+    document.querySelectorAll('.cmp-cat-row').forEach(row => {
+        const vid = row.dataset.vendor;
+        // Show if: no vendor (global) OR vendor is selected
+        row.style.display = (!vid || selectedVendors.has(vid)) ? '' : 'none';
+    });
+}
+
+// Validate before submit
 document.querySelector('form[action*="campaign.store"], form[action*="/campaigns"]')
     ?.addEventListener('submit', function(e) {
         const checked = this.querySelectorAll('input[name="vendor_ids[]"]:checked').length;

@@ -742,16 +742,22 @@ class AdminEFoodController extends Controller
             'vendor_id'      => 'nullable|exists:vendors,id',
             'name'           => 'required|string|max:200',
             'description'    => 'nullable|string',
-            'discount_type'  => 'required|in:percentage,fixed',
-            'discount_value' => 'required|numeric|min:0',
-            'starts_at'      => 'required|date',
-            'ends_at'        => 'required|date|after:starts_at',
-            'badge_text'     => 'nullable|string|max:100',
-            'badge_color'    => 'nullable|string|max:30',
-            'apply_to_all'   => 'nullable|boolean',
-            'is_active'      => 'nullable|boolean',
-            'internal_notes' => 'nullable|string',
+            'discount_type'    => 'required|in:percentage,fixed',
+            'discount_value'   => 'nullable|numeric|min:0',   // nullable when per-vendor mode
+            'vendor_discount'  => 'nullable|array',
+            'vendor_discount.*'=> 'nullable|numeric|min:0',
+            'category_id'      => 'nullable|exists:categories,id',
+            'starts_at'        => 'required|date',
+            'ends_at'          => 'required|date|after:starts_at',
+            'badge_text'       => 'nullable|string|max:100',
+            'badge_color'      => 'nullable|string|max:30',
+            'apply_to_all'     => 'nullable|boolean',
+            'is_active'        => 'nullable|boolean',
+            'internal_notes'   => 'nullable|string',
         ]);
+
+        // Default discount_value to 0 if omitted (per-vendor mode)
+        $data['discount_value'] = $data['discount_value'] ?? 0;
 
         // Resolve which restaurants to target
         $vendorIds = !empty($data['vendor_ids'])
@@ -762,23 +768,37 @@ class AdminEFoodController extends Controller
             return back()->withErrors(['vendor_ids' => 'Select at least one restaurant.']);
         }
 
+        // Per-vendor discount overrides: vendor_discount[{id}] = value
+        $perVendorRaw = $request->input('vendor_discount', []);
+
+        // Category ID (null = apply to all)
+        $categoryId = $request->filled('category_id') ? (int) $request->input('category_id') : null;
+
         $shared = [
             'name'          => $data['name'],
             'description'   => $data['description'] ?? null,
             'discount_type' => $data['discount_type'],
-            'discount_value'=> $data['discount_value'],
             'starts_at'     => $data['starts_at'],
             'ends_at'       => $data['ends_at'],
             'badge_text'    => $data['badge_text']  ?? 'Special Offer',
             'badge_color'   => $data['badge_color'] ?? 'orange',
-            'apply_to_all'  => $request->boolean('apply_to_all', true),
+            'apply_to_all'  => $categoryId === null,   // false when specific category chosen
+            'category_id'   => $categoryId,
             'is_active'     => $request->boolean('is_active', true),
             'internal_notes'=> $data['internal_notes'] ?? null,
             'created_by'    => auth()->id(),
         ];
 
         foreach ($vendorIds as $vid) {
-            DiscountCampaign::create(array_merge($shared, ['vendor_id' => $vid]));
+            // Use per-vendor override if provided, otherwise fall back to global value
+            $discountValue = isset($perVendorRaw[$vid]) && $perVendorRaw[$vid] !== ''
+                ? (float) $perVendorRaw[$vid]
+                : (float) $data['discount_value'];
+
+            DiscountCampaign::create(array_merge($shared, [
+                'vendor_id'     => $vid,
+                'discount_value'=> $discountValue,
+            ]));
         }
 
         $count = count($vendorIds);
