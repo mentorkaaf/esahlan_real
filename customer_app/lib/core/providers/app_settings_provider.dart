@@ -31,7 +31,13 @@ class AppSettings {
     this.pipEnabled     = true,
   });
 
-  Locale get locale => Locale(language);
+  /// MaterialApp locale — only ar gets its own locale (for RTL direction).
+  /// Somali uses 'en' as base locale so Flutter doesn't crash on unsupported locale.
+  /// Actual UI strings come from AppL10n which reads AppSettingsNotifier.current.language.
+  Locale get locale {
+    if (language == 'ar') return const Locale('ar');
+    return const Locale('en');
+  }
 
   double get textScaleFactor => switch (fontSize) {
     'small'  => 0.88,

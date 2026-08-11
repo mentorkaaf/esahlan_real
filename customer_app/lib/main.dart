@@ -225,13 +225,14 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
         darkTheme: AppTheme.dark,
         themeMode: settings.themeMode,
         locale: settings.locale,
+        // Only 'en' and 'ar' here — flutter_localizations doesn't support 'so'.
+        // Somali UI strings are handled by AppL10n, not Flutter's localization system.
         supportedLocales: const [
           Locale('en'),
-          Locale('so'),
           Locale('ar'),
         ],
         localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,    // RTL for Arabic
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
