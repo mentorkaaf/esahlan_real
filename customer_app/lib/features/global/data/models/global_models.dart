@@ -4,16 +4,26 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../../core/constants/app_constants.dart';
 
 // ─── Web image proxy ─────────────────────────────────────────────────────────
-// On Flutter Web (global.esahlan.com), external CDN images lack CORS headers.
-// This helper routes them through our backend proxy so browsers can load them.
+// On Flutter Web (global.esahlan.com), CDN images lack CORS headers.
+// - Our own storage files (esahlan.com/storage/) → /api/v1/media?f= proxy
+// - External CDN files (cdn.phototourl.com etc.) → /api/v1/ext-image?url= proxy
+// - Already-proxied URLs → return as-is
 String? _webImg(String? url) {
   if (url == null || url.isEmpty) return null;
   if (!kIsWeb) return url;
-  // Already our own domain — no proxy needed (our backend has CORS headers).
+  final apiBase = AppConstants.baseUrl; // https://esahlan.com/api/v1
+  // Already proxied — don't double-wrap
+  if (url.contains('/api/v1/media') || url.contains('/api/v1/ext-image')) return url;
+  // Our own storage files → media proxy (avoids Hostinger CDN CORS strip)
+  if (url.contains('esahlan.com/storage/')) {
+    final path = url.substring(url.indexOf('/storage/') + '/storage/'.length);
+    return '$apiBase/media?f=$path';
+  }
+  // esahlan.com but not storage (already an API URL) — return as-is
   if (url.contains('esahlan.com')) return url;
-  // External URL — route through /api/v1/ext-image?url=...
+  // External URL (cdn.phototourl.com etc.) — route through ext-image proxy
   final encoded = Uri.encodeComponent(url);
-  return '${AppConstants.baseUrl}/ext-image?url=$encoded';
+  return '$apiBase/ext-image?url=$encoded';
 }
 
 // Safe parser — handles both num and String from API
