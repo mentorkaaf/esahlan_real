@@ -329,15 +329,15 @@ class AdminNotificationController extends Controller
             if (Cache::has($cacheKey)) continue;
 
             $ok = FcmService::sendToToken(
-                fcmToken:  $user->fcm_token,
-                title:     $title,
-                body:      $body,
-                data:      $data,
-                imageUrl:  $logoUrl ? cdn_url($logoUrl) : null,
-                channelId: $urgent ? 'esahlan_high_v3' : 'esahlan_promo',
-                pushNotificationId: $pushLog->id,
-                targetId:  $user->id,
-                targetType: 'customer',
+                $user->fcm_token,
+                $title,
+                $body,
+                $data,
+                $logoUrl ? cdn_url($logoUrl) : null,
+                $urgent ? 'esahlan_high_v3' : 'esahlan_promo',
+                $pushLog->id,
+                $user->id,
+                'customer',
             );
             if ($ok) {
                 Cache::put($cacheKey, 1, 7200); // 2h

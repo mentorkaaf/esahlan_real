@@ -375,26 +375,32 @@ class HomeController extends Controller
     {
         $limit = min((int) $request->get('limit', 10), 30);
 
+        // Count orders per product from the orders_items table (or orders table)
+        // Falls back gracefully if the column doesn't exist
+        $orderCountSub = DB::table('order_items')
+            ->selectRaw('product_id, COUNT(*) as order_count')
+            ->groupBy('product_id');
+
         $products = DB::table('products as p')
+            ->joinSub($orderCountSub, 'oi', 'p.id', '=', 'oi.product_id')
             ->join('vendors as v', 'p.vendor_id', '=', 'v.id')
             ->join('modules as m', 'v.module_id', '=', 'm.id')
             ->where('p.is_available', true)
             ->whereNull('p.deleted_at')
-            ->where('p.total_orders', '>', 0)
+            ->where('oi.order_count', '>', 0)
             ->where('v.is_active', true)
             ->where('v.is_approved', true)
             ->whereNull('v.deleted_at')
             ->select([
-                'p.id', 'p.name', 'p.price', 'p.sale_price', 'p.thumbnail',
-                'p.total_orders', 'p.rating',
+                'p.id', 'p.name', 'p.price', 'p.sale_price', 'p.thumbnail', 'p.rating',
+                'oi.order_count as total_orders',
                 'v.id as vendor_id', 'v.name as vendor_name',
                 'm.slug as module_slug', 'm.name as module_name',
             ])
-            ->orderByDesc('p.total_orders')
+            ->orderByDesc('oi.order_count')
             ->limit($limit)
             ->get()
             ->map(function ($p) {
-                // Deep link: eFood → vendor page; eShop → product page; others → module
                 $deepLink = match($p->module_slug) {
                     'efood'   => '/vendor/' . $p->vendor_id,
                     'eshop'   => '/eshop/products/' . $p->id,
