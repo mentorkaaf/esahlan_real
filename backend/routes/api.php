@@ -580,8 +580,11 @@ Route::prefix('v1')->group(function () {
         Route::middleware('role:customer')->group(function () {
 
             // Home
-            Route::get('home',      [HomeController::class, 'index']);
-            Route::get('search',    [HomeController::class, 'search']);
+            Route::get('home',              [HomeController::class, 'index']);
+            Route::get('home/live-offers',  [HomeController::class, 'liveOffers']);
+            Route::get('home/near-you',     [HomeController::class, 'nearYou']);
+            Route::get('home/best-sellers', [HomeController::class, 'bestSellers']);
+            Route::get('search',            [HomeController::class, 'search']);
 
             // Vendors
             Route::post('vendors/{vendor}/reviews', [VendorController::class, 'storeReview']);

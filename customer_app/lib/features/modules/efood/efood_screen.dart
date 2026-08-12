@@ -801,13 +801,10 @@ class _RestaurantCard extends ConsumerWidget {
                   ],
                 ]),
                 const SizedBox(height: 4),
-                // Free delivery + fav
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Text(
-                    isFree ? AppL10n.of(context).freeDelivery : '\$${feeNum!.toStringAsFixed(2)} ${AppL10n.of(context).delivery}',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isFree ? Colors.green[600] : Colors.grey[500]),
-                  ),
-                  GestureDetector(
+                // Fav button
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: GestureDetector(
                     onTap: () => ref.read(_favProvider.notifier).toggle(rid),
                     child: Icon(
                       isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
@@ -815,7 +812,7 @@ class _RestaurantCard extends ConsumerWidget {
                       size: 18,
                     ),
                   ),
-                ]),
+                ),
               ]),
             ),
           ),

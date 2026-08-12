@@ -151,6 +151,275 @@ class HomeController extends Controller
         ]);
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // GET /home/live-offers
+    // Active eFood discount campaigns + eShop sale products — only when live.
+    // ──────────────────────────────────────────────────────────────────────────
+    public function liveOffers(Request $request)
+    {
+        $now = now();
+
+        // ── eFood: active discount campaigns ──────────────────────────────────
+        $efoodCampaigns = DB::table('discount_campaigns as dc')
+            ->join('vendors as v', 'dc.vendor_id', '=', 'v.id')
+            ->where('dc.is_active', true)
+            ->where('dc.starts_at', '<=', $now)
+            ->where('dc.ends_at',   '>=', $now)
+            ->where('v.is_active', true)
+            ->where('v.is_approved', true)
+            ->whereNull('v.deleted_at')
+            ->select([
+                'dc.id', 'dc.discount_type', 'dc.discount_value', 'dc.ends_at', 'dc.badge_color',
+                'v.id as vendor_id', 'v.name as vendor_name', 'v.logo', 'v.cover_image',
+            ])
+            ->orderBy('dc.ends_at')
+            ->limit(8)
+            ->get()
+            ->map(function ($c) {
+                $label = $c->discount_type === 'percentage'
+                    ? '-' . (int)$c->discount_value . '%'
+                    : '-$' . number_format($c->discount_value, 0);
+                return [
+                    'id'          => 'camp_' . $c->id,
+                    'type'        => 'efood',
+                    'title'       => $c->vendor_name,
+                    'subtitle'    => 'eFood',
+                    'badge'       => $label,
+                    'badge_color' => $c->badge_color ?? 'red',
+                    'image'       => cdn_url($c->logo ?? $c->cover_image),
+                    'ends_at'     => $c->ends_at,
+                    'deep_link'   => '/vendor/' . $c->vendor_id,
+                    'minutes_left'=> (int) now()->diffInMinutes($c->ends_at, false),
+                ];
+            });
+
+        // ── eShop: products with sale_price < price (active discounts) ────────
+        $eshopSales = DB::table('products as p')
+            ->join('vendors as v', 'p.vendor_id', '=', 'v.id')
+            ->join('modules as m', 'v.module_id', '=', 'm.id')
+            ->where('m.slug', 'eshop')
+            ->where('p.is_available', true)
+            ->whereNull('p.deleted_at')
+            ->whereNotNull('p.sale_price')
+            ->whereRaw('p.sale_price < p.price')
+            ->where('p.sale_price', '>', 0)
+            ->where('v.is_active', true)
+            ->where('v.is_approved', true)
+            ->whereNull('v.deleted_at')
+            ->select([
+                'p.id', 'p.name', 'p.price', 'p.sale_price', 'p.thumbnail',
+                'v.id as vendor_id', 'v.name as vendor_name',
+            ])
+            ->orderByRaw('(p.price - p.sale_price) / p.price DESC')
+            ->limit(8)
+            ->get()
+            ->map(function ($p) {
+                $pct = $p->price > 0 ? (int)(($p->price - $p->sale_price) / $p->price * 100) : 0;
+                return [
+                    'id'          => 'prod_' . $p->id,
+                    'type'        => 'eshop',
+                    'title'       => $p->name,
+                    'subtitle'    => $p->vendor_name,
+                    'badge'       => '-' . $pct . '%',
+                    'badge_color' => 'orange',
+                    'image'       => cdn_url($p->thumbnail),
+                    'price'       => $p->price,
+                    'sale_price'  => $p->sale_price,
+                    'ends_at'     => null,
+                    'deep_link'   => '/eshop/products/' . $p->id,
+                    'minutes_left'=> null,
+                ];
+            });
+
+        $offers = $efoodCampaigns->concat($eshopSales)->values();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $offers,
+            'has_offers' => $offers->isNotEmpty(),
+        ]);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // GET /home/near-you?lat=&lng=&district_id=
+    // Nearby eFood restaurants + eRent listings + eShop stores.
+    // ──────────────────────────────────────────────────────────────────────────
+    public function nearYou(Request $request)
+    {
+        $hasGps     = $request->filled('lat') && $request->filled('lng');
+        $lat        = $hasGps ? (float) $request->lat : null;
+        $lng        = $hasGps ? (float) $request->lng : null;
+        $districtId = $request->input('district_id');
+        $radius     = (float) $request->get('radius', 10); // km
+
+        $results = [];
+
+        // ── eFood restaurants ─────────────────────────────────────────────────
+        $efoodModule = DB::table('modules')->where('slug', 'efood')->first();
+        if ($efoodModule) {
+            $q = DB::table('vendors')
+                ->where('module_id', $efoodModule->id)
+                ->where('is_active', true)
+                ->where('is_approved', true)
+                ->whereNull('deleted_at')
+                ->select(['id', 'name', 'logo', 'vendor_type', 'delivery_time', 'rating', 'district_id', 'latitude', 'longitude']);
+
+            if ($hasGps) {
+                $q->selectRaw(
+                    '(6371 * acos(GREATEST(-1,LEAST(1,
+                        cos(radians(?)) * cos(radians(latitude))
+                        * cos(radians(longitude) - radians(?))
+                        + sin(radians(?)) * sin(radians(latitude))
+                    )))) AS distance_km',
+                    [$lat, $lng, $lat]
+                )
+                ->whereNotNull('latitude')->whereNotNull('longitude')
+                ->having('distance_km', '<=', $radius)
+                ->orderBy('distance_km');
+            } elseif ($districtId) {
+                $q->where('district_id', $districtId)->orderByDesc('rating');
+            } else {
+                $q->orderByDesc('rating');
+            }
+
+            $q->limit(5)->get()->each(function ($r) use (&$results) {
+                $results[] = [
+                    'id'          => 'rest_' . $r->id,
+                    'type'        => 'efood',
+                    'module'      => 'eFood',
+                    'title'       => $r->name,
+                    'subtitle'    => $r->vendor_type ?? 'Restaurant',
+                    'image'       => cdn_url($r->logo),
+                    'rating'      => $r->rating,
+                    'delivery_time' => $r->delivery_time,
+                    'distance_km' => isset($r->distance_km) ? round($r->distance_km, 1) : null,
+                    'deep_link'   => '/vendor/' . $r->id,
+                ];
+            });
+        }
+
+        // ── eRent properties (district-based) ────────────────────────────────
+        $erentModule = DB::table('modules')->where('slug', 'erent')->first();
+        if ($erentModule && $districtId) {
+            DB::table('properties')
+                ->where('district_id', $districtId)
+                ->where('is_available', true)
+                ->whereNull('deleted_at')
+                ->select(['id', 'title', 'price', 'thumbnail', 'property_type', 'bedrooms', 'district_id'])
+                ->orderByDesc('id')
+                ->limit(3)
+                ->get()
+                ->each(function ($p) use (&$results) {
+                    $results[] = [
+                        'id'       => 'rent_' . $p->id,
+                        'type'     => 'erent',
+                        'module'   => 'eRent',
+                        'title'    => $p->title,
+                        'subtitle' => ($p->property_type ?? 'House') . ($p->bedrooms ? ' · ' . $p->bedrooms . ' beds' : ''),
+                        'image'    => cdn_url($p->thumbnail),
+                        'price'    => $p->price,
+                        'deep_link'=> '/erent',
+                    ];
+                });
+        }
+
+        // ── eShop stores near district ────────────────────────────────────────
+        $eshopModule = DB::table('modules')->where('slug', 'eshop')->first();
+        if ($eshopModule && ($hasGps || $districtId)) {
+            $q2 = DB::table('vendors')
+                ->where('module_id', $eshopModule->id)
+                ->where('is_active', true)
+                ->where('is_approved', true)
+                ->whereNull('deleted_at')
+                ->select(['id', 'name', 'logo', 'vendor_type', 'rating', 'district_id', 'latitude', 'longitude']);
+
+            if ($hasGps) {
+                $q2->selectRaw(
+                    '(6371 * acos(GREATEST(-1,LEAST(1,
+                        cos(radians(?)) * cos(radians(latitude))
+                        * cos(radians(longitude) - radians(?))
+                        + sin(radians(?)) * sin(radians(latitude))
+                    )))) AS distance_km',
+                    [$lat, $lng, $lat]
+                )
+                ->whereNotNull('latitude')->whereNotNull('longitude')
+                ->having('distance_km', '<=', $radius)
+                ->orderBy('distance_km');
+            } elseif ($districtId) {
+                $q2->where('district_id', $districtId)->orderByDesc('rating');
+            }
+
+            $q2->limit(3)->get()->each(function ($s) use (&$results) {
+                $results[] = [
+                    'id'          => 'shop_' . $s->id,
+                    'type'        => 'eshop',
+                    'module'      => 'eShop',
+                    'title'       => $s->name,
+                    'subtitle'    => $s->vendor_type ?? 'Store',
+                    'image'       => cdn_url($s->logo),
+                    'rating'      => $s->rating,
+                    'distance_km' => isset($s->distance_km) ? round($s->distance_km, 1) : null,
+                    'deep_link'   => '/eshop/stores/' . $s->id,
+                ];
+            });
+        }
+
+        return response()->json(['success' => true, 'data' => $results]);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // GET /home/best-sellers?limit=10
+    // Top products sorted by total_orders, cross-module.
+    // ──────────────────────────────────────────────────────────────────────────
+    public function bestSellers(Request $request)
+    {
+        $limit = min((int) $request->get('limit', 10), 30);
+
+        $products = DB::table('products as p')
+            ->join('vendors as v', 'p.vendor_id', '=', 'v.id')
+            ->join('modules as m', 'v.module_id', '=', 'm.id')
+            ->where('p.is_available', true)
+            ->whereNull('p.deleted_at')
+            ->where('p.total_orders', '>', 0)
+            ->where('v.is_active', true)
+            ->where('v.is_approved', true)
+            ->whereNull('v.deleted_at')
+            ->select([
+                'p.id', 'p.name', 'p.price', 'p.sale_price', 'p.thumbnail',
+                'p.total_orders', 'p.rating',
+                'v.id as vendor_id', 'v.name as vendor_name',
+                'm.slug as module_slug', 'm.name as module_name',
+            ])
+            ->orderByDesc('p.total_orders')
+            ->limit($limit)
+            ->get()
+            ->map(function ($p) {
+                // Deep link: eFood → vendor page; eShop → product page; others → module
+                $deepLink = match($p->module_slug) {
+                    'efood'   => '/vendor/' . $p->vendor_id,
+                    'eshop'   => '/eshop/products/' . $p->id,
+                    'egrocery'=> '/egrocery',
+                    default   => '/' . $p->module_slug,
+                };
+                return [
+                    'id'           => $p->id,
+                    'name'         => $p->name,
+                    'price'        => $p->price,
+                    'sale_price'   => $p->sale_price,
+                    'thumbnail'    => cdn_url($p->thumbnail),
+                    'total_orders' => $p->total_orders,
+                    'rating'       => $p->rating,
+                    'vendor_name'  => $p->vendor_name,
+                    'vendor_id'    => $p->vendor_id,
+                    'module_slug'  => $p->module_slug,
+                    'module_name'  => $p->module_name,
+                    'deep_link'    => $deepLink,
+                ];
+            });
+
+        return response()->json(['success' => true, 'data' => $products]);
+    }
+
     public function search(Request $request)
     {
         $q      = $request->input('q', '');

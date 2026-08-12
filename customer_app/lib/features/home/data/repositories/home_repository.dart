@@ -61,6 +61,37 @@ class HomeRepository {
     }
   }
 
+  Future<List<dynamic>> getLiveOffers() async {
+    try {
+      final res = await _dio.get('/home/live-offers');
+      return res.data['data'] as List? ?? [];
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<List<dynamic>> getNearYou({double? lat, double? lng, int? districtId}) async {
+    try {
+      final res = await _dio.get('/home/near-you', queryParameters: {
+        if (lat != null) 'lat': lat,
+        if (lng != null) 'lng': lng,
+        if (districtId != null) 'district_id': districtId,
+      });
+      return res.data['data'] as List? ?? [];
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<List<dynamic>> getBestSellers({int limit = 10}) async {
+    try {
+      final res = await _dio.get('/home/best-sellers', queryParameters: {'limit': limit});
+      return res.data['data'] as List? ?? [];
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   Future<VendorModel> getVendor(int id) async {
     try {
       final res = await _dio.get('/vendors/$id');

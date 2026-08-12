@@ -3,6 +3,7 @@ import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/api/module_api_service.dart';
 import '../../../../core/widgets/network_image_widget.dart';
@@ -10,6 +11,7 @@ import '../../../../core/providers/app_settings_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/home_provider.dart';
 import '../../data/models/home_models.dart';
+import '../../data/repositories/home_repository.dart';
 import '../../../../features/ads/services/ad_service.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../core/services/location_service.dart';
@@ -236,6 +238,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 const _ServicesSectionHeader(),
                 const SizedBox(height: 8),
                 const _ApiDrivenServicesGrid(),
+                // ── Live Offers ─────────────────────────────────────────────
+                const _LiveOffersSection(),
+                // ── Near You ────────────────────────────────────────────────
+                const _HomeNearYouSection(),
+                // ── Best Sellers ────────────────────────────────────────────
+                const _BestSellersSection(),
                 // ── Promotional card ads ────────────────────────────────────
                 const CardAdStrip(),
                 const SizedBox(height: 100),
@@ -832,6 +840,520 @@ class _ThemeCycleButton extends ConsumerWidget {
           child: FadeTransition(opacity: anim, child: child),
         ),
         child: Icon(icon, key: ValueKey(mode), color: color, size: 22),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHARED HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+final _homeRepo = HomeRepository();
+
+Widget _sectionHeader(BuildContext context, String title, {Widget? trailing}) =>
+    Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+      child: Row(children: [
+        Container(width: 4, height: 20, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 10),
+        Expanded(child: Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.navyText))),
+        if (trailing != null) trailing,
+      ]),
+    );
+
+Widget _shimmerBox({double? w, double? h, double r = 12}) =>
+    Container(
+      width: w, height: h,
+      decoration: BoxDecoration(color: AppColors.shimmer, borderRadius: BorderRadius.circular(r)),
+    );
+
+Color _badgeColor(String? c) {
+  switch ('$c'.toLowerCase()) {
+    case 'green':  return Colors.green[700]!;
+    case 'blue':   return Colors.blue[700]!;
+    case 'orange': return Colors.orange[800]!;
+    case 'purple': return Colors.purple[700]!;
+    default:       return Colors.red[700]!;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. LIVE OFFERS SECTION
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LiveOffersSection extends StatefulWidget {
+  const _LiveOffersSection();
+  @override
+  State<_LiveOffersSection> createState() => _LiveOffersSectionState();
+}
+
+class _LiveOffersSectionState extends State<_LiveOffersSection> {
+  List<dynamic> _offers = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await _homeRepo.getLiveOffers();
+      if (mounted) setState(() { _offers = data; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loading && _offers.isEmpty) return const SizedBox.shrink();
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _sectionHeader(
+        context, '🔥 Live Offers',
+        trailing: _loading ? null : Text('${_offers.length} active', style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600)),
+      ),
+      SizedBox(
+        height: 170,
+        child: _loading
+            ? ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: 4,
+                itemBuilder: (_, __) => Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: _shimmerBox(w: 150, h: 170),
+                ),
+              )
+            : ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _offers.length,
+                itemBuilder: (_, i) => _OfferCard(offer: _offers[i]),
+              ),
+      ),
+    ]);
+  }
+}
+
+class _OfferCard extends StatelessWidget {
+  final dynamic offer;
+  const _OfferCard({required this.offer});
+
+  @override
+  Widget build(BuildContext context) {
+    final o       = offer as Map;
+    final isEfood = o['type'] == 'efood';
+    final badge   = o['badge'] as String? ?? '';
+    final minsLeft = o['minutes_left'] as int?;
+    final urgent  = minsLeft != null && minsLeft <= 120;
+
+    return GestureDetector(
+      onTap: () {
+        final dl = o['deep_link'] as String?;
+        if (dl != null && dl.isNotEmpty) context.push(dl);
+      },
+      child: Container(
+        width: 150,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Theme.of(context).cardColor,
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0, 3))],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Image
+          Stack(children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: NetworkImageWidget(
+                imageUrl: o['image'] as String? ?? '',
+                width: 150, height: 95, fit: BoxFit.cover,
+              ),
+            ),
+            // Discount badge
+            Positioned(top: 8, left: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _badgeColor(o['badge_color']),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(badge, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900)),
+              ),
+            ),
+            // Module tag
+            Positioned(top: 8, right: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(isEfood ? 'eFood' : 'eShop', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ]),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(o['title'] as String? ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: context.colors.navyText), maxLines: 1, overflow: TextOverflow.ellipsis),
+              if (o['subtitle'] != null && o['subtitle'] != o['title']) ...[
+                const SizedBox(height: 2),
+                Text(o['subtitle'] as String, style: TextStyle(fontSize: 10, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ],
+              if (minsLeft != null) ...[
+                const SizedBox(height: 4),
+                Row(children: [
+                  Icon(urgent ? Icons.timer_rounded : Icons.access_time_rounded,
+                    size: 11, color: urgent ? Colors.red : Colors.grey[500]),
+                  const SizedBox(width: 3),
+                  Text(
+                    minsLeft <= 60 ? '${minsLeft}m left' : '${(minsLeft / 60).floor()}h left',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
+                      color: urgent ? Colors.red : Colors.grey[500]),
+                  ),
+                ]),
+              ],
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. HOME NEAR YOU SECTION
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _HomeNearYouSection extends ConsumerStatefulWidget {
+  const _HomeNearYouSection();
+  @override
+  ConsumerState<_HomeNearYouSection> createState() => _HomeNearYouSectionState();
+}
+
+class _HomeNearYouSectionState extends ConsumerState<_HomeNearYouSection> {
+  List<dynamic> _items = [];
+  bool _loading = true;
+  String? _locationLabel;
+
+  @override
+  void initState() {
+    super.initState();
+    _initLocation();
+  }
+
+  Future<void> _initLocation() async {
+    double? lat, lng;
+    int? districtId;
+
+    // Try GPS
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (enabled) {
+        var perm = await Geolocator.checkPermission();
+        if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
+        if (perm == LocationPermission.whileInUse || perm == LocationPermission.always) {
+          final pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium, timeLimit: Duration(seconds: 8)),
+          );
+          lat = pos.latitude; lng = pos.longitude;
+          if (mounted) setState(() => _locationLabel = 'Live location');
+        }
+      }
+    } catch (_) {}
+
+    // Fallback: district
+    if (lat == null) {
+      final user = ref.read(authStateProvider).valueOrNull;
+      if (user?.districtId != null) {
+        districtId = user!.districtId;
+        if (user.districtLat != null && user.districtLng != null) {
+          lat = user.districtLat; lng = user.districtLng;
+        }
+        if (mounted) setState(() => _locationLabel = user.districtName);
+      }
+    }
+
+    if (lat == null && districtId == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+
+    try {
+      final data = await _homeRepo.getNearYou(lat: lat, lng: lng, districtId: districtId);
+      if (mounted) setState(() { _items = data; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loading && _items.isEmpty) return const SizedBox.shrink();
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _sectionHeader(
+        context, '📍 Near You',
+        trailing: _locationLabel != null
+            ? Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.my_location_rounded, size: 12, color: AppColors.primary),
+                const SizedBox(width: 3),
+                Text(_locationLabel!, style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600)),
+              ])
+            : null,
+      ),
+      if (_loading)
+        SizedBox(
+          height: 130,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: 4,
+            itemBuilder: (_, __) => Padding(padding: const EdgeInsets.only(right: 12), child: _shimmerBox(w: 130, h: 130)),
+          ),
+        )
+      else
+        SizedBox(
+          height: 130,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _items.length,
+            itemBuilder: (_, i) => _NearYouCard(item: _items[i]),
+          ),
+        ),
+    ]);
+  }
+}
+
+class _NearYouCard extends StatelessWidget {
+  final dynamic item;
+  const _NearYouCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final m       = item as Map;
+    final type    = m['type'] as String? ?? '';
+    final dist    = m['distance_km'];
+    final distStr = dist != null ? '${dist} km' : null;
+    final modTag  = m['module'] as String? ?? '';
+
+    // Module tag color
+    final tagColor = switch(type) {
+      'efood'  => const Color(0xFFFF6B35),
+      'eshop'  => const Color(0xFF2196F3),
+      'erent'  => const Color(0xFF4CAF50),
+      _        => AppColors.primary,
+    };
+
+    return GestureDetector(
+      onTap: () {
+        final dl = m['deep_link'] as String?;
+        if (dl != null && dl.isNotEmpty) context.push(dl);
+      },
+      child: Container(
+        width: 120,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: Theme.of(context).cardColor,
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Stack(children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+              child: NetworkImageWidget(
+                imageUrl: m['image'] as String? ?? '',
+                width: 120, height: 72, fit: BoxFit.cover,
+              ),
+            ),
+            Positioned(top: 6, right: 6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(color: tagColor, borderRadius: BorderRadius.circular(5)),
+                child: Text(modTag, style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ]),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(m['title'] as String? ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: context.colors.navyText), maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 2),
+              if (distStr != null)
+                Row(children: [
+                  Icon(Icons.near_me_rounded, size: 10, color: Colors.grey[400]),
+                  const SizedBox(width: 2),
+                  Text(distStr, style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+                ])
+              else
+                Text(m['subtitle'] as String? ?? '', style: TextStyle(fontSize: 10, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. BEST SELLERS SECTION
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BestSellersSection extends StatefulWidget {
+  const _BestSellersSection();
+  @override
+  State<_BestSellersSection> createState() => _BestSellersSectionState();
+}
+
+class _BestSellersSectionState extends State<_BestSellersSection> {
+  List<dynamic> _products = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await _homeRepo.getBestSellers(limit: 10);
+      if (mounted) setState(() { _products = data; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loading && _products.isEmpty) return const SizedBox.shrink();
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _sectionHeader(context, '🏆 Best Sellers'),
+      SizedBox(
+        height: 185,
+        child: _loading
+            ? ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: 5,
+                itemBuilder: (_, __) => Padding(padding: const EdgeInsets.only(right: 12), child: _shimmerBox(w: 130, h: 185)),
+              )
+            : ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _products.length,
+                itemBuilder: (_, i) => _BestSellerCard(product: _products[i], rank: i + 1),
+              ),
+      ),
+    ]);
+  }
+}
+
+class _BestSellerCard extends StatelessWidget {
+  final dynamic product;
+  final int rank;
+  const _BestSellerCard({required this.product, required this.rank});
+
+  @override
+  Widget build(BuildContext context) {
+    final p        = product as Map;
+    final price    = (p['price'] as num?)?.toDouble() ?? 0;
+    final salePrice = (p['sale_price'] as num?)?.toDouble();
+    final hasDiscount = salePrice != null && salePrice < price;
+    final orders   = (p['total_orders'] as num?)?.toInt() ?? 0;
+
+    // Rank colors: gold, silver, bronze, rest
+    final rankColor = switch(rank) {
+      1 => const Color(0xFFFFD700),
+      2 => const Color(0xFFC0C0C0),
+      3 => const Color(0xFFCD7F32),
+      _ => Colors.grey[300]!,
+    };
+
+    return GestureDetector(
+      onTap: () {
+        final dl = p['deep_link'] as String?;
+        if (dl != null && dl.isNotEmpty) context.push(dl);
+      },
+      child: Container(
+        width: 130,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Theme.of(context).cardColor,
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0, 3))],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Stack(children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: NetworkImageWidget(
+                imageUrl: p['thumbnail'] as String? ?? '',
+                width: 130, height: 100, fit: BoxFit.cover,
+              ),
+            ),
+            // Rank badge
+            Positioned(top: 8, left: 8,
+              child: Container(
+                width: 28, height: 28,
+                decoration: BoxDecoration(color: rankColor, shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4)]),
+                child: Center(child: Text('#$rank', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900))),
+              ),
+            ),
+            // Sale badge
+            if (hasDiscount)
+              Positioned(top: 8, right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(color: Colors.red[700], borderRadius: BorderRadius.circular(6)),
+                  child: Text(
+                    '-${((price - salePrice!) / price * 100).toInt()}%',
+                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+          ]),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(9, 8, 9, 8),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(p['name'] as String? ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: context.colors.navyText), maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 4),
+              Text(p['vendor_name'] as String? ?? '', style: TextStyle(fontSize: 10, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 6),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  if (hasDiscount)
+                    Text('\$${salePrice!.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppColors.primary)),
+                  if (hasDiscount)
+                    Text('\$${price.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 10, color: Colors.grey[400], decoration: TextDecoration.lineThrough))
+                  else
+                    Text('\$${price.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppColors.primary)),
+                ]),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.shopping_bag_rounded, size: 9, color: AppColors.primary),
+                    const SizedBox(width: 2),
+                    Text('$orders', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                  ]),
+                ),
+              ]),
+            ]),
+          ),
+        ]),
       ),
     );
   }
