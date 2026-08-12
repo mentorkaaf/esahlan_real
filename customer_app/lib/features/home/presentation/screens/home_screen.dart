@@ -1612,12 +1612,14 @@ class _FlightsSectionState extends State<_FlightsSection> {
         final loading = snap.connectionState != ConnectionState.done;
         if (!loading && flights.isEmpty) return const SizedBox.shrink();
 
-        // Group into pages of 3
+        // Group into pages of 2 cards (one row per page)
         final pages = <List<dynamic>>[];
-        for (var i = 0; i < (loading ? 1 : flights.length); i += 3) {
-          pages.add(loading ? [] : flights.sublist(i, (i + 3).clamp(0, flights.length)));
+        for (var i = 0; i < (loading ? 1 : flights.length); i += 2) {
+          pages.add(loading ? [] : flights.sublist(i, (i + 2).clamp(0, flights.length)));
         }
         final pageCount = loading ? 1 : pages.length;
+        // Card height fixed — compact vertical card
+        const double cardH = 138.0;
 
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _sectionHeader(context, '✈️ Upcoming Flights',
@@ -1625,28 +1627,35 @@ class _FlightsSectionState extends State<_FlightsSection> {
                 onTap: () => context.push('/eticket'),
                 child: Text('Book now', style: TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w700)),
               )),
-          // ── Carousel ────────────────────────────────────────────────────
+          // ── Carousel (2 cards per row, 1 row per page) ───────────────────
           SizedBox(
-            height: loading ? 310 : (pages.first.length == 1 ? 110 : pages.first.length == 2 ? 210 : 310),
+            height: cardH,
             child: loading
                 ? Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(children: List.generate(3, (_) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _shimmerBox(w: double.infinity, h: 90)))))
+                    child: Row(children: [
+                      Expanded(child: _shimmerBox(w: double.infinity, h: cardH)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _shimmerBox(w: double.infinity, h: cardH)),
+                    ]))
                 : PageView.builder(
                     controller: _pc,
                     itemCount: pageCount,
                     onPageChanged: (i) => setState(() => _page = i),
                     itemBuilder: (_, pi) {
-                      final group = pages[pi];
+                      final pair = pages[pi];
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Column(
-                          children: group.map((f) {
-                            try { return _FlightCard(flight: f); }
-                            catch (_) { return const SizedBox.shrink(); }
-                          }).toList(),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(child: _FlightCard(flight: pair[0])),
+                            if (pair.length > 1) ...[
+                              const SizedBox(width: 10),
+                              Expanded(child: _FlightCard(flight: pair[1])),
+                            ] else
+                              const Expanded(child: SizedBox.shrink()),
+                          ],
                         ),
                       );
                     },
@@ -1715,99 +1724,79 @@ class _FlightCard extends StatelessWidget {
 
     final bool lowSeats = seats <= 5 && seats > 0;
 
+    // Compact vertical card — designed for half-screen width (2-column grid)
     return GestureDetector(
       onTap: () => context.push(dl),
       child: Container(
-        height: 90,
-        margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           color: Theme.of(context).cardColor,
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 8, offset: const Offset(0, 2))],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: Row(children: [
-            // ── Airline badge ──────────────────────────────────────────
-            Container(
-              width: 56,
-              color: accent.withValues(alpha: 0.10),
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Container(
-                  width: 34, height: 34,
-                  decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-                  child: Center(child: Text(
-                    airline.isNotEmpty ? airline[0].toUpperCase() : '✈',
-                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900),
-                  )),
-                ),
-                const SizedBox(height: 3),
-                Text(flightNo, style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.w700, color: accent),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-              ]),
-            ),
-            // ── Route ─────────────────────────────────────────────────
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Expanded(child: Text(airline,
-                        style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w600),
-                        maxLines: 1, overflow: TextOverflow.ellipsis)),
-                    if (depDate.isNotEmpty)
-                      Text(depDate, style: TextStyle(fontSize: 10, color: Colors.grey[500])),
-                  ]),
-                  const SizedBox(height: 5),
-                  Row(children: [
-                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(fromCode, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: context.colors.navyText, height: 1.0)),
-                      Text(fromCity, style: TextStyle(fontSize: 9, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ]),
-                    Expanded(child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: Column(children: [
-                        if (duration != null) Text(duration, style: TextStyle(fontSize: 9, color: Colors.grey[400])),
-                        Row(children: [
-                          Expanded(child: Container(height: 1, color: Colors.grey[300])),
-                          Padding(padding: const EdgeInsets.symmetric(horizontal: 3),
-                              child: Icon(Icons.flight, size: 12, color: Colors.grey[400])),
-                          Expanded(child: Container(height: 1, color: Colors.grey[300])),
-                        ]),
-                        if (depTime.isNotEmpty)
-                          Text(depTime, style: const TextStyle(fontSize: 9, color: AppColors.primary, fontWeight: FontWeight.w700)),
-                      ]),
-                    )),
-                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                      Text(toCode, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: context.colors.navyText, height: 1.0)),
-                      Text(toCity, style: TextStyle(fontSize: 9, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ]),
-                  ]),
-                ]),
+        child: Padding(
+          padding: const EdgeInsets.all(11),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            // ── Top: airline badge + flight number ───────────────────
+            Row(children: [
+              Container(
+                width: 28, height: 28,
+                decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+                child: Center(child: Text(
+                  airline.isNotEmpty ? airline[0].toUpperCase() : '✈',
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900),
+                )),
               ),
-            ),
-            // ── Price + seats ──────────────────────────────────────────
-            Container(
-              width: 68,
-              decoration: BoxDecoration(border: Border(left: BorderSide(color: Colors.grey.withValues(alpha: 0.15)))),
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              const SizedBox(width: 6),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(airline, style: TextStyle(fontSize: 9, color: Colors.grey[500], fontWeight: FontWeight.w600),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(flightNo, style: TextStyle(fontSize: 8, color: accent, fontWeight: FontWeight.w700)),
+              ])),
+            ]),
+            // ── Middle: FROM ──✈──> TO ───────────────────────────────
+            Row(children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(fromCode, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: context.colors.navyText, height: 1.0)),
+                Text(fromCity, style: TextStyle(fontSize: 8, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ]),
+              Expanded(child: Column(children: [
+                if (duration != null) Text(duration, style: TextStyle(fontSize: 8, color: Colors.grey[400])),
+                Row(children: [
+                  Expanded(child: Container(height: 1, color: Colors.grey[300])),
+                  Icon(Icons.flight, size: 10, color: Colors.grey[400]),
+                  Expanded(child: Container(height: 1, color: Colors.grey[300])),
+                ]),
+                if (depTime.isNotEmpty)
+                  Text(depTime, style: const TextStyle(fontSize: 8, color: AppColors.primary, fontWeight: FontWeight.w700)),
+              ])),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Text(toCode, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: context.colors.navyText, height: 1.0)),
+                Text(toCity, style: TextStyle(fontSize: 8, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ]),
+            ]),
+            // ── Bottom: price + date + seats ─────────────────────────
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('\$${price.toStringAsFixed(0)}',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.primary)),
-                Text('per seat', style: TextStyle(fontSize: 8, color: Colors.grey[500])),
-                const SizedBox(height: 4),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.primary)),
+                Text('per seat', style: TextStyle(fontSize: 7, color: Colors.grey[500])),
+              ]),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                if (depDate.isNotEmpty)
+                  Text(depDate, style: TextStyle(fontSize: 8, color: Colors.grey[500])),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
                     color: lowSeats ? Colors.red[50] : Colors.green[50],
-                    borderRadius: BorderRadius.circular(5),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text('$seats left', style: TextStyle(
-                    fontSize: 8, fontWeight: FontWeight.w800,
+                    fontSize: 7.5, fontWeight: FontWeight.w800,
                     color: lowSeats ? Colors.red[700] : Colors.green[700],
                   )),
                 ),
               ]),
-            ),
+            ]),
           ]),
         ),
       ),
