@@ -2797,27 +2797,43 @@ class _ETicketFlightDirectScreenState extends State<ETicketFlightDirectScreen> {
                     const SizedBox(height: 24),
 
                     // ── Price summary + Continue button ─────────────────────
-                    Row(children: [
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Total Estimate', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                        Text('\$${_totalPrice.toStringAsFixed(0)}',
-                            style: const TextStyle(color: _kOrange, fontSize: 28, fontWeight: FontWeight.w900)),
-                        Text('${_adults + _children + _infants} pax · ${_seatClass == 'business' ? 'Business' : 'Economy'}',
-                            style: const TextStyle(color: Colors.white54, fontSize: 11)),
-                      ])),
-                      const SizedBox(width: 16),
-                      ElevatedButton.icon(
-                        onPressed: _openBooking,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _kOrange,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                        icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                        label: const Text('Continue', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white12),
                       ),
-                    ]),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          const Text('Total Estimate', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                          Text(
+                            '${_adults + _children + _infants} pax · ${_seatClass == 'business' ? 'Business' : 'Economy'}',
+                            style: const TextStyle(color: Colors.white54, fontSize: 12),
+                          ),
+                        ]),
+                        const SizedBox(height: 4),
+                        Text(
+                          '\$${_totalPrice.toStringAsFixed(0)}',
+                          style: const TextStyle(color: _kOrange, fontSize: 32, fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _openBooking,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _kOrange,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 15),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                            label: const Text('Continue to Booking', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                          ),
+                        ),
+                      ]),
+                    ),
                     const SizedBox(height: 30),
                   ]),
                 ),
