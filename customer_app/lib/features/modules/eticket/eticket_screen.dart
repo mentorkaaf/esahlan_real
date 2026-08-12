@@ -1405,7 +1405,8 @@ class _BookingFlowDialogState extends ConsumerState<_BookingFlowDialog> {
 
   // ── Price helpers ─────────────────────────────────────────────
   double _priceFor(_PaxData pax) {
-    final cls = Map<String, dynamic>.from(widget.flight['classes'] ?? {});
+    final cls = Map<String, dynamic>.from(
+        widget.flight['classes'] ?? widget.flight['seat_classes'] ?? {});
     final eco = (cls['economy'] as num?)?.toDouble() ?? 0;
     switch (pax.type) {
       case 'adult':   return (cls[widget.seatClass] as num?)?.toDouble() ?? eco;
