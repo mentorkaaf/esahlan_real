@@ -70,12 +70,13 @@ class HomeRepository {
     }
   }
 
-  Future<List<dynamic>> getNearYou({double? lat, double? lng, int? districtId}) async {
+  Future<List<dynamic>> getNearYou({double? lat, double? lng, int? districtId, double radius = 1.0}) async {
     try {
       final res = await _dio.get('/home/near-you', queryParameters: {
         if (lat != null) 'lat': lat,
         if (lng != null) 'lng': lng,
         if (districtId != null) 'district_id': districtId,
+        if (lat != null) 'radius': radius, // 1km for GPS mode
       });
       return res.data['data'] as List? ?? [];
     } on DioException catch (e) {

@@ -980,7 +980,7 @@ class _NearYouSectionState extends ConsumerState<_NearYouSection> {
               _locationLoading = false;
             });
           }
-          await _fetchNearby(lat: pos.latitude, lng: pos.longitude);
+          await _fetchNearby(lat: pos.latitude, lng: pos.longitude, radius: 1.0);
 
           // Keep updating position in real-time (100m filter to save battery)
           Geolocator.getPositionStream(
@@ -991,7 +991,7 @@ class _NearYouSectionState extends ConsumerState<_NearYouSection> {
           ).listen((pos) async {
             if (!mounted) return;
             setState(() => _position = pos);
-            await _fetchNearby(lat: pos.latitude, lng: pos.longitude);
+            await _fetchNearby(lat: pos.latitude, lng: pos.longitude, radius: 1.0);
           });
           return;
         }
@@ -1029,12 +1029,13 @@ class _NearYouSectionState extends ConsumerState<_NearYouSection> {
     }
   }
 
-  Future<void> _fetchNearby({double? lat, double? lng, int? districtId}) async {
+  Future<void> _fetchNearby({double? lat, double? lng, int? districtId, double radius = 1.0}) async {
     if (!mounted) return;
     setState(() { _loading = true; _hasError = false; });
     try {
       final data = await _svc.getNearbyRestaurants(
         lat: lat, lng: lng,
+        radius: radius,
         nearDistrictId: districtId,
       );
       final list = data is List ? data : ((data as Map?)?['data'] ?? []);

@@ -193,18 +193,13 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
       }
     }
 
-    // Regular deep-link from foreground notification tap
+    // Foreground notification tap → local notification payload → onDeepLink
     FirebaseService().onDeepLink = navigate;
 
-    // Background tap — regular notification (includes live_started deep link)
-    FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      final dl = message.data['deep_link'] as String?;
-      if (dl != null && dl.isNotEmpty) navigate(dl);
-    });
-
-    // Cold-start deep link is handled by SplashScreen via pendingColdStartDeepLink.
-    // SplashScreen reads it in _destinationForCode() and navigates directly,
-    // avoiding any timing conflict with the 3-second minimum splash delay.
+    // Background tap (app was background, not killed) is handled by
+    // firebase_service.dart setupOpenedHandlers() → onDeepLink → navigate.
+    // Cold-start (killed) is handled by SplashScreen via pendingColdStartDeepLink.
+    // Do NOT add a second onMessageOpenedApp listener here — would double-navigate.
 
     // CallKit events are handled by _onCallkitEvent (set up in initState)
   }

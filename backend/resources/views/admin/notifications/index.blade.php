@@ -100,11 +100,18 @@ textarea.nf-input { resize:vertical; min-height:80px; }
 {{-- Top action bar --}}
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
     <div style="font-size:20px;font-weight:900;color:#1a1d2e;">Push Notifications</div>
-    <a href="{{ route('admin.notifications.templates') }}"
-       style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:10px;background:rgba(20,4,101,.07);border:1.5px solid rgba(20,4,101,.15);color:#140465;font-size:13px;font-weight:700;text-decoration:none;"
-       onmouseover="this.style.background='rgba(20,4,101,.12)'" onmouseout="this.style.background='rgba(20,4,101,.07)'">
-        <i class="fas fa-pen-to-square"></i> Order Status Templates
-    </a>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="{{ route('admin.notifications.discount-campaigns') }}"
+           style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:10px;background:rgba(239,68,68,.08);border:1.5px solid rgba(239,68,68,.2);color:#dc2626;font-size:13px;font-weight:700;text-decoration:none;"
+           onmouseover="this.style.background='rgba(239,68,68,.14)'" onmouseout="this.style.background='rgba(239,68,68,.08)'">
+            🔥 Discount Campaigns
+        </a>
+        <a href="{{ route('admin.notifications.templates') }}"
+           style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:10px;background:rgba(20,4,101,.07);border:1.5px solid rgba(20,4,101,.15);color:#140465;font-size:13px;font-weight:700;text-decoration:none;"
+           onmouseover="this.style.background='rgba(20,4,101,.12)'" onmouseout="this.style.background='rgba(20,4,101,.07)'">
+            <i class="fas fa-pen-to-square"></i> Order Status Templates
+        </a>
+    </div>
 </div>
 
 {{-- Stats row --}}

@@ -505,6 +505,11 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             // Notification analytics
             Route::get('/{id}/stats',   [AdminNotificationController::class, 'stats'])->name('stats');
             Route::post('/{id}/resend', [AdminNotificationController::class, 'resend'])->name('resend');
+
+            // Discount campaign notifications
+            Route::get('/discount-campaigns',                  [AdminNotificationController::class, 'discountCampaigns'])->name('discount-campaigns');
+            Route::post('/discount-campaigns/{id}/send',       [AdminNotificationController::class, 'sendCampaignNotification'])->name('discount-campaigns.send');
+            Route::post('/discount-campaigns/{id}/template',   [AdminNotificationController::class, 'updateCampaignTemplate'])->name('discount-campaigns.template');
         });
 
         // Database Cleaner

@@ -6,9 +6,11 @@ use App\Models\User;
 use App\Models\PushNotificationLog;
 use App\Models\NotificationLog;
 use App\Models\OrderNotificationTemplate;
+use App\Models\DiscountCampaign;
 use App\Services\FcmService;
 use App\Services\Notification\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 class AdminNotificationController extends Controller
@@ -233,6 +235,141 @@ class AdminNotificationController extends Controller
         return $sent;
     }
 
+
+    // ── Discount Campaign Notifications ──────────────────────────────────────
+
+    /**
+     * List all discount campaigns with their notification status.
+     */
+    public function discountCampaigns()
+    {
+        $now = now();
+        $campaigns = DiscountCampaign::with(['vendor:id,name,logo', 'category:id,name'])
+            ->orderByDesc('id')
+            ->paginate(20);
+
+        $userCount = User::whereNotNull('fcm_token')
+            ->where('fcm_token', '!=', '')
+            ->where('status', '!=', 'banned')
+            ->count();
+
+        return view('admin.notifications.discount_campaigns', compact('campaigns', 'userCount', 'now'));
+    }
+
+    /**
+     * Manually send notification for a specific campaign.
+     */
+    public function sendCampaignNotification(Request $request, int $id)
+    {
+        $campaign = DiscountCampaign::with(['vendor:id,name,logo', 'category:id,name'])->findOrFail($id);
+
+        if (!$campaign->isLive()) {
+            return back()->with('error', 'Campaign is not currently active.');
+        }
+
+        $now        = now();
+        $vendorName = $campaign->vendor?->name ?? 'Restaurant';
+        $catName    = $campaign->category?->name;
+        $endsAt     = $campaign->ends_at;
+        $logoUrl    = $campaign->vendor?->logo;
+
+        $discountStr = $campaign->discount_type === 'percentage'
+            ? "{$campaign->discount_value}% OFF"
+            : '$' . number_format($campaign->discount_value, 0) . ' OFF';
+
+        $minutesLeft = (int) $now->diffInMinutes($endsAt, false);
+        $urgent      = $minutesLeft <= 120;
+
+        // Override title/body if provided
+        $title = trim($request->input('title', ''));
+        $body  = trim($request->input('body', ''));
+
+        if ($title === '') {
+            $title = $urgent
+                ? "⏰ Hurry! {$discountStr} at {$vendorName} — {$minutesLeft} min left!"
+                : "🔥 {$discountStr} at {$vendorName}!";
+        }
+        if ($body === '') {
+            $body = $catName
+                ? "Get {$discountStr} on {$catName} at {$vendorName}. Ends {$endsAt->format('M j, g:ia')}!"
+                : "Get {$discountStr} at {$vendorName}. Ends {$endsAt->format('M j, g:ia')}!";
+        }
+
+        $deepLink = '/vendor/' . $campaign->vendor_id;
+        $data = [
+            'type'        => 'discount_campaign',
+            'campaign_id' => (string) $campaign->id,
+            'vendor_id'   => (string) $campaign->vendor_id,
+            'module'      => 'efood',
+            'deep_link'   => $deepLink,
+            'is_urgent'   => $urgent ? '1' : '0',
+        ];
+
+        // Create a push log
+        $pushLog = PushNotificationLog::create([
+            'title'       => $title,
+            'body'        => $body,
+            'image_url'   => $logoUrl ? cdn_url($logoUrl) : null,
+            'deep_link'   => $deepLink,
+            'target_type' => 'all',
+            'sent_count'  => 0,
+            'sent_by'     => auth()->id(),
+        ]);
+
+        $users = User::whereNotNull('fcm_token')
+            ->where('fcm_token', '!=', '')
+            ->where('status', '!=', 'banned')
+            ->select('id', 'fcm_token')
+            ->get();
+
+        $sent = 0;
+        foreach ($users as $user) {
+            // Skip users who already received this campaign notif in the last 2h
+            $cacheKey = "camp_manual:{$campaign->id}:{$user->id}";
+            if (Cache::has($cacheKey)) continue;
+
+            $ok = FcmService::sendToToken(
+                fcmToken:  $user->fcm_token,
+                title:     $title,
+                body:      $body,
+                data:      $data,
+                imageUrl:  $logoUrl ? cdn_url($logoUrl) : null,
+                channelId: $urgent ? 'esahlan_high_v3' : 'esahlan_promo',
+                pushNotificationId: $pushLog->id,
+                targetId:  $user->id,
+                targetType: 'customer',
+            );
+            if ($ok) {
+                Cache::put($cacheKey, 1, 7200); // 2h
+                $sent++;
+            }
+        }
+
+        $pushLog->update(['sent_count' => $sent]);
+
+        return back()->with('success', "✅ Sent {$sent} notifications for campaign: {$vendorName} {$discountStr}");
+    }
+
+    /**
+     * Update campaign notification text template.
+     */
+    public function updateCampaignTemplate(Request $request, int $id)
+    {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'body'  => 'required|string|max:500',
+        ]);
+
+        $campaign = DiscountCampaign::findOrFail($id);
+        $campaign->update([
+            'internal_notes' => json_encode([
+                'notif_title' => $request->title,
+                'notif_body'  => $request->body,
+            ]),
+        ]);
+
+        return back()->with('success', 'Notification template saved.');
+    }
 
     public function bulkDestroy(Request $request)
     {

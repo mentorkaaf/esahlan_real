@@ -74,22 +74,23 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     ]);
     if (!mounted) return;
     final destination = results[0] as String;
+
+    // Capture router + deep link BEFORE context.go() which will dispose
+    // this widget — after go(), `mounted` becomes false.
+    final dl     = pendingColdStartDeepLink;
+    final router = GoRouter.of(context); // router lives independently of widget
+
     context.go(destination);
 
-    // Cold-start deep link: after going to home, push the linked screen on top.
-    // We do this AFTER context.go('/home') so the ShellRoute (MainShell) is
-    // fully initialized before we push the detail page — otherwise GoRouter
-    // can't properly stack the route on top of the shell.
-    if (destination == '/home') {
-      final dl = pendingColdStartDeepLink;
-      if (dl != null && dl.isNotEmpty) {
-        pendingColdStartDeepLink = null;
-        debugPrint('[Splash] Cold-start deep link → $dl');
-        // addPostFrameCallback gives home one frame to settle before pushing.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) context.push(dl);
-        });
-      }
+    // Cold-start deep link: push the screen on top of home once it settles.
+    if (destination == '/home' && dl != null && dl.isNotEmpty) {
+      pendingColdStartDeepLink = null;
+      debugPrint('[Splash] Cold-start deep link → $dl');
+      // addPostFrameCallback gives home one frame to render before pushing.
+      // We use the router reference (not context) so the disposed widget is fine.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        router.push(dl);
+      });
     }
   }
 

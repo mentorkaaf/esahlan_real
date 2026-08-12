@@ -969,8 +969,8 @@ class _OfferCard extends StatelessWidget {
           Stack(children: [
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: NetworkImageWidget(
-                imageUrl: o['image'] as String? ?? '',
+              child: NetImage(
+                url: o['image'] as String? ?? '',
                 width: 150, height: 95, fit: BoxFit.cover,
               ),
             ),
@@ -1062,7 +1062,7 @@ class _HomeNearYouSectionState extends ConsumerState<_HomeNearYouSection> {
             locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium, timeLimit: Duration(seconds: 8)),
           );
           lat = pos.latitude; lng = pos.longitude;
-          if (mounted) setState(() => _locationLabel = 'Live location');
+          // No label shown for GPS mode (user doesn't see tracking info)
         }
       }
     } catch (_) {}
@@ -1168,8 +1168,8 @@ class _NearYouCard extends StatelessWidget {
           Stack(children: [
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-              child: NetworkImageWidget(
-                imageUrl: m['image'] as String? ?? '',
+              child: NetImage(
+                url: m['image'] as String? ?? '',
                 width: 120, height: 72, fit: BoxFit.cover,
               ),
             ),
@@ -1295,8 +1295,8 @@ class _BestSellerCard extends StatelessWidget {
           Stack(children: [
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: NetworkImageWidget(
-                imageUrl: p['thumbnail'] as String? ?? '',
+              child: NetImage(
+                url: p['thumbnail'] as String? ?? '',
                 width: 130, height: 100, fit: BoxFit.cover,
               ),
             ),

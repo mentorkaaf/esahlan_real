@@ -207,19 +207,22 @@ class FirebaseService {
 
   /// Call this from main() after initialize() to handle background/killed taps
   Future<void> setupOpenedHandlers() async {
-    // Background tap (app was in background when user tapped)
+    // Background tap (app was in background, NOT killed, when user tapped).
+    // onDeepLink is set by _setupNotificationNavigation() right after this call.
     FirebaseMessaging.onMessageOpenedApp.listen((msg) {
       _reportOpened(msg.data);
       final dl = msg.data['deep_link'] as String?;
       if (dl != null && dl.isNotEmpty) onDeepLink?.call(dl);
     });
 
-    // Killed tap (app was killed when user tapped)
+    // Killed-app tap: deep_link is already stored in pendingColdStartDeepLink
+    // by main.dart (before runApp). SplashScreen reads it and pushes after /home.
+    // We only call _reportOpened here — no navigation (onDeepLink is null at this point).
     final initial = await _fcm.getInitialMessage();
     if (initial != null) {
       _reportOpened(initial.data);
-      final dl = initial.data['deep_link'] as String?;
-      if (dl != null && dl.isNotEmpty) onDeepLink?.call(dl);
+      // Do NOT call onDeepLink here — it hasn't been set yet.
+      // SplashScreen handles the navigation via pendingColdStartDeepLink.
     }
   }
 
