@@ -1265,10 +1265,11 @@ class _BestSellerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p        = product as Map;
-    final price    = (p['price'] as num?)?.toDouble() ?? 0;
-    final salePrice = (p['sale_price'] as num?)?.toDouble();
-    final hasDiscount = salePrice != null && salePrice < price;
-    final orders   = (p['total_orders'] as num?)?.toInt() ?? 0;
+    // PHP PDO returns DECIMAL as strings — parse safely
+    final price    = double.tryParse('${p['price'] ?? 0}') ?? 0.0;
+    final salePrice = p['sale_price'] != null ? double.tryParse('${p['sale_price']}') : null;
+    final hasDiscount = salePrice != null && salePrice > 0 && salePrice < price;
+    final orders   = int.tryParse('${p['total_orders'] ?? 0}') ?? 0;
 
     // Rank colors: gold, silver, bronze, rest
     final rankColor = switch(rank) {
