@@ -74,7 +74,7 @@
         <div class="dc-title">📢 Discount Campaign Notifications</div>
         <div class="dc-subtitle">Manage and send push notifications for active discount campaigns</div>
     </div>
-    <a href="{{ route('notifications.index') }}" class="dc-back">← Back to Notifications</a>
+    <a href="{{ route('admin.notifications.index') }}" class="dc-back">← Back to Notifications</a>
 </div>
 
 @if(session('success'))
@@ -204,7 +204,7 @@
         {{-- Card footer: send form --}}
         @if($isLive)
         <div class="dc-card-foot">
-            <form method="POST" action="{{ route('notifications.discount-campaigns.send', $campaign->id) }}" style="width:100%;">
+            <form method="POST" action="{{ route('admin.notifications.discount-campaigns.send', $campaign->id) }}" style="width:100%;">
                 @csrf
                 <div class="dc-send-form">
                     <div class="dc-field-lbl" style="margin-bottom:4px;">
