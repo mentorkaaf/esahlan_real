@@ -362,7 +362,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
         SliverToBoxAdapter(child: _buildCategories(l)),
         SliverToBoxAdapter(child: _buildSection(l.popularRestaurants, featured: true, l: l)),
         SliverToBoxAdapter(child: _buildSection(l.topRated, topRated: true, l: l)),
-        SliverToBoxAdapter(child: _buildSection(l.nearYou, l: l)),
+        const SliverToBoxAdapter(child: _NearYouSection()),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
     );
@@ -374,57 +374,40 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
     backgroundColor: context.colors.cardBg,
     elevation: 0,
     automaticallyImplyLeading: false,
-    expandedHeight: 80,
+    expandedHeight: 60,
     flexibleSpace: FlexibleSpaceBar(
       background: Container(
         color: context.colors.cardBg,
         padding: const EdgeInsets.fromLTRB(16, 44, 16, 8),
         child: Row(
           children: [
-            Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _primary.withValues(alpha: 0.15),
-              ),
-              child: const Icon(Icons.person_rounded, color: _primary, size: 22),
-            ),
-            const SizedBox(width: 10),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Row(children: [
-                    Text('eSahlan', style: TextStyle(color: _primary, fontWeight: FontWeight.w800, fontSize: 15)),
-                    SizedBox(width: 4),
-                    Text('Sahlan', style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w800, fontSize: 15)),
-                  ]),
-                  Row(children: [
-                    const Icon(Icons.location_on_rounded, color: _primary, size: 13),
-                    SizedBox(width: 2),
-                    Text('Mogadishu', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: context.colors.bodyText)),
-                    Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: context.colors.mutedText),
-                  ]),
-                ],
+              child: Text(
+                'eSahlan',
+                style: TextStyle(
+                  color: _primary,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 20,
+                  letterSpacing: 0.2,
+                ),
               ),
             ),
             Stack(
               clipBehavior: Clip.none,
               children: [
                 Container(
-                  width: 40, height: 40,
+                  width: 38, height: 38,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: context.colors.inputFill,
                     border: Border.all(color: context.colors.borderColor),
                   ),
-                  child: Icon(Icons.notifications_none_rounded, color: context.colors.navyText),
+                  child: Icon(Icons.notifications_none_rounded, color: context.colors.navyText, size: 20),
                 ),
                 Positioned(
                   right: 2, top: 2,
                   child: Container(
-                    width: 10, height: 10,
+                    width: 9, height: 9,
                     decoration: const BoxDecoration(color: _primary, shape: BoxShape.circle),
                   ),
                 ),
@@ -550,25 +533,20 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
           data: (data) {
             final list = data is List ? data : (data['data'] ?? []);
             if (list.isEmpty) return const SizedBox.shrink();
-            return SizedBox(
-              height: 220,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: list.length,
-                itemBuilder: (_, i) => _RestaurantCard(restaurant: list[i], onTap: () => _openRestaurant(context, list[i])),
-              ),
+            final shown = list.length > 5 ? list.sublist(0, 5) : list;
+            return Column(
+              children: [
+                for (int i = 0; i < shown.length; i++)
+                  _RestaurantCard(restaurant: shown[i], onTap: () => _openRestaurant(context, shown[i])),
+              ],
             );
           },
-          loading: () => SizedBox(height: 220, child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: 4,
-            itemBuilder: (_, __) => Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: _shimmer(w: 160, h: 220, r: 16),
-            ),
-          )),
+          loading: () => Column(
+            children: List.generate(3, (_) => Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: _shimmer(w: double.infinity, h: 90, r: 16),
+            )),
+          ),
           error: (e, __) => SizedBox(
             height: 60,
             child: Center(child: Text('⚠️ $e', style: const TextStyle(fontSize: 12, color: Colors.red))),
@@ -700,19 +678,18 @@ class _RestaurantCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final r = restaurant;
+    final r    = restaurant;
     final rid  = (r['id'] as num?)?.toInt() ?? 0;
     final isFav = ref.watch(_favProvider).contains(rid);
-    // SQLite returns 0/1 integers — convert to bool safely
     final isOpen = _asBool(r['is_open'] ?? r['is_active'] ?? 1);
 
-    // Fetch active campaign directly for this restaurant
+    // Active campaign badge
     final campaignAsync = ref.watch(_restaurantCampaignsProvider(rid));
-    final campaigns = campaignAsync.asData?.value;
-    final campaignList = (campaigns is Map ? campaigns['data'] : null) as List?;
+    final campaignList  = (campaignAsync.asData?.value is Map
+        ? (campaignAsync.asData!.value['data'] as List?)
+        : null);
     final activeCampaign = (campaignList != null && campaignList.isNotEmpty) ? campaignList.first : null;
 
-    // Build badge label from campaign
     String? badgeLabel;
     String? badgeColorStr;
     if (activeCampaign != null) {
@@ -722,90 +699,125 @@ class _RestaurantCard extends ConsumerWidget {
       badgeColorStr = activeCampaign['badge_color'];
     }
 
+    // Distance string
+    final distRaw = r['distance'] ?? r['distance_km'];
+    final distStr = distRaw != null
+        ? '${double.tryParse('$distRaw')?.toStringAsFixed(1) ?? distRaw} km'
+        : null;
+
+    // Delivery info
+    final fee    = r['delivery_fee'];
+    final feeNum = fee == null ? null : double.tryParse('$fee');
+    final isFree = feeNum == null || feeNum == 0;
+
+    // Logo: prefer logo, fall back to cover_image
+    final logoUrl = (r['logo'] ?? r['cover_image']) as String?;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 190,
-        margin: const EdgeInsets.only(right: 14),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
         decoration: BoxDecoration(
           color: context.colors.cardBg,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 12, offset: const Offset(0, 4))],
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 3))],
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        child: Row(children: [
+          // ── Left: logo ──────────────────────────────────────────────
           Stack(children: [
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-              child: _NetImg(url: r['cover_image'], width: double.infinity, height: 110, radius: 0,
-                  fallback: Container(height: 110, color: _primary.withValues(alpha: 0.15), child: const Center(child: Text('🍽️', style: TextStyle(fontSize: 40))))),
+              borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+              child: _NetImg(
+                url: logoUrl,
+                width: 88, height: 88, radius: 0,
+                fallback: Container(
+                  width: 88, height: 88,
+                  color: _primary.withValues(alpha: 0.12),
+                  child: const Center(child: Text('🍽️', style: TextStyle(fontSize: 32))),
+                ),
+              ),
             ),
+            // Closed overlay
             if (!isOpen)
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-                child: Container(height: 110, color: Colors.black.withValues(alpha: 0.45), child: Center(child: Text(AppL10n.of(context).closed, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)))),
-              ),
-            Positioned(top: 8, right: 8,
-              child: GestureDetector(
-                onTap: () => ref.read(_favProvider.notifier).toggle(rid),
+                borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
                 child: Container(
-                  width: 32, height: 32,
-                  decoration: BoxDecoration(color: context.colors.cardBg, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 6)]),
-                  child: Icon(isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: isFav ? Colors.red : Colors.grey[400], size: 18),
+                  width: 88, height: 88,
+                  color: Colors.black.withValues(alpha: 0.50),
+                  child: Center(
+                    child: Text(AppL10n.of(context).closed,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 11)),
+                  ),
                 ),
               ),
-            ),
           ]),
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(
-                  child: Text(r['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText), maxLines: 1, overflow: TextOverflow.ellipsis),
-                ),
-                // Campaign badge — top-right of info section
-                if (badgeLabel != null) ...[
-                  const SizedBox(width: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _parseBadgeColor(badgeColorStr),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Text('🔥', style: TextStyle(fontSize: 11)),
-                      const SizedBox(width: 3),
-                      Text(badgeLabel, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900)),
-                    ]),
+
+          // ── Right: info ─────────────────────────────────────────────
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+                // Name + badge
+                Row(children: [
+                  Expanded(
+                    child: Text(r['name'] ?? '',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
-                ],
+                  if (badgeLabel != null) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _parseBadgeColor(badgeColorStr),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Text('🔥', style: TextStyle(fontSize: 10)),
+                        const SizedBox(width: 2),
+                        Text(badgeLabel, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900)),
+                      ]),
+                    ),
+                  ],
+                ]),
+                const SizedBox(height: 3),
+                // Type / cuisine
+                Text(r['cuisine_type'] ?? r['categories'] ?? 'Restaurant',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 6),
+                // Distance + delivery time
+                Row(children: [
+                  if (distStr != null) ...[
+                    Icon(Icons.near_me_rounded, size: 12, color: Colors.grey[400]),
+                    const SizedBox(width: 3),
+                    Text(distStr, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                    const SizedBox(width: 10),
+                  ],
+                  if (r['delivery_time'] != null) ...[
+                    Icon(Icons.access_time_rounded, size: 12, color: Colors.grey[400]),
+                    const SizedBox(width: 3),
+                    Text('${r['delivery_time']} min', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                  ],
+                ]),
+                const SizedBox(height: 4),
+                // Free delivery + fav
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text(
+                    isFree ? AppL10n.of(context).freeDelivery : '\$${feeNum!.toStringAsFixed(2)} ${AppL10n.of(context).delivery}',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isFree ? Colors.green[600] : Colors.grey[500]),
+                  ),
+                  GestureDetector(
+                    onTap: () => ref.read(_favProvider.notifier).toggle(rid),
+                    child: Icon(
+                      isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                      color: isFav ? Colors.red : Colors.grey[400],
+                      size: 18,
+                    ),
+                  ),
+                ]),
               ]),
-              const SizedBox(height: 3),
-              Text(r['cuisine_type'] ?? r['categories'] ?? 'Restaurant', style: TextStyle(fontSize: 11, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 6),
-              Row(children: [
-                if (r['rating'] != null) ...[
-                  const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
-                  const SizedBox(width: 2),
-                  Text('${r['rating']}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 8),
-                ],
-                if (r['delivery_time'] != null) ...[
-                  Icon(Icons.access_time_rounded, color: Colors.grey[400], size: 12),
-                  const SizedBox(width: 2),
-                  Text('${r['delivery_time']} min', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-                ],
-              ]),
-              const SizedBox(height: 3),
-              Builder(builder: (_) {
-                final fee = r['delivery_fee'];
-                final feeNum = fee == null ? null : double.tryParse('$fee');
-                final isFree = feeNum == null || feeNum == 0;
-                return Text(
-                  isFree ? AppL10n.of(context).freeDelivery : '\$${feeNum.toStringAsFixed(2)} ${AppL10n.of(context).delivery}',
-                  style: TextStyle(fontSize: 11, color: isFree ? Colors.green[600] : Colors.grey[500], fontWeight: FontWeight.w500),
-                );
-              }),
-            ]),
+            ),
           ),
         ]),
       ),
@@ -910,6 +922,215 @@ class _RestaurantListTile extends StatelessWidget {
           const Padding(padding: EdgeInsets.only(right: 12), child: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey)),
         ]),
       )),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// NEAR YOU SECTION — real-time GPS + district fallback
+// ════════════════════════════════════════════════════════════════════
+
+/// Location source used by _NearYouSection.
+enum _LocationSource { gps, district, none }
+
+class _NearYouSection extends ConsumerStatefulWidget {
+  const _NearYouSection();
+
+  @override
+  ConsumerState<_NearYouSection> createState() => _NearYouSectionState();
+}
+
+class _NearYouSectionState extends ConsumerState<_NearYouSection> {
+  // Current GPS position (null until obtained)
+  Position? _position;
+  _LocationSource _source = _LocationSource.none;
+  bool _locationLoading = true;
+  String? _locationLabel;
+
+  // Last API result
+  List<dynamic> _restaurants = [];
+  bool _loading = true;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initLocation();
+  }
+
+  Future<void> _initLocation() async {
+    // ── 1. Try GPS ─────────────────────────────────────────────────────────────
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (serviceEnabled) {
+        LocationPermission perm = await Geolocator.checkPermission();
+        if (perm == LocationPermission.denied) {
+          perm = await Geolocator.requestPermission();
+        }
+        if (perm == LocationPermission.whileInUse || perm == LocationPermission.always) {
+          // Get current position quickly (balanced accuracy)
+          final pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.balanced,
+              timeLimit: Duration(seconds: 8),
+            ),
+          );
+          if (mounted) {
+            setState(() {
+              _position = pos;
+              _source = _LocationSource.gps;
+              _locationLabel = null; // no label for GPS mode
+              _locationLoading = false;
+            });
+          }
+          await _fetchNearby(lat: pos.latitude, lng: pos.longitude);
+
+          // Keep updating position in real-time (100m filter to save battery)
+          Geolocator.getPositionStream(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.balanced,
+              distanceFilter: 100, // update every 100m moved
+            ),
+          ).listen((pos) async {
+            if (!mounted) return;
+            setState(() => _position = pos);
+            await _fetchNearby(lat: pos.latitude, lng: pos.longitude);
+          });
+          return;
+        }
+      }
+    } catch (_) {}
+
+    // ── 2. Fallback: user's registered district ─────────────────────────────
+    try {
+      final user = ref.read(authStateProvider).valueOrNull;
+      if (user?.districtId != null) {
+        if (mounted) {
+          setState(() {
+            _source = _LocationSource.district;
+            _locationLabel = user!.districtName ?? 'Your District';
+            _locationLoading = false;
+          });
+        }
+        // If district has coordinates, use GPS-style distance calc
+        if (user!.districtLat != null && user.districtLng != null) {
+          await _fetchNearby(lat: user.districtLat!, lng: user.districtLng!);
+        } else {
+          await _fetchNearby(districtId: user.districtId!);
+        }
+        return;
+      }
+    } catch (_) {}
+
+    // ── 3. No location at all ───────────────────────────────────────────────
+    if (mounted) {
+      setState(() {
+        _source = _LocationSource.none;
+        _locationLoading = false;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchNearby({double? lat, double? lng, int? districtId}) async {
+    if (!mounted) return;
+    setState(() { _loading = true; _hasError = false; });
+    try {
+      final data = await _svc.getNearbyRestaurants(
+        lat: lat, lng: lng,
+        nearDistrictId: districtId,
+      );
+      final list = data is List ? data : ((data as Map?)?['data'] ?? []);
+      if (mounted) setState(() { _restaurants = list is List ? list : []; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _hasError = true; _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 24, 0, 0),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // ── Section header ──────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(l.nearYou,
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: context.colors.navyText)),
+                if (_source == _LocationSource.gps)
+                  Row(children: [
+                    Icon(Icons.my_location_rounded, size: 11, color: _primary),
+                    const SizedBox(width: 3),
+                    Text('Live location', style: TextStyle(fontSize: 11, color: _primary, fontWeight: FontWeight.w600)),
+                  ])
+                else if (_source == _LocationSource.district && _locationLabel != null)
+                  Row(children: [
+                    Icon(Icons.location_city_rounded, size: 11, color: Colors.grey[500]),
+                    const SizedBox(width: 3),
+                    Text(_locationLabel!, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                  ]),
+              ]),
+            ),
+            TextButton(onPressed: () {}, child: Text(l.viewAll, style: const TextStyle(color: _primary, fontWeight: FontWeight.w600))),
+          ]),
+        ),
+        const SizedBox(height: 12),
+
+        // ── Body ───────────────────────────────────────────────────────────
+        if (_locationLoading || _loading)
+          Column(children: List.generate(3, (_) => Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: _shimmer(w: double.infinity, h: 90, r: 16),
+          )))
+        else if (_source == _LocationSource.none)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: context.colors.cardBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: context.colors.borderColor),
+              ),
+              child: Row(children: [
+                Icon(Icons.location_off_rounded, color: Colors.grey[400], size: 28),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Location not available', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: context.colors.navyText)),
+                  const SizedBox(height: 2),
+                  Text('Enable location or register a district to see nearby restaurants.',
+                    style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                ])),
+              ]),
+            ),
+          )
+        else if (_hasError)
+          Center(child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('⚠️ Could not load nearby restaurants', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+          ))
+        else if (_restaurants.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text('No restaurants found near your location.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+          )
+        else
+          Column(children: [
+            for (final r in (_restaurants.length > 5 ? _restaurants.sublist(0, 5) : _restaurants))
+              _RestaurantCard(
+                restaurant: r,
+                onTap: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => _RestaurantDetailPage(restaurant: r),
+                )),
+              ),
+          ]),
+      ]),
     );
   }
 }

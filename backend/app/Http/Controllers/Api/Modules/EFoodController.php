@@ -47,30 +47,63 @@ class EFoodController extends Controller
     }
 
     // GET /efood/restaurants?district_id=&search=&page=&featured=&top_rated=
+    //   Near-You GPS mode:      ?lat=2.05&lng=45.34&radius=10  (km, default 10)
+    //   Near-You district mode: ?near_district_id=3
     public function restaurants(Request $request)
     {
         $module = DB::table('modules')->where('slug', 'efood')->first();
         if (!$module) return response()->json(['success' => false, 'message' => 'Module not found'], 404);
+
+        // ── Detect GPS near-you mode ─────────────────────────────────────────────
+        $hasGps = $request->filled('lat') && $request->filled('lng');
+        $userLat = $hasGps ? (float) $request->lat : null;
+        $userLng = $hasGps ? (float) $request->lng : null;
+        $radius  = $hasGps ? (float) ($request->get('radius', 10)) : null; // km
+
+        $baseSelect = [
+            'vendors.id', 'vendors.name', 'vendors.logo', 'vendors.cover_image',
+            'vendors.vendor_type', 'vendors.rating', 'vendors.review_count',
+            'vendors.is_open', 'vendors.working_hours', 'vendors.delivery_time',
+            'vendors.delivery_fee', 'vendors.minimum_order',
+            'vendors.temporarily_closed', 'vendors.is_featured',
+            'vendors.latitude', 'vendors.longitude',
+            'vendors.address', 'vendors.district_id',
+            'districts.name as district_name',
+        ];
 
         $query = DB::table('vendors')
             ->where('vendors.module_id', $module->id)
             ->where('vendors.is_active', true)
             ->where('vendors.is_approved', true)
             ->whereNull('vendors.deleted_at')
-            ->select([
-                'vendors.id', 'vendors.name', 'vendors.logo', 'vendors.cover_image',
-                'vendors.vendor_type', 'vendors.rating', 'vendors.review_count',
-                'vendors.is_open', 'vendors.working_hours', 'vendors.delivery_time',
-                'vendors.delivery_fee', 'vendors.minimum_order',
-                'vendors.temporarily_closed', 'vendors.is_featured',
-                'vendors.latitude', 'vendors.longitude',
-                'vendors.address', 'vendors.district_id',
-                'districts.name as district_name',
-            ])
+            ->select($baseSelect)
             ->leftJoin('districts', 'vendors.district_id', '=', 'districts.id');
 
+        // ── GPS mode: add Haversine distance column ──────────────────────────────
+        if ($hasGps) {
+            $query->selectRaw(
+                '(6371 * acos(
+                    GREATEST(-1, LEAST(1,
+                        cos(radians(?)) * cos(radians(vendors.latitude))
+                        * cos(radians(vendors.longitude) - radians(?))
+                        + sin(radians(?)) * sin(radians(vendors.latitude))
+                    ))
+                )) AS distance_km',
+                [$userLat, $userLng, $userLat]
+            )
+            ->whereNotNull('vendors.latitude')
+            ->whereNotNull('vendors.longitude')
+            ->having('distance_km', '<=', $radius);
+        }
+
+        // ── Existing filters ─────────────────────────────────────────────────────
         if ($request->filled('district_id')) {
             $query->where('vendors.district_id', $request->district_id);
+        }
+
+        // District-based near-you (fallback when no GPS)
+        if (!$hasGps && $request->filled('near_district_id')) {
+            $query->where('vendors.district_id', $request->near_district_id);
         }
 
         if ($request->filled('search')) {
@@ -105,9 +138,14 @@ class EFoodController extends Controller
             $query->where('vendors.rating', '>=', 4.0);
         }
 
-        $query->orderByDesc('vendors.is_featured')
-              ->orderByDesc('vendors.rating')
-              ->orderByDesc('vendors.id');
+        // ── Ordering: distance when GPS, else default ────────────────────────────
+        if ($hasGps) {
+            $query->orderBy('distance_km');         // nearest first
+        } else {
+            $query->orderByDesc('vendors.is_featured')
+                  ->orderByDesc('vendors.rating')
+                  ->orderByDesc('vendors.id');
+        }
 
         $restaurants = $query->paginate(20);
 

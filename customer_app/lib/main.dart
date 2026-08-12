@@ -16,6 +16,7 @@ import 'core/providers/app_settings_provider.dart';
 import 'core/providers/community_feature_provider.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/router/app_router.dart';
+import 'core/services/cold_start.dart';
 import 'core/services/firebase_service.dart';
 import 'core/services/location_service.dart';
 import 'core/theme/app_theme.dart';
@@ -24,8 +25,6 @@ import 'firebase_options.dart';
 import 'features/calls/data/repositories/call_repository.dart';
 import 'features/podcast/presentation/services/podcast_audio_service.dart';
 
-// Cold-start notification data captured before runApp()
-String? _coldStartDeepLink;
 // Callkit accept captured before app is mounted
 String? _pendingCallkitCallId;
 
@@ -43,8 +42,8 @@ void main() async {
       // Cold-start: app was killed, user tapped a regular notification
       final initial = await FirebaseMessaging.instance.getInitialMessage();
       if (initial != null && initial.data['type'] != 'incoming_call') {
-        _coldStartDeepLink = initial.data['deep_link'] as String?;
-        debugPrint('[FCM] Cold-start deep link: $_coldStartDeepLink');
+        pendingColdStartDeepLink = initial.data['deep_link'] as String?;
+        debugPrint('[FCM] Cold-start deep link: $pendingColdStartDeepLink');
       }
       // Capture callkit accept for cold-start
       FlutterCallkitIncoming.onEvent.listen((CallEvent? event) {
@@ -203,14 +202,9 @@ class _eSahlanAppState extends ConsumerState<eSahlanApp>
       if (dl != null && dl.isNotEmpty) navigate(dl);
     });
 
-    // Cold-start deep link
-    if (_coldStartDeepLink != null) {
-      final dl = _coldStartDeepLink!;
-      _coldStartDeepLink = null;
-      Future.delayed(const Duration(milliseconds: 1500), () {
-        if (mounted) navigate(dl);
-      });
-    }
+    // Cold-start deep link is handled by SplashScreen via pendingColdStartDeepLink.
+    // SplashScreen reads it in _destinationForCode() and navigates directly,
+    // avoiding any timing conflict with the 3-second minimum splash delay.
 
     // CallKit events are handled by _onCallkitEvent (set up in initState)
   }

@@ -45,6 +45,19 @@ class ModuleApiService {
         if (featured  != null) 'featured':   featured ? 1 : 0,
         if (topRated  != null) 'top_rated':  topRated  ? 1 : 0,
       });
+
+  /// Near You — GPS mode: sorted by real distance from user's coords.
+  /// Near You — district mode: restaurants in the user's registered district.
+  Future<dynamic> getNearbyRestaurants({
+    double? lat, double? lng, double radius = 10,
+    int? nearDistrictId,
+  }) =>
+      _get('/efood/restaurants', params: {
+        if (lat != null && lng != null) 'lat': lat,
+        if (lat != null && lng != null) 'lng': lng,
+        if (lat != null && lng != null) 'radius': radius,
+        if (lat == null && nearDistrictId != null) 'near_district_id': nearDistrictId,
+      });
   Future<dynamic> getRestaurant(int id) => _get('/efood/restaurants/$id');
   Future<dynamic> getRestaurantMenu(int restaurantId, {int? categoryId, String? search}) =>
       _get('/efood/restaurants/$restaurantId/menu', params: {
