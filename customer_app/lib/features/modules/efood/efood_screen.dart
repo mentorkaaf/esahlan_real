@@ -965,11 +965,11 @@ class _NearYouSectionState extends ConsumerState<_NearYouSection> {
           perm = await Geolocator.requestPermission();
         }
         if (perm == LocationPermission.whileInUse || perm == LocationPermission.always) {
-          // Get current position quickly (balanced accuracy)
+          // Get precise position for accurate 1km radius filtering
           final pos = await Geolocator.getCurrentPosition(
             locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.medium,
-              timeLimit: Duration(seconds: 8),
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 10),
             ),
           );
           if (mounted) {
@@ -982,11 +982,11 @@ class _NearYouSectionState extends ConsumerState<_NearYouSection> {
           }
           await _fetchNearby(lat: pos.latitude, lng: pos.longitude, radius: 1.0);
 
-          // Keep updating position in real-time (100m filter to save battery)
+          // Keep updating position (50m filter for better accuracy)
           Geolocator.getPositionStream(
             locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.medium,
-              distanceFilter: 100, // update every 100m moved
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 50, // update every 50m moved
             ),
           ).listen((pos) async {
             if (!mounted) return;
@@ -1064,7 +1064,7 @@ class _NearYouSectionState extends ConsumerState<_NearYouSection> {
                   Row(children: [
                     Icon(Icons.my_location_rounded, size: 11, color: _primary),
                     const SizedBox(width: 3),
-                    Text('Live location', style: TextStyle(fontSize: 11, color: _primary, fontWeight: FontWeight.w600)),
+                    Text('Near you', style: TextStyle(fontSize: 11, color: _primary, fontWeight: FontWeight.w600)),
                   ])
                 else if (_source == _LocationSource.district && _locationLabel != null)
                   Row(children: [
@@ -1154,7 +1154,14 @@ class EFoodRestaurantDetailScreen extends ConsumerWidget {
         appBar: AppBar(backgroundColor: const Color(0xFF07003B), foregroundColor: Colors.white),
         body: Center(child: Text('Failed to load restaurant', style: TextStyle(color: Colors.grey[600]))),
       ),
-      data: (restaurant) => _RestaurantDetailPage(restaurant: restaurant),
+      data: (response) {
+        // API returns {'success': true, 'data': {...vendor...}}
+        // Extract the inner vendor object before passing to detail page
+        final restaurant = (response is Map && response['data'] != null)
+            ? response['data']
+            : response;
+        return _RestaurantDetailPage(restaurant: restaurant);
+      },
     );
   }
 }
