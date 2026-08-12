@@ -315,12 +315,41 @@ class ETicketController extends Controller
     public function flightDetail($id)
     {
         $flight = \DB::table('flights as f')
-            ->leftJoin('flight_routes as r', 'r.id', '=', 'f.route_id')
             ->leftJoin('airlines as a', 'a.id', '=', 'f.airline_id')
-            ->select('f.*', 'r.origin_city', 'r.destination_city', 'a.name as airline_name', 'a.logo as airline_logo')
+            ->select(
+                'f.id', 'f.flight_number', 'f.airline', 'f.status',
+                'f.from_city', 'f.to_city', 'f.from_code', 'f.to_code',
+                'f.departure_at', 'f.arrival_at', 'f.available_seats', 'f.total_seats',
+                'f.duration_minutes', 'f.aircraft_type', 'f.seat_classes',
+                'a.name as airline_name', 'a.logo as airline_logo', 'a.color as airline_color'
+            )
             ->where('f.id', $id)->first();
         if (!$flight) return response()->json(['success' => false, 'message' => 'Not found'], 404);
-        return response()->json(['success' => true, 'data' => $flight]);
+
+        $classes = json_decode($flight->seat_classes ?? '{}', true) ?? [];
+        $dur = null;
+        if ($flight->duration_minutes) {
+            $h = (int)floor($flight->duration_minutes / 60);
+            $m = $flight->duration_minutes % 60;
+            $dur = $h > 0 ? "{$h}h {$m}m" : "{$m}m";
+        }
+        return response()->json(['success' => true, 'data' => [
+            'id'               => $flight->id,
+            'flight_number'    => $flight->flight_number,
+            'airline'          => $flight->airline_name ?? $flight->airline,
+            'airline_logo'     => $flight->airline_logo,
+            'airline_color'    => $flight->airline_color ?? '#1a73e8',
+            'from_city'        => $flight->from_city,
+            'to_city'          => $flight->to_city,
+            'from_code'        => $flight->from_code ?? strtoupper(substr($flight->from_city ?? '', 0, 3)),
+            'to_code'          => $flight->to_code   ?? strtoupper(substr($flight->to_city   ?? '', 0, 3)),
+            'departure_at'     => $flight->departure_at,
+            'arrival_at'       => $flight->arrival_at,
+            'duration'         => $dur,
+            'available_seats'  => (int)$flight->available_seats,
+            'seat_classes'     => $classes,
+            'status'           => $flight->status,
+        ]]);
     }
 
     public function myBookingDetail($id)
