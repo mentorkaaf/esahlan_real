@@ -1213,47 +1213,51 @@ class _BestSellersSection extends StatefulWidget {
 }
 
 class _BestSellersSectionState extends State<_BestSellersSection> {
-  List<dynamic> _products = [];
-  bool _loading = true;
+  late final Future<List<dynamic>> _future;
 
   @override
   void initState() {
     super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final data = await _homeRepo.getBestSellers(limit: 10);
-      if (mounted) setState(() { _products = data; _loading = false; });
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-    }
+    _future = _homeRepo.getBestSellers(limit: 10).catchError((_) => <dynamic>[]);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_loading && _products.isEmpty) return const SizedBox.shrink();
+    return FutureBuilder<List<dynamic>>(
+      future: _future,
+      builder: (context, snap) {
+        final products = snap.data ?? [];
+        final loading = snap.connectionState != ConnectionState.done;
 
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _sectionHeader(context, '🏆 Best Sellers'),
-      SizedBox(
-        height: 185,
-        child: _loading
-            ? ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: 5,
-                itemBuilder: (_, __) => Padding(padding: const EdgeInsets.only(right: 12), child: _shimmerBox(w: 130, h: 185)),
-              )
-            : ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _products.length,
-                itemBuilder: (_, i) => _BestSellerCard(product: _products[i], rank: i + 1),
-              ),
-      ),
-    ]);
+        if (!loading && products.isEmpty) return const SizedBox.shrink();
+
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _sectionHeader(context, '🏆 Best Sellers'),
+          SizedBox(
+            height: 185,
+            child: loading
+                ? ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: 5,
+                    itemBuilder: (_, __) => Padding(padding: const EdgeInsets.only(right: 12), child: _shimmerBox(w: 130, h: 185)),
+                  )
+                : ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: products.length,
+                    itemBuilder: (context, i) {
+                      try {
+                        return _BestSellerCard(product: products[i], rank: i + 1);
+                      } catch (_) {
+                        return const SizedBox(width: 130);
+                      }
+                    },
+                  ),
+          ),
+        ]);
+      },
+    );
   }
 }
 
