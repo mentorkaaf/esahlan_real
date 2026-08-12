@@ -584,6 +584,8 @@ Route::prefix('v1')->group(function () {
             Route::get('home/live-offers',  [HomeController::class, 'liveOffers']);
             Route::get('home/near-you',     [HomeController::class, 'nearYou']);
             Route::get('home/best-sellers', [HomeController::class, 'bestSellers']);
+            Route::get('home/rent-homes',   [HomeController::class, 'rentHomes']);
+            Route::get('home/flights',      [HomeController::class, 'upcomingFlights']);
             Route::get('search',            [HomeController::class, 'search']);
 
             // Vendors

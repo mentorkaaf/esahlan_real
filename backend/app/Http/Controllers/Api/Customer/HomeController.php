@@ -452,6 +452,101 @@ class HomeController extends Controller
         return response()->json(['success' => true, 'data' => $products]);
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // GET /home/rent-homes?limit=8
+    // Available rental properties for home page section.
+    // ──────────────────────────────────────────────────────────────────────────
+    public function rentHomes(Request $request)
+    {
+        $limit = min((int)$request->get('limit', 8), 20);
+
+        $properties = DB::table('properties')
+            ->join('districts', 'properties.district_id', '=', 'districts.id')
+            ->where('properties.is_available', true)
+            ->where('properties.is_booked', false)
+            ->select([
+                'properties.id', 'properties.title', 'properties.type',
+                'properties.bedrooms', 'properties.bathrooms',
+                'properties.monthly_rent', 'properties.images',
+                'districts.name as district_name',
+            ])
+            ->orderByDesc('properties.id')
+            ->limit($limit)
+            ->get()
+            ->map(function ($p) {
+                $images = is_string($p->images) ? (json_decode($p->images, true) ?? []) : ($p->images ?? []);
+                $images = array_values(array_filter(array_map(fn($img) => cdn_url($img), (array)$images)));
+                return [
+                    'id'           => $p->id,
+                    'title'        => $p->title,
+                    'type'         => $p->type ?? 'apartment',
+                    'bedrooms'     => (int)$p->bedrooms,
+                    'bathrooms'    => (int)$p->bathrooms,
+                    'monthly_rent' => (float)$p->monthly_rent,
+                    'district_name'=> $p->district_name,
+                    'images'       => $images,
+                    'thumbnail'    => $images[0] ?? null,
+                    'deep_link'    => '/erent',
+                ];
+            });
+
+        return response()->json(['success' => true, 'data' => $properties]);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // GET /home/flights?limit=6
+    // Upcoming scheduled flights for home page section.
+    // ──────────────────────────────────────────────────────────────────────────
+    public function upcomingFlights(Request $request)
+    {
+        $limit = min((int)$request->get('limit', 6), 12);
+
+        $flights = DB::table('flights')
+            ->leftJoin('airlines', 'flights.airline_id', '=', 'airlines.id')
+            ->where('flights.status', 'scheduled')
+            ->where('flights.available_seats', '>', 0)
+            ->whereDate('flights.departure_at', '>=', now()->toDateString())
+            ->select([
+                'flights.id', 'flights.flight_number', 'flights.airline',
+                'flights.from_city', 'flights.to_city', 'flights.from_code', 'flights.to_code',
+                'flights.departure_at', 'flights.arrival_at', 'flights.available_seats',
+                'flights.duration_minutes', 'flights.seat_classes',
+                'airlines.name as airline_name', 'airlines.logo as airline_logo', 'airlines.color as airline_color',
+            ])
+            ->orderBy('flights.departure_at')
+            ->limit($limit)
+            ->get()
+            ->map(function ($f) {
+                $classes = json_decode($f->seat_classes ?? '{}', true) ?? [];
+                $price   = $classes['economy'] ?? ($classes['mobile_pay'] ?? 0);
+                $dur     = null;
+                if ($f->duration_minutes) {
+                    $h   = (int)floor($f->duration_minutes / 60);
+                    $m   = $f->duration_minutes % 60;
+                    $dur = $h > 0 ? "{$h}h {$m}m" : "{$m}m";
+                }
+                return [
+                    'id'              => $f->id,
+                    'flight_number'   => $f->flight_number,
+                    'airline'         => $f->airline_name ?? $f->airline,
+                    'airline_logo'    => $f->airline_logo,
+                    'airline_color'   => $f->airline_color ?? '#1a73e8',
+                    'from_city'       => $f->from_city,
+                    'to_city'         => $f->to_city,
+                    'from_code'       => $f->from_code ?? strtoupper(substr($f->from_city ?? '', 0, 3)),
+                    'to_code'         => $f->to_code   ?? strtoupper(substr($f->to_city   ?? '', 0, 3)),
+                    'departure_at'    => $f->departure_at,
+                    'arrival_at'      => $f->arrival_at,
+                    'duration'        => $dur,
+                    'available_seats' => (int)$f->available_seats,
+                    'economy_price'   => (float)$price,
+                    'deep_link'       => '/eticket',
+                ];
+            });
+
+        return response()->json(['success' => true, 'data' => $flights]);
+    }
+
     public function search(Request $request)
     {
         $q      = $request->input('q', '');

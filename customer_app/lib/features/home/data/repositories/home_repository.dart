@@ -93,6 +93,24 @@ class HomeRepository {
     }
   }
 
+  Future<List<dynamic>> getRentHomes({int limit = 8}) async {
+    try {
+      final res = await _dio.get('/home/rent-homes', queryParameters: {'limit': limit});
+      return res.data['data'] as List? ?? [];
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<List<dynamic>> getUpcomingFlights({int limit = 6}) async {
+    try {
+      final res = await _dio.get('/home/flights', queryParameters: {'limit': limit});
+      return res.data['data'] as List? ?? [];
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   Future<VendorModel> getVendor(int id) async {
     try {
       final res = await _dio.get('/vendors/$id');

@@ -244,6 +244,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 const _HomeNearYouSection(),
                 // ── Best Sellers ────────────────────────────────────────────
                 const _BestSellersSection(),
+                // ── Available Rent Homes ─────────────────────────────────────
+                const _RentHomesSection(),
+                // ── Upcoming Flights ─────────────────────────────────────────
+                const _FlightsSection(),
                 // ── Promotional card ads ────────────────────────────────────
                 const CardAdStrip(),
                 const SizedBox(height: 100),
@@ -1364,4 +1368,405 @@ class _BestSellerCard extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// RENT HOMES SECTION
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _RentHomesSection extends StatefulWidget {
+  const _RentHomesSection();
+  @override
+  State<_RentHomesSection> createState() => _RentHomesSectionState();
+}
+
+class _RentHomesSectionState extends State<_RentHomesSection> {
+  late final Future<List<dynamic>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _homeRepo.getRentHomes(limit: 8).catchError((_) => <dynamic>[]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<dynamic>>(
+      future: _future,
+      builder: (context, snap) {
+        final homes = snap.data ?? [];
+        final loading = snap.connectionState != ConnectionState.done;
+        if (!loading && homes.isEmpty) return const SizedBox.shrink();
+
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _sectionHeader(context, '🏠 Available Homes',
+              trailing: GestureDetector(
+                onTap: () => context.push('/erent'),
+                child: Text('See all', style: TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w700)),
+              )),
+          SizedBox(
+            height: 240,
+            child: loading
+                ? ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: 4,
+                    itemBuilder: (_, __) => Padding(
+                        padding: const EdgeInsets.only(right: 14),
+                        child: _shimmerBox(w: 200, h: 240)))
+                : ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: homes.length,
+                    itemBuilder: (context, i) {
+                      try { return _RentHomeCard(home: homes[i]); }
+                      catch (_) { return const SizedBox(width: 200); }
+                    }),
+          ),
+        ]);
+      },
+    );
+  }
+}
+
+class _RentHomeCard extends StatefulWidget {
+  final dynamic home;
+  const _RentHomeCard({required this.home});
+  @override
+  State<_RentHomeCard> createState() => _RentHomeCardState();
+}
+
+class _RentHomeCardState extends State<_RentHomeCard> {
+  final PageController _pc = PageController();
+  int _page = 0;
+  late final List<String> _images;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    final h = widget.home as Map;
+    final raw = h['images'];
+    _images = raw is List && raw.isNotEmpty
+        ? raw.whereType<String>().toList()
+        : (h['thumbnail'] != null ? [h['thumbnail'] as String] : []);
+
+    if (_images.length > 1) {
+      _timer = Timer.periodic(const Duration(seconds: 3), (_) {
+        if (!mounted) return;
+        final next = (_page + 1) % _images.length;
+        _pc.animateToPage(next, duration: const Duration(milliseconds: 500), curve: Curves.easeInOut);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pc.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final h      = widget.home as Map;
+    final title  = h['title'] as String? ?? 'Property';
+    final type   = (h['type'] as String? ?? 'apartment');
+    final dist   = h['district_name'] as String? ?? '';
+    final beds   = int.tryParse('${h['bedrooms'] ?? 0}') ?? 0;
+    final baths  = int.tryParse('${h['bathrooms'] ?? 0}') ?? 0;
+    final rent   = double.tryParse('${h['monthly_rent'] ?? 0}') ?? 0.0;
+    final dl     = h['deep_link'] as String? ?? '/erent';
+
+    return GestureDetector(
+      onTap: () => context.push(dl),
+      child: Container(
+        width: 200,
+        margin: const EdgeInsets.only(right: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          color: Theme.of(context).cardColor,
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, 4))],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // ── Sliding images ──────────────────────────────────────────────
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            child: Stack(children: [
+              SizedBox(
+                height: 140, width: 200,
+                child: _images.isEmpty
+                    ? Container(color: Colors.grey[200], child: const Icon(Icons.home_outlined, size: 48, color: Colors.grey))
+                    : PageView.builder(
+                        controller: _pc,
+                        itemCount: _images.length,
+                        onPageChanged: (i) => setState(() => _page = i),
+                        itemBuilder: (_, i) => NetImage(
+                          url: _images[i], width: 200, height: 140, fit: BoxFit.cover,
+                        ),
+                      ),
+              ),
+              // Type badge
+              Positioned(top: 10, left: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF07003B).withValues(alpha: 0.82),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    type[0].toUpperCase() + type.substring(1),
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+              // Page dots (only if multiple images)
+              if (_images.length > 1)
+                Positioned(bottom: 8, left: 0, right: 0,
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(_images.length, (i) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      width: _page == i ? 16 : 6, height: 5,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: _page == i ? AppColors.primary : Colors.white.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    )),
+                  ),
+                ),
+            ]),
+          ),
+          // ── Info ────────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: context.colors.navyText),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 4),
+              Row(children: [
+                Icon(Icons.location_on, size: 11, color: Colors.grey[500]),
+                const SizedBox(width: 2),
+                Expanded(child: Text(dist, style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                    maxLines: 1, overflow: TextOverflow.ellipsis)),
+              ]),
+              const SizedBox(height: 8),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                // Beds + baths
+                Row(children: [
+                  Icon(Icons.bed_outlined, size: 13, color: Colors.grey[600]),
+                  const SizedBox(width: 3),
+                  Text('$beds', style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 8),
+                  Icon(Icons.bathtub_outlined, size: 13, color: Colors.grey[600]),
+                  const SizedBox(width: 3),
+                  Text('$baths', style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                ]),
+                // Price
+                Text('\$${rent.toStringAsFixed(0)}/mo',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppColors.primary)),
+              ]),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UPCOMING FLIGHTS SECTION
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FlightsSection extends StatefulWidget {
+  const _FlightsSection();
+  @override
+  State<_FlightsSection> createState() => _FlightsSectionState();
+}
+
+class _FlightsSectionState extends State<_FlightsSection> {
+  late final Future<List<dynamic>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _homeRepo.getUpcomingFlights(limit: 6).catchError((_) => <dynamic>[]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<dynamic>>(
+      future: _future,
+      builder: (context, snap) {
+        final flights = snap.data ?? [];
+        final loading = snap.connectionState != ConnectionState.done;
+        if (!loading && flights.isEmpty) return const SizedBox.shrink();
+
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _sectionHeader(context, '✈️ Upcoming Flights',
+              trailing: GestureDetector(
+                onTap: () => context.push('/eticket'),
+                child: Text('Book now', style: TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w700)),
+              )),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: loading
+                ? Column(children: List.generate(2, (_) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _shimmerBox(w: double.infinity, h: 90))))
+                : Column(
+                    children: flights.map((f) {
+                      try { return _FlightCard(flight: f); }
+                      catch (_) { return const SizedBox.shrink(); }
+                    }).toList(),
+                  ),
+          ),
+        ]);
+      },
+    );
+  }
+}
+
+class _FlightCard extends StatelessWidget {
+  final dynamic flight;
+  const _FlightCard({required this.flight});
+
+  @override
+  Widget build(BuildContext context) {
+    final f          = flight as Map;
+    final airline    = f['airline'] as String? ?? 'Airline';
+    final flightNo   = f['flight_number'] as String? ?? '';
+    final fromCode   = (f['from_code'] as String? ?? '???').toUpperCase();
+    final toCode     = (f['to_code']   as String? ?? '???').toUpperCase();
+    final fromCity   = f['from_city'] as String? ?? '';
+    final toCity     = f['to_city']   as String? ?? '';
+    final depAt      = f['departure_at'] as String? ?? '';
+    final duration   = f['duration'] as String?;
+    final seats      = int.tryParse('${f['available_seats'] ?? 0}') ?? 0;
+    final price      = double.tryParse('${f['economy_price'] ?? 0}') ?? 0.0;
+    final accentHex  = f['airline_color'] as String? ?? '#1a73e8';
+    final dl         = f['deep_link'] as String? ?? '/eticket';
+
+    // Parse colour safely
+    Color accent = AppColors.primary;
+    try {
+      final hex = accentHex.replaceFirst('#', '');
+      accent = Color(0xFF000000 | int.parse(hex.length == 6 ? hex : 'FFFFFF', radix: 16));
+    } catch (_) {}
+
+    // Parse departure time
+    String depTime = '';
+    String depDate = '';
+    try {
+      final dt = DateTime.parse(depAt).toLocal();
+      final h  = dt.hour.toString().padLeft(2, '0');
+      final m  = dt.minute.toString().padLeft(2, '0');
+      depTime  = '$h:$m';
+      final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      depDate  = '${dt.day} ${months[dt.month - 1]}';
+    } catch (_) {}
+
+    return GestureDetector(
+      onTap: () => context.push(dl),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Theme.of(context).cardColor,
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0, 3))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: IntrinsicHeight(
+            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              // ── Colour stripe + airline abbr ──────────────────────────
+              Container(
+                width: 56,
+                color: accent.withValues(alpha: 0.12),
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+                    child: Center(child: Text(
+                      airline.isNotEmpty ? airline[0].toUpperCase() : '✈',
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
+                    )),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(flightNo, style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: accent),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                ]),
+              ),
+              // ── Flight route ──────────────────────────────────────────
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    // Airline name + date
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      Text(airline, style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w600),
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                      if (depDate.isNotEmpty)
+                        Text(depDate, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                    ]),
+                    const SizedBox(height: 8),
+                    // FROM ──✈──> TO
+                    Row(children: [
+                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(fromCode, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: context.colors.navyText)),
+                        Text(fromCity, style: TextStyle(fontSize: 10, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ]),
+                      Expanded(
+                        child: Column(children: [
+                          if (duration != null)
+                            Text(duration, style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                          Row(children: [
+                            Expanded(child: Container(height: 1.5, color: Colors.grey[300])),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: Icon(Icons.flight, size: 16, color: Colors.grey[400]),
+                            ),
+                            Expanded(child: Container(height: 1.5, color: Colors.grey[300])),
+                          ]),
+                          if (depTime.isNotEmpty)
+                            Text(depTime, style: const TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w700)),
+                        ]),
+                      ),
+                      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                        Text(toCode, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: context.colors.navyText)),
+                        Text(toCity, style: TextStyle(fontSize: 10, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ]),
+                    ]),
+                  ]),
+                ),
+              ),
+              // ── Price + seats ─────────────────────────────────────────
+              Container(
+                width: 72,
+                decoration: BoxDecoration(
+                  border: Border(left: BorderSide(color: Colors.grey.withValues(alpha: 0.15))),
+                ),
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text('\$${price.toStringAsFixed(0)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.primary)),
+                  const SizedBox(height: 2),
+                  Text('per seat', style: TextStyle(fontSize: 9, color: Colors.grey[500])),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: seats <= 5 ? Colors.red[50] : Colors.green[50],
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text('$seats left', style: TextStyle(
+                      fontSize: 9, fontWeight: FontWeight.w800,
+                      color: seats <= 5 ? Colors.red[700] : Colors.green[700],
+                    )),
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
