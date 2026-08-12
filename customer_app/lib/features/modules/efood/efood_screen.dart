@@ -971,7 +971,7 @@ class _NearYouSectionState extends ConsumerState<_NearYouSection> {
           // Get current position quickly (balanced accuracy)
           final pos = await Geolocator.getCurrentPosition(
             locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.balanced,
+              accuracy: LocationAccuracy.medium,
               timeLimit: Duration(seconds: 8),
             ),
           );
@@ -988,7 +988,7 @@ class _NearYouSectionState extends ConsumerState<_NearYouSection> {
           // Keep updating position in real-time (100m filter to save battery)
           Geolocator.getPositionStream(
             locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.balanced,
+              accuracy: LocationAccuracy.medium,
               distanceFilter: 100, // update every 100m moved
             ),
           ).listen((pos) async {
