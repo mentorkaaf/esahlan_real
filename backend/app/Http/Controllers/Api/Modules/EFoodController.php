@@ -276,11 +276,11 @@ class EFoodController extends Controller
             ->where('products.is_available', true)
             ->join('categories', 'categories.id', '=', 'products.category_id')
             ->where('categories.is_active', true)
-            ->select('categories.id', 'categories.name', 'categories.image')
+            ->select('categories.id', 'categories.name', 'categories.image', 'categories.sort_order')
             ->distinct()
             ->orderBy('categories.sort_order')
             ->get()
-            ->map(fn($c) => array_merge((array)$c, ['image' => $this->resolveImageUrl($c->image)]));
+            ->map(fn($c) => ['id' => $c->id, 'name' => $c->name, 'image' => $this->resolveImageUrl($c->image)]);
 
         return response()->json([
             'success' => true,
