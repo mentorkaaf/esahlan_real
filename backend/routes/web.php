@@ -510,6 +510,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('/discount-campaigns',                  [AdminNotificationController::class, 'discountCampaigns'])->name('discount-campaigns');
             Route::post('/discount-campaigns/{id}/send',       [AdminNotificationController::class, 'sendCampaignNotification'])->name('discount-campaigns.send');
             Route::post('/discount-campaigns/{id}/template',   [AdminNotificationController::class, 'updateCampaignTemplate'])->name('discount-campaigns.template');
+            Route::post('/discount-campaigns/{id}/pause',      [AdminNotificationController::class, 'toggleCampaignPause'])->name('discount-campaigns.pause');
         });
 
         // Database Cleaner

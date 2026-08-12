@@ -351,24 +351,36 @@ class AdminNotificationController extends Controller
     }
 
     /**
-     * Update campaign notification text template.
+     * Update campaign notification text template + interval.
      */
     public function updateCampaignTemplate(Request $request, int $id)
     {
         $request->validate([
-            'title' => 'required|string|max:255',
-            'body'  => 'required|string|max:500',
+            'notif_title'          => 'nullable|string|max:255',
+            'notif_body'           => 'nullable|string|max:500',
+            'notif_interval_hours' => 'required|integer|min:1|max:48',
         ]);
 
         $campaign = DiscountCampaign::findOrFail($id);
         $campaign->update([
-            'internal_notes' => json_encode([
-                'notif_title' => $request->title,
-                'notif_body'  => $request->body,
-            ]),
+            'notif_title'          => $request->notif_title ?: null,
+            'notif_body'           => $request->notif_body  ?: null,
+            'notif_interval_hours' => (int) $request->notif_interval_hours,
         ]);
 
-        return back()->with('success', 'Notification template saved.');
+        return back()->with('success', "✅ Template saved for {$campaign->vendor?->name}.");
+    }
+
+    /**
+     * Toggle pause/resume auto-notifications for a campaign.
+     */
+    public function toggleCampaignPause(int $id)
+    {
+        $campaign = DiscountCampaign::findOrFail($id);
+        $campaign->update(['notif_paused' => !$campaign->notif_paused]);
+
+        $state = $campaign->notif_paused ? '⏸ Paused' : '▶️ Resumed';
+        return back()->with('success', "{$state} auto-notifications for {$campaign->vendor?->name}.");
     }
 
     public function bulkDestroy(Request $request)

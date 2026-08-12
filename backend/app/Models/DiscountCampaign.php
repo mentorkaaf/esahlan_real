@@ -14,15 +14,19 @@ class DiscountCampaign extends Model
         'badge_text', 'badge_color',
         'apply_to_all', 'category_id', 'is_active',
         'internal_notes', 'created_by',
+        // notification management
+        'notif_paused', 'notif_title', 'notif_body', 'notif_interval_hours',
     ];
 
     protected $casts = [
         'is_active'            => 'boolean',
         'apply_to_all'         => 'boolean',
+        'notif_paused'         => 'boolean',
         'starts_at'            => 'datetime',
         'ends_at'              => 'datetime',
         'discount_value'       => 'float',
         'per_vendor_discounts' => 'array',
+        'notif_interval_hours' => 'integer',
     ];
 
     public function vendor()

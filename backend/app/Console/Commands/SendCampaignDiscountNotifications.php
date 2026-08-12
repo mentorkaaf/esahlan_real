@@ -78,15 +78,28 @@ class SendCampaignDiscountNotifications extends Command
             return 0;
         }
 
-        $cacheTtl  = $urgent ? self::URGENT_TTL : self::NORMAL_TTL;
         $totalSent = 0;
 
         foreach ($campaigns as $campaign) {
+            // Skip if admin paused notifications for this campaign
+            if ($campaign->notif_paused) {
+                $this->info("  ⏸ Campaign #{$campaign->id} ({$campaign->vendor?->name}) — PAUSED, skipping.");
+                continue;
+            }
+
             $vendorId   = $campaign->vendor_id;
             $vendorName = $campaign->vendor?->name ?? 'Restaurant';
             $logoUrl    = $campaign->vendor?->logo;
             $catName    = $campaign->category?->name;
             $endsAt     = $campaign->ends_at;
+
+            // Per-campaign cache TTL: use custom interval or default
+            $intervalHours = ($campaign->notif_interval_hours && $campaign->notif_interval_hours > 0)
+                ? (int) $campaign->notif_interval_hours
+                : ($urgent ? 0 : 2);
+            $cacheTtl = $urgent
+                ? self::URGENT_TTL
+                : max(1800, $intervalHours * 3600); // min 30min
 
             // Discount label
             $discountStr = $campaign->discount_type === 'percentage'
@@ -108,9 +121,12 @@ class SendCampaignDiscountNotifications extends Command
                 ->unique()
                 ->flip();
 
-            // ── 4. Build notification content ─────────────────────────────────
-            if ($urgent) {
-                // Urgency message for last 2h
+            // ── 4. Build notification content (custom or auto-generated) ──────
+            // Use admin-defined custom text if set, otherwise auto-generate
+            if (!empty($campaign->notif_title)) {
+                $title = $campaign->notif_title;
+                $body  = $campaign->notif_body ?? '';
+            } elseif ($urgent) {
                 $title = "⏰ Hurry! {$discountStr} at {$vendorName} — {$timeLabel}";
                 $body  = $catName
                     ? "Last chance! {$discountStr} on {$catName} at {$vendorName}. Don't miss it!"
