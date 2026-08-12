@@ -359,7 +359,7 @@ class HomeController extends Controller
                     'image'       => cdn_url($s->logo),
                     'rating'      => $s->rating,
                     'distance_km' => isset($s->distance_km) ? round($s->distance_km, 1) : null,
-                    'deep_link'   => '/eshop/stores/' . $s->id,
+                    'deep_link'   => '/eshop',
                 ];
             });
         }
