@@ -1134,6 +1134,32 @@ class _NearYouSectionState extends ConsumerState<_NearYouSection> {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// PUBLIC ROUTE ENTRY — used by GoRouter /efood/restaurant/:id
+// ════════════════════════════════════════════════════════════════════
+
+/// Public screen that loads restaurant by ID and shows the detail page.
+/// Opened from deep links, home-screen cards, and notifications.
+class EFoodRestaurantDetailScreen extends ConsumerWidget {
+  final int vendorId;
+  const EFoodRestaurantDetailScreen({super.key, required this.vendorId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(_restaurantProvider(vendorId));
+    return async.when(
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator(color: _primary)),
+      ),
+      error: (e, _) => Scaffold(
+        appBar: AppBar(backgroundColor: const Color(0xFF07003B), foregroundColor: Colors.white),
+        body: Center(child: Text('Failed to load restaurant', style: TextStyle(color: Colors.grey[600]))),
+      ),
+      data: (restaurant) => _RestaurantDetailPage(restaurant: restaurant),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
 // RESTAURANT DETAIL PAGE
 // ════════════════════════════════════════════════════════════════════
 

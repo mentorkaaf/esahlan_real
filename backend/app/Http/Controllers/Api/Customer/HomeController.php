@@ -188,7 +188,7 @@ class HomeController extends Controller
                     'badge_color' => $c->badge_color ?? 'red',
                     'image'       => cdn_url($c->logo ?? $c->cover_image),
                     'ends_at'     => $c->ends_at,
-                    'deep_link'   => '/vendor/' . $c->vendor_id,
+                    'deep_link'   => '/efood/restaurant/' . $c->vendor_id,
                     'minutes_left'=> (int) now()->diffInMinutes($c->ends_at, false),
                 ];
             });
@@ -293,7 +293,7 @@ class HomeController extends Controller
                     'rating'      => $r->rating,
                     'delivery_time' => $r->delivery_time,
                     'distance_km' => isset($r->distance_km) ? round($r->distance_km, 1) : null,
-                    'deep_link'   => '/vendor/' . $r->id,
+                    'deep_link'   => '/efood/restaurant/' . $r->id,
                 ];
             });
         }
@@ -381,6 +381,30 @@ class HomeController extends Controller
             ->selectRaw('product_id, COUNT(*) as order_count')
             ->groupBy('product_id');
 
+        // Try ordered products first; fall back to top-rated if no orders exist yet
+        $mapProduct = function ($p, int $orderCount = 0) {
+            $deepLink = match($p->module_slug) {
+                'efood'   => '/efood/restaurant/' . $p->vendor_id,
+                'eshop'   => '/eshop/products/' . $p->id,
+                'egrocery'=> '/egrocery',
+                default   => '/' . $p->module_slug,
+            };
+            return [
+                'id'           => $p->id,
+                'name'         => $p->name,
+                'price'        => $p->price,
+                'sale_price'   => $p->sale_price,
+                'thumbnail'    => cdn_url($p->thumbnail),
+                'total_orders' => $orderCount,
+                'rating'       => $p->rating,
+                'vendor_name'  => $p->vendor_name,
+                'vendor_id'    => $p->vendor_id,
+                'module_slug'  => $p->module_slug,
+                'module_name'  => $p->module_name,
+                'deep_link'    => $deepLink,
+            ];
+        };
+
         $products = DB::table('products as p')
             ->joinSub($orderCountSub, 'oi', 'p.id', '=', 'oi.product_id')
             ->join('vendors as v', 'p.vendor_id', '=', 'v.id')
@@ -400,28 +424,30 @@ class HomeController extends Controller
             ->orderByDesc('oi.order_count')
             ->limit($limit)
             ->get()
-            ->map(function ($p) {
-                $deepLink = match($p->module_slug) {
-                    'efood'   => '/vendor/' . $p->vendor_id,
-                    'eshop'   => '/eshop/products/' . $p->id,
-                    'egrocery'=> '/egrocery',
-                    default   => '/' . $p->module_slug,
-                };
-                return [
-                    'id'           => $p->id,
-                    'name'         => $p->name,
-                    'price'        => $p->price,
-                    'sale_price'   => $p->sale_price,
-                    'thumbnail'    => cdn_url($p->thumbnail),
-                    'total_orders' => $p->total_orders,
-                    'rating'       => $p->rating,
-                    'vendor_name'  => $p->vendor_name,
-                    'vendor_id'    => $p->vendor_id,
-                    'module_slug'  => $p->module_slug,
-                    'module_name'  => $p->module_name,
-                    'deep_link'    => $deepLink,
-                ];
-            });
+            ->map(fn($p) => $mapProduct($p, $p->total_orders));
+
+        // Fallback: if no orders yet, show top-rated available products
+        if ($products->isEmpty()) {
+            $products = DB::table('products as p')
+                ->join('vendors as v', 'p.vendor_id', '=', 'v.id')
+                ->join('modules as m', 'v.module_id', '=', 'm.id')
+                ->where('p.is_available', true)
+                ->whereNull('p.deleted_at')
+                ->where('v.is_active', true)
+                ->where('v.is_approved', true)
+                ->whereNull('v.deleted_at')
+                ->where('p.price', '>', 0)
+                ->select([
+                    'p.id', 'p.name', 'p.price', 'p.sale_price', 'p.thumbnail', 'p.rating',
+                    'v.id as vendor_id', 'v.name as vendor_name',
+                    'm.slug as module_slug', 'm.name as module_name',
+                ])
+                ->orderByDesc('p.rating')
+                ->orderByDesc('p.id')
+                ->limit($limit)
+                ->get()
+                ->map(fn($p) => $mapProduct($p, 0));
+        }
 
         return response()->json(['success' => true, 'data' => $products]);
     }

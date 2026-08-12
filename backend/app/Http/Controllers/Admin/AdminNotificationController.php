@@ -295,7 +295,7 @@ class AdminNotificationController extends Controller
                 : "Get {$discountStr} at {$vendorName}. Ends {$endsAt->format('M j, g:ia')}!";
         }
 
-        $deepLink = '/vendor/' . $campaign->vendor_id;
+        $deepLink = '/efood/restaurant/' . $campaign->vendor_id;
         $data = [
             'type'        => 'discount_campaign',
             'campaign_id' => (string) $campaign->id,

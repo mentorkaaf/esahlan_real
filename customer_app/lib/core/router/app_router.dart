@@ -299,6 +299,12 @@ final routerProvider = Provider<GoRouter>((ref) {
 
           // eFood — moved inside shell so desktop sidebar stays visible
           GoRoute(path: '/efood', builder: (_, __) => const EFoodScreen()),
+          GoRoute(
+            path: '/efood/restaurant/:id',
+            builder: (_, state) => EFoodRestaurantDetailScreen(
+              vendorId: int.parse(state.pathParameters['id']!),
+            ),
+          ),
 
           // eLearning routes (inside shell for bottom nav)
           GoRoute(path: '/elearning', builder: (_, __) => const ELearningScreen()),

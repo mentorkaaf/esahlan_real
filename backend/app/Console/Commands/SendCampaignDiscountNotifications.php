@@ -140,7 +140,7 @@ class SendCampaignDiscountNotifications extends Command
 
             // Deep link → Flutter reads data['deep_link'] and calls router.push()
             // Route: /vendor/:id  (GoRouter path in app_router.dart)
-            $deepLink = '/vendor/' . $vendorId;
+            $deepLink = '/efood/restaurant/' . $vendorId;
 
             $data = [
                 'type'        => 'discount_campaign',
