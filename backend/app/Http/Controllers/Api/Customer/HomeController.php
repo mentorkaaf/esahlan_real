@@ -486,7 +486,7 @@ class HomeController extends Controller
                     'district_name'=> $p->district_name,
                     'images'       => $images,
                     'thumbnail'    => $images[0] ?? null,
-                    'deep_link'    => '/erent',
+                    'deep_link'    => '/erent/property/' . $p->id,
                 ];
             });
 
@@ -540,7 +540,7 @@ class HomeController extends Controller
                     'duration'        => $dur,
                     'available_seats' => (int)$f->available_seats,
                     'economy_price'   => (float)$price,
-                    'deep_link'       => '/eticket',
+                    'deep_link'       => '/eticket/flight/' . $f->id,
                 ];
             });
 

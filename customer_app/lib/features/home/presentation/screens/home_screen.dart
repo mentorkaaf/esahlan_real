@@ -1576,6 +1576,10 @@ class _RentHomeCardState extends State<_RentHomeCard> {
 // UPCOMING FLIGHTS SECTION
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// FLIGHTS SECTION — 3-column grid carousel (3 per page, swipe for more)
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _FlightsSection extends StatefulWidget {
   const _FlightsSection();
   @override
@@ -1584,11 +1588,19 @@ class _FlightsSection extends StatefulWidget {
 
 class _FlightsSectionState extends State<_FlightsSection> {
   late final Future<List<dynamic>> _future;
+  final PageController _pc = PageController();
+  int _page = 0;
 
   @override
   void initState() {
     super.initState();
-    _future = _homeRepo.getUpcomingFlights(limit: 6).catchError((_) => <dynamic>[]);
+    _future = _homeRepo.getUpcomingFlights(limit: 9).catchError((_) => <dynamic>[]);
+  }
+
+  @override
+  void dispose() {
+    _pc.dispose();
+    super.dispose();
   }
 
   @override
@@ -1600,25 +1612,62 @@ class _FlightsSectionState extends State<_FlightsSection> {
         final loading = snap.connectionState != ConnectionState.done;
         if (!loading && flights.isEmpty) return const SizedBox.shrink();
 
+        // Group into pages of 3
+        final pages = <List<dynamic>>[];
+        for (var i = 0; i < (loading ? 1 : flights.length); i += 3) {
+          pages.add(loading ? [] : flights.sublist(i, (i + 3).clamp(0, flights.length)));
+        }
+        final pageCount = loading ? 1 : pages.length;
+
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _sectionHeader(context, '✈️ Upcoming Flights',
               trailing: GestureDetector(
                 onTap: () => context.push('/eticket'),
                 child: Text('Book now', style: TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w700)),
               )),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+          // ── Carousel ────────────────────────────────────────────────────
+          SizedBox(
+            height: loading ? 310 : (pages.first.length == 1 ? 110 : pages.first.length == 2 ? 210 : 310),
             child: loading
-                ? Column(children: List.generate(2, (_) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _shimmerBox(w: double.infinity, h: 90))))
-                : Column(
-                    children: flights.map((f) {
-                      try { return _FlightCard(flight: f); }
-                      catch (_) { return const SizedBox.shrink(); }
-                    }).toList(),
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(children: List.generate(3, (_) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _shimmerBox(w: double.infinity, h: 90)))))
+                : PageView.builder(
+                    controller: _pc,
+                    itemCount: pageCount,
+                    onPageChanged: (i) => setState(() => _page = i),
+                    itemBuilder: (_, pi) {
+                      final group = pages[pi];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: group.map((f) {
+                            try { return _FlightCard(flight: f); }
+                            catch (_) { return const SizedBox.shrink(); }
+                          }).toList(),
+                        ),
+                      );
+                    },
                   ),
           ),
+          // ── Page dots (only if multiple pages) ──────────────────────────
+          if (!loading && pageCount > 1) ...[
+            const SizedBox(height: 8),
+            Row(mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(pageCount, (i) => AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                width: _page == i ? 20 : 6, height: 6,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  color: _page == i ? AppColors.primary : Colors.grey[300]!,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              )),
+            ),
+            const SizedBox(height: 4),
+          ],
         ]);
       },
     );
@@ -1631,139 +1680,127 @@ class _FlightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final f          = flight as Map;
-    final airline    = f['airline'] as String? ?? 'Airline';
-    final flightNo   = f['flight_number'] as String? ?? '';
-    final fromCode   = (f['from_code'] as String? ?? '???').toUpperCase();
-    final toCode     = (f['to_code']   as String? ?? '???').toUpperCase();
-    final fromCity   = f['from_city'] as String? ?? '';
-    final toCity     = f['to_city']   as String? ?? '';
-    final depAt      = f['departure_at'] as String? ?? '';
-    final duration   = f['duration'] as String?;
-    final seats      = int.tryParse('${f['available_seats'] ?? 0}') ?? 0;
-    final price      = double.tryParse('${f['economy_price'] ?? 0}') ?? 0.0;
-    final accentHex  = f['airline_color'] as String? ?? '#1a73e8';
-    final dl         = f['deep_link'] as String? ?? '/eticket';
+    final f         = flight as Map;
+    final airline   = f['airline'] as String? ?? 'Airline';
+    final flightNo  = f['flight_number'] as String? ?? '';
+    final fromCode  = (f['from_code'] as String? ?? '???').toUpperCase();
+    final toCode    = (f['to_code']   as String? ?? '???').toUpperCase();
+    final fromCity  = f['from_city'] as String? ?? '';
+    final toCity    = f['to_city']   as String? ?? '';
+    final depAt     = f['departure_at'] as String? ?? '';
+    final duration  = f['duration'] as String?;
+    final seats     = int.tryParse('${f['available_seats'] ?? 0}') ?? 0;
+    final price     = double.tryParse('${f['economy_price'] ?? 0}') ?? 0.0;
+    final accentHex = f['airline_color'] as String? ?? '#1a73e8';
+    final dl        = f['deep_link'] as String? ?? '/eticket';
 
-    // Parse colour safely
     Color accent = AppColors.primary;
     try {
       final hex = accentHex.replaceFirst('#', '');
-      accent = Color(0xFF000000 | int.parse(hex.length == 6 ? hex : 'FFFFFF', radix: 16));
+      accent = Color(0xFF000000 | int.parse(hex.length == 6 ? hex : '1a73e8', radix: 16));
     } catch (_) {}
 
-    // Parse departure time
-    String depTime = '';
-    String depDate = '';
+    String depTime = '', depDate = '';
     try {
       final dt = DateTime.parse(depAt).toLocal();
-      final h  = dt.hour.toString().padLeft(2, '0');
-      final m  = dt.minute.toString().padLeft(2, '0');
-      depTime  = '$h:$m';
-      final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      depDate  = '${dt.day} ${months[dt.month - 1]}';
+      depTime  = '${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
+      final mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      depDate  = '${dt.day} ${mo[dt.month - 1]}';
     } catch (_) {}
 
     return GestureDetector(
       onTap: () => context.push(dl),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        height: 90,
+        margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           color: Theme.of(context).cardColor,
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0, 3))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: IntrinsicHeight(
-            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              // ── Colour stripe + airline abbr ──────────────────────────
-              Container(
-                width: 56,
-                color: accent.withValues(alpha: 0.12),
-                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Container(
-                    width: 36, height: 36,
-                    decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-                    child: Center(child: Text(
-                      airline.isNotEmpty ? airline[0].toUpperCase() : '✈',
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
-                    )),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(flightNo, style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: accent),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                ]),
-              ),
-              // ── Flight route ──────────────────────────────────────────
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    // Airline name + date
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text(airline, style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w600),
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                      if (depDate.isNotEmpty)
-                        Text(depDate, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+          borderRadius: BorderRadius.circular(14),
+          child: Row(children: [
+            // ── Airline badge ──────────────────────────────────────────
+            Container(
+              width: 52,
+              color: accent.withValues(alpha: 0.10),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Container(
+                  width: 32, height: 32,
+                  decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+                  child: Center(child: Text(
+                    airline.isNotEmpty ? airline[0].toUpperCase() : '✈',
+                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900),
+                  )),
+                ),
+                const SizedBox(height: 3),
+                Text(flightNo, style: TextStyle(fontSize: 7, fontWeight: FontWeight.w700, color: accent),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+              ]),
+            ),
+            // ── Route ─────────────────────────────────────────────────
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  // Airline + date
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Expanded(child: Text(airline,
+                        style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w600),
+                        maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    if (depDate.isNotEmpty)
+                      Text(depDate, style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+                  ]),
+                  const SizedBox(height: 6),
+                  // FROM ──✈──> TO
+                  Row(children: [
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(fromCode, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: context.colors.navyText, height: 1.1)),
+                      Text(fromCity, style: TextStyle(fontSize: 9, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ]),
-                    const SizedBox(height: 8),
-                    // FROM ──✈──> TO
-                    Row(children: [
-                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(fromCode, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: context.colors.navyText)),
-                        Text(fromCity, style: TextStyle(fontSize: 10, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Expanded(child: Column(children: [
+                      if (duration != null) Text(duration, style: TextStyle(fontSize: 9, color: Colors.grey[400])),
+                      Row(children: [
+                        Expanded(child: Container(height: 1, color: Colors.grey[300])),
+                        Padding(padding: const EdgeInsets.symmetric(horizontal: 3),
+                            child: Icon(Icons.flight, size: 12, color: Colors.grey[400])),
+                        Expanded(child: Container(height: 1, color: Colors.grey[300])),
                       ]),
-                      Expanded(
-                        child: Column(children: [
-                          if (duration != null)
-                            Text(duration, style: TextStyle(fontSize: 10, color: Colors.grey[400])),
-                          Row(children: [
-                            Expanded(child: Container(height: 1.5, color: Colors.grey[300])),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: Icon(Icons.flight, size: 16, color: Colors.grey[400]),
-                            ),
-                            Expanded(child: Container(height: 1.5, color: Colors.grey[300])),
-                          ]),
-                          if (depTime.isNotEmpty)
-                            Text(depTime, style: const TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w700)),
-                        ]),
-                      ),
-                      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                        Text(toCode, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: context.colors.navyText)),
-                        Text(toCity, style: TextStyle(fontSize: 10, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      ]),
+                      if (depTime.isNotEmpty)
+                        Text(depTime, style: const TextStyle(fontSize: 9, color: AppColors.primary, fontWeight: FontWeight.w700)),
+                    ])),
+                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      Text(toCode, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: context.colors.navyText, height: 1.1)),
+                      Text(toCity, style: TextStyle(fontSize: 9, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ]),
                   ]),
-                ),
-              ),
-              // ── Price + seats ─────────────────────────────────────────
-              Container(
-                width: 72,
-                decoration: BoxDecoration(
-                  border: Border(left: BorderSide(color: Colors.grey.withValues(alpha: 0.15))),
-                ),
-                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Text('\$${price.toStringAsFixed(0)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.primary)),
-                  const SizedBox(height: 2),
-                  Text('per seat', style: TextStyle(fontSize: 9, color: Colors.grey[500])),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: seats <= 5 ? Colors.red[50] : Colors.green[50],
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text('$seats left', style: TextStyle(
-                      fontSize: 9, fontWeight: FontWeight.w800,
-                      color: seats <= 5 ? Colors.red[700] : Colors.green[700],
-                    )),
-                  ),
                 ]),
               ),
-            ]),
-          ),
+            ),
+            // ── Price ─────────────────────────────────────────────────
+            Container(
+              width: 64,
+              decoration: BoxDecoration(border: Border(left: BorderSide(color: Colors.grey.withValues(alpha: 0.15)))),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text('\$${price.toStringAsFixed(0)}',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.primary)),
+                Text('per seat', style: TextStyle(fontSize: 8, color: Colors.grey[500])),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: seats <= 5 ? Colors.red[50] : Colors.green[50],
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text('$seats left', style: TextStyle(
+                    fontSize: 8, fontWeight: FontWeight.w800,
+                    color: seats <= 5 ? Colors.red[700] : Colors.green[700],
+                  )),
+                ),
+              ]),
+            ),
+          ]),
         ),
       ),
     );

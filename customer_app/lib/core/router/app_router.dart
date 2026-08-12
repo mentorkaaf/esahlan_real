@@ -256,6 +256,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/eparcel',    builder: (_, __) => const EParcelScreen()),
           GoRoute(path: '/erent',      builder: (_, __) => const ERentScreen()),
           GoRoute(
+            path: '/erent/property/:id',
+            builder: (_, state) => PropertyDetailScreen(
+              propertyId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+            ),
+          ),
+          GoRoute(
             path: '/erent/request/:id',
             builder: (_, state) => ERentRequestDeepLinkScreen(
               requestId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
@@ -266,6 +272,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/edata',      builder: (_, __) => const EDataScreen()),
           GoRoute(path: '/eexchange',  builder: (_, __) => const EExchangeScreen()),
           GoRoute(path: '/eticket',    builder: (_, __) => const ETicketScreen()),
+          GoRoute(
+            path: '/eticket/flight/:id',
+            builder: (_, state) => ETicketFlightDirectScreen(
+              flightId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+            ),
+          ),
           GoRoute(path: '/egrocery',   builder: (_, __) => const EGroceryScreen()),
           GoRoute(path: '/ewholesale', builder: (_, __) => const EWholesaleScreen()),
           GoRoute(path: '/elaundry',   builder: (_, __) => const ELaundryScreen()),

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/widgets/network_image_widget.dart';
@@ -2513,4 +2514,104 @@ class _BookingCardSkeleton extends StatelessWidget {
       child: Container(color: context.colors.cardBg),
     ),
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PUBLIC: Direct flight booking screen (from home page deep link)
+// Route: /eticket/flight/:id
+// Loads flight by ID then immediately opens _BookingFlowDialog
+// ─────────────────────────────────────────────────────────────────────────────
+class ETicketFlightDirectScreen extends StatefulWidget {
+  final int flightId;
+  const ETicketFlightDirectScreen({super.key, required this.flightId});
+
+  @override
+  State<ETicketFlightDirectScreen> createState() => _ETicketFlightDirectScreenState();
+}
+
+class _ETicketFlightDirectScreenState extends State<ETicketFlightDirectScreen> {
+  final _svcLocal = ModuleApiService.create();
+  bool _loading = true;
+  String? _error;
+  Map<String, dynamic>? _flight;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await _svcLocal.getFlightDetail(widget.flightId);
+      final raw  = data is Map ? Map<String, dynamic>.from(data['data'] ?? data) : null;
+      if (!mounted) return;
+      if (raw == null) {
+        setState(() { _loading = false; _error = 'Flight not found'; });
+        return;
+      }
+      setState(() { _flight = raw; _loading = false; });
+      // Show booking dialog immediately after build
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openBooking());
+    } catch (e) {
+      if (mounted) setState(() { _loading = false; _error = e.toString(); });
+    }
+  }
+
+  void _openBooking() {
+    if (_flight == null || !mounted) return;
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 280),
+      transitionBuilder: (_, anim, __, child) => SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+        child: child,
+      ),
+      pageBuilder: (_, __, ___) => _BookingFlowDialog(
+        flight: _flight!,
+        adults: 1, children: 0, infants: 0,
+        seatClass: 'economy',
+      ),
+    ).then((_) {
+      // When dialog closes, go back
+      if (mounted) Navigator.of(context).maybePop();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _kNavy,
+      appBar: AppBar(
+        backgroundColor: _kNavy,
+        foregroundColor: Colors.white,
+        title: const Text('Flight Details', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
+        elevation: 0,
+      ),
+      body: Center(
+        child: _loading
+            ? const Column(mainAxisSize: MainAxisSize.min, children: [
+                CircularProgressIndicator(color: _kOrange),
+                SizedBox(height: 16),
+                Text('Loading flight...', style: TextStyle(color: Colors.white70, fontSize: 14)),
+              ])
+            : _error != null
+                ? Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.flight_outlined, color: Colors.white38, size: 48),
+                    const SizedBox(height: 12),
+                    Text('Flight not available', style: const TextStyle(color: Colors.white70, fontSize: 15)),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => context.go('/eticket'),
+                      style: ElevatedButton.styleFrom(backgroundColor: _kOrange),
+                      child: const Text('Browse Flights'),
+                    ),
+                  ])
+                : const SizedBox.shrink(), // dialog is open
+      ),
+    );
+  }
 }
