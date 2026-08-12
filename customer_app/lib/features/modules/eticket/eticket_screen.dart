@@ -1405,14 +1405,18 @@ class _BookingFlowDialogState extends ConsumerState<_BookingFlowDialog> {
 
   // ── Price helpers ─────────────────────────────────────────────
   double _priceFor(_PaxData pax) {
-    final cls = Map<String, dynamic>.from(
-        widget.flight['classes'] ?? widget.flight['seat_classes'] ?? {});
-    final eco = (cls['economy'] as num?)?.toDouble() ?? 0;
+    final raw = widget.flight['classes'] ?? widget.flight['seat_classes'] ?? {};
+    final cls = Map<String, dynamic>.from(raw is Map ? raw : {});
+    double _p(dynamic v) => v == null ? 0.0 : double.tryParse(v.toString()) ?? 0.0;
+    final eco = _p(cls['economy']);
     switch (pax.type) {
-      case 'adult':   return (cls[widget.seatClass] as num?)?.toDouble() ?? eco;
-      case 'child':   return (cls['child']   as num?)?.toDouble() ?? eco * 0.75;
-      case 'infant':  return (cls['infant']  as num?)?.toDouble() ?? eco * 0.1;
-      default:        return eco;
+      case 'adult':
+        final v = _p(cls[widget.seatClass]); return v > 0 ? v : eco;
+      case 'child':
+        final v = _p(cls['child']); return v > 0 ? v : eco * 0.75;
+      case 'infant':
+        final v = _p(cls['infant']); return v > 0 ? v : eco * 0.1;
+      default: return eco;
     }
   }
 
@@ -2536,6 +2540,12 @@ class _ETicketFlightDirectScreenState extends State<ETicketFlightDirectScreen> {
   String? _error;
   Map<String, dynamic>? _flight;
 
+  // Passenger counts
+  int _adults   = 1;
+  int _children = 0;
+  int _infants  = 0;
+  String _seatClass = 'economy';
+
   @override
   void initState() {
     super.initState();
@@ -2552,8 +2562,6 @@ class _ETicketFlightDirectScreenState extends State<ETicketFlightDirectScreen> {
         return;
       }
       setState(() { _flight = raw; _loading = false; });
-      // Show booking dialog immediately after build
-      WidgetsBinding.instance.addPostFrameCallback((_) => _openBooking());
     } catch (e) {
       if (mounted) setState(() { _loading = false; _error = e.toString(); });
     }
@@ -2573,45 +2581,295 @@ class _ETicketFlightDirectScreenState extends State<ETicketFlightDirectScreen> {
       ),
       pageBuilder: (_, __, ___) => _BookingFlowDialog(
         flight: _flight!,
-        adults: 1, children: 0, infants: 0,
-        seatClass: 'economy',
+        adults: _adults, children: _children, infants: _infants,
+        seatClass: _seatClass,
       ),
     ).then((_) {
-      // When dialog closes, go back
       if (mounted) Navigator.of(context).maybePop();
     });
   }
 
+  double get _pricePerAdult {
+    final raw = _flight?['seat_classes'] ?? _flight?['classes'] ?? {};
+    final cls = Map<String, dynamic>.from(raw is Map ? raw : {});
+    double _p(dynamic v) => v == null ? 0.0 : double.tryParse(v.toString()) ?? 0.0;
+    final v = _p(cls[_seatClass]);
+    return v > 0 ? v : _p(cls['economy']);
+  }
+
+  double get _totalPrice {
+    final cls = Map<String, dynamic>.from(
+        (_flight?['seat_classes'] ?? _flight?['classes'] ?? {}) is Map
+            ? (_flight!['seat_classes'] ?? _flight!['classes'])
+            : {});
+    double _p(dynamic v) => v == null ? 0.0 : double.tryParse(v.toString()) ?? 0.0;
+    final eco = _p(cls['economy']);
+    final adultP  = _pricePerAdult;
+    final childP  = (_p(cls['child'])).let2((v) => v > 0 ? v : eco * 0.75);
+    final infantP = (_p(cls['infant'])).let2((v) => v > 0 ? v : eco * 0.1);
+    return adultP * _adults + childP * _children + infantP * _infants;
+  }
+
+  Widget _counter(String label, String sub, int val, int min, int max, VoidCallback inc, VoidCallback dec) {
+    return Row(children: [
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+        Text(sub, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+      ])),
+      _CounterBtn(icon: Icons.remove, onTap: val <= min ? null : dec),
+      Container(
+        width: 36, alignment: Alignment.center,
+        child: Text('$val', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+      ),
+      _CounterBtn(icon: Icons.add, onTap: (_adults + _children + _infants) >= 9 || val >= max ? null : inc),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final f = _flight;
+    final fromCode = f?['from_code'] as String? ?? '???';
+    final toCode   = f?['to_code']   as String? ?? '???';
+    final fromCity = f?['from_city'] as String? ?? '';
+    final toCity   = f?['to_city']   as String? ?? '';
+    final airline  = f?['airline']   as String? ?? '';
+    final flightNo = f?['flight_number'] as String? ?? '';
+    final depAt    = f?['departure_at'] as String? ?? '';
+    final duration = f?['duration'] as String?;
+    final seats    = int.tryParse('${f?['available_seats'] ?? 0}') ?? 0;
+    final accentHex = f?['airline_color'] as String? ?? '1a73e8';
+    Color accent = _kOrange;
+    try {
+      final hex = accentHex.replaceFirst('#', '');
+      accent = Color(0xFF000000 | int.parse(hex.length == 6 ? hex : '1a73e8', radix: 16));
+    } catch (_) {}
+
+    String depTime = '', depDate = '';
+    try {
+      final dt = DateTime.parse(depAt).toLocal();
+      depTime  = '${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
+      final mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      depDate  = '${dt.day} ${mo[dt.month - 1]} ${dt.year}';
+    } catch (_) {}
+
     return Scaffold(
       backgroundColor: _kNavy,
       appBar: AppBar(
         backgroundColor: _kNavy,
         foregroundColor: Colors.white,
-        title: const Text('Flight Details', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
+        title: const Text('Select Passengers', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
         elevation: 0,
       ),
-      body: Center(
-        child: _loading
-            ? const Column(mainAxisSize: MainAxisSize.min, children: [
-                CircularProgressIndicator(color: _kOrange),
-                SizedBox(height: 16),
-                Text('Loading flight...', style: TextStyle(color: Colors.white70, fontSize: 14)),
-              ])
-            : _error != null
-                ? Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.flight_outlined, color: Colors.white38, size: 48),
-                    const SizedBox(height: 12),
-                    Text('Flight not available', style: const TextStyle(color: Colors.white70, fontSize: 15)),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => context.go('/eticket'),
-                      style: ElevatedButton.styleFrom(backgroundColor: _kOrange),
-                      child: const Text('Browse Flights'),
+      body: _loading
+          ? const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              CircularProgressIndicator(color: _kOrange),
+              SizedBox(height: 14),
+              Text('Loading flight...', style: TextStyle(color: Colors.white60, fontSize: 14)),
+            ]))
+          : _error != null
+              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.flight_outlined, color: Colors.white38, size: 52),
+                  const SizedBox(height: 12),
+                  const Text('Flight not available', style: TextStyle(color: Colors.white70, fontSize: 15)),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => context.go('/eticket'),
+                    style: ElevatedButton.styleFrom(backgroundColor: _kOrange),
+                    child: const Text('Browse Flights'),
+                  ),
+                ]))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    // ── Flight summary card ──────────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [accent.withValues(alpha: 0.9), _kNavy],
+                          begin: Alignment.topLeft, end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 6))],
+                      ),
+                      child: Column(children: [
+                        Row(children: [
+                          Container(
+                            width: 36, height: 36,
+                            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
+                            child: Center(child: Text(
+                              airline.isNotEmpty ? airline[0].toUpperCase() : '✈',
+                              style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900),
+                            )),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(airline, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                            Text(flightNo, style: const TextStyle(color: Colors.white60, fontSize: 11)),
+                          ])),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
+                            child: Text(seats <= 5 ? '⚠️ $seats seats left' : '$seats seats',
+                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                          ),
+                        ]),
+                        const SizedBox(height: 16),
+                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(fromCode, style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900, height: 1.0)),
+                            Text(fromCity, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                          ]),
+                          Expanded(child: Column(children: [
+                            if (duration != null) Text(duration, style: const TextStyle(color: Colors.white60, fontSize: 11)),
+                            Row(children: [
+                              Expanded(child: Container(height: 1, color: Colors.white30)),
+                              const Padding(padding: EdgeInsets.symmetric(horizontal: 6),
+                                  child: Icon(Icons.flight, color: Colors.white60, size: 16)),
+                              Expanded(child: Container(height: 1, color: Colors.white30)),
+                            ]),
+                            if (depTime.isNotEmpty)
+                              Text(depTime, style: const TextStyle(color: _kOrange, fontSize: 11, fontWeight: FontWeight.w700)),
+                          ])),
+                          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                            Text(toCode, style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900, height: 1.0)),
+                            Text(toCity, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                          ]),
+                        ]),
+                        if (depDate.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Container(height: 1, color: Colors.white12),
+                          const SizedBox(height: 10),
+                          Row(children: [
+                            const Icon(Icons.calendar_today, color: Colors.white60, size: 13),
+                            const SizedBox(width: 6),
+                            Text(depDate, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                          ]),
+                        ],
+                      ]),
                     ),
-                  ])
-                : const SizedBox.shrink(), // dialog is open
+                    const SizedBox(height: 20),
+
+                    // ── Seat class selector ──────────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const Text('Seat Class', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 12),
+                        Row(children: [
+                          _ClassChip(label: 'Economy', value: 'economy', selected: _seatClass,
+                              onTap: () => setState(() => _seatClass = 'economy')),
+                          const SizedBox(width: 10),
+                          _ClassChip(label: 'Business', value: 'business', selected: _seatClass,
+                              onTap: () => setState(() => _seatClass = 'business')),
+                        ]),
+                      ]),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ── Passenger counters ────────────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: Column(children: [
+                        _counter('Adults', '12+ years', _adults, 1, 9,
+                            () => setState(() => _adults++),
+                            () => setState(() => _adults--)),
+                        const Divider(color: Colors.white12, height: 24),
+                        _counter('Children', '2–11 years', _children, 0, 8,
+                            () => setState(() => _children++),
+                            () => setState(() => _children--)),
+                        const Divider(color: Colors.white12, height: 24),
+                        _counter('Infants', 'Under 2 years', _infants, 0, _adults,
+                            () => setState(() => _infants++),
+                            () => setState(() => _infants--)),
+                      ]),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ── Price summary + Continue button ─────────────────────
+                    Row(children: [
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Total Estimate', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                        Text('\$${_totalPrice.toStringAsFixed(0)}',
+                            style: const TextStyle(color: _kOrange, fontSize: 28, fontWeight: FontWeight.w900)),
+                        Text('${_adults + _children + _infants} pax · ${_seatClass == 'business' ? 'Business' : 'Economy'}',
+                            style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                      ])),
+                      const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        onPressed: _openBooking,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _kOrange,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                        label: const Text('Continue', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                      ),
+                    ]),
+                    const SizedBox(height: 30),
+                  ]),
+                ),
+    );
+  }
+}
+
+// Helper extension workaround
+extension _Let<T> on T {
+  R let2<R>(R Function(T) fn) => fn(this);
+}
+
+class _CounterBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+  const _CounterBtn({required this.icon, this.onTap});
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      width: 32, height: 32,
+      decoration: BoxDecoration(
+        color: onTap == null ? Colors.white10 : Colors.white.withValues(alpha: 0.15),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, size: 16, color: onTap == null ? Colors.white24 : Colors.white),
+    ),
+  );
+}
+
+class _ClassChip extends StatelessWidget {
+  final String label, value, selected;
+  final VoidCallback onTap;
+  const _ClassChip({required this.label, required this.value, required this.selected, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    final active = value == selected;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+        decoration: BoxDecoration(
+          color: active ? _kOrange : Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: active ? _kOrange : Colors.white24),
+        ),
+        child: Text(label, style: TextStyle(
+          color: active ? Colors.white : Colors.white70,
+          fontSize: 13, fontWeight: active ? FontWeight.w800 : FontWeight.w500,
+        )),
       ),
     );
   }
