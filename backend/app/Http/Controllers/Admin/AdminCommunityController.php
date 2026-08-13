@@ -177,9 +177,17 @@ class AdminCommunityController extends Controller
     private function permanentlyDeletePost(CommunityPost $post): void
     {
         foreach ($post->media as $m) {
-            $this->deleteFileIfLocal($m->getRawOriginal('url'));
-            $this->deleteFileIfLocal($m->getRawOriginal('thumbnail'));
-            $this->deleteFileIfLocal($m->getRawOriginal('hls_url'));
+            // For video posts: delete the entire HLS folder (contains .ts segments,
+            // master.m3u8, optimized.mp4, thumb.jpg). The folder lives at
+            // community/posts/{hash}/ — extract it from hls_url or url.
+            $hlsUrl = $m->getRawOriginal('hls_url');
+            if ($hlsUrl) {
+                $this->deleteVideoFolder($hlsUrl);
+            } else {
+                // Image/non-video: delete individual files
+                $this->deleteFileIfLocal($m->getRawOriginal('url'));
+                $this->deleteFileIfLocal($m->getRawOriginal('thumbnail'));
+            }
         }
         foreach ($post->comments()->withTrashed()->get() as $c) {
             $this->deleteFileIfLocal($c->getRawOriginal('media_url'));
@@ -187,6 +195,45 @@ class AdminCommunityController extends Controller
 
         $post->reports()->delete();
         $post->forceDelete();
+    }
+
+    /**
+     * Delete the entire video folder for a post. Video posts store all their
+     * files (HLS segments, optimized.mp4, thumb.jpg) inside a single hashed
+     * folder: community/posts/{hash}/. Deleting the folder in one shot is both
+     * faster and guaranteed to leave no orphaned files behind.
+     *
+     * Accepts hls_url in any of these formats:
+     *   - community/posts/{hash}/hls/master.m3u8  (raw relative path)
+     *   - https://esahlan.com/api/v1/media?f=community/posts/{hash}/hls/master.m3u8
+     */
+    private function deleteVideoFolder(?string $hlsUrl): void
+    {
+        if (!$hlsUrl) return;
+        try {
+            $path = $hlsUrl;
+            if (str_starts_with($hlsUrl, 'http://') || str_starts_with($hlsUrl, 'https://')) {
+                $query = parse_url($hlsUrl, PHP_URL_QUERY);
+                if (!$query) return;
+                parse_str($query, $params);
+                $path = $params['f'] ?? null;
+                if (!$path) return;
+            }
+            // path is like: community/posts/{hash}/hls/master.m3u8
+            // Walk up two levels to get community/posts/{hash}/
+            $folder = dirname(dirname($path)); // removes /hls/master.m3u8
+            if (!str_starts_with($folder, 'community/posts/') || $folder === 'community/posts') {
+                // Safety guard: never delete the root posts folder
+                Log::warning("Admin delete: suspicious HLS folder path '{$folder}' — skipped.");
+                return;
+            }
+            if (Storage::disk('public')->exists($folder)) {
+                Storage::disk('public')->deleteDirectory($folder);
+                Log::info("Admin delete: removed video folder {$folder}");
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Admin delete: failed to remove video folder for {$hlsUrl} — " . $e->getMessage());
+        }
     }
 
     /**
