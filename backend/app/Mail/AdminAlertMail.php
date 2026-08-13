@@ -42,15 +42,9 @@ class AdminAlertMail extends Mailable
                     ->addTextHeader('X-MSMail-Priority', 'High')
                     ->addTextHeader('Importance', 'high')
                     ->addTextHeader('X-Mailer', 'eSahlan-AdminAlert/1.0')
-                    // Unique reference prevents Gmail grouping these as spam threads
+                    // Unique message reference — prevents Gmail grouping
+                    // multiple alerts into one thread (which lowers trust score)
                     ->addTextHeader('X-Entity-Ref-ID', uniqid('esahlan-', true));
-
-                // Reply-To = to address — Gmail rarely spam-filters when
-                // reply-to matches recipient (self-to-self pattern)
-                foreach ($message->getTo() as $addr) {
-                    $message->replyTo($addr->getAddress(), 'eSahlan Admin');
-                    break; // first recipient only
-                }
             });
     }
 }
