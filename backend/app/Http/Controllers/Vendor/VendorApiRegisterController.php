@@ -6,6 +6,7 @@ use App\Models\District;
 use App\Models\Module;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\AdminAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -117,6 +118,39 @@ class VendorApiRegisterController extends Controller
         if ($request->email) {
             try { Mail::to($request->email)->send(new WelcomeVendorMail($request->name)); } catch (\Exception) {}
         }
+
+        // Admin alert — new vendor/agent registration from vendor app
+        try {
+            $roleLabel = match($roleType) {
+                'efood'       => 'eFood Restaurant',
+                'eshop'       => 'eShop Vendor',
+                'erent_agent' => 'eRent Agent',
+                default       => ucfirst($roleType),
+            };
+
+            if ($isAgent) {
+                // eRent agent — uses new_agent key (same as delivery agent, unified alert)
+                AdminAlertService::send('new_agent', "🏠 New eRent Agent: {$request->name}", [
+                    'Name'        => $request->name,
+                    'Phone'       => $phone ?? 'N/A',
+                    'Email'       => $request->email ?? 'N/A',
+                    'Role'        => 'eRent Agent',
+                    'District ID' => $request->district_id,
+                    'Registered At' => now()->format('d M Y H:i') . ' UTC',
+                ]);
+            } else {
+                AdminAlertService::send('new_vendor', "🏪 New {$roleLabel}: {$request->store_name}", [
+                    'Store Name'  => $request->store_name,
+                    'Owner'       => $request->name,
+                    'Phone'       => $phone ?? 'N/A',
+                    'Email'       => $request->email ?? 'N/A',
+                    'Module'      => $roleLabel,
+                    'District ID' => $request->district_id,
+                    'Action'      => 'Review at Admin → Vendors → Pending',
+                    'Registered At' => now()->format('d M Y H:i') . ' UTC',
+                ]);
+            }
+        } catch (\Throwable) {}
 
         $msg = $isAgent
             ? 'Agent account submitted! Admin will review and approve your application within 24 hours.'
