@@ -360,7 +360,7 @@ class _SidebarNavItemState extends State<_SidebarNavItem> {
                   '/home'      => l.home,
                   '/orders'    => l.orders,
                   '/wallet'    => 'ePay',
-                  '/community' => l.community,
+                  '/community' => 'eSpace',
                   '/chat'      => l.messages,
                   '/profile'   => l.profile,
                   _            => widget.dest.label,
