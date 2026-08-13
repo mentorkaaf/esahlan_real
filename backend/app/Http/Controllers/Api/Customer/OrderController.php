@@ -358,7 +358,9 @@ class OrderController extends Controller
                 'Status'       => ucfirst($order->status),
                 'Placed At'    => now()->format('d M Y H:i') . ' UTC',
             ]);
-        } catch (\Throwable) {}
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('[AdminAlert][new_order] ' . $e->getMessage());
+        }
 
         // ── New order emails ─────────────────────────────────────────────
         try {

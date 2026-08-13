@@ -23,7 +23,11 @@ use Illuminate\Support\Facades\Mail;
  */
 class AdminAlertService
 {
-    /** Send an admin alert email. Non-blocking — queued. */
+    /**
+     * Send an admin alert email — synchronous (no queue).
+     * Admin alerts are low-volume; synchronous guarantees delivery
+     * even if queue workers are restarting or lagging.
+     */
     public static function send(string $key, string $subject, array $data = [], ?string $rateKey = null, int $rateTtl = 0): void
     {
         try {
@@ -44,11 +48,13 @@ class AdminAlertService
 
             if (!$adminEmail) return;
 
-            // Queue the email
+            // Send synchronously — guarantees delivery regardless of queue state
             $emails = array_map('trim', explode(',', $adminEmail));
+            $sent   = false;
             foreach ($emails as $email) {
                 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) continue;
-                Mail::to($email)->queue(new AdminAlertMail($key, $subject, $data, $setting->label ?? $key));
+                Mail::to($email)->send(new AdminAlertMail($key, $subject, $data, $setting->label ?? $key));
+                $sent = true;
             }
 
             // Log it
@@ -56,19 +62,19 @@ class AdminAlertService
                 'alert_key' => $key,
                 'subject'   => $subject,
                 'to_email'  => $adminEmail,
-                'status'    => 'sent',
+                'status'    => $sent ? 'sent' : 'failed',
                 'sent_at'   => now(),
             ]);
 
         } catch (\Throwable $e) {
-            Log::error("AdminAlertService: failed to send alert [{$key}] — " . $e->getMessage());
+            Log::error("AdminAlertService [{$key}]: " . $e->getMessage());
             try {
                 DB::table('admin_alert_logs')->insert([
                     'alert_key' => $key,
                     'subject'   => $subject,
                     'to_email'  => 'unknown',
                     'status'    => 'failed',
-                    'error'     => $e->getMessage(),
+                    'error'     => substr($e->getMessage(), 0, 500),
                     'sent_at'   => now(),
                 ]);
             } catch (\Throwable) {}

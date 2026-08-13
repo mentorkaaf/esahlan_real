@@ -764,7 +764,7 @@ class _RestaurantCard extends ConsumerWidget {
                 Row(children: [
                   Expanded(
                     child: Text(r['name'] ?? '',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText),
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                   if (badgeLabel != null) ...[
@@ -785,22 +785,22 @@ class _RestaurantCard extends ConsumerWidget {
                 ]),
                 const SizedBox(height: 3),
                 // Type / cuisine
-                Text(r['cuisine_type'] ?? r['categories'] ?? 'Restaurant',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                Text(r['cuisine_type'] ?? r['vendor_type'] ?? r['categories'] ?? '',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF444444), fontWeight: FontWeight.w500),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 6),
                 // Distance + delivery time
                 Row(children: [
                   if (distStr != null) ...[
-                    Icon(Icons.near_me_rounded, size: 12, color: Colors.grey[400]),
+                    Icon(Icons.near_me_rounded, size: 13, color: Colors.grey[600]),
                     const SizedBox(width: 3),
-                    Text(distStr, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                    Text(distStr, style: const TextStyle(fontSize: 12, color: Color(0xFF555555), fontWeight: FontWeight.w600)),
                     const SizedBox(width: 10),
                   ],
                   if (r['delivery_time'] != null) ...[
-                    Icon(Icons.access_time_rounded, size: 12, color: Colors.grey[400]),
+                    Icon(Icons.access_time_rounded, size: 13, color: Colors.grey[600]),
                     const SizedBox(width: 3),
-                    Text('${r['delivery_time']} min', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                    Text('${r['delivery_time']} min', style: const TextStyle(fontSize: 12, color: Color(0xFF555555), fontWeight: FontWeight.w500)),
                   ],
                 ]),
                 const SizedBox(height: 4),
@@ -905,17 +905,17 @@ class _RestaurantListTile extends StatelessWidget {
           Expanded(child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(r['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText)),
+              Text(r['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
               const SizedBox(height: 3),
-              Text(r['cuisine_type'] ?? 'Restaurant', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+              Text(r['cuisine_type'] ?? r['vendor_type'] ?? r['categories'] ?? '', style: const TextStyle(fontSize: 13, color: Color(0xFF444444), fontWeight: FontWeight.w500)),
               const SizedBox(height: 6),
               Row(children: [
                 if (r['rating'] != null) ...[
                   const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
-                  Text(' ${r['rating']}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text(' ${r['rating']}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF333333))),
                 ],
                 if (r['delivery_time'] != null)
-                  Text('${r['rating'] != null ? '  •  ' : ''}${r['delivery_time']} min', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                  Text('${r['rating'] != null ? '  •  ' : ''}${r['delivery_time']} min', style: const TextStyle(fontSize: 13, color: Color(0xFF555555), fontWeight: FontWeight.w500)),
               ]),
             ]),
           )),
@@ -1252,7 +1252,7 @@ class _RestaurantDetailPageState extends ConsumerState<_RestaurantDetailPage> wi
                 SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(r['name'] ?? '', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.colors.navyText)),
-                  Text(r['cuisine_type'] ?? r['description'] ?? 'Restaurant', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                  Text(r['cuisine_type'] ?? r['vendor_type'] ?? r['description'] ?? '', style: const TextStyle(fontSize: 14, color: Color(0xFF555555), fontWeight: FontWeight.w500)),
                 ])),
                 if (r['rating'] != null)
                   Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -3436,21 +3436,21 @@ class _FavRestaurantTile extends ConsumerWidget {
           Expanded(child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(r['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(r['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText), maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 3),
-              Text(r['vendor_type'] ?? 'Restaurant', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+              Text(r['cuisine_type'] ?? r['vendor_type'] ?? r['categories'] ?? '', style: const TextStyle(fontSize: 13, color: Color(0xFF444444), fontWeight: FontWeight.w500)),
               const SizedBox(height: 6),
               Row(children: [
                 if (r['rating'] != null) ...[
-                  const Icon(Icons.star_rounded, color: Colors.amber, size: 13),
+                  const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
                   const SizedBox(width: 2),
-                  Text('${r['rating']}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text('${r['rating']}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF333333))),
                   const SizedBox(width: 8),
                 ],
                 if (r['delivery_time'] != null) ...[
-                  Icon(Icons.access_time_rounded, color: Colors.grey[400], size: 12),
+                  Icon(Icons.access_time_rounded, color: Colors.grey[600], size: 13),
                   const SizedBox(width: 2),
-                  Text('${r['delivery_time']} min', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                  Text('${r['delivery_time']} min', style: const TextStyle(fontSize: 13, color: Color(0xFF555555), fontWeight: FontWeight.w500)),
                 ],
               ]),
             ]),
