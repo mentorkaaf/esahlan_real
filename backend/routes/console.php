@@ -114,7 +114,7 @@ Schedule::command('efood:send-campaign-notifications --urgent')
 // Template & timing controlled from Admin → Notifications → Auto Notifications.
 // Deep link: /eticket/flight/:id → opens passenger selection screen.
 Schedule::command('eticket:send-flight-notifications')
-    ->everyTwelveHours()
+    ->twiceDaily(8, 20)   // 08:00 and 20:00 — twice per day, 12h apart
     ->name('eticket:flight-notifications')
     ->withoutOverlapping()
     ->runInBackground();
