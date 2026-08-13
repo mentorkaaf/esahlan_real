@@ -53,7 +53,11 @@ class AdminAlertService
             $sent   = false;
             foreach ($emails as $email) {
                 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) continue;
-                Mail::to($email)->send(new AdminAlertMail($key, $subject, $data, $setting->label ?? $key));
+                // replyTo = admin's own email so Gmail sees it as self-to-self pattern
+                // (improves trust score — Gmail rarely spam-filters emails to yourself)
+                Mail::to($email)
+                    ->replyTo($email, 'eSahlan Admin')
+                    ->send(new AdminAlertMail($key, $subject, $data, $setting->label ?? $key));
                 $sent = true;
             }
 
