@@ -422,11 +422,17 @@ class _FloatingNavBar extends StatelessWidget {
               '/home'      => l.home,
               '/orders'    => l.orders,
               '/wallet'    => 'ePay',
-              '/community' => l.community,
+              '/community' => 'eSpace',
               '/chat'      => l.messages,
               '/profile'   => l.profile,
               _            => dest.label,
             };
+
+            // eSpace — special elevated pill that stands out from other nav items
+            if (dest.path == '/community') {
+              return _ESpaceNavItem(active: active, onTap: () => context.go(dest.path));
+            }
+
             return Expanded(
               child: _NavPill(
                 icon:       dest.icon,
@@ -437,6 +443,88 @@ class _FloatingNavBar extends StatelessWidget {
               ),
             );
           }),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── eSpace special nav item ──────────────────────────────────────────────────
+
+class _ESpaceNavItem extends StatelessWidget {
+  final bool active;
+  final VoidCallback onTap;
+  const _ESpaceNavItem({required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          height: 66,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutBack,
+                  width:  active ? 50 : 44,
+                  height: active ? 50 : 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: active
+                          ? [_kOrange, const Color(0xFFFF6B00)]
+                          : [const Color(0xFF2A3557), const Color(0xFF1E2A4A)],
+                    ),
+                    boxShadow: active
+                        ? [
+                            BoxShadow(
+                              color: _kOrange.withValues(alpha: 0.55),
+                              blurRadius: 16,
+                              spreadRadius: 1,
+                              offset: const Offset(0, 3),
+                            ),
+                          ]
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                    border: Border.all(
+                      color: active
+                          ? Colors.white.withValues(alpha: 0.3)
+                          : _kOrange.withValues(alpha: 0.35),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Icon(
+                    active ? Icons.hub_rounded : Icons.hub_outlined,
+                    color: active ? Colors.white : _kOrange.withValues(alpha: 0.85),
+                    size: active ? 24 : 22,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 200),
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: active ? _kOrange : Colors.white.withValues(alpha: 0.55),
+                    letterSpacing: 0.4,
+                  ),
+                  child: const Text('eSpace'),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
