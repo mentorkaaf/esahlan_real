@@ -83,24 +83,28 @@ final _ordersProvider     = FutureProvider((_) => _svc.getFoodOrders());
 
 // ── Restaurant list provider ──────────────────────────────────────────
 // KEY must be a String (not Map!) so Riverpod can do proper equality checks.
-// Encoding: "search|category|featured|topRated"
+// Encoding: "search|category|featured|topRated|lat|lng"
 final _restaurantsProvider = FutureProvider.family<dynamic, String>((_, key) {
   final parts = key.split('|');
   final search   = parts[0].isEmpty ? null : parts[0];
   final category = parts[1].isEmpty ? null : parts[1];
   final featured = parts[2] == '1' ? true  : (parts[2] == '0' ? false : null);
   final topRated = parts[3] == '1' ? true  : (parts[3] == '0' ? false : null);
+  final lat      = parts.length > 4 && parts[4].isNotEmpty ? double.tryParse(parts[4]) : null;
+  final lng      = parts.length > 5 && parts[5].isNotEmpty ? double.tryParse(parts[5]) : null;
   return _svc.getRestaurants(
     search:   search,
     category: category,
     featured: featured,
     topRated: topRated,
+    lat: lat,
+    lng: lng,
   );
 });
 
 /// Build the string key for [_restaurantsProvider].
-String _rKey({String? search, String? category, bool? featured, bool? topRated}) =>
-    '${search ?? ""}|${category ?? ""}|${featured == null ? "" : featured ? "1" : "0"}|${topRated == null ? "" : topRated ? "1" : "0"}';
+String _rKey({String? search, String? category, bool? featured, bool? topRated, double? lat, double? lng}) =>
+    '${search ?? ""}|${category ?? ""}|${featured == null ? "" : featured ? "1" : "0"}|${topRated == null ? "" : topRated ? "1" : "0"}|${lat?.toStringAsFixed(5) ?? ""}|${lng?.toStringAsFixed(5) ?? ""}';
 
 final _restaurantProvider = FutureProvider.family<dynamic, int>((_, id) =>
     _svc.getRestaurant(id));
@@ -326,6 +330,8 @@ class _HomeTab extends ConsumerStatefulWidget {
 class _HomeTabState extends ConsumerState<_HomeTab> {
   final _searchCtrl = TextEditingController();
   String _selectedCat = '';
+  double? _lat;
+  double? _lng;
 
   @override
   void initState() {
@@ -340,6 +346,14 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
         if (list.isNotEmpty) {
           final ids = list.map((r) => (r['id'] as num?)?.toInt()).whereType<int>().toList();
           ref.read(_favProvider.notifier).setAll(ids);
+        }
+      } catch (_) {}
+      // Silently get last known GPS for distance display on restaurant cards.
+      // Uses cached position — no permission prompt, no blocking.
+      try {
+        final pos = await Geolocator.getLastKnownPosition();
+        if (pos != null && mounted) {
+          setState(() { _lat = pos.latitude; _lng = pos.longitude; });
         }
       } catch (_) {}
     });
@@ -360,8 +374,8 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
         SliverToBoxAdapter(child: _buildSearch(context, l)),
         SliverToBoxAdapter(child: _BannerSlider()),
         SliverToBoxAdapter(child: _buildCategories(l)),
-        SliverToBoxAdapter(child: _buildSection(l.popularRestaurants, featured: true, l: l)),
-        SliverToBoxAdapter(child: _buildSection(l.topRated, topRated: true, l: l)),
+        SliverToBoxAdapter(child: _buildSection(l.popularRestaurants, featured: true, l: l, lat: _lat, lng: _lng)),
+        SliverToBoxAdapter(child: _buildSection(l.topRated, topRated: true, l: l, lat: _lat, lng: _lng)),
         const SliverToBoxAdapter(child: _NearYouSection()),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
@@ -514,11 +528,13 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
     );
   }
 
-  Widget _buildSection(String title, {bool featured = false, bool topRated = false, required AppL10n l}) {
+  Widget _buildSection(String title, {bool featured = false, bool topRated = false, required AppL10n l, double? lat, double? lng}) {
     final restaurants = ref.watch(_restaurantsProvider(_rKey(
       featured: featured,
       topRated: topRated,
       category: _selectedCat.isEmpty ? null : _selectedCat,
+      lat: lat,
+      lng: lng,
     )));
 
     return Padding(

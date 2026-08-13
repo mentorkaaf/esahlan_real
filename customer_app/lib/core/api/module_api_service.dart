@@ -38,12 +38,15 @@ class ModuleApiService {
 
   Future<dynamic> getFoodBanners()    => _get('/efood/banners');
   Future<dynamic> getFoodCategories() => _get('/efood/categories');
-  Future<dynamic> getRestaurants({String? search, String? category, bool? featured, bool? topRated}) =>
+  Future<dynamic> getRestaurants({String? search, String? category, bool? featured, bool? topRated, double? lat, double? lng}) =>
       _get('/efood/restaurants', params: {
         if (search    != null) 'search':     search,
         if (category  != null) 'category':   category,
         if (featured  != null) 'featured':   featured ? 1 : 0,
         if (topRated  != null) 'top_rated':  topRated  ? 1 : 0,
+        if (lat != null && lng != null) 'lat': lat,
+        if (lat != null && lng != null) 'lng': lng,
+        if (lat != null && lng != null) 'radius': 50, // 50km — wide enough to cover the city
       });
 
   /// Near You — GPS mode: sorted by real distance from user's coords.
