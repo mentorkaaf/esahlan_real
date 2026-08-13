@@ -428,6 +428,13 @@ class AdminEFoodController extends Controller
         return back()->with('success', 'Category deleted.');
     }
 
+    public function categoryBulkDestroy(Request $request)
+    {
+        $ids = $request->validate(['ids' => 'required|array', 'ids.*' => 'integer'])['ids'];
+        Category::whereIn('id', $ids)->delete();
+        return response()->json(['success' => true, 'deleted' => count($ids)]);
+    }
+
     public function categoryAssign(Request $request, $id)
     {
         $request->validate(['vendor_ids' => 'required|array', 'vendor_ids.*' => 'integer|exists:vendors,id']);

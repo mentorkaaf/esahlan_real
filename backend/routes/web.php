@@ -644,6 +644,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
                 Route::patch('/categories/{id}',           [$ef, 'categoryUpdate'])->name('category.update');
                 Route::delete('/categories/{id}',          [$ef, 'categoryDestroy'])->name('category.destroy');
                 Route::post('/categories/{id}/assign',     [$ef, 'categoryAssign'])->name('category.assign');
+                Route::delete('/categories-bulk',          [$ef, 'categoryBulkDestroy'])->name('category.bulk-destroy');
                 // Food Items
                 Route::post('/items',                      [$ef, 'itemStore'])->name('item.store');
                 Route::patch('/items/{id}',                [$ef, 'itemUpdate'])->name('item.update');

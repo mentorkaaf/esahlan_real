@@ -182,19 +182,39 @@
         <span class="text-muted" style="font-size:13px;">
             Global food categories shown on the app home page (Pizza, Burger, Chicken, etc.)
         </span>
-        <button class="btn btn-primary btn-sm" onclick="openModal('addCategoryModal')">
-            <i class="fas fa-plus"></i> Add Category
-        </button>
+        <div style="display:flex;gap:8px;align-items:center;">
+            {{-- Bulk delete toolbar (hidden until selection) --}}
+            <div id="cat-bulk-bar" style="display:none;align-items:center;gap:8px;background:#fff1f1;border:1px solid #fca5a5;padding:6px 12px;border-radius:8px;">
+                <span id="cat-bulk-count" style="font-size:13px;font-weight:600;color:#dc2626;">0 selected</span>
+                <button class="btn btn-danger btn-sm" onclick="catBulkDelete()">
+                    <i class="fas fa-trash"></i> Delete Selected
+                </button>
+                <button class="btn btn-sm btn-outline" onclick="catClearSelection()" style="font-size:12px;">Cancel</button>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openModal('addCategoryModal')">
+                <i class="fas fa-plus"></i> Add Category
+            </button>
+        </div>
     </div>
     <div class="card">
         <div class="table-responsive">
-            <table>
+            <table id="cat-table">
                 <thead>
-                    <tr><th>Icon/Image</th><th>Category Name</th><th>Sort</th><th>Status</th><th>Scope</th><th>Actions</th></tr>
+                    <tr>
+                        <th style="width:36px;">
+                            <input type="checkbox" id="cat-check-all" onchange="catToggleAll(this.checked)"
+                                style="width:16px;height:16px;cursor:pointer;" title="Select all">
+                        </th>
+                        <th>Icon/Image</th><th>Category Name</th><th>Sort</th><th>Status</th><th>Scope</th><th>Actions</th>
+                    </tr>
                 </thead>
                 <tbody>
                     @forelse($categories as $c)
                     <tr>
+                        <td>
+                            <input type="checkbox" class="cat-check" value="{{ $c->id }}" onchange="catUpdateBar()"
+                                style="width:16px;height:16px;cursor:pointer;">
+                        </td>
                         <td>
                             @if($c->image)
                                 <img src="{{ $c->image }}" style="width:44px;height:44px;border-radius:10px;object-fit:cover;" onerror="this.style.display='none'">
@@ -224,13 +244,70 @@
                         </td>
                     </tr>
                     @empty
-                    <tr><td colspan="6" style="text-align:center;padding:30px;color:#888;">No categories yet.</td></tr>
+                    <tr><td colspan="7" style="text-align:center;padding:30px;color:#888;">No categories yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script>
+function catUpdateBar() {
+    const checked = document.querySelectorAll('.cat-check:checked');
+    const bar = document.getElementById('cat-bulk-bar');
+    const countEl = document.getElementById('cat-bulk-count');
+    const allCb = document.getElementById('cat-check-all');
+    const total = document.querySelectorAll('.cat-check').length;
+
+    bar.style.display = checked.length > 0 ? 'flex' : 'none';
+    countEl.textContent = checked.length + ' selected';
+    allCb.indeterminate = checked.length > 0 && checked.length < total;
+    allCb.checked = checked.length === total && total > 0;
+}
+
+function catToggleAll(checked) {
+    document.querySelectorAll('.cat-check').forEach(cb => cb.checked = checked);
+    catUpdateBar();
+}
+
+function catClearSelection() {
+    document.querySelectorAll('.cat-check').forEach(cb => cb.checked = false);
+    document.getElementById('cat-check-all').checked = false;
+    catUpdateBar();
+}
+
+function catBulkDelete() {
+    const ids = [...document.querySelectorAll('.cat-check:checked')].map(cb => cb.value);
+    if (!ids.length) return;
+    if (!confirm('Delete ' + ids.length + ' categories? This cannot be undone.')) return;
+
+    fetch('{{ route("admin.module-data.efood.category.bulk-destroy") }}', {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ ids })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            // Remove deleted rows from DOM
+            ids.forEach(id => {
+                const cb = document.querySelector('.cat-check[value="' + id + '"]');
+                if (cb) cb.closest('tr').remove();
+            });
+            catClearSelection();
+        } else {
+            alert('Error deleting categories.');
+        }
+    })
+    .catch(() => alert('Network error. Please try again.'));
+}
+</script>
+@endpush
 
 {{-- ═══════════════════════════════════════════════════════════════ --}}
 {{-- TAB: FOOD ITEMS --}}
