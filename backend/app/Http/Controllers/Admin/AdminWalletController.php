@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Customer\WalletController;
 use App\Models\Wallet;
 use App\Models\User;
+use App\Services\AdminAlertService;
 use App\Services\FcmService;
 use App\Helpers\AppSettings;
 use Illuminate\Http\Request;
@@ -647,6 +648,8 @@ class AdminWalletController extends Controller
 
     public function approveTopupRequest(Request $request, int $id)
     {
+        $req = DB::table('wallet_topup_requests')->where('id', $id)->first();
+
         $result = WalletController::approveTopup($id, auth()->id(), $request->admin_note);
 
         if (!$result['success']) {
@@ -655,14 +658,37 @@ class AdminWalletController extends Controller
 
         // FCM notify user
         try {
-            $req  = DB::table('wallet_topup_requests')->where('id', $id)->first();
-            $user = DB::table('users')->where('id', $req->user_id)->first();
+            $user = $req ? DB::table('users')->where('id', $req->user_id)->first() : null;
             if ($user?->fcm_token) {
                 FcmService::sendToToken($user->fcm_token,
                     '✅ Top-up Approved',
                     "\${$req->amount} has been added to your ePay wallet.",
                     ['type' => 'wallet_topup', 'deep_link' => '/wallet']
                 );
+            }
+        } catch (\Throwable) {}
+
+        // Admin alert — Mobile Pay top-up approved (different admin / audit log)
+        try {
+            if ($req) {
+                $u      = DB::table('users')->where('id', $req->user_id)->first();
+                $amount = (float) $req->amount;
+                AdminAlertService::send('wallet_topup', "✅ Mobile Pay Top-up Approved: " . ($u->name ?? 'User'), [
+                    'Customer'   => ($u->name ?? 'N/A') . ' (' . ($u->phone ?? 'N/A') . ')',
+                    'Amount'     => '$' . number_format($amount, 2),
+                    'Gateway'    => 'Mobile Pay (Admin Approved)',
+                    'Approved By'=> auth()->user()?->name ?? 'Admin',
+                    'Approved At'=> now()->format('d M Y H:i') . ' UTC',
+                ], 'mob_topup_' . $req->user_id, 60);
+                // Large transaction check
+                if ($amount >= 200) {
+                    AdminAlertService::send('large_transaction', "🚨 Large Top-up \${$amount}: " . ($u->name ?? 'User'), [
+                        'Customer'   => ($u->name ?? 'N/A') . ' (' . ($u->phone ?? 'N/A') . ')',
+                        'Amount'     => '$' . number_format($amount, 2),
+                        'Type'       => 'Mobile Pay Top-up (Admin Approved)',
+                        'Flagged At' => now()->format('d M Y H:i') . ' UTC',
+                    ], 'large_mob_topup_' . $req->user_id, 300);
+                }
             }
         } catch (\Throwable) {}
 

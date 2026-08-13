@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Global;
 use App\Http\Controllers\Controller;
 use App\Models\Global\GlobalOrder;
 use App\Models\Global\GlobalPayment;
+use App\Services\AdminAlertService;
 use App\Services\Global\StripeService;
 use App\Services\Global\PayPalService;
 use App\Services\FcmService;
@@ -75,6 +76,19 @@ class AdminGlobalOrdersController extends Controller
             // Send review request notification immediately on delivery
             if ($newStatus === 'delivered') {
                 $this->sendDeliveryReviewRequest($order->fresh());
+            }
+            // Admin alert for cancelled global orders
+            if ($newStatus === 'cancelled') {
+                try {
+                    $fresh = $order->fresh();
+                    AdminAlertService::send('order_cancelled', "❌ Global Order Cancelled: {$fresh->order_number}", [
+                        'Order #'      => $fresh->order_number,
+                        'Customer'     => trim($fresh->ship_first_name . ' ' . $fresh->ship_last_name),
+                        'Total'        => '$' . number_format($fresh->total, 2),
+                        'Module'       => 'GLOBAL STORE',
+                        'Cancelled At' => now()->format('d M Y H:i') . ' UTC',
+                    ], 'global_cancelled_' . $fresh->id, 300);
+                } catch (\Throwable) {}
             }
         }
 
@@ -168,6 +182,19 @@ class AdminGlobalOrdersController extends Controller
             } else {
                 (new PayPalService())->refund($payment, $amount);
             }
+
+            // Admin alert — global store refund issued
+            try {
+                $refundAmt = $amount ?? (float) $order->total;
+                AdminAlertService::send('global_order_refunded', "💸 Global Refund: {$order->order_number}", [
+                    'Order #'     => $order->order_number,
+                    'Customer'    => trim($order->ship_first_name . ' ' . $order->ship_last_name),
+                    'Refund Amt'  => '$' . number_format($refundAmt, 2),
+                    'Order Total' => '$' . number_format($order->total, 2),
+                    'Gateway'     => strtoupper($payment->method ?? 'N/A'),
+                    'Refunded At' => now()->format('d M Y H:i') . ' UTC',
+                ], 'global_refund_' . $order->id, 300);
+            } catch (\Throwable) {}
 
             return back()->with('success', 'Refund processed successfully.');
         } catch (\Exception $e) {

@@ -157,6 +157,18 @@ class GlobalCheckoutController extends Controller
         // Send FCM push notification
         $this->sendOrderFcm($user, $fresh, 'confirmed');
 
+        // Admin alert — global store order confirmed
+        try {
+            AdminAlertService::send('new_global_order', "🛍 Global Order: {$fresh->order_number}", [
+                'Order #'    => $fresh->order_number,
+                'Customer'   => trim($fresh->ship_first_name . ' ' . $fresh->ship_last_name) . ' (' . ($user->email ?? 'N/A') . ')',
+                'Total'      => '$' . number_format($fresh->total, 2),
+                'Payment'    => 'Stripe',
+                'Ship To'    => $fresh->ship_city . ', ' . $fresh->ship_country_name,
+                'Placed At'  => now()->format('d M Y H:i') . ' UTC',
+            ]);
+        } catch (\Throwable) {}
+
         return response()->json([
             'success'  => true,
             'order_id' => $order->id,
@@ -186,6 +198,18 @@ class GlobalCheckoutController extends Controller
 
         // Send FCM push notification
         $this->sendOrderFcm($user, $fresh, 'confirmed');
+
+        // Admin alert — global store order confirmed via PayPal
+        try {
+            AdminAlertService::send('new_global_order', "🛍 Global Order: {$fresh->order_number}", [
+                'Order #'    => $fresh->order_number,
+                'Customer'   => trim($fresh->ship_first_name . ' ' . $fresh->ship_last_name) . ' (' . ($user->email ?? 'N/A') . ')',
+                'Total'      => '$' . number_format($fresh->total, 2),
+                'Payment'    => 'PayPal',
+                'Ship To'    => $fresh->ship_city . ', ' . $fresh->ship_country_name,
+                'Placed At'  => now()->format('d M Y H:i') . ' UTC',
+            ]);
+        } catch (\Throwable) {}
 
         return response()->json([
             'success'  => true,

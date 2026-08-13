@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Models\Wallet;
+use App\Services\AdminAlertService;
 use App\Services\ReferralService;
 use App\Services\WaafiPayService;
 use Illuminate\Http\Request;
@@ -167,6 +168,27 @@ class WalletController extends Controller
             $wallet->credit($amount, 'Wallet top-up via Waafi Pay', 'payment_transactions', $ptxId, 'waafi');
             DB::table('payment_transactions')->where('id', $ptxId)->update(['transaction_type' => 'topup_done', 'updated_at' => now()]);
 
+            // Admin alert — wallet top-up
+            try {
+                AdminAlertService::send('wallet_topup', "💰 Wallet Top-up: {$user->name}", [
+                    'Customer'   => $user->name . ' (' . ($user->phone ?? 'N/A') . ')',
+                    'Amount'     => '$' . number_format($amount, 2),
+                    'Gateway'    => 'Waafi Pay',
+                    'Reference'  => $reference,
+                    'Topped At'  => now()->format('d M Y H:i') . ' UTC',
+                ], 'wallet_topup_' . $user->id, 60);
+                // Large transaction alert (>$200)
+                if ($amount >= 200) {
+                    AdminAlertService::send('large_transaction', "🚨 Large Top-up \${$amount}: {$user->name}", [
+                        'Customer'  => $user->name . ' (' . ($user->phone ?? 'N/A') . ')',
+                        'Amount'    => '$' . number_format($amount, 2),
+                        'Type'      => 'Wallet Top-up (Waafi Pay)',
+                        'Reference' => $reference,
+                        'Flagged At'=> now()->format('d M Y H:i') . ' UTC',
+                    ], 'large_topup_' . $user->id, 300);
+                }
+            } catch (\Throwable) {}
+
             return response()->json([
                 'success'   => true,
                 'status'    => 'success',
@@ -215,6 +237,29 @@ class WalletController extends Controller
                     'updated_at'       => now(),
                 ]);
             });
+
+            // Admin alert — wallet top-up confirmed via polling
+            try {
+                $amount = (float) $ptx->amount;
+                $u      = DB::table('users')->where('id', $ptx->user_id)->first();
+                AdminAlertService::send('wallet_topup', "💰 Wallet Top-up: " . ($u->name ?? 'User'), [
+                    'Customer'  => ($u->name ?? 'N/A') . ' (' . ($u->phone ?? 'N/A') . ')',
+                    'Amount'    => '$' . number_format($amount, 2),
+                    'Gateway'   => 'Waafi Pay (poll confirmed)',
+                    'Reference' => $reference,
+                    'Topped At' => now()->format('d M Y H:i') . ' UTC',
+                ], 'wallet_topup_' . $ptx->user_id, 60);
+                if ($amount >= 200) {
+                    AdminAlertService::send('large_transaction', "🚨 Large Top-up \${$amount}: " . ($u->name ?? 'User'), [
+                        'Customer'  => ($u->name ?? 'N/A') . ' (' . ($u->phone ?? 'N/A') . ')',
+                        'Amount'    => '$' . number_format($amount, 2),
+                        'Type'      => 'Wallet Top-up (Waafi Pay)',
+                        'Reference' => $reference,
+                        'Flagged At'=> now()->format('d M Y H:i') . ' UTC',
+                    ], 'large_topup_' . $ptx->user_id, 300);
+                }
+            } catch (\Throwable) {}
+
             $wallet = Wallet::getOrCreateFor('App\\Models\\User', $ptx->user_id);
             return response()->json(['success' => true, 'status' => 'success', 'message' => 'Wallet credited', 'balance' => (float) $wallet->balance]);
         }
@@ -278,6 +323,17 @@ class WalletController extends Controller
                 ['type' => 'topup_pending', 'amount' => (string)$amount, 'deep_link' => '/wallet']
             );
         }
+
+        // Admin alert — Mobile Pay top-up request needs review
+        try {
+            AdminAlertService::send('wallet_topup_request', "📋 Mobile Pay Top-up Request: {$user->name}", [
+                'Customer'    => $user->name . ' (' . ($user->phone ?? 'N/A') . ')',
+                'Amount'      => '$' . number_format($amount, 2),
+                'Sender Phone'=> $request->sender_phone ?? 'N/A',
+                'Action'      => 'Review at Admin → ePay → Top-up Requests',
+                'Requested At'=> now()->format('d M Y H:i') . ' UTC',
+            ], 'topup_req_' . $user->id, 120); // max 1 per user per 2 min
+        } catch (\Throwable) {}
 
         return response()->json([
             'success' => true,
@@ -401,6 +457,18 @@ class WalletController extends Controller
                 'updated_at'     => now(),
             ]);
         });
+
+        // Admin alert — withdrawal request
+        try {
+            AdminAlertService::send('withdrawal_request', "💸 Withdrawal Request: {$user->name}", [
+                'Customer'      => $user->name . ' (' . ($user->phone ?? 'N/A') . ')',
+                'Amount'        => '$' . number_format($amount, 2),
+                'Method'        => strtoupper($request->payment_method),
+                'Account'       => $request->account_number . ' (' . $request->account_name . ')',
+                'Action'        => 'Review at Admin → ePay → Withdrawals',
+                'Requested At'  => now()->format('d M Y H:i') . ' UTC',
+            ], 'withdrawal_' . $user->id, 300); // max 1 per user per 5 min
+        } catch (\Throwable) {}
 
         return response()->json(['success' => true, 'message' => 'Withdrawal request submitted. Admin will process within 24 hours.']);
     }
