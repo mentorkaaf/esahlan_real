@@ -405,16 +405,25 @@ class FirebaseService {
     }
   }
 
-  Future<void> _uploadToken(String token) async {
+  // ── Token upload timestamp key ───────────────────────────────────────────
+  static const _kTokenUploadedAt = 'fcm_token_uploaded_at';
+  static const _kForceUploadIntervalH = 12; // re-upload every 12 hours minimum
+
+  /// Upload token to server.
+  /// [force] = always upload even if token matches local cache.
+  ///   Used on app-resume so a server-side token clear gets repaired.
+  Future<void> _uploadToken(String token, {bool force = false}) async {
     final stored = await LocalStorage.getString(AppConstants.fcmTokenKey);
-    if (stored == token) {
+    if (!force && stored == token) {
       debugPrint('[FCM] Token unchanged — skipping upload');
       return;
     }
     try {
       await ApiClient.instance.post('/auth/fcm-token', data: {'fcm_token': token});
       await LocalStorage.saveString(AppConstants.fcmTokenKey, token);
-      debugPrint('[FCM] Token uploaded ✓');
+      // Record last upload time
+      await LocalStorage.saveString(_kTokenUploadedAt, DateTime.now().toIso8601String());
+      debugPrint('[FCM] Token uploaded ✓ (force=$force)');
     } catch (e) {
       // Clear cached token so next launch retries
       await LocalStorage.remove(AppConstants.fcmTokenKey);
@@ -422,16 +431,30 @@ class FirebaseService {
     }
   }
 
-  /// Force-refresh and re-upload token (called on app resume).
+  /// Called on every app resume (AppLifecycleState.resumed).
+  ///
+  /// Always re-uploads if the token hasn't been confirmed to the server in the
+  /// last [_kForceUploadIntervalH] hours — this repairs server-side token clears
+  /// (403 SenderId mismatch / 404 UNREGISTERED auto-clear) where the local
+  /// cache still holds the old token so the "unchanged" check would incorrectly
+  /// skip the upload and leave the DB token null.
   Future<void> refreshTokenIfNeeded() async {
     if (!_initialized) return;
     try {
       final token = await _fcm.getToken();
       if (token == null) return;
-      final stored = await LocalStorage.getString(AppConstants.fcmTokenKey);
-      if (stored != token) {
-        debugPrint('[FCM] Token changed — re-uploading');
-        await _uploadToken(token);
+
+      final stored    = await LocalStorage.getString(AppConstants.fcmTokenKey);
+      final lastStr   = await LocalStorage.getString(_kTokenUploadedAt);
+      final lastAt    = lastStr != null ? DateTime.tryParse(lastStr) : null;
+      final stale     = lastAt == null ||
+          DateTime.now().difference(lastAt).inHours >= _kForceUploadIntervalH;
+
+      if (stored != token || stale) {
+        // Token changed OR 12h since last server confirm — force upload.
+        // This repairs any server-side clear without waiting for onTokenRefresh.
+        debugPrint('[FCM] Resume upload — changed:${stored != token} stale:$stale');
+        await _uploadToken(token, force: true);
       }
     } catch (e) {
       debugPrint('[FCM] Refresh error: $e');
@@ -441,6 +464,7 @@ class FirebaseService {
   /// Call after login so the current user's token is registered.
   Future<void> registerTokenAfterLogin() async {
     await LocalStorage.remove(AppConstants.fcmTokenKey);
+    await LocalStorage.remove(_kTokenUploadedAt);
     await _registerToken();
   }
 

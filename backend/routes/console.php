@@ -118,6 +118,16 @@ Schedule::command('admin:server-health-check')
     ->withoutOverlapping()
     ->runInBackground();
 
+// ── FCM token validation — daily at 03:00 ───────────────────────────────
+// Sends a silent ping to every stored FCM token.
+// Invalid tokens (403 SenderId mismatch, 404 UNREGISTERED) are auto-cleared.
+// Users re-register their token on next app open.
+Schedule::command('fcm:validate-tokens')
+    ->dailyAt('03:00')
+    ->name('fcm:validate-tokens')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // ── eTicket: upcoming flight notifications ────────────────────────────────
 // Every 12 hours (twice/day). Sends to all users with FCM.
 // Template & timing controlled from Admin → Notifications → Auto Notifications.

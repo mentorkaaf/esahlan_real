@@ -134,6 +134,71 @@ class FcmService
         return true;
     }
 
+    /**
+     * Send a silent data-only ping to validate a token.
+     * No notification is shown to the user.
+     * Returns true if the token is valid, false if invalid (auto-cleared).
+     */
+    public static function sendSilentPing(string $fcmToken): bool
+    {
+        if (empty($fcmToken)) return false;
+
+        $sa = self::loadServiceAccount();
+        if (!$sa) return false;
+
+        $accessToken = self::getAccessToken($sa);
+        if (!$accessToken) return false;
+
+        $payload = [
+            'message' => [
+                'token' => $fcmToken,
+                // data-only: no 'notification' block → no visible notification
+                'data'  => ['type' => 'ping', 'ts' => (string) time()],
+                'android' => [
+                    'priority' => 'normal', // normal priority — won't wake screen
+                    'direct_boot_ok' => true,
+                ],
+            ],
+        ];
+
+        $url = 'https://fcm.googleapis.com/v1/projects/' . $sa['project_id'] . '/messages:send';
+        $ch  = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $accessToken,
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS     => json_encode($payload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_SSL_VERIFYPEER => false,
+        ]);
+        $resp = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($code !== 200) {
+            // Re-use existing auto-clear logic
+            if ($code === 404 || $code === 403) {
+                $parsed  = json_decode($resp, true);
+                $errCode = $parsed['error']['details'][0]['errorCode']
+                    ?? $parsed['error']['status'] ?? '';
+                $clearable = in_array($errCode, ['UNREGISTERED', 'SENDER_ID_MISMATCH', 'PERMISSION_DENIED'])
+                    || str_contains(strtolower($parsed['error']['message'] ?? ''), 'senderid mismatch');
+                if ($clearable) {
+                    \App\Models\User::where('fcm_token', $fcmToken)->update(['fcm_token' => null]);
+                    \App\Models\Vendor::where('vendor_fcm_token', $fcmToken)->update(['vendor_fcm_token' => null]);
+                    \App\Models\Global\GlobalUser::where('fcm_token', $fcmToken)->update(['fcm_token' => null]);
+                    Log::info('[FCM] Ping cleared stale token', ['code' => $code, 'token' => '...' . substr($fcmToken, -20)]);
+                }
+            }
+            return false;
+        }
+
+        return true;
+    }
+
     // ── Send to multiple tokens ───────────────────────────────────────────────
     public static function sendToTokens(
         array   $fcmTokens,
